@@ -13,7 +13,7 @@ from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
-from feast.inference_helpers import infer_entity_value_type_from_feature_views
+from feast.inference import infer_entity_value_type_from_feature_views
 from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals

@@ -26,7 +26,7 @@ from feast import utils
 from feast.entity import Entity
 from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
-from feast.inference_helpers import infer_entity_value_type_from_feature_views
+from feast.inference import infer_entity_value_type_from_feature_views
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.serving.ServingService_pb2 import (

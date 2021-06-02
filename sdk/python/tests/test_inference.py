@@ -7,7 +7,7 @@ from utils.data_source_utils import (
 
 from feast import Entity, ValueType
 from feast.feature_view import FeatureView
-from feast.inference_helpers import infer_entity_value_type_from_feature_views
+from feast.inference import infer_entity_value_type_from_feature_views
 
 
 @pytest.mark.integration
