@@ -26,6 +26,7 @@ from feast import utils
 from feast.entity import Entity
 from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
+from feast.inference import infer_entity_value_type_from_feature_views
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -219,19 +220,19 @@ class FeatureStore:
             objects = [objects]
         assert isinstance(objects, list)
 
-        views_to_update = []
-        entities_to_update = []
-        for ob in objects:
-            if isinstance(ob, FeatureView):
-                self._registry.apply_feature_view(ob, project=self.project)
-                views_to_update.append(ob)
-            elif isinstance(ob, Entity):
-                self._registry.apply_entity(ob, project=self.project)
-                entities_to_update.append(ob)
-            else:
-                raise ValueError(
-                    f"Unknown object type ({type(ob)}) provided as part of apply() call"
-                )
+        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        entities_to_update = infer_entity_value_type_from_feature_views(
+            [ob for ob in objects if isinstance(ob, Entity)], views_to_update
+        )
+
+        if len(views_to_update) + len(entities_to_update) != len(objects):
+            raise ValueError("Unknown object type provided as part of apply() call")
+
+        for view in views_to_update:
+            self._registry.apply_feature_view(view, project=self.project)
+        for ent in entities_to_update:
+            self._registry.apply_entity(ent, project=self.project)
+
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=[],

@@ -16,13 +16,12 @@ from datetime import timedelta
 from tempfile import mkstemp
 
 import pytest
-from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
-from fixtures.data_source_fixtures import (
+from pytest_lazyfixture import lazy_fixture
+from utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_ref_arg,
 )
-from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
@@ -313,22 +312,6 @@ def test_apply_feature_view_integration(test_feature_store):
     test_feature_store.delete_feature_view("my_feature_view_1")
     feature_views = test_feature_store.list_feature_views()
     assert len(feature_views) == 0
-
-
-@pytest.mark.integration
-@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
-def test_data_source_ts_col_inference_success(dataframe_source):
-    with prep_file_source(df=dataframe_source) as file_source:
-        actual_file_source = file_source.event_timestamp_column
-        actual_bq_1 = simple_bq_source_using_table_ref_arg(
-            dataframe_source
-        ).event_timestamp_column
-        actual_bq_2 = simple_bq_source_using_query_arg(
-            dataframe_source
-        ).event_timestamp_column
-        expected = "ts_1"
-
-        assert expected == actual_file_source == actual_bq_1 == actual_bq_2
 
 
 @pytest.mark.parametrize(

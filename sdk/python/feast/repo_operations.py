@@ -13,6 +13,7 @@ from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
+from feast.inference import infer_entity_value_type_from_feature_views
 from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
@@ -128,6 +129,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+    repo = ParsedRepo(
+        feature_tables=repo.feature_tables,
+        entities=infer_entity_value_type_from_feature_views(
+            repo.entities, repo.feature_views
+        ),
+        feature_views=repo.feature_views,
+    )
     sys.dont_write_bytecode = False
     for entity in repo.entities:
         registry.apply_entity(entity, project=project)
