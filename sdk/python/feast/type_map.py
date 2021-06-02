@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Union
 
@@ -438,8 +439,14 @@ def pa_to_value_type(pa_type: object):
 
 
 def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
+    value_type = (
+        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
+    )
+
+    if re.match(r"^timestamp", value_type):
+        return ValueType.INT64
+
     type_map = {
-        "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
         "int64": ValueType.INT64,
         "double": ValueType.DOUBLE,
@@ -455,9 +462,7 @@ def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
         "list<item: binary>": ValueType.BYTES_LIST,
         "list<item: bool>": ValueType.BOOL_LIST,
     }
-    return type_map[
-        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
-    ]
+    return type_map[value_type]
 
 
 def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
