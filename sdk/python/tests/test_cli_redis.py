@@ -32,6 +32,9 @@ def test_basic() -> None:
         provider: redis
         offline_store:
             type: bigquery
+        online_store:
+            redis_type: redis
+            redis_connection_string: localhost:6379,db=0
         """
             )
         )
