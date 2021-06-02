@@ -34,7 +34,6 @@ _logger = logging.getLogger(__name__)
 class Telemetry:
     def __init__(self):
         self._telemetry_enabled: bool = False
-        self._telemetry_id: Optional[str] = None
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
@@ -79,6 +78,7 @@ class Telemetry:
         return self._telemetry_id
 
     def log(self, function_name: str):
+        self.check_env_and_configure()
         if self._telemetry_enabled and self.telemetry_id:
             if function_name == "get_online_features":
                 if self._telemetry_counter["get_online_features"] % 10000 != 0:
@@ -103,6 +103,7 @@ class Telemetry:
             return
 
     def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
+        self.check_env_and_configure()
         if self._telemetry_enabled and self.telemetry_id:
             json = {
                 "error_type": error_type,
