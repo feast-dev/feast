@@ -16,13 +16,12 @@ from datetime import timedelta
 from tempfile import mkstemp
 
 import pytest
-from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
-from fixtures.data_source_fixtures import (
+from pytest_lazyfixture import lazy_fixture
+from utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_ref_arg,
 )
-from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource

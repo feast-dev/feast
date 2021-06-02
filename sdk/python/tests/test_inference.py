@@ -1,7 +1,5 @@
 import pytest
-from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
-from fixtures.data_source_fixtures import simple_dataset_2  # noqa: F401
-from fixtures.data_source_fixtures import (
+from utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_ref_arg,
@@ -13,7 +11,7 @@ from feast.inference_helpers import infer_entity_value_type_from_feature_views
 
 
 @pytest.mark.integration
-def test_data_source_ts_col_inference_success(simple_dataset_1):  # noqa: F811
+def test_data_source_ts_col_inference_success(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1) as file_source:
         actual_file_source = file_source.event_timestamp_column
         actual_bq_1 = simple_bq_source_using_table_ref_arg(
@@ -27,9 +25,7 @@ def test_data_source_ts_col_inference_success(simple_dataset_1):  # noqa: F811
         assert expected == actual_file_source == actual_bq_1 == actual_bq_2
 
 
-def test_infer_entity_value_type_from_feature_views(
-    simple_dataset_1, simple_dataset_2  # noqa: F811
-):
+def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dataset_2):
     with prep_file_source(
         df=simple_dataset_1, event_timestamp_column="ts_1"
     ) as file_source, prep_file_source(
