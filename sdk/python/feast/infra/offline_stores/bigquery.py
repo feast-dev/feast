@@ -1,7 +1,7 @@
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Set
 
 import pandas
 import pyarrow
@@ -87,6 +87,10 @@ class BigQueryOfflineStore(OfflineStore):
 
         client = _get_bigquery_client()
 
+        expected_join_keys = _get_join_keys(project,
+                                            feature_views,
+                                            registry)
+
         if type(entity_df) is str:
             entity_df_job = client.query(entity_df)
             entity_df_result = entity_df_job.result()  # also starts job
@@ -94,6 +98,9 @@ class BigQueryOfflineStore(OfflineStore):
             entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
                 entity_df_result
             )
+            _assert_expected_columns_in_bigquery(expected_join_keys,
+                                                 entity_df_event_timestamp_col,
+                                                 entity_df_result)
 
             entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
         elif isinstance(entity_df, pandas.DataFrame):
@@ -102,6 +109,10 @@ class BigQueryOfflineStore(OfflineStore):
             )
 
             assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+
+            _assert_expected_columns_in_dataframe(expected_join_keys,
+                                                  entity_df_event_timestamp_col,
+                                                  entity_df)
 
             table_id = _upload_entity_df_into_bigquery(
                 config.project, config.offline_store.dataset, entity_df, client
@@ -130,6 +141,53 @@ class BigQueryOfflineStore(OfflineStore):
 
         job = BigQueryRetrievalJob(query=query, client=client)
         return job
+
+
+def _assert_expected_columns_in_dataframe(join_keys: Set[str],
+                                          entity_df_event_timestamp_col: str,
+                                          entity_df: pandas.DataFrame):
+    entity_df_columns = set(entity_df.columns.values)
+    expected_columns = join_keys.copy()
+    expected_columns.add(entity_df_event_timestamp_col)
+
+    missing_keys = expected_columns - entity_df_columns
+
+    if len(missing_keys) != 0:
+        raise ValueError(
+            f"The entity dataframe you have provided must contain columns {expected_columns}, "
+            f"but {missing_keys} were missing."
+        )
+
+
+def _assert_expected_columns_in_bigquery(join_keys: Set[str],
+                                         entity_df_event_timestamp_col: str,
+                                         entity_df_result):
+    entity_columns = set()
+    for schema_field in entity_df_result.schema:
+        entity_columns.add(schema_field.name)
+
+    expected_columns = join_keys.copy()
+    expected_columns.add(entity_df_event_timestamp_col)
+
+    missing_keys = expected_columns - entity_columns
+
+    if len(missing_keys) != 0:
+        raise ValueError(
+            f"The query you have provided must contain columns {expected_columns}, "
+            f"but {missing_keys} were missing."
+        )
+
+
+def _get_join_keys(project: str,
+                   feature_views: List[FeatureView],
+                   registry: Registry) -> Set[str]:
+    join_keys = set()
+    for feature_view in feature_views:
+        entities = feature_view.entities
+        for entity_name in entities:
+            entity = registry.get_entity(entity_name, project)
+            join_keys.add(entity.join_key)
+    return join_keys
 
 
 def _infer_event_timestamp_from_bigquery_query(entity_df_result) -> str:
