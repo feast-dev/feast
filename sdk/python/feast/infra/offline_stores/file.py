@@ -236,8 +236,7 @@ class FileOfflineStore(OfflineStore):
         # make driver_id a normal column again
         last_values_df.reset_index(inplace=True)
 
-        table = pyarrow.Table.from_pandas(
-            last_values_df[join_key_columns + feature_name_columns + ts_columns]
-        )
+        columns_to_extract = set(join_key_columns + feature_name_columns + ts_columns)
+        table = pyarrow.Table.from_pandas(last_values_df[columns_to_extract])
 
         return table
