@@ -212,6 +212,13 @@ class FileOfflineStore(OfflineStore):
                 created_timestamp_column
             ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
 
+        source_columns = set(source_df.columns)
+        if not set(join_key_columns).issubset(source_columns):
+            raise ValueError(
+                f"The DataFrame must have at least {set(join_key_columns)} columns present, "
+                f"but these were missing: {set(join_key_columns)- source_columns} "
+            )
+
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]
             if created_timestamp_column

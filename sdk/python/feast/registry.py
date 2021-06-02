@@ -132,7 +132,7 @@ class Registry:
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
-        raise EntityNotFoundException(project, name)
+        raise EntityNotFoundException(name, project=project)
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
