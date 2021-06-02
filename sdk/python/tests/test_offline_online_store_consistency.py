@@ -19,10 +19,10 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.repo_config import (
     DatastoreOnlineStoreConfig,
-    RepoConfig,
-    SqliteOnlineStoreConfig,
     RedisOnlineStoreConfig,
     RedisType,
+    RepoConfig,
+    SqliteOnlineStoreConfig,
 )
 from feast.value_type import ValueType
 
@@ -178,7 +178,6 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                     redis_type=RedisType.redis,
                     redis_connection_string="localhost:6379,db=0",
                 ),
-
             )
             fs = FeatureStore(config=config)
             fs.apply([fv, e])
