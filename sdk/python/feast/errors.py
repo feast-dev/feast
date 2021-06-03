@@ -67,3 +67,11 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
         super().__init__(
             f"Offline Store '{offline_store_name}' does not support data source '{data_source_name}'"
         )
+
+
+class FeastEntityDFMissingColumnsError(Exception):
+    def __init__(self, expected, missing):
+        super().__init__(
+            f"The entity dataframe you have provided must contain columns {expected}, "
+            f"but {missing} were missing."
+        )

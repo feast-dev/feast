@@ -7,6 +7,7 @@ import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
 
+from feast import errors
 from feast.data_source import BigQuerySource, DataSource
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
@@ -151,10 +152,7 @@ def _assert_expected_columns_in_dataframe(
     missing_keys = expected_columns - entity_df_columns
 
     if len(missing_keys) != 0:
-        raise ValueError(
-            f"The entity dataframe you have provided must contain columns {expected_columns}, "
-            f"but {missing_keys} were missing."
-        )
+        raise errors.FeastEntityDFMissingColumnsError(expected_columns, missing_keys)
 
 
 def _assert_expected_columns_in_bigquery(
@@ -170,10 +168,7 @@ def _assert_expected_columns_in_bigquery(
     missing_keys = expected_columns - entity_columns
 
     if len(missing_keys) != 0:
-        raise ValueError(
-            f"The query you have provided must contain columns {expected_columns}, "
-            f"but {missing_keys} were missing."
-        )
+        raise errors.FeastEntityDFMissingColumnsError(expected_columns, missing_keys)
 
 
 def _get_join_keys(
