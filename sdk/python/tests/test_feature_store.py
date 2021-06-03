@@ -158,14 +158,18 @@ def test_apply_entity_integration(test_feature_store):
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
-def test_apply_feature_view_success(test_feature_store):
+@pytest.mark.parametrize("file_source_type", ["file", "s3"])
+def test_apply_feature_view_success(test_feature_store, file_source_type):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
-        file_url="file://feast/*",
+        file_url=f"{file_source_type}://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
         date_partition_column="date_partition_col",
+        s3_endpoint_override="https://localhost:9000"
+        if file_source_type == "s3"
+        else None,
     )
 
     fv1 = FeatureView(
