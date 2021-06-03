@@ -154,7 +154,10 @@ class FileOfflineStore(OfflineStore):
 
                 df_to_join.sort_values(by=right_entity_key_sort_columns, inplace=True)
                 df_to_join.drop_duplicates(
-                    right_entity_key_sort_columns, keep="last", ignore_index=True, inplace=True
+                    right_entity_key_sort_columns,
+                    keep="last",
+                    ignore_index=True,
+                    inplace=True,
                 )
 
                 # Select only the columns we need to join from the feature dataframe
