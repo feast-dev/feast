@@ -108,10 +108,10 @@ def test_e2e_local() -> None:
 
         # Test a failure case when the parquet file doesn't include a join key
         with runner.local_repo(
-                get_example_repo("example_feature_repo_with_entity_join_key.py").replace(
-                    "%PARQUET_PATH%", driver_stats_path
-                ),
-                "file",
+            get_example_repo("example_feature_repo_with_entity_join_key.py").replace(
+                "%PARQUET_PATH%", driver_stats_path
+            ),
+            "file",
         ) as store:
 
             assert store.repo_path is not None

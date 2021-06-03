@@ -80,9 +80,7 @@ class FeastEntityDFMissingColumnsError(Exception):
 
 
 class FeastJoinKeysDuringMaterialization(Exception):
-    def __init__(self,
-                 join_key_columns: Set[str],
-                 source_columns: Set[str]):
+    def __init__(self, join_key_columns: Set[str], source_columns: Set[str]):
         super().__init__(
             f"The DataFrame must have at least {join_key_columns} columns present, "
             f"but these were missing: {join_key_columns - source_columns} "

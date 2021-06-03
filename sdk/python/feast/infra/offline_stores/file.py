@@ -219,7 +219,9 @@ class FileOfflineStore(OfflineStore):
 
         source_columns = set(source_df.columns)
         if not set(join_key_columns).issubset(source_columns):
-            raise FeastJoinKeysDuringMaterialization(set(join_key_columns), source_columns)
+            raise FeastJoinKeysDuringMaterialization(
+                set(join_key_columns), source_columns
+            )
 
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]

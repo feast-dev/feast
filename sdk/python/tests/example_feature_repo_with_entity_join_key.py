@@ -11,10 +11,12 @@ driver_hourly_stats = FileSource(
 
 
 # The join key here is deliberately different from the parquet file to test the failure path.
-driver = Entity(name="driver_id",
-                value_type=ValueType.INT64,
-                description="driver id",
-                join_key="driver")
+driver = Entity(
+    name="driver_id",
+    value_type=ValueType.INT64,
+    description="driver id",
+    join_key="driver",
+)
 
 
 driver_hourly_stats_view = FeatureView(
