@@ -105,3 +105,26 @@ def test_e2e_local() -> None:
             assert r.returncode == 0
 
             _assert_online_features(store, driver_df, end_date)
+
+        # Test a failure case when the parquet file doesn't include a join key
+        with runner.local_repo(
+                get_example_repo("example_feature_repo_with_entity_join_key.py").replace(
+                    "%PARQUET_PATH%", driver_stats_path
+                ),
+                "file",
+        ) as store:
+
+            assert store.repo_path is not None
+
+            # feast materialize
+            returncode, output = runner.run_with_output(
+                [
+                    "materialize",
+                    start_date.isoformat(),
+                    (end_date - timedelta(days=7)).isoformat(),
+                ],
+                cwd=Path(store.repo_path),
+            )
+
+            assert returncode != 0
+            assert "feast.errors.FeastJoinKeysDuringMaterialization" in str(output)
