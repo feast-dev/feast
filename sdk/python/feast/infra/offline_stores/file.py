@@ -153,8 +153,9 @@ class FileOfflineStore(OfflineStore):
                     ]
 
                 df_to_join.sort_values(by=right_entity_key_sort_columns, inplace=True)
-                df_to_join = df_to_join.groupby(by=right_entity_key_columns).last()
-                df_to_join.reset_index(inplace=True)
+                df_to_join.drop_duplicates(
+                    right_entity_key_sort_columns, keep="last", ignore_index=True, inplace=True
+                )
 
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
@@ -231,10 +232,9 @@ class FileOfflineStore(OfflineStore):
             (source_df[event_timestamp_column] >= start_date)
             & (source_df[event_timestamp_column] < end_date)
         ]
-        last_values_df = filtered_df.groupby(by=join_key_columns).last()
-
-        # make driver_id a normal column again
-        last_values_df.reset_index(inplace=True)
+        last_values_df = filtered_df.drop_duplicates(
+            join_key_columns, keep="last", ignore_index=True
+        )
 
         columns_to_extract = set(join_key_columns + feature_name_columns + ts_columns)
         table = pyarrow.Table.from_pandas(last_values_df[columns_to_extract])
