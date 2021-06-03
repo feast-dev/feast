@@ -1,8 +1,12 @@
+import os
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional, Union
+from urllib.parse import urlparse
 
+import gcsfs
+import numpy
 import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
@@ -183,6 +187,29 @@ class BigQueryRetrievalJob(RetrievalJob):
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
+
+    def to_parquet(self, path: str, n_partitions: int = 10) -> None:
+        """
+            Write a Pandas DataFrame as parquet files in GCS.
+            :param path: The output directory to write the data in.
+            :param n_partitions: The number of partitions of output.
+        """
+        if urlparse(path).scheme == "gs":
+            fs = gcsfs.GCSFileSystem()
+        else:
+            fs = pyarrow.LocalFileSystem()
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+        df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
+        parquet_schema_from_pandas = pyarrow.Schema.from_pandas(df, preserve_index=False)
+
+        for i, split in enumerate(numpy.array_split(df, n_partitions)):
+            pyarrow.write_table(
+                pyarrow.Table.from_pandas(split, schema=parquet_schema_from_pandas),
+                os.path.join(path, f"part-{i:05d}.parquet"),
+                filesystem=fs,
+            )
 
 
 @dataclass(frozen=True)
