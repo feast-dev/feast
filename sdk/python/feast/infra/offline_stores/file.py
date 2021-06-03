@@ -107,7 +107,8 @@ class FileOfflineStore(OfflineStore):
 
                 # Read offline parquet data in pyarrow format
                 filesystem, path = FileOfflineStore.__prepare_path(
-                    feature_view.input.path
+                    feature_view.input.path,
+                    feature_view.input.file_options.s3_endpoint_override,
                 )
                 table = pyarrow.parquet.read_table(path, filesystem=filesystem)
 
@@ -227,9 +228,12 @@ class FileOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         assert isinstance(data_source, FileSource)
 
+<<<<<<< HEAD
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
-            filesystem, path = FileOfflineStore.__prepare_path(data_source.path)
+            filesystem, path = FileOfflineStore.__prepare_path(
+                data_source.path, data_source.file_options.s3_endpoint_override
+            )
             source_df = pd.read_parquet(path, filesystem=filesystem)
             # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
             source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
@@ -272,8 +276,9 @@ class FileOfflineStore(OfflineStore):
         return FileRetrievalJob(evaluation_function=evaluate_offline_job)
 
     @staticmethod
-    def __prepare_path(path: str):
-        if path.startswith(("s3://", "hdfs://")):
-            return fs.FileSystem.from_uri(path)
+    def __prepare_path(path: str, s3_endpoint_override: str):
+        if path.startswith("s3://"):
+            s3 = fs.S3FileSystem(endpoint_override=s3_endpoint_override)
+            return s3, path.replace("s3://", "")
         else:
             return None, path
