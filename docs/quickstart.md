@@ -254,5 +254,5 @@ This feature vector can be used for real-time inference, for example, in a model
 This quickstart covered the essential workflows of using Feast in your local environment. The next step is to `pip install "feast[gcp]"` and set `provider="gcp"` in your `feature_store.yaml` file and push your work to production deployment. You can also use the `feast init -t gcp` command in the CLI to initialize a feature repository with example features in the GCP environment.
 
 * See [Create a feature repository](how-to-guides/create-a-feature-repository.md) for more information on the workflows we covered.
-* Join our[ Slack group](https://slack.com) to talk to other Feast users and the maintainers!
+* Join our [Slack group](https://slack.feast.dev) to talk to other Feast users and the maintainers!
 
