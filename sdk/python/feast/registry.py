@@ -236,9 +236,7 @@ class Registry:
                     del registry_proto.feature_views[idx]
                     registry_proto.feature_views.append(feature_view_proto)
                     return registry_proto
-            raise ValueError(
-                f"A feature view with name {feature_view.name} in project {project} was not found."
-            )
+            raise FeatureViewNotFoundException(feature_view.name, project)
 
         self._registry_store.update_registry_proto(updater)
 
@@ -298,7 +296,7 @@ class Registry:
                 and feature_table_proto.spec.project == project
             ):
                 return FeatureTable.from_proto(feature_table_proto)
-        raise FeatureTableNotFoundException(project, name)
+        raise FeatureTableNotFoundException(name, project)
 
     def get_feature_view(self, name: str, project: str) -> FeatureView:
         """
@@ -340,7 +338,7 @@ class Registry:
                 ):
                     del registry_proto.feature_tables[idx]
                     return registry_proto
-            raise FeatureTableNotFoundException(project, name)
+            raise FeatureTableNotFoundException(name, project)
 
         self._registry_store.update_registry_proto(updater)
         return
