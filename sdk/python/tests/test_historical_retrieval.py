@@ -386,7 +386,9 @@ def test_historical_features_from_bigquery_sources(
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(temp_dir, "online_store.db"),
                     ),
-                    offline_store=BigQueryOfflineStoreConfig(type="bigquery",),
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery", dataset=bigquery_dataset
+                    ),
                 )
             )
         elif provider_type == "gcp":
@@ -397,7 +399,9 @@ def test_historical_features_from_bigquery_sources(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),
                     provider="gcp",
-                    offline_store=BigQueryOfflineStoreConfig(type="bigquery",),
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery", dataset=bigquery_dataset
+                    ),
                 )
             )
         elif provider_type == "gcp_custom_offline_config":
