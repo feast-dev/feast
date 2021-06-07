@@ -97,7 +97,7 @@ class FeatureView:
         self.name = name
         self.entities = entities
         self.features = features
-        self.tags = tags
+        self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
