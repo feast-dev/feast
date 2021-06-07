@@ -2,7 +2,9 @@ import os
 import time
 from datetime import datetime
 
+import pandas
 import pytest
+from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
@@ -109,6 +111,29 @@ def test_online() -> None:
         assert result["customer_profile__avg_orders_day"] == [1.0, 1.0]
         assert result["customer_profile__name"] == ["John", "John"]
         assert result["customer_driver_combined__trips"] == [7, 7]
+
+        # Test the dataframe conversion
+        result_df = store.get_online_features(
+            feature_refs=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
+        ).to_df()
+        expected_df = pandas.DataFrame(
+            {
+                "driver": [1, 1],
+                "customer": [5, 5],
+                "driver_locations__lon": ["1.0", "1.0"],
+                "customer_profile__avg_orders_day": [1.0, 1.0],
+                "customer_profile__name": ["John", "John"],
+                "customer_driver_combined__trips": [7, 7],
+            }
+        )
+        # Ignore the order of columns
+        assert_frame_equal(result_df, expected_df, check_like=True)
 
         # Ensure features are still in result when keys not found
         result = store.get_online_features(
