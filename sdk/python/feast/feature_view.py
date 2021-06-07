@@ -173,6 +173,7 @@ class FeatureView:
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
 
+        ttl_duration = None
         if self.ttl is not None:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
