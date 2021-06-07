@@ -637,6 +637,13 @@ class BigQuerySource(DataSource):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
         self._assert_table_exists()
 
+        if not self._table_exists():
+            raise NameError(
+                f"""
+                Unable to find table {table_ref} in BigQuery. Please check that table exists.
+                """
+            )
+
         super().__init__(
             event_timestamp_column,
             created_timestamp_column,
@@ -724,11 +731,16 @@ class BigQuerySource(DataSource):
 
         return name_type_pairs
 
+<<<<<<< HEAD
     def _assert_table_exists(self):
+=======
+    def _table_exists(self) -> bool:
+>>>>>>> f23e9d89... Initial commit to catch nonexistent table
         from google.api_core.exceptions import NotFound
         from google.cloud import bigquery
 
         client = bigquery.Client()
+<<<<<<< HEAD
 
         try:
             client.get_table(self.table_ref)
@@ -738,6 +750,13 @@ class BigQuerySource(DataSource):
                 Unable to find table {self.table_ref} in BigQuery. Please check that table exists.
                 """
             )
+=======
+        try:
+            client.get_table(self.table_ref)
+            return True
+        except NotFound:
+            return False
+>>>>>>> f23e9d89... Initial commit to catch nonexistent table
 
 
 class KafkaSource(DataSource):
