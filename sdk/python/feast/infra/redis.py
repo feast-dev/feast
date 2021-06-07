@@ -271,4 +271,4 @@ def _mmh3(key: str):
         https://stackoverflow.com/questions/13141787/convert-decimal-int-to-little-endian-string-x-x
     """
     key_hash = mmh3.hash(key, signed=False)
-    return bytes.fromhex(struct.pack("<Q", key_hash).hex().rstrip("0"))
+    return bytes.fromhex(struct.pack("<Q", key_hash).hex()[:8])
