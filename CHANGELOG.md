@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.10.7](https://github.com/feast-dev/feast/tree/v0.10.7) (2021-06-07)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.6...v0.10.7)
+
+**Fixed bugs:**
+
+- Fix race condition in historical e2e tests [\#1620](https://github.com/feast-dev/feast/pull/1620) ([woop](https://github.com/woop))
+
+**Merged pull requests:**
+
+- Use drop\_duplicates\(\) instead of groupby \(about 1.5~2x faster\) [\#1617](https://github.com/feast-dev/feast/pull/1617) ([rightx2](https://github.com/rightx2))
+- Use CONCAT\(\) instead of ROW\_NUMBER\(\) [\#1601](https://github.com/feast-dev/feast/pull/1601) ([MattDelac](https://github.com/MattDelac))  
+- Minor doc fix in the code snippet: Fix to reference the right instance for the retrieved job instance object [\#1599](https://github.com/feast-dev/feast/pull/1599) ([dmatrix](https://github.com/dmatrix))
+- Append nanoseconds to dataset name in test\_historical\_retrival to prevent tests stomping over each other [\#1593](https://github.com/feast-dev/feast/pull/1593) ([achals](https://github.com/achals))
+- Make start and end timestamps tz aware in the CLI [\#1590](https://github.com/feast-dev/feast/pull/1590) ([achals](https://github.com/achals))
+
 ## [v0.10.6](https://github.com/feast-dev/feast/tree/v0.10.6) (2021-05-27)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.5...v0.10.6)
