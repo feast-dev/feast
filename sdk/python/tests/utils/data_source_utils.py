@@ -54,3 +54,9 @@ def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuer
         query=f"SELECT * FROM {bq_source_using_table_ref.table_ref}",
         event_timestamp_column=event_timestamp_column,
     )
+
+
+def nonexistent_bq_source() -> BigQuerySource:
+    client = bigquery.Client()
+    table_ref = "project.dataset.nonexistent_table"
+    return BigQuerySource(table_ref=table_ref, event_timestamp_column="")
