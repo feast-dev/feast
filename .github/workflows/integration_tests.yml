@@ -42,5 +42,5 @@ jobs:
           files: ./coverage.xml
           flags: integrationtests
           env_vars: OS,PYTHON
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
