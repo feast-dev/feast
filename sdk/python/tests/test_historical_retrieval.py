@@ -14,7 +14,7 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 import feast.driver_test_data as driver_data
-from feast import utils
+from feast import errors, utils
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
@@ -454,8 +454,49 @@ def test_historical_features_from_bigquery_sources(
             check_dtype=False,
         )
 
+        timestamp_column = (
+            "e_ts"
+            if infer_event_timestamp_col
+            else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        )
+
+        entity_df_query_with_invalid_join_key = (
+            f"select order_id, driver_id, customer_id as customer, "
+            f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
+        )
+        # Rename the join key; this should now raise an error.
+        assertpy.assert_that(store.get_historical_features).raises(
+            errors.FeastEntityDFMissingColumnsError
+        ).when_called_with(
+            entity_df=entity_df_query_with_invalid_join_key,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+
         job_from_df = store.get_historical_features(
             entity_df=orders_df,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+
+        # Rename the join key; this should now raise an error.
+        orders_df_with_invalid_join_key = orders_df.rename(
+            {"customer_id": "customer"}, axis="columns"
+        )
+        assertpy.assert_that(store.get_historical_features).raises(
+            errors.FeastEntityDFMissingColumnsError
+        ).when_called_with(
+            entity_df=orders_df_with_invalid_join_key,
             feature_refs=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
