@@ -11,7 +11,8 @@ def test_existent_bq_source(simple_dataset_1):
 @pytest.mark.integration
 def test_nonexistent_bq_source():
     client = bigquery.Client()
-    table_ref = "project.dataset.nonexistent_table"
 
     with pytest.raises(NameError):
-        nonexistent_bq = BigQuerySource(table_ref=table_ref, event_timestamp_column="")
+        nonexistent_bq = BigQuerySource(
+            table_ref="project.dataset.nonexistent_table", event_timestamp_column=""
+        )
