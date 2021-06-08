@@ -35,17 +35,17 @@ PROJECT_NAME = "default"
 
 def generate_entities(date, infer_event_timestamp_col):
     end_date = date
-    before_start_date = end_date - timedelta(days=14)
+    before_start_date = end_date - timedelta(days=365)
     start_date = end_date - timedelta(days=7)
-    after_end_date = end_date + timedelta(days=7)
-    customer_entities = [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
-    driver_entities = [5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010]
+    after_end_date = end_date + timedelta(days=365)
+    customer_entities = list(range(1001, 1110))
+    driver_entities = list(range(5001, 5110))
     orders_df = driver_data.create_orders_df(
-        customer_entities,
-        driver_entities,
-        before_start_date,
-        after_end_date,
-        20,
+        customers=customer_entities,
+        drivers=driver_entities,
+        start_date=before_start_date,
+        end_date=after_end_date,
+        order_count=1000,
         infer_event_timestamp_col=infer_event_timestamp_col,
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
@@ -323,7 +323,7 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
     "infer_event_timestamp_col", [False, True],
 )
 def test_historical_features_from_bigquery_sources(
-    provider_type, infer_event_timestamp_col
+    provider_type, infer_event_timestamp_col, capsys
 ):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
@@ -438,7 +438,15 @@ def test_historical_features_from_bigquery_sources(
             ],
         )
 
+        start_time = datetime.utcnow()
         actual_df_from_sql_entities = job_from_sql.to_df()
+        end_time = datetime.utcnow()
+        with capsys.disabled():
+            print(
+                str(
+                    f"\nTime to execute job_from_df.to_df() = '{(end_time - start_time)}'"
+                )
+            )
 
         assert_frame_equal(
             expected_df.sort_values(
@@ -510,7 +518,15 @@ def test_historical_features_from_bigquery_sources(
                 f"{bigquery_dataset}.entity_df"
             )
 
+        start_time = datetime.utcnow()
         actual_df_from_df_entities = job_from_df.to_df()
+        end_time = datetime.utcnow()
+        with capsys.disabled():
+            print(
+                str(
+                    f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
+                )
+            )
 
         assert_frame_equal(
             expected_df.sort_values(
