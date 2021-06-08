@@ -635,18 +635,7 @@ class BigQuerySource(DataSource):
         query: Optional[str] = None,
     ):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
-<<<<<<< HEAD
         self._assert_table_exists()
-
-        if not self._table_exists():
-            raise NameError(
-                f"""
-                Unable to find table {table_ref} in BigQuery. Please check that table exists.
-                """
-            )
-=======
-        self._table_exists()
->>>>>>> c6935e99... clean up table_exists exception
 
         super().__init__(
             event_timestamp_column,
