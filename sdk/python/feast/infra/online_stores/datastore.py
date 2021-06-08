@@ -18,13 +18,13 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 
 import mmh3
 
-from feast import FeatureTable
+from feast import FeatureTable, utils
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -47,11 +47,11 @@ class DatastoreOnlineStore(OnlineStore):
     """
 
     @classmethod
-    def _initialize_client(cls, config: RepoConfig):
+    def _initialize_client(cls, online_config: DatastoreOnlineStoreConfig):
+
         try:
             return datastore.Client(
-                project=config.online_store.project_id,
-                namespace=config.online_store.namespace,
+                project=online_config.project_id, namespace=online_config.namespace,
             )
         except DefaultCredentialsError as e:
             raise FeastProviderLoginError(
@@ -70,10 +70,13 @@ class DatastoreOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        client = cls._initialize_client(config)
 
-        write_concurrency = config.online_store.write_concurrency
-        write_batch_size = config.online_store.write_batch_size
+        online_config = config.online_store
+        assert isinstance(online_config, DatastoreOnlineStoreConfig)
+        client = cls._initialize_client(online_config)
+
+        write_concurrency = online_config.write_concurrency
+        write_batch_size = online_config.write_batch_size
         feast_project = config.project
 
         pool = ThreadPool(processes=write_concurrency)
@@ -145,7 +148,10 @@ class DatastoreOnlineStore(OnlineStore):
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        client = cls._initialize_client(config)
+
+        online_config = config.online_store
+        assert isinstance(online_config, DatastoreOnlineStoreConfig)
+        client = cls._initialize_client(online_config)
 
         feast_project = config.project
 

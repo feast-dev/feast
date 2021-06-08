@@ -1,17 +1,13 @@
-import itertools
 from datetime import datetime
-from multiprocessing.pool import ThreadPool
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import mmh3
 import pandas
 from tqdm import tqdm
 
-from feast import FeatureTable, utils
+from feast import FeatureTable
 from feast.entity import Entity
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
@@ -47,6 +43,7 @@ class GcpProvider(Provider):
         self._write_batch_size = config.online_store.write_batch_size
 
         assert config.offline_store is not None
+        self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
 
@@ -168,7 +165,7 @@ class GcpProvider(Provider):
 
         with tqdm_builder(len(rows_to_write)) as pbar:
             self.online_write_batch(
-                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+                self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
     def get_historical_features(
