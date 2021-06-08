@@ -334,7 +334,6 @@ def test_historical_features_from_bigquery_sources(
         start_date,
     ) = generate_entities(start_date, infer_event_timestamp_col)
 
-    # bigquery_dataset = "test_hist_retrieval_static"
     bigquery_dataset = (
         f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(1000, 9999)}"
     )
@@ -452,13 +451,16 @@ def test_historical_features_from_bigquery_sources(
                 )
             )
 
+        assert sorted(expected_df.columns) == sorted(
+            actual_df_from_sql_entities.columns
+        )
         assert_frame_equal(
             expected_df.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
-            actual_df_from_sql_entities.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
+            actual_df_from_sql_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
             check_dtype=False,
         )
 
@@ -532,12 +534,13 @@ def test_historical_features_from_bigquery_sources(
                 )
             )
 
+        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
         assert_frame_equal(
             expected_df.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
-            actual_df_from_df_entities.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
+            actual_df_from_df_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
             check_dtype=False,
         )
