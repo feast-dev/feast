@@ -635,7 +635,7 @@ class BigQuerySource(DataSource):
         query: Optional[str] = None,
     ):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
-        self._table_exists()
+        self._assert_table_exists()
 
         super().__init__(
             event_timestamp_column,
@@ -724,7 +724,7 @@ class BigQuerySource(DataSource):
 
         return name_type_pairs
 
-    def _table_exists(self):
+    def _assert_table_exists(self):
         from google.api_core.exceptions import NotFound
         from google.cloud import bigquery
 
