@@ -115,10 +115,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     os.chdir(repo_path)
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
-    if not_valid_name(project):
+    if not is_valid_name(project):
         print(
             f"{project} is not valid. Project name should only have "
-            f"alphanumerical values and underscores."
+            f"alphanumerical values and underscores but not start with an underscore."
         )
         sys.exit(1)
     registry = Registry(
@@ -292,9 +292,9 @@ def init_repo(repo_name: str, template: str):
 
     from colorama import Fore, Style
 
-    if not_valid_name(repo_name):
+    if not is_valid_name(repo_name):
         raise BadParameter(
-            message="Name should be alphanumeric values and underscores",
+            message="Name should be alphanumeric values and underscores but not start with an underscore",
             param_hint="PROJECT_DIRECTORY",
         )
     repo_path = Path(os.path.join(Path.cwd(), repo_name))
@@ -349,9 +349,9 @@ def init_repo(repo_name: str, template: str):
     click.echo()
 
 
-def not_valid_name(name: str) -> bool:
-    """Test project or repo names. True if names have characters other than alphanumeric values and underscores"""
-    return re.compile(r"\W+").search(name) is not None
+def is_valid_name(name: str) -> bool:
+    """A name should be alphanumeric values and underscores but not start with an underscore"""
+    return not name.startswith("_") and re.compile(r"\W+").search(name) is None
 
 
 def replace_str_in_file(file_path, match_str, sub_str):
