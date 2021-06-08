@@ -34,7 +34,7 @@ def test_online() -> None:
             join_keys=["driver"], entity_values=[ValueProto(int64_val=1)]
         )
         provider.online_write_batch(
-            project=store.project,
+            config=store.config,
             table=driver_locations_fv,
             data=[
                 (
@@ -54,7 +54,7 @@ def test_online() -> None:
             join_keys=["customer"], entity_values=[ValueProto(int64_val=5)]
         )
         provider.online_write_batch(
-            project=store.project,
+            config=store.config,
             table=customer_profile_fv,
             data=[
                 (
@@ -76,7 +76,7 @@ def test_online() -> None:
             entity_values=[ValueProto(int64_val=5), ValueProto(int64_val=1)],
         )
         provider.online_write_batch(
-            project=store.project,
+            config=store.config,
             table=customer_driver_combined_fv,
             data=[
                 (

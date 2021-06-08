@@ -13,6 +13,7 @@ from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_config
+from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -47,6 +48,7 @@ class GcpProvider(Provider):
 
         assert config.offline_store is not None
         self.offline_store = get_offline_store_from_config(config.offline_store)
+        self.online_store = get_online_store_from_config(config.online_store)
 
     def _initialize_client(self):
         try:
@@ -108,46 +110,24 @@ class GcpProvider(Provider):
 
     def online_write_batch(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        client = self._initialize_client()
-
-        pool = ThreadPool(processes=self._write_concurrency)
-        pool.map(
-            lambda b: _write_minibatch(client, project, table, b, progress),
-            _to_minibatches(data, batch_size=self._write_batch_size),
-        )
+        self.online_store.online_write_batch(config, table, data, progress)
 
     def online_read(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        client = self._initialize_client()
+        result = self.online_store.online_read(config, table, entity_keys)
 
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        for entity_key in entity_keys:
-            document_id = compute_datastore_entity_id(entity_key)
-            key = client.key(
-                "Project", project, "Table", table.name, "Row", document_id
-            )
-            value = client.get(key)
-            if value is not None:
-                res = {}
-                for feature_name, value_bin in value["values"].items():
-                    val = ValueProto()
-                    val.ParseFromString(value_bin)
-                    res[feature_name] = val
-                result.append((value["event_ts"], res))
-            else:
-                result.append((None, None))
         return result
 
     def materialize_single_feature_view(
@@ -216,58 +196,6 @@ ProtoBatch = Sequence[
 ]
 
 
-def _to_minibatches(data: ProtoBatch, batch_size) -> Iterator[ProtoBatch]:
-    """
-    Split data into minibatches, making sure we stay under GCP datastore transaction size
-    limits.
-    """
-    iterable = iter(data)
-
-    while True:
-        batch = list(itertools.islice(iterable, batch_size))
-        if len(batch) > 0:
-            yield batch
-        else:
-            break
-
-
-def _write_minibatch(
-    client,
-    project: str,
-    table: Union[FeatureTable, FeatureView],
-    data: Sequence[
-        Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-    ],
-    progress: Optional[Callable[[int], Any]],
-):
-    entities = []
-    for entity_key, features, timestamp, created_ts in data:
-        document_id = compute_datastore_entity_id(entity_key)
-
-        key = client.key("Project", project, "Table", table.name, "Row", document_id,)
-
-        entity = datastore.Entity(
-            key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
-        )
-
-        entity.update(
-            dict(
-                key=entity_key.SerializeToString(),
-                values={k: v.SerializeToString() for k, v in features.items()},
-                event_ts=utils.make_tzaware(timestamp),
-                created_ts=(
-                    utils.make_tzaware(created_ts) if created_ts is not None else None
-                ),
-            )
-        )
-        entities.append(entity)
-    with client.transaction():
-        client.put_multi(entities)
-
-    if progress:
-        progress(len(entities))
-
-
 def _delete_all_values(client, key) -> None:
     """
     Delete all data under the key path in datastore.
@@ -280,13 +208,3 @@ def _delete_all_values(client, key) -> None:
 
         for entity in entities:
             client.delete(entity.key)
-
-
-def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
-    """
-    Compute Datastore Entity id given Feast Entity Key.
-
-    Remember that Datastore Entity is a concept from the Datastore data model, that has nothing to
-    do with the Entity concept we have in Feast.
-    """
-    return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()

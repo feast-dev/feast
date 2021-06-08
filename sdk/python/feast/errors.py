@@ -69,6 +69,13 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
         )
 
 
+class FeastOnlineStoreUnsupportedDataSource(Exception):
+    def __init__(self, online_store_name: str, data_source_name: str):
+        super().__init__(
+            f"Online Store '{online_store_name}' does not support data source '{data_source_name}'"
+        )
+
+
 class FeastEntityDFMissingColumnsError(Exception):
     def __init__(self, expected, missing):
         super().__init__(

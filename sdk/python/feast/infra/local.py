@@ -11,8 +11,8 @@ from tqdm import tqdm
 from feast import FeatureTable
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_config
+from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -31,6 +31,7 @@ class LocalProvider(Provider):
 
     def __init__(self, config: RepoConfig, repo_path: Path):
         assert config is not None
+        self.config = config
         assert isinstance(config.online_store, SqliteOnlineStoreConfig)
         assert config.offline_store is not None
         local_path = Path(config.online_store.path)
@@ -39,6 +40,7 @@ class LocalProvider(Provider):
         else:
             self._db_path = repo_path.joinpath(local_path)
         self.offline_store = get_offline_store_from_config(config.offline_store)
+        self.online_store = get_online_store_from_config(config.online_store)
 
     def _get_conn(self):
         Path(self._db_path).parent.mkdir(exist_ok=True)
@@ -77,88 +79,24 @@ class LocalProvider(Provider):
 
     def online_write_batch(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        conn = self._get_conn()
-
-        with conn:
-            for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(entity_key)
-                timestamp = _to_naive_utc(timestamp)
-                if created_ts is not None:
-                    created_ts = _to_naive_utc(created_ts)
-
-                for feature_name, val in values.items():
-                    conn.execute(
-                        f"""
-                            UPDATE {_table_id(project, table)}
-                            SET value = ?, event_ts = ?, created_ts = ?
-                            WHERE (entity_key = ? AND feature_name = ?)
-                        """,
-                        (
-                            # SET
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                            # WHERE
-                            entity_key_bin,
-                            feature_name,
-                        ),
-                    )
-
-                    conn.execute(
-                        f"""INSERT OR IGNORE INTO {_table_id(project, table)}
-                            (entity_key, feature_name, value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?)""",
-                        (
-                            entity_key_bin,
-                            feature_name,
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                        ),
-                    )
-                if progress:
-                    progress(1)
+        self.online_store.online_write_batch(config, table, data, progress)
 
     def online_read(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        result = self.online_store.online_read(config, table, entity_keys)
 
-        conn = self._get_conn()
-        cur = conn.cursor()
-
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-
-        for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(entity_key)
-
-            cur.execute(
-                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = ?",
-                (entity_key_bin,),
-            )
-
-            res = {}
-            res_ts = None
-            for feature_name, val_bin, ts in cur.fetchall():
-                val = ValueProto()
-                val.ParseFromString(val_bin)
-                res[feature_name] = val
-                res_ts = ts
-
-            if not res:
-                result.append((None, None))
-            else:
-                result.append((res_ts, res))
         return result
 
     def materialize_single_feature_view(
@@ -199,7 +137,7 @@ class LocalProvider(Provider):
 
         with tqdm_builder(len(rows_to_write)) as pbar:
             self.online_write_batch(
-                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+                self.config, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
     def get_historical_features(
