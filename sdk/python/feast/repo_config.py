@@ -67,8 +67,8 @@ class RedisOnlineStoreConfig(FeastBaseModel):
     redis_type: RedisType = RedisType.redis
     """Redis type: redis or redis_cluster"""
 
-    redis_connection_string: StrictStr
-    """Redis connection string from REDIS_CONNECTION_STRING environment variable
+    connection_string: StrictStr = "localhost:6379"
+    """Connection string containing the host, port, and configuration parameters for Redis
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
 

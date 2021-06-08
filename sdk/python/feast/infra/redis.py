@@ -6,8 +6,15 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import mmh3
 import pandas as pd
 from google.protobuf.timestamp_pb2 import Timestamp
-from redis import Redis
-from rediscluster import RedisCluster
+
+try:
+    from redis import Redis
+    from rediscluster import RedisCluster
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("redis", str(e))
+
 from tqdm import tqdm
 
 from feast import FeatureTable, utils
@@ -32,14 +39,14 @@ EX_SECONDS = 253402300799
 
 class RedisProvider(Provider):
     _redis_type: Optional[RedisType]
-    _redis_connection_string: str
+    _connection_string: str
 
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, RedisOnlineStoreConfig)
         if config.online_store.redis_type:
             self._redis_type = config.online_store.redis_type
-        if config.online_store.redis_connection_string:
-            self._redis_connection_string = config.online_store.redis_connection_string
+        if config.online_store.connection_string:
+            self._connection_string = config.online_store.connection_string
         self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def update_infra(
@@ -203,7 +210,7 @@ class RedisProvider(Provider):
         for Redis:
             redis_master:6379,db=0,ssl=true,password=...
         """
-        connection_string = self._redis_connection_string
+        connection_string = self._connection_string
         startup_nodes = [
             dict(zip(["host", "port"], c.split(":")))
             for c in connection_string.split(",")
