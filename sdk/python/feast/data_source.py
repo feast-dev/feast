@@ -635,7 +635,8 @@ class BigQuerySource(DataSource):
         query: Optional[str] = None,
     ):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
-        self._assert_table_exists()
+        if self.table_ref:
+            self._assert_table_exists()
 
         super().__init__(
             event_timestamp_column,
