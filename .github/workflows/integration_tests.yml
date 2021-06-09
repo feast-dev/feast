@@ -24,13 +24,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: x64
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
       - name: Use gcloud CLI
         run: gcloud info
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Use AWS CLI
+        run: aws sts get-caller-identity
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
