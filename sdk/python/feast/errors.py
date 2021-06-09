@@ -3,6 +3,22 @@ from typing import Set
 from colorama import Fore, Style
 
 
+class DataSourceNotFoundException(Exception):
+    pass
+
+
+class BigQuerySourceNotFoundException(DataSourceNotFoundException):
+    def __init__(self, table_ref):
+        super().__init__(
+            f"Unable to find table '{table_ref}' in BigQuery. Please check that table exists."
+        )
+
+
+class FileSourceNotFoundException(DataSourceNotFoundException):
+    def __init__(self, path):
+        super().__init__(f"Unable to find table at '{path}'")
+
+
 class FeastObjectNotFoundException(Exception):
     pass
 

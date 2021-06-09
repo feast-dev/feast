@@ -20,6 +20,7 @@ from pyarrow.parquet import ParquetFile
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
+from feast.errors import BigQuerySourceNotFoundException, FileSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.value_type import ValueType
 
@@ -561,6 +562,7 @@ class FileSource(DataSource):
             file_url = path
 
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
+        self._assert_table_exists()
 
         super().__init__(
             event_timestamp_column,
@@ -622,6 +624,12 @@ class FileSource(DataSource):
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
         schema = ParquetFile(self.path).schema_arrow
         return zip(schema.names, map(str, schema.types))
+
+    def _assert_table_exists(self):
+        try:
+            ParquetFile(self.path).schema_arrow
+        except (FileNotFoundError):
+            raise FileSourceNotFoundException(self.path)
 
 
 class BigQuerySource(DataSource):
@@ -734,11 +742,7 @@ class BigQuerySource(DataSource):
         try:
             client.get_table(self.table_ref)
         except NotFound:
-            raise NameError(
-                f"""
-                Unable to find table {self.table_ref} in BigQuery. Please check that table exists.
-                """
-            )
+            raise BigQuerySourceNotFoundException(self.table_ref)
 
 
 class KafkaSource(DataSource):
