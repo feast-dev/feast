@@ -175,8 +175,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
                 provider="redis",
                 online_store=RedisOnlineStoreConfig(
-                    redis_type=RedisType.redis,
-                    redis_connection_string="localhost:6379,db=0",
+                    redis_type=RedisType.redis, connection_string="localhost:6379,db=0",
                 ),
             )
             fs = FeatureStore(config=config)
