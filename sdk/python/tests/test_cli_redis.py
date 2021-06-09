@@ -34,7 +34,7 @@ def test_basic() -> None:
             type: bigquery
         online_store:
             redis_type: redis
-            redis_connection_string: localhost:6379,db=0
+            connection_string: localhost:6379,db=0
         """
             )
         )
