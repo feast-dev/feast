@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 
 import yaml
@@ -52,7 +53,28 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     """ (optional) Amount of feature rows per batch being written into Datastore"""
 
 
-OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
+class RedisType(str, Enum):
+    redis = "redis"
+    redis_cluster = "redis_cluster"
+
+
+class RedisOnlineStoreConfig(FeastBaseModel):
+    """Online store config for Redis store"""
+
+    type: Literal["redis"] = "redis"
+    """Online store type selector"""
+
+    redis_type: RedisType = RedisType.redis
+    """Redis type: redis or redis_cluster"""
+
+    connection_string: StrictStr = "localhost:6379"
+    """Connection string containing the host, port, and configuration parameters for Redis
+     format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
+
+
+OnlineStoreConfig = Union[
+    DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig
+]
 
 
 class FileOfflineStoreConfig(FeastBaseModel):
@@ -101,7 +123,7 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp """
+    """ str: local or gcp or redis """
 
     online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -141,11 +163,13 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "sqlite"
             elif values["provider"] == "gcp":
                 values["online_store"]["type"] = "datastore"
+            elif values["provider"] == "redis":
+                values["online_store"]["type"] = "redis"
 
         online_store_type = values["online_store"]["type"]
 
         # Make sure the user hasn't provided the wrong type
-        assert online_store_type in ["datastore", "sqlite"]
+        assert online_store_type in ["datastore", "sqlite", "redis"]
 
         # Validate the dict to ensure one of the union types match
         try:
@@ -153,6 +177,8 @@ class RepoConfig(FeastBaseModel):
                 SqliteOnlineStoreConfig(**values["online_store"])
             elif online_store_type == "datastore":
                 DatastoreOnlineStoreConfig(**values["online_store"])
+            elif online_store_type == "redis":
+                RedisOnlineStoreConfig(**values["online_store"])
             else:
                 raise ValueError(f"Invalid online store type {online_store_type}")
         except ValidationError as e:
@@ -177,7 +203,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local":
+            if values["provider"] == "local" or values["provider"] == "redis":
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"

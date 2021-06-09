@@ -66,6 +66,10 @@ GCP_REQUIRED = [
     "google-cloud-core==1.4.*",
 ]
 
+REDIS_REQUIRED = [
+    "redis-py-cluster==2.1.2",
+]
+
 CI_REQUIRED = [
     "cryptography==3.3.2",
     "flake8",
@@ -98,6 +102,7 @@ CI_REQUIRED = [
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
+    "redis-py-cluster==2.1.2",
 ]
 
 # README file from Feast repo root directory
@@ -192,6 +197,7 @@ setup(
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
+        "redis": REDIS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
