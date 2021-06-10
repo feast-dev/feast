@@ -23,15 +23,14 @@ from feast.infra.provider import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig
+from feast.repo_config import RepoConfig
 
 
 class LocalProvider(Provider):
 
-    def __init__(self, config: RepoConfig, repo_path: Path):
+    def __init__(self, config: RepoConfig):
         assert config is not None
         self.config = config
-        assert config.offline_store is not None
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
 

@@ -20,7 +20,7 @@ from feast.infra.provider import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
-from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -36,13 +36,6 @@ class GcpProvider(Provider):
     _namespace: Optional[str]
 
     def __init__(self, config: RepoConfig):
-        assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
-        self._gcp_project_id = config.online_store.project_id
-        self._namespace = config.online_store.namespace
-        self._write_concurrency = config.online_store.write_concurrency
-        self._write_batch_size = config.online_store.write_batch_size
-
-        assert config.offline_store is not None
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)

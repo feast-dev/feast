@@ -148,7 +148,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 
-            return LocalProvider(config, repo_path)
+            return LocalProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
     else:
