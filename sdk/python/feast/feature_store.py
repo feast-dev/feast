@@ -544,7 +544,7 @@ class FeatureStore:
                 config=self.config,
                 table=table,
                 entity_keys=entity_keys,
-                requested_features=requested_features
+                requested_features=requested_features,
             )
             for row_idx, read_row in enumerate(read_rows):
                 row_ts, feature_data = read_row

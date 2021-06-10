@@ -173,7 +173,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
-                provider="redis",
+                provider="local",
                 online_store=RedisOnlineStoreConfig(
                     redis_type=RedisType.redis, connection_string="localhost:6379,db=0",
                 ),

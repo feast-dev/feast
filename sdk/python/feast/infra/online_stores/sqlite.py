@@ -37,10 +37,14 @@ class SqliteOnlineStore(OnlineStore):
     def _get_conn(config: RepoConfig):
         assert config.online_store.type == "sqlite"
 
-        Path(config.online_store.path).parent.mkdir(exist_ok=True)
+        if config.repo_path:
+            db_path = config.repo_path / config.online_store.path
+        else:
+            db_path = config.online_store.path
+
+        Path(db_path).parent.mkdir(exist_ok=True)
         return sqlite3.connect(
-            config.online_store.path,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         )
 
     @classmethod

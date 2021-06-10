@@ -131,6 +131,8 @@ class RepoConfig(FeastBaseModel):
     offline_store: OfflineStoreConfig = FileOfflineStoreConfig()
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
+    repo_path: Optional[Path] = None
+
     def get_registry_config(self):
         if isinstance(self.registry, str):
             return RegistryConfig(path=self.registry)
@@ -252,6 +254,8 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
         try:
-            return RepoConfig(**raw_config)
+            c = RepoConfig(**raw_config)
+            c.repo_path = repo_path
+            return c
         except ValidationError as e:
             raise FeastConfigError(e, config_path)
