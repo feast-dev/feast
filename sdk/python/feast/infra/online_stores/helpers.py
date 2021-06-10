@@ -1,5 +1,5 @@
 import struct
-from typing import Dict, Set
+from typing import Any, Dict, Set
 
 import mmh3
 
@@ -36,7 +36,7 @@ def get_online_store_from_config(
     raise ValueError(f"Unsupported offline store config '{online_store_config}'")
 
 
-SUPPORTED_SOURCES = {
+SUPPORTED_SOURCES: Dict[Any, Set[Any]] = {
     SqliteOnlineStoreConfig: {FileSource},
     DatastoreOnlineStoreConfig: {BigQuerySource},
     RedisOnlineStoreConfig: {FileSource, BigQuerySource},
@@ -46,7 +46,9 @@ SUPPORTED_SOURCES = {
 def assert_online_store_supports_data_source(
     online_store_config: OnlineStoreConfig, data_source: DataSource
 ):
-    supported_sources = SUPPORTED_SOURCES.get(online_store_config.__class__, {})
+    supported_sources: Set[Any] = SUPPORTED_SOURCES.get(
+        online_store_config.__class__, set()
+    )
     # This is needed because checking for `in` with Union types breaks mypy.
     # https://github.com/python/mypy/issues/4954
     # We can replace this with `data_source.__class__ in SUPPORTED_SOURCES[online_store_config.__class__]`

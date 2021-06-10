@@ -97,7 +97,7 @@ class RedisOnlineStore(OnlineStore):
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         online_store_config = config.online_store
         assert isinstance(online_store_config, RedisOnlineStoreConfig)
@@ -108,17 +108,17 @@ class RedisOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        if not entity_keys:
-            entity_keys = [f.name for f in table.features]
+        if not requested_features:
+            requested_features = [f.name for f in table.features]
 
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
-            hset_keys = [_mmh3(f"{feature_view}:{k}") for k in entity_keys]
+            hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
             ts_key = f"_ts:{feature_view}"
             hset_keys.append(ts_key)
             values = client.hmget(redis_key_bin, hset_keys)
-            entity_keys.append(ts_key)
-            res_val = dict(zip(entity_keys, values))
+            requested_features.append(ts_key)
+            res_val = dict(zip(requested_features, values))
 
             res_ts = Timestamp()
             ts_val = res_val.pop(ts_key)

@@ -38,7 +38,7 @@ class SqliteOnlineStore(OnlineStore):
         assert config.online_store.type == "sqlite"
 
         if config.repo_path:
-            db_path = config.repo_path / config.online_store.path
+            db_path = str(config.repo_path / config.online_store.path)
         else:
             db_path = config.online_store.path
 
@@ -107,6 +107,7 @@ class SqliteOnlineStore(OnlineStore):
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         pass
         conn = cls._get_conn(config)

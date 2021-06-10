@@ -147,6 +147,7 @@ class DatastoreOnlineStore(OnlineStore):
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
 
         online_config = config.online_store
