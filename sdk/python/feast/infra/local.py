@@ -23,30 +23,17 @@ from feast.infra.provider import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig
 
 
 class LocalProvider(Provider):
-    _db_path: Path
 
     def __init__(self, config: RepoConfig, repo_path: Path):
         assert config is not None
         self.config = config
-        assert isinstance(config.online_store, SqliteOnlineStoreConfig)
         assert config.offline_store is not None
-        local_path = Path(config.online_store.path)
-        if local_path.is_absolute():
-            self._db_path = local_path
-        else:
-            self._db_path = repo_path.joinpath(local_path)
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
-
-    def _get_conn(self):
-        Path(self._db_path).parent.mkdir(exist_ok=True)
-        return sqlite3.connect(
-            self._db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
 
     def update_infra(
         self,
@@ -57,17 +44,12 @@ class LocalProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        conn = self._get_conn()
-        for table in tables_to_keep:
-            conn.execute(
-                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
-            )
-            conn.execute(
-                f"CREATE INDEX IF NOT EXISTS {_table_id(project, table)}_ek ON {_table_id(project, table)} (entity_key);"
-            )
-
-        for table in tables_to_delete:
-            conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
+        self.online_store.setup(self.config,
+                                tables_to_delete,
+                                tables_to_keep,
+                                entities_to_delete,
+                                entities_to_keep,
+                                partial)
 
     def teardown_infra(
         self,
@@ -75,7 +57,9 @@ class LocalProvider(Provider):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ) -> None:
-        os.unlink(self._db_path)
+        self.online_store.teardown(self.config,
+                                   tables,
+                                   entities)
 
     def online_write_batch(
         self,

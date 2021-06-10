@@ -11,14 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
 
 import pytz
 
-from feast import FeatureTable
+from feast import FeatureTable, Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
@@ -34,13 +36,18 @@ class SqliteOnlineStore(OnlineStore):
     """
 
     @staticmethod
-    def _get_conn(config: RepoConfig):
+    def _get_db_path(config: RepoConfig) -> str:
         assert config.online_store.type == "sqlite"
 
-        if config.repo_path:
+        if config.repo_path and not Path(config.online_store.path).is_absolute():
             db_path = str(config.repo_path / config.online_store.path)
         else:
             db_path = config.online_store.path
+        return db_path
+
+    @classmethod
+    def _get_conn(cls, config: RepoConfig):
+        db_path = cls._get_db_path(config)
 
         Path(db_path).parent.mkdir(exist_ok=True)
         return sqlite3.connect(
@@ -137,6 +144,39 @@ class SqliteOnlineStore(OnlineStore):
             else:
                 result.append((res_ts, res))
         return result
+
+    @classmethod
+    def setup(
+        cls,
+        config: RepoConfig,
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
+        conn = cls._get_conn(config)
+        project = config.project
+
+        for table in tables_to_keep:
+            conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+            )
+            conn.execute(
+                f"CREATE INDEX IF NOT EXISTS {_table_id(project, table)}_ek ON {_table_id(project, table)} (entity_key);"
+            )
+
+        for table in tables_to_delete:
+            conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
+
+    @classmethod
+    def teardown(
+        cls,
+        config: RepoConfig,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
+    ):
+        os.unlink(cls._get_db_path(config))
 
 
 def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:

@@ -47,18 +47,6 @@ class GcpProvider(Provider):
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
 
-    def _initialize_client(self):
-        try:
-            return datastore.Client(
-                project=self._gcp_project_id, namespace=self._namespace
-            )
-        except DefaultCredentialsError as e:
-            raise FeastProviderLoginError(
-                str(e)
-                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
-                "local Google Cloud account "
-            )
-
     def update_infra(
         self,
         project: str,
@@ -68,25 +56,12 @@ class GcpProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-
-        client = self._initialize_client()
-
-        for table in tables_to_keep:
-            key = client.key("Project", project, "Table", table.name)
-            entity = datastore.Entity(
-                key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
-            )
-            entity.update({"created_ts": datetime.utcnow()})
-            client.put(entity)
-
-        for table in tables_to_delete:
-            _delete_all_values(
-                client, client.key("Project", project, "Table", table.name)
-            )
-
-            # Delete the table metadata datastore entity
-            key = client.key("Project", project, "Table", table.name)
-            client.delete(key)
+        self.online_store.setup(config=self.repo_config,
+                                tables_to_delete=tables_to_delete,
+                                tables_to_keep=tables_to_keep,
+                                entities_to_keep=entities_to_keep,
+                                entities_to_delete=entities_to_delete,
+                                partial=partial)
 
     def teardown_infra(
         self,
@@ -94,16 +69,7 @@ class GcpProvider(Provider):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ) -> None:
-        client = self._initialize_client()
-
-        for table in tables:
-            _delete_all_values(
-                client, client.key("Project", project, "Table", table.name)
-            )
-
-            # Delete the table metadata datastore entity
-            key = client.key("Project", project, "Table", table.name)
-            client.delete(key)
+        self.online_store.teardown(self.repo_config, tables, entities)
 
     def online_write_batch(
         self,
@@ -187,21 +153,3 @@ class GcpProvider(Provider):
         )
         return job
 
-
-ProtoBatch = Sequence[
-    Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-]
-
-
-def _delete_all_values(client, key) -> None:
-    """
-    Delete all data under the key path in datastore.
-    """
-    while True:
-        query = client.query(kind="Row", ancestor=key)
-        entities = list(query.fetch(limit=1000))
-        if not entities:
-            return
-
-        for entity in entities:
-            client.delete(entity.key)

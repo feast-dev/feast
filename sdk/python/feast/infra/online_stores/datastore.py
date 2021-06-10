@@ -18,7 +18,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 
 import mmh3
 
-from feast import FeatureTable, utils
+from feast import FeatureTable, utils, Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
@@ -45,6 +45,59 @@ class DatastoreOnlineStore(OnlineStore):
     OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
     features.
     """
+
+    @classmethod
+    def setup(cls,
+              config: RepoConfig,
+              tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+              tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+              entities_to_delete: Sequence[Entity],
+              entities_to_keep: Sequence[Entity], partial: bool):
+        """
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DatastoreOnlineStoreConfig)
+        client = cls._initialize_client(online_config)
+        feast_project = config.project
+
+        for table in tables_to_keep:
+            key = client.key("Project", feast_project, "Table", table.name)
+            entity = datastore.Entity(
+                key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+            )
+            entity.update({"created_ts": datetime.utcnow()})
+            client.put(entity)
+
+        for table in tables_to_delete:
+            _delete_all_values(
+                client, client.key("Project", feast_project, "Table", table.name)
+            )
+
+            # Delete the table metadata datastore entity
+            key = client.key("Project", feast_project, "Table", table.name)
+            client.delete(key)
+
+    @classmethod
+    def teardown(cls,
+                 config: RepoConfig,
+                 tables: Sequence[Union[FeatureTable, FeatureView]],
+                 entities: Sequence[Entity]):
+        """
+        There's currently no teardown done for Datastore.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DatastoreOnlineStoreConfig)
+        client = cls._initialize_client(online_config)
+        feast_project = config.project
+
+        for table in tables:
+            _delete_all_values(
+                client, client.key("Project", feast_project, "Table", table.name)
+            )
+
+            # Delete the table metadata datastore entity
+            key = client.key("Project", feast_project, "Table", table.name)
+            client.delete(key)
 
     @classmethod
     def _initialize_client(cls, online_config: DatastoreOnlineStoreConfig):
@@ -183,3 +236,17 @@ def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
     do with the Entity concept we have in Feast.
     """
     return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
+
+
+def _delete_all_values(client, key) -> None:
+    """
+    Delete all data under the key path in datastore.
+    """
+    while True:
+        query = client.query(kind="Row", ancestor=key)
+        entities = list(query.fetch(limit=1000))
+        if not entities:
+            return
+
+        for entity in entities:
+            client.delete(entity.key)
