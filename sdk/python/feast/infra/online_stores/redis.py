@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast import Entity, FeatureTable, FeatureView, RepoConfig
+from feast import Entity, FeatureTable, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -31,6 +31,8 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("redis", str(e))
+
+EX_SECONDS = 253402300799
 
 
 class RedisOnlineStore(OnlineStore):
@@ -95,6 +97,7 @@ class RedisOnlineStore(OnlineStore):
         startup_nodes, kwargs = cls._parse_connection_string(
             online_store_config.connection_string
         )
+        print(f"Startup nodes: {startup_nodes}, {kwargs}")
         if online_store_config.type == RedisType.redis_cluster:
             kwargs["startup_nodes"] = startup_nodes
             return RedisCluster(**kwargs)
@@ -113,7 +116,33 @@ class RedisOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        pass
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = cls._get_client(online_store_config)
+        project = config.project
+
+        entity_hset = {}
+        feature_view = table.name
+
+        ex = Timestamp()
+        ex.seconds = EX_SECONDS
+        ex_str = ex.SerializeToString()
+
+        for entity_key, values, timestamp, created_ts in data:
+            redis_key_bin = _redis_key(project, entity_key)
+            ts = Timestamp()
+            ts.seconds = int(utils.make_tzaware(timestamp).timestamp())
+            entity_hset[f"_ts:{feature_view}"] = ts.SerializeToString()
+            entity_hset[f"_ex:{feature_view}"] = ex_str
+
+            for feature_name, val in values.items():
+                f_key = _mmh3(f"{feature_view}:{feature_name}")
+                entity_hset[f_key] = val.SerializeToString()
+
+            client.hset(redis_key_bin, mapping=entity_hset)
+            if progress:
+                progress(1)
 
     @classmethod
     def online_read(

@@ -165,8 +165,6 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "sqlite"
             elif values["provider"] == "gcp":
                 values["online_store"]["type"] = "datastore"
-            elif values["provider"] == "redis":
-                values["online_store"]["type"] = "redis"
 
         online_store_type = values["online_store"]["type"]
 
