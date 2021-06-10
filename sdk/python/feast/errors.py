@@ -14,11 +14,6 @@ class BigQuerySourceNotFoundException(DataSourceNotFoundException):
         )
 
 
-class FileSourceNotFoundException(DataSourceNotFoundException):
-    def __init__(self, path):
-        super().__init__(f"Unable to find table at '{path}'")
-
-
 class FeastObjectNotFoundException(Exception):
     pass
 

@@ -20,7 +20,7 @@ from pyarrow.parquet import ParquetFile
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
-from feast.errors import BigQuerySourceNotFoundException, FileSourceNotFoundException
+from feast.errors import BigQuerySourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.value_type import ValueType
 
@@ -562,7 +562,6 @@ class FileSource(DataSource):
             file_url = path
 
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
-        self._assert_table_exists()
 
         super().__init__(
             event_timestamp_column,
@@ -625,12 +624,6 @@ class FileSource(DataSource):
         schema = ParquetFile(self.path).schema_arrow
         return zip(schema.names, map(str, schema.types))
 
-    def _assert_table_exists(self):
-        try:
-            ParquetFile(self.path).schema_arrow
-        except (FileNotFoundError):
-            raise FileSourceNotFoundException(self.path)
-
 
 class BigQuerySource(DataSource):
     def __init__(
@@ -643,8 +636,7 @@ class BigQuerySource(DataSource):
         query: Optional[str] = None,
     ):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
-        if self.table_ref:
-            self._assert_table_exists()
+        self._assert_table_exists()
 
         super().__init__(
             event_timestamp_column,
@@ -738,7 +730,8 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-
+        if not self.table_ref:
+            raise BigQuerySourceNotFoundException(self.table_ref)
         try:
             client.get_table(self.table_ref)
         except NotFound:
