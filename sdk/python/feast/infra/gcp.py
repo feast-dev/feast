@@ -6,7 +6,6 @@ from tqdm import tqdm
 
 from feast import FeatureTable
 from feast.entity import Entity
-from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.helpers import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -21,14 +20,6 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
-
-try:
-    from google.auth.exceptions import DefaultCredentialsError
-    from google.cloud import datastore
-except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError
-
-    raise FeastExtrasDependencyImportError("gcp", str(e))
 
 
 class GcpProvider(Provider):
