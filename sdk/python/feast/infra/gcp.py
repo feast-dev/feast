@@ -49,12 +49,14 @@ class GcpProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        self.online_store.setup(config=self.repo_config,
-                                tables_to_delete=tables_to_delete,
-                                tables_to_keep=tables_to_keep,
-                                entities_to_keep=entities_to_keep,
-                                entities_to_delete=entities_to_delete,
-                                partial=partial)
+        self.online_store.setup(
+            config=self.repo_config,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_keep=entities_to_keep,
+            entities_to_delete=entities_to_delete,
+            partial=partial,
+        )
 
     def teardown_infra(
         self,
@@ -145,4 +147,3 @@ class GcpProvider(Provider):
             project=project,
         )
         return job
-

@@ -27,7 +27,6 @@ from feast.repo_config import RepoConfig
 
 
 class LocalProvider(Provider):
-
     def __init__(self, config: RepoConfig):
         assert config is not None
         self.config = config
@@ -43,12 +42,14 @@ class LocalProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        self.online_store.setup(self.config,
-                                tables_to_delete,
-                                tables_to_keep,
-                                entities_to_delete,
-                                entities_to_keep,
-                                partial)
+        self.online_store.setup(
+            self.config,
+            tables_to_delete,
+            tables_to_keep,
+            entities_to_delete,
+            entities_to_keep,
+            partial,
+        )
 
     def teardown_infra(
         self,
@@ -56,9 +57,7 @@ class LocalProvider(Provider):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ) -> None:
-        self.online_store.teardown(self.config,
-                                   tables,
-                                   entities)
+        self.online_store.teardown(self.config, tables, entities)
 
     def online_write_batch(
         self,

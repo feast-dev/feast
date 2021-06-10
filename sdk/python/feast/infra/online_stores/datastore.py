@@ -18,7 +18,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 
 import mmh3
 
-from feast import FeatureTable, utils, Entity
+from feast import Entity, FeatureTable, utils
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
@@ -47,12 +47,15 @@ class DatastoreOnlineStore(OnlineStore):
     """
 
     @classmethod
-    def setup(cls,
-              config: RepoConfig,
-              tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-              tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
-              entities_to_delete: Sequence[Entity],
-              entities_to_keep: Sequence[Entity], partial: bool):
+    def setup(
+        cls,
+        config: RepoConfig,
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
         """
         """
         online_config = config.online_store
@@ -78,10 +81,12 @@ class DatastoreOnlineStore(OnlineStore):
             client.delete(key)
 
     @classmethod
-    def teardown(cls,
-                 config: RepoConfig,
-                 tables: Sequence[Union[FeatureTable, FeatureView]],
-                 entities: Sequence[Entity]):
+    def teardown(
+        cls,
+        config: RepoConfig,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
+    ):
         """
         There's currently no teardown done for Datastore.
         """

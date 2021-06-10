@@ -16,11 +16,11 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pytz
 
-from feast import FeatureTable, Entity
+from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore

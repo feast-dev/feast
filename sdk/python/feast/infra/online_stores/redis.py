@@ -13,11 +13,11 @@
 # limitations under the License.
 import json
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast import FeatureTable, FeatureView, RepoConfig, Entity
+from feast import Entity, FeatureTable, FeatureView, RepoConfig
 from feast.infra.online_stores.helpers import _mmh3, _redis_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -35,16 +35,25 @@ except ImportError as e:
 
 class RedisOnlineStore(OnlineStore):
     @staticmethod
-    def setup(config: RepoConfig, tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-              tables_to_keep: Sequence[Union[FeatureTable, FeatureView]], entities_to_delete: Sequence[Entity],
-              entities_to_keep: Sequence[Entity], partial: bool):
+    def setup(
+        config: RepoConfig,
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
         """
         There's currently no setup done for Redis.
         """
         pass
 
     @staticmethod
-    def teardown(config: RepoConfig, tables: Sequence[Union[FeatureTable, FeatureView]], entities: Sequence[Entity]):
+    def teardown(
+        config: RepoConfig,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
+    ):
         """
         There's currently no teardown done for Redis.
         """

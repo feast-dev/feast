@@ -14,9 +14,9 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-from feast import FeatureTable, Entity
+from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
