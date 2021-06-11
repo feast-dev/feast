@@ -36,7 +36,7 @@ class RetrievalJob(ABC):
 class OfflineStore(ABC):
     """
     OfflineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features. Currently BigQuery is supported.
+    features.
     """
 
     @staticmethod

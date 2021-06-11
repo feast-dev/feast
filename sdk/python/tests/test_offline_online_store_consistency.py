@@ -17,7 +17,13 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import (
+    DatastoreOnlineStoreConfig,
+    RedisOnlineStoreConfig,
+    RedisType,
+    RepoConfig,
+    SqliteOnlineStoreConfig,
+)
 from feast.value_type import ValueType
 
 
@@ -98,6 +104,7 @@ def prep_bq_fs_and_fv(
             registry=str(Path(repo_dir_name) / "registry.db"),
             project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
             provider="gcp",
+            online_store=DatastoreOnlineStoreConfig(namespace="integration_test"),
         )
         fs = FeatureStore(config=config)
         fs.apply([fv, e])
@@ -133,6 +140,42 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                 provider="local",
                 online_store=SqliteOnlineStoreConfig(
                     path=str(Path(data_dir_name) / "online_store.db")
+                ),
+            )
+            fs = FeatureStore(config=config)
+            fs.apply([fv, e])
+
+            yield fs, fv
+
+
+@contextlib.contextmanager
+def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
+    with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+        df = create_dataset()
+        f.close()
+        df.to_parquet(f.name)
+        file_source = FileSource(
+            file_format=ParquetFormat(),
+            file_url=f"file://{f.name}",
+            event_timestamp_column="ts",
+            created_timestamp_column="created_ts",
+            date_partition_column="",
+            field_mapping={"ts_1": "ts", "id": "driver_id"},
+        )
+        fv = get_feature_view(file_source)
+        e = Entity(
+            name="driver",
+            description="id for driver",
+            join_key="driver_id",
+            value_type=ValueType.INT32,
+        )
+        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory():
+            config = RepoConfig(
+                registry=str(Path(repo_dir_name) / "registry.db"),
+                project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
+                provider="redis",
+                online_store=RedisOnlineStoreConfig(
+                    redis_type=RedisType.redis, connection_string="localhost:6379,db=0",
                 ),
             )
             fs = FeatureStore(config=config)
@@ -213,6 +256,12 @@ def run_offline_online_store_consistency_test(
 )
 def test_bq_offline_online_store_consistency(bq_source_type: str):
     with prep_bq_fs_and_fv(bq_source_type) as (fs, fv):
+        run_offline_online_store_consistency_test(fs, fv)
+
+
+@pytest.mark.integration
+def test_redis_offline_online_store_consistency():
+    with prep_redis_fs_and_fv() as (fs, fv):
         run_offline_online_store_consistency_test(fs, fv)
 
 

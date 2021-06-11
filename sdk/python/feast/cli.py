@@ -21,6 +21,7 @@ import click
 import pkg_resources
 import yaml
 
+from feast import utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
@@ -32,10 +33,22 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
-from feast.telemetry import Telemetry
 
 _logger = logging.getLogger(__name__)
 DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
+
+
+class NoOptionDefaultFormat(click.Command):
+    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter):
+        """Writes all the options into the formatter if they exist."""
+        opts = []
+        for param in self.get_params(ctx):
+            rv = param.get_help_record(ctx)
+            if rv is not None:
+                opts.append(rv)
+        if opts:
+            with formatter.section("Options(No current command options)"):
+                formatter.write_dl(opts)
 
 
 @click.group()
@@ -166,7 +179,7 @@ def feature_view_list(ctx: click.Context):
     print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
-@cli.command("apply")
+@cli.command("apply", cls=NoOptionDefaultFormat)
 @click.pass_context
 def apply_total_command(ctx: click.Context):
     """
@@ -175,15 +188,13 @@ def apply_total_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
-    tele = Telemetry()
-    tele.log("apply")
     try:
         apply_total(repo_config, repo)
     except FeastProviderLoginError as e:
         print(str(e))
 
 
-@cli.command("teardown")
+@cli.command("teardown", cls=NoOptionDefaultFormat)
 @click.pass_context
 def teardown_command(ctx: click.Context):
     """
@@ -192,8 +203,6 @@ def teardown_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
-    tele = Telemetry()
-    tele.log("teardown")
 
     teardown(repo_config, repo)
 
@@ -207,8 +216,6 @@ def registry_dump_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
-    tele = Telemetry()
-    tele.log("registry-dump")
 
     registry_dump(repo_config, repo_path=repo)
 
@@ -236,8 +243,8 @@ def materialize_command(
     store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
-        start_date=datetime.fromisoformat(start_ts),
-        end_date=datetime.fromisoformat(end_ts),
+        start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -261,7 +268,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     store = FeatureStore(repo_path=str(repo))
     store.materialize_incremental(
         feature_views=None if not views else views,
-        end_date=datetime.fromisoformat(end_ts),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -285,8 +292,6 @@ def init_command(project_directory, minimal: bool, template: str):
     if minimal:
         template = "minimal"
 
-    tele = Telemetry()
-    tele.log("init")
     init_repo(project_directory, template)
 
 

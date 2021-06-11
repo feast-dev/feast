@@ -25,8 +25,8 @@ The following encodings are supported on streams
 
 For both batch and stream sources, the following configurations are necessary:
 
-* **Event timestamp column**: Name of column containing timestamp when event data occurred. Used during point-in-time join of feature values to [entity timestamps](../../concepts/glossary.md#entity-timestamp).
-* **Created timestamp column**: Name of column containing timestamp when data is created. Used to deduplicate data when multiple copies of the same [entity key](../../concepts/glossary.md#entity-key) is ingested.
+* **Event timestamp column**: Name of column containing timestamp when event data occurred. Used during point-in-time join of feature values to [entity timestamps]().
+* **Created timestamp column**: Name of column containing timestamp when data is created. Used to deduplicate data when multiple copies of the same [entity key]() is ingested.
 
 Example data source specifications:
 

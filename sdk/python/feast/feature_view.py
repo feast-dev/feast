@@ -32,6 +32,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
+from feast.telemetry import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -52,6 +53,7 @@ class FeatureView:
     last_updated_timestamp: Optional[Timestamp] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
 
+    @log_exceptions
     def __init__(
         self,
         name: str,
@@ -95,7 +97,7 @@ class FeatureView:
         self.name = name
         self.entities = entities
         self.features = features
-        self.tags = tags
+        self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
@@ -171,6 +173,7 @@ class FeatureView:
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
 
+        ttl_duration = None
         if self.ttl is not None:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)

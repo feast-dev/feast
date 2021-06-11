@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
+import assertpy
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,14 +14,18 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 import feast.driver_test_data as driver_data
-from feast import utils
+from feast import errors, utils
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import (
+    BigQueryOfflineStoreConfig,
+    RepoConfig,
+    SqliteOnlineStoreConfig,
+)
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -30,17 +35,17 @@ PROJECT_NAME = "default"
 
 def generate_entities(date, infer_event_timestamp_col):
     end_date = date
-    before_start_date = end_date - timedelta(days=14)
+    before_start_date = end_date - timedelta(days=365)
     start_date = end_date - timedelta(days=7)
-    after_end_date = end_date + timedelta(days=7)
-    customer_entities = [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
-    driver_entities = [5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010]
+    after_end_date = end_date + timedelta(days=365)
+    customer_entities = list(range(1001, 1110))
+    driver_entities = list(range(5001, 5110))
     orders_df = driver_data.create_orders_df(
-        customer_entities,
-        driver_entities,
-        before_start_date,
-        after_end_date,
-        20,
+        customers=customer_entities,
+        drivers=driver_entities,
+        start_date=before_start_date,
+        end_date=after_end_date,
+        order_count=1000,
         infer_event_timestamp_col=infer_event_timestamp_col,
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
@@ -312,13 +317,13 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "provider_type", ["local", "gcp"],
+    "provider_type", ["local", "gcp", "gcp_custom_offline_config"],
 )
 @pytest.mark.parametrize(
     "infer_event_timestamp_col", [False, True],
 )
 def test_historical_features_from_bigquery_sources(
-    provider_type, infer_event_timestamp_col
+    provider_type, infer_event_timestamp_col, capsys
 ):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
@@ -329,8 +334,9 @@ def test_historical_features_from_bigquery_sources(
         start_date,
     ) = generate_entities(start_date, infer_event_timestamp_col)
 
-    # bigquery_dataset = "test_hist_retrieval_static"
-    bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
+    bigquery_dataset = (
+        f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(1000, 9999)}"
+    )
 
     with BigQueryDataSet(bigquery_dataset), TemporaryDirectory() as temp_dir:
         gcp_project = bigquery.Client().project
@@ -379,6 +385,9 @@ def test_historical_features_from_bigquery_sources(
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(temp_dir, "online_store.db"),
                     ),
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery", dataset=bigquery_dataset
+                    ),
                 )
             )
         elif provider_type == "gcp":
@@ -389,6 +398,22 @@ def test_historical_features_from_bigquery_sources(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),
                     provider="gcp",
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery", dataset=bigquery_dataset
+                    ),
+                )
+            )
+        elif provider_type == "gcp_custom_offline_config":
+            store = FeatureStore(
+                config=RepoConfig(
+                    registry=os.path.join(temp_dir, "registry.db"),
+                    project="".join(
+                        random.choices(string.ascii_uppercase + string.digits, k=10)
+                    ),
+                    provider="gcp",
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery", dataset="foo"
+                    ),
                 )
             )
         else:
@@ -415,16 +440,52 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:lifetime_trip_count",
             ],
         )
-        actual_df_from_sql_entities = job_from_sql.to_df()
 
+        start_time = datetime.utcnow()
+        actual_df_from_sql_entities = job_from_sql.to_df()
+        end_time = datetime.utcnow()
+        with capsys.disabled():
+            print(
+                str(
+                    f"\nTime to execute job_from_df.to_df() = '{(end_time - start_time)}'"
+                )
+            )
+
+        assert sorted(expected_df.columns) == sorted(
+            actual_df_from_sql_entities.columns
+        )
         assert_frame_equal(
             expected_df.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
-            actual_df_from_sql_entities.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
+            actual_df_from_sql_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
             check_dtype=False,
+        )
+
+        timestamp_column = (
+            "e_ts"
+            if infer_event_timestamp_col
+            else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        )
+
+        entity_df_query_with_invalid_join_key = (
+            f"select order_id, driver_id, customer_id as customer, "
+            f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
+        )
+        # Rename the join key; this should now raise an error.
+        assertpy.assert_that(store.get_historical_features).raises(
+            errors.FeastEntityDFMissingColumnsError
+        ).when_called_with(
+            entity_df=entity_df_query_with_invalid_join_key,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
         )
 
         job_from_df = store.get_historical_features(
@@ -437,14 +498,49 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:lifetime_trip_count",
             ],
         )
-        actual_df_from_df_entities = job_from_df.to_df()
 
+        # Rename the join key; this should now raise an error.
+        orders_df_with_invalid_join_key = orders_df.rename(
+            {"customer_id": "customer"}, axis="columns"
+        )
+        assertpy.assert_that(store.get_historical_features).raises(
+            errors.FeastEntityDFMissingColumnsError
+        ).when_called_with(
+            entity_df=orders_df_with_invalid_join_key,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+
+        # Make sure that custom dataset name is being used from the offline_store config
+        if provider_type == "gcp_custom_offline_config":
+            assertpy.assert_that(job_from_df.query).contains("foo.entity_df")
+        else:
+            assertpy.assert_that(job_from_df.query).contains(
+                f"{bigquery_dataset}.entity_df"
+            )
+
+        start_time = datetime.utcnow()
+        actual_df_from_df_entities = job_from_df.to_df()
+        end_time = datetime.utcnow()
+        with capsys.disabled():
+            print(
+                str(
+                    f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
+                )
+            )
+
+        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
         assert_frame_equal(
             expected_df.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
-            actual_df_from_df_entities.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
+            actual_df_from_df_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
             check_dtype=False,
         )

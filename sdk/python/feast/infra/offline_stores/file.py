@@ -153,8 +153,12 @@ class FileOfflineStore(OfflineStore):
                     ]
 
                 df_to_join.sort_values(by=right_entity_key_sort_columns, inplace=True)
-                df_to_join = df_to_join.groupby(by=right_entity_key_columns).last()
-                df_to_join.reset_index(inplace=True)
+                df_to_join.drop_duplicates(
+                    right_entity_key_sort_columns,
+                    keep="last",
+                    ignore_index=True,
+                    inplace=True,
+                )
 
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
@@ -212,6 +216,13 @@ class FileOfflineStore(OfflineStore):
                 created_timestamp_column
             ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
 
+        source_columns = set(source_df.columns)
+        if not set(join_key_columns).issubset(source_columns):
+            raise ValueError(
+                f"The DataFrame must have at least {set(join_key_columns)} columns present, "
+                f"but these were missing: {set(join_key_columns)- source_columns} "
+            )
+
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]
             if created_timestamp_column
@@ -224,13 +235,11 @@ class FileOfflineStore(OfflineStore):
             (source_df[event_timestamp_column] >= start_date)
             & (source_df[event_timestamp_column] < end_date)
         ]
-        last_values_df = filtered_df.groupby(by=join_key_columns).last()
-
-        # make driver_id a normal column again
-        last_values_df.reset_index(inplace=True)
-
-        table = pyarrow.Table.from_pandas(
-            last_values_df[join_key_columns + feature_name_columns + ts_columns]
+        last_values_df = filtered_df.drop_duplicates(
+            join_key_columns, keep="last", ignore_index=True
         )
+
+        columns_to_extract = set(join_key_columns + feature_name_columns + ts_columns)
+        table = pyarrow.Table.from_pandas(last_values_df[columns_to_extract])
 
         return table

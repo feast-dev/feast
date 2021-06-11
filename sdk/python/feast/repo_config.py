@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 
 import yaml
@@ -11,6 +12,8 @@ from pydantic import (
 )
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
+
+from feast.telemetry import log_exceptions
 
 
 class FeastBaseModel(BaseModel):
@@ -40,6 +43,34 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     project_id: Optional[StrictStr] = None
     """ (optional) GCP Project Id """
 
+    namespace: Optional[StrictStr] = None
+    """ (optional) Datastore namespace """
+
+    write_concurrency: Optional[PositiveInt] = 40
+    """ (optional) Amount of threads to use when writing batches of feature rows into Datastore"""
+
+    write_batch_size: Optional[PositiveInt] = 50
+    """ (optional) Amount of feature rows per batch being written into Datastore"""
+
+
+class RedisType(str, Enum):
+    redis = "redis"
+    redis_cluster = "redis_cluster"
+
+
+class RedisOnlineStoreConfig(FeastBaseModel):
+    """Online store config for Redis store"""
+
+    type: Literal["redis"] = "redis"
+    """Online store type selector"""
+
+    redis_type: RedisType = RedisType.redis
+    """Redis type: redis or redis_cluster"""
+
+    connection_string: StrictStr = "localhost:6379"
+    """Connection string containing the host, port, and configuration parameters for Redis
+     format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
+
 
 class DynamoDbOnlineStoreConfig(FeastBaseModel):
     """Online store config for DynamoDB store"""
@@ -58,8 +89,27 @@ class DynamoDbOnlineStoreConfig(FeastBaseModel):
 
 
 OnlineStoreConfig = Union[
-    DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, DynamoDbOnlineStoreConfig
+    DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig, DynamoDbOnlineStoreConfig
 ]
+
+class FileOfflineStoreConfig(FeastBaseModel):
+    """ Offline store config for local (file-based) store """
+
+    type: Literal["file"] = "file"
+    """ Offline store type selector"""
+
+
+class BigQueryOfflineStoreConfig(FeastBaseModel):
+    """ Offline store config for GCP BigQuery """
+
+    type: Literal["bigquery"] = "bigquery"
+    """ Offline store type selector"""
+
+    dataset: Optional[StrictStr] = "feast"
+    """ (optional) BigQuery Dataset name for temporary tables """
+
+
+OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -88,10 +138,13 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp or aws_dynamodb """
+    """ str: local or gcp or redis or aws_dynamodb """
 
     online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
+
+    offline_store: OfflineStoreConfig = FileOfflineStoreConfig()
+    """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -100,6 +153,7 @@ class RepoConfig(FeastBaseModel):
             return self.registry
 
     @root_validator(pre=True)
+    @log_exceptions
     def _validate_online_store_config(cls, values):
         # This method will validate whether the online store configurations are set correctly. This explicit validation
         # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to
@@ -107,47 +161,92 @@ class RepoConfig(FeastBaseModel):
         # considered tech debt until we can implement https://github.com/samuelcolvin/pydantic/issues/619 or a more
         # granular configuration system
 
-        # Skip if online store isn't set explicitly
+        # Set empty online_store config if it isn't set explicitly
         if "online_store" not in values:
             values["online_store"] = dict()
 
-        # Skip if we arent creating the configuration from a dict
+        # Skip if we aren't creating the configuration from a dict
         if not isinstance(values["online_store"], Dict):
             return values
 
         # Make sure that the provider configuration is set. We need it to set the defaults
         assert "provider" in values
 
-        if "online_store" in values:
-            # Set the default type
-            if "type" not in values["online_store"]:
-                if values["provider"] == "local":
-                    values["online_store"]["type"] = "sqlite"
-                elif values["provider"] == "gcp":
-                    values["online_store"]["type"] = "datastore"
-                elif values["provider"] == "aws_dynamodb":
-                    values["online_store"]["type"] = "dynamodb"
-            online_store_type = values["online_store"]["type"]
-            # Make sure the user hasn't provided the wrong type
-            assert online_store_type in ["datastore", "sqlite", "dynamodb"]
+        # Set the default type
+        if "type" not in values["online_store"]:
+            if values["provider"] == "local":
+                values["online_store"]["type"] = "sqlite"
+            elif values["provider"] == "gcp":
+                values["online_store"]["type"] = "datastore"
+            elif values["provider"] == "redis":
+                values["online_store"]["type"] = "redis"
+            elif values["provider"] == "aws_dynamodb":
+                values["online_store"]["type"] = "dynamodb"
 
-            # Validate the dict to ensure one of the union types match
-            try:
-                if online_store_type == "sqlite":
-                    SqliteOnlineStoreConfig(**values["online_store"])
-                elif online_store_type == "datastore":
-                    DatastoreOnlineStoreConfig(**values["online_store"])
-                elif online_store_type == "dynamodb":
-                    DynamoDbOnlineStoreConfig(**values["online_store"])
-                else:
-                    raise ValidationError(
-                        f"Invalid online store type {online_store_type}"
-                    )
-            except ValidationError as e:
+        online_store_type = values["online_store"]["type"]
+
+        # Make sure the user hasn't provided the wrong type
+        assert online_store_type in ["datastore", "sqlite", "redis", "dynamodb"]
+
+        # Validate the dict to ensure one of the union types match
+        try:
+            if online_store_type == "sqlite":
+                SqliteOnlineStoreConfig(**values["online_store"])
+            elif online_store_type == "datastore":
+                DatastoreOnlineStoreConfig(**values["online_store"])
+            elif online_store_type == "redis":
+                RedisOnlineStoreConfig(**values["online_store"])
+            elif online_store_type == "dynamodb":
+                DynamoDbOnlineStoreConfig(**values["online_store"])
+            else:
+                raise ValueError(f"Invalid online store type {online_store_type}")
+        except ValidationError as e:
+            raise ValidationError(
+                [ErrorWrapper(e, loc="online_store")], model=SqliteOnlineStoreConfig,
+            )
+
+        return values
+
+    @root_validator(pre=True)
+    def _validate_offline_store_config(cls, values):
+        # Set empty offline_store config if it isn't set explicitly
+        if "offline_store" not in values:
+            values["offline_store"] = dict()
+
+        # Skip if we aren't creating the configuration from a dict
+        if not isinstance(values["offline_store"], Dict):
+            return values
+
+        # Make sure that the provider configuration is set. We need it to set the defaults
+        assert "provider" in values
+
+        # Set the default type
+        if "type" not in values["offline_store"]:
+            if values["provider"] == "local" or values["provider"] == "redis":
+                values["offline_store"]["type"] = "file"
+            elif values["provider"] == "gcp":
+                values["offline_store"]["type"] = "bigquery"
+
+        offline_store_type = values["offline_store"]["type"]
+
+        # Make sure the user hasn't provided the wrong type
+        assert offline_store_type in ["file", "bigquery"]
+
+        # Validate the dict to ensure one of the union types match
+        try:
+            if offline_store_type == "file":
+                FileOfflineStoreConfig(**values["offline_store"])
+            elif offline_store_type == "bigquery":
+                BigQueryOfflineStoreConfig(**values["offline_store"])
+            else:
                 raise ValidationError(
-                    [ErrorWrapper(e, loc="online_store")],
-                    model=SqliteOnlineStoreConfig,
+                    f"Invalid offline store type {offline_store_type}"
                 )
+        except ValidationError as e:
+            raise ValidationError(
+                [ErrorWrapper(e, loc="offline_store")], model=FileOfflineStoreConfig,
+            )
+
         return values
 
 

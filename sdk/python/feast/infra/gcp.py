@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 
 import mmh3
 import pandas
-import pyarrow
 from tqdm import tqdm
 
 from feast import FeatureTable, utils
@@ -13,7 +12,7 @@ from feast.entity import Entity
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.helpers import get_offline_store_from_sources
+from feast.infra.offline_stores.helpers import get_offline_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -28,7 +27,7 @@ from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
-    from google.cloud import bigquery, datastore
+    from google.cloud import datastore
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -37,20 +36,23 @@ except ImportError as e:
 
 class GcpProvider(Provider):
     _gcp_project_id: Optional[str]
+    _namespace: Optional[str]
 
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
-        if config and config.online_store and config.online_store.project_id:
-            self._gcp_project_id = config.online_store.project_id
-        else:
-            self._gcp_project_id = None
+        self._gcp_project_id = config.online_store.project_id
+        self._namespace = config.online_store.namespace
+        self._write_concurrency = config.online_store.write_concurrency
+        self._write_batch_size = config.online_store.write_batch_size
+
+        assert config.offline_store is not None
+        self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _initialize_client(self):
         try:
-            if self._gcp_project_id is not None:
-                return datastore.Client(self._gcp_project_id)
-            else:
-                return datastore.Client()
+            return datastore.Client(
+                project=self._gcp_project_id, namespace=self._namespace
+            )
         except DefaultCredentialsError as e:
             raise FeastProviderLoginError(
                 str(e)
@@ -72,7 +74,9 @@ class GcpProvider(Provider):
 
         for table in tables_to_keep:
             key = client.key("Project", project, "Table", table.name)
-            entity = datastore.Entity(key=key)
+            entity = datastore.Entity(
+                key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+            )
             entity.update({"created_ts": datetime.utcnow()})
             client.put(entity)
 
@@ -113,10 +117,10 @@ class GcpProvider(Provider):
     ) -> None:
         client = self._initialize_client()
 
-        pool = ThreadPool(processes=40)
+        pool = ThreadPool(processes=self._write_concurrency)
         pool.map(
             lambda b: _write_minibatch(client, project, table, b, progress),
-            _to_minibatches(data),
+            _to_minibatches(data, batch_size=self._write_batch_size),
         )
 
     def online_read(
@@ -124,6 +128,7 @@ class GcpProvider(Provider):
         project: str,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         client = self._initialize_client()
 
@@ -165,11 +170,7 @@ class GcpProvider(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        start_date = utils.make_tzaware(start_date)
-        end_date = utils.make_tzaware(end_date)
-
-        offline_store = get_offline_store_from_sources([feature_view.input])
-        table = offline_store.pull_latest_from_table_or_query(
+        table = self.offline_store.pull_latest_from_table_or_query(
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -190,17 +191,8 @@ class GcpProvider(Provider):
                 project, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
-        feature_view.materialization_intervals.append((start_date, end_date))
-        registry.apply_feature_view(feature_view, project)
-
-    @staticmethod
-    def _pull_query(query: str) -> pyarrow.Table:
-        client = bigquery.Client()
-        query_job = client.query(query)
-        return query_job.to_arrow()
-
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -208,10 +200,7 @@ class GcpProvider(Provider):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        offline_store = get_offline_store_from_sources(
-            [feature_view.input for feature_view in feature_views]
-        )
-        job = offline_store.get_historical_features(
+        job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
             feature_refs=feature_refs,
@@ -227,7 +216,7 @@ ProtoBatch = Sequence[
 ]
 
 
-def _to_minibatches(data: ProtoBatch, batch_size=50) -> Iterator[ProtoBatch]:
+def _to_minibatches(data: ProtoBatch, batch_size) -> Iterator[ProtoBatch]:
     """
     Split data into minibatches, making sure we stay under GCP datastore transaction size
     limits.
@@ -257,7 +246,9 @@ def _write_minibatch(
 
         key = client.key("Project", project, "Table", table.name, "Row", document_id,)
 
-        entity = datastore.Entity(key=key)
+        entity = datastore.Entity(
+            key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+        )
 
         entity.update(
             dict(

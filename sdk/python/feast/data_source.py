@@ -598,8 +598,7 @@ class FileSource(DataSource):
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
         super().__init__(
-            event_timestamp_column
-            or self._infer_event_timestamp_column(r"timestamp\[\w\w\]"),
+            event_timestamp_column or self._infer_event_timestamp_column(r"^timestamp"),
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -744,7 +743,6 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-        bq_columns_query = ""
         name_type_pairs = []
         if self.table_ref is not None:
             project_id, dataset_id, table_id = self.table_ref.split(".")

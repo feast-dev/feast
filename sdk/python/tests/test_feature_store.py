@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from tempfile import mkstemp
 
 import pytest
-from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
-from fixtures.data_source_fixtures import (
+from pytest_lazyfixture import lazy_fixture
+from utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_ref_arg,
 )
-from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
@@ -333,22 +332,6 @@ def test_apply_feature_view_integration(test_feature_store):
     assert len(feature_views) == 0
 
 
-@pytest.mark.integration
-@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
-def test_data_source_ts_col_inference_success(dataframe_source):
-    with prep_file_source(df=dataframe_source) as file_source:
-        actual_file_source = file_source.event_timestamp_column
-        actual_bq_1 = simple_bq_source_using_table_ref_arg(
-            dataframe_source
-        ).event_timestamp_column
-        actual_bq_2 = simple_bq_source_using_query_arg(
-            dataframe_source
-        ).event_timestamp_column
-        expected = "ts_1"
-
-        assert expected == actual_file_source == actual_bq_1 == actual_bq_2
-
-
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
@@ -421,3 +404,59 @@ def test_apply_remote_repo():
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
         )
     )
+
+
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+def test_reapply_feature_view_success(test_feature_store, dataframe_source):
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source:
+
+        e = Entity(name="id", value_type=ValueType.STRING)
+
+        # Create Feature View
+        fv1 = FeatureView(
+            name="my_feature_view_1",
+            features=[Feature(name="string_col", dtype=ValueType.STRING)],
+            entities=["id"],
+            input=file_source,
+            ttl=timedelta(minutes=5),
+        )
+
+        # Register Feature View
+        test_feature_store.apply([fv1, e])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 0
+
+        # Run materialization
+        test_feature_store.materialize(datetime(2020, 1, 1), datetime(2021, 1, 1))
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 1
+
+        # Apply again
+        test_feature_store.apply([fv1])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 1
+
+        # Change and apply Feature View
+        fv1 = FeatureView(
+            name="my_feature_view_1",
+            features=[Feature(name="int64_col", dtype=ValueType.INT64)],
+            entities=["id"],
+            input=file_source,
+            ttl=timedelta(minutes=5),
+        )
+        test_feature_store.apply([fv1])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 0

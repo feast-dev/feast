@@ -1,6 +1,7 @@
 import importlib
 import os
 import random
+import re
 import sys
 from datetime import timedelta
 from importlib.abc import Loader
@@ -8,13 +9,17 @@ from pathlib import Path
 from typing import List, NamedTuple, Set, Union
 
 import click
+from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
+from feast.inference import infer_entity_value_type_from_feature_views
+from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.telemetry import log_exceptions_and_usage
 
 
 def py_path_to_module(path: Path, repo_root: Path) -> str:
@@ -103,13 +108,19 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     return res
 
 
+@log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path):
     from colorama import Fore, Style
 
     os.chdir(repo_path)
-    sys.path.append("")
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
+    if not is_valid_name(project):
+        print(
+            f"{project} is not valid. Project name should only have "
+            f"alphanumerical values and underscores but not start with an underscore."
+        )
+        sys.exit(1)
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
@@ -118,6 +129,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+    repo = ParsedRepo(
+        feature_tables=repo.feature_tables,
+        entities=infer_entity_value_type_from_feature_views(
+            repo.entities, repo.feature_views
+        ),
+        feature_views=repo.feature_views,
+    )
     sys.dont_write_bytecode = False
     for entity in repo.entities:
         registry.apply_entity(entity, project=project)
@@ -129,6 +147,14 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     for t in repo.feature_views:
         repo_table_names.add(t.name)
+
+    data_sources = [t.input for t in repo.feature_views]
+
+    # Make sure the data source used by this feature view is supported by
+    for data_source in data_sources:
+        assert_offline_store_supports_data_source(
+            repo_config.offline_store, data_source
+        )
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):
@@ -209,6 +235,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     )
 
 
+@log_exceptions_and_usage
 def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_config = repo_config.get_registry_config()
     registry = Registry(
@@ -229,6 +256,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     )
 
 
+@log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
     registry_config = repo_config.get_registry_config()
@@ -246,6 +274,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
 
 
 def cli_check_repo(repo_path: Path):
+    sys.path.append(str(repo_path))
     config_path = repo_path / "feature_store.yaml"
     if not config_path.exists():
         print(
@@ -255,6 +284,7 @@ def cli_check_repo(repo_path: Path):
         sys.exit(1)
 
 
+@log_exceptions_and_usage
 def init_repo(repo_name: str, template: str):
     import os
     from distutils.dir_util import copy_tree
@@ -262,6 +292,11 @@ def init_repo(repo_name: str, template: str):
 
     from colorama import Fore, Style
 
+    if not is_valid_name(repo_name):
+        raise BadParameter(
+            message="Name should be alphanumeric values and underscores but not start with an underscore",
+            param_hint="PROJECT_DIRECTORY",
+        )
     repo_path = Path(os.path.join(Path.cwd(), repo_name))
     repo_path.mkdir(exist_ok=True)
     repo_config_path = repo_path / "feature_store.yaml"
@@ -312,6 +347,11 @@ def init_repo(repo_name: str, template: str):
         f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{repo_path}{Style.RESET_ALL}."
     )
     click.echo()
+
+
+def is_valid_name(name: str) -> bool:
+    """A name should be alphanumeric values and underscores but not start with an underscore"""
+    return not name.startswith("_") and re.compile(r"\W+").search(name) is None
 
 
 def replace_str_in_file(file_path, match_str, sub_str):

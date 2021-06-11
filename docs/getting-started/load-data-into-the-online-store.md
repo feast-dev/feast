@@ -43,5 +43,5 @@ The `materialize-incremental` command functions similarly to `materialize` in th
 
 Unlike `materialize`,  `materialize-incremental` automatically determines the start time from which to load features from batch sources of each feature view. The first time `materialize-incremental` is executed it will set the start time to the oldest timestamp of each data source, and the end time as the one provided by the user. For each run of `materialize-incremental`, the end timestamp will be tracked. 
 
-Subsequent runs of `materialize-incremental` will then set the start time to the end time of the previous run, thus only loading new data that has arrived into the online store. Note that the end time that is tracked for each run is at the feature view level, not globally for all feature feature views, i.e, different feature views may have different periods that have been materialized into the online store.
+Subsequent runs of `materialize-incremental` will then set the start time to the end time of the previous run, thus only loading new data that has arrived into the online store. Note that the end time that is tracked for each run is at the feature view level, not globally for all feature views, i.e, different feature views may have different periods that have been materialized into the online store.
 

@@ -24,7 +24,6 @@ build-api-source:
 
 html: clean-html build-api-source
 	sphinx-build -b html source html
-	rm -rf $(PROJECT_ROOT)/sdk/python/docs/source
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

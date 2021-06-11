@@ -151,6 +151,42 @@ def test_telemetry_off():
         assert rows.total_rows == 0
 
 
+def test_exception_telemetry_on():
+    old_environ = dict(os.environ)
+    test_telemetry_id = str(uuid.uuid4())
+    os.environ["FEAST_FORCE_TELEMETRY_UUID"] = test_telemetry_id
+    os.environ["FEAST_IS_TELEMETRY_TEST"] = "True"
+    os.environ["FEAST_TELEMETRY"] = "True"
+
+    try:
+        test_feature_store = FeatureStore("/tmp/non_existent_directory")
+    except:
+        pass
+
+    os.environ.clear()
+    os.environ.update(old_environ)
+    ensure_bigquery_telemetry_id_with_retry(test_telemetry_id)
+
+
+def test_exception_telemetry_off():
+    old_environ = dict(os.environ)
+    test_telemetry_id = str(uuid.uuid4())
+    os.environ["FEAST_IS_TELEMETRY_TEST"] = "True"
+    os.environ["FEAST_TELEMETRY"] = "False"
+    os.environ["FEAST_FORCE_TELEMETRY_UUID"] = test_telemetry_id
+
+    try:
+        test_feature_store = FeatureStore("/tmp/non_existent_directory")
+    except:
+        pass
+
+    os.environ.clear()
+    os.environ.update(old_environ)
+    sleep(30)
+    rows = read_bigquery_telemetry_id(test_telemetry_id)
+    assert rows.total_rows == 0
+
+
 @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(5))
 def ensure_bigquery_telemetry_id_with_retry(telemetry_id):
     rows = read_bigquery_telemetry_id(telemetry_id)

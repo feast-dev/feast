@@ -2,35 +2,34 @@
 
 * [Introduction](README.md)
 * [Quickstart](quickstart.md)
+* [Getting started](getting-started/README.md)
+  * [Install Feast](getting-started/install-feast.md)
+  * [Create a feature repository](getting-started/create-a-feature-repository.md)
+  * [Deploy a feature store](getting-started/deploy-a-feature-store.md)
+  * [Build a training dataset](getting-started/build-a-training-dataset.md)
+  * [Load data into the online store](getting-started/load-data-into-the-online-store.md)
+  * [Read features from the online store](getting-started/read-features-from-the-online-store.md)
+* [Community](community.md)
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
-* [Community](community.md)
-
-## How-to Guides
-
-* [Create a feature repository](how-to-guides/create-a-feature-repository.md)
-* [Deploy a feature store](how-to-guides/deploy-a-feature-store.md)
-* [Load data into the online store](how-to-guides/load-data-into-the-online-store.md)
-* [Build a training dataset](how-to-guides/build-a-training-dataset.md)
-* [Read features from the online store](how-to-guides/read-features-from-the-online-store.md)
 
 ## Concepts
 
-* [Architecture](concepts/architecture.md)
-* [Feature Repository](concepts/feature-repository.md)
-* [Feature Views](concepts/feature-views.md)
-* [Apply](concepts/apply.md)
-* [Glossary](concepts/glossary.md)
+* [Data model and concepts](concepts/data-model-and-concepts.md)
+* [Architecture and components](concepts/architecture-and-components.md)
 
 ## Reference
 
+* [Feature repository](reference/feature-repository.md)
 * [feature\_store.yaml](reference/feature-store-yaml.md)
+* [Feast CLI reference](reference/feast-cli-commands.md)
 * [.feastignore](reference/feast-ignore.md)
 * [Python API reference](http://rtd.feast.dev/)
+* [Telemetry](reference/telemetry.md)
 
 ## Feast on Kubernetes
 
-* [Getting Started](feast-on-kubernetes/getting-started/README.md)
+* [Getting started](feast-on-kubernetes/getting-started/README.md)
   * [Install Feast](feast-on-kubernetes/getting-started/install-feast/README.md)
     * [Docker Compose](feast-on-kubernetes/getting-started/install-feast/quickstart.md)
     * [Kubernetes \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-with-helm.md)
@@ -38,7 +37,7 @@
     * [Azure AKS \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-helm.md)
     * [Azure AKS \(with Terraform\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-terraform.md)
     * [Google Cloud GKE \(with Terraform\)](feast-on-kubernetes/getting-started/install-feast/google-cloud-gke-with-terraform.md)
-    * [IBM Cloud Kubernetes Service \(IKS\) \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-helm.md)
+    * [IBM Cloud Kubernetes Service \(IKS\) and Red Hat OpenShift \(with Kustomize\)](feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-kustomize.md)
   * [Connect to Feast](feast-on-kubernetes/getting-started/connect-to-feast/README.md)
     * [Python SDK](feast-on-kubernetes/getting-started/connect-to-feast/python-sdk.md)
     * [Feast CLI](feast-on-kubernetes/getting-started/connect-to-feast/feast-cli.md)
@@ -52,7 +51,7 @@
   * [Stores](feast-on-kubernetes/concepts/stores.md)
 * [Tutorials](feast-on-kubernetes/tutorials-1/README.md)
   * [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb)
-* [User Guide](feast-on-kubernetes/user-guide/README.md)
+* [User guide](feast-on-kubernetes/user-guide/README.md)
   * [Overview](feast-on-kubernetes/user-guide/overview.md)
   * [Getting online features](feast-on-kubernetes/user-guide/getting-online-features.md)
   * [Getting training features](feast-on-kubernetes/user-guide/getting-training-features.md)
@@ -75,12 +74,11 @@
   * [Audit Logging](feast-on-kubernetes/advanced-1/audit-logging.md)
   * [Security](feast-on-kubernetes/advanced-1/security.md)
   * [Upgrading Feast](feast-on-kubernetes/advanced-1/upgrading.md)
-  * [Telemetry](feast-on-kubernetes/advanced-1/telemetry.md)
 
 ## Contributing
 
-* [Contribution Process](contributing/contributing.md)
-* [Development Guide](contributing/development-guide.md)
-* [Versioning Policy](contributing/versioning-policy.md)
-* [Release Process](contributing/release-process.md)
+* [Contribution process](contributing/contributing.md)
+* [Development guide](contributing/development-guide.md)
+* [Versioning policy](contributing/versioning-policy.md)
+* [Release process](contributing/release-process.md)
 

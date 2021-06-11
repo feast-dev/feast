@@ -3,6 +3,11 @@ default_stages:
 repos:
   - repo: local
     hooks:
+      - id: format
+        name: Format
+        stages: [ push ]
+        language: system
+        entry: make format
       - id: lint
         name: Lint
         stages: [ push ]

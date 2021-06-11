@@ -1,5 +1,61 @@
 # Changelog
 
+## [v0.10.7](https://github.com/feast-dev/feast/tree/v0.10.7) (2021-06-07)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.6...v0.10.7)
+
+**Fixed bugs:**
+
+- Fix race condition in historical e2e tests [\#1620](https://github.com/feast-dev/feast/pull/1620) ([woop](https://github.com/woop))
+
+**Merged pull requests:**
+
+- Use drop\_duplicates\(\) instead of groupby \(about 1.5~2x faster\) [\#1617](https://github.com/feast-dev/feast/pull/1617) ([rightx2](https://github.com/rightx2))
+- Use CONCAT\(\) instead of ROW\_NUMBER\(\) [\#1601](https://github.com/feast-dev/feast/pull/1601) ([MattDelac](https://github.com/MattDelac))  
+- Minor doc fix in the code snippet: Fix to reference the right instance for the retrieved job instance object [\#1599](https://github.com/feast-dev/feast/pull/1599) ([dmatrix](https://github.com/dmatrix))
+- Append nanoseconds to dataset name in test\_historical\_retrival to prevent tests stomping over each other [\#1593](https://github.com/feast-dev/feast/pull/1593) ([achals](https://github.com/achals))
+- Make start and end timestamps tz aware in the CLI [\#1590](https://github.com/feast-dev/feast/pull/1590) ([achals](https://github.com/achals))
+
+## [v0.10.6](https://github.com/feast-dev/feast/tree/v0.10.6) (2021-05-27)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.5...v0.10.6)
+
+**Implemented enhancements:**
+
+- Add datastore namespace option in configs [\#1581](https://github.com/feast-dev/feast/pull/1581) ([tsotnet](https://github.com/tsotnet))
+
+**Fixed bugs:**
+
+- Fix contention issue [\#1582](https://github.com/feast-dev/feast/pull/1582) ([woop](https://github.com/woop))
+- Ensure that only None types fail predicate [\#1580](https://github.com/feast-dev/feast/pull/1580) ([woop](https://github.com/woop))
+- Don't create bigquery dataset if it already exists [\#1569](https://github.com/feast-dev/feast/pull/1569) ([tsotnet](https://github.com/tsotnet))
+
+**Merged pull requests:**
+
+- Change OfflineStore class description [\#1571](https://github.com/feast-dev/feast/pull/1571) ([tedhtchang](https://github.com/tedhtchang))
+
+
+## [v0.10.5](https://github.com/feast-dev/feast/tree/v0.10.5) (2021-05-19)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.4...v0.10.5)
+
+**Implemented enhancements:**
+
+- Add offline\_store config [\#1552](https://github.com/feast-dev/feast/pull/1552) ([tsotnet](https://github.com/tsotnet))
+
+**Fixed bugs:**
+
+- Validate project and repo names for apply and init commands [\#1558](https://github.com/feast-dev/feast/pull/1558) ([tedhtchang](https://github.com/tedhtchang))
+
+**Merged pull requests:**
+
+- Fix Sphinx documentation building [\#1563](https://github.com/feast-dev/feast/pull/1563) ([woop](https://github.com/woop))
+- Add test coverage and remove MacOS integration tests [\#1562](https://github.com/feast-dev/feast/pull/1562) ([woop](https://github.com/woop))
+- Improve GCP exception handling [\#1561](https://github.com/feast-dev/feast/pull/1561) ([woop](https://github.com/woop))
+- Update default cli no option help message [\#1550](https://github.com/feast-dev/feast/pull/1550) ([tedhtchang](https://github.com/tedhtchang))
+- Add opt-out exception logging telemetry [\#1535](https://github.com/feast-dev/feast/pull/1535) ([jklegar](https://github.com/jklegar))
+- Add instruction for install Feast on IKS and OpenShift using Kustomize [\#1534](https://github.com/feast-dev/feast/pull/1534) ([tedhtchang](https://github.com/tedhtchang))
+
 ## [v0.10.4](https://github.com/feast-dev/feast/tree/v0.10.4) (2021-05-12)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.3...v0.10.4)

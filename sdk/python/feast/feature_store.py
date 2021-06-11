@@ -26,6 +26,7 @@ from feast import utils
 from feast.entity import Entity
 from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
+from feast.inference import infer_entity_value_type_from_feature_views
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -35,7 +36,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
-from feast.telemetry import Telemetry
+from feast.telemetry import log_exceptions, log_exceptions_and_usage
 from feast.version import get_version
 
 
@@ -52,6 +53,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
 
+    @log_exceptions
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
@@ -72,8 +74,8 @@ class FeatureStore:
             repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
-        self._tele = Telemetry()
 
+    @log_exceptions
     def version(self) -> str:
         """Returns the version of the current Feast SDK/CLI"""
 
@@ -87,6 +89,7 @@ class FeatureStore:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return get_provider(self.config, self.repo_path)
 
+    @log_exceptions_and_usage
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
@@ -101,7 +104,6 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
-        self._tele.log("refresh_registry")
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
@@ -111,6 +113,7 @@ class FeatureStore:
         )
         self._registry.refresh()
 
+    @log_exceptions_and_usage
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
@@ -121,10 +124,10 @@ class FeatureStore:
         Returns:
             List of entities
         """
-        self._tele.log("list_entities")
 
         return self._registry.list_entities(self.project, allow_cache=allow_cache)
 
+    @log_exceptions_and_usage
     def list_feature_views(self) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -132,10 +135,10 @@ class FeatureStore:
         Returns:
             List of feature views
         """
-        self._tele.log("list_feature_views")
 
         return self._registry.list_feature_views(self.project)
 
+    @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
@@ -147,10 +150,10 @@ class FeatureStore:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        self._tele.log("get_entity")
 
         return self._registry.get_entity(name, self.project)
 
+    @log_exceptions_and_usage
     def get_feature_view(self, name: str) -> FeatureView:
         """
         Retrieves a feature view.
@@ -162,10 +165,10 @@ class FeatureStore:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        self._tele.log("get_feature_view")
 
         return self._registry.get_feature_view(name, self.project)
 
+    @log_exceptions_and_usage
     def delete_feature_view(self, name: str):
         """
         Deletes a feature view or raises an exception if not found.
@@ -173,10 +176,10 @@ class FeatureStore:
         Args:
             name: Name of feature view
         """
-        self._tele.log("delete_feature_view")
 
         return self._registry.delete_feature_view(name, self.project)
 
+    @log_exceptions_and_usage
     def apply(
         self, objects: Union[Entity, FeatureView, List[Union[FeatureView, Entity]]]
     ):
@@ -210,26 +213,26 @@ class FeatureStore:
             >>> fs.apply([customer_entity, customer_feature_view])
         """
 
-        self._tele.log("apply")
-
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
 
         if isinstance(objects, Entity) or isinstance(objects, FeatureView):
             objects = [objects]
-        views_to_update = []
-        entities_to_update = []
-        for ob in objects:
-            if isinstance(ob, FeatureView):
-                self._registry.apply_feature_view(ob, project=self.project)
-                views_to_update.append(ob)
-            elif isinstance(ob, Entity):
-                self._registry.apply_entity(ob, project=self.project)
-                entities_to_update.append(ob)
-            else:
-                raise ValueError(
-                    f"Unknown object type ({type(ob)}) provided as part of apply() call"
-                )
+        assert isinstance(objects, list)
+
+        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        entities_to_update = infer_entity_value_type_from_feature_views(
+            [ob for ob in objects if isinstance(ob, Entity)], views_to_update
+        )
+
+        if len(views_to_update) + len(entities_to_update) != len(objects):
+            raise ValueError("Unknown object type provided as part of apply() call")
+
+        for view in views_to_update:
+            self._registry.apply_feature_view(view, project=self.project)
+        for ent in entities_to_update:
+            self._registry.apply_entity(ent, project=self.project)
+
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=[],
@@ -239,6 +242,7 @@ class FeatureStore:
             partial=True,
         )
 
+    @log_exceptions_and_usage
     def get_historical_features(
         self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
     ) -> RetrievalJob:
@@ -276,10 +280,9 @@ class FeatureStore:
             >>>     entity_df="SELECT event_timestamp, order_id, customer_id from gcp_project.my_ds.customer_orders",
             >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"]
             >>> )
-            >>> feature_data = job.to_df()
+            >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-        self._tele.log("get_historical_features")
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
@@ -304,6 +307,7 @@ class FeatureStore:
 
         return job
 
+    @log_exceptions_and_usage
     def materialize_incremental(
         self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
@@ -330,7 +334,6 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp", registry="gs://my-fs/", project="my_fs_proj"))
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
         """
-        self._tele.log("materialize_incremental")
 
         feature_views_to_materialize = []
         if feature_views is None:
@@ -368,6 +371,9 @@ class FeatureStore:
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
 
+            start_date = utils.make_tzaware(start_date)
+            end_date = utils.make_tzaware(end_date)
+
             provider.materialize_single_feature_view(
                 feature_view,
                 start_date,
@@ -377,6 +383,11 @@ class FeatureStore:
                 tqdm_builder,
             )
 
+            self._registry.apply_materialization(
+                feature_view, self.project, start_date, end_date
+            )
+
+    @log_exceptions_and_usage
     def materialize(
         self,
         start_date: datetime,
@@ -408,7 +419,6 @@ class FeatureStore:
             >>>   start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             >>> )
         """
-        self._tele.log("materialize")
 
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
@@ -439,6 +449,9 @@ class FeatureStore:
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
 
+            start_date = utils.make_tzaware(start_date)
+            end_date = utils.make_tzaware(end_date)
+
             provider.materialize_single_feature_view(
                 feature_view,
                 start_date,
@@ -448,6 +461,11 @@ class FeatureStore:
                 tqdm_builder,
             )
 
+            self._registry.apply_materialization(
+                feature_view, self.project, start_date, end_date
+            )
+
+    @log_exceptions_and_usage
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
     ) -> OnlineResponse:
@@ -484,7 +502,6 @@ class FeatureStore:
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
-        self._tele.log("get_online_features")
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
@@ -524,7 +541,10 @@ class FeatureStore:
                 table, union_of_entity_keys, entity_name_to_join_key_map
             )
             read_rows = provider.online_read(
-                project=self.project, table=table, entity_keys=entity_keys,
+                project=self.project,
+                table=table,
+                entity_keys=entity_keys,
+                requested_features=requested_features,
             )
             for row_idx, read_row in enumerate(read_rows):
                 row_ts, feature_data = read_row

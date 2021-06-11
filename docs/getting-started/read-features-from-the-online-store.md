@@ -27,7 +27,7 @@ feature_refs = [
 
 #### 3. Read online features
 
-Next we will create a feature store object and call `get_online_features()` which reads the relevant feature values directly from the online store.
+Next, we will create a feature store object and call `get_online_features()` which reads the relevant feature values directly from the online store.
 
 ```python
 fs = FeatureStore(repo_path="path/to/feature/repo")

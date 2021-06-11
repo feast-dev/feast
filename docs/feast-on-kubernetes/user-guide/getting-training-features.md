@@ -33,11 +33,11 @@ output_file_uri = historical_feature_retrieval_job.get_output_file_uri()
 
 #### 1. Define feature references
 
-[Feature references](../../concepts/glossary.md#feature-references) define the specific features that will be retrieved from Feast. These features can come from multiple feature tables. The only requirement is that the feature tables that make up the feature references have the same entity \(or composite entity\).
+[Feature references]() define the specific features that will be retrieved from Feast. These features can come from multiple feature tables. The only requirement is that the feature tables that make up the feature references have the same entity \(or composite entity\).
 
 **2. Define an entity dataframe**
 
-Feast needs to join feature values onto specific entities at specific points in time. Thus, it is necessary to provide an [entity dataframe](../../concepts/glossary.md#entity-dataframe) as part of the `get_historical_features` method. In the example above we are defining an entity source. This source is an external file that provides Feast with the entity dataframe.
+Feast needs to join feature values onto specific entities at specific points in time. Thus, it is necessary to provide an [entity dataframe]() as part of the `get_historical_features` method. In the example above we are defining an entity source. This source is an external file that provides Feast with the entity dataframe.
 
 **3. Launch historical retrieval job**
 
@@ -51,7 +51,7 @@ Feast always joins features onto entity data in a point-in-time correct way. The
 
 In the example below there are two tables \(or dataframes\):
 
-* The dataframe on the left is the [entity dataframe](../../concepts/glossary.md#entity-dataframe) that contains timestamps, entities, and the target variable \(trip\_completed\). This dataframe is provided to Feast through an entity source.
+* The dataframe on the left is the [entity dataframe]() that contains timestamps, entities, and the target variable \(trip\_completed\). This dataframe is provided to Feast through an entity source.
 * The dataframe on the right contains driver features. This dataframe is represented in Feast through a feature table and its accompanying data source\(s\).
 
 The user would like to have the driver features joined onto the entity dataframe to produce a training dataset that contains both the target \(trip\_completed\) and features \(average\_daily\_rides, maximum\_daily\_rides, rating\). This dataset will then be used to train their model.
@@ -61,7 +61,7 @@ The user would like to have the driver features joined onto the entity dataframe
 Feast is able to intelligently join feature data with different timestamps to a single entity dataframe. It does this through a point-in-time join as follows:
 
 1. Feast loads the entity dataframe and all feature tables \(driver dataframe\) into the same location. This can either be a database or in memory.
-2. For each [entity row](../../concepts/glossary.md#entity-rows) in the [entity dataframe](getting-online-features.md), Feast tries to find feature values in each feature table to join to it. Feast extracts the timestamp and entity key of each row in the entity dataframe and scans backward through the feature table until it finds a matching entity key.
+2. For each [entity row]() in the [entity dataframe](getting-online-features.md), Feast tries to find feature values in each feature table to join to it. Feast extracts the timestamp and entity key of each row in the entity dataframe and scans backward through the feature table until it finds a matching entity key.
 3. If the event timestamp of the matching entity key within the driver feature table is within the maximum age configured for the feature table, then the features at that entity key are joined onto the entity dataframe. If the event timestamp is outside of the maximum age, then only null values are returned.
 4. If multiple entity keys are found with the same event timestamp, then they are deduplicated by the created timestamp, with newer values taking precedence.
 5. Feast repeats this joining process for all feature tables and returns the resulting dataset.

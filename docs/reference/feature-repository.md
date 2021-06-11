@@ -1,4 +1,4 @@
-# Feature Repository
+# Feature repository
 
 Feast manages two important sets of configuration: feature definitions, and configuration about how to run the feature store. With Feast, this configuration can be written declaratively and stored as code in a central location. This central location is called a feature repository, and it's essentially just a directory that contains some code files.
 
@@ -57,7 +57,7 @@ online_store:
 ```
 {% endcode %}
 
-The `feature_store.yaml` file configures how the feature store should run. See [feature\_store.yaml](../reference/feature-store-yaml.md) for more details.
+The `feature_store.yaml` file configures how the feature store should run. See [feature\_store.yaml](feature-store-yaml.md) for more details.
 
 ## The .feastignore file
 
@@ -79,7 +79,7 @@ scripts/**/foo.py
 ```
 {% endcode %}
 
-See [.feastignore](../reference/feast-ignore.md) for more details.
+See [.feastignore](feast-ignore.md) for more details.
 
 ## Feature definitions
 
@@ -116,10 +116,10 @@ driver_locations = FeatureView(
 ```
 {% endcode %}
 
-To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](feature-views.md).
+To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](../concepts/data-model-and-concepts.md#feature-view).
 
 ### Next steps
 
-* See [Create a feature repository](../how-to-guides/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature\_store.yaml](../reference/feature-store-yaml.md), [.feastignore](../reference/feast-ignore.md) or [Feature Views](feature-views.md) for more information on the configuration files that live in a feature registry.
+* See [Create a feature repository](../getting-started/create-a-feature-repository.md) to get started with an example feature repository.
+* See [feature\_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md) or [Feature Views](../concepts/data-model-and-concepts.md#feature-view) for more information on the configuration files that live in a feature registry.
 

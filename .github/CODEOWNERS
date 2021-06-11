@@ -1,4 +1,4 @@
 # Each line is a file pattern followed by one or more owners.
 # https://help.github.com/en/articles/about-code-owners
 
-*           @woop @jklegar @tsotnet @feast-dev/maintainers
+*           @woop @achals @tsotnet @feast-dev/maintainers
