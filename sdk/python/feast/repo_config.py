@@ -68,7 +68,7 @@ class BigQueryOfflineStoreConfig(FeastBaseModel):
     type: Literal["bigquery"] = "bigquery"
     """ Offline store type selector"""
 
-    dataset: Optional[StrictStr] = "feast"
+    dataset: StrictStr = "feast"
     """ (optional) BigQuery Dataset name for temporary tables """
 
 
