@@ -24,6 +24,7 @@ try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
+    from google.cloud.bigquery import Client, Table
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -90,39 +91,17 @@ class BigQueryOfflineStore(OfflineStore):
 
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
-        if type(entity_df) is str:
-            entity_df_job = client.query(entity_df)
-            # Start the job and get the schema back. We don't need the actual rows.
-            entity_df_result = entity_df_job.result(max_results=0)
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        table = _upload_entity_df_into_bigquery(
+            client, config.project, config.offline_store.dataset, entity_df
+        )
 
-            entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
-                entity_df_result
-            )
-            _assert_expected_columns_in_bigquery(
-                expected_join_keys, entity_df_event_timestamp_col, entity_df_result
-            )
-
-            entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
-        elif isinstance(entity_df, pandas.DataFrame):
-            entity_df_event_timestamp_col = _infer_event_timestamp_from_dataframe(
-                entity_df
-            )
-
-            assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
-
-            _assert_expected_columns_in_dataframe(
-                expected_join_keys, entity_df_event_timestamp_col, entity_df
-            )
-
-            table_id = _upload_entity_df_into_bigquery(
-                config.project, config.offline_store.dataset, entity_df, client
-            )
-            entity_df_sql_table = f"`{table_id}`"
-        else:
-            raise ValueError(
-                f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
-                f"but we found: {type(entity_df)} "
-            )
+        entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
+            table.schema
+        )
+        _assert_expected_columns_in_bigquery(
+            expected_join_keys, entity_df_event_timestamp_col, table.schema,
+        )
 
         # Build a query context containing all information required to template the BigQuery SQL query
         query_context = get_feature_view_query_context(
@@ -135,7 +114,7 @@ class BigQueryOfflineStore(OfflineStore):
             query_context,
             min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
-            left_table_query_string=entity_df_sql_table,
+            left_table_query_string=str(table.reference),
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
 
@@ -157,10 +136,10 @@ def _assert_expected_columns_in_dataframe(
 
 
 def _assert_expected_columns_in_bigquery(
-    join_keys: Set[str], entity_df_event_timestamp_col: str, entity_df_result
+    join_keys: Set[str], entity_df_event_timestamp_col: str, table_schema
 ):
     entity_columns = set()
-    for schema_field in entity_df_result.schema:
+    for schema_field in table_schema:
         entity_columns.add(schema_field.name)
 
     expected_columns = join_keys.copy()
@@ -184,17 +163,17 @@ def _get_join_keys(
     return join_keys
 
 
-def _infer_event_timestamp_from_bigquery_query(entity_df_result) -> str:
+def _infer_event_timestamp_from_bigquery_query(table_schema) -> str:
     if any(
         schema_field.name == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-        for schema_field in entity_df_result.schema
+        for schema_field in table_schema
     ):
         return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
     else:
         datetime_columns = list(
             filter(
                 lambda schema_field: schema_field.field_type == "TIMESTAMP",
-                entity_df_result.schema,
+                table_schema,
             )
         )
         if len(datetime_columns) == 1:
@@ -253,8 +232,10 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) -> str:
-    """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
+def _get_table_id_for_new_entity(
+    client: Client, project: str, dataset_name: str
+) -> str:
+    """Gets the table_id for the new entity to be uploaded."""
 
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
@@ -266,21 +247,44 @@ def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) ->
         # Only create the dataset if it does not exist
         client.create_dataset(dataset, exists_ok=True)
 
-    # Drop the index so that we dont have unnecessary columns
-    entity_df.reset_index(drop=True, inplace=True)
+    return f"{client.project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
 
-    # Upload the dataframe into BigQuery, creating a temporary table
-    job_config = bigquery.LoadJobConfig()
-    table_id = f"{client.project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
-    job = client.load_table_from_dataframe(entity_df, table_id, job_config=job_config,)
-    job.result()
+
+def _upload_entity_df_into_bigquery(
+    client: Client,
+    project: str,
+    dataset_name: str,
+    entity_df: Union[pandas.DataFrame, str],
+) -> Table:
+    """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
+
+    table_id = _get_table_id_for_new_entity(client, project, dataset_name)
+
+    if type(entity_df) is str:
+        job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
+        job.result()
+    elif isinstance(entity_df, pandas.DataFrame):
+        # Drop the index so that we dont have unnecessary columns
+        entity_df.reset_index(drop=True, inplace=True)
+
+        # Upload the dataframe into BigQuery, creating a temporary table
+        job_config = bigquery.LoadJobConfig()
+        job = client.load_table_from_dataframe(
+            entity_df, table_id, job_config=job_config
+        )
+        job.result()
+    else:
+        raise ValueError(
+            f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
+            f"but we found: {type(entity_df)} "
+        )
 
     # Ensure that the table expires after some time
     table = client.get_table(table=table_id)
     table.expires = datetime.utcnow() + timedelta(minutes=30)
     client.update_table(table, ["expires"])
 
-    return table_id
+    return table
 
 
 def get_feature_view_query_context(
