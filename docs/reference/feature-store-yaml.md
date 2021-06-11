@@ -45,3 +45,90 @@ When using the GCP provider:
 * Feast performs historical feature retrieval \(point-in-time joins\) in **BigQuery.**
 * Feast performs online feature serving from **Google Cloud Datastore.**
 
+**Permissions**
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align:left"><b>Command</b>
+      </th>
+      <th style="text-align:left">Component</th>
+      <th style="text-align:left">Permissions</th>
+      <th style="text-align:left">Recommended Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align:left">Apply</td>
+      <td style="text-align:left">BigQuery (source)</td>
+      <td style="text-align:left">
+        <p>bigquery.jobs.create</p>
+        <p>bigquery.readsessions.create</p>
+        <p>bigquery.readsessions.getData</p>
+      </td>
+      <td style="text-align:left">roles/bigquery.user</td>
+    </tr>
+    <tr>
+      <td style="text-align:left">Apply</td>
+      <td style="text-align:left">Datastore (destination)</td>
+      <td style="text-align:left">
+        <p>datastore.entities.allocateIds</p>
+        <p>datastore.entities.create</p>
+        <p>datastore.entities.delete</p>
+        <p>datastore.entities.get</p>
+        <p>datastore.entities.list</p>
+        <p>datastore.entities.update</p>
+      </td>
+      <td style="text-align:left">roles/datastore.owner</td>
+    </tr>
+    <tr>
+      <td style="text-align:left">Materialize</td>
+      <td style="text-align:left">BigQuery (source)</td>
+      <td style="text-align:left">bigquery.jobs.create</td>
+      <td style="text-align:left">roles/bigquery.user</td>
+    </tr>
+    <tr>
+      <td style="text-align:left">Materialize</td>
+      <td style="text-align:left">Datastore (destination)</td>
+      <td style="text-align:left">
+        <p>datastore.entities.allocateIds</p>
+        <p>datastore.entities.create</p>
+        <p>datastore.entities.delete</p>
+        <p>datastore.entities.get</p>
+        <p>datastore.entities.list</p>
+        <p>datastore.entities.update</p>
+        <p>datastore.databases.get</p>
+      </td>
+      <td style="text-align:left">roles/datastore.owner</td>
+    </tr>
+    <tr>
+      <td style="text-align:left">Get Online Features</td>
+      <td style="text-align:left">Datastore</td>
+      <td style="text-align:left">
+        <p>datastore.databases.get</p>
+        <p>datastore.entities.*</p>
+        <p>datastore.indexes.list</p>
+        <p>datastore.namespaces.get</p>
+        <p>datastore.namespaces.list</p>
+        <p>datastore.statistics.get</p>
+        <p>datastore.statistics.list</p>
+      </td>
+      <td style="text-align:left">roles/datastore.user</td>
+    </tr>
+    <tr>
+      <td style="text-align:left">Get Historical Features</td>
+      <td style="text-align:left">BigQuery</td>
+      <td style="text-align:left">
+        <p>bigquery.datasets.get</p>
+        <p>bigquery.tables.get</p>
+        <p>bigquery.tables.create</p>
+        <p>bigquery.tables.updateData</p>
+        <p>bigquery.tables.update</p>
+        <p>bigquery.tables.delete</p>
+        <p>bigquery.tables.getData</p>
+      </td>
+      <td style="text-align:left">roles/bigquery.dataEditor</td>
+    </tr>
+  </tbody>
+</table>
+
