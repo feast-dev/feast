@@ -20,7 +20,7 @@ from pyarrow.parquet import ParquetFile
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
-from feast.errors import BigQuerySourceNotFoundException
+from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.value_type import ValueType
 
@@ -731,11 +731,11 @@ class BigQuerySource(DataSource):
 
         client = bigquery.Client()
         if not self.table_ref:
-            raise BigQuerySourceNotFoundException(self.table_ref)
+            raise DataSourceNotFoundException(self.table_ref)
         try:
             client.get_table(self.table_ref)
         except NotFound:
-            raise BigQuerySourceNotFoundException(self.table_ref)
+            raise DataSourceNotFoundException(self.table_ref)
 
 
 class KafkaSource(DataSource):

@@ -4,13 +4,9 @@ from colorama import Fore, Style
 
 
 class DataSourceNotFoundException(Exception):
-    pass
-
-
-class BigQuerySourceNotFoundException(DataSourceNotFoundException):
-    def __init__(self, table_ref):
+    def __init__(self, path):
         super().__init__(
-            f"Unable to find table '{table_ref}' in BigQuery. Please check that table exists."
+            f"Unable to find table at '{path}'. Please check that table exists."
         )
 
 

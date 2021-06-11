@@ -5,7 +5,7 @@ from utils.data_source_utils import (
 )
 
 from feast.data_source import BigQuerySource
-from feast.errors import BigQuerySourceNotFoundException
+from feast.errors import DataSourceNotFoundException
 
 
 def test_existent_file_source(simple_dataset_1):
@@ -19,7 +19,7 @@ def test_existent_bq_source(simple_dataset_1):
 
 @pytest.mark.integration
 def test_nonexistent_bq_source():
-    with pytest.raises(BigQuerySourceNotFoundException):
+    with pytest.raises(DataSourceNotFoundException):
         BigQuerySource(
             table_ref="project.dataset.nonexistent_table", event_timestamp_column=""
         )
