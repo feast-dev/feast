@@ -541,7 +541,7 @@ class FeatureStore:
                 table, union_of_entity_keys, entity_name_to_join_key_map
             )
             read_rows = provider.online_read(
-                project=self.project,
+                config=self.config,
                 table=table,
                 entity_keys=entity_keys,
                 requested_features=requested_features,

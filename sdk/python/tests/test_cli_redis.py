@@ -29,11 +29,11 @@ def test_basic() -> None:
                 f"""
         project: {project_id}
         registry: {data_path / "registry.db"}
-        provider: redis
+        provider: local
         offline_store:
             type: bigquery
         online_store:
-            redis_type: redis
+            type: redis
             connection_string: localhost:6379,db=0
         """
             )
