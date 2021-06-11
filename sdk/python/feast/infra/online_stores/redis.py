@@ -36,8 +36,10 @@ EX_SECONDS = 253402300799
 
 
 class RedisOnlineStore(OnlineStore):
-    @staticmethod
+    _client: Optional[Union[Redis, RedisCluster]] = None
+
     def setup(
+        self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
@@ -50,8 +52,8 @@ class RedisOnlineStore(OnlineStore):
         """
         pass
 
-    @staticmethod
     def teardown(
+        self,
         config: RepoConfig,
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
@@ -61,8 +63,8 @@ class RedisOnlineStore(OnlineStore):
         """
         pass
 
-    @classmethod
-    def _parse_connection_string(cls, connection_string: str):
+    @staticmethod
+    def _parse_connection_string(connection_string: str):
         """
         Reads Redis connections string using format
         for RedisCluster:
@@ -89,26 +91,26 @@ class RedisOnlineStore(OnlineStore):
 
         return startup_nodes, params
 
-    @classmethod
-    def _get_client(cls, online_store_config: RedisOnlineStoreConfig):
+    def _get_client(self, online_store_config: RedisOnlineStoreConfig):
         """
         Creates the Redis client RedisCluster or Redis depending on configuration
         """
-        startup_nodes, kwargs = cls._parse_connection_string(
-            online_store_config.connection_string
-        )
-        print(f"Startup nodes: {startup_nodes}, {kwargs}")
-        if online_store_config.type == RedisType.redis_cluster:
-            kwargs["startup_nodes"] = startup_nodes
-            return RedisCluster(**kwargs)
-        else:
-            kwargs["host"] = startup_nodes[0]["host"]
-            kwargs["port"] = startup_nodes[0]["port"]
-            return Redis(**kwargs)
+        if not self._client:
+            startup_nodes, kwargs = self._parse_connection_string(
+                online_store_config.connection_string
+            )
+            print(f"Startup nodes: {startup_nodes}, {kwargs}")
+            if online_store_config.type == RedisType.redis_cluster:
+                kwargs["startup_nodes"] = startup_nodes
+                self._client = RedisCluster(**kwargs)
+            else:
+                kwargs["host"] = startup_nodes[0]["host"]
+                kwargs["port"] = startup_nodes[0]["port"]
+                self._client = Redis(**kwargs)
+        return self._client
 
-    @classmethod
     def online_write_batch(
-        cls,
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
@@ -119,7 +121,7 @@ class RedisOnlineStore(OnlineStore):
         online_store_config = config.online_store
         assert isinstance(online_store_config, RedisOnlineStoreConfig)
 
-        client = cls._get_client(online_store_config)
+        client = self._get_client(online_store_config)
         project = config.project
 
         entity_hset = {}
@@ -144,9 +146,8 @@ class RedisOnlineStore(OnlineStore):
             if progress:
                 progress(1)
 
-    @classmethod
     def online_read(
-        cls,
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
@@ -155,7 +156,7 @@ class RedisOnlineStore(OnlineStore):
         online_store_config = config.online_store
         assert isinstance(online_store_config, RedisOnlineStoreConfig)
 
-        client = cls._get_client(online_store_config)
+        client = self._get_client(online_store_config)
         feature_view = table.name
         project = config.project
 

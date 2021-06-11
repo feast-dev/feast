@@ -45,10 +45,10 @@ class DatastoreOnlineStore(OnlineStore):
     OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
     features.
     """
+    _client: Optional[datastore.Client] = None
 
-    @classmethod
     def setup(
-        cls,
+        self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
@@ -60,7 +60,7 @@ class DatastoreOnlineStore(OnlineStore):
         """
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
-        client = cls._initialize_client(online_config)
+        client = self._get_client(online_config)
         feast_project = config.project
 
         for table in tables_to_keep:
@@ -80,9 +80,8 @@ class DatastoreOnlineStore(OnlineStore):
             key = client.key("Project", feast_project, "Table", table.name)
             client.delete(key)
 
-    @classmethod
     def teardown(
-        cls,
+        self,
         config: RepoConfig,
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
@@ -92,7 +91,7 @@ class DatastoreOnlineStore(OnlineStore):
         """
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
-        client = cls._initialize_client(online_config)
+        client = self._get_client(online_config)
         feast_project = config.project
 
         for table in tables:
@@ -104,23 +103,23 @@ class DatastoreOnlineStore(OnlineStore):
             key = client.key("Project", feast_project, "Table", table.name)
             client.delete(key)
 
-    @classmethod
-    def _initialize_client(cls, online_config: DatastoreOnlineStoreConfig):
+    def _get_client(self, online_config: DatastoreOnlineStoreConfig):
 
-        try:
-            return datastore.Client(
-                project=online_config.project_id, namespace=online_config.namespace,
-            )
-        except DefaultCredentialsError as e:
-            raise FeastProviderLoginError(
-                str(e)
-                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
-                "local Google Cloud account "
-            )
+        if not self._client:
+            try:
+                self._client = datastore.Client(
+                    project=online_config.project_id, namespace=online_config.namespace,
+                )
+            except DefaultCredentialsError as e:
+                raise FeastProviderLoginError(
+                    str(e)
+                    + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
+                    "local Google Cloud account "
+                )
+        return self._client
 
-    @classmethod
     def online_write_batch(
-        cls,
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
@@ -131,7 +130,7 @@ class DatastoreOnlineStore(OnlineStore):
 
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
-        client = cls._initialize_client(online_config)
+        client = self._get_client(online_config)
 
         write_concurrency = online_config.write_concurrency
         write_batch_size = online_config.write_batch_size
@@ -139,8 +138,8 @@ class DatastoreOnlineStore(OnlineStore):
 
         pool = ThreadPool(processes=write_concurrency)
         pool.map(
-            lambda b: cls._write_minibatch(client, feast_project, table, b, progress),
-            cls._to_minibatches(data, batch_size=write_batch_size),
+            lambda b: self._write_minibatch(client, feast_project, table, b, progress),
+            self._to_minibatches(data, batch_size=write_batch_size),
         )
 
     @staticmethod
@@ -199,9 +198,8 @@ class DatastoreOnlineStore(OnlineStore):
         if progress:
             progress(len(entities))
 
-    @classmethod
     def online_read(
-        cls,
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
@@ -210,7 +208,7 @@ class DatastoreOnlineStore(OnlineStore):
 
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
-        client = cls._initialize_client(online_config)
+        client = self._get_client(online_config)
 
         feast_project = config.project
 

@@ -35,6 +35,8 @@ class SqliteOnlineStore(OnlineStore):
     features.
     """
 
+    _conn: Optional[sqlite3.Connection] = None
+
     @staticmethod
     def _get_db_path(config: RepoConfig) -> str:
         assert config.online_store.type == "sqlite"
@@ -45,18 +47,17 @@ class SqliteOnlineStore(OnlineStore):
             db_path = config.online_store.path
         return db_path
 
-    @classmethod
-    def _get_conn(cls, config: RepoConfig):
-        db_path = cls._get_db_path(config)
+    def _get_conn(self, config: RepoConfig):
+        if not self._conn:
+            db_path = self._get_db_path(config)
+            Path(db_path).parent.mkdir(exist_ok=True)
+            self._conn = sqlite3.connect(
+                db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            )
+        return self._conn
 
-        Path(db_path).parent.mkdir(exist_ok=True)
-        return sqlite3.connect(
-            db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-        )
-
-    @classmethod
     def online_write_batch(
-        cls,
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
@@ -64,7 +65,7 @@ class SqliteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        conn = cls._get_conn(config)
+        conn = self._get_conn(config)
 
         project = config.project
 
@@ -108,16 +109,15 @@ class SqliteOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
-    @classmethod
     def online_read(
-        cls,
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         pass
-        conn = cls._get_conn(config)
+        conn = self._get_conn(config)
         cur = conn.cursor()
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
@@ -145,9 +145,8 @@ class SqliteOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    @classmethod
     def setup(
-        cls,
+        self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
@@ -155,7 +154,7 @@ class SqliteOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        conn = cls._get_conn(config)
+        conn = self._get_conn(config)
         project = config.project
 
         for table in tables_to_keep:
@@ -169,14 +168,13 @@ class SqliteOnlineStore(OnlineStore):
         for table in tables_to_delete:
             conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
-    @classmethod
     def teardown(
-        cls,
+        self,
         config: RepoConfig,
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ):
-        os.unlink(cls._get_db_path(config))
+        os.unlink(self._get_db_path(config))
 
 
 def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
