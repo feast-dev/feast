@@ -29,9 +29,9 @@ class OnlineStore(ABC):
     features.
     """
 
-    @staticmethod
     @abstractmethod
     def online_write_batch(
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
@@ -56,9 +56,9 @@ class OnlineStore(ABC):
         """
         ...
 
-    @staticmethod
     @abstractmethod
     def online_read(
+        self,
         config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
@@ -80,9 +80,9 @@ class OnlineStore(ABC):
         """
         ...
 
-    @staticmethod
     @abstractmethod
     def setup(
+        self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
@@ -92,9 +92,9 @@ class OnlineStore(ABC):
     ):
         ...
 
-    @staticmethod
     @abstractmethod
     def teardown(
+        self,
         config: RepoConfig,
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],

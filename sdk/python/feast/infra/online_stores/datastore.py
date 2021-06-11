@@ -45,6 +45,7 @@ class DatastoreOnlineStore(OnlineStore):
     OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
     features.
     """
+
     _client: Optional[datastore.Client] = None
 
     def setup(
