@@ -1,3 +1,5 @@
+from typing import Set
+
 from colorama import Fore, Style
 
 
@@ -74,4 +76,14 @@ class FeastEntityDFMissingColumnsError(Exception):
         super().__init__(
             f"The entity dataframe you have provided must contain columns {expected}, "
             f"but {missing} were missing."
+        )
+
+
+class FeastJoinKeysDuringMaterialization(Exception):
+    def __init__(
+        self, source: str, join_key_columns: Set[str], source_columns: Set[str]
+    ):
+        super().__init__(
+            f"The DataFrame from {source} being materialized must have at least {join_key_columns} columns present, "
+            f"but these were missing: {join_key_columns - source_columns} "
         )
