@@ -92,7 +92,8 @@ class BigQueryOfflineStore(OfflineStore):
 
         if type(entity_df) is str:
             entity_df_job = client.query(entity_df)
-            entity_df_result = entity_df_job.result()  # also starts job
+            # Start the job and get the schema back. We don't need the actual rows.
+            entity_df_result = entity_df_job.result(max_results=0)
 
             entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
                 entity_df_result
