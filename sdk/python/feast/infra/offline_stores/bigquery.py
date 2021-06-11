@@ -101,15 +101,18 @@ class BigQueryOfflineStore(OfflineStore):
             entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
 
             # Get a single row from this entity table to validate its schema
-            entity_df_limited_job: QueryJob = client.query(f"SELECT * FROM {entity_df_sql_table} LIMIT 1")
+            entity_df_limited_job: QueryJob = client.query(
+                f"SELECT * FROM {entity_df_sql_table} LIMIT 1"
+            )
             entity_df_limited_result = entity_df_limited_job.result()
             entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
                 entity_df_limited_result
             )
             _assert_expected_columns_in_bigquery(
-                expected_join_keys, entity_df_event_timestamp_col, entity_df_limited_result
+                expected_join_keys,
+                entity_df_event_timestamp_col,
+                entity_df_limited_result,
             )
-
 
         elif isinstance(entity_df, pandas.DataFrame):
             entity_df_event_timestamp_col = _infer_event_timestamp_from_dataframe(
