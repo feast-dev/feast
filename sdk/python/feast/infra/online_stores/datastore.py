@@ -48,7 +48,7 @@ class DatastoreOnlineStore(OnlineStore):
 
     _client: Optional[datastore.Client] = None
 
-    def setup(
+    def update(
         self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],

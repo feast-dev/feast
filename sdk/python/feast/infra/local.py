@@ -39,7 +39,7 @@ class LocalProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        self.online_store.setup(
+        self.online_store.update(
             self.config,
             tables_to_delete,
             tables_to_keep,

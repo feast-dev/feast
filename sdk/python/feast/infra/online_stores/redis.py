@@ -38,7 +38,7 @@ EX_SECONDS = 253402300799
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
-    def setup(
+    def update(
         self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],

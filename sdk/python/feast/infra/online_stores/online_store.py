@@ -81,7 +81,7 @@ class OnlineStore(ABC):
         ...
 
     @abstractmethod
-    def setup(
+    def update(
         self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],

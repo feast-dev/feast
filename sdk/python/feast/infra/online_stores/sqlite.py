@@ -145,7 +145,7 @@ class SqliteOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    def setup(
+    def update(
         self,
         config: RepoConfig,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
