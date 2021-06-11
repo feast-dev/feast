@@ -224,6 +224,8 @@ class RepoConfig(FeastBaseModel):
         if "type" not in values["offline_store"]:
             if values["provider"] == "local" or values["provider"] == "redis":
                 values["offline_store"]["type"] = "file"
+            elif values["provider"] == "aws_dynamodb":
+                values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
 

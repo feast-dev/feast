@@ -27,10 +27,12 @@ def test_basic() -> None:
         repo_config.write_text(
             dedent(
                 f"""
-        project: {project_id}
-        registry: {data_path / "registry.db"}
-        provider: aws_dynamodb
-        """
+            project: {project_id}
+            registry: {data_path / "registry.db"}
+            provider: aws_dynamodb
+            offline_store:
+                type: file
+            """
             )
         )
 

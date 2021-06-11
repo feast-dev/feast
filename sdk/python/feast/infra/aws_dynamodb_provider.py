@@ -12,7 +12,7 @@ from feast import FeatureTable, utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.helpers import get_offline_store_from_sources
+from feast.infra.offline_stores.helpers import get_offline_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -48,6 +48,8 @@ class AwsDynamodbProvider(Provider):
         else:
             self.region_name = os.environ.get("AWS_DEFAULT_REGION", "us-west-2")
             os.environ["AWS_DEFAULT_REGION"] = self.region_name
+        assert config.offline_store is not None
+        self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _initialize_dynamodb(self):
         return boto3.resource("dynamodb", region_name=self.region_name)
@@ -184,8 +186,7 @@ class AwsDynamodbProvider(Provider):
         start_date = utils.make_tzaware(start_date)
         end_date = utils.make_tzaware(end_date)
 
-        offline_store = get_offline_store_from_sources([feature_view.input])
-        table = offline_store.pull_latest_from_table_or_query(
+        table = self.offline_store.pull_latest_from_table_or_query(
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
