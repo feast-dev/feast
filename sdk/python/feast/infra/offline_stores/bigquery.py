@@ -24,7 +24,7 @@ try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
-    from google.cloud.bigquery import Client, QueryJob, Table
+    from google.cloud.bigquery import Client, Table
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -91,6 +91,7 @@ class BigQueryOfflineStore(OfflineStore):
 
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
         table = _upload_entity_df_into_bigquery(
             client, config.project, config.offline_store.dataset, entity_df
         )
@@ -231,7 +232,9 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _get_table_id_for_new_entity(client, project, dataset_name) -> str:
+def _get_table_id_for_new_entity(
+    client: Client, project: str, dataset_name: str
+) -> str:
     """Gets the table_id for the new entity to be uploaded."""
 
     # First create the BigQuery dataset if it doesn't exist
@@ -259,7 +262,7 @@ def _upload_entity_df_into_bigquery(
 
     if type(entity_df) is str:
         job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
-        job_result = job.result()
+        job.result()
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
