@@ -24,6 +24,7 @@ try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
+    from google.cloud.bigquery import QueryJob
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -91,18 +92,25 @@ class BigQueryOfflineStore(OfflineStore):
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         if type(entity_df) is str:
-            entity_df_job = client.query(entity_df)
-            # Start the job and get the schema back. We don't need the actual rows.
-            entity_df_result = entity_df_job.result(max_results=0)
-
-            entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
-                entity_df_result
-            )
-            _assert_expected_columns_in_bigquery(
-                expected_join_keys, entity_df_event_timestamp_col, entity_df_result
-            )
+            entity_df_job: QueryJob = client.query(entity_df)
+            # Note: Don't call entity_df_job.result() here, it will lead
+            # to OOM errors. Instead just wait until the job is done.
+            while not entity_df_job.done():
+                time.sleep(1)
 
             entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
+
+            # Get a single row from this entity table to validate its schema
+            entity_df_limited_job: QueryJob = client.query(f"SELECT * FROM {entity_df_sql_table} LIMIT 1")
+            entity_df_limited_result = entity_df_limited_job.result()
+            entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
+                entity_df_limited_result
+            )
+            _assert_expected_columns_in_bigquery(
+                expected_join_keys, entity_df_event_timestamp_col, entity_df_limited_result
+            )
+
+
         elif isinstance(entity_df, pandas.DataFrame):
             entity_df_event_timestamp_col = _infer_event_timestamp_from_dataframe(
                 entity_df
