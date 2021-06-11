@@ -3,18 +3,17 @@ from datetime import timedelta
 from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
 
 driver_locations_source = BigQuerySource(
-    table_ref="rh_prod.ride_hailing_co.drivers",
+    table_ref="feast-oss.public.drivers",
     event_timestamp_column="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
 customer_profile_source = BigQuerySource(
-    table_ref="rh_prod.ride_hailing_co.customers",
-    event_timestamp_column="event_timestamp",
+    table_ref="feast-oss.public.customers", event_timestamp_column="event_timestamp",
 )
 
 customer_driver_combined_source = BigQuerySource(
-    table_ref="rh_prod.ride_hailing_co.customer_driver",
+    table_ref="feast-oss.public.customer_driver",
     event_timestamp_column="event_timestamp",
 )
 
