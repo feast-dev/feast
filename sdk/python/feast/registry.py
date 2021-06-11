@@ -549,18 +549,21 @@ class S3RegistryStore(RegistryStore):
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._key = self._uri.path.lstrip("/")
+        try:
+            import boto3
+            import botocore
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        self.s3 = boto3.resource("s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"))
         return
 
     def get_registry_proto(self):
-        import boto3
-        import botocore
-
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
-        s3 = boto3.resource("s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"))
         try:
-            bucket = s3.Bucket(self._bucket)
-            s3.meta.client.head_bucket(Bucket=bucket.name)
+            bucket = self.s3.Bucket(self._bucket)
+            self.s3.meta.client.head_bucket(Bucket=bucket.name)
         except botocore.client.ClientError as e:
             # If a client error is thrown, then check that it was a 404 error.
             # If it was a 404 error, then the bucket does not exist.
@@ -600,14 +603,11 @@ class S3RegistryStore(RegistryStore):
         return
 
     def _write_registry(self, registry_proto: RegistryProto):
-        import boto3
-
         registry_proto.version_id = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
         # we have already checked the bucket exists so no need to do it again
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
-        s3 = boto3.resource("s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"))
-        s3.put_object(Bucket=self._bucket, Body=file_obj, Key=self._key)
+        self.s3.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)
         return

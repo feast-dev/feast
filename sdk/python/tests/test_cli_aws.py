@@ -31,7 +31,7 @@ def test_basic() -> None:
             registry: {data_path / "registry.db"}
             provider: aws_dynamodb
             offline_store:
-                type: file
+                type: bigquery
             """
             )
         )

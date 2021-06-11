@@ -2,10 +2,14 @@ import os
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import boto3
 import mmh3
 import pandas
-from botocore.exceptions import ClientError
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+    raise FeastExtrasDependencyImportError("aws", str(e))
 from tqdm import tqdm
 
 from feast import FeatureTable, utils
