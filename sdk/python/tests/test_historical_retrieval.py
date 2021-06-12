@@ -17,6 +17,7 @@ import feast.driver_test_data as driver_data
 from feast import errors, utils
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
+from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
@@ -111,6 +112,7 @@ def create_customer_daily_profile_feature_view(source):
             Feature(name="current_balance", dtype=ValueType.FLOAT),
             Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
             Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
+            Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
         input=source,
         ttl=timedelta(days=2),
@@ -142,6 +144,7 @@ def get_expected_training_df(
     driver_fv: FeatureView,
     orders_df: pd.DataFrame,
     event_timestamp: str,
+    full_feature_names: bool = False,
 ):
     # Convert all pandas dataframes into records with UTC timestamps
     order_records = convert_timestamp_records_to_utc(
@@ -177,10 +180,23 @@ def get_expected_training_df(
                 f"driver_stats__{k}": driver_record.get(k, None)
                 for k in ("conv_rate", "avg_daily_trips")
             }
+            if full_feature_names
+            else {
+                k: driver_record.get(k, None) for k in ("conv_rate", "avg_daily_trips")
+            }
         )
         order_record.update(
             {
                 f"customer_profile__{k}": customer_record.get(k, None)
+                for k in (
+                    "current_balance",
+                    "avg_passenger_count",
+                    "lifetime_trip_count",
+                )
+            }
+            if full_feature_names
+            else {
+                k: customer_record.get(k, None)
                 for k in (
                     "current_balance",
                     "avg_passenger_count",
@@ -199,12 +215,21 @@ def get_expected_training_df(
 
     # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
     expected_df["order_is_success"] = expected_df["order_is_success"].astype("int32")
-    expected_df["customer_profile__current_balance"] = expected_df[
-        "customer_profile__current_balance"
-    ].astype("float32")
-    expected_df["customer_profile__avg_passenger_count"] = expected_df[
-        "customer_profile__avg_passenger_count"
-    ].astype("float32")
+
+    if full_feature_names:
+        expected_df["customer_profile__current_balance"] = expected_df[
+            "customer_profile__current_balance"
+        ].astype("float32")
+        expected_df["customer_profile__avg_passenger_count"] = expected_df[
+            "customer_profile__avg_passenger_count"
+        ].astype("float32")
+    else:
+        expected_df["current_balance"] = expected_df["current_balance"].astype(
+            "float32"
+        )
+        expected_df["avg_passenger_count"] = expected_df["avg_passenger_count"].astype(
+            "float32"
+        )
 
     return expected_df
 
@@ -294,6 +319,7 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
             ],
+            full_feature_names=True,
         )
 
         actual_df = job.to_df()
@@ -303,7 +329,13 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
             else "e_ts"
         )
         expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df, event_timestamp,
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names=True,
         )
         assert_frame_equal(
             expected_df.sort_values(
@@ -313,6 +345,59 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
         )
+
+        event_timestamp = (
+            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+            else "e_ts"
+        )
+        expected_df_fno = get_expected_training_df(
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names=False,
+        )
+
+        # Test parquet sources when using feature names only (strip prefixed feature views)
+        job = store.get_historical_features(
+            entity_df=orders_df,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+            full_feature_names=False,
+        )
+
+        actual_df_fno = job.to_df()
+        assert_frame_equal(
+            expected_df_fno.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            actual_df_fno.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+        )
+
+        # Test for colliding feature names when featureview prefixes are stripped
+        with pytest.raises(FeatureNameCollisionError):
+            store.get_historical_features(
+                entity_df=orders_df,
+                feature_refs=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                    "customer_profile:avg_daily_trips",
+                ],
+                full_feature_names=False,
+            )
 
 
 @pytest.mark.integration
@@ -427,7 +512,13 @@ def test_historical_features_from_bigquery_sources(
             else "e_ts"
         )
         expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df, event_timestamp,
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names=True,
         )
 
         job_from_sql = store.get_historical_features(
@@ -439,6 +530,7 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
             ],
+            full_feature_names=True,
         )
 
         # Just a dry run, should not create table
@@ -513,6 +605,7 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
             ],
+            full_feature_names=True,
         )
 
         # Rename the join key; this should now raise an error.
@@ -560,3 +653,85 @@ def test_historical_features_from_bigquery_sources(
             .reset_index(drop=True),
             check_dtype=False,
         )
+
+        # Test BigQuery sources when using feature names only (strip prefixed feature views)
+
+        expected_df_fno = get_expected_training_df(
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names=True,
+        )
+
+        job_from_sql = store.get_historical_features(
+            entity_df=entity_df_query,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+            full_feature_names=False,
+        )
+
+        actual_df_from_sql_entities_fno = job_from_sql.to_df()
+
+        assert_frame_equal(
+            expected_df_fno.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            actual_df_from_sql_entities_fno.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            check_dtype=False,
+        )
+
+        job_from_df = store.get_historical_features(
+            entity_df=orders_df,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+            full_feature_names=False,
+        )
+
+        if provider_type == "gcp_custom_offline_config":
+            # Make sure that custom dataset name is being used from the offline_store config
+            assertpy.assert_that(job_from_df.query).contains("foo.entity_df")
+        else:
+            # If the custom dataset name isn't provided in the config, use default `feast` name
+            assertpy.assert_that(job_from_df.query).contains("feast.entity_df")
+
+        actual_df_from_df_entities_fno = job_from_df.to_df()
+
+        assert_frame_equal(
+            expected_df_fno.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            actual_df_from_df_entities_fno.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            check_dtype=False,
+        )
+
+        # Test for colliding feature names when featureview prefixes are stripped
+        with pytest.raises(FeatureNameCollisionError):
+            store.get_historical_features(
+                entity_df=orders_df,
+                feature_refs=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                    "customer_profile:avg_daily_trips",
+                ],
+                full_feature_names=False,
+            )

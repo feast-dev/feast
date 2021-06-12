@@ -67,6 +67,7 @@ training_df = store.get_historical_features(
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
     ],
+    full_feature_names=True
 ).to_df()
 
 print(training_df.head())

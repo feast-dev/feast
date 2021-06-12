@@ -40,6 +40,7 @@ class FileOfflineStore(OfflineStore):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> FileRetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
@@ -59,9 +60,8 @@ class FileOfflineStore(OfflineStore):
                 raise ValueError(
                     f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
-
         feature_views_to_features = _get_requested_feature_views_to_features_dict(
-            feature_refs, feature_views
+            feature_refs, feature_views, full_feature_names
         )
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -125,14 +125,16 @@ class FileOfflineStore(OfflineStore):
                     # Modify the separator for feature refs in column names to double underscore. We are using
                     # double underscore as separator for consistency with other databases like BigQuery,
                     # where there are very few characters available for use as separators
-                    prefixed_feature_name = f"{feature_view.name}__{feature}"
-
+                    if full_feature_names:
+                        formatted_feature_name = f"{feature_view.name}__{feature}"
+                    else:
+                        formatted_feature_name = feature
                     # Add the feature name to the list of columns
-                    feature_names.append(prefixed_feature_name)
+                    feature_names.append(formatted_feature_name)
 
                     # Ensure that the source dataframe feature column includes the feature view name as a prefix
                     df_to_join.rename(
-                        columns={feature: prefixed_feature_name}, inplace=True,
+                        columns={feature: formatted_feature_name}, inplace=True,
                     )
 
                 # Build a list of entity columns to join on (from the right table)

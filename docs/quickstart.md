@@ -234,7 +234,8 @@ feature_vector = store.get_online_features(
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
     ],
-    entity_rows=[{"driver_id": 1001}]
+    entity_rows=[{"driver_id": 1001}],
+    full_feature_names=True
 ).to_dict()
 
 pprint(feature_vector)

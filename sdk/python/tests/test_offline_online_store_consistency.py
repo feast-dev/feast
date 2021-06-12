@@ -196,7 +196,7 @@ def check_offline_and_online_features(
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
-        [f"{fv.name}:value"], [{"driver": driver_id}]
+        [f"{fv.name}:value"], [{"driver": driver_id}], full_feature_names=True
     ).to_dict()
 
     if expected_value:
@@ -210,6 +210,7 @@ def check_offline_and_online_features(
             {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
         ),
         feature_refs=[f"{fv.name}:value"],
+        full_feature_names=True,
     ).to_df()
 
     if expected_value:

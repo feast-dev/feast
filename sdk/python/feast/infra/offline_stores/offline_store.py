@@ -66,5 +66,6 @@ class OfflineStore(ABC):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         pass

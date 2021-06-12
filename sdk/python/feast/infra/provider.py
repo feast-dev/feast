@@ -2,7 +2,7 @@ import abc
 import importlib
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import pandas
 import pyarrow
@@ -116,6 +116,7 @@ class Provider(abc.ABC):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         pass
 
@@ -179,15 +180,24 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 
 def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str], feature_views: List[FeatureView]
+    feature_refs: List[str], feature_views: List[FeatureView], full_feature_names: bool
 ) -> Dict[FeatureView, List[str]]:
-    """Create a dict of FeatureView -> List[Feature] for all requested features"""
+    """Create a dict of FeatureView -> List[Feature] for all requested features.
+    Features are prefixed by the feature view name, set value to True to obtain only the feature names."""
 
     feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
+    feature_set = set()  # type: Set[str]
+    feature_collision_set = set()  # type: Set[str]
+
     for ref in feature_refs:
         ref_parts = ref.split(":")
         feature_view_from_ref = ref_parts[0]
         feature_from_ref = ref_parts[1]
+        if feature_from_ref in feature_set:
+            feature_collision_set.add(feature_from_ref)
+        else:
+            feature_set.add(feature_from_ref)
+
         found = False
         for feature_view_from_registry in feature_views:
             if feature_view_from_registry.name == feature_view_from_ref:
@@ -203,6 +213,11 @@ def _get_requested_feature_views_to_features_dict(
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
+
+    if not full_feature_names and len(feature_collision_set) > 0:
+        err = ", ".join(x for x in feature_collision_set)
+        raise errors.FeatureNameCollisionError(err)
+
     return feature_views_to_feature_map
 
 
