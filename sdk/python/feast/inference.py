@@ -1,6 +1,8 @@
+import re
 from typing import List
 
 from feast import Entity
+from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature_view import FeatureView
 from feast.value_type import ValueType
 
@@ -54,3 +56,51 @@ def infer_entity_value_type_from_feature_views(
                 entity.value_type = inferred_value_type
 
     return entities
+
+
+def infer_event_timestamp_column_for_data_sources(data_sources: List[DataSource]) -> List[DataSource]:
+    ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
+    USER_GUIDANCE = "Please specify event_timestamp_column explicitly."
+
+    for data_source in data_sources:
+        if data_source.event_timestamp_column is None:
+            # prepare right match pattern for data source
+            ts_column_type_regex_pattern = ""
+            if isinstance(data_source, FileSource):
+                ts_column_type_regex_pattern = r"^timestamp"
+            elif isinstance(data_source, BigQuerySource):
+                ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"
+            else:
+                raise TypeError(
+                    f"""
+                    Inference failed. Data source not supported
+                    """
+                )
+
+            # loop through table columns to find singular match
+            event_timestamp_column, matched_flag = None, False
+            for col_name, col_datatype in data_source.get_table_column_names_and_types():
+                if re.match(ts_column_type_regex_pattern, col_datatype):
+                    if matched_flag:
+                        raise TypeError(
+                            f"""
+                            {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
+                            the criteria. {USER_GUIDANCE}. {col_name} {col_datatype} REGEX PAT:{ts_column_type_regex_pattern}
+                            """
+                        )
+                    matched_flag = True
+                    event_timestamp_column = col_name
+            if matched_flag:
+                data_source.event_timestamp_column = event_timestamp_column
+            else:
+                raise TypeError(
+                    f"""
+                    {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
+                     {USER_GUIDANCE}
+                    """
+            )
+
+    return data_sources
+
+
+

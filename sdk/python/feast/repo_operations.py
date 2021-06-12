@@ -13,7 +13,10 @@ from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
-from feast.inference import infer_entity_value_type_from_feature_views
+from feast.inference import (
+    infer_entity_value_type_from_feature_views,
+    infer_event_timestamp_column_for_data_sources
+)
 from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
@@ -136,6 +139,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         ),
         feature_views=repo.feature_views,
     )
+    infer_event_timestamp_column_for_data_sources(
+        [view.input for view in repo.feature_views]
+    )
+
     sys.dont_write_bytecode = False
     for entity in repo.entities:
         registry.apply_entity(entity, project=project)
