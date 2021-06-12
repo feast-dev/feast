@@ -15,7 +15,7 @@ from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
-    infer_event_timestamp_column_for_data_sources
+    infer_event_timestamp_column_for_data_sources,
 )
 from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider

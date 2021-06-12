@@ -14,7 +14,6 @@
 
 
 import enum
-import re
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from pyarrow.parquet import ParquetFile
@@ -519,7 +518,7 @@ class DataSource:
         Converts an DataSourceProto object to its protobuf representation.
         """
         raise NotImplementedError
-        
+
 
 class FileSource(DataSource):
     def __init__(
@@ -564,7 +563,7 @@ class FileSource(DataSource):
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
         super().__init__(
-            event_timestamp_column,
+            event_timestamp_column or "",
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -638,7 +637,7 @@ class BigQuerySource(DataSource):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
         super().__init__(
-            event_timestamp_column,
+            event_timestamp_column or "",
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -854,4 +853,3 @@ class KinesisSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
-

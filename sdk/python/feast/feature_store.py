@@ -28,7 +28,7 @@ from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
-    infer_event_timestamp_column_for_data_sources
+    infer_event_timestamp_column_for_data_sources,
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows

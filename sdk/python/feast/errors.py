@@ -97,9 +97,7 @@ class FeastJoinKeysDuringMaterialization(Exception):
 
 
 class RegistryInferenceFailure(Exception):
-    def __init__(
-        self, repo_obj_type: str, specific_issue: str
-    ):
+    def __init__(self, repo_obj_type: str, specific_issue: str):
         super().__init__(
             f"Inference to fill in missing information for {repo_obj_type} failed. {specific_issue}. "
             "Try filling the information explicitly."

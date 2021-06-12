@@ -220,7 +220,6 @@ class FeatureView:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
 
-
     def infer_features_from_input_source(self):
         if not self.features:
             columns_to_exclude = {
@@ -230,19 +229,25 @@ class FeatureView:
 
             for col_name, col_datatype in self.input.get_table_column_names_and_types():
                 if col_name not in columns_to_exclude and not re.match(
-                    "^__|__$", col_name  # double underscores often signal an internal-use column
+                    "^__|__$",
+                    col_name,  # double underscores often signal an internal-use column
                 ):
-                    feature_name = self.input.field_mapping[col_name] if col_name in self.input.field_mapping.keys() else col_name
+                    feature_name = (
+                        self.input.field_mapping[col_name]
+                        if col_name in self.input.field_mapping.keys()
+                        else col_name
+                    )
                     self.features.append(
                         Feature(
                             feature_name,
-                            self.input.source_datatype_to_feast_value_type()(col_datatype),
+                            self.input.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            ),
                         )
                     )
 
             if not self.features:
                 raise RegistryInferenceFailure(
                     "FeatureView",
-                    f"Could not infer Features for the FeatureView named {self.name}."
+                    f"Could not infer Features for the FeatureView named {self.name}.",
                 )
-

@@ -51,8 +51,8 @@ def infer_entity_value_type_from_feature_views(
                     raise RegistryInferenceFailure(
                         "Entity",
                         f"""Entity value_type inference failed for {entity_name} entity.
-                        Multiple viable matches. 
-                        """
+                        Multiple viable matches.
+                        """,
                     )
 
                 entity.value_type = inferred_value_type
@@ -60,7 +60,9 @@ def infer_entity_value_type_from_feature_views(
     return entities
 
 
-def infer_event_timestamp_column_for_data_sources(data_sources: List[DataSource]) -> List[DataSource]:
+def infer_event_timestamp_column_for_data_sources(
+    data_sources: List[DataSource],
+) -> List[DataSource]:
     ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
 
     for data_source in data_sources:
@@ -74,15 +76,22 @@ def infer_event_timestamp_column_for_data_sources(data_sources: List[DataSource]
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
-                    f"""
+                    """
                     DataSource inferencing of event_timestamp_column is currently only supported
                     for FileSource and BigQuerySource.
-                    """
+                    """,
                 )
+            #  for informing the type checker
+            assert isinstance(data_source, FileSource) or isinstance(
+                data_source, BigQuerySource
+            )
 
             # loop through table columns to find singular match
             event_timestamp_column, matched_flag = None, False
-            for col_name, col_datatype in data_source.get_table_column_names_and_types():
+            for (
+                col_name,
+                col_datatype,
+            ) in data_source.get_table_column_names_and_types():
                 if re.match(ts_column_type_regex_pattern, col_datatype):
                     if matched_flag:
                         raise RegistryInferenceFailure(
@@ -90,7 +99,7 @@ def infer_event_timestamp_column_for_data_sources(data_sources: List[DataSource]
                             f"""
                             {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
                             the criteria. {ts_column_type_regex_pattern} {col_name}
-                            """
+                            """,
                         )
                     matched_flag = True
                     event_timestamp_column = col_name
@@ -101,10 +110,7 @@ def infer_event_timestamp_column_for_data_sources(data_sources: List[DataSource]
                     "DataSource",
                     f"""
                     {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
-                    """
-            )
+                    """,
+                )
 
     return data_sources
-
-
-
