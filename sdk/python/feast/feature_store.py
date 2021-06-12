@@ -230,6 +230,8 @@ class FeatureStore:
         infer_event_timestamp_column_for_data_sources(
             [view.input for view in views_to_update]
         )
+        for view in views_to_update:
+            view.infer_features_from_input_source()
 
         if len(views_to_update) + len(entities_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")

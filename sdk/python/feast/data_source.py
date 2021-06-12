@@ -708,20 +708,12 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-        name_type_pairs = []
         if self.table_ref is not None:
-            project_id, dataset_id, table_id = self.table_ref.split(".")
-            bq_columns_query = f"""
-                SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_NAME = '{table_id}'
-            """
-            table_schema = (
-                client.query(bq_columns_query).result().to_dataframe_iterable()
-            )
-            for df in table_schema:
-                name_type_pairs.extend(
-                    list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
-                )
+            table_schema = client.get_table(self.table_ref).schema
+            if not isinstance(table_schema[0], bigquery.schema.SchemaField):
+                raise TypeError("Could not parse BigQuery table schema.")
+
+            name_type_pairs = [(field.name, field.field_type) for field in table_schema]
         else:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
             queryRes = client.query(bq_columns_query).result()

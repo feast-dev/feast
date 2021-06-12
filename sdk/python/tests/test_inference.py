@@ -7,6 +7,7 @@ from utils.data_source_utils import (
 )
 
 from feast import Entity, ValueType
+from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
@@ -33,11 +34,12 @@ def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dat
         assert actual_1 == [Entity(name="id", value_type=ValueType.INT64)]
         assert actual_2 == [Entity(name="id", value_type=ValueType.STRING)]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(RegistryInferenceFailure):
             # two viable data types
             infer_entity_value_type_from_feature_views([Entity(name="id")], [fv1, fv2])
 
 
+@pytest.mark.integration
 def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
     df_with_two_viable_timestamp_cols = simple_dataset_1.copy(deep=True)
     df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
@@ -53,7 +55,7 @@ def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
     with prep_file_source(
         df=df_with_two_viable_timestamp_cols
     ) as file_source:
-        with pytest.raises(TypeError):
+        with pytest.raises(RegistryInferenceFailure):
             # two viable event_timestamp_columns
             infer_event_timestamp_column_for_data_sources(
                 [file_source]

@@ -21,6 +21,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
 from feast.data_source import BigQuerySource, DataSource, FileSource
+from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
@@ -64,29 +65,6 @@ class FeatureView:
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
-        if not features:
-            features = []  # to handle python's mutable default arguments
-            columns_to_exclude = {
-                input.event_timestamp_column,
-                input.created_timestamp_column,
-            } | set(entities)
-
-            for col_name, col_datatype in input.get_table_column_names_and_types():
-                if col_name not in columns_to_exclude and not re.match(
-                    "^__|__$", col_name
-                ):
-                    features.append(
-                        Feature(
-                            col_name,
-                            input.source_datatype_to_feast_value_type()(col_datatype),
-                        )
-                    )
-
-            if not features:
-                raise ValueError(
-                    f"Could not infer Features for the FeatureView named {name}. Please specify Features explicitly for this FeatureView."
-                )
-
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
             if input.field_mapping is not None and col in input.field_mapping.keys():
@@ -241,3 +219,30 @@ class FeatureView:
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+
+    def infer_features_from_input_source(self):
+        if not self.features:
+            columns_to_exclude = {
+                self.input.event_timestamp_column,
+                self.input.created_timestamp_column,
+            } | set(self.entities)
+
+            for col_name, col_datatype in self.input.get_table_column_names_and_types():
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$", col_name  # double underscores often signal an internal-use column
+                ):
+                    feature_name = self.input.field_mapping[col_name] if col_name in self.input.field_mapping.keys() else col_name
+                    self.features.append(
+                        Feature(
+                            feature_name,
+                            self.input.source_datatype_to_feast_value_type()(col_datatype),
+                        )
+                    )
+
+            if not self.features:
+                raise RegistryInferenceFailure(
+                    "FeatureView",
+                    f"Could not infer Features for the FeatureView named {self.name}."
+                )
+

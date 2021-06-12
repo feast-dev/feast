@@ -142,6 +142,8 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     infer_event_timestamp_column_for_data_sources(
         [view.input for view in repo.feature_views]
     )
+    for view in repo.feature_views:
+        view.infer_features_from_input_source()
 
     sys.dont_write_bytecode = False
     for entity in repo.entities:
