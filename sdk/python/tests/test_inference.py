@@ -1,6 +1,7 @@
 import pytest
 from utils.data_source_utils import (
     prep_file_source,
+    simple_bq_source_using_query_arg,
     simple_bq_source_using_table_ref_arg,
 )
 
@@ -44,13 +45,17 @@ def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
 
     with prep_file_source(df=simple_dataset_1) as file_source:
         actual_processed_data_sources = infer_event_timestamp_column_for_data_sources(
-            [file_source, simple_bq_source_using_table_ref_arg(simple_dataset_1)]
+            [
+                file_source,
+                simple_bq_source_using_table_ref_arg(simple_dataset_1),
+                simple_bq_source_using_query_arg(simple_dataset_1),
+            ]
         )
         actual_event_timestamp_cols = [
             source.event_timestamp_column for source in actual_processed_data_sources
         ]
 
-        assert actual_event_timestamp_cols == ["ts_1", "ts_1"]
+        assert actual_event_timestamp_cols == ["ts_1", "ts_1", "ts_1"]
 
     with prep_file_source(df=df_with_two_viable_timestamp_cols) as file_source:
         with pytest.raises(RegistryInferenceFailure):

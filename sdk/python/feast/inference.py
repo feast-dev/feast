@@ -66,7 +66,10 @@ def infer_event_timestamp_column_for_data_sources(
     ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
 
     for data_source in data_sources:
-        if data_source.event_timestamp_column is None:
+        if (
+            data_source.event_timestamp_column is None
+            or data_source.event_timestamp_column == ""
+        ):
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""
             if isinstance(data_source, FileSource):
