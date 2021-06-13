@@ -59,7 +59,8 @@ When using the GCP provider:
   </thead>
   <tbody>
     <tr>
-      <td style="text-align:left">Apply</td>
+      <td style="text-align:left"><b>Apply</b>
+      </td>
       <td style="text-align:left">BigQuery (source)</td>
       <td style="text-align:left">
         <p>bigquery.jobs.create</p>
@@ -69,7 +70,8 @@ When using the GCP provider:
       <td style="text-align:left">roles/bigquery.user</td>
     </tr>
     <tr>
-      <td style="text-align:left">Apply</td>
+      <td style="text-align:left"><b>Apply</b>
+      </td>
       <td style="text-align:left">Datastore (destination)</td>
       <td style="text-align:left">
         <p>datastore.entities.allocateIds</p>
@@ -82,13 +84,15 @@ When using the GCP provider:
       <td style="text-align:left">roles/datastore.owner</td>
     </tr>
     <tr>
-      <td style="text-align:left">Materialize</td>
+      <td style="text-align:left"><b>Materialize</b>
+      </td>
       <td style="text-align:left">BigQuery (source)</td>
       <td style="text-align:left">bigquery.jobs.create</td>
       <td style="text-align:left">roles/bigquery.user</td>
     </tr>
     <tr>
-      <td style="text-align:left">Materialize</td>
+      <td style="text-align:left"><b>Materialize</b>
+      </td>
       <td style="text-align:left">Datastore (destination)</td>
       <td style="text-align:left">
         <p>datastore.entities.allocateIds</p>
@@ -102,22 +106,16 @@ When using the GCP provider:
       <td style="text-align:left">roles/datastore.owner</td>
     </tr>
     <tr>
-      <td style="text-align:left">Get Online Features</td>
-      <td style="text-align:left">Datastore</td>
-      <td style="text-align:left">
-        <p>datastore.databases.get</p>
-        <p>datastore.entities.*</p>
-        <p>datastore.indexes.list</p>
-        <p>datastore.namespaces.get</p>
-        <p>datastore.namespaces.list</p>
-        <p>datastore.statistics.get</p>
-        <p>datastore.statistics.list</p>
+      <td style="text-align:left"><b>Get Online Features</b>
       </td>
+      <td style="text-align:left">Datastore</td>
+      <td style="text-align:left">datastore.entities.get</td>
       <td style="text-align:left">roles/datastore.user</td>
     </tr>
     <tr>
-      <td style="text-align:left">Get Historical Features</td>
-      <td style="text-align:left">BigQuery</td>
+      <td style="text-align:left"><b>Get Historical Features</b>
+      </td>
+      <td style="text-align:left">BigQuery (source)</td>
       <td style="text-align:left">
         <p>bigquery.datasets.get</p>
         <p>bigquery.tables.get</p>
