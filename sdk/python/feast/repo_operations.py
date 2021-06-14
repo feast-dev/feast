@@ -12,6 +12,7 @@ import click
 from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
+from feast.errors import DataSourceNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,

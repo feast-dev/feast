@@ -20,7 +20,6 @@ from pyarrow.parquet import ParquetFile
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
-from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.value_type import ValueType
 
@@ -636,7 +635,6 @@ class BigQuerySource(DataSource):
         query: Optional[str] = None,
     ):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
-        self._assert_table_exists()
 
         super().__init__(
             event_timestamp_column,
@@ -724,18 +722,6 @@ class BigQuerySource(DataSource):
             ]
 
         return name_type_pairs
-
-    def _assert_table_exists(self):
-        from google.api_core.exceptions import NotFound
-        from google.cloud import bigquery
-
-        client = bigquery.Client()
-        if not self.table_ref:
-            raise DataSourceNotFoundException(self.table_ref)
-        try:
-            client.get_table(self.table_ref)
-        except NotFound:
-            raise DataSourceNotFoundException(self.table_ref)
 
 
 class KafkaSource(DataSource):
