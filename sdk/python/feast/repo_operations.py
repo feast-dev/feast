@@ -139,11 +139,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         ),
         feature_views=repo.feature_views,
     )
-    infer_event_timestamp_column_for_data_sources(
-        [view.input for view in repo.feature_views]
-    )
-    for view in repo.feature_views:
-        view.infer_features_from_input_source()
 
     sys.dont_write_bytecode = False
     for entity in repo.entities:
@@ -164,6 +159,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         assert_offline_store_supports_data_source(
             repo_config.offline_store, data_source
         )
+
+    infer_event_timestamp_column_for_data_sources(data_sources)
+    for view in repo.feature_views:
+        view.infer_features_from_input_source()    
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):
