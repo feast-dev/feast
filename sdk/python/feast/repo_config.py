@@ -1,29 +1,22 @@
 import importlib
 from enum import Enum
 from pathlib import Path
-from typing import TypeVar, Generic, Any
+from typing import Any, TypeVar
 
 import yaml
-from pydantic import (
-    BaseModel,
-    StrictInt,
-    StrictStr,
-    ValidationError,
-    root_validator,
-)
+from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
 
-from feast.telemetry import log_exceptions
 from feast import errors
-
+from feast.telemetry import log_exceptions
 
 # This dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
 ONLINE_CONFIG_CLASS_FOR_TYPE = {
-    'sqlite': 'feast.infra.online_stores.sqlite.SqliteOnlineStore',
-    'datastore': 'feast.infra.online_stores.datastore.DatastoreOnlineStore'
+    "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
+    "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
 }
 
 
@@ -43,7 +36,7 @@ class FeastConfigBaseModel(BaseModel):
         extra = "forbid"
 
 
-OnlineT = TypeVar('OnlineT', bound=FeastConfigBaseModel)
+OnlineT = TypeVar("OnlineT", bound=FeastConfigBaseModel)
 
 
 class RedisType(str, Enum):
@@ -237,7 +230,7 @@ def get_online_config_from_type(online_store_type: str):
         online_store_type = ONLINE_CONFIG_CLASS_FOR_TYPE[online_store_type]
     module_name, class_name = online_store_type.rsplit(".", 1)
 
-    if not class_name.endswith('OnlineStore'):
+    if not class_name.endswith("OnlineStore"):
         raise errors.FeastOnlineStoreConfigInvalidName(class_name)
     config_class_name = f"{class_name}Config"
 
@@ -248,7 +241,9 @@ def get_online_config_from_type(online_store_type: str):
         # The original exception can be anything - either module not found,
         # or any other kind of error happening during the module import time.
         # So we should include the original error as well in the stack trace.
-        raise errors.FeastModuleImportError(module_name, module_type="OnlineStore") from e
+        raise errors.FeastModuleImportError(
+            module_name, module_type="OnlineStore"
+        ) from e
 
     # Try getting the provider class definition
     try:
@@ -270,11 +265,10 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
         try:
             c = RepoConfig(**raw_config)
             c.repo_path = repo_path
-            online_config_class = get_online_config_from_type(c.dict()['online_store']['type'])
-            c.online_store = online_config_class(**c.dict()['online_store'])
+            online_config_class = get_online_config_from_type(
+                c.dict()["online_store"]["type"]
+            )
+            c.online_store = online_config_class(**c.dict()["online_store"])
             return c
         except ValidationError as e:
             raise FeastConfigError(e, config_path)
-
-
-

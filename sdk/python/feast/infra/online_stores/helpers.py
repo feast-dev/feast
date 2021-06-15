@@ -5,10 +5,7 @@ import mmh3
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.repo_config import (
-    OnlineStoreConfig,
-    RedisOnlineStoreConfig,
-)
+from feast.repo_config import OnlineStoreConfig, RedisOnlineStoreConfig
 
 
 def get_online_store_from_config(

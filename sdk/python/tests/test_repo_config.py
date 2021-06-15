@@ -3,7 +3,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-import pytest
 from feast.repo_config import FeastConfigError, load_repo_config
 
 

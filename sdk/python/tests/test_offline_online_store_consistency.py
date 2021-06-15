@@ -8,8 +8,6 @@ from typing import Iterator, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
-from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
-from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from google.cloud import bigquery
 from pytz import timezone, utc
 
@@ -19,11 +17,9 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.repo_config import (
-    RedisOnlineStoreConfig,
-    RedisType,
-    RepoConfig,
-)
+from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.repo_config import RedisOnlineStoreConfig, RedisType, RepoConfig
 from feast.value_type import ValueType
 
 

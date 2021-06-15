@@ -171,9 +171,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         except AttributeError:
             # This can only be one type of error, when class_name attribute does not exist in the module
             # So we don't have to include the original exception here
-            raise errors.FeastClassImportError(
-                module_name, class_name
-            ) from None
+            raise errors.FeastClassImportError(module_name, class_name) from None
 
         return ProviderCls(config, repo_path)
 

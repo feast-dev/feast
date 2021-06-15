@@ -17,6 +17,8 @@ from multiprocessing.pool import ThreadPool
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import mmh3
+from pydantic import PositiveInt, StrictStr
+from pydantic.typing import Literal
 
 from feast import Entity, FeatureTable, utils
 from feast.feature_view import FeatureView
@@ -24,9 +26,7 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RepoConfig, FeastConfigBaseModel
-from pydantic import StrictStr, PositiveInt
-from pydantic.typing import Literal
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 try:
     from google.auth.exceptions import DefaultCredentialsError

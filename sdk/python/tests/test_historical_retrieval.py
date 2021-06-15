@@ -9,7 +9,6 @@ import assertpy
 import numpy as np
 import pandas as pd
 import pytest
-from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 from pytz import utc
@@ -21,11 +20,9 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.repo_config import (
-    BigQueryOfflineStoreConfig,
-    RepoConfig,
-)
+from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
 from feast.value_type import ValueType
 
 np.random.seed(0)
