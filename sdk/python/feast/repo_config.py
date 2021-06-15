@@ -203,7 +203,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local" or values["provider"] == "redis":
+            if values["provider"] == "local":
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"

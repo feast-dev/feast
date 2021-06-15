@@ -37,7 +37,7 @@ def get_online_store_from_config(
 
 
 SUPPORTED_SOURCES: Dict[Any, Set[Any]] = {
-    SqliteOnlineStoreConfig: {FileSource},
+    SqliteOnlineStoreConfig: {FileSource, BigQuerySource},
     DatastoreOnlineStoreConfig: {BigQuerySource},
     RedisOnlineStoreConfig: {FileSource, BigQuerySource},
 }

@@ -15,6 +15,7 @@ from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.inference import infer_entity_value_type_from_feature_views
 from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
+from feast.infra.online_stores.helpers import assert_online_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
@@ -155,6 +156,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         assert_offline_store_supports_data_source(
             repo_config.offline_store, data_source
         )
+        assert_online_store_supports_data_source(
+            repo_config.online_store, data_source
+        )
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):
@@ -177,7 +181,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     for table in repo.feature_tables:
         registry.apply_feature_table(table, project)
         click.echo(
-            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL}"
+            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
         )
 
     # Delete views that should not exist
