@@ -24,7 +24,9 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig, FeastConfigBaseModel
+from pydantic import StrictStr, PositiveInt
+from pydantic.typing import Literal
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -38,6 +40,25 @@ except ImportError as e:
 ProtoBatch = Sequence[
     Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
 ]
+
+
+class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
+    """ Online store config for GCP Datastore """
+
+    type: Literal["datastore"] = "datastore"
+    """ Online store type selector"""
+
+    project_id: Optional[StrictStr] = None
+    """ (optional) GCP Project Id """
+
+    namespace: Optional[StrictStr] = None
+    """ (optional) Datastore namespace """
+
+    write_concurrency: Optional[PositiveInt] = 40
+    """ (optional) Amount of threads to use when writing batches of feature rows into Datastore"""
+
+    write_batch_size: Optional[PositiveInt] = 50
+    """ (optional) Amount of feature rows per batch being written into Datastore"""
 
 
 class DatastoreOnlineStore(OnlineStore):

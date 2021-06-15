@@ -163,7 +163,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             # The original exception can be anything - either module not found,
             # or any other kind of error happening during the module import time.
             # So we should include the original error as well in the stack trace.
-            raise errors.FeastProviderModuleImportError(module_name) from e
+            raise errors.FeastModuleImportError(module_name) from e
 
         # Try getting the provider class definition
         try:
@@ -171,7 +171,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         except AttributeError:
             # This can only be one type of error, when class_name attribute does not exist in the module
             # So we don't have to include the original exception here
-            raise errors.FeastProviderClassImportError(
+            raise errors.FeastClassImportError(
                 module_name, class_name
             ) from None
 

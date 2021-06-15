@@ -26,7 +26,19 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import RepoConfig, FeastConfigBaseModel
+from pydantic import StrictStr
+from pydantic.schema import Literal
+
+
+class SqliteOnlineStoreConfig(FeastConfigBaseModel):
+    """ Online store config for local (SQLite-based) store """
+
+    type: Literal["sqlite"] = "sqlite"
+    """ Online store type selector"""
+
+    path: StrictStr = "data/online.db"
+    """ (optional) Path to sqlite db """
 
 
 class SqliteOnlineStore(OnlineStore):

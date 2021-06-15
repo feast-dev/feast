@@ -1,18 +1,13 @@
 import struct
-from typing import Any, Dict, Set
 
 import mmh3
 
-from feast.data_source import BigQuerySource, DataSource, FileSource
-from feast.errors import FeastOnlineStoreUnsupportedDataSource
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.repo_config import (
-    DatastoreOnlineStoreConfig,
     OnlineStoreConfig,
     RedisOnlineStoreConfig,
-    SqliteOnlineStoreConfig,
 )
 
 
@@ -21,11 +16,11 @@ def get_online_store_from_config(
 ) -> OnlineStore:
     """Get the offline store from offline store config"""
 
-    if isinstance(online_store_config, SqliteOnlineStoreConfig):
+    if online_store_config.__repr_name__() == "SqliteOnlineStoreConfig":
         from feast.infra.online_stores.sqlite import SqliteOnlineStore
 
         return SqliteOnlineStore()
-    elif isinstance(online_store_config, DatastoreOnlineStoreConfig):
+    elif online_store_config.__repr_name__() == "DatastoreOnlineStoreConfig":
         from feast.infra.online_stores.datastore import DatastoreOnlineStore
 
         return DatastoreOnlineStore()
@@ -33,33 +28,7 @@ def get_online_store_from_config(
         from feast.infra.online_stores.redis import RedisOnlineStore
 
         return RedisOnlineStore()
-    raise ValueError(f"Unsupported offline store config '{online_store_config}'")
-
-
-SUPPORTED_SOURCES: Dict[Any, Set[Any]] = {
-    SqliteOnlineStoreConfig: {FileSource},
-    DatastoreOnlineStoreConfig: {BigQuerySource},
-    RedisOnlineStoreConfig: {FileSource, BigQuerySource},
-}
-
-
-def assert_online_store_supports_data_source(
-    online_store_config: OnlineStoreConfig, data_source: DataSource
-):
-    supported_sources: Set[Any] = SUPPORTED_SOURCES.get(
-        online_store_config.__class__, set()
-    )
-    # This is needed because checking for `in` with Union types breaks mypy.
-    # https://github.com/python/mypy/issues/4954
-    # We can replace this with `data_source.__class__ in SUPPORTED_SOURCES[online_store_config.__class__]`
-    # Once ^ is resolved.
-    if supported_sources:
-        for source in supported_sources:
-            if source == data_source.__class__:
-                return
-    raise FeastOnlineStoreUnsupportedDataSource(
-        online_store_config.type, data_source.__class__.__name__
-    )
+    raise ValueError(f"Unsupported online store config '{online_store_config}'")
 
 
 def _redis_key(project: str, entity_key: EntityKeyProto):
