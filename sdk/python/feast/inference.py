@@ -1,8 +1,8 @@
 import re
-from typing import List
+from typing import List, Union
 
 from feast import Entity
-from feast.data_source import BigQuerySource, DataSource, FileSource
+from feast.data_source import BigQuerySource, FileSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.value_type import ValueType
@@ -60,9 +60,9 @@ def infer_entity_value_type_from_feature_views(
     return entities
 
 
-def infer_event_timestamp_column_for_data_sources(
-    data_sources: List[DataSource],
-) -> List[DataSource]:
+def update_data_sources_with_inferred_event_timestamp_col(
+    data_sources: List[Union[BigQuerySource, FileSource]],
+) -> None:
     ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
 
     for data_source in data_sources:
@@ -115,5 +115,3 @@ def infer_event_timestamp_column_for_data_sources(
                     {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
                     """,
                 )
-
-    return data_sources

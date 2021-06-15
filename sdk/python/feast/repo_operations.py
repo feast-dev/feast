@@ -15,7 +15,7 @@ from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
-    infer_event_timestamp_column_for_data_sources,
+    update_data_sources_with_inferred_event_timestamp_col,
 )
 from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
@@ -160,9 +160,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
             repo_config.offline_store, data_source
         )
 
-    infer_event_timestamp_column_for_data_sources(data_sources)
+    update_data_sources_with_inferred_event_timestamp_col(data_sources)
     for view in repo.feature_views:
-        view.infer_features_from_input_source()    
+        view.infer_features_from_input_source()
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):

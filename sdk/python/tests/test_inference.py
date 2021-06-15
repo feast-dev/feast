@@ -10,7 +10,7 @@ from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
-    infer_event_timestamp_column_for_data_sources,
+    update_data_sources_with_inferred_event_timestamp_col,
 )
 
 
@@ -44,7 +44,7 @@ def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
     df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
 
     with prep_file_source(df=simple_dataset_1) as file_source:
-        actual_processed_data_sources = infer_event_timestamp_column_for_data_sources(
+        actual_processed_data_sources = update_data_sources_with_inferred_event_timestamp_col(
             [
                 file_source,
                 simple_bq_source_using_table_ref_arg(simple_dataset_1),
@@ -60,4 +60,4 @@ def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
     with prep_file_source(df=df_with_two_viable_timestamp_cols) as file_source:
         with pytest.raises(RegistryInferenceFailure):
             # two viable event_timestamp_columns
-            infer_event_timestamp_column_for_data_sources([file_source])
+            update_data_sources_with_inferred_event_timestamp_col([file_source])

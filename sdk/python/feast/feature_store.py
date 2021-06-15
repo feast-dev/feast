@@ -28,7 +28,7 @@ from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
-    infer_event_timestamp_column_for_data_sources,
+    update_data_sources_with_inferred_event_timestamp_col,
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -227,7 +227,7 @@ class FeatureStore:
         entities_to_update = infer_entity_value_type_from_feature_views(
             [ob for ob in objects if isinstance(ob, Entity)], views_to_update
         )
-        infer_event_timestamp_column_for_data_sources(
+        update_data_sources_with_inferred_event_timestamp_col(
             [view.input for view in views_to_update]
         )
         for view in views_to_update:
