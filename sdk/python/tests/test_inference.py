@@ -44,15 +44,14 @@ def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
     df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
 
     with prep_file_source(df=simple_dataset_1) as file_source:
-        actual_processed_data_sources = update_data_sources_with_inferred_event_timestamp_col(
-            [
-                file_source,
-                simple_bq_source_using_table_ref_arg(simple_dataset_1),
-                simple_bq_source_using_query_arg(simple_dataset_1),
-            ]
-        )
+        data_sources = [
+            file_source,
+            simple_bq_source_using_table_ref_arg(simple_dataset_1),
+            simple_bq_source_using_query_arg(simple_dataset_1),
+        ]
+        update_data_sources_with_inferred_event_timestamp_col(data_sources)
         actual_event_timestamp_cols = [
-            source.event_timestamp_column for source in actual_processed_data_sources
+            source.event_timestamp_column for source in data_sources
         ]
 
         assert actual_event_timestamp_cols == ["ts_1", "ts_1", "ts_1"]

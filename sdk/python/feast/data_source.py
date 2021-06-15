@@ -523,7 +523,7 @@ class DataSource:
 class FileSource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = None,
+        event_timestamp_column: Optional[str] = "",
         file_url: Optional[str] = None,
         path: Optional[str] = None,
         file_format: FileFormat = None,
@@ -563,7 +563,7 @@ class FileSource(DataSource):
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
         super().__init__(
-            event_timestamp_column or "",
+            event_timestamp_column or "",  # for satisfying type checker
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -627,7 +627,7 @@ class FileSource(DataSource):
 class BigQuerySource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = None,
+        event_timestamp_column: Optional[str] = "",
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
@@ -637,7 +637,7 @@ class BigQuerySource(DataSource):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
         super().__init__(
-            event_timestamp_column or "",
+            event_timestamp_column or "",  # for satisfying type checker
             created_timestamp_column,
             field_mapping,
             date_partition_column,
