@@ -634,7 +634,6 @@ def _group_refs(
             raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
 
-    print(full_feature_names)
     if not full_feature_names and len(feature_collision_set) > 0:
         err = ", ".join(x for x in feature_collision_set)
         raise FeatureNameCollisionError(err)

@@ -651,8 +651,7 @@ def test_feature_name_collision_on_historical_retrieval_from_bigquery_sources():
     bigquery_dataset = (
         f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(1000, 9999)}"
     )
-
-    gcp_project = bigquery.Client().project
+    gcp_project = "project_name"
 
     # Driver Feature View
     driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"

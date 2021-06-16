@@ -234,8 +234,7 @@ feature_vector = store.get_online_features(
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
     ],
-    entity_rows=[{"driver_id": 1001}],
-    full_feature_names=True
+    entity_rows=[{"driver_id": 1001}]
 ).to_dict()
 
 pprint(feature_vector)
@@ -245,9 +244,9 @@ pprint(feature_vector)
 ```text
 {
     'driver_id': [1001],
-    'driver_hourly_stats__conv_rate': [0.49274],
-    'driver_hourly_stats__acc_rate': [0.92743],
-    'driver_hourly_stats__avg_daily_trips': [72],
+    'conv_rate': [0.49274],
+    'acc_rate': [0.92743],
+    'avg_daily_trips': [72],
 }
 ```
 
