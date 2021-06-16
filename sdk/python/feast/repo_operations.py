@@ -177,7 +177,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     for table in repo.feature_tables:
         registry.apply_feature_table(table, project)
         click.echo(
-            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL}"
+            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
         )
 
     # Delete views that should not exist
