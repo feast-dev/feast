@@ -221,7 +221,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     def to_bigquery(self, dry_run=False) -> Optional[str]:
         @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
         def _block_until_done():
-            return bigquery.Client().get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
+            return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
 
         today = date.today().strftime("%Y%m%d")
         rand_id = str(uuid.uuid4())[:7]
