@@ -219,10 +219,13 @@ class BigQueryRetrievalJob(RetrievalJob):
         return df
 
     def to_bigquery(self, dry_run=False) -> Optional[str]:
+        @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
+        def _block_until_done():
+            return bigquery.Client().get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
+
         today = date.today().strftime("%Y%m%d")
         rand_id = str(uuid.uuid4())[:7]
-        path = f"{self.client.project}.{self.config.offline_store.dataset}.training_{today}_{rand_id} "
-
+        path = f"{self.client.project}.{self.config.offline_store.dataset}.training_{today}_{rand_id}"
         job_config = bigquery.QueryJobConfig(destination=path, dry_run=dry_run)
         bq_job = self.client.query(self.query, job_config=job_config)
 
@@ -232,18 +235,12 @@ class BigQueryRetrievalJob(RetrievalJob):
             )
             return None
 
-        @retry(wait=wait_fixed(30), stop=stop_after_delay(1800))
-        def _block_until_done():
-            query_job = self.client.get_job(bq_job.job_id)
-            if query_job.state in ["PENDING", "RUNNING"]:
-                print(f"The job is still '{bq_job.state}'. Will wait for 30 seconds")
-                raise bq_job.exception()
-            else:
-                return
-
         _block_until_done()
-        print(f"Done writing to '{path}'.")
 
+        if bq_job.exception():
+            raise bq_job.exception()
+
+        print(f"Done writing to '{path}'.")
         return path
 
 
