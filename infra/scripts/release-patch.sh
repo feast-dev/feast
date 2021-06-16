@@ -10,7 +10,7 @@ usage()
 
     -v, --version           version to release, example: 0.10.6
     -t, --github-token      personal GitHub token
-    -c, --starting-commit   git commit hash; the script will cherry-pick that commit and all on master after it
+    -r, --remote            git remote server name for the feast-dev/feast repo (e.g. origin, upstream, etc.)
 "
 }
 
@@ -18,8 +18,8 @@ while [ "$1" != "" ]; do
   case "$1" in
       -v | --version )           VERSION="$2";            shift;;
       -t | --github-token )      GH_TOKEN="$2";           shift;;
-      -c | --starting-commit )   STARTING_COMMIT="$2";    shift;;
-      -h | --help )              usage;                   exit;; 
+      -r | --remote )            REMOTE="$2";             shift;;
+      -h | --help )              usage;                   exit;;
       * )                        usage;                   exit 1
   esac
   shift
@@ -27,6 +27,7 @@ done
 
 if [ -z $VERSION ]; then usage; exit 1; fi
 if [ -z $GH_TOKEN ]; then usage; exit 1; fi
+if [ -z $REMOTE ]; then usage; exit 1; fi
 regex="([0-9]+)\.([0-9]+)\.([0-9]+)"
 if [[ $VERSION =~ $regex ]]
 then
@@ -47,22 +48,25 @@ cd $(dirname "$0")
 echo $GH_TOKEN | gh auth login --with-token
 
 echo "Step 1: Cherry-pick new commits onto release branch"
-git fetch origin
-git checkout master
-last_commit=$(git rev-parse HEAD)
+git fetch $REMOTE
+git checkout $REMOTE/master
+STARTING_COMMIT=$(git merge-base $REMOTE/master v$MAJOR.$MINOR-branch)
 git checkout v$MAJOR.$MINOR-branch
 
 push_cherrypicked_commits()
 {
     echo "Pushing commits"
-    git push origin v$MAJOR.$MINOR-branch
+    git push $REMOTE v$MAJOR.$MINOR-branch
     echo "Commits pushed"
 }
 cherrypick_from_master()
 {
-    echo "Cherrypicking commits"
-    git cherry-pick $STARTING_COMMIT^..$last_commit
-    echo "Commits cherrypicked"
+    echo "Rebasing commits"
+    git checkout $REMOTE/master
+    git rebase --interactive --onto v$MAJOR.$MINOR-branch $STARTING_COMMIT HEAD
+    git branch -f v$MAJOR.$MINOR-branch HEAD
+    git checkout v$MAJOR.$MINOR-branch
+    echo "Commits rebased"
     echo "Step 1b: Push commits"
     read -p "Commits are not pushed. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
@@ -72,29 +76,20 @@ cherrypick_from_master()
     esac ;
 }
 echo "Step 1a: Cherry-pick commits"
-if [ -z $STARTING_COMMIT ]; then
-    read -p "No starting commit given. Skip this step (y) or exit (n)? " choice
+if git status | grep -q "is ahead of" ; then
+    read -p "Your local branch is ahead of its remote counterpart, indicating you may have already cherry-picked. Skip this step (y) or run the cherry-pick starting from commit $STARTING_COMMIT (n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this step" ;;
-        n|N ) exit ;;
-        * ) exit ;;
+        n|N ) cherrypick_from_master ;;
+        * ) cherrypick_from_master ;;
     esac ;
 else
-    if git status | grep -q "is ahead of" ; then
-        read -p "Your local branch is ahead of its remote counterpart, indicating you may have already cherry-picked. Skip this step (y) or run the cherry-pick starting from commit $STARTING_COMMIT (n)? " choice
-        case "$choice" in
-            y|Y ) echo "Skipping this step" ;;
-            n|N ) cherrypick_from_master ;;
-            * ) cherrypick_from_master ;;
-        esac ;
-    else
-        read -p "Will cherry-pick starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
-        case "$choice" in
-            y|Y ) cherrypick_from_master ;;
-            n|N ) echo "Skipping this step" ;;
-            * ) echo "Skipping this step" ;;
-        esac ;
-    fi
+    read -p "Will cherry-pick starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
+    case "$choice" in
+        y|Y ) cherrypick_from_master ;;
+        n|N ) echo "Skipping this step" ;;
+        * ) echo "Skipping this step" ;;
+    esac ;
 fi
 
 commit_changelog()
@@ -165,7 +160,7 @@ echo "Step 4: Push commits and tags"
 push_commits()
 {
     echo "Pushing commits"
-    git push origin v$MAJOR.$MINOR-branch
+    git push $REMOTE v$MAJOR.$MINOR-branch
     echo "Commits pushed"
 }
 echo "Step 4a: Push commits"
@@ -183,11 +178,11 @@ fi
 push_tag()
 {
     echo "Pushing tag"
-    git push origin v$MAJOR.$MINOR.$PATCH
+    git push $REMOTE v$MAJOR.$MINOR.$PATCH
     echo "Tag pushed"
 }
 echo "Step 4b: Push tag"
-if git ls-remote --tags origin | grep -q "v$MAJOR.$MINOR.$PATCH" ; then
+if git ls-remote --tags $REMOTE | grep -q "v$MAJOR.$MINOR.$PATCH" ; then
     read -p "The tag appears pushed. Skip this sub-step (y/n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this sub-step" ;;
@@ -239,7 +234,7 @@ fi
 push_cp()
 {
     echo "Pushing cherry-pick"
-    git push origin master
+    git push $REMOTE master
     echo "Commit pushed"
 }
 echo "Step 6b: Push changelog to master"
