@@ -54,7 +54,7 @@ REQUIRED = [
     "pydantic>=1.0.0",
     "PyYAML==5.3.*",
     "tabulate==0.8.*",
-    "tenacity",
+    "tenacity==7.*",
     "toml==0.10.*",
     "tqdm==4.*",
 ]
