@@ -82,7 +82,7 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp or redis """
+    """ str: local or gcp """
 
     online_store: Any
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -200,11 +200,10 @@ class FeastConfigError(Exception):
 
 def create_repo_config(**data) -> RepoConfig:
     rc = RepoConfig(**data)
-    if rc.online_store is None or isinstance(rc.online_store, Dict):
-        if rc.provider == "local":
-            rc.online_store = get_online_config_from_type("sqlite")()
-        if rc.provider == "gcp":
-            rc.online_store = get_online_config_from_type("datastore")()
+    if isinstance(rc.online_store, Dict):
+        rc.online_store = get_online_config_from_type(rc.online_store["type"])(
+            **rc.online_store
+        )
     return rc
 
 
@@ -246,12 +245,8 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
         try:
-            c = RepoConfig(**raw_config)
+            c = create_repo_config(**raw_config)
             c.repo_path = repo_path
-            online_config_class = get_online_config_from_type(
-                c.dict()["online_store"]["type"]
-            )
-            c.online_store = online_config_class(**c.dict()["online_store"])
             return c
         except ValidationError as e:
             raise FeastConfigError(e, config_path)
