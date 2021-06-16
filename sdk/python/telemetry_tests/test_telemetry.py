@@ -15,15 +15,15 @@ import tempfile
 import uuid
 from datetime import datetime
 
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from tenacity import retry, wait_exponential, stop_after_attempt
 
 from google.cloud import bigquery
 import os
 from time import sleep
-from importlib import reload
 
 from feast import Client, Entity, ValueType, FeatureStore, RepoConfig
-from feast.repo_config import SqliteOnlineStoreConfig
+
 
 TELEMETRY_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
