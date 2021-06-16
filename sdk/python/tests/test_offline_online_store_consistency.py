@@ -18,8 +18,9 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
+from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.repo_config import RedisOnlineStoreConfig, RedisType, RepoConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
 

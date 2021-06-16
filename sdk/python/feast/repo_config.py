@@ -1,7 +1,6 @@
 import importlib
-from enum import Enum
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
@@ -17,6 +16,7 @@ from feast.telemetry import log_exceptions
 ONLINE_CONFIG_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
+    "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
 }
 
 
@@ -34,31 +34,6 @@ class FeastConfigBaseModel(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         extra = "forbid"
-
-
-OnlineT = TypeVar("OnlineT", bound=FeastConfigBaseModel)
-
-
-class RedisType(str, Enum):
-    redis = "redis"
-    redis_cluster = "redis_cluster"
-
-
-class RedisOnlineStoreConfig(FeastBaseModel):
-    """Online store config for Redis store"""
-
-    type: Literal["redis"] = "redis"
-    """Online store type selector"""
-
-    redis_type: RedisType = RedisType.redis
-    """Redis type: redis or redis_cluster"""
-
-    connection_string: StrictStr = "localhost:6379"
-    """Connection string containing the host, port, and configuration parameters for Redis
-     format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
-
-
-OnlineStoreConfig = Union[RedisOnlineStoreConfig]
 
 
 class FileOfflineStoreConfig(FeastBaseModel):
@@ -144,6 +119,8 @@ class RepoConfig(FeastBaseModel):
         assert "provider" in values
 
         # Set the default type
+        # This is only direct reference to a provider or online store that we should have
+        # for backwards compatibility.
         if "type" not in values["online_store"]:
             if values["provider"] == "local":
                 values["online_store"]["type"] = "sqlite"
@@ -154,13 +131,9 @@ class RepoConfig(FeastBaseModel):
 
         # Validate the dict to ensure one of the union types match
         try:
-            if online_store_type == "redis":
-                RedisOnlineStoreConfig(**values["online_store"])
-            else:
-                online_config_class = get_online_config_from_type(online_store_type)
-                online_config_class(**values["online_store"])
+            online_config_class = get_online_config_from_type(online_store_type)
+            online_config_class(**values["online_store"])
         except ValidationError as e:
-
             raise ValidationError(
                 [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
             )

@@ -1,31 +1,41 @@
+import importlib
 import struct
+from typing import Any
 
 import mmh3
 
+from feast import errors
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.repo_config import OnlineStoreConfig, RedisOnlineStoreConfig
 
 
-def get_online_store_from_config(
-    online_store_config: OnlineStoreConfig,
-) -> OnlineStore:
+def get_online_store_from_config(online_store_config: Any,) -> OnlineStore:
     """Get the offline store from offline store config"""
 
-    if online_store_config.__repr_name__() == "SqliteOnlineStoreConfig":
-        from feast.infra.online_stores.sqlite import SqliteOnlineStore
+    module_name = online_store_config.__module__
+    qualified_name = type(online_store_config).__name__
+    store_class_name = qualified_name.replace("Config", "")
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as e:
+        # The original exception can be anything - either module not found,
+        # or any other kind of error happening during the module import time.
+        # So we should include the original error as well in the stack trace.
+        raise errors.FeastModuleImportError(
+            module_name, module_type="OnlineStore"
+        ) from e
 
-        return SqliteOnlineStore()
-    elif online_store_config.__repr_name__() == "DatastoreOnlineStoreConfig":
-        from feast.infra.online_stores.datastore import DatastoreOnlineStore
-
-        return DatastoreOnlineStore()
-    elif isinstance(online_store_config, RedisOnlineStoreConfig):
-        from feast.infra.online_stores.redis import RedisOnlineStore
-
-        return RedisOnlineStore()
-    raise ValueError(f"Unsupported online store config '{online_store_config}'")
+    # Try getting the provider class definition
+    try:
+        online_store_class = getattr(module, store_class_name)
+    except AttributeError:
+        # This can only be one type of error, when class_name attribute does not exist in the module
+        # So we don't have to include the original exception here
+        raise errors.FeastClassImportError(
+            module_name, store_class_name, class_type="OnlineStore"
+        ) from None
+    return online_store_class()
 
 
 def _redis_key(project: str, entity_key: EntityKeyProto):

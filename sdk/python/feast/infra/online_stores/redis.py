@@ -13,16 +13,19 @@
 # limitations under the License.
 import json
 from datetime import datetime
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.protobuf.timestamp_pb2 import Timestamp
+from pydantic import StrictStr
+from pydantic.typing import Literal
 
 from feast import Entity, FeatureTable, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RedisOnlineStoreConfig, RedisType
+from feast.repo_config import FeastConfigBaseModel
 
 try:
     from redis import Redis
@@ -33,6 +36,25 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("redis", str(e))
 
 EX_SECONDS = 253402300799
+
+
+class RedisType(str, Enum):
+    redis = "redis"
+    redis_cluster = "redis_cluster"
+
+
+class RedisOnlineStoreConfig(FeastConfigBaseModel):
+    """Online store config for Redis store"""
+
+    type: Literal["redis"] = "redis"
+    """Online store type selector"""
+
+    redis_type: RedisType = RedisType.redis
+    """Redis type: redis or redis_cluster"""
+
+    connection_string: StrictStr = "localhost:6379"
+    """Connection string containing the host, port, and configuration parameters for Redis
+     format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
 
 class RedisOnlineStore(OnlineStore):
