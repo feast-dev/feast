@@ -7,6 +7,7 @@ from typing import List, Optional, Set, Union
 import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import BigQuerySource, DataSource
@@ -231,13 +232,17 @@ class BigQueryRetrievalJob(RetrievalJob):
             )
             return None
 
-        while True:
+        @retry(wait=wait_fixed(30), stop=stop_after_delay(1800))
+        def _block_until_done():
             query_job = self.client.get_job(bq_job.job_id)
             if query_job.state in ["PENDING", "RUNNING"]:
                 print(f"The job is still '{bq_job.state}'. Will wait for 30 seconds")
-                time.sleep(30)
+                raise bq_job.exception()
             else:
-                break
+                return
+
+        _block_until_done()
+        print(f"Done writing to '{path}'.")
 
         return path
 
