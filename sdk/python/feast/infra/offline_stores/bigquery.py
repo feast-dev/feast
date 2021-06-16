@@ -225,7 +225,7 @@ class BigQueryRetrievalJob(RetrievalJob):
 
         today = date.today().strftime("%Y%m%d")
         rand_id = str(uuid.uuid4())[:7]
-        path = f"{self.client.project}.{self.config.offline_store.dataset}.training_{today}_{rand_id}"
+        path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
         job_config = bigquery.QueryJobConfig(destination=path, dry_run=dry_run)
         bq_job = self.client.query(self.query, job_config=job_config)
 

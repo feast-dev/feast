@@ -54,6 +54,7 @@ REQUIRED = [
     "pydantic>=1.0.0",
     "PyYAML==5.3.*",
     "tabulate==0.8.*",
+    "tenacity",
     "toml==0.10.*",
     "tqdm==4.*",
 ]
@@ -92,7 +93,6 @@ CI_REQUIRED = [
     "pytest-mock==1.10.4",
     "Sphinx!=4.0.0",
     "sphinx-rtd-theme",
-    "tenacity",
     "adlfs==0.5.9",
     "firebase-admin==4.5.2",
     "pre-commit",
