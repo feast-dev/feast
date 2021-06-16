@@ -56,7 +56,7 @@ def test_basic() -> None:
 
 
 @pytest.mark.integration
-def test_fail() -> None:
+def test_missing_bq_source_fail() -> None:
     project_id = "".join(
         random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
     )
@@ -80,7 +80,7 @@ def test_fail() -> None:
 
         repo_example = repo_path / "example.py"
         repo_example.write_text(
-            (Path(__file__).parent / "example_feature_repo_3.py").read_text()
+            (Path(__file__).parent / "example_feature_repo_with_missing_bq_source.py").read_text()
         )
 
         returncode, output = runner.run_with_output(["apply"], cwd=repo_path)
