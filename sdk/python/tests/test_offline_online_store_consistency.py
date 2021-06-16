@@ -193,16 +193,25 @@ def check_offline_and_online_features(
     driver_id: int,
     event_timestamp: datetime,
     expected_value: Optional[float],
+    full_feature_names: bool,
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
-        [f"{fv.name}:value"], [{"driver": driver_id}], full_feature_names=True
+        [f"{fv.name}:value"],
+        [{"driver": driver_id}],
+        full_feature_names=full_feature_names,
     ).to_dict()
 
-    if expected_value:
-        assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+    if full_feature_names:
+        if expected_value:
+            assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+        else:
+            assert response_dict[f"{fv.name}__value"][0] is None
     else:
-        assert response_dict[f"{fv.name}__value"][0] is None
+        if expected_value:
+            assert abs(response_dict["value"][0] - expected_value) < 1e-6
+        else:
+            assert response_dict["value"][0] is None
 
     # Check offline store
     df = fs.get_historical_features(
@@ -210,18 +219,25 @@ def check_offline_and_online_features(
             {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
         ),
         feature_refs=[f"{fv.name}:value"],
-        full_feature_names=True,
+        full_feature_names=full_feature_names,
     ).to_df()
 
-    if expected_value:
-        assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+    if full_feature_names:
+        if expected_value:
+            assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+        else:
+            df = df.where(pd.notnull(df), None)
+            assert df.to_dict()[f"{fv.name}__value"][0] is None
     else:
-        df = df.where(pd.notnull(df), None)
-        assert df.to_dict()[f"{fv.name}__value"][0] is None
+        if expected_value:
+            assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
+        else:
+            df = df.where(pd.notnull(df), None)
+            assert df.to_dict()["value"][0] is None
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView
+    fs: FeatureStore, fv: FeatureView, ffn: bool
 ) -> None:
     now = datetime.utcnow()
     # Run materialize()
@@ -232,16 +248,31 @@ def run_offline_online_store_consistency_test(
 
     # check result of materialize()
     check_offline_and_online_features(
-        fs=fs, fv=fv, driver_id=1, event_timestamp=end_date, expected_value=0.3
+        fs=fs,
+        fv=fv,
+        driver_id=1,
+        event_timestamp=end_date,
+        expected_value=0.3,
+        full_feature_names=ffn,
     )
 
     check_offline_and_online_features(
-        fs=fs, fv=fv, driver_id=2, event_timestamp=end_date, expected_value=None
+        fs=fs,
+        fv=fv,
+        driver_id=2,
+        event_timestamp=end_date,
+        expected_value=None,
+        full_feature_names=ffn,
     )
 
     # check prior value for materialize_incremental()
     check_offline_and_online_features(
-        fs=fs, fv=fv, driver_id=3, event_timestamp=end_date, expected_value=4
+        fs=fs,
+        fv=fv,
+        driver_id=3,
+        event_timestamp=end_date,
+        expected_value=4,
+        full_feature_names=ffn,
     )
 
     # run materialize_incremental()
@@ -249,7 +280,12 @@ def run_offline_online_store_consistency_test(
 
     # check result of materialize_incremental()
     check_offline_and_online_features(
-        fs=fs, fv=fv, driver_id=3, event_timestamp=now, expected_value=5
+        fs=fs,
+        fv=fv,
+        driver_id=3,
+        event_timestamp=now,
+        expected_value=5,
+        full_feature_names=ffn,
     )
 
 
@@ -257,17 +293,22 @@ def run_offline_online_store_consistency_test(
 @pytest.mark.parametrize(
     "bq_source_type", ["query", "table"],
 )
-def test_bq_offline_online_store_consistency(bq_source_type: str):
+@pytest.mark.parametrize("full_feature_names", [True, False])
+def test_bq_offline_online_store_consistency(
+    bq_source_type: str, full_feature_names: bool
+):
     with prep_bq_fs_and_fv(bq_source_type) as (fs, fv):
-        run_offline_online_store_consistency_test(fs, fv)
+        run_offline_online_store_consistency_test(fs, fv, full_feature_names)
 
 
+@pytest.mark.parametrize("full_feature_names", [True, False])
 @pytest.mark.integration
-def test_redis_offline_online_store_consistency():
+def test_redis_offline_online_store_consistency(full_feature_names: bool):
     with prep_redis_fs_and_fv() as (fs, fv):
-        run_offline_online_store_consistency_test(fs, fv)
+        run_offline_online_store_consistency_test(fs, fv, full_feature_names)
 
 
-def test_local_offline_online_store_consistency():
+@pytest.mark.parametrize("full_feature_names", [True, False])
+def test_local_offline_online_store_consistency(full_feature_names: bool):
     with prep_local_fs_and_fv() as (fs, fv):
-        run_offline_online_store_consistency_test(fs, fv)
+        run_offline_online_store_consistency_test(fs, fv, full_feature_names)

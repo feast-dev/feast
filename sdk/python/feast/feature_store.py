@@ -273,10 +273,9 @@ class FeatureStore:
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
             feature_refs: A list of features that should be retrieved from the offline store. Feature references are of
                 the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
-            full_feature_names: By default, this value is set to False. This strips the feature view prefixes from the data
-                and returns only the feature name, changing them from the format "feature_view__feature" to "feature"
-                (e.g., "customer_fv__daily_transactions" changes to "daily_transactions"). Set the value to True for
-                the feature names to be prefixed by the feature view name in the format "feature_view__feature".
+            full_feature_names: By default, this value is set to False. By setting the value to True, this adds the
+            feature view prefixes to the feature names, changing them from the format "feature" to
+            "feature_view__feature" (e.g., "daily_transactions" changes to "customer_fv__daily_transactions").
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -290,7 +289,7 @@ class FeatureStore:
             >>> retrieval_job = fs.get_historical_features(
             >>>     entity_df="SELECT event_timestamp, order_id, customer_id from gcp_project.my_ds.customer_orders",
             >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"],
-            >>>     full_feature_names=False
+            >>>     full_feature_names=True
             >>>     )
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
@@ -298,9 +297,9 @@ class FeatureStore:
         all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
             feature_views = _get_requested_feature_views(
-                feature_refs, all_feature_views
+                feature_refs, all_feature_views, full_feature_names
             )
-        except FeatureViewNotFoundException as e:
+        except (FeatureNameCollisionError, FeatureViewNotFoundException) as e:
             sys.exit(e)
 
         provider = self._get_provider()
@@ -635,6 +634,7 @@ def _group_refs(
             raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
 
+    print(full_feature_names)
     if not full_feature_names and len(feature_collision_set) > 0:
         err = ", ".join(x for x in feature_collision_set)
         raise FeatureNameCollisionError(err)
@@ -646,11 +646,16 @@ def _group_refs(
 
 
 def _get_requested_feature_views(
-    feature_refs: List[str], all_feature_views: List[FeatureView]
+    feature_refs: List[str],
+    all_feature_views: List[FeatureView],
+    full_feature_names: bool,
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
     # TODO: Get rid of this function. We only need _group_refs
-    return list(view for view, _ in _group_refs(feature_refs, all_feature_views))
+    return list(
+        view
+        for view, _ in _group_refs(feature_refs, all_feature_views, full_feature_names)
+    )
 
 
 def _get_table_entity_keys(

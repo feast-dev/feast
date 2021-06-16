@@ -100,29 +100,6 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
-            full_feature_names=True,
-        ).to_dict()
-
-        assert "driver_locations__lon" in result
-        assert "customer_profile__avg_orders_day" in result
-        assert "customer_profile__name" in result
-        assert result["driver"] == [1, 1]
-        assert result["customer"] == [5, 5]
-        assert result["driver_locations__lon"] == ["1.0", "1.0"]
-        assert result["customer_profile__avg_orders_day"] == [1.0, 1.0]
-        assert result["customer_profile__name"] == ["John", "John"]
-        assert result["customer_driver_combined__trips"] == [7, 7]
-
-        # Ensure setting full_feature_names to False strips featureview prefixes
-        # from feature names
-        result = store.get_online_features(
-            feature_refs=[
-                "driver_locations:lon",
-                "customer_profile:avg_orders_day",
-                "customer_profile:name",
-                "customer_driver_combined:trips",
-            ],
-            entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
             full_feature_names=False,
         ).to_dict()
 
@@ -140,17 +117,17 @@ def test_online() -> None:
         result = store.get_online_features(
             feature_refs=["customer_driver_combined:trips"],
             entity_rows=[{"driver": 0, "customer": 0}],
-            full_feature_names=True,
+            full_feature_names=False,
         ).to_dict()
 
-        assert "customer_driver_combined__trips" in result
+        assert "trips" in result
 
         # invalid table reference
         with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(
                 feature_refs=["driver_locations_bad:lon"],
                 entity_rows=[{"driver": 1}],
-                full_feature_names=True,
+                full_feature_names=False,
             )
 
         # Create new FeatureStore object with fast cache invalidation
@@ -175,10 +152,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            full_feature_names=True,
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Rename the registry.db so that it cant be used for refreshes
         os.rename(store.config.registry, store.config.registry + "_fake")
@@ -196,7 +173,7 @@ def test_online() -> None:
                     "customer_driver_combined:trips",
                 ],
                 entity_rows=[{"driver": 1, "customer": 5}],
-                full_feature_names=True,
+                full_feature_names=False,
             ).to_dict()
 
         # Restore registry.db so that we can see if it actually reloads registry
@@ -211,10 +188,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            full_feature_names=True,
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Create a registry with infinite cache (for users that want to manually refresh the registry)
         fs_infinite_ttl = FeatureStore(
@@ -237,10 +214,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            full_feature_names=True,
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Wait a bit so that an arbitrary TTL would take effect
         time.sleep(2)
@@ -257,10 +234,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            full_feature_names=True,
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Force registry reload (should fail because file is missing)
         with pytest.raises(FileNotFoundError):
