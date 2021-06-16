@@ -26,7 +26,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.protos.feast.types import Value_pb2 as ValueProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import RepoConfig, create_repo_config
 from feast.value_type import ValueType
 from tests.utils.data_source_utils import (
     prep_file_source,
@@ -64,7 +64,7 @@ def feature_store_with_gcs_registry():
     bucket.blob("registry.db")
 
     return FeatureStore(
-        config=RepoConfig(
+        config=create_repo_config(
             registry=f"gs://{bucket_name}/registry.db",
             project="default",
             provider="gcp",

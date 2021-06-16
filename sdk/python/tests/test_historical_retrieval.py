@@ -22,7 +22,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
+from feast.repo_config import BigQueryOfflineStoreConfig, create_repo_config
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -270,7 +270,7 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
         customer = Entity(name="customer_id", value_type=ValueType.INT64)
 
         store = FeatureStore(
-            config=RepoConfig(
+            config=create_repo_config(
                 registry=os.path.join(temp_dir, "registry.db"),
                 project="default",
                 provider="local",
@@ -375,7 +375,7 @@ def test_historical_features_from_bigquery_sources(
 
         if provider_type == "local":
             store = FeatureStore(
-                config=RepoConfig(
+                config=create_repo_config(
                     registry=os.path.join(temp_dir, "registry.db"),
                     project="default",
                     provider="local",
@@ -389,7 +389,7 @@ def test_historical_features_from_bigquery_sources(
             )
         elif provider_type == "gcp":
             store = FeatureStore(
-                config=RepoConfig(
+                config=create_repo_config(
                     registry=os.path.join(temp_dir, "registry.db"),
                     project="".join(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
@@ -402,7 +402,7 @@ def test_historical_features_from_bigquery_sources(
             )
         elif provider_type == "gcp_custom_offline_config":
             store = FeatureStore(
-                config=RepoConfig(
+                config=create_repo_config(
                     registry=os.path.join(temp_dir, "registry.db"),
                     project="".join(
                         random.choices(string.ascii_uppercase + string.digits, k=10)

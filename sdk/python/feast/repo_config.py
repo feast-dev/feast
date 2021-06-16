@@ -155,7 +155,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local" or values["provider"] == "redis":
+            if values["provider"] == "local":
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
@@ -196,6 +196,16 @@ class FeastConfigError(Exception):
         return (
             f"FeastConfigError({repr(self._error_message)}, {repr(self._config_path)})"
         )
+
+
+def create_repo_config(**data) -> RepoConfig:
+    rc = RepoConfig(**data)
+    if rc.online_store is None or isinstance(rc.online_store, Dict):
+        if rc.provider == "local":
+            rc.online_store = get_online_config_from_type("sqlite")()
+        if rc.provider == "gcp":
+            rc.online_store = get_online_config_from_type("datastore")()
+    return rc
 
 
 def get_online_config_from_type(online_store_type: str):
