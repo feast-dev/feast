@@ -12,7 +12,6 @@ import click
 from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
-from feast.errors import DataSourceNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
     infer_entity_value_type_from_feature_views,
@@ -164,6 +163,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     update_data_sources_with_inferred_event_timestamp_col(data_sources)
     for view in repo.feature_views:
         view.infer_features_from_input_source()
+        data_source.validate()
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):

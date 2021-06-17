@@ -80,9 +80,11 @@ def test_missing_bq_source_fail() -> None:
 
         repo_example = repo_path / "example.py"
         repo_example.write_text(
-            (Path(__file__).parent / "example_feature_repo_with_missing_bq_source.py").read_text()
+            (
+                Path(__file__).parent / "example_feature_repo_with_missing_bq_source.py"
+            ).read_text()
         )
 
         returncode, output = runner.run_with_output(["apply"], cwd=repo_path)
         assert returncode == 1
-        assert "DataSourceNotFoundException" in output
+        assert b"DataSourceNotFoundException" in output
