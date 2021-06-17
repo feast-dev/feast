@@ -897,3 +897,112 @@ class KinesisSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+
+class SqlServerSource(DataSource):
+    def __init__(
+        self,
+        event_timestamp_column: Optional[str] = None,
+        table_ref: Optional[str] = None,
+        created_timestamp_column: Optional[str] = "",
+        field_mapping: Optional[Dict[str, str]] = None,
+        date_partition_column: Optional[str] = "",
+        query: Optional[str] = None,
+    ):
+        self._sqlserver_options = SqlServerOptions(table_ref=table_ref, query=query)
+
+        super().__init__(
+            event_timestamp_column
+            or self._infer_event_timestamp_column("TIMESTAMP|DATETIME"),
+            created_timestamp_column,
+            field_mapping,
+            date_partition_column,
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, SqlServerSource):
+            raise TypeError(
+                "Comparisons should only involve SqlServerSource class objects."
+            )
+
+        return (
+            self.sqlserver_options.table_ref == other.sqlserver_options.table_ref
+            and self.sqlserver_options.query == other.sqlserver_options.query
+            and self.event_timestamp_column == other.event_timestamp_column
+            and self.created_timestamp_column == other.created_timestamp_column
+            and self.field_mapping == other.field_mapping
+        )
+
+    @property
+    def table_ref(self):
+        return self._sqlserver_options.table_ref
+
+    @property
+    def query(self):
+        return self._sqlserver_options.query
+
+    @property
+    def sqlserver_options(self):
+        """
+        Returns the sqlserver options of this data source
+        """
+        return self._sqlserver_options
+
+    @sqlserver_options.setter
+    def sqlserver_options(self, sqlserver_options):
+        """
+        Sets the sqlserver options of this data source
+        """
+        self._sqlserver_options = sqlserver_options
+
+    def to_proto(self) -> DataSourceProto:
+        data_source_proto = DataSourceProto(
+            type=DataSourceProto.BATCH_BIGQUERY,
+            field_mapping=self.field_mapping,
+            sqlserver_options=self.sqlserver_options.to_proto(),
+        )
+
+        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.created_timestamp_column = self.created_timestamp_column
+        data_source_proto.date_partition_column = self.date_partition_column
+
+        return data_source_proto
+
+    def get_table_query_string(self) -> str:
+        """Returns a string that can directly be used to reference this table in SQL"""
+        if self.table_ref:
+            return f"`{self.table_ref}`"
+        else:
+            return f"({self.query})"
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        return type_map.bq_to_feast_value_type
+
+    def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
+        import pymssql
+        # TODO: Credentials stored in config per existing provider/storage patterns.
+        conn = pymssql.connect(server='localhost', user='as', password='yourStrong(!)Password', database='prices')
+
+        name_type_pairs = []
+        if self.table_ref is not None:
+            project_id, dataset_id, table_id = self.table_ref.split(".")
+            bq_columns_query = f"""
+                SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = '{table_id}'
+            """
+            table_schema = pd.read_sql(bg_columns_query, conn)
+            for df in table_schema:
+                name_type_pairs.extend(
+                    list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
+                )
+        else:
+            cursor = conn.cursor()
+            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
+            queryRes = cursor.execute(bq_columns_query).fetchone()
+            name_type_pairs = [
+                (schema_field.name, schema_field.field_type)
+                for schema_field in queryRes.schema
+            ]
+
+        return name_type_pairs

@@ -71,6 +71,11 @@ REDIS_REQUIRED = [
     "redis-py-cluster==2.1.2",
 ]
 
+MSSQL_REQUIRED = [
+    "pyodbc==4.0.30",
+    "pymssql==2.2.1"  # TODO: Decide which of these to use.
+]
+
 CI_REQUIRED = [
     "cryptography==3.3.2",
     "flake8",
@@ -198,6 +203,7 @@ setup(
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "redis": REDIS_REQUIRED,
+        "mssql": MSSQL_REQUIRED
     },
     include_package_data=True,
     license="Apache",
