@@ -78,8 +78,6 @@ class SqliteOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
 
-        print(f"online_write_batch: {config}")
-
         conn = self._get_conn(config)
 
         project = config.project

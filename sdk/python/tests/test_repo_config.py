@@ -24,10 +24,8 @@ def _test_config(config_text, expect_error: Optional[str]):
             error = e
 
         if expect_error is not None:
-            print(f"Error: {error}")
             assert expect_error in str(error)
         else:
-            print(f"Error: {error}")
             assert error is None
 
 
@@ -101,7 +99,7 @@ def test_bad_type():
             path: 100500
         """
         ),
-        expect_error="path\n  str type expected",
+        expect_error="__root__ -> online_store -> path\n  str type expected",
     )
 
 
