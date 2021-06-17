@@ -56,6 +56,7 @@
   * [Getting online features](feast-on-kubernetes/user-guide/getting-online-features.md)
   * [Getting training features](feast-on-kubernetes/user-guide/getting-training-features.md)
   * [Define and ingest features](feast-on-kubernetes/user-guide/define-and-ingest-features.md)
+  * [Extending Feast](feast-on-kubernetes/user-guide/extending-feast.md)
 * [Reference](feast-on-kubernetes/reference-1/README.md)
   * [Configuration Reference](feast-on-kubernetes/reference-1/configuration-reference.md)
   * [Feast and Spark](feast-on-kubernetes/reference-1/feast-and-spark.md)
