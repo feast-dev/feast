@@ -92,6 +92,13 @@ class RepoConfig(FeastBaseModel):
 
     repo_path: Optional[Path] = None
 
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        if isinstance(self.online_store, Dict):
+            self.online_store = get_online_config_from_type(self.online_store["type"])(
+                **self.online_store
+            )
+
     def get_registry_config(self):
         if isinstance(self.registry, str):
             return RegistryConfig(path=self.registry)
@@ -198,15 +205,6 @@ class FeastConfigError(Exception):
         )
 
 
-def create_repo_config(**data) -> RepoConfig:
-    rc = RepoConfig(**data)
-    if isinstance(rc.online_store, Dict):
-        rc.online_store = get_online_config_from_type(rc.online_store["type"])(
-            **rc.online_store
-        )
-    return rc
-
-
 def get_online_config_from_type(online_store_type: str):
     if online_store_type in ONLINE_CONFIG_CLASS_FOR_TYPE:
         online_store_type = ONLINE_CONFIG_CLASS_FOR_TYPE[online_store_type]
@@ -245,7 +243,7 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
         try:
-            c = create_repo_config(**raw_config)
+            c = RepoConfig(**raw_config)
             c.repo_path = repo_path
             return c
         except ValidationError as e:
