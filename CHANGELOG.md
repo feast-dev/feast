@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.10.8](https://github.com/feast-dev/feast/tree/v0.10.8) (2021-06-17)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.7...v0.10.8)
+
+**Implemented enhancements:**
+
+- Add `to_bigquery()` function to BigQueryRetrievalJob [\#1634](https://github.com/feast-dev/feast/pull/1634) ([vtao2](https://github.com/vtao2))
+
+**Fixed bugs:**
+
+- Don't use .result\(\) in BigQueryOfflineStore, since it still leads to OOM [\#1642](https://github.com/feast-dev/feast/pull/1642) ([tsotnet](https://github.com/tsotnet))
+- Don't load entire bigquery query results in memory [\#1638](https://github.com/feast-dev/feast/pull/1638) ([tsotnet](https://github.com/tsotnet))
+- Add entity column validations when getting historical features from bigquery [\#1614](https://github.com/feast-dev/feast/pull/1614) ([achals](https://github.com/achals))
+
+**Merged pull requests:**
+
+- Make test historical retrieval longer [\#1630](https://github.com/feast-dev/feast/pull/1630) ([MattDelac](https://github.com/MattDelac))
+- Fix failing historical retrieval assertion [\#1622](https://github.com/feast-dev/feast/pull/1622) ([woop](https://github.com/woop))
+- Optimize historical retrieval with BigQuery offline store [\#1602](https://github.com/feast-dev/feast/pull/1602) ([MattDelac](https://github.com/MattDelac))
+
 ## [v0.10.7](https://github.com/feast-dev/feast/tree/v0.10.7) (2021-06-07)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.6...v0.10.7)
