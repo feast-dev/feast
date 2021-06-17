@@ -103,7 +103,6 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file, repo_root)
         module = importlib.import_module(module_path)
-
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
             if isinstance(obj, FeatureTable):
@@ -162,6 +161,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+    validate_repo(repo)
     data_sources = [t.batch_source for t in repo.feature_views]
 
     if not skip_source_validation:
@@ -389,3 +389,17 @@ def replace_str_in_file(file_path, match_str, sub_str):
 def generate_project_name() -> str:
     """Generates a unique project name"""
     return f"{random.choice(adjectives)}_{random.choice(animals)}"
+
+
+def validate_repo(repo: ParsedRepo):
+    """Validate feature repo."""
+
+    # Make sure each FeatureView has a unique name
+    name_to_fv = {}
+    for fv in repo.feature_views:
+        if fv.name in name_to_fv:
+            raise ValueError(
+                f"More than one feature view with name {fv.name} found. Please ensure that all feature view names are unique."
+            )
+        else:
+            name_to_fv[fv.name] = fv
