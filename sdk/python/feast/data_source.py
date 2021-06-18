@@ -14,7 +14,6 @@
 
 
 import enum
-import re
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from pyarrow.parquet import ParquetFile
@@ -371,7 +370,7 @@ class DataSource:
 
     def __init__(
         self,
-        event_timestamp_column: str,
+        event_timestamp_column: Optional[str] = "",
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
@@ -520,45 +519,11 @@ class DataSource:
         """
         raise NotImplementedError
 
-    def _infer_event_timestamp_column(self, ts_column_type_regex_pattern):
-        ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
-        USER_GUIDANCE = "Please specify event_timestamp_column explicitly."
-
-        if isinstance(self, FileSource) or isinstance(self, BigQuerySource):
-            event_timestamp_column, matched_flag = None, False
-            for col_name, col_datatype in self.get_table_column_names_and_types():
-                if re.match(ts_column_type_regex_pattern, col_datatype):
-                    if matched_flag:
-                        raise TypeError(
-                            f"""
-                            {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
-                            the criteria. {USER_GUIDANCE}
-                            """
-                        )
-                    matched_flag = True
-                    event_timestamp_column = col_name
-            if matched_flag:
-                return event_timestamp_column
-            else:
-                raise TypeError(
-                    f"""
-                    {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
-                     {USER_GUIDANCE}
-                    """
-                )
-        else:
-            raise TypeError(
-                f"""
-                {ERROR_MSG_PREFIX} because this DataSource currently does not support this inference.
-                 {USER_GUIDANCE}
-                """
-            )
-
 
 class FileSource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = None,
+        event_timestamp_column: Optional[str] = "",
         file_url: Optional[str] = None,
         path: Optional[str] = None,
         file_format: FileFormat = None,
@@ -598,7 +563,7 @@ class FileSource(DataSource):
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
         super().__init__(
-            event_timestamp_column or self._infer_event_timestamp_column(r"^timestamp"),
+            event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -662,7 +627,7 @@ class FileSource(DataSource):
 class BigQuerySource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = None,
+        event_timestamp_column: Optional[str] = "",
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
@@ -672,8 +637,7 @@ class BigQuerySource(DataSource):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
         super().__init__(
-            event_timestamp_column
-            or self._infer_event_timestamp_column("TIMESTAMP|DATETIME"),
+            event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -743,20 +707,12 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-        name_type_pairs = []
         if self.table_ref is not None:
-            project_id, dataset_id, table_id = self.table_ref.split(".")
-            bq_columns_query = f"""
-                SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_NAME = '{table_id}'
-            """
-            table_schema = (
-                client.query(bq_columns_query).result().to_dataframe_iterable()
-            )
-            for df in table_schema:
-                name_type_pairs.extend(
-                    list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
-                )
+            table_schema = client.get_table(self.table_ref).schema
+            if not isinstance(table_schema[0], bigquery.schema.SchemaField):
+                raise TypeError("Could not parse BigQuery table schema.")
+
+            name_type_pairs = [(field.name, field.field_type) for field in table_schema]
         else:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
             queryRes = client.query(bq_columns_query).result()
