@@ -8,7 +8,7 @@ from feast.data_source import BigQuerySource, FileSource
 
 
 @contextlib.contextmanager
-def prep_file_source(df, event_timestamp_column="") -> FileSource:
+def prep_file_source(df, event_timestamp_column=None) -> FileSource:
     with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
         f.close()
         df.to_parquet(f.name)
@@ -21,7 +21,7 @@ def prep_file_source(df, event_timestamp_column="") -> FileSource:
 
 
 def simple_bq_source_using_table_ref_arg(
-    df, event_timestamp_column=""
+    df, event_timestamp_column=None
 ) -> BigQuerySource:
     client = bigquery.Client()
     gcp_project = client.project
@@ -46,7 +46,7 @@ def simple_bq_source_using_table_ref_arg(
     )
 
 
-def simple_bq_source_using_query_arg(df, event_timestamp_column="") -> BigQuerySource:
+def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuerySource:
     bq_source_using_table_ref = simple_bq_source_using_table_ref_arg(
         df, event_timestamp_column
     )

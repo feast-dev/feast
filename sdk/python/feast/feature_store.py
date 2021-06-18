@@ -30,7 +30,10 @@ from feast.errors import (
     FeatureViewNotFoundException,
 )
 from feast.feature_view import FeatureView
-from feast.inference import infer_entity_value_type_from_feature_views
+from feast.inference import (
+    infer_entity_value_type_from_feature_views,
+    update_data_sources_with_inferred_event_timestamp_col,
+)
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -228,6 +231,11 @@ class FeatureStore:
         entities_to_update = infer_entity_value_type_from_feature_views(
             [ob for ob in objects if isinstance(ob, Entity)], views_to_update
         )
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.input for view in views_to_update]
+        )
+        for view in views_to_update:
+            view.infer_features_from_input_source()
 
         if len(views_to_update) + len(entities_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")

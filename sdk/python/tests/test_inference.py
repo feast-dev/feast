@@ -6,23 +6,12 @@ from utils.data_source_utils import (
 )
 
 from feast import Entity, ValueType
+from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
-from feast.inference import infer_entity_value_type_from_feature_views
-
-
-@pytest.mark.integration
-def test_data_source_ts_col_inference_success(simple_dataset_1):
-    with prep_file_source(df=simple_dataset_1) as file_source:
-        actual_file_source = file_source.event_timestamp_column
-        actual_bq_1 = simple_bq_source_using_table_ref_arg(
-            simple_dataset_1
-        ).event_timestamp_column
-        actual_bq_2 = simple_bq_source_using_query_arg(
-            simple_dataset_1
-        ).event_timestamp_column
-        expected = "ts_1"
-
-        assert expected == actual_file_source == actual_bq_1 == actual_bq_2
+from feast.inference import (
+    infer_entity_value_type_from_feature_views,
+    update_data_sources_with_inferred_event_timestamp_col,
+)
 
 
 def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dataset_2):
@@ -44,6 +33,30 @@ def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dat
         assert actual_1 == [Entity(name="id", value_type=ValueType.INT64)]
         assert actual_2 == [Entity(name="id", value_type=ValueType.STRING)]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(RegistryInferenceFailure):
             # two viable data types
             infer_entity_value_type_from_feature_views([Entity(name="id")], [fv1, fv2])
+
+
+@pytest.mark.integration
+def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
+    df_with_two_viable_timestamp_cols = simple_dataset_1.copy(deep=True)
+    df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
+
+    with prep_file_source(df=simple_dataset_1) as file_source:
+        data_sources = [
+            file_source,
+            simple_bq_source_using_table_ref_arg(simple_dataset_1),
+            simple_bq_source_using_query_arg(simple_dataset_1),
+        ]
+        update_data_sources_with_inferred_event_timestamp_col(data_sources)
+        actual_event_timestamp_cols = [
+            source.event_timestamp_column for source in data_sources
+        ]
+
+        assert actual_event_timestamp_cols == ["ts_1", "ts_1", "ts_1"]
+
+    with prep_file_source(df=df_with_two_viable_timestamp_cols) as file_source:
+        with pytest.raises(RegistryInferenceFailure):
+            # two viable event_timestamp_columns
+            update_data_sources_with_inferred_event_timestamp_col([file_source])
