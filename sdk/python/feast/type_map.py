@@ -212,7 +212,7 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 float_list_val=FloatList(
                     val=[
                         item
-                        if type(item) in [np.float32, np.float64]
+                        if type(item) in [np.float32, np.float64, float]
                         else _type_err(item, np.float32)
                         for item in value
                     ]
@@ -224,7 +224,7 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 double_list_val=DoubleList(
                     val=[
                         item
-                        if type(item) in [np.float64, np.float32]
+                        if type(item) in [np.float64, np.float32, float]
                         else _type_err(item, np.float64)
                         for item in value
                     ]

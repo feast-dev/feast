@@ -71,7 +71,7 @@ class Provider(abc.ABC):
     @abc.abstractmethod
     def online_write_batch(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
@@ -85,7 +85,7 @@ class Provider(abc.ABC):
         If a tz-naive timestamp is passed to this method, it is assumed to be UTC.
 
         Args:
-            project: Feast project name
+            config: The RepoConfig for the current FeatureStore.
             table: Feast FeatureTable
             data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
                 a dict containing feature values, an event timestamp for the row, and
@@ -122,7 +122,7 @@ class Provider(abc.ABC):
     @abc.abstractmethod
     def online_read(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
@@ -156,7 +156,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 
-            return LocalProvider(config, repo_path)
+            return LocalProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
     else:

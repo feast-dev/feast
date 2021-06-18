@@ -6,6 +6,7 @@ import pyarrow
 import pytz
 
 from feast.data_source import DataSource, FileSource
+from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
@@ -218,9 +219,8 @@ class FileOfflineStore(OfflineStore):
 
         source_columns = set(source_df.columns)
         if not set(join_key_columns).issubset(source_columns):
-            raise ValueError(
-                f"The DataFrame must have at least {set(join_key_columns)} columns present, "
-                f"but these were missing: {set(join_key_columns)- source_columns} "
+            raise FeastJoinKeysDuringMaterialization(
+                data_source.path, set(join_key_columns), source_columns
             )
 
         ts_columns = (

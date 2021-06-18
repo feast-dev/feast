@@ -129,11 +129,14 @@ We can register our features by running `feast apply` from the CLI:
 {% code title="CLI" %}
 ```bash
 feast apply
-
-# Processing <cwd>/feature_repo/example.py as example
-# Done!
 ```
 {% endcode %}
+
+```text
+Registered entity driver_id
+Registered feature view driver_hourly_stats
+Deploying infrastructure for driver_hourly_stats
+```
 
 This command has registered our features to Feast. They're now ready for offline retrieval and materialization.
 

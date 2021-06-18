@@ -474,7 +474,7 @@ class FeatureStore:
 
         Note: This method will download the full feature registry the first time it is run. If you are using a
         remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
-        duration (which can be set to infinitey). If the cached registry is stale (more time than the TTL has
+        duration (which can be set to infinity). If the cached registry is stale (more time than the TTL has
         passed), then a new registry will be downloaded synchronously by this method. This download may
         introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
         refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
@@ -541,7 +541,7 @@ class FeatureStore:
                 table, union_of_entity_keys, entity_name_to_join_key_map
             )
             read_rows = provider.online_read(
-                project=self.project,
+                config=self.config,
                 table=table,
                 entity_keys=entity_keys,
                 requested_features=requested_features,

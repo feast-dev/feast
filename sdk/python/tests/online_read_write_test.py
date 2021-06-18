@@ -23,7 +23,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
         write_lat, write_lon = write
         expect_lat, expect_lon = expect_read
         provider.online_write_batch(
-            project=store.project,
+            config=store.config,
             table=table,
             data=[
                 (
@@ -40,7 +40,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
         )
 
         read_rows = provider.online_read(
-            project=store.project, table=table, entity_keys=[entity_key]
+            config=store.config, table=table, entity_keys=[entity_key]
         )
         assert len(read_rows) == 1
         _, val = read_rows[0]
