@@ -251,8 +251,8 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
-        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         publish_json=registry_config.publish_json,
+        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     project = repo_config.project
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
@@ -275,8 +275,8 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
-        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         publish_json=registry_config.publish_json,
+        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
 
     for entity in registry.list_entities(project=project):

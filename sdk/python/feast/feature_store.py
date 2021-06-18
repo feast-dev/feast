@@ -75,8 +75,8 @@ class FeatureStore:
         self._registry = Registry(
             registry_path=registry_config.path,
             repo_path=self.repo_path,
-            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
             publish_json=registry_config.publish_json,
+            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
 
     @log_exceptions
@@ -113,8 +113,8 @@ class FeatureStore:
         self._registry = Registry(
             registry_path=registry_config.path,
             repo_path=self.repo_path,
-            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
             publish_json=registry_config.publish_json,
+            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         self._registry.refresh()
 
