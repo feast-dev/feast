@@ -3,7 +3,15 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
+from pydantic import (
+    BaseModel,
+    PositiveInt,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    ValidationError,
+    root_validator,
+)
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
 
@@ -59,8 +67,10 @@ OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
 class RegistryConfig(FeastBaseModel):
     """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
-    path: StrictStr
+    path: StrictStr = "data/"
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
+
+    publish_json: StrictBool = False
 
     cache_ttl_seconds: StrictInt = 600
     """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
@@ -72,7 +82,7 @@ class RegistryConfig(FeastBaseModel):
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
-    registry: Union[StrictStr, RegistryConfig] = "data/registry.db"
+    registry: RegistryConfig = RegistryConfig()
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
     project: StrictStr

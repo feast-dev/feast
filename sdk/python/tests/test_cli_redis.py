@@ -28,7 +28,8 @@ def test_basic() -> None:
             dedent(
                 f"""
         project: {project_id}
-        registry: {data_path / "registry.db"}
+        registry:
+            path: {data_path}
         provider: local
         offline_store:
             type: bigquery

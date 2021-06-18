@@ -1,5 +1,6 @@
 project: my_project
-registry: data/registry.db
+registry:
+    path: data
 provider: local
 online_store:
     path: data/online_store.db

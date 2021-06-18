@@ -1,3 +1,4 @@
+import json
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -5,8 +6,10 @@ from textwrap import dedent
 
 import assertpy
 import pytest
+from google.protobuf.json_format import MessageToDict
 
 from feast.feature_store import FeatureStore
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from tests.cli_utils import CliRunner
 from tests.online_read_write_test import basic_rw_test
 
@@ -29,7 +32,8 @@ def test_workflow() -> None:
             dedent(
                 f"""
         project: foo
-        registry: {data_path / "registry.db"}
+        registry:
+            path: {data_path}
         provider: local
         online_store:
             path: {data_path / "online_store.db"}
@@ -97,7 +101,8 @@ def test_non_local_feature_repo() -> None:
             dedent(
                 """
         project: foo
-        registry: data/registry.db
+        registry:
+            path: data
         provider: local
         online_store:
             path: data/online_store.db
@@ -135,7 +140,8 @@ def setup_third_party_provider_repo(provider_name: str):
             dedent(
                 f"""
         project: foo
-        registry: data/registry.db
+        registry:
+            path: data
         provider: {provider_name}
         online_store:
             path: data/online_store.db
@@ -181,3 +187,52 @@ def test_3rd_party_providers() -> None:
     with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(0)
+
+
+def test_publish_registry_json() -> None:
+    """
+    Test if publish_json stores an equivalent registry in json format as the original protobuf one
+    """
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+
+        repo_path = Path(repo_dir_name)
+        data_path = Path(data_dir_name)
+
+        repo_config = repo_path / "feature_store.yaml"
+
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: foo
+        registry:
+            path: {data_path}
+            publish_json: true
+        provider: local
+        offline_store:
+            type: bigquery
+        """
+            )
+        )
+
+        repo_example = repo_path / "example.py"
+        repo_example.write_text(
+            (Path(__file__).parent / "example_feature_repo_1.py").read_text()
+        )
+
+        result = runner.run(["apply"], cwd=repo_path)
+        assert result.returncode == 0
+
+        registry_pb_path = data_path / "registry.pb"
+        assert registry_pb_path.is_file()
+        registry_proto = RegistryProto()
+        registry_proto.ParseFromString(registry_pb_path.read_bytes())
+        registry_pb = MessageToDict(registry_proto)
+
+        registry_json_path = data_path / "registry.json"
+        assert registry_json_path.is_file()
+        with open(registry_json_path) as f:
+            registry_json = json.load(f)
+
+        assert registry_pb == registry_json

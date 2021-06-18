@@ -20,6 +20,8 @@ from tempfile import TemporaryFile
 from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
+from google.protobuf.json_format import MessageToJson
+
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -43,22 +45,33 @@ class Registry:
     cached_registry_proto_ttl: timedelta
     cache_being_updated: bool = False
 
-    def __init__(self, registry_path: str, repo_path: Path, cache_ttl: timedelta):
+    def __init__(
+        self,
+        registry_path: str,
+        repo_path: Path,
+        publish_json: bool,
+        cache_ttl: timedelta,
+    ):
         """
         Create the Registry object.
 
         Args:
             repo_path: Path to the base of the Feast repository
             cache_ttl: The amount of time that cached registry state stays valid
-            registry_path: filepath or GCS URI that is the location of the object store registry,
+            registry_path: filepath or GCS URI that is the enclosing folder of the object store registry,
             or where it will be created if it does not exist yet.
         """
+        # registry_path = f"{registry_path}/registry.pb"
         uri = urlparse(registry_path)
         if uri.scheme == "gs":
-            self._registry_store: RegistryStore = GCSRegistryStore(registry_path)
+            self._registry_store: RegistryStore = GCSRegistryStore(
+                uri=registry_path, publish_json=publish_json
+            )
         elif uri.scheme == "file" or uri.scheme == "":
             self._registry_store = LocalRegistryStore(
-                repo_path=repo_path, registry_path_string=registry_path
+                repo_path=repo_path,
+                registry_path_string=registry_path,
+                publish_json=publish_json,
             )
         else:
             raise Exception(
@@ -436,12 +449,14 @@ class RegistryStore(ABC):
 
 
 class LocalRegistryStore(RegistryStore):
-    def __init__(self, repo_path: Path, registry_path_string: str):
+    def __init__(self, repo_path: Path, registry_path_string: str, publish_json: bool):
         registry_path = Path(registry_path_string)
         if registry_path.is_absolute():
-            self._filepath = registry_path
+            self._dirpath = registry_path
         else:
-            self._filepath = repo_path.joinpath(registry_path)
+            self._dirpath = repo_path.joinpath(registry_path)
+        self._filepath = self._dirpath / "registry.pb"
+        self.publish_json = publish_json
 
     def get_registry_proto(self):
         registry_proto = RegistryProto()
@@ -463,20 +478,26 @@ class LocalRegistryStore(RegistryStore):
 
         if updater:
             registry_proto = updater(registry_proto)
-        self._write_registry(registry_proto)
+        self._write_registry_blob(registry_proto)
         return
 
-    def _write_registry(self, registry_proto: RegistryProto):
+    def _write_registry_blob(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
-        file_dir = self._filepath.parent
-        file_dir.mkdir(exist_ok=True)
+        self._dirpath.mkdir(exist_ok=True)
         self._filepath.write_bytes(registry_proto.SerializeToString())
+        if self.publish_json:
+            self._write_registry_json(registry_proto)
+        return
+
+    def _write_registry_json(self, registry_proto: RegistryProto):
+        json_filepath = self._dirpath / "registry.json"
+        json_filepath.write_text(MessageToJson(registry_proto))
         return
 
 
 class GCSRegistryStore(RegistryStore):
-    def __init__(self, uri: str):
+    def __init__(self, uri: str, publish_json: bool):
         try:
             from google.cloud import storage
         except ImportError as e:
@@ -485,9 +506,11 @@ class GCSRegistryStore(RegistryStore):
             raise FeastExtrasDependencyImportError("gcp", str(e))
 
         self.gcs_client = storage.Client()
-        self._uri = urlparse(uri)
-        self._bucket = self._uri.hostname
-        self._blob = self._uri.path.lstrip("/")
+        self._uri = uri
+        self._proto_uri = urlparse(f"{uri}/registry.pb")
+        self._bucket = self._proto_uri.hostname
+        self._blob = self._proto_uri.path.lstrip("/")
+        self.publish_json = publish_json
         return
 
     def get_registry_proto(self):
@@ -504,13 +527,13 @@ class GCSRegistryStore(RegistryStore):
             )
         if storage.Blob(bucket=bucket, name=self._blob).exists(self.gcs_client):
             self.gcs_client.download_blob_to_file(
-                self._uri.geturl(), file_obj, timeout=30
+                self._proto_uri.geturl(), file_obj, timeout=30
             )
             file_obj.seek(0)
             registry_proto.ParseFromString(file_obj.read())
             return registry_proto
         raise FileNotFoundError(
-            f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
+            f'Registry not found at path "{self._proto_uri.geturl()}". Have you run "feast apply"?'
         )
 
     def update_registry_proto(
@@ -523,10 +546,12 @@ class GCSRegistryStore(RegistryStore):
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
         if updater:
             registry_proto = updater(registry_proto)
-        self._write_registry(registry_proto)
+        self._write_registry_blob(registry_proto)
+        if self.publish_json:
+            self._write_registry_json(registry_proto)
         return
 
-    def _write_registry(self, registry_proto: RegistryProto):
+    def _write_registry_blob(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
         # we have already checked the bucket exists so no need to do it again
@@ -534,6 +559,16 @@ class GCSRegistryStore(RegistryStore):
         blob = gs_bucket.blob(self._blob)
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
+        file_obj.seek(0)
+        blob.upload_from_file(file_obj)
+        return
+
+    def _write_registry_json(self, registry_proto: RegistryProto):
+        gs_bucket = self.gcs_client.get_bucket(self._bucket)
+        json_path = urlparse(f"{self._uri}/registry.json").path.lstrip("/")
+        blob = gs_bucket.blob(json_path)
+        file_obj = TemporaryFile()
+        file_obj.write(bytes(MessageToJson(registry_proto), "utf-8"))
         file_obj.seek(0)
         blob.upload_from_file(file_obj)
         return

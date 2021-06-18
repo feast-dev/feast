@@ -57,7 +57,8 @@ def test_repo_init_with_underscore_in_project_name() -> None:
             dedent(
                 f"""
         project: __foo
-        registry: {data_dir / "registry.db"}
+        registry:
+            path: {data_dir}
         provider: local
         online_store:
             path: {data_dir / "online_store.db"}
