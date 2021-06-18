@@ -1,11 +1,13 @@
 import time
+import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional, Set, Union
 
 import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import BigQuerySource, DataSource
@@ -118,7 +120,7 @@ class BigQueryOfflineStore(OfflineStore):
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
 
-        job = BigQueryRetrievalJob(query=query, client=client)
+        job = BigQueryRetrievalJob(query=query, client=client, config=config)
         return job
 
 
@@ -206,14 +208,40 @@ def _infer_event_timestamp_from_dataframe(entity_df: pandas.DataFrame) -> str:
 
 
 class BigQueryRetrievalJob(RetrievalJob):
-    def __init__(self, query, client):
+    def __init__(self, query, client, config):
         self.query = query
         self.client = client
+        self.config = config
 
     def to_df(self):
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
+
+    def to_bigquery(self, dry_run=False) -> Optional[str]:
+        @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
+        def _block_until_done():
+            return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
+
+        today = date.today().strftime("%Y%m%d")
+        rand_id = str(uuid.uuid4())[:7]
+        path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
+        job_config = bigquery.QueryJobConfig(destination=path, dry_run=dry_run)
+        bq_job = self.client.query(self.query, job_config=job_config)
+
+        if dry_run:
+            print(
+                "This query will process {} bytes.".format(bq_job.total_bytes_processed)
+            )
+            return None
+
+        _block_until_done()
+
+        if bq_job.exception():
+            raise bq_job.exception()
+
+        print(f"Done writing to '{path}'.")
+        return path
 
 
 @dataclass(frozen=True)
