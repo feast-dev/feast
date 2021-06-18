@@ -89,8 +89,12 @@ class DynamoDbOnlineStoreConfig(FeastBaseModel):
 
 
 OnlineStoreConfig = Union[
-    DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig, DynamoDbOnlineStoreConfig
+    DatastoreOnlineStoreConfig,
+    SqliteOnlineStoreConfig,
+    RedisOnlineStoreConfig,
+    DynamoDbOnlineStoreConfig,
 ]
+
 
 class FileOfflineStoreConfig(FeastBaseModel):
     """ Offline store config for local (file-based) store """
@@ -138,7 +142,7 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp or redis or aws_dynamodb """
+    """ str: local or gcp or redis or aws """
 
     online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -180,9 +184,7 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "sqlite"
             elif values["provider"] == "gcp":
                 values["online_store"]["type"] = "datastore"
-            elif values["provider"] == "redis":
-                values["online_store"]["type"] = "redis"
-            elif values["provider"] == "aws_dynamodb":
+            elif values["provider"] == "aws":
                 values["online_store"]["type"] = "dynamodb"
 
         online_store_type = values["online_store"]["type"]
@@ -226,8 +228,8 @@ class RepoConfig(FeastBaseModel):
         if "type" not in values["offline_store"]:
             if values["provider"] == "local" or values["provider"] == "redis":
                 values["offline_store"]["type"] = "file"
-            elif values["provider"] == "aws_dynamodb":
-                values["offline_store"]["type"] = "bigquery"
+            elif values["provider"] == "aws":
+                values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
 

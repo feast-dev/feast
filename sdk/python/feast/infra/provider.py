@@ -145,14 +145,10 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             from feast.infra.gcp import GcpProvider
 
             return GcpProvider(config)
-        elif config.provider == "redis":
-            from feast.infra.redis import RedisProvider
+        elif config.provider == "aws":
+            from feast.infra.aws_provider import AwsProvider
 
-            return RedisProvider(config)
-        elif config.provider == "aws_dynamodb":
-            from feast.infra.aws_dynamodb_provider import AwsDynamodbProvider
-
-            return AwsDynamodbProvider(config)
+            return AwsProvider(config)
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 

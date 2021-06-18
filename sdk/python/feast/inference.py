@@ -1,6 +1,9 @@
-from typing import List
+import re
+from typing import List, Union
 
 from feast import Entity
+from feast.data_source import BigQuerySource, FileSource
+from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.value_type import ValueType
 
@@ -45,12 +48,70 @@ def infer_entity_value_type_from_feature_views(
                     entity.value_type != ValueType.UNKNOWN
                     and entity.value_type != inferred_value_type
                 ) or (len(extracted_entity_name_type_pairs) > 1):
-                    raise ValueError(
+                    raise RegistryInferenceFailure(
+                        "Entity",
                         f"""Entity value_type inference failed for {entity_name} entity.
-                        Multiple viable matches. Please explicitly specify the entity value_type
-                        for this entity."""
+                        Multiple viable matches.
+                        """,
                     )
 
                 entity.value_type = inferred_value_type
 
     return entities
+
+
+def update_data_sources_with_inferred_event_timestamp_col(
+    data_sources: List[Union[BigQuerySource, FileSource]],
+) -> None:
+    ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
+
+    for data_source in data_sources:
+        if (
+            data_source.event_timestamp_column is None
+            or data_source.event_timestamp_column == ""
+        ):
+            # prepare right match pattern for data source
+            ts_column_type_regex_pattern = ""
+            if isinstance(data_source, FileSource):
+                ts_column_type_regex_pattern = r"^timestamp"
+            elif isinstance(data_source, BigQuerySource):
+                ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"
+            else:
+                raise RegistryInferenceFailure(
+                    "DataSource",
+                    """
+                    DataSource inferencing of event_timestamp_column is currently only supported
+                    for FileSource and BigQuerySource.
+                    """,
+                )
+            #  for informing the type checker
+            assert isinstance(data_source, FileSource) or isinstance(
+                data_source, BigQuerySource
+            )
+
+            # loop through table columns to find singular match
+            event_timestamp_column, matched_flag = None, False
+            for (
+                col_name,
+                col_datatype,
+            ) in data_source.get_table_column_names_and_types():
+                if re.match(ts_column_type_regex_pattern, col_datatype):
+                    if matched_flag:
+                        raise RegistryInferenceFailure(
+                            "DataSource",
+                            f"""
+                            {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
+                            the criteria. {ts_column_type_regex_pattern} {col_name}
+                            """,
+                        )
+                    matched_flag = True
+                    event_timestamp_column = col_name
+            if matched_flag:
+                data_source.event_timestamp_column = event_timestamp_column
+            else:
+                raise RegistryInferenceFailure(
+                    "DataSource",
+                    f"""
+                    {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
+                    """,
+                )

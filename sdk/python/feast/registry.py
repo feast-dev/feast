@@ -551,16 +551,24 @@ class S3RegistryStore(RegistryStore):
         self._key = self._uri.path.lstrip("/")
         try:
             import boto3
-            import botocore
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
+
             raise FeastExtrasDependencyImportError("aws", str(e))
-        self.s3 = boto3.resource("s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"))
+        self.s3 = boto3.resource(
+            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
+        )
         return
 
     def get_registry_proto(self):
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
+        try:
+            import botocore
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
         try:
             bucket = self.s3.Bucket(self._bucket)
             self.s3.meta.client.head_bucket(Bucket=bucket.name)

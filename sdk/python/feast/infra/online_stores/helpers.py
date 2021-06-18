@@ -10,6 +10,7 @@ from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.repo_config import (
     DatastoreOnlineStoreConfig,
+    DynamoDbOnlineStoreConfig,
     OnlineStoreConfig,
     RedisOnlineStoreConfig,
     SqliteOnlineStoreConfig,
@@ -33,6 +34,10 @@ def get_online_store_from_config(
         from feast.infra.online_stores.redis import RedisOnlineStore
 
         return RedisOnlineStore()
+    elif isinstance(online_store_config, DynamoDbOnlineStoreConfig):
+        from feast.infra.online_stores.dynamodb import DynamodbOnlineStore
+
+        return DynamodbOnlineStore()
     raise ValueError(f"Unsupported offline store config '{online_store_config}'")
 
 
@@ -40,6 +45,7 @@ SUPPORTED_SOURCES: Dict[Any, Set[Any]] = {
     SqliteOnlineStoreConfig: {FileSource},
     DatastoreOnlineStoreConfig: {BigQuerySource},
     RedisOnlineStoreConfig: {FileSource, BigQuerySource},
+    DynamoDbOnlineStoreConfig: {FileSource, BigQuerySource},
 }
 
 

@@ -84,7 +84,7 @@ def feature_store_with_s3_registry():
         config=RepoConfig(
             registry=f"s3://{bucket_name}/registry.db",
             project="default",
-            provider="aws_dynamodb",
+            provider="aws",
         )
     )
 

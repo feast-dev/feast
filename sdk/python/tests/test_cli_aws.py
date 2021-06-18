@@ -29,9 +29,11 @@ def test_basic() -> None:
                 f"""
             project: {project_id}
             registry: {data_path / "registry.db"}
-            provider: aws_dynamodb
+            provider: aws
             offline_store:
-                type: bigquery
+                type: file
+            online_store:
+                type: dynamodb
             """
             )
         )
