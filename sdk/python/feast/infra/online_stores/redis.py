@@ -121,7 +121,6 @@ class RedisOnlineStore(OnlineStore):
             startup_nodes, kwargs = self._parse_connection_string(
                 online_store_config.connection_string
             )
-            print(f"Startup nodes: {startup_nodes}, {kwargs}")
             if online_store_config.type == RedisType.redis_cluster:
                 kwargs["startup_nodes"] = startup_nodes
                 self._client = RedisCluster(**kwargs)
