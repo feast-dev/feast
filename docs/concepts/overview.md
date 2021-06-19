@@ -1,21 +1,16 @@
 # Overview
 
-### Concepts
+The top-level namespace within Feast is a [project](data-model-and-concepts.md#project). Users define one or more [feature views](data-model-and-concepts.md#feature-view) within a project. Each feature view contains one or more [features](data-model-and-concepts.md#feature) that relate to a specific [entity](data-model-and-concepts.md#entity). A feature view must always have a [data source](data-model-and-concepts.md#data-source), which in turn is used during the generation of training [datasets](data-model-and-concepts.md#dataset) and when materializing feature values into the online store. 
 
-[Entities](entities.md) are objects in an organization like customers, transactions, and drivers, products, etc.
+![](../.gitbook/assets/image%20%287%29.png)
 
-[Sources](sources.md) are external sources of data where feature data can be found.
+### Project
 
-[Feature Tables](feature-tables.md) are objects that define logical groupings of features, data sources, and other related metadata.
+Projects provide complete isolation of feature stores at the infrastructure level. This is accomplished through resource namespacing, e.g., prefixing table names with the associated project. Each project should be considered a completely separate universe of entities and features. It is not possible to retrieve features from multiple projects in a single request. We recommend having a single feature store and a single project per environment \(`dev`, `staging`, `prod`\).
 
-### Concept Hierarchy
+{% hint style="info" %}
+Projects are currently being supported for backward compatibility reasons. Projects may change in the future as we simplify the Feast API.
+{% endhint %}
 
-![](../.gitbook/assets/image%20%284%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%281%29.png)
-
-Feast contains the following core concepts:
-
-* **Projects:** Serve as a top level namespace for all Feast resources. Each project is a completely independent environment in Feast. Users can only work in a single project at a time.
-* **Entities:** Entities are the objects in an organization on which features occur. They map to your business domain \(users, products, transactions, locations\).
-* **Feature Tables:** Defines a group of features that occur on a specific entity.
-* **Features:** Individual feature within a feature table.
+### 
 

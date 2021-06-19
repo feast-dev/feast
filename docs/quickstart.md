@@ -71,7 +71,7 @@ online_store:
 ```
 {% endcode %}
 
-An important field to be aware of is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/feature-store-yaml.md) for more details.
+An important field to be aware of is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/feature-repository/feature-store-yaml.md) for more details.
 
 Next, take a look at `example.py`, which defines some example features:
 
