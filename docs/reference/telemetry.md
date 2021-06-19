@@ -6,5 +6,5 @@ The Feast maintainers use anonymous usage statistics and error tracking to help 
 
 ## How to disable telemetry
 
-To opt out of all telemetry, simply set the environment variable `FEAST_TELEMETRY` to `False` in the environment in which the Feast client is run.
+To opt-out of all telemetry, simply set the environment variable `FEAST_TELEMETRY` to `False` in the environment in which the Feast SDK/CLI is run.
 
