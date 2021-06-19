@@ -159,11 +159,11 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         assert_offline_store_supports_data_source(
             repo_config.offline_store, data_source
         )
+        data_source.validate()
 
     update_data_sources_with_inferred_event_timestamp_col(data_sources)
     for view in repo.feature_views:
         view.infer_features_from_input_source()
-        data_source.validate()
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):

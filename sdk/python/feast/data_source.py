@@ -526,40 +526,6 @@ class DataSource:
         """
         raise NotImplementedError
 
-    def _infer_event_timestamp_column(self, ts_column_type_regex_pattern):
-        ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
-        USER_GUIDANCE = "Please specify event_timestamp_column explicitly."
-
-        if isinstance(self, FileSource) or isinstance(self, BigQuerySource):
-            event_timestamp_column, matched_flag = None, False
-            for col_name, col_datatype in self.get_table_column_names_and_types():
-                if re.match(ts_column_type_regex_pattern, col_datatype):
-                    if matched_flag:
-                        raise TypeError(
-                            f"""
-                            {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
-                            the criteria. {USER_GUIDANCE}
-                            """
-                        )
-                    matched_flag = True
-                    event_timestamp_column = col_name
-            if matched_flag:
-                return event_timestamp_column
-            else:
-                raise TypeError(
-                    f"""
-                    {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
-                     {USER_GUIDANCE}
-                    """
-                )
-        else:
-            raise TypeError(
-                f"""
-                {ERROR_MSG_PREFIX} because this DataSource currently does not support this inference.
-                 {USER_GUIDANCE}
-                """
-            )
-
 
 class FileSource(DataSource):
     def __init__(
