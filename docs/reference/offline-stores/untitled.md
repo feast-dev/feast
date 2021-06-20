@@ -2,7 +2,7 @@
 
 ### Description
 
-The BigQuery offline store provides support for reading [BigQuerySources](https://github.com/feast-dev/feast/blob/c50a36ec1ad5b8d81c6f773c23204db7c7a7d218/sdk/python/feast/data_source.py#L627).
+The BigQuery offline store provides support for reading [BigQuerySources](../data-sources/bigquery.md).
 
 * BigQuery tables and views are allowed as sources.
 * All joins happen within BigQuery. 
