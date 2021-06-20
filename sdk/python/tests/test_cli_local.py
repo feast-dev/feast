@@ -10,6 +10,7 @@ from tests.cli_utils import CliRunner
 from tests.online_read_write_test import basic_rw_test
 
 
+@pytest.mark.integration
 def test_workflow() -> None:
     """
     Test running apply on a sample repo, and make sure the infra gets created.
@@ -78,6 +79,7 @@ def test_workflow() -> None:
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
 
+@pytest.mark.integration
 def test_non_local_feature_repo() -> None:
     """
     Test running apply on a sample repo, and make sure the infra gets created.
