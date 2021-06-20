@@ -1,3 +1,4 @@
+import pytest
 from google.protobuf.duration_pb2 import Duration
 
 from feast import BigQuerySource, Feature, FeatureView, ValueType

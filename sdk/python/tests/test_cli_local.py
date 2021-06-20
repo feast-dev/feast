@@ -4,6 +4,7 @@ from pathlib import Path
 from textwrap import dedent
 
 import assertpy
+import pytest
 
 from feast.feature_store import FeatureStore
 from tests.cli_utils import CliRunner
