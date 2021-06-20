@@ -1,4 +1,4 @@
-# Data Sources
+# Data sources
 
 Please see [Data Source](../../concepts/feature-view.md#data-source) for an explanation of data sources.
 

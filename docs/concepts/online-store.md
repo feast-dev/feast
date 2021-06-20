@@ -1,4 +1,4 @@
-# Online Store
+# Online store
 
 The Feast online store is used for low-latency online feature value lookups. Feature values are loaded into the online store from data sources in feature views using the `materialize` command.
 
@@ -11,6 +11,4 @@ Example batch data source
 Once the above data source is materialized into Feast \(using `feast materialize`\), the feature values will be stored as follows:
 
 ![](../.gitbook/assets/image%20%285%29.png)
-
-### 
 

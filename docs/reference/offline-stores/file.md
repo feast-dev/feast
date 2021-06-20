@@ -2,7 +2,7 @@
 
 ### Description
 
-The File offline store provides support for reading [FileSources](https://github.com/feast-dev/feast/blob/c50a36ec1ad5b8d81c6f773c23204db7c7a7d218/sdk/python/feast/data_source.py#L523).
+The File offline store provides support for reading [FileSources](../data-sources/file.md).
 
 * Only Parquet files are currently supported.
 * All data is downloaded and joined using Python and may not scale to production workloads.
