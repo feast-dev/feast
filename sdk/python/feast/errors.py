@@ -3,6 +3,13 @@ from typing import Set
 from colorama import Fore, Style
 
 
+class DataSourceNotFoundException(Exception):
+    def __init__(self, path):
+        super().__init__(
+            f"Unable to find table at '{path}'. Please check that table exists."
+        )
+
+
 class FeastObjectNotFoundException(Exception):
     pass
 

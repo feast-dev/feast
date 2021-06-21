@@ -14,6 +14,7 @@ from feast.repo_config import RegistryConfig
 from tests.cli_utils import CliRunner, get_example_repo
 
 
+@pytest.mark.integration
 def test_online() -> None:
     """
     Test reading from the online store in local mode.
@@ -247,6 +248,7 @@ def test_online() -> None:
         os.rename(store.config.registry + "_fake", store.config.registry)
 
 
+@pytest.mark.integration
 def test_online_to_df():
     """
     Test dataframe conversion. Make sure the response columns and rows are
