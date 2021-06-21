@@ -14,6 +14,7 @@ from tests.cli_utils import CliRunner
 from tests.online_read_write_test import basic_rw_test
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("old_registry_config", [False, True])
 def test_workflow(old_registry_config) -> None:
     """
@@ -195,6 +196,7 @@ def test_3rd_party_providers() -> None:
         assertpy.assert_that(return_code).is_equal_to(0)
 
 
+@pytest.mark.integration
 def test_publish_registry_json() -> None:
     """
     Test if publish_json stores an equivalent registry in json format as the original protobuf one
