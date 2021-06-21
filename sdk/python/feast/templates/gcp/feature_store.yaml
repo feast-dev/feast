@@ -1,4 +1,4 @@
 project: my_project
 registry:
-  path: data
+  path: data/
 provider: gcp

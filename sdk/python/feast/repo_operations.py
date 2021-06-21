@@ -117,6 +117,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     os.chdir(repo_path)
     registry_config = repo_config.get_registry_config()
+
+    print(type(registry_config))
+
     project = repo_config.project
     if not is_valid_name(project):
         print(
@@ -126,6 +129,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         sys.exit(1)
     registry = Registry(
         registry_path=registry_config.path,
+        is_filepath=registry_config.is_filepath,
         repo_path=repo_path,
         publish_json=registry_config.publish_json,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
@@ -250,6 +254,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_config = repo_config.get_registry_config()
     registry = Registry(
         registry_path=registry_config.path,
+        is_filepath=registry_config.is_filepath,
         repo_path=repo_path,
         publish_json=registry_config.publish_json,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
@@ -274,6 +279,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     project = repo_config.project
     registry = Registry(
         registry_path=registry_config.path,
+        is_filepath=registry_config.is_filepath,
         repo_path=repo_path,
         publish_json=registry_config.publish_json,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),

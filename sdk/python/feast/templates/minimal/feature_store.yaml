@@ -1,6 +1,6 @@
 project: my_project
 registry:
-    path: /path/to/registry
+    path: /path/to/registry/
 provider: local
 online_store:
     path: /path/to/online_store.db

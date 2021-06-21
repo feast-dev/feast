@@ -74,6 +74,7 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
+            is_filepath=registry_config.is_filepath,
             repo_path=self.repo_path,
             publish_json=registry_config.publish_json,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
@@ -112,6 +113,7 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
+            is_filepath=registry_config.is_filepath,
             repo_path=self.repo_path,
             publish_json=registry_config.publish_json,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),

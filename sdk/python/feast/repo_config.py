@@ -72,6 +72,9 @@ class RegistryConfig(FeastBaseModel):
 
     publish_json: StrictBool = False
 
+    is_filepath: StrictBool = False
+    """ bool: Flag to specify if the config matches the old version (single path) or new version (metadata folder)"""
+
     cache_ttl_seconds: StrictInt = 600
     """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
      the registry will be refreshed when any feature store method asks for access to registry state. The TTL can be
@@ -82,8 +85,10 @@ class RegistryConfig(FeastBaseModel):
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
-    registry: RegistryConfig = RegistryConfig()
-    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
+    registry: Union[StrictStr, RegistryConfig] = RegistryConfig()
+    """ str: Path to metadata store. Old config is a path (local or remote) to a file holding the registry.
+        New config has a path to a metadata folder and an optional field for duplicating the registry as a json.
+    """
 
     project: StrictStr
     """ str: Feast project id. This can be any alphanumeric string up to 16 characters.
@@ -111,7 +116,7 @@ class RepoConfig(FeastBaseModel):
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
-            return RegistryConfig(path=self.registry)
+            return RegistryConfig(path=self.registry, is_filepath=True)
         else:
             return self.registry
 
