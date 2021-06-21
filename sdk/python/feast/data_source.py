@@ -20,6 +20,7 @@ from pyarrow.parquet import ParquetFile
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
+from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.value_type import ValueType
 
@@ -519,6 +520,12 @@ class DataSource:
         """
         raise NotImplementedError
 
+    def validate(self):
+        """
+        Validates the underlying data source.
+        """
+        raise NotImplementedError
+
 
 class FileSource(DataSource):
     def __init__(
@@ -615,6 +622,10 @@ class FileSource(DataSource):
 
         return data_source_proto
 
+    def validate(self):
+        # TODO: validate a FileSource
+        pass
+
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.pa_to_feast_value_type
@@ -691,6 +702,17 @@ class BigQuerySource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+    def validate(self):
+        if not self.query:
+            from google.api_core.exceptions import NotFound
+            from google.cloud import bigquery
+
+            client = bigquery.Client()
+            try:
+                client.get_table(self.table_ref)
+            except NotFound:
+                raise DataSourceNotFoundException(self.table_ref)
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
