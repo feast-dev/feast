@@ -50,7 +50,10 @@ class BigQueryOfflineStoreConfig(FeastBaseModel):
     """ Offline store type selector"""
 
     dataset: StrictStr = "feast"
-    """ (optional) BigQuery Dataset name for temporary tables """
+    """ (optional) BigQuery dataset name used for the BigQuery offline store """
+
+    project_id: Optional[StrictStr] = None
+    """ (optional) GCP project name used for the BigQuery offline store """
 
 
 OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
