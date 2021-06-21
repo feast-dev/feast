@@ -86,9 +86,9 @@ class FeastOnlineStoreInvalidName(Exception):
 
 
 class FeastStoreConfigInvalidName(Exception):
-    def __init__(self, online_store_config_class_name: str, store_type="Online"):
+    def __init__(self, store_config_class_name: str, store_type: str):
         super().__init__(
-            f"Online Store Config Class '{online_store_config_class_name}' "
+            f"Config Class '{store_config_class_name}' "
             f"should end with the string `{store_type}Config`.'"
         )
 

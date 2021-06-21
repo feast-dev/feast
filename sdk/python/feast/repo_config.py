@@ -189,7 +189,7 @@ def get_config_class_from_type(
     module_name: str, config_class_name: str, store_type: str
 ):
     if not config_class_name.endswith(f"{store_type}Config"):
-        raise errors.FeastStoreConfigInvalidName(config_class_name)
+        raise errors.FeastStoreConfigInvalidName(config_class_name, store_type)
 
     # Try importing the module that contains the custom provider
     try:
