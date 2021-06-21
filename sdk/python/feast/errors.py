@@ -50,7 +50,7 @@ class FeastProviderNotImplementedError(Exception):
 
 
 class FeastModuleImportError(Exception):
-    def __init__(self, module_name, module_type="provider"):
+    def __init__(self, module_name: str, module_type: str):
         super().__init__(f"Could not import {module_type} module '{module_name}'")
 
 

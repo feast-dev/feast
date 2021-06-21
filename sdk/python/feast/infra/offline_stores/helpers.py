@@ -17,9 +17,7 @@ def get_offline_store_from_config(offline_store_config: Any,) -> OfflineStore:
         # The original exception can be anything - either module not found,
         # or any other kind of error happening during the module import time.
         # So we should include the original error as well in the stack trace.
-        raise errors.FeastModuleImportError(
-            module_name, module_type="OfflineStore"
-        ) from e
+        raise errors.FeastModuleImportError(module_name, "OfflineStore") from e
 
     # Try getting the provider class definition
     try:

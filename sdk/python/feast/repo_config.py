@@ -198,7 +198,7 @@ def get_config_class_from_type(
         # The original exception can be anything - either module not found,
         # or any other kind of error happening during the module import time.
         # So we should include the original error as well in the stack trace.
-        raise errors.FeastModuleImportError(module_name, module_type=store_type) from e
+        raise errors.FeastModuleImportError(module_name, store_type) from e
 
     # Try getting the provider class definition
     try:
