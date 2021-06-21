@@ -47,19 +47,19 @@ cd $(dirname "$0")
 # Login to GitHub CLI
 echo $GH_TOKEN | gh auth login --with-token
 
-echo "Step 1: Cherry-pick new commits onto release branch"
+echo "Step 1: rebase new commits onto release branch"
 git fetch $REMOTE
 git checkout $REMOTE/master
 STARTING_COMMIT=$(git merge-base $REMOTE/master v$MAJOR.$MINOR-branch)
 git checkout v$MAJOR.$MINOR-branch
 
-push_cherrypicked_commits()
+push_rebased_commits()
 {
     echo "Pushing commits"
     git push $REMOTE v$MAJOR.$MINOR-branch
     echo "Commits pushed"
 }
-cherrypick_from_master()
+rebase_from_master()
 {
     echo "Rebasing commits"
     git checkout $REMOTE/master
@@ -70,23 +70,23 @@ cherrypick_from_master()
     echo "Step 1b: Push commits"
     read -p "Commits are not pushed. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
-        y|Y ) push_cherrypicked_commits ;;
+        y|Y ) push_rebased_commits ;;
         n|N ) echo "Skipping this sub-step" ;;
         * ) echo "Skipping this sub-step" ;;
     esac ;
 }
-echo "Step 1a: Cherry-pick commits"
+echo "Step 1a: rebase commits"
 if git status | grep -q "is ahead of" ; then
-    read -p "Your local branch is ahead of its remote counterpart, indicating you may have already cherry-picked. Skip this step (y) or run the cherry-pick starting from commit $STARTING_COMMIT (n)? " choice
+    read -p "Your local branch is ahead of its remote counterpart, indicating you may have already rebased. Skip this step (y) or run the rebase starting from commit $STARTING_COMMIT (n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this step" ;;
-        n|N ) cherrypick_from_master ;;
-        * ) cherrypick_from_master ;;
+        n|N ) rebase_from_master ;;
+        * ) rebase_from_master ;;
     esac ;
 else
-    read -p "Will cherry-pick starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
+    read -p "Will rebase starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
     case "$choice" in
-        y|Y ) cherrypick_from_master ;;
+        y|Y ) rebase_from_master ;;
         n|N ) echo "Skipping this step" ;;
         * ) echo "Skipping this step" ;;
     esac ;
