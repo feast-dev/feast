@@ -13,15 +13,15 @@ from feast.telemetry import log_exceptions
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
-ONLINE_CONFIG_CLASS_FOR_TYPE = {
-    "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStoreConfig",
-    "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStoreConfig",
-    "redis": "feast.infra.online_stores.redis.RedisOnlineStoreConfig",
+ONLINE_STORE_CLASS_FOR_TYPE = {
+    "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
+    "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
+    "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
 }
 
-OFFLINE_CONFIG_CLASS_FOR_TYPE = {
-    "file": "feast.infra.offline_stores.file.FileOfflineStoreConfig",
-    "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStoreConfig",
+OFFLINE_STORE_CLASS_FOR_TYPE = {
+    "file": "feast.infra.offline_stores.file.FileOfflineStore",
+    "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
 }
 
 
@@ -213,17 +213,23 @@ def get_config_class_from_type(
 
 
 def get_online_config_from_type(online_store_type: str):
-    if online_store_type in ONLINE_CONFIG_CLASS_FOR_TYPE:
-        online_store_type = ONLINE_CONFIG_CLASS_FOR_TYPE[online_store_type]
-    module_name, config_class_name = online_store_type.rsplit(".", 1)
+    if online_store_type in ONLINE_STORE_CLASS_FOR_TYPE:
+        online_store_type = ONLINE_STORE_CLASS_FOR_TYPE[online_store_type]
+    else:
+        assert online_store_type.endswith("OnlineStore")
+    module_name, online_store_class_type = online_store_type.rsplit(".", 1)
+    config_class_name = f"{online_store_class_type}Config"
 
     return get_config_class_from_type(module_name, config_class_name, "OnlineStore")
 
 
 def get_offline_config_from_type(offline_store_type: str):
-    if offline_store_type in OFFLINE_CONFIG_CLASS_FOR_TYPE:
-        offline_store_type = OFFLINE_CONFIG_CLASS_FOR_TYPE[offline_store_type]
-    module_name, config_class_name = offline_store_type.rsplit(".", 1)
+    if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
+        offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
+    else:
+        assert offline_store_type.endswith("OfflineStore")
+    module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
+    config_class_name = f"{offline_store_class_type}Config"
 
     return get_config_class_from_type(module_name, config_class_name, "OfflineStore")
 
