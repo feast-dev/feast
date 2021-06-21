@@ -1,41 +1,33 @@
-from feast.data_source import BigQuerySource, DataSource, FileSource
-from feast.errors import FeastOfflineStoreUnsupportedDataSource
+import importlib
+from typing import Any
+
+from feast import errors
 from feast.infra.offline_stores.offline_store import OfflineStore
-from feast.repo_config import (
-    BigQueryOfflineStoreConfig,
-    FileOfflineStoreConfig,
-    OfflineStoreConfig,
-)
 
 
-def get_offline_store_from_config(
-    offline_store_config: OfflineStoreConfig,
-) -> OfflineStore:
+def get_offline_store_from_config(offline_store_config: Any,) -> OfflineStore:
     """Get the offline store from offline store config"""
 
-    if isinstance(offline_store_config, FileOfflineStoreConfig):
-        from feast.infra.offline_stores.file import FileOfflineStore
+    module_name = offline_store_config.__module__
+    qualified_name = type(offline_store_config).__name__
+    store_class_name = qualified_name.replace("Config", "")
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as e:
+        # The original exception can be anything - either module not found,
+        # or any other kind of error happening during the module import time.
+        # So we should include the original error as well in the stack trace.
+        raise errors.FeastModuleImportError(
+            module_name, module_type="OfflineStore"
+        ) from e
 
-        return FileOfflineStore()
-    elif isinstance(offline_store_config, BigQueryOfflineStoreConfig):
-        from feast.infra.offline_stores.bigquery import BigQueryOfflineStore
-
-        return BigQueryOfflineStore()
-
-    raise ValueError(f"Unsupported offline store config '{offline_store_config}'")
-
-
-def assert_offline_store_supports_data_source(
-    offline_store_config: OfflineStoreConfig, data_source: DataSource
-):
-    if (
-        isinstance(offline_store_config, FileOfflineStoreConfig)
-        and isinstance(data_source, FileSource)
-    ) or (
-        isinstance(offline_store_config, BigQueryOfflineStoreConfig)
-        and isinstance(data_source, BigQuerySource)
-    ):
-        return
-    raise FeastOfflineStoreUnsupportedDataSource(
-        offline_store_config.type, data_source.__class__.__name__
-    )
+    # Try getting the provider class definition
+    try:
+        offline_store_class = getattr(module, store_class_name)
+    except AttributeError:
+        # This can only be one type of error, when class_name attribute does not exist in the module
+        # So we don't have to include the original exception here
+        raise errors.FeastClassImportError(
+            module_name, store_class_name, class_type="OfflineStore"
+        ) from None
+    return offline_store_class()
