@@ -54,8 +54,8 @@ class FooProvider(Provider):
     ) -> None:
         pass
 
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
