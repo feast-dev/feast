@@ -49,15 +49,15 @@ class FeastProviderNotImplementedError(Exception):
         super().__init__(f"Provider '{provider_name}' is not implemented")
 
 
-class FeastProviderModuleImportError(Exception):
-    def __init__(self, module_name):
-        super().__init__(f"Could not import provider module '{module_name}'")
+class FeastModuleImportError(Exception):
+    def __init__(self, module_name, module_type="provider"):
+        super().__init__(f"Could not import {module_type} module '{module_name}'")
 
 
-class FeastProviderClassImportError(Exception):
-    def __init__(self, module_name, class_name):
+class FeastClassImportError(Exception):
+    def __init__(self, module_name, class_name, class_type="provider"):
         super().__init__(
-            f"Could not import provider '{class_name}' from module '{module_name}'"
+            f"Could not import {class_type} '{class_name}' from module '{module_name}'"
         )
 
 
@@ -82,6 +82,20 @@ class FeatureNameCollisionError(Exception):
     def __init__(self, feature_name_collisions: str):
         super().__init__(
             f"The following feature name(s) have collisions: {feature_name_collisions}. Set 'full_feature_names' argument in the data retrieval function to True to use the full feature name which is prefixed by the feature view name."
+        )
+
+        
+class FeastOnlineStoreInvalidName(Exception):
+    def __init__(self, online_store_class_name: str):
+        super().__init__(
+            f"Online Store Class '{online_store_class_name}' should end with the string `OnlineStore`.'"
+        )
+
+
+class FeastOnlineStoreConfigInvalidName(Exception):
+    def __init__(self, online_store_config_class_name: str):
+        super().__init__(
+            f"Online Store Config Class '{online_store_config_class_name}' should end with the string `OnlineStoreConfig`.'"
         )
 
 

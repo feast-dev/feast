@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pytz
+from pydantic import StrictStr
+from pydantic.schema import Literal
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
@@ -26,7 +28,17 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
+
+
+class SqliteOnlineStoreConfig(FeastConfigBaseModel):
+    """ Online store config for local (SQLite-based) store """
+
+    type: Literal["sqlite"] = "sqlite"
+    """ Online store type selector"""
+
+    path: StrictStr = "data/online.db"
+    """ (optional) Path to sqlite db """
 
 
 class SqliteOnlineStore(OnlineStore):
@@ -65,6 +77,7 @@ class SqliteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+
         conn = self._get_conn(config)
 
         project = config.project

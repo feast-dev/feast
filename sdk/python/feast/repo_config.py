@@ -1,19 +1,23 @@
-from enum import Enum
+import importlib
 from pathlib import Path
+from typing import Any
 
 import yaml
-from pydantic import (
-    BaseModel,
-    PositiveInt,
-    StrictInt,
-    StrictStr,
-    ValidationError,
-    root_validator,
-)
+from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
 
+from feast import errors
 from feast.telemetry import log_exceptions
+
+# This dict exists so that:
+# - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
+# - first party and third party implementations can use the same class loading code path.
+ONLINE_CONFIG_CLASS_FOR_TYPE = {
+    "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
+    "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
+    "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+}
 
 
 class FeastBaseModel(BaseModel):
@@ -21,60 +25,15 @@ class FeastBaseModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        extra = "allow"
+
+
+class FeastConfigBaseModel(BaseModel):
+    """ Feast Pydantic Configuration Class """
+
+    class Config:
+        arbitrary_types_allowed = True
         extra = "forbid"
-
-
-class SqliteOnlineStoreConfig(FeastBaseModel):
-    """ Online store config for local (SQLite-based) store """
-
-    type: Literal["sqlite"] = "sqlite"
-    """ Online store type selector"""
-
-    path: StrictStr = "data/online.db"
-    """ (optional) Path to sqlite db """
-
-
-class DatastoreOnlineStoreConfig(FeastBaseModel):
-    """ Online store config for GCP Datastore """
-
-    type: Literal["datastore"] = "datastore"
-    """ Online store type selector"""
-
-    project_id: Optional[StrictStr] = None
-    """ (optional) GCP Project Id """
-
-    namespace: Optional[StrictStr] = None
-    """ (optional) Datastore namespace """
-
-    write_concurrency: Optional[PositiveInt] = 40
-    """ (optional) Amount of threads to use when writing batches of feature rows into Datastore"""
-
-    write_batch_size: Optional[PositiveInt] = 50
-    """ (optional) Amount of feature rows per batch being written into Datastore"""
-
-
-class RedisType(str, Enum):
-    redis = "redis"
-    redis_cluster = "redis_cluster"
-
-
-class RedisOnlineStoreConfig(FeastBaseModel):
-    """Online store config for Redis store"""
-
-    type: Literal["redis"] = "redis"
-    """Online store type selector"""
-
-    redis_type: RedisType = RedisType.redis
-    """Redis type: redis or redis_cluster"""
-
-    connection_string: StrictStr = "localhost:6379"
-    """Connection string containing the host, port, and configuration parameters for Redis
-     format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
-
-
-OnlineStoreConfig = Union[
-    DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig
-]
 
 
 class FileOfflineStoreConfig(FeastBaseModel):
@@ -123,15 +82,22 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp or redis """
+    """ str: local or gcp """
 
-    online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
+    online_store: Any
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
     offline_store: OfflineStoreConfig = FileOfflineStoreConfig()
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
     repo_path: Optional[Path] = None
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        if isinstance(self.online_store, Dict):
+            self.online_store = get_online_config_from_type(self.online_store["type"])(
+                **self.online_store
+            )
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -160,6 +126,8 @@ class RepoConfig(FeastBaseModel):
         assert "provider" in values
 
         # Set the default type
+        # This is only direct reference to a provider or online store that we should have
+        # for backwards compatibility.
         if "type" not in values["online_store"]:
             if values["provider"] == "local":
                 values["online_store"]["type"] = "sqlite"
@@ -168,22 +136,13 @@ class RepoConfig(FeastBaseModel):
 
         online_store_type = values["online_store"]["type"]
 
-        # Make sure the user hasn't provided the wrong type
-        assert online_store_type in ["datastore", "sqlite", "redis"]
-
         # Validate the dict to ensure one of the union types match
         try:
-            if online_store_type == "sqlite":
-                SqliteOnlineStoreConfig(**values["online_store"])
-            elif online_store_type == "datastore":
-                DatastoreOnlineStoreConfig(**values["online_store"])
-            elif online_store_type == "redis":
-                RedisOnlineStoreConfig(**values["online_store"])
-            else:
-                raise ValueError(f"Invalid online store type {online_store_type}")
+            online_config_class = get_online_config_from_type(online_store_type)
+            online_config_class(**values["online_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="online_store")], model=SqliteOnlineStoreConfig,
+                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
             )
 
         return values
@@ -203,7 +162,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local" or values["provider"] == "redis":
+            if values["provider"] == "local":
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
@@ -244,6 +203,38 @@ class FeastConfigError(Exception):
         return (
             f"FeastConfigError({repr(self._error_message)}, {repr(self._config_path)})"
         )
+
+
+def get_online_config_from_type(online_store_type: str):
+    if online_store_type in ONLINE_CONFIG_CLASS_FOR_TYPE:
+        online_store_type = ONLINE_CONFIG_CLASS_FOR_TYPE[online_store_type]
+    module_name, class_name = online_store_type.rsplit(".", 1)
+
+    if not class_name.endswith("OnlineStore"):
+        raise errors.FeastOnlineStoreConfigInvalidName(class_name)
+    config_class_name = f"{class_name}Config"
+
+    # Try importing the module that contains the custom provider
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as e:
+        # The original exception can be anything - either module not found,
+        # or any other kind of error happening during the module import time.
+        # So we should include the original error as well in the stack trace.
+        raise errors.FeastModuleImportError(
+            module_name, module_type="OnlineStore"
+        ) from e
+
+    # Try getting the provider class definition
+    try:
+        online_store_config_class = getattr(module, config_class_name)
+    except AttributeError:
+        # This can only be one type of error, when class_name attribute does not exist in the module
+        # So we don't have to include the original exception here
+        raise errors.FeastClassImportError(
+            module_name, config_class_name, class_type="OnlineStoreConfig"
+        ) from None
+    return online_store_config_class
 
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
