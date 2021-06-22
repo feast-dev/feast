@@ -62,7 +62,7 @@ class Usage:
                             f.write(self._usage_id)
                         print(
                             "Feast is an open source project that collects anonymized error reporting and usage statistics. To opt out or learn"
-                            " more see https://docs.feast.dev/reference/telemetry"
+                            " more see https://docs.feast.dev/reference/usage"
                         )
                 except Exception as e:
                     _logger.debug(f"Unable to configure usage {e}")
