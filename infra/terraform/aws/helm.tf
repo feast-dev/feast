@@ -51,7 +51,7 @@ locals {
       }
     }
 
-    "feast-online-serving" = {
+    "feast-serving" = {
       "application-override.yaml" = {
         enabled = true
         feast = {
