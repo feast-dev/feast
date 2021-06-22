@@ -1,7 +1,6 @@
 import time
-import uuid
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, Set, Union
 
 import pandas
@@ -224,19 +223,17 @@ class BigQueryRetrievalJob(RetrievalJob):
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
 
-    def to_bigquery(self, dry_run=False) -> Optional[str]:
+    def to_sql(self):
+        return self.query
+
+    def to_bigquery(self, job_config=None) -> Optional[str]:
         @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
         def _block_until_done():
             return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
 
-        today = date.today().strftime("%Y%m%d")
-        rand_id = str(uuid.uuid4())[:7]
-        dataset_project = self.config.offline_store.project_id or self.client.project
-        path = f"{dataset_project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
-        job_config = bigquery.QueryJobConfig(destination=path, dry_run=dry_run)
         bq_job = self.client.query(self.query, job_config=job_config)
 
-        if dry_run:
+        if job_config.dry_run:
             print(
                 "This query will process {} bytes.".format(bq_job.total_bytes_processed)
             )
@@ -247,8 +244,8 @@ class BigQueryRetrievalJob(RetrievalJob):
         if bq_job.exception():
             raise bq_job.exception()
 
-        print(f"Done writing to '{path}'.")
-        return path
+        print(f"Done writing to '{job_config.destination}'.")
+        return str(job_config.destination)
 
 
 @dataclass(frozen=True)

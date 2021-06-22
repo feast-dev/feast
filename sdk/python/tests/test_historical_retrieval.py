@@ -9,6 +9,7 @@ import assertpy
 import numpy as np
 import pandas as pd
 import pytest
+from google.api_core.exceptions import Conflict
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 from pytz import utc
@@ -439,12 +440,16 @@ def test_historical_features_from_bigquery_sources(
         )
 
         # Just a dry run, should not create table
-        bq_dry_run = job_from_sql.to_bigquery(dry_run=True)
+        job_config = bigquery.QueryJobConfig(dry_run=True)
+        bq_dry_run = job_from_sql.to_bigquery(job_config=job_config)
         assert bq_dry_run is None
 
-        bq_temp_table_path = job_from_sql.to_bigquery()
-        assert bq_temp_table_path.split(".")[0] == gcp_project
+        path = f"{gcp_project}.{bigquery_dataset}.historical_dest_table"
+        job_config = bigquery.QueryJobConfig(destination=path)
+        bq_temp_table_path = job_from_sql.to_bigquery(job_config=job_config)
 
+        # Check return output of to_bigquery()
+        assert bq_temp_table_path.split(".")[0] == gcp_project
         if provider_type == "gcp_custom_offline_config":
             assert bq_temp_table_path.split(".")[1] == "foo"
         else:
@@ -454,13 +459,26 @@ def test_historical_features_from_bigquery_sources(
         actual_bq_temp_table = bigquery.Client().get_table(bq_temp_table_path)
         assert actual_bq_temp_table.table_id == bq_temp_table_path.split(".")[-1]
 
+        # Config to overwrite an existing table should succeed
+        job_config = bigquery.QueryJobConfig(
+            destination=path, write_disposition="WRITE_TRUNCATE"
+        )
+        bq_temp_table_path = job_from_sql.to_bigquery(job_config=job_config)
+
+        # Config to fail on the existing table we created should fail
+        with pytest.raises(Conflict):
+            job_config = bigquery.QueryJobConfig(
+                destination=path, write_disposition="WRITE_EMPTY"
+            )
+            bq_temp_table_path = job_from_sql.to_bigquery(job_config=job_config)
+
         start_time = datetime.utcnow()
         actual_df_from_sql_entities = job_from_sql.to_df()
         end_time = datetime.utcnow()
         with capsys.disabled():
             print(
                 str(
-                    f"\nTime to execute job_from_df.to_df() = '{(end_time - start_time)}'"
+                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
                 )
             )
 
