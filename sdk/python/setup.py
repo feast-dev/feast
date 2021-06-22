@@ -87,6 +87,7 @@ CI_REQUIRED = [
     "urllib3>=1.25.4",
     "pytest==6.0.0",
     "pytest-cov",
+    "pytest-xdist",
     "pytest-lazy-fixture==0.6.3",
     "pytest-timeout==1.4.2",
     "pytest-ordering==0.6.*",
