@@ -4,6 +4,7 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 import pytz
+from pydantic.typing import Literal
 
 from feast.data_source import DataSource, FileSource
 from feast.errors import FeastJoinKeysDuringMaterialization
@@ -15,7 +16,14 @@ from feast.infra.provider import (
     _run_field_mapping,
 )
 from feast.registry import Registry
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
+
+
+class FileOfflineStoreConfig(FeastConfigBaseModel):
+    """ Offline store config for local (file-based) store """
+
+    type: Literal["file"] = "file"
+    """ Offline store type selector"""
 
 
 class FileRetrievalJob(RetrievalJob):
