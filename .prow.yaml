@@ -64,13 +64,13 @@ presubmits:
   branches:
   - ^v0\.(3|4)-branch$
 
-- name: test-telemetry
+- name: test-usage
   decorate: true
   run_if_changed: "sdk/python/.*"
   spec:
     containers:
     - image: python:3.7
-      command: ["infra/scripts/test-telemetry.sh"]
+      command: ["infra/scripts/test-usage.sh"]
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /etc/gcloud/service-account.json
