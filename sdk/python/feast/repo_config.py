@@ -1,4 +1,3 @@
-import importlib
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +6,7 @@ from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_vali
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
-from feast import errors
+from feast.importer import get_class_from_type
 from feast.telemetry import log_exceptions
 
 # These dict exists so that:
@@ -185,33 +184,6 @@ class FeastConfigError(Exception):
         )
 
 
-def get_config_class_from_type(
-    module_name: str, config_class_name: str, store_type: str
-):
-    if not config_class_name.endswith(f"{store_type}Config"):
-        raise errors.FeastStoreConfigInvalidName(config_class_name, store_type)
-
-    # Try importing the module that contains the custom provider
-    try:
-        module = importlib.import_module(module_name)
-    except Exception as e:
-        # The original exception can be anything - either module not found,
-        # or any other kind of error happening during the module import time.
-        # So we should include the original error as well in the stack trace.
-        raise errors.FeastModuleImportError(module_name, store_type) from e
-
-    # Try getting the provider class definition
-    try:
-        online_store_config_class = getattr(module, config_class_name)
-    except AttributeError:
-        # This can only be one type of error, when class_name attribute does not exist in the module
-        # So we don't have to include the original exception here
-        raise errors.FeastClassImportError(
-            module_name, config_class_name, class_type=f"{store_type}Config"
-        ) from None
-    return online_store_config_class
-
-
 def get_online_config_from_type(online_store_type: str):
     if online_store_type in ONLINE_STORE_CLASS_FOR_TYPE:
         online_store_type = ONLINE_STORE_CLASS_FOR_TYPE[online_store_type]
@@ -220,7 +192,7 @@ def get_online_config_from_type(online_store_type: str):
     module_name, online_store_class_type = online_store_type.rsplit(".", 1)
     config_class_name = f"{online_store_class_type}Config"
 
-    return get_config_class_from_type(module_name, config_class_name, "OnlineStore")
+    return get_class_from_type(module_name, config_class_name, config_class_name)
 
 
 def get_offline_config_from_type(offline_store_type: str):
@@ -231,7 +203,7 @@ def get_offline_config_from_type(offline_store_type: str):
     module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
     config_class_name = f"{offline_store_class_type}Config"
 
-    return get_config_class_from_type(module_name, config_class_name, "OfflineStore")
+    return get_class_from_type(module_name, config_class_name, config_class_name)
 
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
