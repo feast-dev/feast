@@ -69,7 +69,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.registry import Registry
-from feast.telemetry import Telemetry
+from feast.usage import Usage
 
 _logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ class Client:
         if self._config.getboolean(opt.ENABLE_AUTH):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
-        self._tele = Telemetry()
+        self._usage = Usage()
 
     @property
     def config(self) -> Config:
@@ -467,7 +467,7 @@ class Client:
             >>> feast_client.apply(entity)
         """
 
-        self._tele.log("apply")
+        self._usage.log("apply")
         if project is None:
             project = self.project
 
@@ -581,7 +581,7 @@ class Client:
             none is found
         """
 
-        self._tele.log("get_entity")
+        self._usage.log("get_entity")
 
         if project is None:
             project = self.project
@@ -706,7 +706,7 @@ class Client:
             none is found
         """
 
-        self._tele.log("get_feature_table")
+        self._usage.log("get_feature_table")
 
         if project is None:
             project = self.project
@@ -847,7 +847,7 @@ class Client:
             >>> client.ingest(driver_ft, ft_df)
         """
 
-        self._tele.log("ingest")
+        self._usage.log("ingest")
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
@@ -972,7 +972,7 @@ class Client:
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
 
-        self._tele.log("get_online_features")
+        self._usage.log("get_online_features")
         try:
             response = self._serving_service.GetOnlineFeaturesV2(
                 GetOnlineFeaturesRequestV2(

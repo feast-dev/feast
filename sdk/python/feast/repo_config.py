@@ -7,7 +7,7 @@ from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
 from feast.importer import get_class_from_type
-from feast.telemetry import log_exceptions
+from feast.usage import log_exceptions
 
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
