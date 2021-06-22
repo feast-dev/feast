@@ -957,7 +957,7 @@ class SqlServerSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=DataSourceProto.BATCH_BIGQUERY,
+            type=DataSourceProto.BATCH_MSSQL,
             field_mapping=self.field_mapping,
             sqlserver_options=self.sqlserver_options.to_proto(),
         )
@@ -982,7 +982,7 @@ class SqlServerSource(DataSource):
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
         import pymssql
         # TODO: Credentials stored in config per existing provider/storage patterns.
-        conn = pymssql.connect(server='localhost', user='as', password='yourStrong(!)Password', database='prices')
+        conn = pymssql.connect(server='localhost', user='as', password='yourStrong(!)Password', database='master')
 
         name_type_pairs = []
         if self.table_ref is not None:
@@ -991,7 +991,9 @@ class SqlServerSource(DataSource):
                 SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_NAME = '{table_id}'
             """
-            table_schema = pd.read_sql(bg_columns_query, conn)
+            table_schema = (
+                pd.read_sql(bg_columns_query, conn)
+            )
             for df in table_schema:
                 name_type_pairs.extend(
                     list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
