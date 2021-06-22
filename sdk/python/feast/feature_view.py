@@ -33,7 +33,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.telemetry import log_exceptions
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 

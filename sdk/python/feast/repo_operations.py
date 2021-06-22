@@ -22,7 +22,7 @@ from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
-from feast.telemetry import log_exceptions_and_usage
+from feast.usage import log_exceptions_and_usage
 
 
 def py_path_to_module(path: Path, repo_root: Path) -> str:
