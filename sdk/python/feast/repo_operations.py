@@ -17,7 +17,6 @@ from feast.inference import (
     infer_entity_value_type_from_feature_views,
     update_data_sources_with_inferred_event_timestamp_col,
 )
-from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
@@ -156,9 +155,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     # Make sure the data source used by this feature view is supported by Feast
     for data_source in data_sources:
-        assert_offline_store_supports_data_source(
-            repo_config.offline_store, data_source
-        )
         data_source.validate()
 
     update_data_sources_with_inferred_event_timestamp_col(data_sources)

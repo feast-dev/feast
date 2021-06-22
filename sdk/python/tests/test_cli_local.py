@@ -164,18 +164,18 @@ def test_3rd_party_providers() -> None:
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(b"Provider 'feast123' is not implemented")
     # Check with incorrect third-party provider name (with dots)
-    with setup_third_party_provider_repo("feast_foo.provider") as repo_path:
+    with setup_third_party_provider_repo("feast_foo.Provider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import provider module 'feast_foo'"
+            b"Could not import Provider module 'feast_foo'"
         )
     # Check with incorrect third-party provider name (with dots)
     with setup_third_party_provider_repo("foo.FooProvider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import provider 'FooProvider' from module 'foo'"
+            b"Could not import Provider 'FooProvider' from module 'foo'"
         )
     # Check with correct third-party provider name
     with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:
