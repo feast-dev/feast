@@ -7,6 +7,8 @@ from typing import List, Optional, Set, Union
 import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from pydantic import StrictStr
+from pydantic.typing import Literal
 from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
@@ -20,7 +22,7 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 try:
     from google.api_core.exceptions import NotFound
@@ -32,6 +34,19 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("gcp", str(e))
+
+
+class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
+    """ Offline store config for GCP BigQuery """
+
+    type: Literal["bigquery"] = "bigquery"
+    """ Offline store type selector"""
+
+    dataset: StrictStr = "feast"
+    """ (optional) BigQuery Dataset name for temporary tables """
+
+    project_id: Optional[StrictStr] = None
+    """ (optional) GCP project name used for the BigQuery offline store """
 
 
 class BigQueryOfflineStore(OfflineStore):

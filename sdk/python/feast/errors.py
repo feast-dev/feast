@@ -50,7 +50,7 @@ class FeastProviderNotImplementedError(Exception):
 
 
 class FeastModuleImportError(Exception):
-    def __init__(self, module_name, module_type="provider"):
+    def __init__(self, module_name: str, module_type: str):
         super().__init__(f"Could not import {module_type} module '{module_name}'")
 
 
@@ -85,10 +85,11 @@ class FeastOnlineStoreInvalidName(Exception):
         )
 
 
-class FeastOnlineStoreConfigInvalidName(Exception):
-    def __init__(self, online_store_config_class_name: str):
+class FeastClassInvalidName(Exception):
+    def __init__(self, class_name: str, class_type: str):
         super().__init__(
-            f"Online Store Config Class '{online_store_config_class_name}' should end with the string `OnlineStoreConfig`.'"
+            f"Config Class '{class_name}' "
+            f"should end with the string `{class_type}`.'"
         )
 
 

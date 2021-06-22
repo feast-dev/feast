@@ -1,22 +1,26 @@
-import importlib
 from pathlib import Path
 from typing import Any
 
 import yaml
 from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
 from pydantic.error_wrappers import ErrorWrapper
-from pydantic.typing import Dict, Literal, Optional, Union
+from pydantic.typing import Dict, Optional, Union
 
-from feast import errors
+from feast.importer import get_class_from_type
 from feast.telemetry import log_exceptions
 
-# This dict exists so that:
+# These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
-ONLINE_CONFIG_CLASS_FOR_TYPE = {
+ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+}
+
+OFFLINE_STORE_CLASS_FOR_TYPE = {
+    "file": "feast.infra.offline_stores.file.FileOfflineStore",
+    "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
 }
 
 
@@ -34,29 +38,6 @@ class FeastConfigBaseModel(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         extra = "forbid"
-
-
-class FileOfflineStoreConfig(FeastBaseModel):
-    """ Offline store config for local (file-based) store """
-
-    type: Literal["file"] = "file"
-    """ Offline store type selector"""
-
-
-class BigQueryOfflineStoreConfig(FeastBaseModel):
-    """ Offline store config for GCP BigQuery """
-
-    type: Literal["bigquery"] = "bigquery"
-    """ Offline store type selector"""
-
-    dataset: StrictStr = "feast"
-    """ (optional) BigQuery dataset name used for the BigQuery offline store """
-
-    project_id: Optional[StrictStr] = None
-    """ (optional) GCP project name used for the BigQuery offline store """
-
-
-OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -90,7 +71,7 @@ class RepoConfig(FeastBaseModel):
     online_store: Any
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
-    offline_store: OfflineStoreConfig = FileOfflineStoreConfig()
+    offline_store: Any
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
     repo_path: Optional[Path] = None
@@ -101,6 +82,10 @@ class RepoConfig(FeastBaseModel):
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
             )
+        if isinstance(self.offline_store, Dict):
+            self.offline_store = get_offline_config_from_type(
+                self.offline_store["type"]
+            )(**self.offline_store)
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -172,22 +157,13 @@ class RepoConfig(FeastBaseModel):
 
         offline_store_type = values["offline_store"]["type"]
 
-        # Make sure the user hasn't provided the wrong type
-        assert offline_store_type in ["file", "bigquery"]
-
         # Validate the dict to ensure one of the union types match
         try:
-            if offline_store_type == "file":
-                FileOfflineStoreConfig(**values["offline_store"])
-            elif offline_store_type == "bigquery":
-                BigQueryOfflineStoreConfig(**values["offline_store"])
-            else:
-                raise ValidationError(
-                    f"Invalid offline store type {offline_store_type}"
-                )
+            offline_config_class = get_offline_config_from_type(offline_store_type)
+            offline_config_class(**values["offline_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="offline_store")], model=FileOfflineStoreConfig,
+                [ErrorWrapper(e, loc="offline_store")], model=RepoConfig,
             )
 
         return values
@@ -209,35 +185,25 @@ class FeastConfigError(Exception):
 
 
 def get_online_config_from_type(online_store_type: str):
-    if online_store_type in ONLINE_CONFIG_CLASS_FOR_TYPE:
-        online_store_type = ONLINE_CONFIG_CLASS_FOR_TYPE[online_store_type]
-    module_name, class_name = online_store_type.rsplit(".", 1)
+    if online_store_type in ONLINE_STORE_CLASS_FOR_TYPE:
+        online_store_type = ONLINE_STORE_CLASS_FOR_TYPE[online_store_type]
+    else:
+        assert online_store_type.endswith("OnlineStore")
+    module_name, online_store_class_type = online_store_type.rsplit(".", 1)
+    config_class_name = f"{online_store_class_type}Config"
 
-    if not class_name.endswith("OnlineStore"):
-        raise errors.FeastOnlineStoreConfigInvalidName(class_name)
-    config_class_name = f"{class_name}Config"
+    return get_class_from_type(module_name, config_class_name, config_class_name)
 
-    # Try importing the module that contains the custom provider
-    try:
-        module = importlib.import_module(module_name)
-    except Exception as e:
-        # The original exception can be anything - either module not found,
-        # or any other kind of error happening during the module import time.
-        # So we should include the original error as well in the stack trace.
-        raise errors.FeastModuleImportError(
-            module_name, module_type="OnlineStore"
-        ) from e
 
-    # Try getting the provider class definition
-    try:
-        online_store_config_class = getattr(module, config_class_name)
-    except AttributeError:
-        # This can only be one type of error, when class_name attribute does not exist in the module
-        # So we don't have to include the original exception here
-        raise errors.FeastClassImportError(
-            module_name, config_class_name, class_type="OnlineStoreConfig"
-        ) from None
-    return online_store_config_class
+def get_offline_config_from_type(offline_store_type: str):
+    if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
+        offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
+    else:
+        assert offline_store_type.endswith("OfflineStore")
+    module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
+    config_class_name = f"{offline_store_class_type}Config"
+
+    return get_class_from_type(module_name, config_class_name, config_class_name)
 
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
