@@ -15,10 +15,13 @@ from feast import errors
 from feast.data_source import BigQuerySource, DataSource
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.offline_store import OfflineStore
+from feast.infra.offline_stores.offline_store import (
+    OfflineJob,
+    OfflineStore,
+    RetrievalJob,
+)
 from feast.infra.provider import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-    RetrievalJob,
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
@@ -52,6 +55,7 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -59,7 +63,7 @@ class BigQueryOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> OfflineJob:
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
 
@@ -85,13 +89,7 @@ class BigQueryOfflineStore(OfflineStore):
             WHERE _feast_row = 1
             """
 
-        return BigQueryOfflineStore._pull_query(query)
-
-    @staticmethod
-    def _pull_query(query: str) -> pyarrow.Table:
-        client = _get_bigquery_client()
-        query_job = client.query(query)
-        return query_job.to_arrow()
+        return BigQueryOfflineJob(query=query, config=config)
 
     @staticmethod
     def get_historical_features(
@@ -103,19 +101,18 @@ class BigQueryOfflineStore(OfflineStore):
         project: str,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
-        client = _get_bigquery_client()
-
+        client = _get_bigquery_client(project=config.offline_store.project_id)
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
-        dataset_project = config.offline_store.project_id or client.project
 
         table = _upload_entity_df_into_bigquery(
             client=client,
             project=config.project,
             dataset_name=config.offline_store.dataset,
-            dataset_project=dataset_project,
+            dataset_project=client.project,
             entity_df=entity_df,
         )
 
@@ -228,6 +225,15 @@ def _infer_event_timestamp_from_dataframe(entity_df: pandas.DataFrame) -> str:
             )
 
 
+class BigQueryOfflineJob(OfflineJob):
+    def __init__(self, query: str, config: RepoConfig):
+        self.query = query
+        self.client = _get_bigquery_client(project=config.offline_store.project_id)
+
+    def to_table(self) -> pyarrow.Table:
+        return self.client.query(self.query).to_arrow()
+
+
 class BigQueryRetrievalJob(RetrievalJob):
     def __init__(self, query, client, config):
         self.query = query
@@ -266,7 +272,7 @@ class BigQueryRetrievalJob(RetrievalJob):
             dataset_project = (
                 self.config.offline_store.project_id or self.client.project
             )
-            path = f"{dataset_project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
+            path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
             job_config = bigquery.QueryJobConfig(destination=path)
 
         bq_job = self.client.query(self.query, job_config=job_config)
@@ -446,9 +452,9 @@ def build_point_in_time_query(
     return query
 
 
-def _get_bigquery_client():
+def _get_bigquery_client(project: Optional[str] = None):
     try:
-        client = bigquery.Client()
+        client = bigquery.Client(project=project)
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
             str(e)

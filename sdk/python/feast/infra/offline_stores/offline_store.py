@@ -33,6 +33,15 @@ class RetrievalJob(ABC):
         pass
 
 
+class OfflineJob(ABC):
+    """OfflineJob is used to manage the execution of a specific logic of the offline store"""
+
+    @abstractmethod
+    def to_table(self) -> pyarrow.Table:
+        """Return dataset as Pandas DataFrame synchronously"""
+        pass
+
+
 class OfflineStore(ABC):
     """
     OfflineStore is an object used for all interaction between Feast and the service used for offline storage of
@@ -42,6 +51,7 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -49,7 +59,7 @@ class OfflineStore(ABC):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> OfflineJob:
         """
         Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
         have all already been mapped to column names of the source table and those column names are the values passed
