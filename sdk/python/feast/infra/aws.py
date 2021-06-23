@@ -96,9 +96,6 @@ class AwsProvider(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        start_date = utils.make_tzaware(start_date)
-        end_date = utils.make_tzaware(end_date)
-
         table = self.offline_store.pull_latest_from_table_or_query(
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
@@ -120,8 +117,6 @@ class AwsProvider(Provider):
                 self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
-        feature_view.materialization_intervals.append((start_date, end_date))
-        registry.apply_feature_view(feature_view, project)
 
     @staticmethod
     def get_historical_features(

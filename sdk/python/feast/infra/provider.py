@@ -145,7 +145,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
             return GcpProvider(config)
         elif config.provider == "aws":
-            from feast.infra.aws_provider import AwsProvider
+            from feast.infra.aws import AwsProvider
 
             return AwsProvider(config)
         elif config.provider == "local":

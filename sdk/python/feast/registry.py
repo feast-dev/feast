@@ -24,8 +24,8 @@ from urllib.parse import urlparse
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
-    FeatureBucketForbiddenAccess,
-    FeatureBucketNotExist,
+    S3RegistryBucketForbiddenAccess,
+    S3RegistryBucketNotExist,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
 )
@@ -577,9 +577,9 @@ class S3RegistryStore(RegistryStore):
             # If it was a 404 error, then the bucket does not exist.
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
-                raise FeatureBucketNotExist(self._bucket)
+                raise S3RegistryBucketNotExist(self._bucket)
             else:
-                raise FeatureBucketForbiddenAccess(self._bucket)
+                raise S3RegistryBucketForbiddenAccess(self._bucket)
 
         try:
             obj = bucket.Object(self._key)

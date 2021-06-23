@@ -19,7 +19,7 @@ def bootstrap():
     driver_stats_path = data_path / "driver_stats.parquet"
     driver_df.to_parquet(path=str(driver_stats_path), allow_truncated_timestamps=True)
 
-    example_py_file = repo_path / "driver_example.py"
+    example_py_file = repo_path / "example.py"
     replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
 
 

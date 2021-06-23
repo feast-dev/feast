@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import pandas as pd
-from driver_example import driver, driver_hourly_stats_view
+from example import driver, driver_hourly_stats_view
 
 from feast import FeatureStore
 
@@ -20,20 +20,17 @@ def main():
     # Select features
     feature_refs = ["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"]
 
-    #     print()
     print("Loading features into the online store...")
     fs.materialize_incremental(end_date=datetime.now())
 
-    #     print()
     print("Retrieving online features...")
 
-    #     Retrieve features from the online store (Dynamodb)
+    # Retrieve features from the online store (DynamoDB)
     online_features = fs.get_online_features(
         feature_refs=feature_refs,
         entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
     ).to_dict()
 
-    print()
     print(pd.DataFrame.from_dict(online_features))
 
 

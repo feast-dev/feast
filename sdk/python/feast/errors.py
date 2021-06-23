@@ -40,24 +40,14 @@ class FeatureTableNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Feature table {name} does not exist")
 
 
-class FeatureBucketNotExist(FeastObjectNotFoundException):
-    def __init__(self, bucket, project=None):
-        if project:
-            super().__init__(
-                f"Feature bucket {bucket} does not exist in project {project}"
-            )
-        else:
-            super().__init__(f"Feature bucket {bucket} does not exist")
+class S3RegistryBucketNotExist(FeastObjectNotFoundException):
+    def __init__(self, bucket):
+        super().__init__(f"S3 bucket {bucket} for the Feast registry does not exist")
 
 
-class FeatureBucketForbiddenAccess(FeastObjectNotFoundException):
-    def __init__(self, bucket, project=None):
-        if project:
-            super().__init__(
-                f"Private Registry Bucket {bucket} forbidden Access in project {project}"
-            )
-        else:
-            super().__init__(f"Private Registry Bucket {bucket} forbidden Access")
+class S3RegistryBucketForbiddenAccess(FeastObjectNotFoundException):
+    def __init__(self, bucket):
+        super().__init__(f"S3 bucket {bucket} for the Feast registry can't be accessed")
 
 
 class FeastProviderLoginError(Exception):
