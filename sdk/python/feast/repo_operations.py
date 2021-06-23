@@ -155,7 +155,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     # Make sure the data source used by this feature view is supported by Feast
     for data_source in data_sources:
+        assert repo_config.offline_store.supports_data_source(data_source)
         data_source.validate()
+
+    assert repo_config.online_store.supports_offline_store(repo_config.offline_store)
 
     update_data_sources_with_inferred_event_timestamp_col(data_sources)
     for view in repo.feature_views:

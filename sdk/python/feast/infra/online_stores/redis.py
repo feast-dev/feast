@@ -25,7 +25,7 @@ from feast.infra.online_stores.helpers import _mmh3, _redis_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import FeastConfigBaseModel
+from feast.repo_config import FeastOnlineStoreConfigBaseModel, FeastOfflineStoreConfigBaseModel
 
 try:
     from redis import Redis
@@ -43,7 +43,7 @@ class RedisType(str, Enum):
     redis_cluster = "redis_cluster"
 
 
-class RedisOnlineStoreConfig(FeastConfigBaseModel):
+class RedisOnlineStoreConfig(FeastOnlineStoreConfigBaseModel):
     """Online store config for Redis store"""
 
     type: Literal["redis"] = "redis"
@@ -55,6 +55,10 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     connection_string: StrictStr = "localhost:6379"
     """Connection string containing the host, port, and configuration parameters for Redis
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
+
+    def supports_offline_store(self, offline_store: Any) -> bool:
+        # We're defaulting to supporting all offline stores for now.
+        return True
 
 
 class RedisOnlineStore(OnlineStore):

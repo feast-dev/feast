@@ -26,7 +26,7 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.repo_config import RepoConfig, FeastOnlineStoreConfigBaseModel
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -42,7 +42,7 @@ ProtoBatch = Sequence[
 ]
 
 
-class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
+class DatastoreOnlineStoreConfig(FeastOnlineStoreConfigBaseModel):
     """ Online store config for GCP Datastore """
 
     type: Literal["datastore"] = "datastore"
@@ -59,6 +59,11 @@ class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
 
     write_batch_size: Optional[PositiveInt] = 50
     """ (optional) Amount of feature rows per batch being written into Datastore"""
+
+    def supports_offline_store(self, offline_store: Any) -> bool:
+        # We're defaulting to supporting all offline stores for now.
+        return offline_store.type == "bigquery"
+
 
 
 class DatastoreOnlineStore(OnlineStore):

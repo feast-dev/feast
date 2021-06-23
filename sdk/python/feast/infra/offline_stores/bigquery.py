@@ -22,7 +22,7 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.repo_config import FeastOfflineStoreConfigBaseModel, RepoConfig
 
 try:
     from google.api_core.exceptions import NotFound
@@ -36,7 +36,7 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("gcp", str(e))
 
 
-class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
+class BigQueryOfflineStoreConfig(FeastOfflineStoreConfigBaseModel):
     """ Offline store config for GCP BigQuery """
 
     type: Literal["bigquery"] = "bigquery"
@@ -48,8 +48,12 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     project_id: Optional[StrictStr] = None
     """ (optional) GCP project name used for the BigQuery offline store """
 
+    def supports_data_source(self, data_source: DataSource) -> bool:
+        return isinstance(data_source, BigQuerySource)
+
 
 class BigQueryOfflineStore(OfflineStore):
+
     @staticmethod
     def pull_latest_from_table_or_query(
         data_source: DataSource,

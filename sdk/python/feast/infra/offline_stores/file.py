@@ -16,14 +16,17 @@ from feast.infra.provider import (
     _run_field_mapping,
 )
 from feast.registry import Registry
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.repo_config import FeastOfflineStoreConfigBaseModel, RepoConfig
 
 
-class FileOfflineStoreConfig(FeastConfigBaseModel):
+class FileOfflineStoreConfig(FeastOfflineStoreConfigBaseModel):
     """ Offline store config for local (file-based) store """
 
     type: Literal["file"] = "file"
     """ Offline store type selector"""
+
+    def supports_data_source(self, data_source: DataSource) -> bool:
+        return isinstance(data_source, FileSource)
 
 
 class FileRetrievalJob(RetrievalJob):

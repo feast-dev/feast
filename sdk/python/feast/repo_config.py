@@ -1,7 +1,9 @@
+from abc import abstractmethod
 from pathlib import Path
 from typing import Any
 
 import yaml
+from feast.data_source import DataSource
 from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
@@ -32,12 +34,28 @@ class FeastBaseModel(BaseModel):
         extra = "allow"
 
 
-class FeastConfigBaseModel(BaseModel):
+class FeastOfflineStoreConfigBaseModel(BaseModel):
     """ Feast Pydantic Configuration Class """
 
     class Config:
         arbitrary_types_allowed = True
         extra = "forbid"
+
+    @abstractmethod
+    def supports_data_source(self, data_source: DataSource) -> bool:
+        ...
+
+
+class FeastOnlineStoreConfigBaseModel(BaseModel):
+    """ Feast Pydantic Configuration Class """
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "forbid"
+
+    @abstractmethod
+    def supports_offline_store(self, offline_store: Any) -> bool:
+        ...
 
 
 class RegistryConfig(FeastBaseModel):

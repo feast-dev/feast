@@ -28,10 +28,10 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.repo_config import RepoConfig, FeastOnlineStoreConfigBaseModel
 
 
-class SqliteOnlineStoreConfig(FeastConfigBaseModel):
+class SqliteOnlineStoreConfig(FeastOnlineStoreConfigBaseModel):
     """ Online store config for local (SQLite-based) store """
 
     type: Literal[
@@ -41,6 +41,10 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
 
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
+
+    def supports_offline_store(self, offline_store: Any) -> bool:
+        return offline_store.type == "file"
+
 
 
 class SqliteOnlineStore(OnlineStore):
