@@ -281,9 +281,9 @@ class FeatureStore:
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
             feature_refs: A list of features that should be retrieved from the offline store. Feature references are of
                 the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
-            full_feature_names: By default, this value is set to False. By setting the value to True, this adds the
-            feature view prefixes to the feature names, changing them from the format "feature" to
-            "feature_view__feature" (e.g., "daily_transactions" changes to "customer_fv__daily_transactions").
+            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
+                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
+                "customer_fv__daily_transactions"). By default, this value is set to False.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -557,7 +557,9 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        grouped_refs = _group_refs(feature_refs, all_feature_views, full_feature_names)
+        grouped_refs = _validate_and_group_feature_refs(
+            feature_refs, all_feature_views, full_feature_names
+        )
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -616,7 +618,7 @@ def _entity_row_to_field_values(
     return result
 
 
-def _group_refs(
+def _validate_and_group_feature_refs(
     feature_refs: List[str],
     all_feature_views: List[FeatureView],
     full_feature_names: bool = False,
@@ -658,10 +660,12 @@ def _get_requested_feature_views(
     full_feature_names: bool,
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
-    # TODO: Get rid of this function. We only need _group_refs
+    # TODO: Get rid of this function. We only need _validate_and_group_feature_refs
     return list(
         view
-        for view, _ in _group_refs(feature_refs, all_feature_views, full_feature_names)
+        for view, _ in _validate_and_group_feature_refs(
+            feature_refs, all_feature_views, full_feature_names
+        )
     )
 
 

@@ -234,7 +234,7 @@ def check_offline_and_online_features(
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView, ffn: bool
+    fs: FeatureStore, fv: FeatureView, full_feature_names: bool
 ) -> None:
     now = datetime.utcnow()
     # Run materialize()
@@ -250,7 +250,7 @@ def run_offline_online_store_consistency_test(
         driver_id=1,
         event_timestamp=end_date,
         expected_value=0.3,
-        full_feature_names=ffn,
+        full_feature_names=full_feature_names,
     )
 
     check_offline_and_online_features(
@@ -259,7 +259,7 @@ def run_offline_online_store_consistency_test(
         driver_id=2,
         event_timestamp=end_date,
         expected_value=None,
-        full_feature_names=ffn,
+        full_feature_names=full_feature_names,
     )
 
     # check prior value for materialize_incremental()
@@ -269,7 +269,7 @@ def run_offline_online_store_consistency_test(
         driver_id=3,
         event_timestamp=end_date,
         expected_value=4,
-        full_feature_names=ffn,
+        full_feature_names=full_feature_names,
     )
 
     # run materialize_incremental()
@@ -282,7 +282,7 @@ def run_offline_online_store_consistency_test(
         driver_id=3,
         event_timestamp=now,
         expected_value=5,
-        full_feature_names=ffn,
+        full_feature_names=full_feature_names,
     )
 
 
