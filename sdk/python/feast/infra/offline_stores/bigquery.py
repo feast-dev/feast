@@ -131,12 +131,23 @@ class BigQueryOfflineStore(OfflineStore):
             feature_refs, feature_views, registry, project
         )
 
-        # TODO: Infer min_timestamp and max_timestamp from entity_df
+        # Infer min_timestamp and max_timestamp from entity_df
+        if isinstance(entity_df, pandas.DataFrame):
+            min_timestamp = datetime.fromisoformat(
+                min(entity_df[[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL]])
+            )
+            max_timestamp = datetime.fromisoformat(
+                max(entity_df[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL])
+            )
+        else:
+            min_timestamp = datetime.now() - timedelta(days=365)
+            max_timestamp = datetime.now() + timedelta(days=1)
+
         # Generate the BigQuery SQL query from the query context
         query = build_point_in_time_query(
             query_context,
-            min_timestamp=datetime.now() - timedelta(days=365),
-            max_timestamp=datetime.now() + timedelta(days=1),
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
             left_table_query_string=str(table.reference),
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
@@ -496,6 +507,9 @@ WITH entity_dataframe AS (
             {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
+    WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}' {% if featureview.ttl == 0 %}{% else %}
+    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second)
+    {% endif %}
 ),
 
 {{ featureview.name }}__base AS (
