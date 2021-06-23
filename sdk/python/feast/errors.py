@@ -81,8 +81,10 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
 class FeatureNameCollisionError(Exception):
     def __init__(self, feature_name_collisions: str):
         super().__init__(
-            f"The following feature name(s) have collisions: {feature_name_collisions}. Set 'full_feature_names' argument in the data retrieval function to True to use the full feature name which is prefixed by the feature view name."
+            f"The following feature name(s) have collisions: {feature_name_collisions}. Set 'full_feature_names' "
+            f"argument in the data retrieval function to True to use the full feature name which is prefixed by the feature view name."
         )
+
 
         
 class FeastOnlineStoreInvalidName(Exception):
