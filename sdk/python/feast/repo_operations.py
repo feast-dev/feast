@@ -17,12 +17,11 @@ from feast.inference import (
     infer_entity_value_type_from_feature_views,
     update_data_sources_with_inferred_event_timestamp_col,
 )
-from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
-from feast.telemetry import log_exceptions_and_usage
+from feast.usage import log_exceptions_and_usage
 
 
 def py_path_to_module(path: Path, repo_root: Path) -> str:
@@ -154,11 +153,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     data_sources = [t.input for t in repo.feature_views]
 
-    # Make sure the data source used by this feature view is supported by
+    # Make sure the data source used by this feature view is supported by Feast
     for data_source in data_sources:
-        assert_offline_store_supports_data_source(
-            repo_config.offline_store, data_source
-        )
+        data_source.validate()
 
     update_data_sources_with_inferred_event_timestamp_col(data_sources)
     for view in repo.feature_views:
@@ -185,7 +182,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     for table in repo.feature_tables:
         registry.apply_feature_table(table, project)
         click.echo(
-            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL}"
+            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
         )
 
     # Delete views that should not exist

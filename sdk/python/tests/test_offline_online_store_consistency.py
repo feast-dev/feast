@@ -17,13 +17,10 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.repo_config import (
-    DatastoreOnlineStoreConfig,
-    RedisOnlineStoreConfig,
-    RedisType,
-    RepoConfig,
-    SqliteOnlineStoreConfig,
-)
+from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
+from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
 

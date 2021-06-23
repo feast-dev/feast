@@ -15,13 +15,15 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import mmh3
+from pydantic import PositiveInt, StrictStr
+from pydantic.typing import Literal
 
 from feast import Entity, FeatureTable, FeatureView, utils
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import DynamoDbOnlineStoreConfig, RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 try:
     import boto3
@@ -32,7 +34,23 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("aws", str(e))
 
 
-class DynamodbOnlineStore(OnlineStore):
+class DynamoDbOnlineStoreConfig(FeastConfigBaseModel):
+    """Online store config for DynamoDB store"""
+
+    type: Literal["dynamodb"] = "dynamodb"
+    """Online store type selector"""
+
+    rcu: Optional[PositiveInt] = 5
+    """ Read capacity unit """
+
+    wcu: Optional[PositiveInt] = 5
+    """ Write capacity unit """
+
+    region_name: Optional[StrictStr] = None
+    """ AWS Region Name """
+
+
+class DynamoDbOnlineStore(OnlineStore):
     def _initialize_dynamodb(self, online_config: DynamoDbOnlineStoreConfig):
         return boto3.resource("dynamodb", region_name=online_config.region_name)
 
@@ -90,8 +108,11 @@ class DynamodbOnlineStore(OnlineStore):
         dynamodb = self._initialize_dynamodb(online_config)
 
         for table_name in tables:
-            table = dynamodb.Table(table_name)
-            table.delete()
+            try:
+                table = dynamodb.Table(table_name)
+                table.delete()
+            except Exception as e:
+                print(str(e))
 
     def online_write_batch(
         self,

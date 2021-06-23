@@ -165,7 +165,3 @@ Print the current Feast version
 feast version
 ```
 
-
-
-## 
-

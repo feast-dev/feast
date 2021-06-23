@@ -17,11 +17,6 @@ from tempfile import mkstemp
 
 import pytest
 from pytest_lazyfixture import lazy_fixture
-from utils.data_source_utils import (
-    prep_file_source,
-    simple_bq_source_using_query_arg,
-    simple_bq_source_using_table_ref_arg,
-)
 
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
@@ -29,9 +24,15 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.protos.feast.types import Value_pb2 as ValueProto
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
+from tests.utils.data_source_utils import (
+    prep_file_source,
+    simple_bq_source_using_query_arg,
+    simple_bq_source_using_table_ref_arg,
+)
 
 
 @pytest.fixture

@@ -1,5 +1,4 @@
 import abc
-import importlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -8,7 +7,7 @@ import pandas
 import pyarrow
 from tqdm import tqdm
 
-from feast import errors
+from feast import errors, importer
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -160,26 +159,9 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         # For example, provider 'foo.bar.MyProvider' will be parsed into 'foo.bar' and 'MyProvider'
         module_name, class_name = config.provider.rsplit(".", 1)
 
-        # Try importing the module that contains the custom provider
-        try:
-            module = importlib.import_module(module_name)
-        except Exception as e:
-            # The original exception can be anything - either module not found,
-            # or any other kind of error happening during the module import time.
-            # So we should include the original error as well in the stack trace.
-            raise errors.FeastProviderModuleImportError(module_name) from e
+        cls = importer.get_class_from_type(module_name, class_name, "Provider")
 
-        # Try getting the provider class definition
-        try:
-            ProviderCls = getattr(module, class_name)
-        except AttributeError:
-            # This can only be one type of error, when class_name attribute does not exist in the module
-            # So we don't have to include the original exception here
-            raise errors.FeastProviderClassImportError(
-                module_name, class_name
-            ) from None
-
-        return ProviderCls(config, repo_path)
+        return cls(config, repo_path)
 
 
 def _get_requested_feature_views_to_features_dict(

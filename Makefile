@@ -56,7 +56,7 @@ install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 test-python:
-	FEAST_TELEMETRY=False pytest --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests
+	FEAST_TELEMETRY=False pytest -n 4 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests
 
 format-python:
 	# Sort
