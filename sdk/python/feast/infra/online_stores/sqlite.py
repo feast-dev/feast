@@ -28,7 +28,7 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RepoConfig, FeastOnlineStoreConfigBaseModel
+from feast.repo_config import FeastOnlineStoreConfigBaseModel, RepoConfig
 
 
 class SqliteOnlineStoreConfig(FeastOnlineStoreConfigBaseModel):
@@ -44,7 +44,6 @@ class SqliteOnlineStoreConfig(FeastOnlineStoreConfigBaseModel):
 
     def supports_offline_store(self, offline_store: Any) -> bool:
         return offline_store.type == "file"
-
 
 
 class SqliteOnlineStore(OnlineStore):

@@ -3,11 +3,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from feast.data_source import DataSource
 from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
+from feast.data_source import DataSource
 from feast.importer import get_class_from_type
 from feast.usage import log_exceptions
 

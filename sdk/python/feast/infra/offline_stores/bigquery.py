@@ -53,7 +53,6 @@ class BigQueryOfflineStoreConfig(FeastOfflineStoreConfigBaseModel):
 
 
 class BigQueryOfflineStore(OfflineStore):
-
     @staticmethod
     def pull_latest_from_table_or_query(
         data_source: DataSource,
