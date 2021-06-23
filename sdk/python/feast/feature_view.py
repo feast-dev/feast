@@ -20,8 +20,8 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
-from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
+from feast.data_source import BigQuerySource, DataSource, FileSource, KafkaSource, KinesisSource
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
@@ -50,7 +50,8 @@ class FeatureView:
     ttl: Optional[timedelta]
     online: bool
     input: DataSource
-
+    batch_source: Optional[DataSource] = None
+    stream_source: Optional[DataSource] = None
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
@@ -62,15 +63,46 @@ class FeatureView:
         entities: List[str],
         ttl: Optional[Union[Duration, timedelta]],
         input: DataSource,
+        batch_source: Optional[DataSource] = None,
+        stream_source: Optional[DataSource] = None,
         features: List[Feature] = [],
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
+        assert input or batch_source
+        _input = input or batch_source
+
+        if not features:
+            features = []  # to handle python's mutable default arguments
+            columns_to_exclude = {
+                _input.event_timestamp_column,
+                _input.created_timestamp_column,
+            } | set(entities)
+
+            for col_name, col_datatype in _input.get_table_column_names_and_types():
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$", col_name
+                ):
+                    features.append(
+                        Feature(
+                            col_name,
+                            _input.source_datatype_to_feast_value_type()(col_datatype),
+                        )
+                    )
+
+            if not features:
+                raise ValueError(
+                    f"Could not infer Features for the FeatureView named {name}."
+                    f" Please specify Features explicitly for this FeatureView."
+                )
+
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
-            if input.field_mapping is not None and col in input.field_mapping.keys():
+            if _input.field_mapping is not None and col in _input.field_mapping.keys():
                 raise ValueError(
-                    f"The field {col} is mapped to {input.field_mapping[col]} for this data source. Please either remove this field mapping or use {input.field_mapping[col]} as the Entity or Feature name."
+                    f"The field {col} is mapped to {_input.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {_input.field_mapping[col]} as the "
+                    f"Entity or Feature name."
                 )
 
         self.name = name
@@ -84,7 +116,9 @@ class FeatureView:
             self.ttl = ttl
 
         self.online = online
-        self.input = input
+        self.input = _input
+        self.batch_source = _input
+        self.stream_source = stream_source
 
         self.materialization_intervals = []
 
