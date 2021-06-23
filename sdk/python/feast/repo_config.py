@@ -16,7 +16,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
-    "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDbOnlineStore",
+    "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {

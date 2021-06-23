@@ -24,10 +24,10 @@ from urllib.parse import urlparse
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
-    S3RegistryBucketForbiddenAccess,
-    S3RegistryBucketNotExist,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
+    S3RegistryBucketForbiddenAccess,
+    S3RegistryBucketNotExist,
 )
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -546,16 +546,17 @@ class GCSRegistryStore(RegistryStore):
 
 class S3RegistryStore(RegistryStore):
     def __init__(self, uri: str):
-        self._uri = urlparse(uri)
-        self._bucket = self._uri.hostname
-        self._key = self._uri.path.lstrip("/")
         try:
             import boto3
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
             raise FeastExtrasDependencyImportError("aws", str(e))
-        self.s3 = boto3.resource(
+        self._uri = urlparse(uri)
+        self._bucket = self._uri.hostname
+        self._key = self._uri.path.lstrip("/")
+
+        self.s3_client = boto3.resource(
             "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
         )
         return
@@ -570,8 +571,8 @@ class S3RegistryStore(RegistryStore):
 
             raise FeastExtrasDependencyImportError("aws", str(e))
         try:
-            bucket = self.s3.Bucket(self._bucket)
-            self.s3.meta.client.head_bucket(Bucket=bucket.name)
+            bucket = self.s3_client.Bucket(self._bucket)
+            self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
         except botocore.client.ClientError as e:
             # If a client error is thrown, then check that it was a 404 error.
             # If it was a 404 error, then the bucket does not exist.
@@ -608,7 +609,6 @@ class S3RegistryStore(RegistryStore):
         if updater:
             registry_proto = updater(registry_proto)
         self._write_registry(registry_proto)
-        return
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
@@ -617,5 +617,4 @@ class S3RegistryStore(RegistryStore):
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
-        self.s3.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)
-        return
+        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)

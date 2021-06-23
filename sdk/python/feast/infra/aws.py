@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import pandas
 from tqdm import tqdm
 
-from feast import FeatureTable, utils
+from feast import FeatureTable
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.helpers import get_offline_store_from_config
@@ -117,9 +117,8 @@ class AwsProvider(Provider):
                 self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
-
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -127,5 +126,12 @@ class AwsProvider(Provider):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        # TODO implement me
-        pass
+        job = self.offline_store.get_historical_features(
+            config=config,
+            feature_views=feature_views,
+            feature_refs=feature_refs,
+            entity_df=entity_df,
+            registry=registry,
+            project=project,
+        )
+        return job

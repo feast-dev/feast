@@ -14,12 +14,11 @@
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import mmh3
-from pydantic import PositiveInt, StrictStr
+from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureTable, FeatureView, utils
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -34,25 +33,24 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("aws", str(e))
 
 
-class DynamoDbOnlineStoreConfig(FeastConfigBaseModel):
+class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for DynamoDB store"""
 
     type: Literal["dynamodb"] = "dynamodb"
     """Online store type selector"""
 
-    rcu: Optional[PositiveInt] = 5
-    """ Read capacity unit """
-
-    wcu: Optional[PositiveInt] = 5
-    """ Write capacity unit """
-
-    region_name: Optional[StrictStr] = None
+    region: Optional[StrictStr] = None
     """ AWS Region Name """
 
 
-class DynamoDbOnlineStore(OnlineStore):
-    def _initialize_dynamodb(self, online_config: DynamoDbOnlineStoreConfig):
-        return boto3.resource("dynamodb", region_name=online_config.region_name)
+class DynamoDBOnlineStore(OnlineStore):
+    """
+    OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
+    features.
+    """
+
+    def _initialize_dynamodb(self, online_config: DynamoDBOnlineStoreConfig):
+        return boto3.resource("dynamodb", region_name=online_config.region)
 
     def update(
         self,
@@ -64,37 +62,33 @@ class DynamoDbOnlineStore(OnlineStore):
         partial: bool,
     ):
         online_config = config.online_store
-        assert isinstance(online_config, DynamoDbOnlineStoreConfig)
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb = self._initialize_dynamodb(online_config)
 
+        client = boto3.client("dynamodb")
+
         for table_name in tables_to_keep:
-            table = None
             try:
                 table = dynamodb.create_table(
-                    TableName=table_name.name,
-                    KeySchema=[
-                        {"AttributeName": "Row", "KeyType": "HASH"},
-                        {"AttributeName": "Project", "KeyType": "RANGE"},
-                    ],
+                    TableName=f"{config.project}.{table_name.name}",
+                    KeySchema=[{"AttributeName": "Row", "KeyType": "HASH"}],
                     AttributeDefinitions=[
-                        {"AttributeName": "Row", "AttributeType": "S"},
-                        {"AttributeName": "Project", "AttributeType": "S"},
+                        {"AttributeName": "Row", "AttributeType": "S"}
                     ],
-                    ProvisionedThroughput={
-                        "ReadCapacityUnits": online_config.rcu,
-                        "WriteCapacityUnits": online_config.wcu,
-                    },
-                )
-                table.meta.client.get_waiter("table_exists").wait(
-                    TableName=table_name.name
+                    BillingMode="PAY_PER_REQUEST",
                 )
             except ClientError as ce:
                 print(ce)
                 if ce.response["Error"]["Code"] == "ResourceNotFoundException":
-                    table = dynamodb.Table(table_name.name)
+                    table = dynamodb.Table(f"{config.project}.{table_name.name}")
+
+        for table_name in tables_to_keep:
+            client.get_waiter("table_exists").wait(
+                TableName=f"{config.project}.{table_name.name}"
+            )
 
         for table_name in tables_to_delete:
-            table = dynamodb.Table(table_name.name)
+            table = dynamodb.Table(f"{config.project}.{table_name.name}")
             table.delete()
 
     def teardown(
@@ -104,15 +98,12 @@ class DynamoDbOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         online_config = config.online_store
-        assert isinstance(online_config, DynamoDbOnlineStoreConfig)
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb = self._initialize_dynamodb(online_config)
 
         for table_name in tables:
-            try:
-                table = dynamodb.Table(table_name)
-                table.delete()
-            except Exception as e:
-                print(str(e))
+            table = dynamodb.Table(f"{config.project}.{table_name.name}")
+            table.delete()
 
     def online_write_batch(
         self,
@@ -124,18 +115,16 @@ class DynamoDbOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         online_config = config.online_store
-        assert isinstance(online_config, DynamoDbOnlineStoreConfig)
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb = self._initialize_dynamodb(online_config)
 
-        table_instance = dynamodb.Table(table.name)
+        table_instance = dynamodb.Table(f"{config.project}.{table.name}")
         with table_instance.batch_writer() as batch:
             for entity_key, features, timestamp, created_ts in data:
-                document_id = compute_datastore_entity_id(entity_key)  # TODO check id
-                # TODO compression encoding
+                document_id = compute_entity_id(entity_key)
                 batch.put_item(
                     Item={
                         "Row": document_id,  # PartitionKey
-                        "Project": config.project,  # SortKey
                         "event_ts": str(utils.make_tzaware(timestamp)),
                         "values": {
                             k: v.SerializeToString()
@@ -143,6 +132,8 @@ class DynamoDbOnlineStore(OnlineStore):
                         },
                     }
                 )
+                if progress:
+                    progress(1)
 
     def online_read(
         self,
@@ -152,17 +143,15 @@ class DynamoDbOnlineStore(OnlineStore):
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         online_config = config.online_store
-        assert isinstance(online_config, DynamoDbOnlineStoreConfig)
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb = self._initialize_dynamodb(online_config)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            table_instace = dynamodb.Table(table.name)
-            document_id = compute_datastore_entity_id(entity_key)  # TODO check id
-            response = table_instace.get_item(
-                Key={"Row": document_id, "Project": config.project}
-            )
-            value = response["Item"]
+            table_instace = dynamodb.Table(f"{config.project}.{table.name}")
+            document_id = compute_entity_id(entity_key)  # TODO check id
+            response = table_instace.get_item(Key={"Row": document_id})
+            value = response.get("Item", None)
 
             if value is not None:
                 res = {}
@@ -174,13 +163,3 @@ class DynamoDbOnlineStore(OnlineStore):
             else:
                 result.append((None, None))
         return result
-
-
-def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
-    """
-    Compute Datastore Entity id given Feast Entity Key.
-
-    Remember that Datastore Entity is a concept from the Datastore data model, that has nothing to
-    do with the Entity concept we have in Feast.
-    """
-    return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
