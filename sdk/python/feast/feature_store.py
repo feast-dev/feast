@@ -39,7 +39,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
-from feast.telemetry import log_exceptions, log_exceptions_and_usage
+from feast.usage import log_exceptions, log_exceptions_and_usage
 from feast.version import get_version
 
 

@@ -43,7 +43,7 @@
   * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev/)
-* [Telemetry](reference/telemetry.md)
+* [Usage](reference/usage.md)
 
 ## Feast on Kubernetes
 

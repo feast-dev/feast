@@ -26,6 +26,7 @@ def _test_config(config_text, expect_error: Optional[str]):
         if expect_error is not None:
             assert expect_error in str(error)
         else:
+            print(f"error: {error}")
             assert error is None
 
 
@@ -37,6 +38,21 @@ def test_local_config():
         registry:
             path: "./"
         provider: local
+        """
+        ),
+        expect_error=None,
+    )
+
+
+def test_local_config_with_full_online_class():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: local
+        online_store:
+            type: feast.infra.online_stores.sqlite.SqliteOnlineStore
         """
         ),
         expect_error=None,
