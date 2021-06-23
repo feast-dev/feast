@@ -20,8 +20,14 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
+from feast.data_source import (
+    BigQuerySource,
+    DataSource,
+    FileSource,
+    KafkaSource,
+    KinesisSource,
+)
 from feast.errors import RegistryInferenceFailure
-from feast.data_source import BigQuerySource, DataSource, FileSource, KafkaSource, KinesisSource
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
@@ -69,8 +75,8 @@ class FeatureView:
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
-        assert input or batch_source
         _input = input or batch_source
+        assert _input is not None
 
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
