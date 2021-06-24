@@ -116,7 +116,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     os.chdir(repo_path)
     registry_config = repo_config.get_registry_config()
-
     project = repo_config.project
     if not is_valid_name(project):
         print(

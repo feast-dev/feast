@@ -37,7 +37,7 @@ from tests.utils.data_source_utils import (
 
 @pytest.fixture
 def feature_store_with_local_registry():
-    fs, registry_path = mkstemp()
+    fd, registry_path = mkstemp()
     fd, online_store_path = mkstemp()
     return FeatureStore(
         config=RepoConfig(

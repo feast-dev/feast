@@ -63,8 +63,7 @@ def test_gcp_config():
         dedent(
             """
         project: foo
-        registry:
-            path: gs://
+        registry: gs://registry.db
         provider: gcp
         """
         ),
@@ -77,7 +76,7 @@ def test_extra_field():
         dedent(
             """
         project: foo
-        registry: gs://registry.db
+        registry: "registry.db"
         provider: local
         online_store:
             type: sqlite

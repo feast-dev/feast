@@ -372,6 +372,7 @@ def test_historical_features_from_bigquery_sources(
 
         driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
         customer = Entity(name="customer_id", value_type=ValueType.INT64)
+
         if provider_type == "local":
             store = FeatureStore(
                 config=RepoConfig(
