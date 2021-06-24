@@ -196,7 +196,7 @@ def test_3rd_party_providers() -> None:
         assertpy.assert_that(return_code).is_equal_to(0)
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 def test_publish_registry_json() -> None:
     """
     Test if publish_json stores an equivalent registry in json format as the original protobuf one
@@ -215,7 +215,7 @@ def test_publish_registry_json() -> None:
                 f"""
         project: foo
         registry:
-            path: {data_path}
+            path: {data_path}/
             publish_json: true
         provider: local
         offline_store:
