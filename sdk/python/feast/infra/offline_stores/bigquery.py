@@ -224,12 +224,15 @@ class BigQueryRetrievalJob(RetrievalJob):
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
 
-    def to_sql(self):
+    def to_sql(self) -> str:
+        """
+        Returns the SQL query that can be modified and run by the user to create the BQ table.
+        """
         return self.query
 
     def to_bigquery(self, job_config: bigquery.QueryJobConfig = None) -> Optional[str]:
         """
-        Uploads the results of the BigQueryRetrievalJob directly to BigQuery
+        Uploads the results of the BigQueryRetrievalJob directly to BigQuery.
 
         Args:
             job_config: A bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
