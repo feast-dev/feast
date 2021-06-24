@@ -20,7 +20,7 @@ from feast.feature_view import FeatureView
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
 from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.repo_config import RegistryConfig, RepoConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
 
@@ -98,7 +98,7 @@ def prep_bq_fs_and_fv(
     )
     with tempfile.TemporaryDirectory() as repo_dir_name:
         config = RepoConfig(
-            registry=RegistryConfig(path=repo_dir_name),
+            registry=str(Path(repo_dir_name) / "registry.db"),
             project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
             provider="gcp",
             online_store=DatastoreOnlineStoreConfig(namespace="integration_test"),
@@ -132,7 +132,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
         )
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
             config = RepoConfig(
-                registry=RegistryConfig(path=repo_dir_name),
+                registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
                 provider="local",
                 online_store=SqliteOnlineStoreConfig(
@@ -168,7 +168,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
         )
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory():
             config = RepoConfig(
-                registry=RegistryConfig(path=repo_dir_name),
+                registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
                 provider="local",
                 online_store=RedisOnlineStoreConfig(

@@ -15,8 +15,17 @@ from tests.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("old_registry_config", [False, True])
-def test_workflow(old_registry_config) -> None:
+@pytest.mark.parametrize(
+    "registry_config",
+    [
+        "registry: {}/registry.pb",
+        "registry: {}/",
+        """
+        registry:
+            path: {}/""",
+    ],
+)
+def test_workflow(registry_config) -> None:
     """
     Test running apply on a sample repo, and make sure the infra gets created.
     """
@@ -27,20 +36,13 @@ def test_workflow(old_registry_config) -> None:
         repo_path = Path(repo_dir_name)
         data_path = Path(data_dir_name)
 
-        if old_registry_config:
-            registry_config = f"registry: {data_path / 'registry.pb'}"
-        else:
-            registry_config = f"""
-        registry:
-            path: {data_path}"""
-
         repo_config = repo_path / "feature_store.yaml"
 
         repo_config.write_text(
             dedent(
                 f"""
         project: foo
-        {registry_config}
+        {registry_config.format(data_path)}
         provider: local
         online_store:
             path: {data_path / 'online_store.db'}
@@ -108,8 +110,7 @@ def test_non_local_feature_repo() -> None:
             dedent(
                 """
         project: foo
-        registry:
-            path: data
+        registry: data/registry.db
         provider: local
         online_store:
             path: data/online_store.db
@@ -147,8 +148,7 @@ def setup_third_party_provider_repo(provider_name: str):
             dedent(
                 f"""
         project: foo
-        registry:
-            path: data
+        registry: data/registry.db
         provider: {provider_name}
         online_store:
             path: data/online_store.db

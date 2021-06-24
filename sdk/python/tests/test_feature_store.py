@@ -13,7 +13,7 @@
 # limitations under the License.
 import time
 from datetime import datetime, timedelta
-from tempfile import mkdtemp, mkstemp
+from tempfile import mkstemp
 
 import pytest
 from pytest_lazyfixture import lazy_fixture
@@ -26,7 +26,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.protos.feast.types import Value_pb2 as ValueProto
-from feast.repo_config import RegistryConfig, RepoConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 from tests.utils.data_source_utils import (
     prep_file_source,
@@ -37,11 +37,11 @@ from tests.utils.data_source_utils import (
 
 @pytest.fixture
 def feature_store_with_local_registry():
-    registry_path = mkdtemp()
+    fs, registry_path = mkstemp()
     fd, online_store_path = mkstemp()
     return FeatureStore(
         config=RepoConfig(
-            registry=RegistryConfig(path=registry_path),
+            registry=registry_path,
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
@@ -377,11 +377,11 @@ def test_apply_object_and_read(test_feature_store):
 
 
 def test_apply_remote_repo():
-    registry_path = mkdtemp()
+    fd, registry_path = mkstemp()
     fd, online_store_path = mkstemp()
     return FeatureStore(
         config=RepoConfig(
-            registry=RegistryConfig(path=registry_path),
+            registry=registry_path,
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),

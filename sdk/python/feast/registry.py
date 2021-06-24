@@ -48,7 +48,6 @@ class Registry:
     def __init__(
         self,
         registry_path: str,
-        is_filepath: bool,
         repo_path: Path,
         publish_json: bool,
         cache_ttl: timedelta,
@@ -65,13 +64,12 @@ class Registry:
         uri = urlparse(registry_path)
         if uri.scheme == "gs":
             self._registry_store: RegistryStore = GCSRegistryStore(
-                uri=registry_path, is_filepath=is_filepath, publish_json=publish_json
+                uri=registry_path, publish_json=publish_json
             )
         elif uri.scheme == "file" or uri.scheme == "":
             self._registry_store = LocalRegistryStore(
                 repo_path=repo_path,
                 registry_path_string=registry_path,
-                is_filepath=is_filepath,
                 publish_json=publish_json,
             )
         else:
@@ -451,24 +449,21 @@ class RegistryStore(ABC):
 
 class LocalRegistryStore(RegistryStore):
     def __init__(
-        self,
-        repo_path: Path,
-        registry_path_string: str,
-        is_filepath: bool,
-        publish_json: bool,
+        self, repo_path: Path, registry_path_string: str, publish_json: bool,
     ):
         registry_path = Path(registry_path_string)
-        if is_filepath:
-            parent = registry_path.parent
-            filename = registry_path.name
-        else:
+
+        if not registry_path.is_absolute():
+            registry_path = repo_path.joinpath(registry_path)
+
+        if registry_path_string[-1] == "/":
             parent = registry_path
             filename = "registry.pb"
-
-        if registry_path.is_absolute():
-            self._dirpath = parent
         else:
-            self._dirpath = repo_path.joinpath(parent)
+            parent = registry_path.parent
+            filename = registry_path.name
+
+        self._dirpath = parent
         self._filepath = self._dirpath / filename
         self.publish_json = publish_json
 
@@ -511,7 +506,7 @@ class LocalRegistryStore(RegistryStore):
 
 
 class GCSRegistryStore(RegistryStore):
-    def __init__(self, uri: str, is_filepath: bool, publish_json: bool):
+    def __init__(self, uri: str, publish_json: bool):
         try:
             from google.cloud import storage
         except ImportError as e:
@@ -521,10 +516,10 @@ class GCSRegistryStore(RegistryStore):
 
         self.gcs_client = storage.Client()
         self._uri = uri
-        if is_filepath:
+        if uri[-1] != "/":
             self._proto_uri = urlparse(uri)
         else:
-            self._proto_uri = urlparse(f"{uri}/registry.pb")
+            self._proto_uri = urlparse(f"{uri}registry.pb")
         self._bucket = self._proto_uri.hostname
         self._blob = self._proto_uri.path.lstrip("/")
         self.publish_json = publish_json

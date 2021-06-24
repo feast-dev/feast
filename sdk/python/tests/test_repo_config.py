@@ -34,8 +34,7 @@ def test_local_config():
         dedent(
             """
         project: foo
-        registry:
-            path: "./"
+        registry: "registry.db"
         provider: local
         """
         ),
@@ -62,8 +61,7 @@ def test_extra_field():
         dedent(
             """
         project: foo
-        registry:
-            path: "./"
+        registry: gs://registry.db
         provider: local
         online_store:
             type: sqlite
@@ -81,8 +79,7 @@ def test_no_online_store_type():
         dedent(
             """
         project: foo
-        registry:
-            path: "./"
+        registry: "registry.db"
         provider: local
         online_store:
             path: "blah"
@@ -97,8 +94,7 @@ def test_bad_type():
         dedent(
             """
         project: foo
-        registry:
-            path: "./"
+        registry: "registry.db"
         provider: local
         online_store:
             path: 100500
@@ -112,8 +108,7 @@ def test_no_project():
     _test_config(
         dedent(
             """
-        registry:
-            path: "./"
+        registry: "registry.db"
         provider: local
         online_store:
             path: foo

@@ -20,9 +20,9 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.repo_config import BigQueryOfflineStoreConfig, RegistryConfig
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -271,7 +271,7 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
 
         store = FeatureStore(
             config=RepoConfig(
-                registry=RegistryConfig(path=temp_dir),
+                registry=os.path.join(temp_dir, "registry.db"),
                 project="default",
                 provider="local",
                 online_store=SqliteOnlineStoreConfig(
@@ -372,11 +372,10 @@ def test_historical_features_from_bigquery_sources(
 
         driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
         customer = Entity(name="customer_id", value_type=ValueType.INT64)
-        registry_config = RegistryConfig(temp_dir)
         if provider_type == "local":
             store = FeatureStore(
                 config=RepoConfig(
-                    registry=registry_config,
+                    registry=os.path.join(temp_dir, "registry.db"),
                     project="default",
                     provider="local",
                     online_store=SqliteOnlineStoreConfig(
@@ -390,7 +389,7 @@ def test_historical_features_from_bigquery_sources(
         elif provider_type == "gcp":
             store = FeatureStore(
                 config=RepoConfig(
-                    registry=registry_config,
+                    registry=os.path.join(temp_dir, "registry.db"),
                     project="".join(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),
@@ -403,7 +402,7 @@ def test_historical_features_from_bigquery_sources(
         elif provider_type == "gcp_custom_offline_config":
             store = FeatureStore(
                 config=RepoConfig(
-                    registry=registry_config,
+                    registry=os.path.join(temp_dir, "registry.db"),
                     project="".join(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),

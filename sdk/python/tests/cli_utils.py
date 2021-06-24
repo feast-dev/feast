@@ -48,10 +48,9 @@ class CliRunner:
             random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
         )
 
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as registry_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
 
             repo_path = Path(repo_dir_name)
-            registry_path = Path(registry_dir_name)
             data_path = Path(data_dir_name)
 
             repo_config = repo_path / "feature_store.yaml"
@@ -60,8 +59,7 @@ class CliRunner:
                 dedent(
                     f"""
             project: {project_id}
-            registry:
-                path: {registry_path}
+            registry: {data_path / "registry.db"}
             provider: local
             online_store:
                 path: {data_path / "online_store.db"}

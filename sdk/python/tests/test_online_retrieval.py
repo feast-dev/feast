@@ -132,7 +132,7 @@ def test_online() -> None:
         fs_fast_ttl = FeatureStore(
             config=RepoConfig(
                 registry=RegistryConfig(
-                    path=store.config.registry.path, cache_ttl_seconds=cache_ttl
+                    path=store.config.registry, cache_ttl_seconds=cache_ttl
                 ),
                 online_store=store.config.online_store,
                 project=store.project,
@@ -154,7 +154,7 @@ def test_online() -> None:
         assert result["customer_driver_combined__trips"] == [7]
 
         # Rename the registry.db so that it cant be used for refreshes
-        os.rename(store.config.registry.path, store.config.registry.path + "_fake")
+        os.rename(store.config.registry, store.config.registry + "_fake")
 
         # Wait for registry to expire
         time.sleep(cache_ttl)
@@ -172,7 +172,7 @@ def test_online() -> None:
             ).to_dict()
 
         # Restore registry.db so that we can see if it actually reloads registry
-        os.rename(store.config.registry.path + "_fake", store.config.registry.path)
+        os.rename(store.config.registry + "_fake", store.config.registry)
 
         # Test if registry is actually reloaded and whether results return
         result = fs_fast_ttl.get_online_features(
@@ -191,7 +191,7 @@ def test_online() -> None:
         fs_infinite_ttl = FeatureStore(
             config=RepoConfig(
                 registry=RegistryConfig(
-                    path=store.config.registry.path, cache_ttl_seconds=0
+                    path=store.config.registry, cache_ttl_seconds=0
                 ),
                 online_store=store.config.online_store,
                 project=store.project,
@@ -216,7 +216,7 @@ def test_online() -> None:
         time.sleep(2)
 
         # Rename the registry.db so that it cant be used for refreshes
-        os.rename(store.config.registry.path, store.config.registry.path + "_fake")
+        os.rename(store.config.registry, store.config.registry + "_fake")
 
         # TTL is infinite so this method should use registry cache
         result = fs_infinite_ttl.get_online_features(
@@ -236,7 +236,7 @@ def test_online() -> None:
             fs_infinite_ttl.refresh_registry()
 
         # Restore registry.db so that teardown works
-        os.rename(store.config.registry.path + "_fake", store.config.registry.path)
+        os.rename(store.config.registry + "_fake", store.config.registry)
 
 
 @pytest.mark.integration
