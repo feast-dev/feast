@@ -28,8 +28,7 @@ def test_basic() -> None:
             dedent(
                 f"""
         project: {project_id}
-        registry:
-            path: {data_path}
+        registry: {data_path / "registry.db"}
         provider: gcp
         """
             )
