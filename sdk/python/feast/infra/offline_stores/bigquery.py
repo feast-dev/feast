@@ -227,7 +227,17 @@ class BigQueryRetrievalJob(RetrievalJob):
     def to_sql(self):
         return self.query
 
-    def to_bigquery(self, job_config=None) -> Optional[str]:
+    def to_bigquery(self, job_config: bigquery.QueryJobConfig = None) -> Optional[str]:
+        """
+        Uploads the results of the BigQueryRetrievalJob directly to BigQuery
+
+        Args:
+            job_config: A bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
+
+        Returns:
+            Returns either the destination table name, none if job_config.dry_run, or raises an exception if job fails
+        """
+
         @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
         def _block_until_done():
             return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
