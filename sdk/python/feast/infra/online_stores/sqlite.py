@@ -34,7 +34,9 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
     """ Online store config for local (SQLite-based) store """
 
-    type: Literal["sqlite"] = "sqlite"
+    type: Literal[
+        "sqlite", "feast.infra.online_stores.sqlite.SqliteOnlineStore"
+    ] = "sqlite"
     """ Online store type selector"""
 
     path: StrictStr = "data/online.db"
@@ -51,7 +53,10 @@ class SqliteOnlineStore(OnlineStore):
 
     @staticmethod
     def _get_db_path(config: RepoConfig) -> str:
-        assert config.online_store.type == "sqlite"
+        assert (
+            config.online_store.type == "sqlite"
+            or config.online_store.type.endswith("SqliteOnlineStore")
+        )
 
         if config.repo_path and not Path(config.online_store.path).is_absolute():
             db_path = str(config.repo_path / config.online_store.path)
