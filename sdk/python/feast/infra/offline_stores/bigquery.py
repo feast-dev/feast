@@ -131,23 +131,9 @@ class BigQueryOfflineStore(OfflineStore):
             feature_refs, feature_views, registry, project
         )
 
-        # Infer min_timestamp and max_timestamp from entity_df
-        if isinstance(entity_df, pandas.DataFrame):
-            min_timestamp = datetime.fromisoformat(
-                min(entity_df[[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL]])
-            )
-            max_timestamp = datetime.fromisoformat(
-                max(entity_df[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL])
-            )
-        else:
-            min_timestamp = datetime.now() - timedelta(days=365)
-            max_timestamp = datetime.now() + timedelta(days=1)
-
         # Generate the BigQuery SQL query from the query context
         query = build_point_in_time_query(
             query_context,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
             left_table_query_string=str(table.reference),
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
@@ -411,8 +397,6 @@ def get_feature_view_query_context(
 
 def build_point_in_time_query(
     feature_view_query_contexts: List[FeatureViewQueryContext],
-    min_timestamp: datetime,
-    max_timestamp: datetime,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
 ):
@@ -423,8 +407,6 @@ def build_point_in_time_query(
 
     # Add additional fields to dict
     template_context = {
-        "min_timestamp": min_timestamp,
-        "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
         "entity_df_event_timestamp_col": entity_df_event_timestamp_col,
         "unique_entity_keys": set(
@@ -479,6 +461,12 @@ WITH entity_dataframe AS (
     FROM {{ left_table_query_string }}
 ),
 
+timestamp_bounds AS (
+    SELECT
+        MAX({{entity_df_event_timestamp_col}}) AS max,
+        MIN({{entity_df_event_timestamp_col}}) AS min
+    FROM {{ left_table_query_string }}
+),
 {% for featureview in featureviews %}
 
 /*
@@ -507,8 +495,9 @@ WITH entity_dataframe AS (
             {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}' {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second)
+    WHERE {{ featureview.event_timestamp_column }} <= ((SELECT max FROM timestamp_bounds))
+    {% if featureview.ttl == 0 %}{% else %}
+    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(((SELECT min FROM timestamp_bounds)), interval {{ featureview.ttl }} second)
     {% endif %}
 ),
 
