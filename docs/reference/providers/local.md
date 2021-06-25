@@ -3,7 +3,7 @@
 ### Description
 
 * Offline Store: Uses the File offline store by default. Also supports BigQuery as the offline store.
-* Online Store: Uses the Sqlite online store by default. Also supports Datastore as an online store.
+* Online Store: Uses the Sqlite online store by default. Also supports Redis and Datastore as online stores.
 
 ### Example
 
