@@ -183,7 +183,11 @@ class FeatureView:
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
             batch_source=self.input.to_proto(),
-            stream_source=(self.stream_source.to_proto() if self.stream_source is not None else None)
+            stream_source=(
+                self.stream_source.to_proto()
+                if self.stream_source is not None
+                else None
+            ),
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -222,9 +226,11 @@ class FeatureView:
             ),
             input=_input,
             batch_source=_input,
-            stream_source=(feature_view_proto.spec.stream_source
-                           if feature_view_proto.spec.stream_source is None
-                           else None)
+            stream_source=(
+                feature_view_proto.spec.stream_source
+                if feature_view_proto.spec.stream_source is None
+                else None
+            ),
         )
 
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
