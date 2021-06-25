@@ -226,19 +226,19 @@ class BigQueryRetrievalJob(RetrievalJob):
 
     def to_sql(self) -> str:
         """
-        Returns the SQL query that can be modified and run by the user to create the BQ table.
+        Returns the SQL query that will be executed in BigQuery to build the historical feature table.
         """
         return self.query
 
     def to_bigquery(self, job_config: bigquery.QueryJobConfig = None) -> Optional[str]:
         """
-        Uploads the results of the BigQueryRetrievalJob directly to BigQuery.
+        Triggers the execution of a historical feature retrieval query and exports the results to a BigQuery table.
 
         Args:
-            job_config: A bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
+            job_config: An optional bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
 
         Returns:
-            Returns either the destination table name, none if job_config.dry_run, or raises an exception if job fails
+            Returns the destination table name or returns None if job_config.dry_run is True.
         """
 
         @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
