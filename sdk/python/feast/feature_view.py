@@ -134,6 +134,8 @@ class FeatureView:
             return False
         if self.input != other.input:
             return False
+        if self.stream_source != other.stream_source:
+            return False
 
         return True
 
@@ -180,7 +182,8 @@ class FeatureView:
             tags=self.tags,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
-            input=self.input.to_proto(),
+            batch_source=self.input.to_proto(),
+            stream_source=self.stream_source.to_proto()
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
