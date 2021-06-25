@@ -14,7 +14,9 @@ from feast.inference import (
 )
 
 
-def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dataset_2):
+def test_update_entities_with_inferred_types_from_feature_views(
+    simple_dataset_1, simple_dataset_2
+):
     with prep_file_source(
         df=simple_dataset_1, event_timestamp_column="ts_1"
     ) as file_source, prep_file_source(
@@ -29,8 +31,8 @@ def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dat
 
         update_entities_with_inferred_types_from_feature_views([actual_1], [fv1])
         update_entities_with_inferred_types_from_feature_views([actual_2], [fv2])
-        assert actual_1 == [Entity(name="id", value_type=ValueType.INT64)]
-        assert actual_2 == [Entity(name="id", value_type=ValueType.STRING)]
+        assert actual_1 == Entity(name="id", value_type=ValueType.INT64)
+        assert actual_2 == Entity(name="id", value_type=ValueType.STRING)
 
         with pytest.raises(RegistryInferenceFailure):
             # two viable data types
@@ -40,7 +42,7 @@ def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dat
 
 
 @pytest.mark.integration
-def test_infer_event_timestamp_column_for_data_source(simple_dataset_1):
+def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1):
     df_with_two_viable_timestamp_cols = simple_dataset_1.copy(deep=True)
     df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
 
