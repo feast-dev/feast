@@ -33,7 +33,7 @@ message DataSource {
     BATCH_BIGQUERY = 2;
     STREAM_KAFKA = 3;
     STREAM_KINESIS = 4;
-    BATCH_MSSQL = 5;
+    BATCH_SQLSERVER = 5;
   }
   SourceType type = 1;
 
@@ -73,7 +73,7 @@ message DataSource {
   }
 
   // Defines options for DataSource that sources features from a MSSQL Query
-  message MSSQLOptions {
+  message SqlServerOptions {
     // Full table reference in the form of [project:dataset.table]
     string table_ref = 1;
 
@@ -118,6 +118,6 @@ message DataSource {
     BigQueryOptions bigquery_options = 12;
     KafkaOptions kafka_options = 13;
     KinesisOptions kinesis_options = 14;
-    MSSQLOptions mssql_options = 15;
+    SqlServerOptions mssql_options = 15;
   }
 }

@@ -94,7 +94,19 @@ class BigQueryOfflineStoreConfig(FeastBaseModel):
     """ (optional) BigQuery Dataset name for temporary tables """
 
 
-OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
+class SqlServerOfflineStoreConfig(FeastBaseModel):
+    """ Offline store config for SQL Server """
+
+    type: Literal["sqlserver"] = "sqlserver"
+    """ Offline store type selector"""
+
+    connection_string: StrictStr = 'mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server'
+    """Connection string containing the host, port, and configuration parameters for SQL Server
+     format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
+
+
+OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig,
+                           SqlServerOfflineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -219,6 +231,8 @@ class RepoConfig(FeastBaseModel):
                 FileOfflineStoreConfig(**values["offline_store"])
             elif offline_store_type == "bigquery":
                 BigQueryOfflineStoreConfig(**values["offline_store"])
+            elif offline_store_type == "sqlserver":
+                SqlServerOfflineStoreConfig(**values["offline_store"])
             else:
                 raise ValidationError(
                     f"Invalid offline store type {offline_store_type}"

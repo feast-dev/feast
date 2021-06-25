@@ -10,7 +10,7 @@ from jinja2 import BaseLoader, Environment
 from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
-from feast.data_source import BigQuerySource, DataSource
+from feast.data_source import SqlServerSource, DataSource
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
@@ -20,7 +20,7 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
+from feast.repo_config import SqlServerOfflineStoreConfig, RepoConfig
 
 try:
     import pymssql
@@ -30,6 +30,10 @@ except ImportError as e:
 
 
 class SqlServerOfflineStore(OfflineStore):
+    def __init__(self, config: RepoConfig):
+        assert isinstance(config.online_store, SqlServerOfflineStoreConfig)
+        self._connection_string = config.offline_store.connection_string
+
     @staticmethod
     def pull_latest_from_table_or_query(
         data_source: DataSource,
@@ -40,7 +44,7 @@ class SqlServerOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> pyarrow.Table:
-        assert isinstance(data_source, BigQuerySource)
+        assert isinstance(data_source, SqlServerSource)
         from_expression = data_source.get_table_query_string()
 
         partition_by_join_key_string = ", ".join(join_key_columns)
@@ -65,11 +69,10 @@ class SqlServerOfflineStore(OfflineStore):
             WHERE _feast_row = 1
             """
 
-        return SqlServerOfflineStore._pull_query(query)
+        return self._pull_query(query)
 
-    @staticmethod
-    def _pull_query(query: str) -> pyarrow.Table:
-        client = _get_bigquery_client()
+    def _pull_query(self, query: str) -> pyarrow.Table:
+        client = True  # TODO: return client
         query_job = client.query(query)
         return query_job.to_arrow()
 
@@ -88,7 +91,7 @@ class SqlServerOfflineStore(OfflineStore):
 
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
-        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        assert isinstance(config.offline_store, SqlServerOfflineStoreConfig)
         table = _upload_entity_df_into_bigquery(
             client, config.project, config.offline_store.dataset, entity_df
         )
@@ -342,7 +345,7 @@ def get_feature_view_query_context(
         else:
             ttl_seconds = 0
 
-        assert isinstance(feature_view.input, BigQuerySource)
+        assert isinstance(feature_view.input, SqlServerSource)
 
         event_timestamp_column = feature_view.input.event_timestamp_column
         created_timestamp_column = feature_view.input.created_timestamp_column
@@ -394,26 +397,6 @@ def build_point_in_time_query(
 
     query = template.render(template_context)
     return query
-
-
-def _get_bigquery_client():
-    try:
-        client = bigquery.Client()
-    except DefaultCredentialsError as e:
-        raise FeastProviderLoginError(
-            str(e)
-            + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
-            "local Google Cloud account"
-        )
-    except EnvironmentError as e:
-        raise FeastProviderLoginError(
-            "GCP error: "
-            + str(e)
-            + "\nIt may be necessary to set a default GCP project by running "
-            '"gcloud config set project your-project"'
-        )
-
-    return client
 
 
 # TODO: Optimizations

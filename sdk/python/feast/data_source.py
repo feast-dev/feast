@@ -17,7 +17,9 @@ import enum
 import re
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
+import pandas as pd
 from pyarrow.parquet import ParquetFile
+from sqlalchemy import create_engine
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
@@ -362,6 +364,77 @@ class KinesisOptions:
         )
 
         return kinesis_options_proto
+
+        
+class SqlServerOptions:
+    """
+    DataSource SqlServer options used to source features from SqlServer query
+    """
+
+    def __init__(self, table_ref: Optional[str], query: Optional[str]):
+        self._table_ref = table_ref
+        self._query = query
+
+    @property
+    def query(self):
+        """
+        Returns the SqlServer SQL query referenced by this source
+        """
+        return self._query
+
+    @query.setter
+    def query(self, query):
+        """
+        Sets the SqlServer SQL query referenced by this source
+        """
+        self._query = query
+
+    @property
+    def table_ref(self):
+        """
+        Returns the table ref of this BQ table
+        """
+        return self._table_ref
+
+    @table_ref.setter
+    def table_ref(self, table_ref):
+        """
+        Sets the table ref of this BQ table
+        """
+        self._table_ref = table_ref
+
+    @classmethod
+    def from_proto(cls, sqlserver_options_proto: DataSourceProto.SqlServerOptions):
+        """
+        Creates a SqlServerOptions from a protobuf representation of a SqlServer option
+
+        Args:
+            sqlserver_options_proto: A protobuf representation of a DataSource
+
+        Returns:
+            Returns a SqlServerOptions object based on the sqlserver_options protobuf
+        """
+
+        sqlserver_options = cls(
+            table_ref=sqlserver_options_proto.table_ref,
+            query=sqlserver_options_proto.query,
+        )
+
+        return sqlserver_options
+
+    def to_proto(self) -> DataSourceProto.SqlServerOptions:
+        """
+        Converts an SqlServerOptionsProto object to its protobuf representation.
+
+        Returns:
+            SqlServerOptionsProto protobuf
+        """
+
+        sqlserver_options_proto = DataSourceProto.SqlServerOptions(
+            table_ref=self.table_ref, query=self.query,
+        )
+
+        return sqlserver_options_proto
 
 
 class DataSource:
@@ -908,6 +981,7 @@ class SqlServerSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
+        connection_str: Optional[str] = ""
     ):
         self._sqlserver_options = SqlServerOptions(table_ref=table_ref, query=query)
 
@@ -957,7 +1031,7 @@ class SqlServerSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=DataSourceProto.BATCH_MSSQL,
+            type=DataSourceProto.BATCH_SQLSERVER,
             field_mapping=self.field_mapping,
             sqlserver_options=self.sqlserver_options.to_proto(),
         )
@@ -980,31 +1054,26 @@ class SqlServerSource(DataSource):
         return type_map.bq_to_feast_value_type
 
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
-        import pymssql
-        # TODO: Credentials stored in config per existing provider/storage patterns.
-        conn = pymssql.connect(server='localhost', user='as', password='yourStrong(!)Password', database='master')
-
+        conn = create_engine(self._connection_str)
         name_type_pairs = []
         if self.table_ref is not None:
             project_id, dataset_id, table_id = self.table_ref.split(".")
-            bq_columns_query = f"""
+            columns_query = f"""
                 SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_NAME = '{table_id}'
             """
-            table_schema = (
-                pd.read_sql(bg_columns_query, conn)
+            table_schema = pd.read_sql(columns_query, conn)
+            name_type_pairs.extend(
+                list(zip(table_schema["COLUMN_NAME"].to_list(),
+                         table_schema["DATA_TYPE"].to_list()))
             )
-            for df in table_schema:
-                name_type_pairs.extend(
-                    list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
-                )
         else:
-            cursor = conn.cursor()
-            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
-            queryRes = cursor.execute(bq_columns_query).fetchone()
+            columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
+            with engine.connect() as connection:
+                query_result = connection.execute(columns_query).fetchone()
             name_type_pairs = [
                 (schema_field.name, schema_field.field_type)
-                for schema_field in queryRes.schema
+                for schema_field in query_result.schema
             ]
 
         return name_type_pairs
