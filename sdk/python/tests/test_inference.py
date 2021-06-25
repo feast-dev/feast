@@ -9,8 +9,8 @@ from feast import Entity, ValueType
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.inference import (
-    infer_entity_value_type_from_feature_views,
     update_data_sources_with_inferred_event_timestamp_col,
+    update_entities_with_inferred_types_from_feature_views,
 )
 
 
@@ -24,18 +24,19 @@ def test_infer_entity_value_type_from_feature_views(simple_dataset_1, simple_dat
         fv1 = FeatureView(name="fv1", entities=["id"], input=file_source, ttl=None,)
         fv2 = FeatureView(name="fv2", entities=["id"], input=file_source_2, ttl=None,)
 
-        actual_1 = infer_entity_value_type_from_feature_views(
-            [Entity(name="id")], [fv1]
-        )
-        actual_2 = infer_entity_value_type_from_feature_views(
-            [Entity(name="id")], [fv2]
-        )
+        actual_1 = Entity(name="id")
+        actual_2 = Entity(name="id")
+
+        update_entities_with_inferred_types_from_feature_views([actual_1], [fv1])
+        update_entities_with_inferred_types_from_feature_views([actual_2], [fv2])
         assert actual_1 == [Entity(name="id", value_type=ValueType.INT64)]
         assert actual_2 == [Entity(name="id", value_type=ValueType.STRING)]
 
         with pytest.raises(RegistryInferenceFailure):
             # two viable data types
-            infer_entity_value_type_from_feature_views([Entity(name="id")], [fv1, fv2])
+            update_entities_with_inferred_types_from_feature_views(
+                [Entity(name="id")], [fv1, fv2]
+            )
 
 
 @pytest.mark.integration

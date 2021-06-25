@@ -8,9 +8,9 @@ from feast.feature_view import FeatureView
 from feast.value_type import ValueType
 
 
-def infer_entity_value_type_from_feature_views(
+def update_entities_with_inferred_types_from_feature_views(
     entities: List[Entity], feature_views: List[FeatureView]
-) -> List[Entity]:
+) -> None:
     """
     Infer entity value type by examining schema of feature view input sources
     """
@@ -56,8 +56,6 @@ def infer_entity_value_type_from_feature_views(
                     )
 
                 entity.value_type = inferred_value_type
-
-    return entities
 
 
 def update_data_sources_with_inferred_event_timestamp_col(
