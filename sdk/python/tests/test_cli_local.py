@@ -19,7 +19,6 @@ from tests.online_read_write_test import basic_rw_test
     "registry_config",
     [
         "registry: {}/registry.pb",
-        "registry: {}/",
         """
         registry:
             path: {}/""",
@@ -197,9 +196,9 @@ def test_3rd_party_providers() -> None:
 
 
 @pytest.mark.integration
-def test_publish_registry_json() -> None:
+def test_export_registry_json() -> None:
     """
-    Test if publish_json stores an equivalent registry in json format as the original protobuf one
+    Test if export_json stores an equivalent registry in json format as the original protobuf one
     """
     runner = CliRunner()
 
@@ -215,8 +214,8 @@ def test_publish_registry_json() -> None:
                 f"""
         project: foo
         registry:
-            path: {data_path}/
-            publish_json: true
+            path: {data_path}
+            export_json: true
         provider: local
         offline_store:
             type: bigquery
@@ -238,7 +237,7 @@ def test_publish_registry_json() -> None:
         registry_proto.ParseFromString(registry_pb_path.read_bytes())
         registry_pb = MessageToDict(registry_proto)
 
-        registry_json_path = data_path / "registry.json"
+        registry_json_path = data_path / "registry_export.json"
         assert registry_json_path.is_file()
         with open(registry_json_path) as f:
             registry_json = json.load(f)

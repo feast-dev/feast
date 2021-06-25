@@ -41,7 +41,7 @@ def feature_store_with_local_registry():
     fd, online_store_path = mkstemp()
     return FeatureStore(
         config=RepoConfig(
-            registry=registry_path,
+            registry=f"{registry_path}.pb",
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
@@ -381,7 +381,7 @@ def test_apply_remote_repo():
     fd, online_store_path = mkstemp()
     return FeatureStore(
         config=RepoConfig(
-            registry=registry_path,
+            registry=f"{registry_path}.pb",
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),

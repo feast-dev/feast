@@ -53,7 +53,7 @@ class RegistryConfig(FeastBaseModel):
     path: StrictStr = "data/"
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
-    publish_json: StrictBool = False
+    export_json: StrictBool = False
 
     cache_ttl_seconds: StrictInt = 600
     """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
@@ -102,10 +102,6 @@ class RepoConfig(FeastBaseModel):
         if isinstance(self.registry, str):
             return RegistryConfig(path=self.registry)
         else:
-            if self.registry.path and self.registry.path[-1] != "/":
-                raise Exception(
-                    f"Path {self.registry.path} is not a valid directory path; please end with '/'."
-                )
             return self.registry
 
     @root_validator(pre=True)

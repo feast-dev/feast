@@ -126,7 +126,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
-        publish_json=registry_config.publish_json,
+        export_json=registry_config.export_json,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     registry._initialize_registry()
@@ -247,7 +247,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
-        publish_json=registry_config.publish_json,
+        export_json=registry_config.export_json,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     project = repo_config.project
@@ -271,7 +271,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
-        publish_json=registry_config.publish_json,
+        export_json=registry_config.export_json,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
 
