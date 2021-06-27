@@ -528,3 +528,27 @@ def bq_to_feast_value_type(bq_type_as_str):
     }
 
     return type_map[bq_type_as_str]
+
+
+def redshift_to_feast_value_type(redshift_type_as_str):
+    # Type names from https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
+        "INT": ValueType.INT32,
+        "INT4": ValueType.INT32,
+        "INT8": ValueType.INT64,
+        "FLOAT4": ValueType.FLOAT,
+        "FLOAT8": ValueType.DOUBLE,
+        "FLOAT": ValueType.DOUBLE,
+        "NUMERIC": ValueType.DOUBLE,
+        "BOOL": ValueType.BOOL,
+        "CHARACTER": ValueType.STRING,
+        "NCHAR": ValueType.STRING,
+        "BPCHAR": ValueType.STRING,
+        "CHARACTER VARYING": ValueType.STRING,
+        "NVARCHAR": ValueType.STRING,
+        "TEXT": ValueType.STRING,
+        "TIMESTAMP WITHOUT TIME ZONE": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP WITH TIME ZONE": ValueType.UNIX_TIMESTAMP,
+    }
+
+    return type_map[redshift_type_as_str.upper()]

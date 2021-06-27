@@ -20,7 +20,7 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
-from feast.data_source import BigQuerySource, DataSource, FileSource
+from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -33,6 +33,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
+from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
@@ -48,7 +49,7 @@ class FeatureView:
     tags: Optional[Dict[str, str]]
     ttl: Optional[timedelta]
     online: bool
-    input: Union[BigQuerySource, FileSource]
+    input: DataSource
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
@@ -60,7 +61,7 @@ class FeatureView:
         name: str,
         entities: List[str],
         ttl: Optional[Union[Duration, timedelta]],
-        input: Union[BigQuerySource, FileSource],
+        input: DataSource,
         features: List[Feature] = [],
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
@@ -220,14 +221,16 @@ class FeatureView:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
 
-    def infer_features_from_input_source(self):
+    def infer_features_from_input_source(self, config: RepoConfig):
         if not self.features:
             columns_to_exclude = {
                 self.input.event_timestamp_column,
                 self.input.created_timestamp_column,
             } | set(self.entities)
 
-            for col_name, col_datatype in self.input.get_table_column_names_and_types():
+            for col_name, col_datatype in self.input.get_table_column_names_and_types(
+                config
+            ):
                 if col_name not in columns_to_exclude and not re.match(
                     "^__|__$",
                     col_name,  # double underscores often signal an internal-use column

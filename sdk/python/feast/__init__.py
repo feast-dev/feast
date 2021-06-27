@@ -8,6 +8,7 @@ from .data_source import (
     FileSource,
     KafkaSource,
     KinesisSource,
+    RedshiftSource,
     SourceType,
 )
 from .entity import Entity
@@ -37,6 +38,7 @@ __all__ = [
     "FileSource",
     "KafkaSource",
     "KinesisSource",
+    "RedshiftSource",
     "Feature",
     "FeatureStore",
     "FeatureTable",
