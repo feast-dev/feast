@@ -67,10 +67,10 @@ class DynamoDBOnlineStore(OnlineStore):
 
         client = boto3.client("dynamodb")
 
-        for table_name in tables_to_keep:
+        for table_instance in tables_to_keep:
             try:
                 table = dynamodb.create_table(
-                    TableName=f"{config.project}.{table_name.name}",
+                    TableName=f"{config.project}.{table_instance.name}",
                     KeySchema=[{"AttributeName": "Row", "KeyType": "HASH"}],
                     AttributeDefinitions=[
                         {"AttributeName": "Row", "AttributeType": "S"}
@@ -80,15 +80,15 @@ class DynamoDBOnlineStore(OnlineStore):
             except ClientError as ce:
                 print(ce)
                 if ce.response["Error"]["Code"] == "ResourceNotFoundException":
-                    table = dynamodb.Table(f"{config.project}.{table_name.name}")
+                    table = dynamodb.Table(f"{config.project}.{table_instance.name}")
 
-        for table_name in tables_to_keep:
+        for table_instance in tables_to_keep:
             client.get_waiter("table_exists").wait(
-                TableName=f"{config.project}.{table_name.name}"
+                TableName=f"{config.project}.{table_instance.name}"
             )
 
-        for table_name in tables_to_delete:
-            table = dynamodb.Table(f"{config.project}.{table_name.name}")
+        for table_instance in tables_to_delete:
+            table = dynamodb.Table(f"{config.project}.{table_instance.name}")
             table.delete()
 
     def teardown(
@@ -101,8 +101,8 @@ class DynamoDBOnlineStore(OnlineStore):
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb = self._initialize_dynamodb(online_config)
 
-        for table_name in tables:
-            table = dynamodb.Table(f"{config.project}.{table_name.name}")
+        for table_instance in tables:
+            table = dynamodb.Table(f"{config.project}.{table_instance.name}")
             table.delete()
 
     def online_write_batch(
