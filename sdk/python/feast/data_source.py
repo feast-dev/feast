@@ -991,14 +991,14 @@ class RedshiftSource(DataSource):
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
     ):
-        self._redshift_options = RedshiftOptions(table=table, query=query)
-
         super().__init__(
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
         )
+
+        self._redshift_options = RedshiftOptions(table=table, query=query)
 
     def __eq__(self, other):
         if not isinstance(other, RedshiftSource):
