@@ -70,9 +70,9 @@ class DynamoDBOnlineStore(OnlineStore):
             try:
                 table = dynamodb.create_table(
                     TableName=f"{config.project}.{table_instance.name}",
-                    KeySchema=[{"AttributeName": "Row", "KeyType": "HASH"}],
+                    KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                     AttributeDefinitions=[
-                        {"AttributeName": "Row", "AttributeType": "S"}
+                        {"AttributeName": "entity_id", "AttributeType": "S"}
                     ],
                     BillingMode="PAY_PER_REQUEST",
                 )
@@ -120,10 +120,10 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb.Table(f"{config.project}.{table.name}")
         with table_instance.batch_writer() as batch:
             for entity_key, features, timestamp, created_ts in data:
-                document_id = compute_entity_id(entity_key)
+                entity_id = compute_entity_id(entity_key)
                 batch.put_item(
                     Item={
-                        "Row": document_id,  # PartitionKey
+                        "entity_id": entity_id,  # PartitionKey
                         "event_ts": str(utils.make_tzaware(timestamp)),
                         "values": {
                             k: v.SerializeToString()
@@ -147,9 +147,9 @@ class DynamoDBOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            table_instace = dynamodb.Table(f"{config.project}.{table.name}")
-            document_id = compute_entity_id(entity_key)  # TODO check id
-            response = table_instace.get_item(Key={"Row": document_id})
+            table_instance = dynamodb.Table(f"{config.project}.{table.name}")
+            entity_id = compute_entity_id(entity_key)  # TODO check id
+            response = table_instance.get_item(Key={"entity_id": entity_id})
             value = response.get("Item", None)
 
             if value is not None:
