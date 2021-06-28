@@ -4,8 +4,8 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 import pytz
-from pydantic.typing import Literal
 from pyarrow import fs
+from pydantic.typing import Literal
 
 from feast.data_source import DataSource, FileSource
 from feast.errors import FeastJoinKeysDuringMaterialization
@@ -278,7 +278,9 @@ class FileOfflineStore(OfflineStore):
     @staticmethod
     def __prepare_path(path: str, s3_endpoint_override: str):
         if path.startswith("s3://"):
-            s3 = fs.S3FileSystem(endpoint_override=s3_endpoint_override)
+            s3 = fs.S3FileSystem(
+                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
+            )
             return s3, path.replace("s3://", "")
         else:
             return None, path

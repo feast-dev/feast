@@ -61,7 +61,7 @@ message DataSource {
     // file:///path/to/file for local storage
     string file_url  = 2;
 
-    // override AWS S3 storage endpoint with local S3
+    // override AWS S3 storage endpoint with custom S3 endpoint
     string s3_endpoint_override  = 3;
   }
 

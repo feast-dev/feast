@@ -46,6 +46,11 @@ class SourceType(enum.Enum):
 class FileOptions:
     """
     DataSource File options used to source features from a file
+
+    args:
+        file_format (FileFormat, optional): file source format eg. parquet
+        file_url (str, optional): file source url eg. s3:// or local file
+        s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 file_url)
     """
 
     def __init__(
@@ -605,7 +610,7 @@ class FileSource(DataSource):
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             file_url: [Deprecated] Please see path
             file_format (optional): Explicitly set the file format. Allows Feast to bypass inferring the file format.
-            s3_endpoint_override (optional): Overrides AWS S3 enpoint with internal S3 storage
+            s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
 
