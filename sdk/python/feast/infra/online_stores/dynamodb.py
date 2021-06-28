@@ -48,8 +48,10 @@ class DynamoDBOnlineStore(OnlineStore):
     Online feature store for AWS DynamoDB.
     """
 
+    _client: Optional[Union[Redis, RedisCluster]] = None
+
     def _initialize_dynamodb(self, online_config: DynamoDBOnlineStoreConfig):
-        return boto3.resource("dynamodb", region_name=online_config.region)
+        return boto3.client("dynamodb", region_name=online_config.region), boto3.resource("dynamodb", region_name=online_config.region)
 
     def update(
         self,
@@ -62,9 +64,7 @@ class DynamoDBOnlineStore(OnlineStore):
     ):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb = self._initialize_dynamodb(online_config)
-
-        client = boto3.client("dynamodb")
+        client, dynamodb = self._initialize_dynamodb(online_config)
 
         for table_instance in tables_to_keep:
             try:
@@ -98,7 +98,7 @@ class DynamoDBOnlineStore(OnlineStore):
     ):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb = self._initialize_dynamodb(online_config)
+        _, dynamodb = self._initialize_dynamodb(online_config)
 
         for table_instance in tables:
             table = dynamodb.Table(f"{config.project}.{table_instance.name}")
@@ -115,7 +115,7 @@ class DynamoDBOnlineStore(OnlineStore):
     ) -> None:
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb = self._initialize_dynamodb(online_config)
+        _, dynamodb = self._initialize_dynamodb(online_config)
 
         table_instance = dynamodb.Table(f"{config.project}.{table.name}")
         with table_instance.batch_writer() as batch:
@@ -143,7 +143,7 @@ class DynamoDBOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb = self._initialize_dynamodb(online_config)
+        _, dynamodb = self._initialize_dynamodb(online_config)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
