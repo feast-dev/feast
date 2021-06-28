@@ -20,13 +20,7 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
-from feast.data_source import (
-    BigQuerySource,
-    DataSource,
-    FileSource,
-    KafkaSource,
-    KinesisSource,
-)
+from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -207,9 +201,11 @@ class FeatureView:
         """
 
         _input = DataSource.from_proto(feature_view_proto.spec.batch_source)
-        stream_source = DataSource.from_proto(feature_view_proto.spec.stream_source)\
-            if feature_view_proto.spec.HasField("stream_source") \
+        stream_source = (
+            DataSource.from_proto(feature_view_proto.spec.stream_source)
+            if feature_view_proto.spec.HasField("stream_source")
             else None
+        )
         feature_view = cls(
             name=feature_view_proto.spec.name,
             entities=[entity for entity in feature_view_proto.spec.entities],
