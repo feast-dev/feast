@@ -598,7 +598,7 @@ class FileSource(DataSource):
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
-        s3_endpoint_override: Optional[str] = "",
+        s3_endpoint_override: Optional[str] = None,
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 
