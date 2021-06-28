@@ -1,15 +1,16 @@
 import re
-from typing import List, Union
+from typing import List
 
 from feast import Entity
-from feast.data_source import BigQuerySource, FileSource
+from feast.data_source import BigQuerySource, DataSource, FileSource, RedshiftSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
 
 def update_entities_with_inferred_types_from_feature_views(
-    entities: List[Entity], feature_views: List[FeatureView]
+    entities: List[Entity], feature_views: List[FeatureView], config: RepoConfig
 ) -> None:
     """
     Infer entity value type by examining schema of feature view input sources
@@ -25,7 +26,7 @@ def update_entities_with_inferred_types_from_feature_views(
         if not (incomplete_entities_keys & set(view.entities)):
             continue  # skip if view doesn't contain any entities that need inference
 
-        col_names_and_types = view.input.get_table_column_names_and_types()
+        col_names_and_types = view.input.get_table_column_names_and_types(config)
         for entity_name in view.entities:
             if entity_name in incomplete_entities:
                 # get entity information from information extracted from the view input source
@@ -59,7 +60,7 @@ def update_entities_with_inferred_types_from_feature_views(
 
 
 def update_data_sources_with_inferred_event_timestamp_col(
-    data_sources: List[Union[BigQuerySource, FileSource]],
+    data_sources: List[DataSource], config: RepoConfig
 ) -> None:
     ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
 
@@ -74,6 +75,8 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 ts_column_type_regex_pattern = r"^timestamp"
             elif isinstance(data_source, BigQuerySource):
                 ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"
+            elif isinstance(data_source, RedshiftSource):
+                ts_column_type_regex_pattern = "TIMESTAMP[A-Z]*"
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
@@ -92,7 +95,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
             for (
                 col_name,
                 col_datatype,
-            ) in data_source.get_table_column_names_and_types():
+            ) in data_source.get_table_column_names_and_types(config):
                 if re.match(ts_column_type_regex_pattern, col_datatype):
                     if matched_flag:
                         raise RegistryInferenceFailure(

@@ -135,15 +135,15 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     # Make sure the data source used by this feature view is supported by Feast
     for data_source in data_sources:
-        data_source.validate()
+        data_source.validate(repo_config)
 
     # Make inferences
     update_entities_with_inferred_types_from_feature_views(
-        repo.entities, repo.feature_views
+        repo.entities, repo.feature_views, repo_config
     )
-    update_data_sources_with_inferred_event_timestamp_col(data_sources)
+    update_data_sources_with_inferred_event_timestamp_col(data_sources, repo_config)
     for view in repo.feature_views:
-        view.infer_features_from_input_source()
+        view.infer_features_from_input_source(repo_config)
 
     sys.dont_write_bytecode = False
     for entity in repo.entities:

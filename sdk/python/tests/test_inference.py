@@ -5,7 +5,7 @@ from utils.data_source_utils import (
     simple_bq_source_using_table_ref_arg,
 )
 
-from feast import Entity, ValueType
+from feast import Entity, RepoConfig, ValueType
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.inference import (
@@ -29,15 +29,21 @@ def test_update_entities_with_inferred_types_from_feature_views(
         actual_1 = Entity(name="id")
         actual_2 = Entity(name="id")
 
-        update_entities_with_inferred_types_from_feature_views([actual_1], [fv1])
-        update_entities_with_inferred_types_from_feature_views([actual_2], [fv2])
+        update_entities_with_inferred_types_from_feature_views(
+            [actual_1], [fv1], RepoConfig(provider="local", project="test")
+        )
+        update_entities_with_inferred_types_from_feature_views(
+            [actual_2], [fv2], RepoConfig(provider="local", project="test")
+        )
         assert actual_1 == Entity(name="id", value_type=ValueType.INT64)
         assert actual_2 == Entity(name="id", value_type=ValueType.STRING)
 
         with pytest.raises(RegistryInferenceFailure):
             # two viable data types
             update_entities_with_inferred_types_from_feature_views(
-                [Entity(name="id")], [fv1, fv2]
+                [Entity(name="id")],
+                [fv1, fv2],
+                RepoConfig(provider="local", project="test"),
             )
 
 
@@ -52,7 +58,9 @@ def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1)
             simple_bq_source_using_table_ref_arg(simple_dataset_1),
             simple_bq_source_using_query_arg(simple_dataset_1),
         ]
-        update_data_sources_with_inferred_event_timestamp_col(data_sources)
+        update_data_sources_with_inferred_event_timestamp_col(
+            data_sources, RepoConfig(provider="local", project="test")
+        )
         actual_event_timestamp_cols = [
             source.event_timestamp_column for source in data_sources
         ]
@@ -62,4 +70,6 @@ def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1)
     with prep_file_source(df=df_with_two_viable_timestamp_cols) as file_source:
         with pytest.raises(RegistryInferenceFailure):
             # two viable event_timestamp_columns
-            update_data_sources_with_inferred_event_timestamp_col([file_source])
+            update_data_sources_with_inferred_event_timestamp_col(
+                [file_source], RepoConfig(provider="local", project="test")
+            )
