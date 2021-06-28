@@ -58,9 +58,8 @@ def _mmh3(key: str):
 
 def compute_entity_id(entity_key: EntityKeyProto) -> str:
     """
-    Compute Datastore Entity id given Feast Entity Key.
-
-    Remember that Datastore Entity is a concept from the Datastore data model, that has nothing to
-    do with the Entity concept we have in Feast.
+    Compute Entity id given Feast Entity Key for online stores.
+    Remember that Entity here refers to `EntityKeyProto` which is used in some online stores to encode the keys.
+    It has nothing to do with the Entity concept we have in Feast.
     """
     return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
