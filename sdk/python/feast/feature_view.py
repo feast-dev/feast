@@ -228,7 +228,7 @@ class FeatureView:
             batch_source=_input,
             stream_source=(
                 feature_view_proto.spec.stream_source
-                if feature_view_proto.spec.stream_source is None
+                if feature_view_proto.spec.stream_source is not None
                 else None
             ),
         )

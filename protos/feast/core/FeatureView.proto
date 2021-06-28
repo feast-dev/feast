@@ -60,6 +60,7 @@ message FeatureViewSpec {
 
     // Batch/Offline DataSource where this view can retrieve offline feature data.
     DataSource batch_source = 7;
+    // Streaming DataSource from where this view can consume "online" feature data.
     DataSource stream_source = 9;
 
     // Whether these features should be served online or not

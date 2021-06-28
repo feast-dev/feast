@@ -869,6 +869,9 @@ class KinesisSource(DataSource):
         )
 
     def __eq__(self, other):
+        if other is None:
+            return False
+
         if not isinstance(other, KinesisSource):
             raise TypeError(
                 "Comparisons should only involve KinesisSource class objects."
