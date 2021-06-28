@@ -45,8 +45,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
 
 class DynamoDBOnlineStore(OnlineStore):
     """
-    OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    Online feature store for AWS DynamoDB.
     """
 
     def _initialize_dynamodb(self, online_config: DynamoDBOnlineStoreConfig):
