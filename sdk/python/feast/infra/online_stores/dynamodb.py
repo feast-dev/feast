@@ -150,7 +150,7 @@ class DynamoDBOnlineStore(OnlineStore):
             table_instance = dynamodb.Table(f"{config.project}.{table.name}")
             entity_id = compute_entity_id(entity_key)  # TODO check id
             response = table_instance.get_item(Key={"entity_id": entity_id})
-            value = response.get("Item", None)
+            value = response.get("Item")
 
             if value is not None:
                 res = {}
