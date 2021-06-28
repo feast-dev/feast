@@ -559,7 +559,6 @@ class S3RegistryStore(RegistryStore):
         self.s3_client = boto3.resource(
             "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
         )
-        return
 
     def get_registry_proto(self):
         file_obj = TemporaryFile()

@@ -48,10 +48,11 @@ class DynamoDBOnlineStore(OnlineStore):
     Online feature store for AWS DynamoDB.
     """
 
-    _client: Optional[Union[Redis, RedisCluster]] = None
-
     def _initialize_dynamodb(self, online_config: DynamoDBOnlineStoreConfig):
-        return boto3.client("dynamodb", region_name=online_config.region), boto3.resource("dynamodb", region_name=online_config.region)
+        return (
+            boto3.client("dynamodb", region_name=online_config.region),
+            boto3.resource("dynamodb", region_name=online_config.region),
+        )
 
     def update(
         self,
