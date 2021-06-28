@@ -15,11 +15,7 @@ from feast import errors
 from feast.data_source import BigQuerySource, DataSource
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.offline_store import (
-    OfflineJob,
-    OfflineStore,
-    RetrievalJob,
-)
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
@@ -63,7 +59,7 @@ class BigQueryOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> OfflineJob:
+    ) -> RetrievalJob:
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
 
@@ -78,6 +74,7 @@ class BigQueryOfflineStore(OfflineStore):
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
+        client = _get_bigquery_client(project=config.offline_store.project_id)
         query = f"""
             SELECT {field_string}
             FROM (
@@ -88,8 +85,7 @@ class BigQueryOfflineStore(OfflineStore):
             )
             WHERE _feast_row = 1
             """
-
-        return BigQueryOfflineJob(query=query, config=config)
+        return BigQueryRetrievalJob(query=query, client=client, config=config)
 
     @staticmethod
     def get_historical_features(
@@ -225,15 +221,6 @@ def _infer_event_timestamp_from_dataframe(entity_df: pandas.DataFrame) -> str:
             )
 
 
-class BigQueryOfflineJob(OfflineJob):
-    def __init__(self, query: str, config: RepoConfig):
-        self.query = query
-        self.client = _get_bigquery_client(project=config.offline_store.project_id)
-
-    def to_table(self) -> pyarrow.Table:
-        return self.client.query(self.query).to_arrow()
-
-
 class BigQueryRetrievalJob(RetrievalJob):
     def __init__(self, query, client, config):
         self.query = query
@@ -269,9 +256,6 @@ class BigQueryRetrievalJob(RetrievalJob):
         if not job_config:
             today = date.today().strftime("%Y%m%d")
             rand_id = str(uuid.uuid4())[:7]
-            dataset_project = (
-                self.config.offline_store.project_id or self.client.project
-            )
             path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
             job_config = bigquery.QueryJobConfig(destination=path)
 
@@ -290,6 +274,9 @@ class BigQueryRetrievalJob(RetrievalJob):
 
         print(f"Done writing to '{job_config.destination}'.")
         return str(job_config.destination)
+
+    def to_table(self) -> pyarrow.Table:
+        return self.client.query(self.query).to_arrow()
 
 
 @dataclass(frozen=True)

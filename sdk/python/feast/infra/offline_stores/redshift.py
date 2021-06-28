@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import List, Optional, Union
 
 import pandas as pd
-import pyarrow
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
@@ -38,6 +37,7 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
 class RedshiftOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -45,7 +45,7 @@ class RedshiftOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> RetrievalJob:
         pass
 
     @staticmethod

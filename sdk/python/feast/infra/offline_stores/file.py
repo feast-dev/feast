@@ -9,11 +9,7 @@ from pydantic.typing import Literal
 from feast.data_source import DataSource, FileSource
 from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.offline_store import (
-    OfflineJob,
-    OfflineStore,
-    RetrievalJob,
-)
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
@@ -30,19 +26,6 @@ class FileOfflineStoreConfig(FeastConfigBaseModel):
     """ Offline store type selector"""
 
 
-class FileOfflineJob(OfflineJob):
-    def __init__(self, evaluation_function: Callable):
-        """Initialize a lazy historical retrieval job"""
-
-        # The evaluation function executes a stored procedure to compute a historical retrieval.
-        self.evaluation_function = evaluation_function
-
-    def to_table(self):
-        # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
-        df = self.evaluation_function()
-        return pyarrow.Table.from_pandas(df)
-
-
 class FileRetrievalJob(RetrievalJob):
     def __init__(self, evaluation_function: Callable):
         """Initialize a lazy historical retrieval job"""
@@ -55,6 +38,11 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function()
         return df
 
+    def to_table(self):
+        # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
+        df = self.evaluation_function()
+        return pyarrow.Table.from_pandas(df)
+
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
@@ -65,7 +53,7 @@ class FileOfflineStore(OfflineStore):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
-    ) -> FileRetrievalJob:
+    ) -> RetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
@@ -230,7 +218,7 @@ class FileOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> FileOfflineJob:
+    ) -> RetrievalJob:
         assert isinstance(data_source, FileSource)
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -274,4 +262,4 @@ class FileOfflineStore(OfflineStore):
             )
             return last_values_df[columns_to_extract]
 
-        return FileOfflineJob(evaluation_function=evaluate_offline_job)
+        return FileRetrievalJob(evaluation_function=evaluate_offline_job)
