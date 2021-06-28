@@ -175,6 +175,8 @@ class FeatureView:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
 
+        print(f"Stream soruce: {self.stream_source}, {type(self.stream_source)}")
+
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -205,6 +207,9 @@ class FeatureView:
         """
 
         _input = DataSource.from_proto(feature_view_proto.spec.batch_source)
+        stream_source = DataSource.from_proto(feature_view_proto.spec.stream_source)\
+            if feature_view_proto.spec.HasField("stream_source") \
+            else None
         feature_view = cls(
             name=feature_view_proto.spec.name,
             entities=[entity for entity in feature_view_proto.spec.entities],
@@ -226,11 +231,7 @@ class FeatureView:
             ),
             input=_input,
             batch_source=_input,
-            stream_source=(
-                feature_view_proto.spec.stream_source
-                if feature_view_proto.spec.stream_source is not None
-                else None
-            ),
+            stream_source=stream_source,
         )
 
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
