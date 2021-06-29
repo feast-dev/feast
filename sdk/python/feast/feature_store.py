@@ -397,12 +397,13 @@ class FeatureStore:
             end_date = utils.make_tzaware(end_date)
 
             provider.materialize_single_feature_view(
-                feature_view,
-                start_date,
-                end_date,
-                self._registry,
-                self.project,
-                tqdm_builder,
+                config=self.config,
+                feature_view=feature_view,
+                start_date=start_date,
+                end_date=end_date,
+                registry=self._registry,
+                project=self.project,
+                tqdm_builder=tqdm_builder,
             )
 
             self._registry.apply_materialization(
@@ -475,12 +476,13 @@ class FeatureStore:
             end_date = utils.make_tzaware(end_date)
 
             provider.materialize_single_feature_view(
-                feature_view,
-                start_date,
-                end_date,
-                self._registry,
-                self.project,
-                tqdm_builder,
+                config=self.config,
+                feature_view=feature_view,
+                start_date=start_date,
+                end_date=end_date,
+                registry=self._registry,
+                project=self.project,
+                tqdm_builder=tqdm_builder,
             )
 
             self._registry.apply_materialization(

@@ -508,6 +508,11 @@ def test_historical_features_from_bigquery_sources(
             check_dtype=False,
         )
 
+        table_from_sql_entities = job_from_sql.to_table()
+        assert_frame_equal(
+            actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
+        )
+
         timestamp_column = (
             "e_ts"
             if infer_event_timestamp_col
@@ -588,6 +593,11 @@ def test_historical_features_from_bigquery_sources(
             .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
             .reset_index(drop=True),
             check_dtype=False,
+        )
+
+        table_from_df_entities = job_from_df.to_table()
+        assert_frame_equal(
+            actual_df_from_df_entities, table_from_df_entities.to_pandas()
         )
 
 
