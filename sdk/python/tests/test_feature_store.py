@@ -24,6 +24,8 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.repo_config import RepoConfig
@@ -86,6 +88,8 @@ def feature_store_with_s3_registry():
             registry=f"s3://{bucket_name}/registries/{int(time.time() * 1000)}/registry.db",
             project="default",
             provider="aws",
+            online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+            offline_store=FileOfflineStoreConfig(),
         )
     )
 

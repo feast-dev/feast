@@ -17,6 +17,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
@@ -210,7 +211,8 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                 registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
                 provider="aws",
-                online_store=DynamoDBOnlineStoreConfig(type="dynamodb",),
+                online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+                offline_store=FileOfflineStoreConfig(),
             )
             fs = FeatureStore(config=config)
             fs.apply([fv, e])
