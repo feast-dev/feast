@@ -280,11 +280,11 @@ def block_until_done(client, bq_job):
         return client.get_job(job_id).state in ["PENDING", "RUNNING"]
 
     @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
-    def _wait_till_done(job_id):
+    def _wait_until_done(job_id):
         return _is_done(job_id)
 
     job_id = bq_job.job_id
-    _wait_till_done(job_id=job_id)
+    _wait_until_done(job_id=job_id)
 
     if not _is_done(job_id):
         client.cancel_job(job_id)
