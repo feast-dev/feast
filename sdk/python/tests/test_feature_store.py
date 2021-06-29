@@ -77,7 +77,7 @@ def feature_store_with_s3_registry():
     import boto3
 
     s3 = boto3.resource("s3")
-    bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
+    bucket_name = "feast-integration-tests"
     bucket = s3.Bucket(bucket_name)
     s3.meta.client.head_bucket(Bucket=bucket.name)
 
