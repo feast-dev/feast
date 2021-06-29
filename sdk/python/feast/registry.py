@@ -588,14 +588,9 @@ class S3RegistryStore(RegistryStore):
             registry_proto.ParseFromString(file_obj.read())
             return registry_proto
         except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                raise FileNotFoundError(
-                    f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
-                )
-            else:
-                raise FileNotFoundError(
-                    f'Registry is not able to locate data under path "{self._uri.geturl()}" with [original error]: {e.response}'
-                )
+            raise FileNotFoundError(
+                f'Error while trying to locate Registry at path "{self._uri.geturl()}"with [original error]: {e.response}'
+            )
 
     def update_registry_proto(
         self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
