@@ -83,7 +83,7 @@ def feature_store_with_s3_registry():
 
     return FeatureStore(
         config=RepoConfig(
-            registry=f"s3://{bucket_name}/registry.db",
+            registry=f"s3://{bucket_name}/registries/{int(time.time() * 1000)}/registry.db",
             project="default",
             provider="aws",
         )
