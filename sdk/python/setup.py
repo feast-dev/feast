@@ -105,7 +105,7 @@ CI_REQUIRED = [
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
     "kinesis-python==0.2.1",
-    "ray==1.4.0"
+    "ray<2"
 ]
 
 # README file from Feast repo root directory
