@@ -30,10 +30,6 @@ def test_basic() -> None:
             project: {project_id}
             registry: {data_path / "registry.db"}
             provider: aws
-            offline_store:
-                type: file
-            online_store:
-                type: dynamodb
             """
             )
         )
