@@ -126,6 +126,11 @@ class RegistryInferenceFailure(Exception):
         )
 
 
+class BigQueryJobCancelled(Exception):
+    def __init__(self, job_id):
+        super().__init__(f"The following job '{job_id}' got cancelled")
+
+
 class RedshiftCredentialsError(Exception):
     def __init__(self):
         super().__init__("Redshift API failed due to incorrect credentials")
