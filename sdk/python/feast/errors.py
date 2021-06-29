@@ -134,3 +134,13 @@ class RegistryInferenceFailure(Exception):
             f"Inference to fill in missing information for {repo_obj_type} failed. {specific_issue}. "
             "Try filling the information explicitly."
         )
+
+
+class RedshiftCredentialsError(Exception):
+    def __init__(self):
+        super().__init__("Redshift API failed due to incorrect credentials")
+
+
+class RedshiftQueryError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Redshift SQL Query failed to finish. Details: {details}")

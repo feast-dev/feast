@@ -14,8 +14,8 @@ from click.exceptions import BadParameter
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.inference import (
-    infer_entity_value_type_from_feature_views,
     update_data_sources_with_inferred_event_timestamp_col,
+    update_entities_with_inferred_types_from_feature_views,
 )
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
@@ -131,13 +131,19 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
-    repo = ParsedRepo(
-        feature_tables=repo.feature_tables,
-        entities=infer_entity_value_type_from_feature_views(
-            repo.entities, repo.feature_views
-        ),
-        feature_views=repo.feature_views,
+    data_sources = [t.input for t in repo.feature_views]
+
+    # Make sure the data source used by this feature view is supported by Feast
+    for data_source in data_sources:
+        data_source.validate(repo_config)
+
+    # Make inferences
+    update_entities_with_inferred_types_from_feature_views(
+        repo.entities, repo.feature_views, repo_config
     )
+    update_data_sources_with_inferred_event_timestamp_col(data_sources, repo_config)
+    for view in repo.feature_views:
+        view.infer_features_from_input_source(repo_config)
 
     sys.dont_write_bytecode = False
     for entity in repo.entities:
@@ -150,16 +156,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     for t in repo.feature_views:
         repo_table_names.add(t.name)
-
-    data_sources = [t.input for t in repo.feature_views]
-
-    # Make sure the data source used by this feature view is supported by Feast
-    for data_source in data_sources:
-        data_source.validate()
-
-    update_data_sources_with_inferred_event_timestamp_col(data_sources)
-    for view in repo.feature_views:
-        view.infer_features_from_input_source()
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):

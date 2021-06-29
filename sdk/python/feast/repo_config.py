@@ -22,6 +22,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
 OFFLINE_STORE_CLASS_FOR_TYPE = {
     "file": "feast.infra.offline_stores.file.FileOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
+    "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
 }
 
 
@@ -158,7 +159,7 @@ class RepoConfig(FeastBaseModel):
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
-                values["offline_store"]["type"] = "file"
+                values["offline_store"]["type"] = "redshift"
 
         offline_store_type = values["offline_store"]["type"]
 

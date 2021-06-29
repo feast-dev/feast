@@ -438,29 +438,13 @@ def test_historical_features_from_bigquery_sources(
             ],
         )
 
-        # Just a dry run, should not create table
-        bq_dry_run = job_from_sql.to_bigquery(dry_run=True)
-        assert bq_dry_run is None
-
-        bq_temp_table_path = job_from_sql.to_bigquery()
-        assert bq_temp_table_path.split(".")[0] == gcp_project
-
-        if provider_type == "gcp_custom_offline_config":
-            assert bq_temp_table_path.split(".")[1] == "foo"
-        else:
-            assert bq_temp_table_path.split(".")[1] == bigquery_dataset
-
-        # Check that this table actually exists
-        actual_bq_temp_table = bigquery.Client().get_table(bq_temp_table_path)
-        assert actual_bq_temp_table.table_id == bq_temp_table_path.split(".")[-1]
-
         start_time = datetime.utcnow()
         actual_df_from_sql_entities = job_from_sql.to_df()
         end_time = datetime.utcnow()
         with capsys.disabled():
             print(
                 str(
-                    f"\nTime to execute job_from_df.to_df() = '{(end_time - start_time)}'"
+                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
                 )
             )
 

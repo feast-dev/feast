@@ -33,6 +33,7 @@ message DataSource {
     BATCH_BIGQUERY = 2;
     STREAM_KAFKA = 3;
     STREAM_KINESIS = 4;
+    BATCH_REDSHIFT = 5;
   }
   SourceType type = 1;
 
@@ -100,11 +101,22 @@ message DataSource {
     StreamFormat record_format = 3;
   }
 
+  // Defines options for DataSource that sources features from a Redshift Query
+  message RedshiftOptions {
+    // Redshift table name
+    string table = 1;
+
+    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
+    // entity columns
+    string query = 2;
+  }
+
   // DataSource options.
   oneof options {
     FileOptions file_options = 11;
     BigQueryOptions bigquery_options = 12;
     KafkaOptions kafka_options = 13;
     KinesisOptions kinesis_options = 14;
+    RedshiftOptions redshift_options = 15;
   }
 }
