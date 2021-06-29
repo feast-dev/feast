@@ -228,7 +228,6 @@ class FileOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         assert isinstance(data_source, FileSource)
 
-<<<<<<< HEAD
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
             filesystem, path = FileOfflineStore.__prepare_path(
