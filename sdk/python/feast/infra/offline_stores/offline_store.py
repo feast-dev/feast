@@ -33,7 +33,7 @@ class RetrievalJob(ABC):
         pass
 
     @abstractmethod
-    def to_table(self) -> pyarrow.Table:
+    def to_arrow(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
         pass
 
