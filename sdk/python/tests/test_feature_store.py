@@ -119,7 +119,11 @@ def test_apply_entity_success(test_feature_store):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+    "test_feature_store",
+    [
+        lazy_fixture("feature_store_with_gcs_registry"),
+        lazy_fixture("feature_store_with_s3_registry"),
+    ],
 )
 def test_apply_entity_integration(test_feature_store):
     entity = Entity(
@@ -268,7 +272,11 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+    "test_feature_store",
+    [
+        lazy_fixture("feature_store_with_gcs_registry"),
+        lazy_fixture("feature_store_with_s3_registry"),
+    ],
 )
 def test_apply_feature_view_integration(test_feature_store):
     # Create Feature Views
