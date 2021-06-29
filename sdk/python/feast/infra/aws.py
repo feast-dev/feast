@@ -78,6 +78,7 @@ class AwsProvider(Provider):
 
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
@@ -96,7 +97,8 @@ class AwsProvider(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        table = self.offline_store.pull_latest_from_table_or_query(
+        offline_job = self.offline_store.pull_latest_from_table_or_query(
+            config=config,
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -105,6 +107,8 @@ class AwsProvider(Provider):
             start_date=start_date,
             end_date=end_date,
         )
+
+        table = offline_job.to_table()
 
         if feature_view.input.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.input.field_mapping)
