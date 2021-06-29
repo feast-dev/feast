@@ -275,7 +275,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         print(f"Done writing to '{job_config.destination}'.")
         return str(job_config.destination)
 
-    def to_table(self) -> pyarrow.Table:
+    def to_arrow(self) -> pyarrow.Table:
         return self.client.query(self.query).to_arrow()
 
 

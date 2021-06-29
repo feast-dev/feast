@@ -38,7 +38,7 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function()
         return df
 
-    def to_table(self):
+    def to_arrow(self):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return pyarrow.Table.from_pandas(df)
