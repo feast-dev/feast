@@ -13,7 +13,7 @@ from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import BigQuerySource, DataSource
-from feast.errors import FeastProviderLoginError
+from feast.errors import BigQueryJobCancelled, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
@@ -251,10 +251,6 @@ class BigQueryRetrievalJob(RetrievalJob):
             Returns the destination table name or returns None if job_config.dry_run is True.
         """
 
-        @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
-        def _block_until_done():
-            return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
-
         if not job_config:
             today = date.today().strftime("%Y%m%d")
             rand_id = str(uuid.uuid4())[:7]
@@ -263,7 +259,7 @@ class BigQueryRetrievalJob(RetrievalJob):
 
         bq_job = self.client.query(self.query, job_config=job_config)
 
-        _block_until_done()
+        block_until_done(client=self.client, bq_job=bq_job)
 
         if bq_job.exception():
             raise bq_job.exception()
@@ -279,6 +275,25 @@ class BigQueryRetrievalJob(RetrievalJob):
 
     def to_arrow(self) -> pyarrow.Table:
         return self.client.query(self.query).to_arrow()
+
+
+def block_until_done(client, bq_job):
+    def _is_done(job_id):
+        return client.get_job(job_id).state in ["PENDING", "RUNNING"]
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
+    def _wait_until_done(job_id):
+        return _is_done(job_id)
+
+    job_id = bq_job.job_id
+    _wait_until_done(job_id=job_id)
+
+    if not _is_done(job_id):
+        client.cancel_job(job_id)
+        raise BigQueryJobCancelled(job_id=job_id)
+
+    if bq_job.exception():
+        raise bq_job.exception()
 
 
 @dataclass(frozen=True)
