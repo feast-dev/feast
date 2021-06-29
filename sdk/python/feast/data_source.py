@@ -47,10 +47,6 @@ class FileOptions:
     """
     DataSource File options used to source features from a file
 
-    args:
-        file_format (FileFormat, optional): file source format eg. parquet
-        file_url (str, optional): file source url eg. s3:// or local file
-        s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 file_url)
     """
 
     def __init__(
@@ -59,6 +55,14 @@ class FileOptions:
         file_url: Optional[str],
         s3_endpoint_override: Optional[str],
     ):
+        """
+        FileOptions initialization method
+
+        args:
+            file_format (FileFormat, optional): file source format eg. parquet
+            file_url (str, optional): file source url eg. s3:// or local file
+            s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 file_url)
+        """
         self._file_format = file_format
         self._file_url = file_url
         self._s3_endpoint_override = s3_endpoint_override
