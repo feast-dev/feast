@@ -97,6 +97,7 @@ class Provider(abc.ABC):
     @abc.abstractmethod
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
