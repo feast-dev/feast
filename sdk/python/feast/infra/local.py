@@ -1,11 +1,12 @@
 from datetime import datetime
+from time import sleep
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 import pytz
 from tqdm import tqdm
 
-from feast import FeatureTable
+from feast import FeatureTable, KinesisSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.helpers import get_offline_store_from_config
@@ -48,6 +49,52 @@ class LocalProvider(Provider):
             partial,
         )
 
+        streaming_tables_to_keep = [
+            _table
+            for _table in tables_to_keep
+            if isinstance(_table, FeatureView) and _table.stream_source is not None
+        ]
+
+        streaming_tables_to_delete = [
+            _table
+            for _table in tables_to_delete
+            if isinstance(_table, FeatureView) and _table.stream_source is not None
+        ]
+
+        if streaming_tables_to_keep or streaming_tables_to_delete:
+            import boto3
+            import ray
+
+            from feast.infra.consumers.kinesis import KinesisRayConsumer
+
+            ray.init(namespace="feast", address="auto", ignore_reinit_error=True)
+            s = boto3.session.Session()
+
+            consumers = []
+            for table_to_keep in streaming_tables_to_keep:
+                if isinstance(table_to_keep.stream_source, KinesisSource):
+                    print(f"Creating actor for {table_to_keep.name}")
+                    try:
+                        ray.get_actor(table_to_keep.name)
+                        print(f"Actor for {table_to_keep.name} exists. Continuing...")
+                        continue
+                    except ValueError:
+                        # Actor doesn't exist, so create it.
+                        pass
+
+                    k = KinesisRayConsumer.options(  # type: ignore
+                        name=table_to_keep.name, lifetime="detached"
+                    ).remote(s, table_to_keep.stream_source.kinesis_options)
+                    consumers.append(k.consume.remote())
+
+            # Ensure that actors get created by sleeping for a couple of seconds.
+            sleep(2)
+
+            for table_to_delete in streaming_tables_to_delete:
+                if isinstance(table_to_delete.stream_source, KinesisSource):
+                    print(f"Killing actor for {table_to_delete.name}")
+                    ray.kill(ray.get_actor(table_to_delete.name))
+
     def teardown_infra(
         self,
         project: str,
@@ -55,6 +102,25 @@ class LocalProvider(Provider):
         entities: Sequence[Entity],
     ) -> None:
         self.online_store.teardown(self.config, tables, entities)
+        streaming_tables_to_delete = [
+            _table
+            for _table in tables
+            if isinstance(_table, FeatureView) and _table.stream_source is not None
+        ]
+
+        if streaming_tables_to_delete:
+            import ray
+
+            ray.init(namespace="feast", address="auto", ignore_reinit_error=True)
+
+            for table in streaming_tables_to_delete:
+                print(f"Terminating Actor for {table.name}")
+                try:
+                    a = ray.get_actor(table.name)
+                    ray.kill(a)
+                except ValueError:
+                    # The Actor doesn't exist so we continue.
+                    pass
 
     def online_write_batch(
         self,
