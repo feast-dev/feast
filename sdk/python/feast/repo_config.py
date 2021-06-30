@@ -83,10 +83,15 @@ class RepoConfig(FeastBaseModel):
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
             )
+        elif isinstance(self.online_store, str):
+            self.online_store = get_online_config_from_type(self.online_store)()
+
         if isinstance(self.offline_store, Dict):
             self.offline_store = get_offline_config_from_type(
                 self.offline_store["type"]
             )(**self.offline_store)
+        elif isinstance(self.offline_store, str):
+            self.offline_store = get_offline_config_from_type(self.offline_store)()
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
