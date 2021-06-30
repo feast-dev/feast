@@ -1,0 +1,54 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option java_outer_classname = "FeatureServiceProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/timestamp.proto";
+
+
+message FeatureService {
+  // User-specified specifications of this feature service.
+  FeatureServiceSpec spec = 1;
+
+  // System-populated metadata for this feature service.
+  FeatureServiceMeta meta = 2;
+}
+
+message FeatureServiceSpec {
+  // Name of the Feature Service. Must be unique. Not updated.
+  string name = 1;
+
+  // Name of Feast project that this Feature Service belongs to.
+  string project = 2;
+
+  // List names of entities to associate with the Features defined in this
+  // Feature Service. Not updatable.
+  repeated string entities = 3;
+
+  // List of features that this feature service encapsulates.
+  // Stored as a list of references to other features views and the features from those views.
+  repeated FeatureRef features = 4;
+
+  // User defined metadata
+  map<string,string> tags = 5;
+}
+
+// A reference to features in a feature view
+message FeatureRef {
+  // The feature view name
+  string feature_view_name = 1;
+
+  // The features of the feature view that are a part of the feature reference.
+  repeated string feature_columns = 2;
+}
+
+message FeatureServiceMeta {
+  // Time where this Feature Service is created
+  google.protobuf.Timestamp created_timestamp = 1;
+
+  // Time where this Feature Service is last updated
+  google.protobuf.Timestamp last_updated_timestamp = 2;
+
+}
