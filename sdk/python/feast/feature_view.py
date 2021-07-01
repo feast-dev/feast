@@ -182,7 +182,7 @@ class FeatureView:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
 
-        print(f"Stream soruce: {self.stream_source}, {type(self.stream_source)}")
+        print(f"Stream source: {self.stream_source}, {type(self.stream_source)}")
 
         spec = FeatureViewSpecProto(
             name=self.name,
