@@ -65,14 +65,16 @@ class FeatureView:
         input: DataSource,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
-        features: List[Feature] = [],
+        features: List[Feature] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
         _input = input or batch_source
         assert _input is not None
 
-        cols = [entity for entity in entities] + [feat.name for feat in features]
+        _features = features or []
+
+        cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
             if _input.field_mapping is not None and col in _input.field_mapping.keys():
                 raise ValueError(
@@ -83,7 +85,7 @@ class FeatureView:
 
         self.name = name
         self.entities = entities
-        self.features = features
+        self.features = _features
         self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
