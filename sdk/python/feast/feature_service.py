@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Union
 
-from feast import Feature
 from feast.feature_reference import FeatureReference
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
