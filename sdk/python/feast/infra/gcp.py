@@ -110,7 +110,7 @@ class GcpProvider(Provider):
             start_date=start_date,
             end_date=end_date,
         )
-        table = offline_job.to_table()
+        table = offline_job.to_arrow()
 
         if feature_view.input.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.input.field_mapping)
