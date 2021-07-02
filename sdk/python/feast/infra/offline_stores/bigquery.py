@@ -380,7 +380,7 @@ def get_feature_view_query_context(
     """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
 
     feature_views_to_feature_map = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views, full_feature_names
+        feature_refs, feature_views
     )
 
     query_context = []

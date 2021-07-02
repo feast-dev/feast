@@ -163,7 +163,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 
 def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str], feature_views: List[FeatureView], full_feature_names: bool
+    feature_refs: List[str], feature_views: List[FeatureView]
 ) -> Dict[FeatureView, List[str]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
     Set full_feature_names to True to get feature names prefixed by its featureview."""

@@ -1,4 +1,4 @@
-from typing import Set
+from typing import List, Set
 
 from colorama import Fore, Style
 
@@ -79,9 +79,11 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
 
 
 class FeatureNameCollisionError(Exception):
-    def __init__(self, feature_name_collisions: str):
+    def __init__(self, feature_refs_collisions: List[str]):
+        feature_name_collisions = [ref.split(":")[1] for ref in feature_refs_collisions]
+        feature_names = ", ".join(x for x in feature_name_collisions)
         super().__init__(
-            f"The following feature name(s) have collisions: {feature_name_collisions}. Set 'full_feature_names' "
+            f"The following feature name(s) have collisions: {feature_names}. Set 'full_feature_names' "
             f"argument in the data retrieval function to True to use the full feature name which is prefixed by the feature view name."
         )
 

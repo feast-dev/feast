@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-import sys
-from collections import OrderedDict, defaultdict
+from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -24,11 +23,7 @@ from tqdm import tqdm
 
 from feast import utils
 from feast.entity import Entity
-from feast.errors import (
-    FeastProviderLoginError,
-    FeatureNameCollisionError,
-    FeatureViewNotFoundException,
-)
+from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -300,32 +295,28 @@ class FeatureStore:
             >>> retrieval_job = fs.get_historical_features(
             >>>     entity_df="SELECT event_timestamp, order_id, customer_id from gcp_project.my_ds.customer_orders",
             >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"],
-            >>>     full_feature_names=True
             >>>     )
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
         all_feature_views = self._registry.list_feature_views(project=self.project)
-        try:
-            feature_views = _get_requested_feature_views(
-                feature_refs, all_feature_views, full_feature_names
-            )
-        except (FeatureNameCollisionError, FeatureViewNotFoundException) as e:
-            sys.exit(e)
+
+        _validate_feature_refs(feature_refs, full_feature_names)
+        feature_views = list(
+            view for view, _ in _group_feature_refs(feature_refs, all_feature_views)
+        )
 
         provider = self._get_provider()
-        try:
-            job = provider.get_historical_features(
-                self.config,
-                feature_views,
-                feature_refs,
-                entity_df,
-                self._registry,
-                self.project,
-                full_feature_names,
-            )
-        except FeastProviderLoginError as e:
-            sys.exit(e)
+
+        job = provider.get_historical_features(
+            self.config,
+            feature_views,
+            feature_refs,
+            entity_df,
+            self._registry,
+            self.project,
+            full_feature_names,
+        )
 
         return job
 
@@ -562,9 +553,7 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        grouped_refs = _validate_and_group_feature_refs(
-            feature_refs, all_feature_views, full_feature_names
-        )
+        grouped_refs = _group_feature_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -623,10 +612,18 @@ def _entity_row_to_field_values(
     return result
 
 
-def _validate_and_group_feature_refs(
-    feature_refs: List[str],
-    all_feature_views: List[FeatureView],
-    full_feature_names: bool = False,
+def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
+    feature_names = [ref.split(":")[1] for ref in feature_refs]
+    feature_name, count = Counter(feature_names).most_common(1)[0]
+    if count > 1:
+        collided_feature_refs = [
+            ref for ref in feature_refs if ref.endswith(":" + feature_name)
+        ]
+        raise FeatureNameCollisionError(collided_feature_refs)
+
+
+def _group_feature_refs(
+    feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -636,42 +633,17 @@ def _validate_and_group_feature_refs(
     # view name to feature names
     views_features = defaultdict(list)
 
-    feature_set = set()
-    feature_collision_set = set()
-
     for ref in feature_refs:
         view_name, feat_name = ref.split(":")
-        if feat_name in feature_set:
-            feature_collision_set.add(feat_name)
-        else:
-            feature_set.add(feat_name)
+
         if view_name not in view_index:
             raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
-
-    if not full_feature_names and len(feature_collision_set) > 0:
-        err = ", ".join(x for x in feature_collision_set)
-        raise FeatureNameCollisionError(err)
 
     result = []
     for view_name, feature_names in views_features.items():
         result.append((view_index[view_name], feature_names))
     return result
-
-
-def _get_requested_feature_views(
-    feature_refs: List[str],
-    all_feature_views: List[FeatureView],
-    full_feature_names: bool,
-) -> List[FeatureView]:
-    """Get list of feature views based on feature references"""
-    # TODO: Get rid of this function. We only need _validate_and_group_feature_refs
-    return list(
-        view
-        for view, _ in _validate_and_group_feature_refs(
-            feature_refs, all_feature_views, full_feature_names
-        )
-    )
 
 
 def _get_table_entity_keys(

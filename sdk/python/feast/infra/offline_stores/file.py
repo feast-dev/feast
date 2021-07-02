@@ -74,7 +74,7 @@ class FileOfflineStore(OfflineStore):
                     f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
         feature_views_to_features = _get_requested_feature_views_to_features_dict(
-            feature_refs, feature_views, full_feature_names
+            feature_refs, feature_views
         )
 
         # Create lazy function that is only called from the RetrievalJob object

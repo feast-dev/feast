@@ -19,7 +19,7 @@ from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
-from feast.feature_store import FeatureStore, _validate_and_group_feature_refs
+from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -172,28 +172,21 @@ def get_expected_training_df(
             filter_key="customer_id",
             filter_value=order_record["customer_id"],
         )
+
         order_record.update(
             {
-                f"driver_stats__{k}": driver_record.get(k, None)
+                (f"driver_stats__{k}" if full_feature_names else k): driver_record.get(
+                    k, None
+                )
                 for k in ("conv_rate", "avg_daily_trips")
             }
-            if full_feature_names
-            else {
-                k: driver_record.get(k, None) for k in ("conv_rate", "avg_daily_trips")
-            }
         )
+
         order_record.update(
             {
-                f"customer_profile__{k}": customer_record.get(k, None)
-                for k in (
-                    "current_balance",
-                    "avg_passenger_count",
-                    "lifetime_trip_count",
-                )
-            }
-            if full_feature_names
-            else {
-                k: customer_record.get(k, None)
+                (
+                    f"customer_profile__{k}" if full_feature_names else k
+                ): customer_record.get(k, None)
                 for k in (
                     "current_balance",
                     "avg_passenger_count",
@@ -594,6 +587,7 @@ def test_historical_features_from_bigquery_sources(
             .reset_index(drop=True),
             check_dtype=False,
         )
+
         table_from_df_entities = job_from_df.to_arrow()
         assert_frame_equal(
             actual_df_from_df_entities, table_from_df_entities.to_pandas()
@@ -601,24 +595,11 @@ def test_historical_features_from_bigquery_sources(
 
 
 @pytest.mark.integration
-def test_feature_name_collision_on_historical_retrieval_from_parquet_sources():
+def test_feature_name_collision_on_historical_retrieval():
 
-    driver_source = FileSource(
-        path="driver_stats_path",
-        event_timestamp_column="datetime",
-        created_timestamp_column="created",
-    )
-    driver_fv = create_driver_hourly_stats_feature_view(driver_source)
-    customer_source = FileSource(
-        path="customer_profile_path",
-        event_timestamp_column="datetime",
-        created_timestamp_column="created",
-    )
-    customer_fv = create_customer_daily_profile_feature_view(customer_source)
-
-    # _validate_and_group_feature_refs is the function that checks for colliding feature names
+    # _validate_feature_refs is the function that checks for colliding feature names
     with pytest.raises(FeatureNameCollisionError):
-        _validate_and_group_feature_refs(
+        _validate_feature_refs(
             feature_refs=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
@@ -627,45 +608,5 @@ def test_feature_name_collision_on_historical_retrieval_from_parquet_sources():
                 "customer_profile:lifetime_trip_count",
                 "customer_profile:avg_daily_trips",
             ],
-            all_feature_views=[driver_fv, customer_fv],
-            full_feature_names=False,
-        )
-
-
-def test_feature_name_collision_on_historical_retrieval_from_bigquery_sources():
-    bigquery_dataset = (
-        f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(1000, 9999)}"
-    )
-    gcp_project = "project_name"
-
-    # Driver Feature View
-    driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
-    driver_source = BigQuerySource(
-        table_ref=driver_table_id,
-        event_timestamp_column="datetime",
-        created_timestamp_column="created",
-    )
-    driver_fv = create_driver_hourly_stats_feature_view(driver_source)
-
-    customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
-    customer_source = BigQuerySource(
-        table_ref=customer_table_id,
-        event_timestamp_column="datetime",
-        created_timestamp_column="",
-    )
-    customer_fv = create_customer_daily_profile_feature_view(customer_source)
-
-    # _validate_and_group_feature_refs is the function that checks for colliding feature names
-    with pytest.raises(FeatureNameCollisionError):
-        _validate_and_group_feature_refs(
-            feature_refs=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-                "customer_profile:avg_daily_trips",
-            ],
-            all_feature_views=[driver_fv, customer_fv],
             full_feature_names=False,
         )
