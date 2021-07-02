@@ -17,15 +17,10 @@ import enum
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from pyarrow.parquet import ParquetFile
-from tenacity import retry, retry_unless_exception_type, wait_exponential
 
 from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
-from feast.errors import (
-    DataSourceNotFoundException,
-    RedshiftCredentialsError,
-    RedshiftQueryError,
-)
+from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
@@ -1062,7 +1057,7 @@ class RedshiftSource(DataSource):
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
-            return f"`{self.table}`"
+            return f'"{self.table}"'
         else:
             return f"({self.query})"
 
@@ -1073,62 +1068,43 @@ class RedshiftSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        import boto3
-        from botocore.config import Config
         from botocore.exceptions import ClientError
 
         from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
+        from feast.infra.utils import aws_utils
 
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
 
-        client = boto3.client(
-            "redshift-data", config=Config(region_name=config.offline_store.region)
-        )
+        client = aws_utils.get_redshift_data_client(config.offline_store.region)
 
-        try:
-            if self.table is not None:
+        if self.table is not None:
+            try:
                 table = client.describe_table(
                     ClusterIdentifier=config.offline_store.cluster_id,
                     Database=config.offline_store.database,
                     DbUser=config.offline_store.user,
                     Table=self.table,
                 )
-                # The API returns valid JSON with empty column list when the table doesn't exist
-                if len(table["ColumnList"]) == 0:
-                    raise DataSourceNotFoundException(self.table)
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "ValidationException":
+                    raise RedshiftCredentialsError() from e
+                raise
 
-                columns = table["ColumnList"]
-            else:
-                statement = client.execute_statement(
-                    ClusterIdentifier=config.offline_store.cluster_id,
-                    Database=config.offline_store.database,
-                    DbUser=config.offline_store.user,
-                    Sql=f"SELECT * FROM ({self.query}) LIMIT 1",
-                )
+            # The API returns valid JSON with empty column list when the table doesn't exist
+            if len(table["ColumnList"]) == 0:
+                raise DataSourceNotFoundException(self.table)
 
-                # Need to retry client.describe_statement(...) until the task is finished. We don't want to bombard
-                # Redshift with queries, and neither do we want to wait for a long time on the initial call.
-                # The solution is exponential backoff. The backoff starts with 0.1 seconds and doubles exponentially
-                # until reaching 30 seconds, at which point the backoff is fixed.
-                @retry(
-                    wait=wait_exponential(multiplier=0.1, max=30),
-                    retry=retry_unless_exception_type(RedshiftQueryError),
-                )
-                def wait_for_statement():
-                    desc = client.describe_statement(Id=statement["Id"])
-                    if desc["Status"] in ("SUBMITTED", "STARTED", "PICKED"):
-                        raise Exception  # Retry
-                    if desc["Status"] != "FINISHED":
-                        raise RedshiftQueryError(desc)  # Don't retry. Raise exception.
-
-                wait_for_statement()
-
-                result = client.get_statement_result(Id=statement["Id"])
-
-                columns = result["ColumnMetadata"]
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "ValidationException":
-                raise RedshiftCredentialsError() from e
-            raise
+            columns = table["ColumnList"]
+        else:
+            statement_id = aws_utils.execute_redshift_statement(
+                client,
+                config.offline_store.cluster_id,
+                config.offline_store.database,
+                config.offline_store.user,
+                f"SELECT * FROM ({self.query}) LIMIT 1",
+            )
+            columns = aws_utils.get_redshift_statement_result(client, statement_id)[
+                "ColumnMetadata"
+            ]
 
         return [(column["name"], column["typeName"].upper()) for column in columns]
