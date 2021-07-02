@@ -2,11 +2,15 @@ import time
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Set, Union, Tuple
 
 import pandas
+import pandas as pd
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine, Connection, ResultProxy
+from sqlalchemy.orm import Session, sessionmaker
 from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
@@ -20,7 +24,8 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import SqlServerOfflineStoreConfig, RepoConfig
+from feast.repo_config import OfflineStoreConfig, SqlServerOfflineStoreConfig, RepoConfig
+from turbodbc import connect
 
 try:
     import pymssql
@@ -30,12 +35,13 @@ except ImportError as e:
 
 
 class SqlServerOfflineStore(OfflineStore):
-    def __init__(self, config: RepoConfig):
-        assert isinstance(config.online_store, SqlServerOfflineStoreConfig)
-        self._connection_string = config.offline_store.connection_string
+    def __init__(self, config: OfflineStoreConfig):
+        assert isinstance(config, SqlServerOfflineStoreConfig)
+        self._engine = create_engine(config.connection_string)
+        self._make_session = sessionmaker(bind=self._engine)
 
-    @staticmethod
     def pull_latest_from_table_or_query(
+        self,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -63,21 +69,17 @@ class SqlServerOfflineStore(OfflineStore):
             FROM (
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-                FROM {from_expression}
-                WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
-            )
-            WHERE _feast_row = 1
+                FROM {from_expression} inner_t
+                WHERE {event_timestamp_column} BETWEEN CONVERT(DATETIME2, '{start_date}', 120) AND CONVERT(DATETIME2, '{end_date}', 120)
+            ) outer_t
+            WHERE outer_t._feast_row = 1
             """
 
-        return self._pull_query(query)
+        result = pd.read_sql(query, con=self._engine)
+        return pyarrow.Table.from_pandas(result)
 
-    def _pull_query(self, query: str) -> pyarrow.Table:
-        client = True  # TODO: return client
-        query_job = client.query(query)
-        return query_job.to_arrow()
-
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -87,20 +89,20 @@ class SqlServerOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
 
-        client = _get_bigquery_client()
-
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, SqlServerOfflineStoreConfig)
-        table = _upload_entity_df_into_bigquery(
-            client, config.project, config.offline_store.dataset, entity_df
+        session = self._make_session()
+
+        table_schema, table_name = _upload_entity_df_into_sqlserver(
+            session, config.project, entity_df
         )
 
-        entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
-            table.schema
+        entity_df_event_timestamp_col = _infer_event_timestamp_from_sqlserver_schema(
+            table_schema
         )
-        _assert_expected_columns_in_bigquery(
-            expected_join_keys, entity_df_event_timestamp_col, table.schema,
+        _assert_expected_columns_in_sqlserver(
+            expected_join_keys, entity_df_event_timestamp_col, table_schema,
         )
 
         # Build a query context containing all information required to template the BigQuery SQL query
@@ -114,11 +116,11 @@ class SqlServerOfflineStore(OfflineStore):
             query_context,
             min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
-            left_table_query_string=str(table.reference),
+            left_table_query_string=table_name,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
 
-        job = BigQueryRetrievalJob(query=query, client=client, config=config)
+        job = SqlServerRetrievalJob(query=query, engine=self._engine, config=config.offline_store)
         return job
 
 
@@ -135,12 +137,12 @@ def _assert_expected_columns_in_dataframe(
         raise errors.FeastEntityDFMissingColumnsError(expected_columns, missing_keys)
 
 
-def _assert_expected_columns_in_bigquery(
+def _assert_expected_columns_in_sqlserver(
     join_keys: Set[str], entity_df_event_timestamp_col: str, table_schema
 ):
     entity_columns = set()
     for schema_field in table_schema:
-        entity_columns.add(schema_field.name)
+        entity_columns.add(schema_field['COLUMN_NAME'])
 
     expected_columns = join_keys.copy()
     expected_columns.add(entity_df_event_timestamp_col)
@@ -163,22 +165,22 @@ def _get_join_keys(
     return join_keys
 
 
-def _infer_event_timestamp_from_bigquery_query(table_schema) -> str:
+def _infer_event_timestamp_from_sqlserver_schema(table_schema) -> str:
     if any(
-        schema_field.name == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        schema_field['COLUMN_NAME'] == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
         for schema_field in table_schema
     ):
         return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
     else:
         datetime_columns = list(
             filter(
-                lambda schema_field: schema_field.field_type == "TIMESTAMP",
+                lambda schema_field: schema_field["DATA_TYPE"] == "TIMESTAMP",
                 table_schema,
             )
         )
         if len(datetime_columns) == 1:
             print(
-                f"Using {datetime_columns[0].name} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+                f"Using {datetime_columns[0]['COLUMN_NAME']} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
             )
             return datetime_columns[0].name
         else:
@@ -187,59 +189,14 @@ def _infer_event_timestamp_from_bigquery_query(table_schema) -> str:
             )
 
 
-def _infer_event_timestamp_from_dataframe(entity_df: pandas.DataFrame) -> str:
-    if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in entity_df.columns:
-        return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-    else:
-        datetime_columns = entity_df.select_dtypes(
-            include=["datetime", "datetimetz"]
-        ).columns
-        if len(datetime_columns) == 1:
-            print(
-                f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
-            )
-            return datetime_columns[0]
-        else:
-            raise ValueError(
-                f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
-            )
-
-
-class BigQueryRetrievalJob(RetrievalJob):
-    def __init__(self, query, client, config):
+class SqlServerRetrievalJob(RetrievalJob):
+    def __init__(self, query: str, engine: Engine, config: OfflineStoreConfig):
         self.query = query
-        self.client = client
         self.config = config
+        self.engine = engine
 
     def to_df(self):
-        # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
-        df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
-        return df
-
-    def to_bigquery(self, dry_run=False) -> Optional[str]:
-        @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
-        def _block_until_done():
-            return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
-
-        today = date.today().strftime("%Y%m%d")
-        rand_id = str(uuid.uuid4())[:7]
-        path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
-        job_config = bigquery.QueryJobConfig(destination=path, dry_run=dry_run)
-        bq_job = self.client.query(self.query, job_config=job_config)
-
-        if dry_run:
-            print(
-                "This query will process {} bytes.".format(bq_job.total_bytes_processed)
-            )
-            return None
-
-        _block_until_done()
-
-        if bq_job.exception():
-            raise bq_job.exception()
-
-        print(f"Done writing to '{path}'.")
-        return path
+        return pd.read_sql(self.query, con=self.engine)
 
 
 @dataclass(frozen=True)
@@ -258,60 +215,38 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _get_table_id_for_new_entity(
-    client: Client, project: str, dataset_name: str
-) -> str:
+def _get_table_id_for_new_entity(project: str) -> str:
     """Gets the table_id for the new entity to be uploaded."""
-
-    # First create the BigQuery dataset if it doesn't exist
-    dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
-    dataset.location = "US"
-
-    try:
-        client.get_dataset(dataset)
-    except NotFound:
-        # Only create the dataset if it does not exist
-        client.create_dataset(dataset, exists_ok=True)
-
-    return f"{client.project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
+    return f"entity_df_{project}_{int(time.time())}"
 
 
-def _upload_entity_df_into_bigquery(
-    client: Client,
+def _upload_entity_df_into_sqlserver(
+    session: Session,
     project: str,
-    dataset_name: str,
     entity_df: Union[pandas.DataFrame, str],
-) -> Table:
-    """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
-
-    table_id = _get_table_id_for_new_entity(client, project, dataset_name)
+) -> Tuple[ResultProxy, str]:
+    """Uploads a Pandas entity dataframe into a SQL Server table and returns the resulting table"""
+    table_id = _get_table_id_for_new_entity(project)
 
     if type(entity_df) is str:
-        job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
-        job.result()
-    elif isinstance(entity_df, pandas.DataFrame):
-        # Drop the index so that we dont have unnecessary columns
-        entity_df.reset_index(drop=True, inplace=True)
-
-        # Upload the dataframe into BigQuery, creating a temporary table
-        job_config = bigquery.LoadJobConfig()
-        job = client.load_table_from_dataframe(
-            entity_df, table_id, job_config=job_config
-        )
-        job.result()
+        session.execute(f"SELECT * INTO {table_id} FROM ({entity_df}) t")
     else:
         raise ValueError(
-            f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
+            f"The entity dataframe you have provided must be a SQL Server SQL query, "
             f"but we found: {type(entity_df)} "
         )
 
-    # Ensure that the table expires after some time
-    table = client.get_table(table=table_id)
-    table.expires = datetime.utcnow() + timedelta(minutes=30)
-    client.update_table(table, ["expires"])
+    # TODO: Table expiry?
 
-    return table
+    schema = session.execute(f"""
+        SELECT *
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME='{table_id}'
+    """).fetchall()
 
+    session.commit()
+
+    return schema, table_id
 
 def get_feature_view_query_context(
     feature_refs: List[str],
@@ -378,6 +313,7 @@ def build_point_in_time_query(
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
 ):
+
     """Build point-in-time query between each feature view table and the entity dataframe"""
     template = Environment(loader=BaseLoader()).from_string(
         source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
@@ -411,12 +347,13 @@ SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 */
 WITH entity_dataframe AS (
     SELECT
-        *,
+        id,
+        {{entity_df_event_timestamp_col}},
         CONCAT(
             {% for entity_key in unique_entity_keys %}
-                CAST({{entity_key}} AS STRING),
+                {{entity_key}},
             {% endfor %}
-            CAST({{entity_df_event_timestamp_col}} AS STRING)
+            {{entity_df_event_timestamp_col}}
         ) AS entity_row_unique_id
     FROM {{ left_table_query_string }}
 ),
@@ -442,13 +379,13 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__subquery AS (
     SELECT
-        {{ featureview.event_timestamp_column }} as event_timestamp,
-        {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
-        {{ featureview.entity_selections | join(', ')}},
+        t.{{ featureview.event_timestamp_column }} as event_timestamp,
+        {{ 't.' + featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
+        t.{{ featureview.entity_selections | join(', ')}},
         {% for feature in featureview.features %}
-            {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+            t.{{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
-    FROM {{ featureview.table_subquery }}
+    FROM {{ featureview.table_subquery }} t
 ),
 
 {{ featureview.name }}__base AS (
@@ -458,8 +395,7 @@ WITH entity_dataframe AS (
         entity_dataframe.entity_row_unique_id
     FROM {{ featureview.name }}__subquery AS subquery
     INNER JOIN entity_dataframe
-    ON TRUE
-        AND subquery.event_timestamp <= entity_dataframe.{{entity_df_event_timestamp_col}}
+        ON subquery.event_timestamp <= entity_dataframe.{{entity_df_event_timestamp_col}}
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= Timestamp_sub(entity_dataframe.{{entity_df_event_timestamp_col}}, interval {{ featureview.ttl }} second)
@@ -474,6 +410,7 @@ WITH entity_dataframe AS (
  2. If the `created_timestamp_column` has been set, we need to
  deduplicate the data first. This is done by calculating the
  `MAX(created_at_timestamp)` for each event_timestamp.
+ 
  We then join the data on the next CTE
 */
 {% if featureview.created_timestamp_column %}
@@ -502,7 +439,9 @@ WITH entity_dataframe AS (
     FROM {{ featureview.name }}__base
     {% if featureview.created_timestamp_column %}
         INNER JOIN {{ featureview.name }}__dedup
-        USING (entity_row_unique_id, event_timestamp, created_timestamp)
+        ON {{ featureview.name }}__dedup.entity_row_unique_id = {{ featureview.name }}__base.entity_row_unique_id
+        AND {{ featureview.name }}__dedup.event_timestamp = {{ featureview.name }}__base.event_timestamp
+        AND {{ featureview.name }}__dedup.created_timestamp = {{ featureview.name }}__base.created_timestamp
     {% endif %}
 
     GROUP BY entity_row_unique_id
@@ -516,15 +455,12 @@ WITH entity_dataframe AS (
     SELECT base.*
     FROM {{ featureview.name }}__base as base
     INNER JOIN {{ featureview.name }}__latest
-    USING(
-        entity_row_unique_id,
-        event_timestamp
+    ON base.entity_row_unique_id = {{ featureview.name }}__latest.entity_row_unique_id
+    AND base.event_timestamp = {{ featureview.name }}__latest.event_timestamp
         {% if featureview.created_timestamp_column %}
-            ,created_timestamp
+            AND base.created_timestamp = {{ featureview.name }}__latest.created_timestamp
         {% endif %}
-    )
 ){% if loop.last %}{% else %}, {% endif %}
-
 
 {% endfor %}
 /*
@@ -532,16 +468,20 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT * EXCEPT (entity_row_unique_id)
+SELECT *
 FROM entity_dataframe
+
 {% for featureview in featureviews %}
 LEFT JOIN (
     SELECT
         entity_row_unique_id,
         {% for feature in featureview.features %}
-            {{ featureview.name }}__{{ feature }},
+            {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %},{% endif %}
         {% endfor %}
     FROM {{ featureview.name }}__cleaned
-) USING (entity_row_unique_id)
+) cleaned
+ON
+cleaned.entity_row_unique_id = entity_dataframe.entity_row_unique_id
+
 {% endfor %}
 """

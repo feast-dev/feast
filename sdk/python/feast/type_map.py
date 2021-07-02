@@ -528,3 +528,34 @@ def bq_to_feast_value_type(bq_type_as_str):
     }
 
     return type_map[bq_type_as_str]
+
+
+def sqlserver_to_feast_value_type(bq_type_as_str):
+    # NOTE: Is it a problem that SQL Server doesn't support an array type?
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "datetime2": ValueType.UNIX_TIMESTAMP,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "int": ValueType.INT32,
+        "tinyint": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "char": ValueType.STRING,
+        "varchar": ValueType.STRING,
+        "text": ValueType.STRING,
+        "nchar": ValueType.STRING,
+        "nvarchar": ValueType.STRING,
+        "ntext": ValueType.STRING,
+        "binary": ValueType.BYTES,
+        "varbinary": ValueType.STRING,
+        "image": ValueType.STRING,
+        "decimal": ValueType.DOUBLE,
+        "numeric": ValueType.DOUBLE,
+        "smallmoney": ValueType.DOUBLE,
+        "real": ValueType.DOUBLE,
+        "money": ValueType.DOUBLE,
+        "float": ValueType.DOUBLE,
+        "bool": ValueType.BOOL,
+    }
+
+    return type_map[bq_type_as_str]

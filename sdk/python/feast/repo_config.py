@@ -223,7 +223,7 @@ class RepoConfig(FeastBaseModel):
         offline_store_type = values["offline_store"]["type"]
 
         # Make sure the user hasn't provided the wrong type
-        assert offline_store_type in ["file", "bigquery"]
+        assert offline_store_type in ["file", "bigquery", "sqlserver"]
 
         # Validate the dict to ensure one of the union types match
         try:

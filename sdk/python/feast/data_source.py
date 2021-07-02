@@ -371,37 +371,55 @@ class SqlServerOptions:
     DataSource SqlServer options used to source features from SqlServer query
     """
 
-    def __init__(self, table_ref: Optional[str], query: Optional[str]):
-        self._table_ref = table_ref
+    def __init__(self,
+                 connection_str: Optional[str],
+                 table_ref: Optional[str],
+                 query: Optional[str]):
+        self._connection_str = connection_str
         self._query = query
+        self._table_ref = table_ref
 
     @property
     def query(self):
         """
-        Returns the SqlServer SQL query referenced by this source
+        Returns the SQL Server SQL query referenced by this source
         """
         return self._query
 
     @query.setter
     def query(self, query):
         """
-        Sets the SqlServer SQL query referenced by this source
+        Sets the SQL Server SQL query referenced by this source
         """
         self._query = query
 
     @property
     def table_ref(self):
         """
-        Returns the table ref of this BQ table
+        Returns the table ref of this SQL Server source
         """
         return self._table_ref
 
     @table_ref.setter
     def table_ref(self, table_ref):
         """
-        Sets the table ref of this BQ table
+        Sets the table ref of this SQL Server source
         """
         self._table_ref = table_ref
+
+    @property
+    def connection_str(self):
+        """
+        Returns the SqlServer SQL connection string referenced by this source
+        """
+        return self._connection_str
+
+    @connection_str.setter
+    def connection_str(self, connection_str):
+        """
+        Sets the SqlServer SQL connection string referenced by this source
+        """
+        self._connection_str = connection_str
 
     @classmethod
     def from_proto(cls, sqlserver_options_proto: DataSourceProto.SqlServerOptions):
@@ -416,8 +434,9 @@ class SqlServerOptions:
         """
 
         sqlserver_options = cls(
-            table_ref=sqlserver_options_proto.table_ref,
             query=sqlserver_options_proto.query,
+            table_ref=sqlserver_options_proto.table_ref,
+            connection_str=sqlserver_options_proto.connection_str
         )
 
         return sqlserver_options
@@ -431,7 +450,9 @@ class SqlServerOptions:
         """
 
         sqlserver_options_proto = DataSourceProto.SqlServerOptions(
-            table_ref=self.table_ref, query=self.query,
+            query=self.query,
+            table_ref=self.table_ref,
+            connection_str=self.connection_str
         )
 
         return sqlserver_options_proto
@@ -529,7 +550,6 @@ class DataSource:
         """
         Convert data source config in FeatureTable spec to a DataSource class object.
         """
-
         if data_source.file_options.file_format and data_source.file_options.file_url:
             data_source_obj = FileSource(
                 field_mapping=data_source.field_mapping,
@@ -582,6 +602,18 @@ class DataSource:
                 created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
+        elif (
+            data_source.sqlserver_options.query
+        ):
+            data_source_obj = SqlServerSource(
+                event_timestamp_column=data_source.event_timestamp_column,
+                created_timestamp_column=data_source.created_timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+                query=data_source.sqlserver_options.query,
+                field_mapping=data_source.field_mapping,
+                connection_str=data_source.sqlserver_options.connection_str
+            )
+
         else:
             raise ValueError("Could not identify the source type being added")
 
@@ -975,15 +1007,16 @@ class KinesisSource(DataSource):
 class SqlServerSource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = None,
         table_ref: Optional[str] = None,
+        event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
         connection_str: Optional[str] = ""
     ):
-        self._sqlserver_options = SqlServerOptions(table_ref=table_ref, query=query)
+        self._sqlserver_options = SqlServerOptions(connection_str=connection_str, query=query, table_ref=table_ref)
+        self._connection_str = connection_str
 
         super().__init__(
             event_timestamp_column
@@ -1000,8 +1033,8 @@ class SqlServerSource(DataSource):
             )
 
         return (
-            self.sqlserver_options.table_ref == other.sqlserver_options.table_ref
-            and self.sqlserver_options.query == other.sqlserver_options.query
+            self.sqlserver_options.query == other.sqlserver_options.query
+            and self.sqlserver_options.connection_str == other.sqlserver_options.connection_str
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -1051,29 +1084,19 @@ class SqlServerSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        return type_map.bq_to_feast_value_type
+        return type_map.sqlserver_to_feast_value_type
 
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
         conn = create_engine(self._connection_str)
         name_type_pairs = []
-        if self.table_ref is not None:
-            project_id, dataset_id, table_id = self.table_ref.split(".")
-            columns_query = f"""
-                SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_NAME = '{table_id}'
-            """
-            table_schema = pd.read_sql(columns_query, conn)
-            name_type_pairs.extend(
-                list(zip(table_schema["COLUMN_NAME"].to_list(),
-                         table_schema["DATA_TYPE"].to_list()))
-            )
-        else:
-            columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
-            with engine.connect() as connection:
-                query_result = connection.execute(columns_query).fetchone()
-            name_type_pairs = [
-                (schema_field.name, schema_field.field_type)
-                for schema_field in query_result.schema
-            ]
-
+        database, table_name = self.table_ref.split(".")
+        columns_query = f"""
+            SELECT COLUMN_NAME, DATA_TYPE FROM {database}.INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = '{table_name}'
+        """
+        table_schema = pd.read_sql(columns_query, conn)
+        name_type_pairs.extend(
+            list(zip(table_schema["COLUMN_NAME"].to_list(),
+                     table_schema["DATA_TYPE"].to_list()))
+        )
         return name_type_pairs

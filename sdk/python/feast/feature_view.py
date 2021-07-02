@@ -20,7 +20,7 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
-from feast.data_source import BigQuerySource, DataSource, FileSource
+from feast.data_source import BigQuerySource, DataSource, FileSource, SqlServerSource
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
@@ -47,7 +47,7 @@ class FeatureView:
     tags: Optional[Dict[str, str]]
     ttl: Optional[timedelta]
     online: bool
-    input: Union[BigQuerySource, FileSource]
+    input: Union[BigQuerySource, FileSource, SqlServerSource]
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
@@ -59,7 +59,7 @@ class FeatureView:
         name: str,
         entities: List[str],
         ttl: Optional[Union[Duration, timedelta]],
-        input: Union[BigQuerySource, FileSource],
+        input: Union[BigQuerySource, FileSource, SqlServerSource],
         features: List[Feature] = [],
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
