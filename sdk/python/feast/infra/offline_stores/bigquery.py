@@ -7,6 +7,7 @@ from typing import List, Optional, Set, Union
 import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from pandas import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import retry, stop_after_delay, wait_fixed
@@ -131,9 +132,16 @@ class BigQueryOfflineStore(OfflineStore):
             feature_refs, feature_views, registry, project
         )
 
+        # Infer min and max timestamps from entity_df to limit data read in BigQuery SQL query
+        min_timestamp, max_timestamp = _get_entity_df_timestamp_bounds(
+            client, str(table.reference), entity_df_event_timestamp_col
+        )
+
         # Generate the BigQuery SQL query from the query context
         query = build_point_in_time_query(
             query_context,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
             left_table_query_string=str(table.reference),
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
@@ -337,6 +345,28 @@ def _upload_entity_df_into_bigquery(
     return table
 
 
+def _get_entity_df_timestamp_bounds(
+    client: Client, entity_df_bq_table: str, event_timestamp_col: str,
+):
+
+    boundary_df = (
+        client.query(
+            f"""
+    SELECT
+        MIN({event_timestamp_col}) AS min_timestamp,
+        MAX({event_timestamp_col}) AS max_timestamp
+    FROM {entity_df_bq_table}
+    """
+        )
+        .result()
+        .to_dataframe()
+    )
+
+    min_timestamp = boundary_df.loc[0, "min_timestamp"]
+    max_timestamp = boundary_df.loc[0, "max_timestamp"]
+    return min_timestamp, max_timestamp
+
+
 def get_feature_view_query_context(
     feature_refs: List[str],
     feature_views: List[FeatureView],
@@ -397,6 +427,8 @@ def get_feature_view_query_context(
 
 def build_point_in_time_query(
     feature_view_query_contexts: List[FeatureViewQueryContext],
+    min_timestamp: Timestamp,
+    max_timestamp: Timestamp,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
 ):
@@ -407,6 +439,8 @@ def build_point_in_time_query(
 
     # Add additional fields to dict
     template_context = {
+        "min_timestamp": min_timestamp,
+        "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
         "entity_df_event_timestamp_col": entity_df_event_timestamp_col,
         "unique_entity_keys": set(
@@ -461,12 +495,6 @@ WITH entity_dataframe AS (
     FROM {{ left_table_query_string }}
 ),
 
-timestamp_bounds AS (
-    SELECT
-        MAX({{entity_df_event_timestamp_col}}) AS max,
-        MIN({{entity_df_event_timestamp_col}}) AS min
-    FROM {{ left_table_query_string }}
-),
 {% for featureview in featureviews %}
 
 /*
@@ -495,9 +523,9 @@ timestamp_bounds AS (
             {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= ((SELECT max FROM timestamp_bounds))
+    WHERE {{ featureview.event_timestamp_column }} <= '{{max_timestamp}}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(((SELECT min FROM timestamp_bounds)), interval {{ featureview.ttl }} second)
+    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub('{{min_timestamp}}', interval {{ featureview.ttl }} second)
     {% endif %}
 ),
 
