@@ -76,16 +76,9 @@ def feature_store_with_gcs_registry():
 
 @pytest.fixture
 def feature_store_with_s3_registry():
-    import boto3
-
-    s3 = boto3.resource("s3")
-    bucket_name = "feast-integration-tests"
-    bucket = s3.Bucket(bucket_name)
-    s3.meta.client.head_bucket(Bucket=bucket.name)
-
     return FeatureStore(
         config=RepoConfig(
-            registry=f"s3://{bucket_name}/registries/{int(time.time() * 1000)}/registry.db",
+            registry=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
             project="default",
             provider="aws",
             online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),

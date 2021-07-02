@@ -168,7 +168,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             join_key="driver_id",
             value_type=ValueType.INT32,
         )
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory():
+        with tempfile.TemporaryDirectory() as repo_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
@@ -206,7 +206,7 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             join_key="driver_id",
             value_type=ValueType.INT32,
         )
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory():
+        with tempfile.TemporaryDirectory() as repo_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",

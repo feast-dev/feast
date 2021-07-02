@@ -564,7 +564,7 @@ class S3RegistryStore(RegistryStore):
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
         try:
-            import botocore
+            from botocore.exceptions import ClientError
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
@@ -572,14 +572,14 @@ class S3RegistryStore(RegistryStore):
         try:
             bucket = self.s3_client.Bucket(self._bucket)
             self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
-        except botocore.client.ClientError as e:
+        except ClientError as e:
             # If a client error is thrown, then check that it was a 404 error.
             # If it was a 404 error, then the bucket does not exist.
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
                 raise S3RegistryBucketNotExist(self._bucket)
             else:
-                raise S3RegistryBucketForbiddenAccess(self._bucket)
+                raise S3RegistryBucketForbiddenAccess(self._bucket) from e
 
         try:
             obj = bucket.Object(self._key)
@@ -587,10 +587,10 @@ class S3RegistryStore(RegistryStore):
             file_obj.seek(0)
             registry_proto.ParseFromString(file_obj.read())
             return registry_proto
-        except botocore.exceptions.ClientError as e:
+        except ClientError as e:
             raise FileNotFoundError(
-                f'Error while trying to locate Registry at path "{self._uri.geturl()}"with [original error]: {e.response}'
-            )
+                f"Error while trying to locate Registry at path {self._uri.geturl()}"
+            ) from e
 
     def update_registry_proto(
         self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None

@@ -159,7 +159,7 @@ class RepoConfig(FeastBaseModel):
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
-                values["offline_store"]["type"] = "redshift"
+                values["offline_store"]["type"] = "file"
 
         offline_store_type = values["offline_store"]["type"]
 

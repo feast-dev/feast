@@ -48,12 +48,6 @@ class DynamoDBOnlineStore(OnlineStore):
     Online feature store for AWS DynamoDB.
     """
 
-    def _initialize_dynamodb(self, online_config: DynamoDBOnlineStoreConfig):
-        return (
-            boto3.client("dynamodb", region_name=online_config.region),
-            boto3.resource("dynamodb", region_name=online_config.region),
-        )
-
     def update(
         self,
         config: RepoConfig,
@@ -65,11 +59,11 @@ class DynamoDBOnlineStore(OnlineStore):
     ):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        client, dynamodb = self._initialize_dynamodb(online_config)
+        dynamodb_client, dynamodb_resource = self._initialize_dynamodb(online_config)
 
         for table_instance in tables_to_keep:
             try:
-                table = dynamodb.create_table(
+                dynamodb_resource.create_table(
                     TableName=f"{config.project}.{table_instance.name}",
                     KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                     AttributeDefinitions=[
@@ -78,18 +72,18 @@ class DynamoDBOnlineStore(OnlineStore):
                     BillingMode="PAY_PER_REQUEST",
                 )
             except ClientError as ce:
-                print(ce)
-                if ce.response["Error"]["Code"] == "ResourceNotFoundException":
-                    table = dynamodb.Table(f"{config.project}.{table_instance.name}")
+                # If the table creation fails with ResourceInUseException,
+                # it means the table already exists or is being created.
+                # Otherwise, re-raise the exception
+                if ce.response["Error"]["Code"] != "ResourceInUseException":
+                    raise
 
         for table_instance in tables_to_keep:
-            client.get_waiter("table_exists").wait(
+            dynamodb_client.get_waiter("table_exists").wait(
                 TableName=f"{config.project}.{table_instance.name}"
             )
 
-        for table_instance in tables_to_delete:
-            table = dynamodb.Table(f"{config.project}.{table_instance.name}")
-            table.delete()
+        self._delete_tables_idempotent(dynamodb_resource, config, tables_to_delete)
 
     def teardown(
         self,
@@ -99,11 +93,9 @@ class DynamoDBOnlineStore(OnlineStore):
     ):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        _, dynamodb = self._initialize_dynamodb(online_config)
+        _, dynamodb_resource = self._initialize_dynamodb(online_config)
 
-        for table_instance in tables:
-            table = dynamodb.Table(f"{config.project}.{table_instance.name}")
-            table.delete()
+        self._delete_tables_idempotent(dynamodb_resource, config, tables)
 
     def online_write_batch(
         self,
@@ -116,9 +108,9 @@ class DynamoDBOnlineStore(OnlineStore):
     ) -> None:
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        _, dynamodb = self._initialize_dynamodb(online_config)
+        _, dynamodb_resource = self._initialize_dynamodb(online_config)
 
-        table_instance = dynamodb.Table(f"{config.project}.{table.name}")
+        table_instance = dynamodb_resource.Table(f"{config.project}.{table.name}")
         with table_instance.batch_writer() as batch:
             for entity_key, features, timestamp, created_ts in data:
                 entity_id = compute_entity_id(entity_key)
@@ -144,12 +136,12 @@ class DynamoDBOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        _, dynamodb = self._initialize_dynamodb(online_config)
+        _, dynamodb_resource = self._initialize_dynamodb(online_config)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            table_instance = dynamodb.Table(f"{config.project}.{table.name}")
-            entity_id = compute_entity_id(entity_key)  # TODO check id
+            table_instance = dynamodb_resource.Table(f"{config.project}.{table.name}")
+            entity_id = compute_entity_id(entity_key)
             response = table_instance.get_item(Key={"entity_id": entity_id})
             value = response.get("Item")
 
@@ -163,3 +155,28 @@ class DynamoDBOnlineStore(OnlineStore):
             else:
                 result.append((None, None))
         return result
+
+    def _initialize_dynamodb(self, online_config: DynamoDBOnlineStoreConfig):
+        return (
+            boto3.client("dynamodb", region_name=online_config.region),
+            boto3.resource("dynamodb", region_name=online_config.region),
+        )
+
+    def _delete_tables_idempotent(
+        self,
+        dynamodb_resource,
+        config: RepoConfig,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+    ):
+        for table_instance in tables:
+            try:
+                table = dynamodb_resource.Table(
+                    f"{config.project}.{table_instance.name}"
+                )
+                table.delete()
+            except ClientError as ce:
+                # If the table deletion fails with ResourceNotFoundException,
+                # it means the table has already been deleted.
+                # Otherwise, re-raise the exception
+                if ce.response["Error"]["Code"] != "ResourceNotFoundException":
+                    raise
