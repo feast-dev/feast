@@ -40,6 +40,16 @@ class FeatureTableNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Feature table {name} does not exist")
 
 
+class S3RegistryBucketNotExist(FeastObjectNotFoundException):
+    def __init__(self, bucket):
+        super().__init__(f"S3 bucket {bucket} for the Feast registry does not exist")
+
+
+class S3RegistryBucketForbiddenAccess(FeastObjectNotFoundException):
+    def __init__(self, bucket):
+        super().__init__(f"S3 bucket {bucket} for the Feast registry can't be accessed")
+
+
 class FeastProviderLoginError(Exception):
     """Error class that indicates a user has not authenticated with their provider."""
 

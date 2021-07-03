@@ -16,13 +16,12 @@ from datetime import datetime
 from multiprocessing.pool import ThreadPool
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
-import mmh3
 from pydantic import PositiveInt, StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureTable, utils
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -191,7 +190,7 @@ class DatastoreOnlineStore(OnlineStore):
     ):
         entities = []
         for entity_key, features, timestamp, created_ts in data:
-            document_id = compute_datastore_entity_id(entity_key)
+            document_id = compute_entity_id(entity_key)
 
             key = client.key(
                 "Project", project, "Table", table.name, "Row", document_id,
@@ -236,7 +235,7 @@ class DatastoreOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            document_id = compute_datastore_entity_id(entity_key)
+            document_id = compute_entity_id(entity_key)
             key = client.key(
                 "Project", feast_project, "Table", table.name, "Row", document_id
             )
@@ -251,16 +250,6 @@ class DatastoreOnlineStore(OnlineStore):
             else:
                 result.append((None, None))
         return result
-
-
-def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
-    """
-    Compute Datastore Entity id given Feast Entity Key.
-
-    Remember that Datastore Entity is a concept from the Datastore data model, that has nothing to
-    do with the Entity concept we have in Feast.
-    """
-    return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
 
 
 def _delete_all_values(client, key) -> None:
