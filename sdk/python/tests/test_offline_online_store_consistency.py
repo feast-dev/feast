@@ -1,4 +1,5 @@
 import contextlib
+import math
 import tempfile
 import time
 import uuid
@@ -212,8 +213,7 @@ def check_offline_and_online_features(
     if expected_value:
         assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
     else:
-        df = df.where(pd.notnull(df), None)
-        assert df.to_dict()[f"{fv.name}__value"][0] is None
+        assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
 
 
 def run_offline_online_store_consistency_test(
