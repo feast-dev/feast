@@ -7,7 +7,7 @@ This format is considered part of Feast public API contract; that allows other c
 
 The format is not entirely technology or cloud agnostic. Since users may opt to use different key-value stores as an underlying engine to store feature data, and we don't want to aim for the lowest common denominator across them, we have to provide different "flavors" of this data format, specialized for every supported store.
 
-This version of the Online Store Format supports only Redis as the underlying storage engine. We envision adding more storage engines to this document in the future.
+This version of the Online Store Format supports Redis and DynamoDB as storage engine. We envision adding more storage engines to this document in the future.
 
 
 ## Overview
