@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from tempfile import mkstemp
 
 import pytest
@@ -24,9 +24,15 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.protos.feast.types import Value_pb2 as ValueProto
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
+from tests.utils.data_source_utils import (
+    prep_file_source,
+    simple_bq_source_using_query_arg,
+    simple_bq_source_using_table_ref_arg,
+)
 
 
 @pytest.fixture
@@ -180,6 +186,70 @@ def test_apply_feature_view_success(test_feature_store):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+def test_feature_view_inference_success(test_feature_store, dataframe_source):
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source:
+        fv1 = FeatureView(
+            name="fv1",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=file_source,
+            tags={},
+        )
+
+        fv2 = FeatureView(
+            name="fv2",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=simple_bq_source_using_table_ref_arg(dataframe_source, "ts_1"),
+            tags={},
+        )
+
+        fv3 = FeatureView(
+            name="fv3",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
+            tags={},
+        )
+
+        test_feature_store.apply([fv1, fv2, fv3])  # Register Feature Views
+        feature_view_1 = test_feature_store.list_feature_views()[0]
+        feature_view_2 = test_feature_store.list_feature_views()[1]
+        feature_view_3 = test_feature_store.list_feature_views()[2]
+
+        actual_file_source = {
+            (feature.name, feature.dtype) for feature in feature_view_1.features
+        }
+        actual_bq_using_table_ref_arg_source = {
+            (feature.name, feature.dtype) for feature in feature_view_2.features
+        }
+        actual_bq_using_query_arg_source = {
+            (feature.name, feature.dtype) for feature in feature_view_3.features
+        }
+        expected = {
+            ("float_col", ValueType.DOUBLE),
+            ("int64_col", ValueType.INT64),
+            ("string_col", ValueType.STRING),
+        }
+
+        assert (
+            expected
+            == actual_file_source
+            == actual_bq_using_table_ref_arg_source
+            == actual_bq_using_query_arg_source
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
 )
 def test_apply_feature_view_integration(test_feature_store):
@@ -317,3 +387,59 @@ def test_apply_remote_repo():
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
         )
     )
+
+
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+def test_reapply_feature_view_success(test_feature_store, dataframe_source):
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source:
+
+        e = Entity(name="id", value_type=ValueType.STRING)
+
+        # Create Feature View
+        fv1 = FeatureView(
+            name="my_feature_view_1",
+            features=[Feature(name="string_col", dtype=ValueType.STRING)],
+            entities=["id"],
+            input=file_source,
+            ttl=timedelta(minutes=5),
+        )
+
+        # Register Feature View
+        test_feature_store.apply([fv1, e])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 0
+
+        # Run materialization
+        test_feature_store.materialize(datetime(2020, 1, 1), datetime(2021, 1, 1))
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 1
+
+        # Apply again
+        test_feature_store.apply([fv1])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 1
+
+        # Change and apply Feature View
+        fv1 = FeatureView(
+            name="my_feature_view_1",
+            features=[Feature(name="int64_col", dtype=ValueType.INT64)],
+            entities=["id"],
+            input=file_source,
+            ttl=timedelta(minutes=5),
+        )
+        test_feature_store.apply([fv1])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 0

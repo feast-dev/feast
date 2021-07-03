@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Union
 
@@ -107,9 +108,9 @@ def python_type_to_feast_value_type(
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
-        "timedelta": ValueType.INT64,
-        "datetime64[ns]": ValueType.INT64,
-        "datetime64[ns, tz]": ValueType.INT64,
+        "timedelta": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
@@ -211,7 +212,7 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 float_list_val=FloatList(
                     val=[
                         item
-                        if type(item) in [np.float32, np.float64]
+                        if type(item) in [np.float32, np.float64, float]
                         else _type_err(item, np.float32)
                         for item in value
                     ]
@@ -223,7 +224,7 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 double_list_val=DoubleList(
                     val=[
                         item
-                        if type(item) in [np.float64, np.float32]
+                        if type(item) in [np.float64, np.float32, float]
                         else _type_err(item, np.float64)
                         for item in value
                     ]
@@ -241,6 +242,18 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             )
 
         if feast_value_type == ValueType.INT64_LIST:
+            return ProtoValue(
+                int64_list_val=Int64List(
+                    val=[
+                        item
+                        if type(item) in [np.int64, np.int32]
+                        else _type_err(item, np.int64)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
             return ProtoValue(
                 int64_list_val=Int64List(
                     val=[
@@ -296,6 +309,8 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(int32_val=int(value))
         elif feast_value_type == ValueType.INT64:
             return ProtoValue(int64_val=int(value))
+        elif feast_value_type == ValueType.UNIX_TIMESTAMP:
+            return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.FLOAT:
             return ProtoValue(float_val=float(value))
         elif feast_value_type == ValueType.DOUBLE:
@@ -313,8 +328,14 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
     raise Exception(f"Unsupported data type: ${str(type(value))}")
 
 
-def python_value_to_proto_value(value: Any) -> ProtoValue:
-    value_type = python_type_to_feast_value_type("", value)
+def python_value_to_proto_value(
+    value: Any, feature_type: ValueType = None
+) -> ProtoValue:
+    value_type = (
+        python_type_to_feast_value_type("", value)
+        if value is not None
+        else feature_type
+    )
     return _python_value_to_proto_value(value_type, value)
 
 
@@ -417,9 +438,15 @@ def pa_to_value_type(pa_type: object):
     return type_map[pa_type.__str__()]
 
 
-def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
+def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
+    value_type = (
+        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
+    )
+
+    if re.match(r"^timestamp", value_type):
+        return ValueType.INT64
+
     type_map = {
-        "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
         "int64": ValueType.INT64,
         "double": ValueType.DOUBLE,
@@ -435,7 +462,7 @@ def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
         "list<item: binary>": ValueType.BYTES_LIST,
         "list<item: bool>": ValueType.BOOL_LIST,
     }
-    return type_map[value.type.__str__()]
+    return type_map[value_type]
 
 
 def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
@@ -480,3 +507,48 @@ def pa_column_to_proto_column(
         ]
     else:
         return [ProtoValue(**{value: x.as_py()}) for x in column]
+
+
+def bq_to_feast_value_type(bq_type_as_str):
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
+        "DATETIME": ValueType.STRING,  # Update to ValueType.UNIX_TIMESTAMP once #1520 lands.
+        "TIMESTAMP": ValueType.STRING,  # Update to ValueType.UNIX_TIMESTAMP once #1520 lands.
+        "INTEGER": ValueType.INT64,
+        "INT64": ValueType.INT64,
+        "STRING": ValueType.STRING,
+        "FLOAT": ValueType.DOUBLE,
+        "FLOAT64": ValueType.DOUBLE,
+        "BYTES": ValueType.BYTES,
+        "BOOL": ValueType.BOOL,
+        "ARRAY<INT64>": ValueType.INT64_LIST,
+        "ARRAY<FLOAT64>": ValueType.DOUBLE_LIST,
+        "ARRAY<STRING>": ValueType.STRING_LIST,
+        "ARRAY<BYTES>": ValueType.BYTES_LIST,
+        "ARRAY<BOOL>": ValueType.BOOL_LIST,
+    }
+
+    return type_map[bq_type_as_str]
+
+
+def redshift_to_feast_value_type(redshift_type_as_str):
+    # Type names from https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
+        "INT": ValueType.INT32,
+        "INT4": ValueType.INT32,
+        "INT8": ValueType.INT64,
+        "FLOAT4": ValueType.FLOAT,
+        "FLOAT8": ValueType.DOUBLE,
+        "FLOAT": ValueType.DOUBLE,
+        "NUMERIC": ValueType.DOUBLE,
+        "BOOL": ValueType.BOOL,
+        "CHARACTER": ValueType.STRING,
+        "NCHAR": ValueType.STRING,
+        "BPCHAR": ValueType.STRING,
+        "CHARACTER VARYING": ValueType.STRING,
+        "NVARCHAR": ValueType.STRING,
+        "TEXT": ValueType.STRING,
+        "TIMESTAMP WITHOUT TIME ZONE": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP WITH TIME ZONE": ValueType.UNIX_TIMESTAMP,
+    }
+
+    return type_map[redshift_type_as_str.upper()]

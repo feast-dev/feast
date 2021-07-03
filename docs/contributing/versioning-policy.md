@@ -2,7 +2,7 @@
 description: Versioning policies and status of Feast components
 ---
 
-# Versioning Policy
+# Versioning policy
 
 ### Versioning policy and branch workflow
 
@@ -29,18 +29,18 @@ Application status indicators for Feast:
 * **Beta** means that the component is working towards a version 1.0 release. Beta does not mean a component is unstable, it simply means the component has not met the full criteria of stability.
 * **Alpha** means that the component is in the early phases of development and/or integration into Feast.
 
-| Application | Status | Version | Notes |
-| :--- | :--- | :--- | :--- |
-| [Feast Serving](https://github.com/feast-dev/feast-java) | Beta | [v0.25.2](https://github.com/feast-dev/feast-java/releases/tag/v0.25.2) | APIs are considered stable and will not have breaking changes within 3 minor versions. |
-| [Feast Core](https://github.com/feast-dev/feast-java) | Beta | [v0.25.2](https://github.com/feast-dev/feast-java/releases/tag/v0.25.2) | At risk of deprecation |
-| [Feast Java Client](https://github.com/feast-dev/feast-java) | Beta | [v0.25.2](https://github.com/feast-dev/feast-java/releases/tag/v0.25.2) |  |
-| [Feast Python SDK](https://github.com/feast-dev/feast) | Beta | [v0.9.4](https://github.com/feast-dev/feast/releases/tag/v0.9.4) |  |
-| [Feast Go Client](https://github.com/feast-dev/feast) | Beta | [v0.9.4](https://github.com/feast-dev/feast/releases/tag/v0.9.4) |  |
-| [Feast Spark Python SDK](https://github.com/feast-dev/feast-spark) | Alpha | [v0.1.2](https://github.com/feast-dev/feast-spark/releases/tag/v0.1.2) |  |
-| [Feast Spark Launchers](https://github.com/feast-dev/feast-spark) | Alpha | [v0.1.2](https://github.com/feast-dev/feast-spark/releases/tag/v0.1.2) |  |
-| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | [v0.1.2](https://github.com/feast-dev/feast-spark/releases/tag/v0.1.2) | At risk of deprecation |
-| [Feast Helm Chart](https://github.com/feast-dev/feast-helm-charts) | Beta | [v0.100.4](https://github.com/feast-dev/feast-helm-charts/releases/tag/v0.100.4) |  |
-|  |  |  |  |
+| Application | Status | Notes |
+| :--- | :--- | :--- |
+| [Feast Serving](https://github.com/feast-dev/feast-java) | Beta | APIs are considered stable and will not have breaking changes within 3 minor versions. |
+| [Feast Core](https://github.com/feast-dev/feast-java) | Beta | At risk of deprecation |
+| [Feast Java Client](https://github.com/feast-dev/feast-java) | Beta |  |
+| [Feast Python SDK](https://github.com/feast-dev/feast) | Beta |  |
+| [Feast Go Client](https://github.com/feast-dev/feast) | Beta |  |
+| [Feast Spark Python SDK](https://github.com/feast-dev/feast-spark) | Alpha |  |
+| [Feast Spark Launchers](https://github.com/feast-dev/feast-spark) | Alpha |  |
+| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | At risk of deprecation |
+| [Feast Helm Chart](https://github.com/feast-dev/feast-helm-charts) | Beta |  |
+|  |  |  |
 
 Criteria for reaching _**stable**_ status:
 

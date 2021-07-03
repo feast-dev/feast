@@ -1,19 +1,14 @@
-import itertools
 from datetime import datetime
-from multiprocessing.pool import ThreadPool
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import mmh3
 import pandas
-import pyarrow
-from google.auth.exceptions import DefaultCredentialsError
+from tqdm import tqdm
 
-from feast import FeatureTable, utils
+from feast import FeatureTable
 from feast.entity import Entity
-from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.helpers import get_offline_store_from_sources
+from feast.infra.offline_stores.helpers import get_offline_store_from_config
+from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -24,32 +19,17 @@ from feast.infra.provider import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
-from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig
 
 
 class GcpProvider(Provider):
     _gcp_project_id: Optional[str]
+    _namespace: Optional[str]
 
     def __init__(self, config: RepoConfig):
-        assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
-        if config and config.online_store and config.online_store.project_id:
-            self._gcp_project_id = config.online_store.project_id
-        else:
-            self._gcp_project_id = None
-
-    def _initialize_client(self):
-        from google.cloud import datastore
-
-        try:
-            if self._gcp_project_id is not None:
-                return datastore.Client(self._gcp_project_id)
-            else:
-                return datastore.Client()
-        except DefaultCredentialsError as e:
-            raise FeastProviderLoginError(
-                str(e)
-                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your local Google Cloud account'
-            )
+        self.repo_config = config
+        self.offline_store = get_offline_store_from_config(config.offline_store)
+        self.online_store = get_online_store_from_config(config.online_store)
 
     def update_infra(
         self,
@@ -60,24 +40,14 @@ class GcpProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        from google.cloud import datastore
-
-        client = self._initialize_client()
-
-        for table in tables_to_keep:
-            key = client.key("Project", project, "Table", table.name)
-            entity = datastore.Entity(key=key)
-            entity.update({"created_ts": datetime.utcnow()})
-            client.put(entity)
-
-        for table in tables_to_delete:
-            _delete_all_values(
-                client, client.key("Project", project, "Table", table.name)
-            )
-
-            # Delete the table metadata datastore entity
-            key = client.key("Project", project, "Table", table.name)
-            client.delete(key)
+        self.online_store.update(
+            config=self.repo_config,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_keep=entities_to_keep,
+            entities_to_delete=entities_to_delete,
+            partial=partial,
+        )
 
     def teardown_infra(
         self,
@@ -85,67 +55,39 @@ class GcpProvider(Provider):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ) -> None:
-        client = self._initialize_client()
-
-        for table in tables:
-            _delete_all_values(
-                client, client.key("Project", project, "Table", table.name)
-            )
-
-            # Delete the table metadata datastore entity
-            key = client.key("Project", project, "Table", table.name)
-            client.delete(key)
+        self.online_store.teardown(self.repo_config, tables, entities)
 
     def online_write_batch(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        client = self._initialize_client()
-
-        pool = ThreadPool(processes=40)
-        pool.map(
-            lambda b: _write_minibatch(client, project, table, b, progress),
-            _to_minibatches(data),
-        )
+        self.online_store.online_write_batch(config, table, data, progress)
 
     def online_read(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        client = self._initialize_client()
+        result = self.online_store.online_read(config, table, entity_keys)
 
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        for entity_key in entity_keys:
-            document_id = compute_datastore_entity_id(entity_key)
-            key = client.key(
-                "Project", project, "Table", table.name, "Row", document_id
-            )
-            value = client.get(key)
-            if value is not None:
-                res = {}
-                for feature_name, value_bin in value["values"].items():
-                    val = ValueProto()
-                    val.ParseFromString(value_bin)
-                    res[feature_name] = val
-                result.append((value["event_ts"], res))
-            else:
-                result.append((None, None))
         return result
 
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         entities = []
         for entity_name in feature_view.entities:
@@ -158,11 +100,8 @@ class GcpProvider(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        start_date = utils.make_tzaware(start_date)
-        end_date = utils.make_tzaware(end_date)
-
-        offline_store = get_offline_store_from_sources([feature_view.input])
-        table = offline_store.pull_latest_from_table_or_query(
+        offline_job = self.offline_store.pull_latest_from_table_or_query(
+            config=config,
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -171,6 +110,7 @@ class GcpProvider(Provider):
             start_date=start_date,
             end_date=end_date,
         )
+        table = offline_job.to_arrow()
 
         if feature_view.input.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.input.field_mapping)
@@ -178,21 +118,13 @@ class GcpProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(project, feature_view, rows_to_write, None)
+        with tqdm_builder(len(rows_to_write)) as pbar:
+            self.online_write_batch(
+                self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
+            )
 
-        feature_view.materialization_intervals.append((start_date, end_date))
-        registry.apply_feature_view(feature_view, project)
-
-    @staticmethod
-    def _pull_query(query: str) -> pyarrow.Table:
-        from google.cloud import bigquery
-
-        client = bigquery.Client()
-        query_job = client.query(query)
-        return query_job.to_arrow()
-
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -200,10 +132,7 @@ class GcpProvider(Provider):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        offline_store = get_offline_store_from_sources(
-            [feature_view.input for feature_view in feature_views]
-        )
-        job = offline_store.get_historical_features(
+        job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
             feature_refs=feature_refs,
@@ -212,84 +141,3 @@ class GcpProvider(Provider):
             project=project,
         )
         return job
-
-
-ProtoBatch = Sequence[
-    Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-]
-
-
-def _to_minibatches(data: ProtoBatch, batch_size=50) -> Iterator[ProtoBatch]:
-    """
-    Split data into minibatches, making sure we stay under GCP datastore transaction size
-    limits.
-    """
-    iterable = iter(data)
-
-    while True:
-        batch = list(itertools.islice(iterable, batch_size))
-        if len(batch) > 0:
-            yield batch
-        else:
-            break
-
-
-def _write_minibatch(
-    client,
-    project: str,
-    table: Union[FeatureTable, FeatureView],
-    data: Sequence[
-        Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-    ],
-    progress: Optional[Callable[[int], Any]],
-):
-    from google.cloud import datastore
-
-    entities = []
-    for entity_key, features, timestamp, created_ts in data:
-        document_id = compute_datastore_entity_id(entity_key)
-
-        key = client.key("Project", project, "Table", table.name, "Row", document_id,)
-
-        entity = datastore.Entity(key=key)
-
-        entity.update(
-            dict(
-                key=entity_key.SerializeToString(),
-                values={k: v.SerializeToString() for k, v in features.items()},
-                event_ts=utils.make_tzaware(timestamp),
-                created_ts=(
-                    utils.make_tzaware(created_ts) if created_ts is not None else None
-                ),
-            )
-        )
-        entities.append(entity)
-    with client.transaction():
-        client.put_multi(entities)
-
-    if progress:
-        progress(len(entities))
-
-
-def _delete_all_values(client, key) -> None:
-    """
-    Delete all data under the key path in datastore.
-    """
-    while True:
-        query = client.query(kind="Row", ancestor=key)
-        entities = list(query.fetch(limit=1000))
-        if not entities:
-            return
-
-        for entity in entities:
-            client.delete(entity.key)
-
-
-def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
-    """
-    Compute Datastore Entity id given Feast Entity Key.
-
-    Remember that Datastore Entity is a concept from the Datastore data model, that has nothing to
-    do with the Entity concept we have in Feast.
-    """
-    return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()

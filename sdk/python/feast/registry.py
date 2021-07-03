@@ -132,7 +132,7 @@ class Registry:
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
-        raise EntityNotFoundException(project, name)
+        raise EntityNotFoundException(name, project=project)
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
@@ -185,11 +185,58 @@ class Registry:
                     == feature_view_proto.spec.name
                     and existing_feature_view_proto.spec.project == project
                 ):
+                    # do not update if feature view has not changed; updating will erase tracked materialization intervals
+                    if (
+                        FeatureView.from_proto(existing_feature_view_proto)
+                        == feature_view
+                    ):
+                        return registry_proto
+                    else:
+                        del registry_proto.feature_views[idx]
+                        registry_proto.feature_views.append(feature_view_proto)
+                        return registry_proto
+            registry_proto.feature_views.append(feature_view_proto)
+            return registry_proto
+
+        self._registry_store.update_registry_proto(updater)
+
+    def apply_materialization(
+        self,
+        feature_view: FeatureView,
+        project: str,
+        start_date: datetime,
+        end_date: datetime,
+    ):
+        """
+        Updates materialization intervals tracked for a single feature view in Feast
+
+        Args:
+            feature_view: Feature view that will be updated with an additional materialization interval tracked
+            project: Feast project that this feature view belongs to
+            start_date (datetime): Start date of the materialization interval to track
+            end_date (datetime): End date of the materialization interval to track
+        """
+
+        def updater(registry_proto: RegistryProto):
+            for idx, existing_feature_view_proto in enumerate(
+                registry_proto.feature_views
+            ):
+                if (
+                    existing_feature_view_proto.spec.name == feature_view.name
+                    and existing_feature_view_proto.spec.project == project
+                ):
+                    existing_feature_view = FeatureView.from_proto(
+                        existing_feature_view_proto
+                    )
+                    existing_feature_view.materialization_intervals.append(
+                        (start_date, end_date)
+                    )
+                    feature_view_proto = existing_feature_view.to_proto()
+                    feature_view_proto.spec.project = project
                     del registry_proto.feature_views[idx]
                     registry_proto.feature_views.append(feature_view_proto)
                     return registry_proto
-            registry_proto.feature_views.append(feature_view_proto)
-            return registry_proto
+            raise FeatureViewNotFoundException(feature_view.name, project)
 
         self._registry_store.update_registry_proto(updater)
 
@@ -249,7 +296,7 @@ class Registry:
                 and feature_table_proto.spec.project == project
             ):
                 return FeatureTable.from_proto(feature_table_proto)
-        raise FeatureTableNotFoundException(project, name)
+        raise FeatureTableNotFoundException(name, project)
 
     def get_feature_view(self, name: str, project: str) -> FeatureView:
         """
@@ -291,7 +338,7 @@ class Registry:
                 ):
                     del registry_proto.feature_tables[idx]
                     return registry_proto
-            raise FeatureTableNotFoundException(project, name)
+            raise FeatureTableNotFoundException(name, project)
 
         self._registry_store.update_registry_proto(updater)
         return
@@ -431,18 +478,13 @@ class LocalRegistryStore(RegistryStore):
 class GCSRegistryStore(RegistryStore):
     def __init__(self, uri: str):
         try:
-            from google.auth.exceptions import DefaultCredentialsError
             from google.cloud import storage
-        except ImportError:
-            # TODO: Ensure versioning depends on requirements.txt/setup.py and isn't hardcoded
-            raise ImportError(
-                "Install package google-cloud-storage==1.20.* for gcs support"
-                "run ```pip install google-cloud-storage==1.20.*```"
-            )
-        try:
-            self.gcs_client = storage.Client()
-        except DefaultCredentialsError:
-            self.gcs_client = storage.Client.create_anonymous_client()
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("gcp", str(e))
+
+        self.gcs_client = storage.Client()
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._blob = self._uri.path.lstrip("/")

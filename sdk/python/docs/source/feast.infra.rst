@@ -1,6 +1,14 @@
 feast.infra package
 ===================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   feast.infra.offline_stores
+
 Submodules
 ----------
 
@@ -20,10 +28,10 @@ feast.infra.key\_encoding\_utils module
    :undoc-members:
    :show-inheritance:
 
-feast.infra.local\_sqlite module
---------------------------------
+feast.infra.local module
+------------------------
 
-.. automodule:: feast.infra.local_sqlite
+.. automodule:: feast.infra.local
    :members:
    :undoc-members:
    :show-inheritance:

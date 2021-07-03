@@ -260,8 +260,8 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Oauth token request url
     OAUTH_TOKEN_REQUEST_URL: Optional[str] = None
 
-    #: Telemetry enabled
-    TELEMETRY = "True"
+    #: Usage enabled
+    USAGE = "True"
 
     #: Object store registry
     REGISTRY_PATH: Optional[str] = None

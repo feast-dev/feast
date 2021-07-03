@@ -4,12 +4,14 @@ from pathlib import Path
 from textwrap import dedent
 
 import assertpy
+import pytest
 
 from feast.feature_store import FeatureStore
 from tests.cli_utils import CliRunner
 from tests.online_read_write_test import basic_rw_test
 
 
+@pytest.mark.integration
 def test_workflow() -> None:
     """
     Test running apply on a sample repo, and make sure the infra gets created.
@@ -31,6 +33,8 @@ def test_workflow() -> None:
         provider: local
         online_store:
             path: {data_path / "online_store.db"}
+        offline_store:
+            type: bigquery
         """
             )
         )
@@ -76,6 +80,7 @@ def test_workflow() -> None:
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
 
+@pytest.mark.integration
 def test_non_local_feature_repo() -> None:
     """
     Test running apply on a sample repo, and make sure the infra gets created.
@@ -96,6 +101,8 @@ def test_non_local_feature_repo() -> None:
         provider: local
         online_store:
             path: data/online_store.db
+        offline_store:
+            type: bigquery
         """
             )
         )
@@ -133,6 +140,8 @@ def setup_third_party_provider_repo(provider_name: str):
         online_store:
             path: data/online_store.db
             type: sqlite
+        offline_store:
+            type: file
         """
             )
         )
@@ -155,18 +164,18 @@ def test_3rd_party_providers() -> None:
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(b"Provider 'feast123' is not implemented")
     # Check with incorrect third-party provider name (with dots)
-    with setup_third_party_provider_repo("feast_foo.provider") as repo_path:
+    with setup_third_party_provider_repo("feast_foo.Provider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import provider module 'feast_foo'"
+            b"Could not import Provider module 'feast_foo'"
         )
     # Check with incorrect third-party provider name (with dots)
     with setup_third_party_provider_repo("foo.FooProvider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import provider 'FooProvider' from module 'foo'"
+            b"Could not import Provider 'FooProvider' from module 'foo'"
         )
     # Check with correct third-party provider name
     with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:

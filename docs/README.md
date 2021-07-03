@@ -4,7 +4,7 @@
 
 Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
 
-![](.gitbook/assets/feast-architecture-diagrams%20%281%29%20%281%29%20%281%29%20%282%29%20%283%29%20%284%29%20%283%29%20%281%29%20%281%29%20%281%29%20%281%29%20%286%29.svg)
+![](.gitbook/assets/feast_hero_010.png)
 
 ## Problems Feast Solves
 
@@ -43,16 +43,14 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 ## How can I get started?
 
 {% hint style="info" %}
-The best way to learn Feast is to use it. Head over to our [Quickstart](feast-on-kubernetes/getting-started/install-feast/quickstart.md) and try out our examples!
+The best way to learn Feast is to use it. Head over to our [Quickstart](quickstart.md) and try it out!
 {% endhint %}
 
 Explore the following resources to get started with Feast:
 
-* [Getting Started](feast-on-kubernetes/getting-started/) provides guides on [Installing Feast](feast-on-kubernetes/getting-started/install-feast/) and [Connecting to Feast](feast-on-kubernetes/getting-started/connect-to-feast/).
-* [Concepts](feast-on-kubernetes/concepts/overview.md) describes all important Feast API concepts.
-* [User guide](feast-on-kubernetes/user-guide/define-and-ingest-features.md) provides guidance on completing Feast workflows.
-* [Examples](https://github.com/feast-dev/feast/tree/master/examples) contains a Jupyter notebook that you can run on your Feast deployment.
-* [Advanced](feast-on-kubernetes/advanced-1/troubleshooting.md) contains information about both advanced and operational aspects of Feast.
-* [Reference](feast-on-kubernetes/reference-1/api/) contains detailed API and design documents for advanced users.
+* [Quickstart](quickstart.md) is the fastest way to get started with Feast
+* [Getting started ](getting-started/)provides a step-by-step guide to using Feast.
+* [Concepts](concepts/data-model-and-concepts.md#concepts) describes all important Feast API concepts.
+* [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
 * [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
 

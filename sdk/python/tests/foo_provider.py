@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
+from tqdm import tqdm
 
 from feast import Entity, FeatureTable, FeatureView, RepoConfig
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -33,7 +34,7 @@ class FooProvider(Provider):
 
     def online_write_batch(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
@@ -44,16 +45,18 @@ class FooProvider(Provider):
 
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         pass
 
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -65,9 +68,10 @@ class FooProvider(Provider):
 
     def online_read(
         self,
-        project: str,
+        config: RepoConfig,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         pass
 

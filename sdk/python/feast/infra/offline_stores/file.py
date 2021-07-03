@@ -4,8 +4,10 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 import pytz
+from pydantic.typing import Literal
 
 from feast.data_source import DataSource, FileSource
+from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
@@ -14,7 +16,14 @@ from feast.infra.provider import (
     _run_field_mapping,
 )
 from feast.registry import Registry
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
+
+
+class FileOfflineStoreConfig(FeastConfigBaseModel):
+    """ Offline store config for local (file-based) store """
+
+    type: Literal["file"] = "file"
+    """ Offline store type selector"""
 
 
 class FileRetrievalJob(RetrievalJob):
@@ -29,6 +38,11 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function()
         return df
 
+    def to_arrow(self):
+        # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
+        df = self.evaluation_function()
+        return pyarrow.Table.from_pandas(df)
+
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
@@ -39,7 +53,7 @@ class FileOfflineStore(OfflineStore):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
-    ) -> FileRetrievalJob:
+    ) -> RetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
@@ -153,8 +167,12 @@ class FileOfflineStore(OfflineStore):
                     ]
 
                 df_to_join.sort_values(by=right_entity_key_sort_columns, inplace=True)
-                df_to_join = df_to_join.groupby(by=right_entity_key_columns).last()
-                df_to_join.reset_index(inplace=True)
+                df_to_join.drop_duplicates(
+                    right_entity_key_sort_columns,
+                    keep="last",
+                    ignore_index=True,
+                    inplace=True,
+                )
 
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
@@ -192,6 +210,7 @@ class FileOfflineStore(OfflineStore):
 
     @staticmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -199,38 +218,48 @@ class FileOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> RetrievalJob:
         assert isinstance(data_source, FileSource)
 
-        source_df = pd.read_parquet(data_source.path)
-        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
-        )
-        if created_timestamp_column:
-            source_df[created_timestamp_column] = source_df[
-                created_timestamp_column
-            ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
+        # Create lazy function that is only called from the RetrievalJob object
+        def evaluate_offline_job():
+            source_df = pd.read_parquet(data_source.path)
+            # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+            source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
+                lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+            )
+            if created_timestamp_column:
+                source_df[created_timestamp_column] = source_df[
+                    created_timestamp_column
+                ].apply(
+                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+                )
 
-        ts_columns = (
-            [event_timestamp_column, created_timestamp_column]
-            if created_timestamp_column
-            else [event_timestamp_column]
-        )
+            source_columns = set(source_df.columns)
+            if not set(join_key_columns).issubset(source_columns):
+                raise FeastJoinKeysDuringMaterialization(
+                    data_source.path, set(join_key_columns), source_columns
+                )
 
-        source_df.sort_values(by=ts_columns, inplace=True)
+            ts_columns = (
+                [event_timestamp_column, created_timestamp_column]
+                if created_timestamp_column
+                else [event_timestamp_column]
+            )
 
-        filtered_df = source_df[
-            (source_df[event_timestamp_column] >= start_date)
-            & (source_df[event_timestamp_column] < end_date)
-        ]
-        last_values_df = filtered_df.groupby(by=join_key_columns).last()
+            source_df.sort_values(by=ts_columns, inplace=True)
 
-        # make driver_id a normal column again
-        last_values_df.reset_index(inplace=True)
+            filtered_df = source_df[
+                (source_df[event_timestamp_column] >= start_date)
+                & (source_df[event_timestamp_column] < end_date)
+            ]
+            last_values_df = filtered_df.drop_duplicates(
+                join_key_columns, keep="last", ignore_index=True
+            )
 
-        table = pyarrow.Table.from_pandas(
-            last_values_df[join_key_columns + feature_name_columns + ts_columns]
-        )
+            columns_to_extract = set(
+                join_key_columns + feature_name_columns + ts_columns
+            )
+            return last_values_df[columns_to_extract]
 
-        return table
+        return FileRetrievalJob(evaluation_function=evaluate_offline_job)

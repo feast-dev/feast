@@ -1,4 +1,4 @@
-# Contribution Process
+# Contribution process
 
 We use [RFCs](https://en.wikipedia.org/wiki/Request_for_Comments) and [GitHub issues](https://github.com/feast-dev/feast/issues) to communicate development ideas. The simplest way to contribute to Feast is to leave comments in our [RFCs](https://drive.google.com/drive/u/0/folders/1Lj1nIeRB868oZvKTPLYqAvKQ4O0BksjY) in the [Feast Google Drive](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA) or our GitHub issues. You will need to join our [Google Group](../community.md) in order to get access.
 

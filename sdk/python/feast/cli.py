@@ -21,6 +21,7 @@ import click
 import pkg_resources
 import yaml
 
+from feast import utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
@@ -32,14 +33,32 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
-from feast.telemetry import Telemetry
 
 _logger = logging.getLogger(__name__)
 DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
 
 
+class NoOptionDefaultFormat(click.Command):
+    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter):
+        """Writes all the options into the formatter if they exist."""
+        opts = []
+        for param in self.get_params(ctx):
+            rv = param.get_help_record(ctx)
+            if rv is not None:
+                opts.append(rv)
+        if opts:
+            with formatter.section("Options(No current command options)"):
+                formatter.write_dl(opts)
+
+
 @click.group()
-def cli():
+@click.option(
+    "--chdir",
+    "-c",
+    help="Switch to a different feature repository directory before executing the given subcommand.",
+)
+@click.pass_context
+def cli(ctx: click.Context, chdir: str):
     """
     Feast CLI
 
@@ -47,6 +66,8 @@ def cli():
 
     For any questions, you can reach us at https://slack.feast.dev/
     """
+    ctx.ensure_object(dict)
+    ctx.obj["CHDIR"] = Path.cwd() if chdir is None else Path(chdir).absolute()
     pass
 
 
@@ -68,12 +89,14 @@ def entities_cmd():
 
 @entities_cmd.command("describe")
 @click.argument("name", type=click.STRING)
-def entity_describe(name: str):
+@click.pass_context
+def entity_describe(ctx: click.Context, name: str):
     """
     Describe an entity
     """
-    cli_check_repo(Path.cwd())
-    store = FeatureStore(repo_path=str(Path.cwd()))
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
 
     try:
         entity = store.get_entity(name)
@@ -89,12 +112,14 @@ def entity_describe(name: str):
 
 
 @entities_cmd.command(name="list")
-def entity_list():
+@click.pass_context
+def entity_list(ctx: click.Context):
     """
     List all entities
     """
-    cli_check_repo(Path.cwd())
-    store = FeatureStore(repo_path=str(Path.cwd()))
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
     table = []
     for entity in store.list_entities():
         table.append([entity.name, entity.description, entity.value_type])
@@ -114,12 +139,14 @@ def feature_views_cmd():
 
 @feature_views_cmd.command("describe")
 @click.argument("name", type=click.STRING)
-def feature_view_describe(name: str):
+@click.pass_context
+def feature_view_describe(ctx: click.Context, name: str):
     """
     Describe a feature view
     """
-    cli_check_repo(Path.cwd())
-    store = FeatureStore(repo_path=str(Path.cwd()))
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
 
     try:
         feature_view = store.get_feature_view(name)
@@ -135,12 +162,14 @@ def feature_view_describe(name: str):
 
 
 @feature_views_cmd.command(name="list")
-def feature_view_list():
+@click.pass_context
+def feature_view_list(ctx: click.Context):
     """
     List all feature views
     """
-    cli_check_repo(Path.cwd())
-    store = FeatureStore(repo_path=str(Path.cwd()))
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
     table = []
     for feature_view in store.list_feature_views():
         table.append([feature_view.name, feature_view.entities])
@@ -150,45 +179,45 @@ def feature_view_list():
     print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
-@cli.command("apply")
-def apply_total_command():
+@cli.command("apply", cls=NoOptionDefaultFormat)
+@click.pass_context
+def apply_total_command(ctx: click.Context):
     """
     Create or update a feature store deployment
     """
-    cli_check_repo(Path.cwd())
-    repo_config = load_repo_config(Path.cwd())
-    tele = Telemetry()
-    tele.log("apply")
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_config = load_repo_config(repo)
     try:
-        apply_total(repo_config, Path.cwd())
+        apply_total(repo_config, repo)
     except FeastProviderLoginError as e:
         print(str(e))
 
 
-@cli.command("teardown")
-def teardown_command():
+@cli.command("teardown", cls=NoOptionDefaultFormat)
+@click.pass_context
+def teardown_command(ctx: click.Context):
     """
     Tear down deployed feature store infrastructure
     """
-    cli_check_repo(Path.cwd())
-    repo_config = load_repo_config(Path.cwd())
-    tele = Telemetry()
-    tele.log("teardown")
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_config = load_repo_config(repo)
 
-    teardown(repo_config, Path.cwd())
+    teardown(repo_config, repo)
 
 
 @cli.command("registry-dump")
-def registry_dump_command():
+@click.pass_context
+def registry_dump_command(ctx: click.Context):
     """
     Print contents of the metadata registry
     """
-    cli_check_repo(Path.cwd())
-    repo_config = load_repo_config(Path.cwd())
-    tele = Telemetry()
-    tele.log("registry-dump")
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_config = load_repo_config(repo)
 
-    registry_dump(repo_config, repo_path=Path.cwd())
+    registry_dump(repo_config, repo_path=repo)
 
 
 @cli.command("materialize")
@@ -197,7 +226,10 @@ def registry_dump_command():
 @click.option(
     "--views", "-v", help="Feature views to materialize", multiple=True,
 )
-def materialize_command(start_ts: str, end_ts: str, views: List[str]):
+@click.pass_context
+def materialize_command(
+    ctx: click.Context, start_ts: str, end_ts: str, views: List[str]
+):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
     will read all data between START_TS and END_TS from the offline store and write it to the
@@ -206,12 +238,13 @@ def materialize_command(start_ts: str, end_ts: str, views: List[str]):
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
-    cli_check_repo(Path.cwd())
-    store = FeatureStore(repo_path=str(Path.cwd()))
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
-        start_date=datetime.fromisoformat(start_ts),
-        end_date=datetime.fromisoformat(end_ts),
+        start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -220,7 +253,8 @@ def materialize_command(start_ts: str, end_ts: str, views: List[str]):
 @click.option(
     "--views", "-v", help="Feature views to incrementally materialize", multiple=True,
 )
-def materialize_incremental_command(end_ts: str, views: List[str]):
+@click.pass_context
+def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List[str]):
     """
     Run an incremental materialization job to ingest new data into the online store. Feast will read
     all data from the previously ingested point to END_TS from the offline store and write it to the
@@ -229,11 +263,12 @@ def materialize_incremental_command(end_ts: str, views: List[str]):
 
     END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
-    cli_check_repo(Path.cwd())
-    store = FeatureStore(repo_path=str(Path.cwd()))
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
     store.materialize_incremental(
         feature_views=None if not views else views,
-        end_date=datetime.fromisoformat(end_ts),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -257,8 +292,6 @@ def init_command(project_directory, minimal: bool, template: str):
     if minimal:
         template = "minimal"
 
-    tele = Telemetry()
-    tele.log("init")
     init_repo(project_directory, template)
 
 

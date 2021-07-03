@@ -1,26 +1,31 @@
-from typing import List
+import importlib
+from typing import Any
 
-from feast.data_source import BigQuerySource, DataSource, FileSource
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStore
-from feast.infra.offline_stores.file import FileOfflineStore
+from feast import errors
 from feast.infra.offline_stores.offline_store import OfflineStore
 
 
-def get_offline_store_from_sources(sources: List[DataSource]) -> OfflineStore:
-    """Detect which offline store should be used for retrieving historical features"""
+def get_offline_store_from_config(offline_store_config: Any,) -> OfflineStore:
+    """Get the offline store from offline store config"""
 
-    source_types = [type(source) for source in sources]
+    module_name = offline_store_config.__module__
+    qualified_name = type(offline_store_config).__name__
+    store_class_name = qualified_name.replace("Config", "")
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as e:
+        # The original exception can be anything - either module not found,
+        # or any other kind of error happening during the module import time.
+        # So we should include the original error as well in the stack trace.
+        raise errors.FeastModuleImportError(module_name, "OfflineStore") from e
 
-    # Retrieve features from ParquetOfflineStore
-    if all(source == FileSource for source in source_types):
-        return FileOfflineStore()
-
-    # Retrieve features from BigQueryOfflineStore
-    if all(source == BigQuerySource for source in source_types):
-        return BigQueryOfflineStore()
-
-    # Could not map inputs to an OfflineStore implementation
-    raise NotImplementedError(
-        "Unsupported combination of feature view input source types. Please ensure that all source types are "
-        "consistent and available in the same offline store."
-    )
+    # Try getting the provider class definition
+    try:
+        offline_store_class = getattr(module, store_class_name)
+    except AttributeError:
+        # This can only be one type of error, when class_name attribute does not exist in the module
+        # So we don't have to include the original exception here
+        raise errors.FeastClassImportError(
+            module_name, store_class_name, class_type="OfflineStore"
+        ) from None
+    return offline_store_class()

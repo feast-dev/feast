@@ -29,6 +29,7 @@ class ValueType(enum.Enum):
     DOUBLE = 5
     FLOAT = 6
     BOOL = 7
+    UNIX_TIMESTAMP = 8
     BYTES_LIST = 11
     STRING_LIST = 12
     INT32_LIST = 13
@@ -36,6 +37,7 @@ class ValueType(enum.Enum):
     DOUBLE_LIST = 15
     FLOAT_LIST = 16
     BOOL_LIST = 17
+    UNIX_TIMESTAMP_LIST = 18
 
     def to_tfx_schema_feature_type(self):
         if self.value in [
@@ -49,9 +51,14 @@ class ValueType(enum.Enum):
             ValueType.DOUBLE_LIST.value,
             ValueType.FLOAT_LIST.value,
             ValueType.BOOL_LIST.value,
+            ValueType.UNIX_TIMESTAMP_LIST.value,
         ]:
             return schema_pb2.FeatureType.BYTES
-        elif self.value in [ValueType.INT32.value, ValueType.INT64.value]:
+        elif self.value in [
+            ValueType.INT32.value,
+            ValueType.INT64.value,
+            ValueType.UNIX_TIMESTAMP.value,
+        ]:
             return schema_pb2.FeatureType.INT
         elif self.value in [ValueType.DOUBLE.value, ValueType.FLOAT.value]:
             return schema_pb2.FeatureType.FLOAT
