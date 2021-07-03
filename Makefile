@@ -53,10 +53,10 @@ install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 test-python:
-	FEAST_TELEMETRY=False pytest -n 8 sdk/python/tests
+	FEAST_USAGE=False pytest -n 8 sdk/python/tests
 
 test-python-integration:
-	FEAST_TELEMETRY=False pytest -n 8 --integration sdk/python/tests
+	FEAST_USAGE=False pytest -n 8 --integration sdk/python/tests
 
 format-python:
 	# Sort
