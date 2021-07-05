@@ -51,19 +51,6 @@ def generate_entities(date, infer_event_timestamp_col):
     return customer_entities, driver_entities, end_date, orders_df, start_date
 
 
-def upload_entity_df_into_bigquery(client, entity_df, table_id):
-    job_config = bigquery.LoadJobConfig()
-    entity_df.reset_index(drop=True, inplace=True)
-    job = client.load_table_from_dataframe(entity_df, table_id, job_config=job_config)
-    job.result()
-
-    # Ensure that the table expires after some time
-    table = client.get_table(table=table_id)
-    table.expires = datetime.utcnow() + timedelta(minutes=30)
-    client.update_table(table, ["expires"])
-    return table
-
-
 def stage_driver_hourly_stats_parquet_source(directory, df):
     # Write to disk
     driver_stats_path = os.path.join(directory, "driver_stats.parquet")
@@ -577,9 +564,15 @@ def test_timestamp_bound_inference_from_entity_df_using_bigquery():
         start_date, infer_event_timestamp_col=True
     )
 
-    client = bigquery.Client()
     table_id = "foo.table_id"
-    table = upload_entity_df_into_bigquery(client, entity_df, table_id)
+    stage_orders_bigquery(entity_df, table_id)
+
+    client = bigquery.Client()
+    table = client.get_table(table=table_id)
+
+    # Ensure that the table expires after some time
+    table.expires = datetime.utcnow() + timedelta(minutes=30)
+    client.update_table(table, ["expires"])
 
     min_timestamp, max_timestamp = _get_entity_df_timestamp_bounds(
         client, str(table.reference), "e_ts"
