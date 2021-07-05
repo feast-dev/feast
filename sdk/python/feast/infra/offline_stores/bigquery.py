@@ -288,12 +288,12 @@ def block_until_done(client, bq_job):
     job_id = bq_job.job_id
     _wait_until_done(job_id=job_id)
 
+    if bq_job.exception():
+        raise bq_job.exception()
+
     if not _is_done(job_id):
         client.cancel_job(job_id)
         raise BigQueryJobCancelled(job_id=job_id)
-
-    if bq_job.exception():
-        raise bq_job.exception()
 
 
 @dataclass(frozen=True)
