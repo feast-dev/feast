@@ -9,7 +9,7 @@ import "feast/core/Feature.proto";
 
 
 // A reference to features in a feature view
-message FeatureReference {
+message FeatureViewProjection {
   // The feature view name
   string feature_view_name = 1;
 

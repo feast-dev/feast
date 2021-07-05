@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Union
 
-from feast.feature_reference import FeatureReference
+from feast.feature_view_projection import FeatureViewProjection
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -15,21 +15,21 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 
 class FeatureService:
     name: str
-    features: List[FeatureReference]
+    features: List[FeatureViewProjection]
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
 
     def __init__(
         self,
         name: str,
-        features: List[Union[FeatureTable, FeatureView, FeatureReference]],
+        features: List[Union[FeatureTable, FeatureView, FeatureViewProjection]],
     ):
         self.name = name
         self.features = []
         for feature in features:
             if isinstance(feature, FeatureTable) or isinstance(feature, FeatureView):
-                self.features.append(FeatureReference.from_definition(feature))
-            elif isinstance(feature, FeatureReference):
+                self.features.append(FeatureViewProjection.from_definition(feature))
+            elif isinstance(feature, FeatureViewProjection):
                 self.features.append(feature)
             else:
                 raise ValueError(f"Unexpected type: {type(feature)}")
@@ -42,7 +42,7 @@ class FeatureService:
         fs = FeatureService(
             name=feature_service_proto.spec.name,
             features=[
-                FeatureReference.from_proto(fp)
+                FeatureViewProjection.from_proto(fp)
                 for fp in feature_service_proto.spec.features
             ],
         )
@@ -69,7 +69,7 @@ class FeatureService:
             if isinstance(definition, FeatureTable) or isinstance(
                 definition, FeatureView
             ):
-                feature_ref = FeatureReference(definition.name, definition.features)
+                feature_ref = FeatureViewProjection(definition.name, definition.features)
             else:
                 feature_ref = definition
 

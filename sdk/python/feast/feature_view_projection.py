@@ -9,7 +9,7 @@ from feast.protos.feast.core.FeatureReference_pb2 import (
 
 
 @dataclass
-class FeatureReference:
+class FeatureViewProjection:
     name: str
     features: List[Feature]
 
@@ -22,7 +22,7 @@ class FeatureReference:
 
     @staticmethod
     def from_proto(proto: FeatureReferenceProto):
-        ref = FeatureReference(name=proto.feature_view_name, features=[])
+        ref = FeatureViewProjection(name=proto.feature_view_name, features=[])
         for feature_column in proto.feature_columns:
             ref.features.append(Feature.from_proto(feature_column))
 
@@ -30,6 +30,6 @@ class FeatureReference:
 
     @staticmethod
     def from_definition(feature_definition):
-        return FeatureReference(
+        return FeatureViewProjection(
             name=feature_definition.name, features=feature_definition.features
         )
