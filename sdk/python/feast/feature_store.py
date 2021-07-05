@@ -553,6 +553,7 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
+        _validate_feature_refs(feature_refs, full_feature_names)
         grouped_refs = _group_feature_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
@@ -613,13 +614,19 @@ def _entity_row_to_field_values(
 
 
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
-    feature_names = [ref.split(":")[1] for ref in feature_refs]
-    feature_name, occurrences = Counter(feature_names).most_common(1)[0]
-    if count > 1:
+    if full_feature_names:
         collided_feature_refs = [
-            ref for ref in feature_refs if ref.endswith(":" + feature_name)
-        ]
-        raise FeatureNameCollisionError(collided_feature_refs)
+            ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1]
+        if len(collided_feature_refs) > 0:
+            raise FeatureNameCollisionError(collided_feature_refs)
+    else:
+        feature_names = [ref.split(":")[1] for ref in feature_refs]
+        feature_name, occurrences = Counter(feature_names).most_common(1)[0]
+        if occurrences > 1:
+            collided_feature_refs = [
+                ref for ref in feature_refs if ref.endswith(":" + feature_name)
+            ]
+            raise FeatureNameCollisionError(collided_feature_refs)
 
 
 def _group_feature_refs(
