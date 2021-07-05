@@ -195,13 +195,14 @@ def get_expected_training_df(
     expected_df = expected_df[[event_timestamp] + current_cols]
 
     # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
-    expected_df["order_is_success"] = expected_df["order_is_success"].astype("int32")
-    expected_df["customer_profile__current_balance"] = expected_df[
-        "customer_profile__current_balance"
-    ].astype("float32")
-    expected_df["customer_profile__avg_passenger_count"] = expected_df[
-        "customer_profile__avg_passenger_count"
-    ].astype("float32")
+    expected_column_types = {
+        "order_is_success": "int32",
+        "driver_stats__conv_rate": "float32",
+        "customer_profile__current_balance": "float32",
+        "customer_profile__avg_passenger_count": "float32",
+    }
+    for col, typ in expected_column_types.items():
+        expected_df[col] = expected_df[col].astype(typ)
 
     return expected_df
 

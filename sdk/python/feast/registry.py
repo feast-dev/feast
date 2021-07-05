@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -25,6 +26,8 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
+    S3RegistryBucketForbiddenAccess,
+    S3RegistryBucketNotExist,
 )
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -56,6 +59,8 @@ class Registry:
         uri = urlparse(registry_path)
         if uri.scheme == "gs":
             self._registry_store: RegistryStore = GCSRegistryStore(registry_path)
+        elif uri.scheme == "s3":
+            self._registry_store = S3RegistryStore(registry_path)
         elif uri.scheme == "file" or uri.scheme == "":
             self._registry_store = LocalRegistryStore(
                 repo_path=repo_path, registry_path_string=registry_path
@@ -537,3 +542,73 @@ class GCSRegistryStore(RegistryStore):
         file_obj.seek(0)
         blob.upload_from_file(file_obj)
         return
+
+
+class S3RegistryStore(RegistryStore):
+    def __init__(self, uri: str):
+        try:
+            import boto3
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        self._uri = urlparse(uri)
+        self._bucket = self._uri.hostname
+        self._key = self._uri.path.lstrip("/")
+
+        self.s3_client = boto3.resource(
+            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
+        )
+
+    def get_registry_proto(self):
+        file_obj = TemporaryFile()
+        registry_proto = RegistryProto()
+        try:
+            from botocore.exceptions import ClientError
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        try:
+            bucket = self.s3_client.Bucket(self._bucket)
+            self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
+        except ClientError as e:
+            # If a client error is thrown, then check that it was a 404 error.
+            # If it was a 404 error, then the bucket does not exist.
+            error_code = int(e.response["Error"]["Code"])
+            if error_code == 404:
+                raise S3RegistryBucketNotExist(self._bucket)
+            else:
+                raise S3RegistryBucketForbiddenAccess(self._bucket) from e
+
+        try:
+            obj = bucket.Object(self._key)
+            obj.download_fileobj(file_obj)
+            file_obj.seek(0)
+            registry_proto.ParseFromString(file_obj.read())
+            return registry_proto
+        except ClientError as e:
+            raise FileNotFoundError(
+                f"Error while trying to locate Registry at path {self._uri.geturl()}"
+            ) from e
+
+    def update_registry_proto(
+        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
+    ):
+        try:
+            registry_proto = self.get_registry_proto()
+        except FileNotFoundError:
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+        if updater:
+            registry_proto = updater(registry_proto)
+        self._write_registry(registry_proto)
+
+    def _write_registry(self, registry_proto: RegistryProto):
+        registry_proto.version_id = str(uuid.uuid4())
+        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        # we have already checked the bucket exists so no need to do it again
+        file_obj = TemporaryFile()
+        file_obj.write(registry_proto.SerializeToString())
+        file_obj.seek(0)
+        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)

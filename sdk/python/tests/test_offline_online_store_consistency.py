@@ -1,4 +1,5 @@
 import contextlib
+import math
 import tempfile
 import time
 import uuid
@@ -17,7 +18,9 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
+from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
@@ -166,7 +169,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             join_key="driver_id",
             value_type=ValueType.INT32,
         )
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory():
+        with tempfile.TemporaryDirectory() as repo_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
@@ -176,6 +179,41 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                     redis_type=RedisType.redis,
                     connection_string="localhost:6379,db=0",
                 ),
+            )
+            fs = FeatureStore(config=config)
+            fs.apply([fv, e])
+
+            yield fs, fv
+
+
+@contextlib.contextmanager
+def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
+    with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+        df = create_dataset()
+        f.close()
+        df.to_parquet(f.name)
+        file_source = FileSource(
+            file_format=ParquetFormat(),
+            file_url=f"file://{f.name}",
+            event_timestamp_column="ts",
+            created_timestamp_column="created_ts",
+            date_partition_column="",
+            field_mapping={"ts_1": "ts", "id": "driver_id"},
+        )
+        fv = get_feature_view(file_source)
+        e = Entity(
+            name="driver",
+            description="id for driver",
+            join_key="driver_id",
+            value_type=ValueType.INT32,
+        )
+        with tempfile.TemporaryDirectory() as repo_dir_name:
+            config = RepoConfig(
+                registry=str(Path(repo_dir_name) / "registry.db"),
+                project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
+                provider="aws",
+                online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+                offline_store=FileOfflineStoreConfig(),
             )
             fs = FeatureStore(config=config)
             fs.apply([fv, e])
@@ -212,8 +250,7 @@ def check_offline_and_online_features(
     if expected_value:
         assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
     else:
-        df = df.where(pd.notnull(df), None)
-        assert df.to_dict()[f"{fv.name}__value"][0] is None
+        assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
 
 
 def run_offline_online_store_consistency_test(
@@ -261,6 +298,12 @@ def test_bq_offline_online_store_consistency(bq_source_type: str):
 @pytest.mark.integration
 def test_redis_offline_online_store_consistency():
     with prep_redis_fs_and_fv() as (fs, fv):
+        run_offline_online_store_consistency_test(fs, fv)
+
+
+@pytest.mark.integration
+def test_dynamodb_offline_online_store_consistency():
+    with prep_dynamodb_fs_and_fv() as (fs, fv):
         run_offline_online_store_consistency_test(fs, fv)
 
 

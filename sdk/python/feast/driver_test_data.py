@@ -140,8 +140,8 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date) -> pd.DataFrame
     # TODO: These duplicate rows area indirectly being filtered out by the point in time join already. We need to
     #  inject a bad row at a timestamp where we know it will get joined to the entity dataframe, and then test that
     #  we are actually filtering it with the created timestamp
-    late_row = df_all_drivers.iloc[int(rows / 2)]
-    df_all_drivers = df_all_drivers.append(late_row).append(late_row)
+    late_row = df_all_drivers[rows // 2 : rows // 2 + 1]
+    df_all_drivers = pd.concat([df_all_drivers, late_row, late_row], ignore_index=True)
 
     return df_all_drivers
 

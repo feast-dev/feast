@@ -71,6 +71,10 @@ REDIS_REQUIRED = [
     "redis-py-cluster==2.1.2",
 ]
 
+AWS_REQUIRED = [
+    "boto3==1.17.*",
+]
+
 CI_REQUIRED = [
     "cryptography==3.3.2",
     "flake8",
@@ -104,7 +108,9 @@ CI_REQUIRED = [
     "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
+    "boto3==1.17.*",
 ]
+
 
 # README file from Feast repo root directory
 repo_root = (
@@ -198,6 +204,7 @@ setup(
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
+        "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
     },
     include_package_data=True,

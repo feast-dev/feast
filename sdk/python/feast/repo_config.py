@@ -16,6 +16,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+    "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -67,7 +68,7 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp """
+    """ str: local or gcp or aws """
 
     online_store: Any
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -127,6 +128,8 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "sqlite"
             elif values["provider"] == "gcp":
                 values["online_store"]["type"] = "datastore"
+            elif values["provider"] == "aws":
+                values["online_store"]["type"] = "dynamodb"
 
         online_store_type = values["online_store"]["type"]
 
@@ -161,7 +164,7 @@ class RepoConfig(FeastBaseModel):
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
-                values["offline_store"]["type"] = "redshift"
+                values["offline_store"]["type"] = "file"
 
         offline_store_type = values["offline_store"]["type"]
 
