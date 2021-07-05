@@ -23,16 +23,12 @@ message FeatureServiceSpec {
   // Name of Feast project that this Feature Service belongs to.
   string project = 2;
 
-  // List names of entities to associate with the Features defined in this
-  // Feature Service. Not updatable.
-  repeated string entities = 3;
-
   // List of features that this feature service encapsulates.
   // Stored as a list of references to other features views and the features from those views.
-  repeated FeatureReference features = 4;
+  repeated FeatureReference features = 3;
 
   // User defined metadata
-  map<string,string> tags = 5;
+  map<string,string> tags = 4;
 }
 
 
