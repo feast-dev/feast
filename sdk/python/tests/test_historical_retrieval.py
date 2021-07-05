@@ -20,7 +20,10 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.bigquery import (
+    BigQueryOfflineStoreConfig,
+    _get_entity_df_timestamp_bounds,
+)
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.value_type import ValueType
@@ -46,6 +49,19 @@ def generate_entities(date, infer_event_timestamp_col):
         infer_event_timestamp_col=infer_event_timestamp_col,
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
+
+
+def upload_entity_df_into_bigquery(client, entity_df, table_id):
+    job_config = bigquery.LoadJobConfig()
+    entity_df.reset_index(drop=True, inplace=True)
+    job = client.load_table_from_dataframe(entity_df, table_id, job_config=job_config)
+    job.result()
+
+    # Ensure that the table expires after some time
+    table = client.get_table(table=table_id)
+    table.expires = datetime.utcnow() + timedelta(minutes=30)
+    client.update_table(table, ["expires"])
+    return table
 
 
 def stage_driver_hourly_stats_parquet_source(directory, df):
@@ -557,3 +573,22 @@ def test_historical_features_from_bigquery_sources(
             .reset_index(drop=True),
             check_dtype=False,
         )
+
+
+@pytest.mark.integration
+def test_timestamp_bound_inference_from_entity_df_using_bigquery():
+    start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+    (_, _, _, entity_df, start_date) = generate_entities(
+        start_date, infer_event_timestamp_col=True
+    )
+
+    client = bigquery.Client()
+    table_id = "foo.table_id"
+    table = upload_entity_df_into_bigquery(client, entity_df, table_id)
+
+    min_timestamp, max_timestamp = _get_entity_df_timestamp_bounds(
+        client, str(table.reference), "e_ts"
+    )
+
+    assert min_timestamp is min(entity_df["e_ts"])
+    assert max_timestamp is max(entity_df["e_ts"])
