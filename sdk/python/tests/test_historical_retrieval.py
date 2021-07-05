@@ -563,12 +563,11 @@ def test_historical_features_from_bigquery_sources(
             .reset_index(drop=True),
             check_dtype=False,
         )
-        
+
         table_from_df_entities = job_from_df.to_arrow()
         assert_frame_equal(
             actual_df_from_df_entities, table_from_df_entities.to_pandas()
         )
-
 
 
 @pytest.mark.integration
@@ -588,4 +587,3 @@ def test_timestamp_bound_inference_from_entity_df_using_bigquery():
 
     assert min_timestamp is min(entity_df["e_ts"])
     assert max_timestamp is max(entity_df["e_ts"])
-
