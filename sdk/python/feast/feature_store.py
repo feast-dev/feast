@@ -614,7 +614,7 @@ def _entity_row_to_field_values(
 
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     feature_names = [ref.split(":")[1] for ref in feature_refs]
-    feature_name, count = Counter(feature_names).most_common(1)[0]
+    feature_name, occurrences = Counter(feature_names).most_common(1)[0]
     if count > 1:
         collided_feature_refs = [
             ref for ref in feature_refs if ref.endswith(":" + feature_name)
