@@ -616,7 +616,8 @@ def _entity_row_to_field_values(
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     if full_feature_names:
         collided_feature_refs = [
-            ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1]
+            ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
+        ]
         if len(collided_feature_refs) > 0:
             raise FeatureNameCollisionError(collided_feature_refs)
     else:
