@@ -1,8 +1,7 @@
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import pandas as pd
-import pytz
+import pandas
 from tqdm import tqdm
 
 from feast import FeatureTable
@@ -23,10 +22,9 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
 
-class LocalProvider(Provider):
+class AwsProvider(Provider):
     def __init__(self, config: RepoConfig):
-        assert config is not None
-        self.config = config
+        self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
 
@@ -40,12 +38,12 @@ class LocalProvider(Provider):
         partial: bool,
     ):
         self.online_store.update(
-            self.config,
-            tables_to_delete,
-            tables_to_keep,
-            entities_to_delete,
-            entities_to_keep,
-            partial,
+            config=self.repo_config,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_keep=entities_to_keep,
+            entities_to_delete=entities_to_delete,
+            partial=partial,
         )
 
     def teardown_infra(
@@ -54,7 +52,7 @@ class LocalProvider(Provider):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ) -> None:
-        self.online_store.teardown(self.config, tables, entities)
+        self.online_store.teardown(self.repo_config, tables, entities)
 
     def online_write_batch(
         self,
@@ -100,6 +98,7 @@ class LocalProvider(Provider):
         ) = _get_column_names(feature_view, entities)
 
         offline_job = self.offline_store.pull_latest_from_table_or_query(
+            config=config,
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -107,8 +106,8 @@ class LocalProvider(Provider):
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
-            config=config,
         )
+
         table = offline_job.to_arrow()
 
         if feature_view.input.field_mapping is not None:
@@ -119,7 +118,7 @@ class LocalProvider(Provider):
 
         with tqdm_builder(len(rows_to_write)) as pbar:
             self.online_write_batch(
-                self.config, feature_view, rows_to_write, lambda x: pbar.update(x)
+                self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
     def get_historical_features(
@@ -127,11 +126,11 @@ class LocalProvider(Provider):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        return self.offline_store.get_historical_features(
+        job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
             feature_refs=feature_refs,
@@ -139,14 +138,4 @@ class LocalProvider(Provider):
             registry=registry,
             project=project,
         )
-
-
-def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
-    return f"{project}_{table.name}"
-
-
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
+        return job

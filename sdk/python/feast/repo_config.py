@@ -16,11 +16,13 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+    "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
     "file": "feast.infra.offline_stores.file.FileOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
+    "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
 }
 
 
@@ -66,7 +68,7 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp """
+    """ str: local or gcp or aws """
 
     online_store: Any
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -82,10 +84,15 @@ class RepoConfig(FeastBaseModel):
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
             )
+        elif isinstance(self.online_store, str):
+            self.online_store = get_online_config_from_type(self.online_store)()
+
         if isinstance(self.offline_store, Dict):
             self.offline_store = get_offline_config_from_type(
                 self.offline_store["type"]
             )(**self.offline_store)
+        elif isinstance(self.offline_store, str):
+            self.offline_store = get_offline_config_from_type(self.offline_store)()
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -121,6 +128,8 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "sqlite"
             elif values["provider"] == "gcp":
                 values["online_store"]["type"] = "datastore"
+            elif values["provider"] == "aws":
+                values["online_store"]["type"] = "dynamodb"
 
         online_store_type = values["online_store"]["type"]
 
@@ -154,6 +163,8 @@ class RepoConfig(FeastBaseModel):
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
+            elif values["provider"] == "aws":
+                values["offline_store"]["type"] = "file"
 
         offline_store_type = values["offline_store"]["type"]
 

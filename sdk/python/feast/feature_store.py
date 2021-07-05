@@ -27,8 +27,8 @@ from feast.entity import Entity
 from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
-    infer_entity_value_type_from_feature_views,
     update_data_sources_with_inferred_event_timestamp_col,
+    update_entities_with_inferred_types_from_feature_views,
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -224,14 +224,17 @@ class FeatureStore:
         assert isinstance(objects, list)
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
-        entities_to_update = infer_entity_value_type_from_feature_views(
-            [ob for ob in objects if isinstance(ob, Entity)], views_to_update
+        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
+
+        # Make inferences
+        update_entities_with_inferred_types_from_feature_views(
+            entities_to_update, views_to_update, self.config
         )
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.input for view in views_to_update]
+            [view.input for view in views_to_update], self.config
         )
         for view in views_to_update:
-            view.infer_features_from_input_source()
+            view.infer_features_from_input_source(self.config)
 
         if len(views_to_update) + len(entities_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
@@ -383,12 +386,13 @@ class FeatureStore:
             end_date = utils.make_tzaware(end_date)
 
             provider.materialize_single_feature_view(
-                feature_view,
-                start_date,
-                end_date,
-                self._registry,
-                self.project,
-                tqdm_builder,
+                config=self.config,
+                feature_view=feature_view,
+                start_date=start_date,
+                end_date=end_date,
+                registry=self._registry,
+                project=self.project,
+                tqdm_builder=tqdm_builder,
             )
 
             self._registry.apply_materialization(
@@ -461,12 +465,13 @@ class FeatureStore:
             end_date = utils.make_tzaware(end_date)
 
             provider.materialize_single_feature_view(
-                feature_view,
-                start_date,
-                end_date,
-                self._registry,
-                self.project,
-                tqdm_builder,
+                config=self.config,
+                feature_view=feature_view,
+                start_date=start_date,
+                end_date=end_date,
+                registry=self._registry,
+                project=self.project,
+                tqdm_builder=tqdm_builder,
             )
 
             self._registry.apply_materialization(

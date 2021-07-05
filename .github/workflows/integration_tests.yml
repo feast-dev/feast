@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
-        run: FEAST_TELEMETRY=False pytest --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration
+        run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:

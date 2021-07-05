@@ -211,13 +211,14 @@ def get_expected_training_df(
     expected_df = expected_df[[event_timestamp] + current_cols]
 
     # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
-    expected_df["order_is_success"] = expected_df["order_is_success"].astype("int32")
-    expected_df["customer_profile__current_balance"] = expected_df[
-        "customer_profile__current_balance"
-    ].astype("float32")
-    expected_df["customer_profile__avg_passenger_count"] = expected_df[
-        "customer_profile__avg_passenger_count"
-    ].astype("float32")
+    expected_column_types = {
+        "order_is_success": "int32",
+        "driver_stats__conv_rate": "float32",
+        "customer_profile__current_balance": "float32",
+        "customer_profile__avg_passenger_count": "float32",
+    }
+    for col, typ in expected_column_types.items():
+        expected_df[col] = expected_df[col].astype(typ)
 
     return expected_df
 
@@ -454,29 +455,13 @@ def test_historical_features_from_bigquery_sources(
             ],
         )
 
-        # Just a dry run, should not create table
-        bq_dry_run = job_from_sql.to_bigquery(dry_run=True)
-        assert bq_dry_run is None
-
-        bq_temp_table_path = job_from_sql.to_bigquery()
-        assert bq_temp_table_path.split(".")[0] == gcp_project
-
-        if provider_type == "gcp_custom_offline_config":
-            assert bq_temp_table_path.split(".")[1] == "foo"
-        else:
-            assert bq_temp_table_path.split(".")[1] == bigquery_dataset
-
-        # Check that this table actually exists
-        actual_bq_temp_table = bigquery.Client().get_table(bq_temp_table_path)
-        assert actual_bq_temp_table.table_id == bq_temp_table_path.split(".")[-1]
-
         start_time = datetime.utcnow()
         actual_df_from_sql_entities = job_from_sql.to_df()
         end_time = datetime.utcnow()
         with capsys.disabled():
             print(
                 str(
-                    f"\nTime to execute job_from_df.to_df() = '{(end_time - start_time)}'"
+                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
                 )
             )
 
@@ -491,6 +476,11 @@ def test_historical_features_from_bigquery_sources(
             .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
             .reset_index(drop=True),
             check_dtype=False,
+        )
+
+        table_from_sql_entities = job_from_sql.to_arrow()
+        assert_frame_equal(
+            actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
         )
 
         timestamp_column = (
@@ -573,6 +563,12 @@ def test_historical_features_from_bigquery_sources(
             .reset_index(drop=True),
             check_dtype=False,
         )
+        
+        table_from_df_entities = job_from_df.to_arrow()
+        assert_frame_equal(
+            actual_df_from_df_entities, table_from_df_entities.to_pandas()
+        )
+
 
 
 @pytest.mark.integration
@@ -592,3 +588,4 @@ def test_timestamp_bound_inference_from_entity_df_using_bigquery():
 
     assert min_timestamp is min(entity_df["e_ts"])
     assert max_timestamp is max(entity_df["e_ts"])
+

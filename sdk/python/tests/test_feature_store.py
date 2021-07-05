@@ -24,6 +24,8 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.repo_config import RepoConfig
@@ -72,6 +74,19 @@ def feature_store_with_gcs_registry():
     )
 
 
+@pytest.fixture
+def feature_store_with_s3_registry():
+    return FeatureStore(
+        config=RepoConfig(
+            registry=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
+            project="default",
+            provider="aws",
+            online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+            offline_store=FileOfflineStoreConfig(),
+        )
+    )
+
+
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
@@ -101,7 +116,11 @@ def test_apply_entity_success(test_feature_store):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+    "test_feature_store",
+    [
+        lazy_fixture("feature_store_with_gcs_registry"),
+        lazy_fixture("feature_store_with_s3_registry"),
+    ],
 )
 def test_apply_entity_integration(test_feature_store):
     entity = Entity(
@@ -250,7 +269,11 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+    "test_feature_store",
+    [
+        lazy_fixture("feature_store_with_gcs_registry"),
+        lazy_fixture("feature_store_with_s3_registry"),
+    ],
 )
 def test_apply_feature_view_integration(test_feature_store):
     # Create Feature Views

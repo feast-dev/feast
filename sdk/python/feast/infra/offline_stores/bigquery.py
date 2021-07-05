@@ -14,12 +14,11 @@ from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import BigQuerySource, DataSource
-from feast.errors import FeastProviderLoginError
+from feast.errors import BigQueryJobCancelled, FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.offline_store import OfflineStore
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-    RetrievalJob,
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
@@ -53,6 +52,7 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -60,7 +60,7 @@ class BigQueryOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> RetrievalJob:
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
 
@@ -75,6 +75,7 @@ class BigQueryOfflineStore(OfflineStore):
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
+        client = _get_bigquery_client(project=config.offline_store.project_id)
         query = f"""
             SELECT {field_string}
             FROM (
@@ -85,14 +86,7 @@ class BigQueryOfflineStore(OfflineStore):
             )
             WHERE _feast_row = 1
             """
-
-        return BigQueryOfflineStore._pull_query(query)
-
-    @staticmethod
-    def _pull_query(query: str) -> pyarrow.Table:
-        client = _get_bigquery_client()
-        query_job = client.query(query)
-        return query_job.to_arrow()
+        return BigQueryRetrievalJob(query=query, client=client, config=config)
 
     @staticmethod
     def get_historical_features(
@@ -104,19 +98,18 @@ class BigQueryOfflineStore(OfflineStore):
         project: str,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
-        client = _get_bigquery_client()
-
+        client = _get_bigquery_client(project=config.offline_store.project_id)
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
-        dataset_project = config.offline_store.project_id or client.project
 
         table = _upload_entity_df_into_bigquery(
             client=client,
             project=config.project,
             dataset_name=config.offline_store.dataset,
-            dataset_project=dataset_project,
+            dataset_project=client.project,
             entity_df=entity_df,
         )
 
@@ -244,31 +237,66 @@ class BigQueryRetrievalJob(RetrievalJob):
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
 
-    def to_bigquery(self, dry_run=False) -> Optional[str]:
-        @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
-        def _block_until_done():
-            return self.client.get_job(bq_job.job_id).state in ["PENDING", "RUNNING"]
+    def to_sql(self) -> str:
+        """
+        Returns the SQL query that will be executed in BigQuery to build the historical feature table.
+        """
+        return self.query
 
-        today = date.today().strftime("%Y%m%d")
-        rand_id = str(uuid.uuid4())[:7]
-        dataset_project = self.config.offline_store.project_id or self.client.project
-        path = f"{dataset_project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
-        job_config = bigquery.QueryJobConfig(destination=path, dry_run=dry_run)
+    def to_bigquery(self, job_config: bigquery.QueryJobConfig = None) -> Optional[str]:
+        """
+        Triggers the execution of a historical feature retrieval query and exports the results to a BigQuery table.
+
+        Args:
+            job_config: An optional bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
+
+        Returns:
+            Returns the destination table name or returns None if job_config.dry_run is True.
+        """
+
+        if not job_config:
+            today = date.today().strftime("%Y%m%d")
+            rand_id = str(uuid.uuid4())[:7]
+            path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
+            job_config = bigquery.QueryJobConfig(destination=path)
+
         bq_job = self.client.query(self.query, job_config=job_config)
 
-        if dry_run:
+        block_until_done(client=self.client, bq_job=bq_job)
+
+        if bq_job.exception():
+            raise bq_job.exception()
+
+        if job_config.dry_run:
             print(
                 "This query will process {} bytes.".format(bq_job.total_bytes_processed)
             )
             return None
 
-        _block_until_done()
+        print(f"Done writing to '{job_config.destination}'.")
+        return str(job_config.destination)
 
-        if bq_job.exception():
-            raise bq_job.exception()
+    def to_arrow(self) -> pyarrow.Table:
+        return self.client.query(self.query).to_arrow()
 
-        print(f"Done writing to '{path}'.")
-        return path
+
+def block_until_done(client, bq_job):
+    def _is_done(job_id):
+        return client.get_job(job_id).state in ["PENDING", "RUNNING"]
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
+    def _wait_until_done(job_id):
+        return _is_done(job_id)
+
+    job_id = bq_job.job_id
+    _wait_until_done(job_id=job_id)
+
+    if bq_job.exception():
+        raise bq_job.exception()
+
+    if not _is_done(job_id):
+        client.cancel_job(job_id)
+        raise BigQueryJobCancelled(job_id=job_id)
 
 
 @dataclass(frozen=True)
@@ -453,9 +481,9 @@ def build_point_in_time_query(
     return query
 
 
-def _get_bigquery_client():
+def _get_bigquery_client(project: Optional[str] = None):
     try:
-        client = bigquery.Client()
+        client = bigquery.Client(project=project)
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
             str(e)

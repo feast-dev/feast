@@ -97,6 +97,7 @@ class Provider(abc.ABC):
     @abc.abstractmethod
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
@@ -144,6 +145,10 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             from feast.infra.gcp import GcpProvider
 
             return GcpProvider(config)
+        elif config.provider == "aws":
+            from feast.infra.aws import AwsProvider
+
+            return AwsProvider(config)
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 
