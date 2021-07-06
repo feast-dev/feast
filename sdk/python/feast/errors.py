@@ -89,17 +89,23 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
 
 
 class FeatureNameCollisionError(Exception):
-    def __init__(self, feature_refs_collisions: List[str]):
-        collisions = [ref.split(":", 1) for ref in feature_refs_collisions]
-        collision_feature_views = [y for (y, _) in collisions]
-        collision_feature_names = [x for (_, x) in collisions]
-        feature_names = ", ".join(set(collision_feature_names))
-        feature_views = ", ".join(set(collision_feature_views))
+    def __init__(self, feature_refs_collisions: List[str], full_feature_names):
+        if full_feature_names:
+            collisions = [ref.replace(":", "__") for ref in feature_refs_collisions]
+            error_message = (
+                "To resolve this collision, please ensure that the features in question "
+                "have different names."
+            )
+        else:
+            collisions = [ref.split(":")[1] for ref in feature_refs_collisions]
+            error_message = (
+                "To resolve this collision, either use the full feature name by setting "
+                "'full_feature_names=True', or ensure that the features in question have different names."
+            )
+
+        feature_names = ", ".join(set(collisions))
         super().__init__(
-            f"The following feature name(s) have collisions: {feature_names}. Set 'full_feature_names' "
-            f"argument in the data retrieval function to True to use the full feature name which is prefixed "
-            f"by the feature view name, or rename colliding features.\nCollisions occur in the following "
-            f"feature view(s): {feature_views}."
+            f"Duplicate features named {feature_names} found.\n{error_message}"
         )
 
 
