@@ -578,5 +578,5 @@ def test_timestamp_bound_inference_from_entity_df_using_bigquery():
         client, str(table.reference), "e_ts"
     )
 
-    assert min_timestamp.astimezone("UTC") is min(entity_df["e_ts"]).astimezone("UTC")
-    assert max_timestamp.astimezone("UTC") is max(entity_df["e_ts"]).astimezone("UTC")
+    assert min_timestamp.astimezone("UTC") == min(entity_df["e_ts"]).astimezone("UTC")
+    assert max_timestamp.astimezone("UTC") == max(entity_df["e_ts"]).astimezone("UTC")
