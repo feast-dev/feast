@@ -58,7 +58,7 @@ class FeatureService:
 
         return fs
 
-    def to_proto(self):
+    def to_proto(self) -> FeatureServiceProto:
         meta = FeatureServiceMeta()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)

@@ -12,6 +12,7 @@ import click
 from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -36,6 +37,7 @@ class ParsedRepo(NamedTuple):
     feature_tables: List[FeatureTable]
     feature_views: List[FeatureView]
     entities: List[Entity]
+    feature_services: List[FeatureService]
 
 
 def read_feastignore(repo_root: Path) -> List[str]:
@@ -93,7 +95,9 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 
 def parse_repo(repo_root: Path) -> ParsedRepo:
     """ Collect feature table definitions from feature repo """
-    res = ParsedRepo(feature_tables=[], entities=[], feature_views=[])
+    res = ParsedRepo(
+        feature_tables=[], entities=[], feature_views=[], feature_services=[]
+    )
 
     for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file, repo_root)
@@ -107,6 +111,8 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
                 res.feature_views.append(obj)
             elif isinstance(obj, Entity):
                 res.entities.append(obj)
+            elif isinstance(obj, FeatureService):
+                res.feature_services.append(obj)
     return res
 
 

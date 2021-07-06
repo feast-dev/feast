@@ -24,11 +24,13 @@ from urllib.parse import urlparse
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
+    FeatureServiceNotFoundException,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
+from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -120,6 +122,70 @@ class Registry:
             if entity_proto.spec.project == project:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
+
+    def apply_feature_service(self, feature_service: FeatureService, project: str):
+        """
+        Registers a single entity with Feast
+
+        Args:
+            feature_service: FeatureService that will be registered
+            project: Feast project that this entity belongs to
+        """
+        feature_service_proto = feature_service.to_proto()
+        feature_service_proto.spec.project = project
+
+        def updater(registry_proto: RegistryProto):
+            for idx, existing_feature_service_proto in enumerate(
+                registry_proto.feature_services
+            ):
+                if (
+                    existing_feature_service_proto.spec.name
+                    == feature_service_proto.spec.name
+                    and existing_feature_service_proto.spec.project == project
+                ):
+                    del registry_proto.feature_services[idx]
+                    registry_proto.feature_services.append(feature_service_proto)
+                    return registry_proto
+            registry_proto.feature_services.append(feature_service_proto)
+            return registry_proto
+
+        self._registry_store.update_registry_proto(updater)
+        return
+
+    def list_feature_services(
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureService]:
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        feature_services = []
+        for feature_service_proto in registry_proto.feature_services:
+            if feature_service_proto.spec.project == project:
+                feature_services.append(
+                    FeatureService.from_proto(feature_service_proto)
+                )
+        return feature_services
+
+    def get_feature_service(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureService:
+        """
+        Retrieves a FeatureService.
+
+        Args:
+            name: Name of FeatureService
+            project: Feast project that this FeatureService belongs to
+
+        Returns:
+            Returns either the specified FeatureService, or raises an exception if
+            none is found
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        for feature_service_proto in registry_proto.feature_services:
+            if (
+                feature_service_proto.spec.project == project
+                and feature_service_proto.spec.name == name
+            ):
+                return FeatureService.from_proto(feature_service_proto)
+        raise FeatureServiceNotFoundException(name, project=project)
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         """

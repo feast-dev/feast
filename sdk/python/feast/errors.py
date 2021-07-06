@@ -22,6 +22,16 @@ class EntityNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Entity {name} does not exist")
 
 
+class FeatureServiceNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(
+                f"FeatureService {name} does not exist in project {project}"
+            )
+        else:
+            super().__init__(f"FeatureService {name} does not exist")
+
+
 class FeatureViewNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:

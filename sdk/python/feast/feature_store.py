@@ -132,6 +132,17 @@ class FeatureStore:
         return self._registry.list_entities(self.project, allow_cache=allow_cache)
 
     @log_exceptions_and_usage
+    def list_feature_services(self) -> List[FeatureService]:
+        """
+        Retrieve a list of feature views from the registry
+
+        Returns:
+            List of feature views
+        """
+
+        return self._registry.list_feature_services(self.project)
+
+    @log_exceptions_and_usage
     def list_feature_views(self) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -156,6 +167,21 @@ class FeatureStore:
         """
 
         return self._registry.get_entity(name, self.project)
+
+    @log_exceptions_and_usage
+    def get_feature_service(self, name: str) -> FeatureService:
+        """
+        Retrieves an FeatureService.
+
+        Args:
+            name: Name of FeatureService
+
+        Returns:
+            Returns either the specified FeatureService, or raises an exception if
+            none is found
+        """
+
+        return self._registry.get_feature_service(name, self.project)
 
     @log_exceptions_and_usage
     def get_feature_view(self, name: str) -> FeatureView:
@@ -185,7 +211,13 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def apply(
-        self, objects: Union[Entity, FeatureView, List[Union[FeatureView, Entity]]]
+        self,
+        objects: Union[
+            Entity,
+            FeatureView,
+            FeatureService,
+            List[Union[FeatureView, Entity, FeatureService]],
+        ],
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -220,12 +252,19 @@ class FeatureStore:
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
 
-        if isinstance(objects, Entity) or isinstance(objects, FeatureView):
+        if (
+            isinstance(objects, Entity)
+            or isinstance(objects, FeatureView)
+            or isinstance(objects, FeatureService)
+        ):
             objects = [objects]
         assert isinstance(objects, list)
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
+        feature_services_to_update = [
+            ob for ob in objects if isinstance(ob, FeatureService)
+        ]
 
         # Make inferences
         update_entities_with_inferred_types_from_feature_views(
@@ -244,6 +283,8 @@ class FeatureStore:
             self._registry.apply_feature_view(view, project=self.project)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project)
+        for feature_service in feature_services_to_update:
+            self._registry.apply_feature_service(feature_service, project=self.project)
 
         self._get_provider().update_infra(
             project=self.project,
