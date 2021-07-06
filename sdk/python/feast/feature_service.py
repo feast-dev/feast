@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import List, Optional, Union
 
-from feast.feature_view_projection import FeatureViewProjection
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
@@ -69,7 +69,9 @@ class FeatureService:
             if isinstance(definition, FeatureTable) or isinstance(
                 definition, FeatureView
             ):
-                feature_ref = FeatureViewProjection(definition.name, definition.features)
+                feature_ref = FeatureViewProjection(
+                    definition.name, definition.features
+                )
             else:
                 feature_ref = definition
 
