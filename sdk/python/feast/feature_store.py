@@ -594,7 +594,7 @@ class FeatureStore:
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
     names, values = zip(*row.fields.items())
-    return EntityKeyProto(join_keys=names, entity_values=values)  # type: ignore
+    return EntityKeyProto(join_keys=names, entity_values=values)
 
 
 def _entity_row_to_field_values(
@@ -621,7 +621,7 @@ def _group_refs(
 
     if isinstance(features, list) and isinstance(features[0], str):
         for ref in features:
-            view_name, feat_name = ref.split(":")  # type: ignore
+            view_name, feat_name = ref.split(":")
             if view_name not in view_index:
                 raise FeatureViewNotFoundException(view_name)
             views_features[view_name].append(feat_name)
