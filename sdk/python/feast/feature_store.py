@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from colorama import Fore, Style
+from feast.feature_service import FeatureService
 from tqdm import tqdm
 
 from feast import utils
@@ -255,7 +256,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_historical_features(
-        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
+        self, entity_df: Union[pd.DataFrame, str], feature_refs: Union[List[str], List[FeatureService]],
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -295,6 +296,9 @@ class FeatureStore:
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
 
+        if not len(feature_refs) > 0:
+            raise ValueError("A list of feature references or FeatureService must be provided.")
+
         all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
             feature_views = _get_requested_feature_views(
@@ -302,6 +306,9 @@ class FeatureStore:
             )
         except FeatureViewNotFoundException as e:
             sys.exit(e)
+
+        if isinstance(feature_refs[0], FeatureService):
+            feature_refs = _get_features_refs_from_feature_services(feature_refs)
 
         provider = self._get_provider()
         try:
@@ -480,7 +487,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_online_features(
-        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
+        self, feature_refs: Union[List[str], List[FeatureService]], entity_rows: List[Dict[str, Any]],
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -600,7 +607,7 @@ def _entity_row_to_field_values(
 
 
 def _group_refs(
-    feature_refs: List[str], all_feature_views: List[FeatureView]
+    feature_refs: Union[List[str], FeatureService], all_feature_views: List[FeatureView]
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -610,11 +617,15 @@ def _group_refs(
     # view name to feature names
     views_features = defaultdict(list)
 
-    for ref in feature_refs:
-        view_name, feat_name = ref.split(":")
-        if view_name not in view_index:
-            raise FeatureViewNotFoundException(view_name)
-        views_features[view_name].append(feat_name)
+    if isinstance(feature_refs, list):
+        for ref in feature_refs:
+            view_name, feat_name = ref.split(":")
+            if view_name not in view_index:
+                raise FeatureViewNotFoundException(view_name)
+            views_features[view_name].append(feat_name)
+    if isinstance(feature_refs, FeatureService):
+        for feature_projection in feature_refs.features:
+            views_features[feature_projection.name].extend([f.name for f in feature_projection.features])
 
     result = []
     for view_name, feature_names in views_features.items():
@@ -622,8 +633,16 @@ def _group_refs(
     return result
 
 
+def _get_features_refs_from_feature_services(feature_services: List[FeatureService]) -> List[str]:
+    feature_refs = []
+    for fs in feature_services:
+        name = fs.name
+        feature_refs.extend([f"{name}:{f.name}" for f in fs.features])
+    return feature_refs
+
+
 def _get_requested_feature_views(
-    feature_refs: List[str], all_feature_views: List[FeatureView]
+    feature_refs: Union[List[str], FeatureService], all_feature_views: List[FeatureView]
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
     # TODO: Get rid of this function. We only need _group_refs
