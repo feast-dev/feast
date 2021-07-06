@@ -300,6 +300,7 @@ class FeatureStore:
         self,
         entity_df: Union[pd.DataFrame, str],
         features: Union[List[str], FeatureService],
+        feature_refs: Optional[List[str]] = None
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -344,6 +345,8 @@ class FeatureStore:
             feature_views = _get_requested_feature_views(features, all_feature_views)
         except FeatureViewNotFoundException as e:
             sys.exit(e)
+
+        features = features or feature_refs
 
         _feature_refs: List[str]
         if isinstance(features, FeatureService):
@@ -531,6 +534,7 @@ class FeatureStore:
         self,
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
+        feature_refs: Optional[List[str]] = None
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -565,6 +569,8 @@ class FeatureStore:
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
+
+        features = features or feature_refs
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
