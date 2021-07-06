@@ -23,6 +23,7 @@ from feast import utils
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -109,6 +110,16 @@ class FeatureView:
 
     def __hash__(self):
         return hash(self.name)
+
+    def __getitem__(self, item) -> FeatureViewProjection:
+        assert isinstance(item, list)
+
+        referenced_features = []
+        for feature in self.features:
+            if feature.name in item:
+                referenced_features.append(feature)
+
+        return FeatureViewProjection(self.name, referenced_features)
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
