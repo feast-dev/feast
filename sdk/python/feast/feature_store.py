@@ -300,7 +300,7 @@ class FeatureStore:
         self,
         entity_df: Union[pd.DataFrame, str],
         features: Union[List[str], FeatureService],
-        feature_refs: Optional[List[str]] = None
+        feature_refs: Optional[List[str]] = None,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -346,13 +346,15 @@ class FeatureStore:
         except FeatureViewNotFoundException as e:
             sys.exit(e)
 
-        features = features or feature_refs
+        _features = features or feature_refs
+        if not _features:
+            raise ValueError("No features specified for retrieval")
 
         _feature_refs: List[str]
-        if isinstance(features, FeatureService):
-            _feature_refs = _get_features_refs_from_feature_services(features)
+        if isinstance(_features, FeatureService):
+            _feature_refs = _get_features_refs_from_feature_services(_features)
         else:
-            _feature_refs = features
+            _feature_refs = _features
 
         provider = self._get_provider()
         try:
@@ -534,7 +536,7 @@ class FeatureStore:
         self,
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
-        feature_refs: Optional[List[str]] = None
+        feature_refs: Optional[List[str]] = None,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -570,7 +572,9 @@ class FeatureStore:
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
 
-        features = features or feature_refs
+        _features = features or feature_refs
+        if not _features:
+            raise ValueError("No features specified for retrieval")
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
@@ -604,7 +608,7 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        grouped_refs = _group_refs(features, all_feature_views)
+        grouped_refs = _group_refs(_features, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
