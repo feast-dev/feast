@@ -258,7 +258,7 @@ class FeatureStore:
     def get_historical_features(
         self,
         entity_df: Union[pd.DataFrame, str],
-        feature_refs: Union[List[str], List[FeatureService]],
+        features: Union[List[str], FeatureService],
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -278,7 +278,7 @@ class FeatureStore:
                 columns (e.g., customer_id, driver_id) on which features need to be joined, as well as a event_timestamp
                 column used to ensure point-in-time correctness. Either a Pandas DataFrame can be provided or a string
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
-            feature_refs: A list of features that should be retrieved from the offline store. Feature references are of
+            features: A list of features that should be retrieved from the offline store. Feature references are of
                 the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
 
         Returns:
@@ -292,30 +292,23 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
             >>> retrieval_job = fs.get_historical_features(
             >>>     entity_df="SELECT event_timestamp, order_id, customer_id from gcp_project.my_ds.customer_orders",
-            >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"]
+            >>>     features=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"]
             >>> )
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
 
-        if not len(feature_refs) > 0:
-            raise ValueError(
-                "A list of feature references or FeatureService must be provided."
-            )
-
         all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
-            feature_views = _get_requested_feature_views(
-                feature_refs, all_feature_views
-            )
+            feature_views = _get_requested_feature_views(features, all_feature_views)
         except FeatureViewNotFoundException as e:
             sys.exit(e)
 
         _feature_refs: List[str]
-        if isinstance(feature_refs[0], FeatureService):
-            _feature_refs = _get_features_refs_from_feature_services(feature_refs)  # type: ignore
+        if isinstance(features, FeatureService):
+            _feature_refs = _get_features_refs_from_feature_services(features)
         else:
-            _feature_refs = feature_refs  # type: ignore
+            _feature_refs = features
 
         provider = self._get_provider()
         try:
@@ -495,7 +488,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def get_online_features(
         self,
-        feature_refs: Union[List[str], List[FeatureService]],
+        features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
     ) -> OnlineResponse:
         """
@@ -510,7 +503,7 @@ class FeatureStore:
         infinity (cache forever).
 
         Args:
-            feature_refs: List of feature references that will be returned for each entity.
+            features: List of feature references that will be returned for each entity.
                 Each feature reference should have the following format:
                 "feature_table:feature" where "feature_table" & "feature" refer to
                 the feature and feature table names respectively.
@@ -564,7 +557,7 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        grouped_refs = _group_refs(feature_refs, all_feature_views)
+        grouped_refs = _group_refs(features, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -616,8 +609,7 @@ def _entity_row_to_field_values(
 
 
 def _group_refs(
-    feature_refs: Union[List[str], List[FeatureService]],
-    all_feature_views: List[FeatureView],
+    features: Union[List[str], FeatureService], all_feature_views: List[FeatureView],
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -627,19 +619,17 @@ def _group_refs(
     # view name to feature names
     views_features = defaultdict(list)
 
-    if isinstance(feature_refs[0], str):
-        for ref in feature_refs:
+    if isinstance(features, list) and isinstance(features[0], str):
+        for ref in features:
             view_name, feat_name = ref.split(":")  # type: ignore
             if view_name not in view_index:
                 raise FeatureViewNotFoundException(view_name)
             views_features[view_name].append(feat_name)
-    elif isinstance(feature_refs[0], FeatureService):
-        feature_services: List[FeatureService] = feature_refs  # type: ignore
-        for feature_service in feature_services:
-            for feature_projection in feature_service.features:
-                views_features[feature_projection.name].extend(
-                    [f.name for f in feature_projection.features]
-                )
+    elif isinstance(features, FeatureService):
+        for feature_projection in features.features:
+            views_features[feature_projection.name].extend(
+                [f.name for f in feature_projection.features]
+            )
 
     result = []
     for view_name, feature_names in views_features.items():
@@ -648,22 +638,17 @@ def _group_refs(
 
 
 def _get_features_refs_from_feature_services(
-    feature_services: List[FeatureService],
+    feature_service: FeatureService,
 ) -> List[str]:
-    feature_refs = []
-    for fs in feature_services:
-        name = fs.name
-        feature_refs.extend([f"{name}:{f.name}" for f in fs.features])
-    return feature_refs
+    return [f"{feature_service.name}:{f.name}" for f in feature_service.features]
 
 
 def _get_requested_feature_views(
-    feature_refs: Union[List[str], List[FeatureService]],
-    all_feature_views: List[FeatureView],
+    features: Union[List[str], FeatureService], all_feature_views: List[FeatureView],
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
     # TODO: Get rid of this function. We only need _group_refs
-    return list(view for view, _ in _group_refs(feature_refs, all_feature_views))
+    return list(view for view, _ in _group_refs(features, all_feature_views))
 
 
 def _get_table_entity_keys(

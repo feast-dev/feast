@@ -39,7 +39,7 @@ def main():
 
     # Retrieve historical features by joining the entity dataframe to the BigQuery table source
     training_df = fs.get_historical_features(
-        feature_refs=feature_refs, entity_df=entity_df
+        features=feature_refs, entity_df=entity_df
     ).to_df()
 
     print()
@@ -54,8 +54,7 @@ def main():
 
     # Retrieve features from the online store (Firestore)
     online_features = fs.get_online_features(
-        feature_refs=feature_refs,
-        entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
+        features=feature_refs, entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
     ).to_dict()
 
     print()

@@ -244,7 +244,7 @@ def check_offline_and_online_features(
         entity_df=pd.DataFrame.from_dict(
             {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
         ),
-        feature_refs=[f"{fv.name}:value"],
+        features=[f"{fv.name}:value"],
     ).to_df()
 
     if expected_value:

@@ -32,7 +32,7 @@ Next, we will create a feature store object and call `get_online_features()` whi
 ```python
 fs = FeatureStore(repo_path="path/to/feature/repo")
 online_features = fs.get_online_features(
-    feature_refs=feature_refs,
+    features=feature_refs,
     entity_rows=[
         {"driver_id": 1001},
         {"driver_id": 1002}]
