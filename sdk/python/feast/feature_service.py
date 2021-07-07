@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -18,11 +18,13 @@ class FeatureService:
     features: List[FeatureViewProjection]
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
+    tags: Dict[str, str]
 
     def __init__(
         self,
         name: str,
         features: List[Union[FeatureTable, FeatureView, FeatureViewProjection]],
+        tags: Optional[Dict[str, str]] = None,
     ):
         self.name = name
         self.features = []
@@ -33,9 +35,7 @@ class FeatureService:
                 self.features.append(feature)
             else:
                 raise ValueError(f"Unexpected type: {type(feature)}")
-
-    def __eq__(self, other):
-        pass
+        self.tags = tags or {}
 
     @staticmethod
     def from_proto(feature_service_proto: FeatureServiceProto):
@@ -55,6 +55,8 @@ class FeatureService:
             fs.last_updated_timestamp = (
                 feature_service_proto.meta.last_updated_timestamp.ToDatetime()
             )
+
+        fs.tags = dict(feature_service_proto.spec.tags)
 
         return fs
 
@@ -76,6 +78,8 @@ class FeatureService:
                 feature_ref = definition
 
             spec.features.append(feature_ref.to_proto())
+            if self.tags:
+                spec.tags.update(self.tags)
 
         feature_service_proto = FeatureServiceProto(spec=spec, meta=meta)
         return feature_service_proto

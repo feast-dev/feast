@@ -227,7 +227,7 @@ class FeatureStore:
         operations are idempotent, meaning they can safely be rerun.
 
         Args:
-            objects (List[Union[FeatureView, Entity]]): A list of FeatureView or Entity objects that should be
+            objects (List[Union[FeatureView, Entity]]): A list of FeatureView, Entity or FeatureService objects that should be
                 registered
 
         Examples:
@@ -276,7 +276,9 @@ class FeatureStore:
         for view in views_to_update:
             view.infer_features_from_input_source(self.config)
 
-        if len(views_to_update) + len(entities_to_update) != len(objects):
+        if len(views_to_update) + len(entities_to_update) + len(
+            feature_services_to_update
+        ) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         for view in views_to_update:

@@ -15,8 +15,6 @@ def test_feature_service_read() -> None:
         get_example_repo("example_feature_repo_1.py"), "bigquery"
     ) as store:
 
-        assert len(store.list_feature_services()) == 2
-
         basic_feature_service_rw_test(
             store, view_name="driver_locations", feature_service_name="driver_locations"
         )
