@@ -355,8 +355,9 @@ class FeatureStore:
         _feature_refs: List[str]
         if isinstance(_features, FeatureService):
             # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _features = self.get_feature_service(_features.name)
-            _feature_refs = _get_features_refs_from_feature_services(_features)
+            _feature_refs = _get_features_refs_from_feature_services(
+                self.get_feature_service(_features.name)
+            )
         else:
             _feature_refs = _features
 
@@ -577,12 +578,12 @@ class FeatureStore:
         """
 
         _features = features or feature_refs
-        if not _features:
-            raise ValueError("No features specified for retrieval")
-
         if isinstance(_features, FeatureService):
             # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
             _features = self.get_feature_service(_features.name)
+
+        if not _features:
+            raise ValueError("No features specified for retrieval")
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
