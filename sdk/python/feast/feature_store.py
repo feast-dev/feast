@@ -171,7 +171,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def get_feature_service(self, name: str) -> FeatureService:
         """
-        Retrieves an FeatureService.
+        Retrieves a feature service.
 
         Args:
             name: Name of FeatureService
