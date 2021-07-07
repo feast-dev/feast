@@ -13,7 +13,7 @@ def test_read_pre_applied() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "bigquery"
+            get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
 
         assert len(store.list_feature_services()) == 2
