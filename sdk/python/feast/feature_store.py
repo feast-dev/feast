@@ -134,7 +134,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def list_feature_services(self) -> List[FeatureService]:
         """
-        Retrieve a list of feature views from the registry
+        Retrieve a list of feature services from the registry
 
         Returns:
             List of feature views
