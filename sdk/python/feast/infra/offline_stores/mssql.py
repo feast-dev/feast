@@ -25,7 +25,7 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import OfflineStoreConfig, SqlServerOfflineStoreConfig, RepoConfig
-from turbodbc import connect
+# from turbodbc import connect
 
 try:
     import pymssql
@@ -51,7 +51,7 @@ class SqlServerOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> pyarrow.Table:
         assert isinstance(data_source, SqlServerSource)
-        from_expression = data_source.get_table_query_string()
+        from_expression = data_source.get_table_query_string().replace("`", "")
 
         partition_by_join_key_string = ", ".join(join_key_columns)
         if partition_by_join_key_string != "":
@@ -299,7 +299,7 @@ def get_feature_view_query_context(
             ),
             # TODO: Make created column optional and not hardcoded
             query=feature_view.input.query,
-            table_subquery=feature_view.input.get_table_query_string(),
+            table_subquery=feature_view.input.get_table_query_string().replace("`", ""),
             entity_selections=entity_selections,
         )
         query_context.append(context)
@@ -347,8 +347,7 @@ SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 */
 WITH entity_dataframe AS (
     SELECT
-        id,
-        {{entity_df_event_timestamp_col}},
+        *,
         CONCAT(
             {% for entity_key in unique_entity_keys %}
                 {{entity_key}},
@@ -398,7 +397,7 @@ WITH entity_dataframe AS (
         ON subquery.event_timestamp <= entity_dataframe.{{entity_df_event_timestamp_col}}
 
         {% if featureview.ttl == 0 %}{% else %}
-        AND subquery.event_timestamp >= Timestamp_sub(entity_dataframe.{{entity_df_event_timestamp_col}}, interval {{ featureview.ttl }} second)
+        AND DATEDIFF(SECOND, entity_dataframe.{{entity_df_event_timestamp_col}}, subquery.event_timestamp) <= {{ featureview.ttl }}
         {% endif %}
 
         {% for entity in featureview.entities %}
@@ -418,7 +417,7 @@ WITH entity_dataframe AS (
     SELECT
         entity_row_unique_id,
         event_timestamp,
-        MAX(created_timestamp) as created_timestamp,
+        MAX(created_timestamp) as created_timestamp
     FROM {{ featureview.name }}__base
     GROUP BY entity_row_unique_id, event_timestamp
 ),
@@ -430,10 +429,10 @@ WITH entity_dataframe AS (
 */
 {{ featureview.name }}__latest AS (
     SELECT
-        entity_row_unique_id,
-        MAX(event_timestamp) AS event_timestamp
+        {{ featureview.name }}__base.entity_row_unique_id,
+        MAX({{ featureview.name }}__base.event_timestamp) AS event_timestamp
         {% if featureview.created_timestamp_column %}
-            ,ANY_VALUE(created_timestamp) AS created_timestamp
+            ,MAX({{ featureview.name }}__base.created_timestamp) AS created_timestamp
         {% endif %}
 
     FROM {{ featureview.name }}__base
@@ -444,7 +443,7 @@ WITH entity_dataframe AS (
         AND {{ featureview.name }}__dedup.created_timestamp = {{ featureview.name }}__base.created_timestamp
     {% endif %}
 
-    GROUP BY entity_row_unique_id
+    GROUP BY {{ featureview.name }}__base.entity_row_unique_id
 ),
 
 /*
@@ -479,9 +478,9 @@ LEFT JOIN (
             {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %},{% endif %}
         {% endfor %}
     FROM {{ featureview.name }}__cleaned
-) cleaned
+) {{ featureview.name }}__cleaned
 ON
-cleaned.entity_row_unique_id = entity_dataframe.entity_row_unique_id
+{{ featureview.name }}__cleaned.entity_row_unique_id = entity_dataframe.entity_row_unique_id
 
 {% endfor %}
 """

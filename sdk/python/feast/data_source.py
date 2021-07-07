@@ -603,7 +603,7 @@ class DataSource:
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
-            data_source.sqlserver_options.query
+            data_source.sqlserver_options.query or data_source.sqlserver_options.table_ref
         ):
             data_source_obj = SqlServerSource(
                 event_timestamp_column=data_source.event_timestamp_column,
@@ -611,7 +611,8 @@ class DataSource:
                 date_partition_column=data_source.date_partition_column,
                 query=data_source.sqlserver_options.query,
                 field_mapping=data_source.field_mapping,
-                connection_str=data_source.sqlserver_options.connection_str
+                connection_str=data_source.sqlserver_options.connection_str,
+                table_ref=data_source.sqlserver_options.table_ref
             )
 
         else:
