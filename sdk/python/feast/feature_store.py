@@ -227,7 +227,7 @@ class FeatureStore:
         operations are idempotent, meaning they can safely be rerun.
 
         Args:
-            objects (List[Union[FeatureView, Entity]]): A list of FeatureView, Entity or FeatureService objects that should be
+            objects (List[Union[FeatureView, Entity]]): A list of FeatureView, Entity, or FeatureService objects that should be
                 registered
 
         Examples:
