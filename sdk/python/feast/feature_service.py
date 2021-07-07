@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-from attr import dataclass
+from google.protobuf.json_format import MessageToJson
+
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
@@ -12,7 +13,6 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceMeta,
     FeatureServiceSpec,
 )
-from google.protobuf.json_format import MessageToJson
 
 
 class FeatureService:

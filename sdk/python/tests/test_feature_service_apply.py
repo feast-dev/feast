@@ -1,19 +1,17 @@
-import unittest
-from typing import Any
-
 import pytest
-from feast import FeatureService, FeatureStore
+
+from feast import FeatureService
 from tests.cli_utils import CliRunner, get_example_repo
 
 
-
+@pytest.mark.integration
 def test_read_pre_applied() -> None:
     """
     Read feature values from the FeatureStore using a FeatureService.
     """
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "bigquery"
     ) as store:
 
         assert len(store.list_feature_services()) == 2

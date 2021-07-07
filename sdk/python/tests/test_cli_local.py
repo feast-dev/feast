@@ -75,7 +75,6 @@ def test_workflow() -> None:
         result = runner.run(["feature-services", "describe", "foo"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(1)
 
-
         # Doing another apply should be a no op, and should not cause errors
         result = runner.run(["apply"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(0)

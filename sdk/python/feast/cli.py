@@ -156,7 +156,9 @@ def feature_service_describe(ctx: click.Context, name: str):
 
     print(
         yaml.dump(
-            yaml.safe_load(str(feature_service)), default_flow_style=False, sort_keys=False
+            yaml.safe_load(str(feature_service)),
+            default_flow_style=False,
+            sort_keys=False,
         )
     )
 
