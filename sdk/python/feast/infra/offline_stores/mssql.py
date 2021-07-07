@@ -25,13 +25,6 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import OfflineStoreConfig, SqlServerOfflineStoreConfig, RepoConfig
-# from turbodbc import connect
-
-try:
-    import pymssql
-except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError
-    raise FeastExtrasDependencyImportError("gcp", str(e))
 
 
 class SqlServerOfflineStore(OfflineStore):
@@ -87,8 +80,6 @@ class SqlServerOfflineStore(OfflineStore):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        # TODO: Add entity_df validation in order to fail before interacting with BigQuery
-
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, SqlServerOfflineStoreConfig)

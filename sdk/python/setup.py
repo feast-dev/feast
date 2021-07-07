@@ -72,9 +72,8 @@ REDIS_REQUIRED = [
 ]
 
 MSSQL_REQUIRED = [
-    "turbodbc==4.2.0",
+    "SQLAlchemy==1.4.19",
     "pyodbc==4.0.30",
-    "pymssql==2.2.1"  # TODO: Decide which of these to use.
 ]
 
 CI_REQUIRED = [
