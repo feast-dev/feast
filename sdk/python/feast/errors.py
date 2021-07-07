@@ -109,7 +109,6 @@ class FeatureNameCollisionError(Exception):
         )
 
 
-        
 class FeastOnlineStoreInvalidName(Exception):
     def __init__(self, online_store_class_name: str):
         super().__init__(
