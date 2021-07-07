@@ -1,6 +1,13 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
+from feast import (
+    BigQuerySource,
+    Entity,
+    Feature,
+    FeatureService,
+    FeatureView,
+    ValueType,
+)
 
 driver_locations_source = BigQuerySource(
     table_ref="feast-oss.public.drivers",
@@ -64,4 +71,13 @@ customer_driver_combined = FeatureView(
     online=True,
     input=customer_driver_combined_source,
     tags={},
+)
+
+
+all_drivers_feature_service = FeatureService(
+    name="driver_locations", features=[driver_locations]
+)
+
+partial_drivers_feature_service = FeatureService(
+    name="driver_latitudes", features=[driver_locations[["lat"]]]
 )

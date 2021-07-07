@@ -194,11 +194,17 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
             f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
         )
 
-    # Create views that should
+    # Create views that should exist
     for view in repo.feature_views:
         registry.apply_feature_view(view, project)
         click.echo(
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
+        )
+
+    for feature_service in repo.feature_services:
+        registry.apply_feature_service(feature_service, project=project)
+        click.echo(
+            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
         )
 
     infra_provider = get_provider(repo_config, repo_path)
