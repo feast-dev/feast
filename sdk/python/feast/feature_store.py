@@ -137,7 +137,7 @@ class FeatureStore:
         Retrieve a list of feature services from the registry
 
         Returns:
-            List of feature views
+            List of feature services
         """
 
         return self._registry.list_feature_services(self.project)
