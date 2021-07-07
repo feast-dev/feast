@@ -41,6 +41,7 @@ __all__ = [
     "KinesisSource",
     "RedshiftSource",
     "Feature",
+    "FeatureService",
     "FeatureStore",
     "FeatureTable",
     "FeatureView",

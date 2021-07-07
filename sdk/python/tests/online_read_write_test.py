@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from typing import Optional
 
 from feast.feature_store import FeatureStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto

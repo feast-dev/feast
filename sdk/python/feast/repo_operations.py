@@ -116,6 +116,30 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     return res
 
 
+def apply_feature_services(registry: Registry, project: str, repo: ParsedRepo):
+    from colorama import Fore, Style
+
+    # Determine which FeatureServices should be deleted.
+    existing_feature_services = registry.list_feature_services(project)
+    for feature_service in repo.feature_services:
+        if feature_service in existing_feature_services:
+            existing_feature_services.remove(feature_service)
+
+    # The remaining features services in the list should be deleted.
+    for feature_service_to_delete in existing_feature_services:
+        registry.delete_feature_service(feature_service_to_delete.name, project)
+        click.echo(
+            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service_to_delete.name}{Style.RESET_ALL} "
+            f"from registry"
+        )
+
+    for feature_service in repo.feature_services:
+        registry.apply_feature_service(feature_service, project=project)
+        click.echo(
+            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
+        )
+
+
 @log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path):
     from colorama import Fore, Style
@@ -201,11 +225,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
         )
 
-    for feature_service in repo.feature_services:
-        registry.apply_feature_service(feature_service, project=project)
-        click.echo(
-            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
-        )
+    apply_feature_services(registry, project, repo)
 
     infra_provider = get_provider(repo_config, repo_path)
 

@@ -69,7 +69,8 @@ class Registry:
             )
         else:
             raise Exception(
-                f"Registry path {registry_path} has unsupported scheme {uri.scheme}. Supported schemes are file and gs."
+                f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
+                f"Supported schemes are file and gs."
             )
         self.cached_registry_proto_ttl = cache_ttl
         return
@@ -256,7 +257,8 @@ class Registry:
                     == feature_view_proto.spec.name
                     and existing_feature_view_proto.spec.project == project
                 ):
-                    # do not update if feature view has not changed; updating will erase tracked materialization intervals
+                    # do not update if feature view has not changed;
+                    # updating will erase tracked materialization intervals
                     if (
                         FeatureView.from_proto(existing_feature_view_proto)
                         == feature_view
@@ -389,6 +391,17 @@ class Registry:
             ):
                 return FeatureView.from_proto(feature_view_proto)
         raise FeatureViewNotFoundException(name, project)
+
+    def delete_feature_service(self, name: str, project: str):
+        registry_proto = self._get_registry_proto()
+        for idx, feature_service_proto in enumerate(registry_proto.feature_services):
+            if (
+                feature_service_proto.spec.name == name
+                and feature_service_proto.spec.project == project
+            ):
+                del registry_proto.feature_services[idx]
+                return feature_service_proto
+        raise FeatureServiceNotFoundException(name, project)
 
     def delete_feature_table(self, name: str, project: str):
         """
