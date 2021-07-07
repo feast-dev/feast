@@ -129,6 +129,56 @@ def entity_list(ctx: click.Context):
     print(tabulate(table, headers=["NAME", "DESCRIPTION", "TYPE"], tablefmt="plain"))
 
 
+@cli.group(name="feature-services")
+def feature_services_cmd():
+    """
+    Access feature views
+    """
+    pass
+
+
+@feature_services_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def feature_service_describe(ctx: click.Context, name: str):
+    """
+    Describe a feature service
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    try:
+        feature_service = store.get_feature_service(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(feature_service)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@feature_services_cmd.command(name="list")
+@click.pass_context
+def feature_service_list(ctx: click.Context):
+    """
+    List all feature services
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    table = []
+    for feature_view in store.list_feature_services():
+        table.append([feature_view.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
 @cli.group(name="feature-views")
 def feature_views_cmd():
     """

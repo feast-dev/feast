@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
+from attr import dataclass
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
@@ -11,14 +12,15 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceMeta,
     FeatureServiceSpec,
 )
+from google.protobuf.json_format import MessageToJson
 
 
 class FeatureService:
     name: str
     features: List[FeatureViewProjection]
+    tags: Dict[str, str]
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
-    tags: Dict[str, str]
 
     def __init__(
         self,
@@ -36,6 +38,31 @@ class FeatureService:
             else:
                 raise ValueError(f"Unexpected type: {type(feature)}")
         self.tags = tags or {}
+        self.created_timestamp = None
+        self.last_updated_timestamp = None
+
+    def __repr__(self):
+        items = (f"{k} = {v}" for k, v in self.__dict__.items())
+        return f"<{self.__class__.__name__}({', '.join(items)})>"
+
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if not isinstance(other, FeatureService):
+            raise TypeError(
+                "Comparisons should only involve FeatureService class objects."
+            )
+        if self.tags != other.tags or self.name != other.name:
+            return False
+
+        if sorted(self.features) != sorted(other.features):
+            return False
+
+        return True
 
     @staticmethod
     def from_proto(feature_service_proto: FeatureServiceProto):
