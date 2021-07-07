@@ -204,7 +204,6 @@ def get_expected_training_df(
     expected_df = expected_df[[event_timestamp] + current_cols]
 
     # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
-
     if full_feature_names:
         expected_column_types = {
             "order_is_success": "int32",

@@ -229,9 +229,11 @@ class FeatureStore:
         update_entities_with_inferred_types_from_feature_views(
             entities_to_update, views_to_update, self.config
         )
+        
         update_data_sources_with_inferred_event_timestamp_col(
             [view.input for view in views_to_update], self.config
         )
+
         for view in views_to_update:
             view.infer_features_from_input_source(self.config)
 

@@ -269,6 +269,7 @@ def check_offline_and_online_features(
             assert math.isnan(df.to_dict()["value"][0])
 
 
+
 def run_offline_online_store_consistency_test(
     fs: FeatureStore, fv: FeatureView, full_feature_names: bool
 ) -> None:
@@ -347,7 +348,7 @@ def test_dynamodb_offline_online_store_consistency(full_feature_names: bool):
     with prep_dynamodb_fs_and_fv() as (fs, fv):
         run_offline_online_store_consistency_test(fs, fv, full_feature_names)
 
-
+        
 @pytest.mark.parametrize("full_feature_names", [True, False])
 def test_local_offline_online_store_consistency(full_feature_names: bool):
     with prep_local_fs_and_fv() as (fs, fv):
