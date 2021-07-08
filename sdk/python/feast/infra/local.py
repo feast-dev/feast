@@ -130,7 +130,7 @@ class LocalProvider(Provider):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
-        full_feature_names: bool = False,
+        full_feature_names: bool,
     ) -> RetrievalJob:
         return self.offline_store.get_historical_features(
             config=config,
