@@ -111,6 +111,8 @@ def prep_bq_fs_and_fv(
 
         yield fs, fv
 
+        fs.teardown()
+
 
 @contextlib.contextmanager
 def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
@@ -151,7 +153,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             yield fs, fv
 
             # This should be a call to `fs.teardown()` once https://github.com/feast-dev/feast/issues/1696 is resolved.
-            fs._get_provider().teardown_infra(project, [fv], [e])
+            fs.teardown()
 
 
 @contextlib.contextmanager
@@ -193,8 +195,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
 
             yield fs, fv
 
-            # This should be a call to `fs.teardown()` once https://github.com/feast-dev/feast/issues/1696 is resolved.
-            fs._get_provider().teardown_infra(project, [fv], [e])
+            fs.teardown()
 
 
 @contextlib.contextmanager
@@ -233,8 +234,7 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
 
             yield fs, fv
 
-            # This should be a call to `fs.teardown()` once https://github.com/feast-dev/feast/issues/1696 is resolved.
-            fs._get_provider().teardown_infra(project, [fv], [e])
+            fs.teardown()
 
 
 # Checks that both offline & online store values are as expected
