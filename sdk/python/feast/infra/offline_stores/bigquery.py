@@ -122,7 +122,11 @@ class BigQueryOfflineStore(OfflineStore):
 
         # Build a query context containing all information required to template the BigQuery SQL query
         query_context = get_feature_view_query_context(
-            feature_refs, feature_views, registry, project, full_feature_names
+            feature_refs,
+            feature_views,
+            registry,
+            project,
+            full_feature_names=full_feature_names,
         )
 
         # TODO: Infer min_timestamp and max_timestamp from entity_df

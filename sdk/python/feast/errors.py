@@ -89,7 +89,7 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
 
 
 class FeatureNameCollisionError(Exception):
-    def __init__(self, feature_refs_collisions: List[str], full_feature_names):
+    def __init__(self, feature_refs_collisions: List[str], full_feature_names: bool):
         if full_feature_names:
             collisions = [ref.replace(":", "__") for ref in feature_refs_collisions]
             error_message = (
