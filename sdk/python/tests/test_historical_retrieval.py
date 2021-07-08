@@ -21,7 +21,10 @@ from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
 from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.bigquery import (
+    BigQueryOfflineStoreConfig,
+    _get_entity_df_timestamp_bounds,
+)
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.value_type import ValueType
@@ -593,6 +596,31 @@ def test_historical_features_from_bigquery_sources(
         assert_frame_equal(
             actual_df_from_df_entities, table_from_df_entities.to_pandas()
         )
+
+
+@pytest.mark.integration
+def test_timestamp_bound_inference_from_entity_df_using_bigquery():
+    start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+    (_, _, _, entity_df, start_date) = generate_entities(
+        start_date, infer_event_timestamp_col=True
+    )
+
+    table_id = "foo.table_id"
+    stage_orders_bigquery(entity_df, table_id)
+
+    client = bigquery.Client()
+    table = client.get_table(table=table_id)
+
+    # Ensure that the table expires after some time
+    table.expires = datetime.utcnow() + timedelta(minutes=30)
+    client.update_table(table, ["expires"])
+
+    min_timestamp, max_timestamp = _get_entity_df_timestamp_bounds(
+        client, str(table.reference), "e_ts"
+    )
+
+    assert min_timestamp.astimezone("UTC") == min(entity_df["e_ts"]).astimezone("UTC")
+    assert max_timestamp.astimezone("UTC") == max(entity_df["e_ts"]).astimezone("UTC")
 
 
 def test_feature_name_collision_on_historical_retrieval():
