@@ -622,7 +622,7 @@ def test_timestamp_bound_inference_from_entity_df_using_bigquery():
     assert min_timestamp.astimezone("UTC") == min(entity_df["e_ts"]).astimezone("UTC")
     assert max_timestamp.astimezone("UTC") == max(entity_df["e_ts"]).astimezone("UTC")
 
-    
+
 def test_feature_name_collision_on_historical_retrieval():
 
     # _validate_feature_refs is the function that checks for colliding feature names
@@ -669,4 +669,3 @@ def test_feature_name_collision_on_historical_retrieval():
         "have different names."
     )
     assert str(error.value) == expected_error_message
-
