@@ -101,30 +101,34 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
+            full_feature_names=False,
         ).to_dict()
 
-        assert "driver_locations__lon" in result
-        assert "customer_profile__avg_orders_day" in result
-        assert "customer_profile__name" in result
+        assert "lon" in result
+        assert "avg_orders_day" in result
+        assert "name" in result
         assert result["driver"] == [1, 1]
         assert result["customer"] == [5, 5]
-        assert result["driver_locations__lon"] == ["1.0", "1.0"]
-        assert result["customer_profile__avg_orders_day"] == [1.0, 1.0]
-        assert result["customer_profile__name"] == ["John", "John"]
-        assert result["customer_driver_combined__trips"] == [7, 7]
+        assert result["lon"] == ["1.0", "1.0"]
+        assert result["avg_orders_day"] == [1.0, 1.0]
+        assert result["name"] == ["John", "John"]
+        assert result["trips"] == [7, 7]
 
         # Ensure features are still in result when keys not found
         result = store.get_online_features(
             feature_refs=["customer_driver_combined:trips"],
             entity_rows=[{"driver": 0, "customer": 0}],
+            full_feature_names=False,
         ).to_dict()
 
-        assert "customer_driver_combined__trips" in result
+        assert "trips" in result
 
         # invalid table reference
         with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(
-                feature_refs=["driver_locations_bad:lon"], entity_rows=[{"driver": 1}],
+                feature_refs=["driver_locations_bad:lon"],
+                entity_rows=[{"driver": 1}],
+                full_feature_names=False,
             )
 
         # Create new FeatureStore object with fast cache invalidation
@@ -149,9 +153,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Rename the registry.db so that it cant be used for refreshes
         os.rename(store.config.registry, store.config.registry + "_fake")
@@ -169,6 +174,7 @@ def test_online() -> None:
                     "customer_driver_combined:trips",
                 ],
                 entity_rows=[{"driver": 1, "customer": 5}],
+                full_feature_names=False,
             ).to_dict()
 
         # Restore registry.db so that we can see if it actually reloads registry
@@ -183,9 +189,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Create a registry with infinite cache (for users that want to manually refresh the registry)
         fs_infinite_ttl = FeatureStore(
@@ -208,9 +215,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Wait a bit so that an arbitrary TTL would take effect
         time.sleep(2)
@@ -227,9 +235,10 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
+            full_feature_names=False,
         ).to_dict()
-        assert result["driver_locations__lon"] == ["1.0"]
-        assert result["customer_driver_combined__trips"] == [7]
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
 
         # Force registry reload (should fail because file is missing)
         with pytest.raises(FileNotFoundError):
@@ -269,7 +278,7 @@ def test_online_to_df():
         for (d, c) in zip(driver_ids, customer_ids):
             """
             driver table:
-            driver driver_locations__lon  driver_locations__lat
+                                    lon                    lat
                 1                   1.0                    0.1
                 2                   2.0                    0.2
                 3                   3.0                    0.3
@@ -296,10 +305,10 @@ def test_online_to_df():
 
             """
             customer table
-            customer  customer_profile__avg_orders_day customer_profile__name  customer_profile__age
-                4                               4.0                  foo4                     40
-                5                               5.0                  foo5                     50
-                6                               6.0                  foo6                     60
+            customer     avg_orders_day          name        age
+                4           4.0                  foo4         40
+                5           5.0                  foo5         50
+                6           6.0                  foo6         60
             """
             customer_key = EntityKeyProto(
                 join_keys=["customer"], entity_values=[ValueProto(int64_val=c)]
@@ -325,10 +334,10 @@ def test_online_to_df():
             )
             """
             customer_driver_combined table
-            customer  driver  customer_driver_combined__trips
-                4       1                                4
-                5       2                               10
-                6       3                               18
+            customer  driver    trips
+                4       1       4
+                5       2       10
+                6       3       18
             """
             combo_keys = EntityKeyProto(
                 join_keys=["customer", "driver"],
@@ -366,35 +375,31 @@ def test_online_to_df():
         ).to_df()
         """
         Construct the expected dataframe with reversed row order like so:
-        driver  customer driver_locations__lon  driver_locations__lat  customer_profile__avg_orders_day customer_profile__name  customer_profile__age  customer_driver_combined__trips
-            3       6         3.0                   0.3                    6.0                               foo6                   60                     18
-            2       5         2.0                   0.2                    5.0                               foo5                   50                     10
-            1       4         1.0                   0.1                    4.0                               foo4                   40                     4
+        driver  customer     lon    lat     avg_orders_day      name        age     trips
+            3       6        3.0    0.3         6.0             foo6        60       18
+            2       5        2.0    0.2         5.0             foo5        50       10
+            1       4        1.0    0.1         4.0             foo4        40       4
         """
         df_dict = {
             "driver": driver_ids,
             "customer": customer_ids,
-            "driver_locations__lon": [str(d * lon_multiply) for d in driver_ids],
-            "driver_locations__lat": [d * lat_multiply for d in driver_ids],
-            "customer_profile__avg_orders_day": [
-                c * avg_order_day_multiply for c in customer_ids
-            ],
-            "customer_profile__name": [name + str(c) for c in customer_ids],
-            "customer_profile__age": [c * age_multiply for c in customer_ids],
-            "customer_driver_combined__trips": [
-                d * c for (d, c) in zip(driver_ids, customer_ids)
-            ],
+            "lon": [str(d * lon_multiply) for d in driver_ids],
+            "lat": [d * lat_multiply for d in driver_ids],
+            "avg_orders_day": [c * avg_order_day_multiply for c in customer_ids],
+            "name": [name + str(c) for c in customer_ids],
+            "age": [c * age_multiply for c in customer_ids],
+            "trips": [d * c for (d, c) in zip(driver_ids, customer_ids)],
         }
         # Requested column order
         ordered_column = [
             "driver",
             "customer",
-            "driver_locations__lon",
-            "driver_locations__lat",
-            "customer_profile__avg_orders_day",
-            "customer_profile__name",
-            "customer_profile__age",
-            "customer_driver_combined__trips",
+            "lon",
+            "lat",
+            "avg_orders_day",
+            "name",
+            "age",
+            "trips",
         ]
         expected_df = pd.DataFrame({k: reversed(v) for (k, v) in df_dict.items()})
         assert_frame_equal(result_df[ordered_column], expected_df)

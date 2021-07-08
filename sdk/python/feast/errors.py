@@ -1,4 +1,4 @@
-from typing import Set
+from typing import List, Set
 
 from colorama import Fore, Style
 
@@ -85,6 +85,27 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
     def __init__(self, offline_store_name: str, data_source_name: str):
         super().__init__(
             f"Offline Store '{offline_store_name}' does not support data source '{data_source_name}'"
+        )
+
+
+class FeatureNameCollisionError(Exception):
+    def __init__(self, feature_refs_collisions: List[str], full_feature_names: bool):
+        if full_feature_names:
+            collisions = [ref.replace(":", "__") for ref in feature_refs_collisions]
+            error_message = (
+                "To resolve this collision, please ensure that the features in question "
+                "have different names."
+            )
+        else:
+            collisions = [ref.split(":")[1] for ref in feature_refs_collisions]
+            error_message = (
+                "To resolve this collision, either use the full feature name by setting "
+                "'full_feature_names=True', or ensure that the features in question have different names."
+            )
+
+        feature_names = ", ".join(set(collisions))
+        super().__init__(
+            f"Duplicate features named {feature_names} found.\n{error_message}"
         )
 
 
