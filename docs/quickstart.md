@@ -119,9 +119,9 @@ pprint(feature_vector)
 ```python
 {
     'driver_id': [1001],
-    'driver_hourly_stats__conv_rate': [0.49274],
-    'driver_hourly_stats__acc_rate': [0.92743],
-    'driver_hourly_stats__avg_daily_trips': [72],
+    'conv_rate': [0.49274],
+    'acc_rate': [0.92743],
+    'avg_daily_trips': [72],
 }
 ```
 

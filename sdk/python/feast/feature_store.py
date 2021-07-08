@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-import sys
-from collections import OrderedDict, defaultdict
+from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -24,7 +23,7 @@ from tqdm import tqdm
 
 from feast import utils
 from feast.entity import Entity
-from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
+from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -230,9 +229,11 @@ class FeatureStore:
         update_entities_with_inferred_types_from_feature_views(
             entities_to_update, views_to_update, self.config
         )
+
         update_data_sources_with_inferred_event_timestamp_col(
             [view.input for view in views_to_update], self.config
         )
+
         for view in views_to_update:
             view.infer_features_from_input_source(self.config)
 
@@ -255,7 +256,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_historical_features(
-        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
+        self,
+        entity_df: Union[pd.DataFrame, str],
+        feature_refs: List[str],
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -277,6 +281,9 @@ class FeatureStore:
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
             feature_refs: A list of features that should be retrieved from the offline store. Feature references are of
                 the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
+            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
+                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
+                "customer_fv__daily_transactions"). By default, this value is set to False.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -289,32 +296,29 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
             >>> retrieval_job = fs.get_historical_features(
             >>>     entity_df="SELECT event_timestamp, order_id, customer_id from gcp_project.my_ds.customer_orders",
-            >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"]
-            >>> )
+            >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"],
+            >>>     )
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-
         all_feature_views = self._registry.list_feature_views(project=self.project)
-        try:
-            feature_views = _get_requested_feature_views(
-                feature_refs, all_feature_views
-            )
-        except FeatureViewNotFoundException as e:
-            sys.exit(e)
+
+        _validate_feature_refs(feature_refs, full_feature_names)
+        feature_views = list(
+            view for view, _ in _group_feature_refs(feature_refs, all_feature_views)
+        )
 
         provider = self._get_provider()
-        try:
-            job = provider.get_historical_features(
-                self.config,
-                feature_views,
-                feature_refs,
-                entity_df,
-                self._registry,
-                self.project,
-            )
-        except FeastProviderLoginError as e:
-            sys.exit(e)
+
+        job = provider.get_historical_features(
+            self.config,
+            feature_views,
+            feature_refs,
+            entity_df,
+            self._registry,
+            self.project,
+            full_feature_names,
+        )
 
         return job
 
@@ -480,7 +484,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_online_features(
-        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
+        self,
+        feature_refs: List[str],
+        entity_rows: List[Dict[str, Any]],
+        full_feature_names: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -548,7 +555,8 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        grouped_refs = _group_refs(feature_refs, all_feature_views)
+        _validate_feature_refs(feature_refs, full_feature_names)
+        grouped_refs = _group_feature_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -565,13 +573,21 @@ class FeatureStore:
 
                 if feature_data is None:
                     for feature_name in requested_features:
-                        feature_ref = f"{table.name}__{feature_name}"
+                        feature_ref = (
+                            f"{table.name}__{feature_name}"
+                            if full_feature_names
+                            else feature_name
+                        )
                         result_row.statuses[
                             feature_ref
                         ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
                 else:
                     for feature_name in feature_data:
-                        feature_ref = f"{table.name}__{feature_name}"
+                        feature_ref = (
+                            f"{table.name}__{feature_name}"
+                            if full_feature_names
+                            else feature_name
+                        )
                         if feature_name in requested_features:
                             result_row.fields[feature_ref].CopyFrom(
                                 feature_data[feature_name]
@@ -599,7 +615,31 @@ def _entity_row_to_field_values(
     return result
 
 
-def _group_refs(
+def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
+    collided_feature_refs = []
+
+    if full_feature_names:
+        collided_feature_refs = [
+            ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
+        ]
+    else:
+        feature_names = [ref.split(":")[1] for ref in feature_refs]
+        collided_feature_names = [
+            ref
+            for ref, occurrences in Counter(feature_names).items()
+            if occurrences > 1
+        ]
+
+        for feature_name in collided_feature_names:
+            collided_feature_refs.extend(
+                [ref for ref in feature_refs if ref.endswith(":" + feature_name)]
+            )
+
+    if len(collided_feature_refs) > 0:
+        raise FeatureNameCollisionError(collided_feature_refs, full_feature_names)
+
+
+def _group_feature_refs(
     feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
@@ -612,6 +652,7 @@ def _group_refs(
 
     for ref in feature_refs:
         view_name, feat_name = ref.split(":")
+
         if view_name not in view_index:
             raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
@@ -620,14 +661,6 @@ def _group_refs(
     for view_name, feature_names in views_features.items():
         result.append((view_index[view_name], feature_names))
     return result
-
-
-def _get_requested_feature_views(
-    feature_refs: List[str], all_feature_views: List[FeatureView]
-) -> List[FeatureView]:
-    """Get list of feature views based on feature references"""
-    # TODO: Get rid of this function. We only need _group_refs
-    return list(view for view, _ in _group_refs(feature_refs, all_feature_views))
 
 
 def _get_table_entity_keys(

@@ -17,8 +17,9 @@ import feast.driver_test_data as driver_data
 from feast import RepoConfig, errors, utils
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
+from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
-from feast.feature_store import FeatureStore
+from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -30,7 +31,7 @@ np.random.seed(0)
 PROJECT_NAME = "default"
 
 
-def generate_entities(date, infer_event_timestamp_col):
+def generate_entities(date, infer_event_timestamp_col, order_count: int = 1000):
     end_date = date
     before_start_date = end_date - timedelta(days=365)
     start_date = end_date - timedelta(days=7)
@@ -42,7 +43,7 @@ def generate_entities(date, infer_event_timestamp_col):
         drivers=driver_entities,
         start_date=before_start_date,
         end_date=after_end_date,
-        order_count=1000,
+        order_count=order_count,
         infer_event_timestamp_col=infer_event_timestamp_col,
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
@@ -108,6 +109,7 @@ def create_customer_daily_profile_feature_view(source):
             Feature(name="current_balance", dtype=ValueType.FLOAT),
             Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
             Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
+            Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
         input=source,
         ttl=timedelta(days=2),
@@ -139,6 +141,7 @@ def get_expected_training_df(
     driver_fv: FeatureView,
     orders_df: pd.DataFrame,
     event_timestamp: str,
+    full_feature_names: bool = False,
 ):
     # Convert all pandas dataframes into records with UTC timestamps
     order_records = convert_timestamp_records_to_utc(
@@ -169,15 +172,21 @@ def get_expected_training_df(
             filter_key="customer_id",
             filter_value=order_record["customer_id"],
         )
+
         order_record.update(
             {
-                f"driver_stats__{k}": driver_record.get(k, None)
+                (f"driver_stats__{k}" if full_feature_names else k): driver_record.get(
+                    k, None
+                )
                 for k in ("conv_rate", "avg_daily_trips")
             }
         )
+
         order_record.update(
             {
-                f"customer_profile__{k}": customer_record.get(k, None)
+                (
+                    f"customer_profile__{k}" if full_feature_names else k
+                ): customer_record.get(k, None)
                 for k in (
                     "current_balance",
                     "avg_passenger_count",
@@ -195,12 +204,21 @@ def get_expected_training_df(
     expected_df = expected_df[[event_timestamp] + current_cols]
 
     # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
-    expected_column_types = {
-        "order_is_success": "int32",
-        "driver_stats__conv_rate": "float32",
-        "customer_profile__current_balance": "float32",
-        "customer_profile__avg_passenger_count": "float32",
-    }
+    if full_feature_names:
+        expected_column_types = {
+            "order_is_success": "int32",
+            "driver_stats__conv_rate": "float32",
+            "customer_profile__current_balance": "float32",
+            "customer_profile__avg_passenger_count": "float32",
+        }
+    else:
+        expected_column_types = {
+            "order_is_success": "int32",
+            "conv_rate": "float32",
+            "current_balance": "float32",
+            "avg_passenger_count": "float32",
+        }
+
     for col, typ in expected_column_types.items():
         expected_df[col] = expected_df[col].astype(typ)
 
@@ -244,7 +262,12 @@ class BigQueryDataSet:
 @pytest.mark.parametrize(
     "infer_event_timestamp_col", [False, True],
 )
-def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
+@pytest.mark.parametrize(
+    "full_feature_names", [False, True],
+)
+def test_historical_features_from_parquet_sources(
+    infer_event_timestamp_col, full_feature_names
+):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -292,6 +315,7 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
             ],
+            full_feature_names=full_feature_names,
         )
 
         actual_df = job.to_df()
@@ -301,7 +325,13 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
             else "e_ts"
         )
         expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df, event_timestamp,
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names=full_feature_names,
         )
         assert_frame_equal(
             expected_df.sort_values(
@@ -320,8 +350,11 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
 @pytest.mark.parametrize(
     "infer_event_timestamp_col", [False, True],
 )
+@pytest.mark.parametrize(
+    "full_feature_names", [False, True],
+)
 def test_historical_features_from_bigquery_sources(
-    provider_type, infer_event_timestamp_col, capsys
+    provider_type, infer_event_timestamp_col, capsys, full_feature_names
 ):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
@@ -425,7 +458,13 @@ def test_historical_features_from_bigquery_sources(
             else "e_ts"
         )
         expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df, event_timestamp,
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names,
         )
 
         job_from_sql = store.get_historical_features(
@@ -437,6 +476,7 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
             ],
+            full_feature_names=full_feature_names,
         )
 
         start_time = datetime.utcnow()
@@ -500,6 +540,7 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
             ],
+            full_feature_names=full_feature_names,
         )
 
         # Rename the join key; this should now raise an error.
@@ -547,7 +588,56 @@ def test_historical_features_from_bigquery_sources(
             .reset_index(drop=True),
             check_dtype=False,
         )
+
         table_from_df_entities = job_from_df.to_arrow()
         assert_frame_equal(
             actual_df_from_df_entities, table_from_df_entities.to_pandas()
         )
+
+
+def test_feature_name_collision_on_historical_retrieval():
+
+    # _validate_feature_refs is the function that checks for colliding feature names
+    # check when feature names collide and 'full_feature_names=False'
+    with pytest.raises(FeatureNameCollisionError) as error:
+        _validate_feature_refs(
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+                "customer_profile:avg_daily_trips",
+            ],
+            full_feature_names=False,
+        )
+
+    expected_error_message = (
+        "Duplicate features named avg_daily_trips found.\n"
+        "To resolve this collision, either use the full feature name by setting "
+        "'full_feature_names=True', or ensure that the features in question have different names."
+    )
+
+    assert str(error.value) == expected_error_message
+
+    # check when feature names collide and 'full_feature_names=True'
+    with pytest.raises(FeatureNameCollisionError) as error:
+        _validate_feature_refs(
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+                "customer_profile:avg_daily_trips",
+            ],
+            full_feature_names=True,
+        )
+
+    expected_error_message = (
+        "Duplicate features named driver_stats__avg_daily_trips found.\n"
+        "To resolve this collision, please ensure that the features in question "
+        "have different names."
+    )
+    assert str(error.value) == expected_error_message
