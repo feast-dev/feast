@@ -21,9 +21,10 @@ import pandas as pd
 from colorama import Fore, Style
 from tqdm import tqdm
 
-from feast import FeatureTable, utils
+from feast import utils
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
+from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
