@@ -360,9 +360,11 @@ class FeatureStore:
             _feature_refs = _features
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
+        print(f"All feature views: {all_feature_views}")
         feature_views = list(
-            view for view, _ in _group_feature_refs(feature_refs, all_feature_views)
+            view for view, _ in _group_feature_refs(_feature_refs, all_feature_views)
         )
+        print(f"Selected feature views: {feature_views}")
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 
@@ -720,6 +722,8 @@ def _group_feature_refs(
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
+    print(f"Input Features: {features}")
+
     # view name to view proto
     view_index = {view.name: view for view in all_feature_views}
 
@@ -738,6 +742,8 @@ def _group_feature_refs(
             views_features[feature_projection.name].extend(
                 [f.name for f in projected_features]
             )
+
+    print(f"Views Features: {views_features}")
 
     result = []
     for view_name, feature_names in views_features.items():
