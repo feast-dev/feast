@@ -136,8 +136,8 @@ def basic_feature_service_rw_test(
             features=feature_service, entity_rows=[entity_dict]
         ).to_dict()
         assert len(features["driver"]) == 1
-        assert features["driver_locations__lon"][0] == expect_lon
-        assert abs(features["driver_locations__lat"][0] - expect_lat) < 1e-6
+        assert features["lon"][0] == expect_lon
+        assert abs(features["lat"][0] - expect_lat) < 1e-6
 
     """ 1. Basic test: write value, read it back """
 
