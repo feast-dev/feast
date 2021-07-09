@@ -32,6 +32,7 @@ def _assert_online_features(
             "driver_hourly_stats:avg_daily_trips",
         ],
         entity_rows=[{"driver_id": 1001}],
+        full_feature_names=True,
     )
 
     assert "driver_hourly_stats__avg_daily_trips" in result.to_dict()
