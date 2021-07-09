@@ -346,13 +346,6 @@ class FeatureStore:
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-        all_feature_views = self._registry.list_feature_views(project=self.project)
-
-        _validate_feature_refs(feature_refs, full_feature_names)
-        feature_views = list(
-            view for view, _ in _group_feature_refs(feature_refs, all_feature_views)
-        )
-
         _features = features or feature_refs
         if not _features:
             raise ValueError("No features specified for retrieval")
@@ -366,12 +359,19 @@ class FeatureStore:
         else:
             _feature_refs = _features
 
+        all_feature_views = self._registry.list_feature_views(project=self.project)
+        feature_views = list(
+            view for view, _ in _group_feature_refs(feature_refs, all_feature_views)
+        )
+
+        _validate_feature_refs(_feature_refs, full_feature_names)
+
         provider = self._get_provider()
 
         job = provider.get_historical_features(
             self.config,
             feature_views,
-            feature_refs,
+            _feature_refs,
             entity_df,
             self._registry,
             self.project,
@@ -590,6 +590,15 @@ class FeatureStore:
         if not _features:
             raise ValueError("No features specified for retrieval")
 
+        _feature_refs: List[str]
+        if isinstance(_features, FeatureService):
+            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
+            _feature_refs = _get_features_refs_from_feature_services(
+                self.get_feature_service(_features.name)
+            )
+        else:
+            _feature_refs = _features
+
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
         entity_name_to_join_key_map = {}
@@ -622,8 +631,8 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        _validate_feature_refs(feature_refs, full_feature_names)
-        grouped_refs = _group_feature_refs(feature_refs, all_feature_views)
+        _validate_feature_refs(_feature_refs, full_feature_names)
+        grouped_refs = _group_feature_refs(_feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -682,7 +691,7 @@ def _entity_row_to_field_values(
     return result
 
 
-def _validate_feature_refs(feature_refs: Union[List[str], FeatureService], full_feature_names: bool = False):
+def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     collided_feature_refs = []
 
     if full_feature_names:
@@ -725,8 +734,9 @@ def _group_feature_refs(
             views_features[view_name].append(feat_name)
     elif isinstance(features, FeatureService):
         for feature_projection in features.features:
+            projected_features = feature_projection.features
             views_features[feature_projection.name].extend(
-                [f.name for f in feature_projection.features]
+                [f.name for f in projected_features]
             )
 
     result = []

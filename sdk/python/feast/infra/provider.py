@@ -172,7 +172,7 @@ def _get_requested_feature_views_to_features_dict(
     """Create a dict of FeatureView -> List[Feature] for all requested features.
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
 
-    feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
+    feature_views_to_feature_map: Dict[FeatureView, List[str]] = {}
 
     for ref in feature_refs:
         ref_parts = ref.split(":")
