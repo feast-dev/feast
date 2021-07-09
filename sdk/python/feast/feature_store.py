@@ -15,7 +15,7 @@ import os
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, Iterable
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from colorama import Fore, Style
@@ -257,9 +257,7 @@ class FeatureStore:
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        services_to_update = [
-            ob for ob in objects if isinstance(ob, FeatureService)
-        ]
+        services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
 
         # Make inferences
         update_entities_with_inferred_types_from_feature_views(
@@ -753,7 +751,9 @@ def _get_features_refs_from_feature_services(
 ) -> List[str]:
     feature_refs = []
     for projection in feature_service.features:
-        feature_refs.extend([f"{projection.name}:{f.name}" for f in projection.features])
+        feature_refs.extend(
+            [f"{projection.name}:{f.name}" for f in projection.features]
+        )
     return feature_refs
 
 

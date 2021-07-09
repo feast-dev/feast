@@ -75,7 +75,9 @@ customer_driver_combined = FeatureView(
 
 
 all_drivers_feature_service = FeatureService(
-    name="driver_locations_service", features=[driver_locations], tags={"release": "production"}
+    name="driver_locations_service",
+    features=[driver_locations],
+    tags={"release": "production"},
 )
 
 partial_drivers_feature_service = FeatureService(

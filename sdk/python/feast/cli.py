@@ -176,8 +176,10 @@ def feature_service_list(ctx: click.Context):
     for feature_service in store.list_feature_services():
         feature_names = []
         for projection in feature_service.features:
-            feature_names.extend([f"{projection.name}:{feature.name}" for feature in projection.features])
-        feature_services.append([feature_service.name, ', '.join(feature_names)])
+            feature_names.extend(
+                [f"{projection.name}:{feature.name}" for feature in projection.features]
+            )
+        feature_services.append([feature_service.name, ", ".join(feature_names)])
 
     from tabulate import tabulate
 

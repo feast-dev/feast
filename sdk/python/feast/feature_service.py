@@ -72,7 +72,7 @@ class FeatureService:
                 FeatureViewProjection.from_proto(fp)
                 for fp in feature_service_proto.spec.features
             ],
-            tags=dict(feature_service_proto.spec.tags)
+            tags=dict(feature_service_proto.spec.tags),
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
