@@ -23,8 +23,8 @@ from tqdm import tqdm
 
 from feast import utils
 from feast.entity import Entity
-from feast.feature_service import FeatureService
 from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
