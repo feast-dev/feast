@@ -287,8 +287,15 @@ class BigQueryRetrievalJob(RetrievalJob):
 
 
 def block_until_done(client, bq_job):
+    def _cancel_job(job_id):
+        client.cancel_job(job_id)
+        raise BigQueryJobCancelled(job_id=job_id)
+
     def _is_done(job_id):
-        return client.get_job(job_id).state in ["PENDING", "RUNNING"]
+        try:
+            return client.get_job(job_id).state in ["PENDING", "RUNNING"]
+        except KeyboardInterrupt:
+            _cancel_job(job_id)
 
     @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
     def _wait_until_done(job_id):
@@ -301,8 +308,7 @@ def block_until_done(client, bq_job):
         raise bq_job.exception()
 
     if not _is_done(job_id):
-        client.cancel_job(job_id)
-        raise BigQueryJobCancelled(job_id=job_id)
+        _cancel_job(job_id)
 
 
 @dataclass(frozen=True)
