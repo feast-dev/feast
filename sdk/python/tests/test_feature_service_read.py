@@ -16,5 +16,5 @@ def test_feature_service_read() -> None:
     ) as store:
 
         basic_feature_service_rw_test(
-            store, view_name="driver_locations", feature_service_name="driver_locations"
+            store, view_name="driver_locations", feature_service_name="driver_locations_service"
         )

@@ -15,7 +15,7 @@ import os
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Iterable
 
 import pandas as pd
 from colorama import Fore, Style
@@ -226,8 +226,7 @@ class FeatureStore:
         operations are idempotent, meaning they can safely be rerun.
 
         Args:
-            objects (List[Union[FeatureView, Entity]]): A list of FeatureView, Entity, or FeatureService objects that should be
-                registered
+            objects: A single object, or a list of objects that should be registered with the Feature Store.
 
         Examples:
             Register a single Entity and FeatureView.
@@ -251,17 +250,14 @@ class FeatureStore:
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
 
-        if (
-            isinstance(objects, Entity)
-            or isinstance(objects, FeatureView)
-            or isinstance(objects, FeatureService)
-        ):
+        if not isinstance(objects, Iterable):
             objects = [objects]
+
         assert isinstance(objects, list)
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        feature_services_to_update = [
+        services_to_update = [
             ob for ob in objects if isinstance(ob, FeatureService)
         ]
 
@@ -278,7 +274,7 @@ class FeatureStore:
             view.infer_features_from_input_source(self.config)
 
         if len(views_to_update) + len(entities_to_update) + len(
-            feature_services_to_update
+            services_to_update
         ) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
@@ -286,7 +282,7 @@ class FeatureStore:
             self._registry.apply_feature_view(view, project=self.project)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project)
-        for feature_service in feature_services_to_update:
+        for feature_service in services_to_update:
             self._registry.apply_feature_service(feature_service, project=self.project)
 
         self._get_provider().update_infra(
@@ -324,8 +320,9 @@ class FeatureStore:
                 columns (e.g., customer_id, driver_id) on which features need to be joined, as well as a event_timestamp
                 column used to ensure point-in-time correctness. Either a Pandas DataFrame can be provided or a string
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
-            features: A list of features that should be retrieved from the offline store. Feature references are of
-                the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
+            features: A list of features, that should be retrieved from the offline store.
+                Feature references are of the format "feature_view:feature", e.g., "customer_fv:daily_transactions",
+                or it can be an instance of a FeatureService object.
             full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
                 changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
                 "customer_fv__daily_transactions"). By default, this value is set to False.
@@ -754,7 +751,10 @@ def _group_feature_refs(
 def _get_features_refs_from_feature_services(
     feature_service: FeatureService,
 ) -> List[str]:
-    return [f"{feature_service.name}:{f.name}" for f in feature_service.features]
+    feature_refs = []
+    for projection in feature_service.features:
+        feature_refs.extend([f"{projection.name}:{f.name}" for f in projection.features])
+    return feature_refs
 
 
 def _get_table_entity_keys(

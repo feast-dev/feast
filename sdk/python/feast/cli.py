@@ -132,7 +132,7 @@ def entity_list(ctx: click.Context):
 @cli.group(name="feature-services")
 def feature_services_cmd():
     """
-    Access feature views
+    Access feature services
     """
     pass
 
@@ -172,13 +172,16 @@ def feature_service_list(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
-    table = []
-    for feature_view in store.list_feature_services():
-        table.append([feature_view.name])
+    feature_services = []
+    for feature_service in store.list_feature_services():
+        feature_names = []
+        for projection in feature_service.features:
+            feature_names.extend([f"{projection.name}:{feature.name}" for feature in projection.features])
+        feature_services.append([feature_service.name, ', '.join(feature_names)])
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+    print(tabulate(feature_services, headers=["NAME", "FEATURES"], tablefmt="plain"))
 
 
 @cli.group(name="feature-views")

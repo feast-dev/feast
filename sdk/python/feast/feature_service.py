@@ -72,6 +72,7 @@ class FeatureService:
                 FeatureViewProjection.from_proto(fp)
                 for fp in feature_service_proto.spec.features
             ],
+            tags=dict(feature_service_proto.spec.tags)
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
@@ -82,8 +83,6 @@ class FeatureService:
             fs.last_updated_timestamp = (
                 feature_service_proto.meta.last_updated_timestamp.ToDatetime()
             )
-
-        fs.tags = dict(feature_service_proto.spec.tags)
 
         return fs
 
@@ -105,8 +104,9 @@ class FeatureService:
                 feature_ref = definition
 
             spec.features.append(feature_ref.to_proto())
-            if self.tags:
-                spec.tags.update(self.tags)
+
+        if self.tags:
+            spec.tags.update(self.tags)
 
         feature_service_proto = FeatureServiceProto(spec=spec, meta=meta)
         return feature_service_proto

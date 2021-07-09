@@ -156,6 +156,17 @@ class Registry:
     def list_feature_services(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
+        """
+        Retrieve a list of feature services from the registry
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry
+            project: Filter entities based on project name
+
+        Returns:
+            List of feature services
+        """
+
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         feature_services = []
         for feature_service_proto in registry_proto.feature_services:
@@ -393,6 +404,13 @@ class Registry:
         raise FeatureViewNotFoundException(name, project)
 
     def delete_feature_service(self, name: str, project: str):
+        """
+        Deletes a feature service or raises an exception if not found.
+
+        Args:
+            name: Name of feature service
+            project: Feast project that this feature service belongs to
+        """
         registry_proto = self._get_registry_proto()
         for idx, feature_service_proto in enumerate(registry_proto.feature_services):
             if (
