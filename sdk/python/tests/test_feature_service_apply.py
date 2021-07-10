@@ -15,7 +15,7 @@ def test_read_pre_applied() -> None:
     ) as store:
 
         assert len(store.list_feature_services()) == 2
-        fs = store.get_feature_service("driver_locations")
+        fs = store.get_feature_service("driver_locations_service")
         assert len(fs.tags) == 1
         assert fs.tags["release"] == "production"
 
