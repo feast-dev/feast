@@ -235,7 +235,9 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 int32_list_val=Int32List(
                     val=[
-                        item if type(item) is np.int32 else _type_err(item, np.int32)
+                        item
+                        if type(item) in [np.int32, int]
+                        else _type_err(item, np.int32)
                         for item in value
                     ]
                 )
@@ -246,7 +248,7 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 int64_list_val=Int64List(
                     val=[
                         item
-                        if type(item) in [np.int64, np.int32]
+                        if type(item) in [np.int64, np.int32, int]
                         else _type_err(item, np.int64)
                         for item in value
                     ]
@@ -258,7 +260,7 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 int64_list_val=Int64List(
                     val=[
                         item
-                        if type(item) in [np.int64, np.int32]
+                        if type(item) in [np.int64, np.int32, int]
                         else _type_err(item, np.int64)
                         for item in value
                     ]
