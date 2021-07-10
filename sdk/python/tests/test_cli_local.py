@@ -63,7 +63,7 @@ def test_workflow() -> None:
         )
         assertpy.assert_that(result.returncode).is_equal_to(0)
         result = runner.run(
-            ["feature-services", "describe", "driver_locations"], cwd=repo_path
+            ["feature-services", "describe", "driver_locations_service"], cwd=repo_path
         )
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
