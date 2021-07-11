@@ -180,8 +180,13 @@ def feature_view_list(ctx: click.Context):
 
 
 @cli.command("apply", cls=NoOptionDefaultFormat)
+@click.option(
+    "--validate-off",
+    is_flag=True,
+    help="Don't validate the data sources.",
+)
 @click.pass_context
-def apply_total_command(ctx: click.Context):
+def apply_total_command(ctx: click.Context, validate_off: bool):
     """
     Create or update a feature store deployment
     """
@@ -189,7 +194,7 @@ def apply_total_command(ctx: click.Context):
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
     try:
-        apply_total(repo_config, repo)
+        apply_total(repo_config, repo, validate_off)
     except FeastProviderLoginError as e:
         print(str(e))
 
