@@ -181,12 +181,12 @@ def feature_view_list(ctx: click.Context):
 
 @cli.command("apply", cls=NoOptionDefaultFormat)
 @click.option(
-    "--validate-off",
+    "--skip-source-validation",
     is_flag=True,
-    help="Don't validate the data sources.",
+    help="Don't validate the data sources by checking for that the tables exist.",
 )
 @click.pass_context
-def apply_total_command(ctx: click.Context, validate_off: bool):
+def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     """
     Create or update a feature store deployment
     """
@@ -194,7 +194,7 @@ def apply_total_command(ctx: click.Context, validate_off: bool):
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
     try:
-        apply_total(repo_config, repo, validate_off)
+        apply_total(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
         print(str(e))
 

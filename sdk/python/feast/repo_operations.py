@@ -111,7 +111,7 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 
 
 @log_exceptions_and_usage
-def apply_total(repo_config: RepoConfig, repo_path: Path, validate_off: bool):
+def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     from colorama import Fore, Style
 
     os.chdir(repo_path)
@@ -133,7 +133,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, validate_off: bool):
     repo = parse_repo(repo_path)
     data_sources = [t.input for t in repo.feature_views]
 
-    if not validate_off:
+    if not skip_source_validation:
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
             data_source.validate(repo_config)
