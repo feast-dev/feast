@@ -102,7 +102,7 @@ class RedisOnlineStore(OnlineStore):
         params = {}
         for c in connection_string.split(","):
             if "=" in c:
-                kv = c.split("=")
+                kv = c.split("=", 1)
                 try:
                     kv[1] = json.loads(kv[1])
                 except json.JSONDecodeError:
