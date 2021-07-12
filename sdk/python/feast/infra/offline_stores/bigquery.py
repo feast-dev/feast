@@ -7,6 +7,7 @@ from typing import List, Optional, Set, Union
 import pandas
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from pandas import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import retry, stop_after_delay, wait_fixed
@@ -95,6 +96,7 @@ class BigQueryOfflineStore(OfflineStore):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
@@ -121,17 +123,26 @@ class BigQueryOfflineStore(OfflineStore):
 
         # Build a query context containing all information required to template the BigQuery SQL query
         query_context = get_feature_view_query_context(
-            feature_refs, feature_views, registry, project
+            feature_refs,
+            feature_views,
+            registry,
+            project,
+            full_feature_names=full_feature_names,
         )
 
-        # TODO: Infer min_timestamp and max_timestamp from entity_df
+        # Infer min and max timestamps from entity_df to limit data read in BigQuery SQL query
+        min_timestamp, max_timestamp = _get_entity_df_timestamp_bounds(
+            client, str(table.reference), entity_df_event_timestamp_col
+        )
+
         # Generate the BigQuery SQL query from the query context
         query = build_point_in_time_query(
             query_context,
-            min_timestamp=datetime.now() - timedelta(days=365),
-            max_timestamp=datetime.now() + timedelta(days=1),
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
             left_table_query_string=str(table.reference),
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+            full_feature_names=full_feature_names,
         )
 
         job = BigQueryRetrievalJob(query=query, client=client, config=config)
@@ -286,12 +297,12 @@ def block_until_done(client, bq_job):
     job_id = bq_job.job_id
     _wait_until_done(job_id=job_id)
 
+    if bq_job.exception():
+        raise bq_job.exception()
+
     if not _is_done(job_id):
         client.cancel_job(job_id)
         raise BigQueryJobCancelled(job_id=job_id)
-
-    if bq_job.exception():
-        raise bq_job.exception()
 
 
 @dataclass(frozen=True)
@@ -368,11 +379,34 @@ def _upload_entity_df_into_bigquery(
     return table
 
 
+def _get_entity_df_timestamp_bounds(
+    client: Client, entity_df_bq_table: str, event_timestamp_col: str,
+):
+
+    boundary_df = (
+        client.query(
+            f"""
+    SELECT
+        MIN({event_timestamp_col}) AS min_timestamp,
+        MAX({event_timestamp_col}) AS max_timestamp
+    FROM {entity_df_bq_table}
+    """
+        )
+        .result()
+        .to_dataframe()
+    )
+
+    min_timestamp = boundary_df.loc[0, "min_timestamp"]
+    max_timestamp = boundary_df.loc[0, "max_timestamp"]
+    return min_timestamp, max_timestamp
+
+
 def get_feature_view_query_context(
     feature_refs: List[str],
     feature_views: List[FeatureView],
     registry: Registry,
     project: str,
+    full_feature_names: bool = False,
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
 
@@ -428,10 +462,11 @@ def get_feature_view_query_context(
 
 def build_point_in_time_query(
     feature_view_query_contexts: List[FeatureViewQueryContext],
-    min_timestamp: datetime,
-    max_timestamp: datetime,
+    min_timestamp: Timestamp,
+    max_timestamp: Timestamp,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
+    full_feature_names: bool = False,
 ):
     """Build point-in-time query between each feature view table and the entity dataframe"""
     template = Environment(loader=BaseLoader()).from_string(
@@ -448,6 +483,7 @@ def build_point_in_time_query(
             [entity for fv in feature_view_query_contexts for entity in fv.entities]
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
+        "full_feature_names": full_feature_names,
     }
 
     query = template.render(template_context)
@@ -521,9 +557,13 @@ WITH entity_dataframe AS (
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
         {{ featureview.entity_selections | join(', ')}},
         {% for feature in featureview.features %}
-            {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+            {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
+    WHERE {{ featureview.event_timestamp_column }} <= '{{max_timestamp}}'
+    {% if featureview.ttl == 0 %}{% else %}
+    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub('{{min_timestamp}}', interval {{ featureview.ttl }} second)
+    {% endif %}
 ),
 
 {{ featureview.name }}__base AS (
@@ -614,7 +654,7 @@ LEFT JOIN (
     SELECT
         entity_row_unique_id,
         {% for feature in featureview.features %}
-            {{ featureview.name }}__{{ feature }},
+            {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %},
         {% endfor %}
     FROM {{ featureview.name }}__cleaned
 ) USING (entity_row_unique_id)

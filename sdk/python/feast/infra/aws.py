@@ -22,10 +22,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
 
-class GcpProvider(Provider):
-    _gcp_project_id: Optional[str]
-    _namespace: Optional[str]
-
+class AwsProvider(Provider):
     def __init__(self, config: RepoConfig):
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
@@ -110,6 +107,7 @@ class GcpProvider(Provider):
             start_date=start_date,
             end_date=end_date,
         )
+
         table = offline_job.to_arrow()
 
         if feature_view.input.field_mapping is not None:

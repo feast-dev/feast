@@ -23,6 +23,7 @@ from feast import utils
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -65,14 +66,16 @@ class FeatureView:
         input: DataSource,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
-        features: List[Feature] = [],
+        features: List[Feature] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
         _input = input or batch_source
         assert _input is not None
 
-        cols = [entity for entity in entities] + [feat.name for feat in features]
+        _features = features or []
+
+        cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
             if _input.field_mapping is not None and col in _input.field_mapping.keys():
                 raise ValueError(
@@ -83,7 +86,7 @@ class FeatureView:
 
         self.name = name
         self.entities = entities
-        self.features = features
+        self.features = _features
         self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
@@ -107,6 +110,16 @@ class FeatureView:
 
     def __hash__(self):
         return hash(self.name)
+
+    def __getitem__(self, item) -> FeatureViewProjection:
+        assert isinstance(item, list)
+
+        referenced_features = []
+        for feature in self.features:
+            if feature.name in item:
+                referenced_features.append(feature)
+
+        return FeatureViewProjection(self.name, referenced_features)
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
@@ -168,8 +181,6 @@ class FeatureView:
         if self.ttl is not None:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
-
-        print(f"Stream soruce: {self.stream_source}, {type(self.stream_source)}")
 
         spec = FeatureViewSpecProto(
             name=self.name,

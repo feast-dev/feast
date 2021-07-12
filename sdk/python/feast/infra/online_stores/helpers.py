@@ -5,6 +5,7 @@ from typing import Any
 import mmh3
 
 from feast import errors
+from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -53,3 +54,12 @@ def _mmh3(key: str):
     """
     key_hash = mmh3.hash(key, signed=False)
     return bytes.fromhex(struct.pack("<Q", key_hash).hex()[:8])
+
+
+def compute_entity_id(entity_key: EntityKeyProto) -> str:
+    """
+    Compute Entity id given Feast Entity Key for online stores.
+    Remember that Entity here refers to `EntityKeyProto` which is used in some online stores to encode the keys.
+    It has nothing to do with the Entity concept we have in Feast.
+    """
+    return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
