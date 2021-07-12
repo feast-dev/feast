@@ -268,16 +268,16 @@ class BigQueryRetrievalJob(RetrievalJob):
 
         bq_job = self.client.query(self.query, job_config=job_config)
 
-        block_until_done(client=self.client, bq_job=bq_job)
-
-        if bq_job.exception():
-            raise bq_job.exception()
-
         if job_config.dry_run:
             print(
                 "This query will process {} bytes.".format(bq_job.total_bytes_processed)
             )
             return None
+
+        block_until_done(client=self.client, bq_job=bq_job)
+
+        if bq_job.exception():
+            raise bq_job.exception()
 
         print(f"Done writing to '{job_config.destination}'.")
         return str(job_config.destination)
