@@ -293,7 +293,7 @@ def block_until_done(client, bq_job):
 
     def _is_done(job_id):
         try:
-            return client.get_job(job_id).state in ["PENDING", "RUNNING"]
+            return client.get_job(job_id).state in ["DONE", "SUCCESS"]
         except KeyboardInterrupt:
             _cancel_job(job_id)
 
