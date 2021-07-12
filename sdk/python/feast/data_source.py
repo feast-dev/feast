@@ -16,6 +16,7 @@
 import enum
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
+from pyarrow import fs
 from pyarrow.parquet import ParquetFile
 from tenacity import retry, retry_unless_exception_type, wait_exponential
 
@@ -703,10 +704,25 @@ class FileSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.pa_to_feast_value_type
 
+    @staticmethod
+    def prepare_path(path: str, s3_endpoint_override: str):
+        if path.startswith("s3://"):
+            s3 = fs.S3FileSystem(
+                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
+            )
+            return s3, path.replace("s3://", "")
+        else:
+            return None, path
+
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        schema = ParquetFile(self.path).schema_arrow
+        filesystem, path = FileSource.prepare_path(
+            self.path, self._file_options.s3_endpoint_override
+        )
+        schema = ParquetFile(
+            path if filesystem is None else filesystem.open_input_file(path)
+        ).schema_arrow
         return zip(schema.names, map(str, schema.types))
 
 

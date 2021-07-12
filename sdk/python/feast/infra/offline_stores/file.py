@@ -4,7 +4,6 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 import pytz
-from pyarrow import fs
 from pydantic.typing import Literal
 
 from feast.data_source import DataSource, FileSource
@@ -106,7 +105,7 @@ class FileOfflineStore(OfflineStore):
                 created_timestamp_column = feature_view.input.created_timestamp_column
 
                 # Read offline parquet data in pyarrow format
-                filesystem, path = FileOfflineStore.__prepare_path(
+                filesystem, path = FileSource.prepare_path(
                     feature_view.input.path,
                     feature_view.input.file_options.s3_endpoint_override,
                 )
@@ -230,7 +229,7 @@ class FileOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
-            filesystem, path = FileOfflineStore.__prepare_path(
+            filesystem, path = FileSource.prepare_path(
                 data_source.path, data_source.file_options.s3_endpoint_override
             )
             source_df = pd.read_parquet(path, filesystem=filesystem)
@@ -273,13 +272,3 @@ class FileOfflineStore(OfflineStore):
             return last_values_df[columns_to_extract]
 
         return FileRetrievalJob(evaluation_function=evaluate_offline_job)
-
-    @staticmethod
-    def __prepare_path(path: str, s3_endpoint_override: str):
-        if path.startswith("s3://"):
-            s3 = fs.S3FileSystem(
-                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
-            )
-            return s3, path.replace("s3://", "")
-        else:
-            return None, path
