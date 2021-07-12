@@ -26,10 +26,10 @@ class FeatureServiceNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:
             super().__init__(
-                f"FeatureService {name} does not exist in project {project}"
+                f"Feature service {name} does not exist in project {project}"
             )
         else:
-            super().__init__(f"FeatureService {name} does not exist")
+            super().__init__(f"Feature service {name} does not exist")
 
 
 class FeatureViewNotFoundException(FeastObjectNotFoundException):

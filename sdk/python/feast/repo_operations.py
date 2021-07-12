@@ -119,13 +119,13 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 def apply_feature_services(registry: Registry, project: str, repo: ParsedRepo):
     from colorama import Fore, Style
 
-    # Determine which FeatureServices should be deleted.
+    # Determine which Feature services should be deleted.
     existing_feature_services = registry.list_feature_services(project)
     for feature_service in repo.feature_services:
         if feature_service in existing_feature_services:
             existing_feature_services.remove(feature_service)
 
-    # The remaining features services in the list should be deleted.
+    # The remaining Features services in the list should be deleted.
     for feature_service_to_delete in existing_feature_services:
         registry.delete_feature_service(feature_service_to_delete.name, project)
         click.echo(

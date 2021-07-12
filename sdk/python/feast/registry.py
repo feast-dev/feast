@@ -126,10 +126,10 @@ class Registry:
 
     def apply_feature_service(self, feature_service: FeatureService, project: str):
         """
-        Registers a single entity with Feast
+        Registers a single Feature service with Feast
 
         Args:
-            feature_service: FeatureService that will be registered
+            feature_service: A Feature service that will be registered
             project: Feast project that this entity belongs to
         """
         feature_service_proto = feature_service.to_proto()
@@ -180,14 +180,14 @@ class Registry:
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
         """
-        Retrieves a FeatureService.
+        Retrieves a Feature service.
 
         Args:
-            name: Name of FeatureService
-            project: Feast project that this FeatureService belongs to
+            name: Name of Feature service
+            project: Feast project that this Feature service belongs to
 
         Returns:
-            Returns either the specified FeatureService, or raises an exception if
+            Returns either the specified Feature service, or raises an exception if
             none is found
         """
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)

@@ -319,8 +319,8 @@ class FeatureStore:
                 column used to ensure point-in-time correctness. Either a Pandas DataFrame can be provided or a string
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
             features: A list of features, that should be retrieved from the offline store.
-                Feature references are of the format "feature_view:feature", e.g., "customer_fv:daily_transactions",
-                or it can be an instance of a FeatureService object.
+                Either a list of string feature references can be provided or a FeatureService object.
+                Feature references are of the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
             full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
                 changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
                 "customer_fv__daily_transactions"). By default, this value is set to False.
@@ -355,11 +355,9 @@ class FeatureStore:
             _feature_refs = _features
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
-        print(f"All feature views: {all_feature_views}")
         feature_views = list(
             view for view, _ in _group_feature_refs(_feature_refs, all_feature_views)
         )
-        print(f"Selected feature views: {feature_views}")
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 
@@ -716,8 +714,6 @@ def _group_feature_refs(
     features: Union[List[str], FeatureService], all_feature_views: List[FeatureView]
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
-
-    print(f"Input Features: {features}")
 
     # view name to view proto
     view_index = {view.name: view for view in all_feature_views}
