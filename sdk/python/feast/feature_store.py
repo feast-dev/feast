@@ -257,16 +257,16 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def teardown(self):
-        feature_defs: List[Union[FeatureView, FeatureTable]] = []
+        tables: List[Union[FeatureView, FeatureTable]] = []
         feature_views = self.list_feature_views()
         feature_tables = self._registry.list_feature_tables(self.project)
 
-        feature_defs.extend(feature_views)
-        feature_defs.extend(feature_tables)
+        tables.extend(feature_views)
+        tables.extend(feature_tables)
 
         entities = self.list_entities()
 
-        self._get_provider().teardown_infra(self.project, feature_defs, entities)
+        self._get_provider().teardown_infra(self.project, tables, entities)
         for feature_view in feature_views:
             self.delete_feature_view(feature_view.name)
         for feature_table in feature_tables:
