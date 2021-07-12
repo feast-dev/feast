@@ -21,6 +21,7 @@ class FeatureService:
     The features may all be part of the same Feature view, or from a combination of Feature views.
 
     """
+
     name: str
     features: List[FeatureViewProjection]
     tags: Dict[str, str]
