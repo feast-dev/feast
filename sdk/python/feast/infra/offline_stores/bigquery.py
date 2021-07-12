@@ -360,7 +360,7 @@ def _upload_entity_df_into_bigquery(
 
     if type(entity_df) is str:
         job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
-        job.result()
+        block_until_done(client, job)
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
@@ -370,7 +370,7 @@ def _upload_entity_df_into_bigquery(
         job = client.load_table_from_dataframe(
             entity_df, table_id, job_config=job_config
         )
-        job.result()
+        block_until_done(client, job)
     else:
         raise ValueError(
             f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
