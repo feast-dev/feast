@@ -128,7 +128,7 @@ def python_type_to_feast_value_type(
             for item in list_items:
                 if isinstance(item, ProtoValue):
                     current_item_value_type = _proto_str_to_value_type(
-                        item.WhichOneof("val")
+                        str(item.WhichOneof("val"))
                     )
                 else:
                     # Get the type from the current item, only one level deep
