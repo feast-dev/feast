@@ -152,7 +152,6 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
 
             yield fs, fv
 
-            # This should be a call to `fs.teardown()` once https://github.com/feast-dev/feast/issues/1696 is resolved.
             fs.teardown()
 
 
