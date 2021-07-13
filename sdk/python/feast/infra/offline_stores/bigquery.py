@@ -286,27 +286,23 @@ class BigQueryRetrievalJob(RetrievalJob):
         return self.client.query(self.query).to_arrow()
 
 
-def block_until_done(client, bq_job):
-    def _is_done(job_id):
-        try:
-            return client.get_job(job_id).state in ["DONE", "SUCCESS"]
-        except KeyboardInterrupt:
-            client.cancel_job(job_id)
-            raise BigQueryJobCancelled(job_id=job_id)
-
+def _block_until_done(client, bq_job):
     @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
     def _wait_until_done(job_id):
-        return _is_done(job_id)
+        if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
+            raise Exception
+        else:
+            return client.get_job(job_id).state in ["DONE", "SUCCESS"]
 
     job_id = bq_job.job_id
-    _wait_until_done(job_id=job_id)
+    try:
+        _wait_until_done(job_id=job_id)
+    except KeyboardInterrupt:
+        client.cancel_job(job_id)
+        raise BigQueryJobCancelled(job_id=job_id)
 
     if bq_job.exception():
         raise bq_job.exception()
-
-    if not _is_done(job_id):
-        client.cancel_job(job_id)
-        raise BigQueryJobCancelled(job_id=job_id)
 
 
 @dataclass(frozen=True)
@@ -358,7 +354,7 @@ def _upload_entity_df_into_bigquery(
 
     if type(entity_df) is str:
         job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
-        block_until_done(client, job)
+        _block_until_done(client, job)
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
@@ -368,7 +364,7 @@ def _upload_entity_df_into_bigquery(
         job = client.load_table_from_dataframe(
             entity_df, table_id, job_config=job_config
         )
-        block_until_done(client, job)
+        _block_until_done(client, job)
     else:
         raise ValueError(
             f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
