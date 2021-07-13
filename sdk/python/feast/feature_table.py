@@ -59,6 +59,8 @@ class FeatureTable:
         self._features = features
         self._batch_source = batch_source
         self._stream_source = stream_source
+
+        self._labels: MutableMapping[str, str]
         if labels is None:
             self._labels = dict()
         else:

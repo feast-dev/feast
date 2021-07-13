@@ -19,7 +19,7 @@ class ServingServicer(Serving.ServingServiceServicer):
         if core_url:
             self.__core_channel = None
             self.__connect_core(core_url)
-            self._feature_tables = (
+            self._feature_tables: Dict[str, str] = (
                 dict()
             )
 
