@@ -605,7 +605,7 @@ def test_timestamp_bound_inference_from_entity_df_using_bigquery():
         start_date, infer_event_timestamp_col=True
     )
 
-    table_id = "foo.table_id"
+    table_id = f"foo.table_id_{int(time.time_ns())}_{random.randint(1000, 9999)}"
     stage_orders_bigquery(entity_df, table_id)
 
     client = bigquery.Client()
