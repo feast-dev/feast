@@ -14,7 +14,11 @@ from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import BigQuerySource, DataSource
-from feast.errors import BigQueryJobCancelled, FeastProviderLoginError
+from feast.errors import (
+    BigQueryJobCancelled,
+    BigQueryJobStillRunning,
+    FeastProviderLoginError,
+)
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
@@ -286,13 +290,21 @@ class BigQueryRetrievalJob(RetrievalJob):
         return self.client.query(self.query).to_arrow()
 
 
-def _block_until_done(client, bq_job):
+def block_until_done(client, bq_job):
+    """
+    Waits a maximum of 30 minutes for bq_job to finish running.
+    Args:
+        client: A bigquery.client.Client to monitor the bq_job.
+        bq_job: The bigquery.job.QueryJob that blocks until done runnning.
+    Raises:
+        BigQueryJobStillRunning exception if the function has blocked longer than 30 minutes.
+        BigQueryJobCancelled exception on a KeyboardInterrupt.
+    """
+
     @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
     def _wait_until_done(job_id):
         if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
-            raise Exception
-        else:
-            return client.get_job(job_id).state in ["DONE", "SUCCESS"]
+            raise BigQueryJobStillRunning(job_id=job_id)
 
     job_id = bq_job.job_id
     try:
@@ -354,7 +366,7 @@ def _upload_entity_df_into_bigquery(
 
     if type(entity_df) is str:
         job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
-        _block_until_done(client, job)
+        block_until_done(client, job)
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
@@ -364,7 +376,7 @@ def _upload_entity_df_into_bigquery(
         job = client.load_table_from_dataframe(
             entity_df, table_id, job_config=job_config
         )
-        _block_until_done(client, job)
+        block_until_done(client, job)
     else:
         raise ValueError(
             f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
