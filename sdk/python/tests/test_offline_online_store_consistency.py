@@ -111,6 +111,8 @@ def prep_bq_fs_and_fv(
 
         yield fs, fv
 
+        fs.teardown()
+
 
 @contextlib.contextmanager
 def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
@@ -133,10 +135,13 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             join_key="driver_id",
             value_type=ValueType.INT32,
         )
+        project = f"test_local_correctness_{str(uuid.uuid4()).replace('-', '')}"
+        print(f"Using project: {project}")
+
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
-                project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
+                project=project,
                 provider="local",
                 online_store=SqliteOnlineStoreConfig(
                     path=str(Path(data_dir_name) / "online_store.db")
@@ -146,6 +151,8 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             fs.apply([fv, e])
 
             yield fs, fv
+
+            fs.teardown()
 
 
 @contextlib.contextmanager
@@ -169,10 +176,12 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             join_key="driver_id",
             value_type=ValueType.INT32,
         )
+        project = f"test_redis_correctness_{str(uuid.uuid4()).replace('-', '')}"
+        print(f"Using project: {project}")
         with tempfile.TemporaryDirectory() as repo_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
-                project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
+                project=project,
                 provider="local",
                 online_store=RedisOnlineStoreConfig(
                     type="redis",
@@ -184,6 +193,8 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             fs.apply([fv, e])
 
             yield fs, fv
+
+            fs.teardown()
 
 
 @contextlib.contextmanager
@@ -207,10 +218,12 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             join_key="driver_id",
             value_type=ValueType.INT32,
         )
+        project = f"test_dynamo_correctness_{str(uuid.uuid4()).replace('-', '')}"
+        print(f"Using project {project}")
         with tempfile.TemporaryDirectory() as repo_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
-                project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
+                project=project,
                 provider="aws",
                 online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
                 offline_store=FileOfflineStoreConfig(),
@@ -219,6 +232,8 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             fs.apply([fv, e])
 
             yield fs, fv
+
+            fs.teardown()
 
 
 # Checks that both offline & online store values are as expected
