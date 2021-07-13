@@ -33,7 +33,7 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     database: StrictStr
     """ Redshift database name """
 
-    s3_path: StrictStr
+    s3_staging_location: StrictStr
     """ S3 path for importing & exporting data to Redshift """
 
     iam_role: StrictStr
@@ -62,11 +62,13 @@ class RedshiftOfflineStore(OfflineStore):
             partition_by_join_key_string = (
                 "PARTITION BY " + partition_by_join_key_string
             )
-        timestamps = [event_timestamp_column]
+        timestamp_columns = [event_timestamp_column]
         if created_timestamp_column:
-            timestamps.append(created_timestamp_column)
-        timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
-        field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
+            timestamp_columns.append(created_timestamp_column)
+        timestamp_desc_string = " DESC, ".join(timestamp_columns) + " DESC"
+        field_string = ", ".join(
+            join_key_columns + feature_name_columns + timestamp_columns
+        )
 
         redshift_client = aws_utils.get_redshift_data_client(
             config.offline_store.region
@@ -105,12 +107,22 @@ class RedshiftOfflineStore(OfflineStore):
 
 class RedshiftRetrievalJob(RetrievalJob):
     def __init__(self, query: str, redshift_client, s3_resource, config: RepoConfig):
+        """Initialize RedshiftRetrievalJob object.
+
+        Args:
+            query: Redshift SQL query to execute.
+            redshift_client: boto3 redshift-data client
+            s3_resource: boto3 s3 resource object
+            config: Feast repo config
+        """
         self.query = query
         self._redshift_client = redshift_client
         self._s3_resource = s3_resource
         self._config = config
         self._s3_path = (
-            self._config.offline_store.s3_path + "/unload/" + str(uuid.uuid4())
+            self._config.offline_store.s3_staging_location
+            + "/unload/"
+            + str(uuid.uuid4())
         )
 
     def to_df(self) -> pd.DataFrame:

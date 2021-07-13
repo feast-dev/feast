@@ -52,16 +52,19 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
 def execute_redshift_statement_async(
     redshift_data_client, cluster_id: str, database: str, user: str, query: str
 ) -> dict:
-    """
-    Execute Redshift statement asynchronously. Does not wait for the query to finish.
+    """Execute Redshift statement asynchronously. Does not wait for the query to finish.
+
     Raises RedshiftCredentialsError if the statement couldn't be executed due to the validation error.
 
-    :param redshift_data_client: Redshift Data API Service client
-    :param cluster_id: Redshift Cluster Identifier
-    :param database: Redshift Database Name
-    :param user: Redshift username
-    :param query: The SQL query to execute
-    :return: JSON response
+    Args:
+        redshift_data_client: Redshift Data API Service client
+        cluster_id: Redshift Cluster Identifier
+        database: Redshift Database Name
+        user: Redshift username
+        query: The SQL query to execute
+
+    Returns: JSON response
+
     """
     try:
         return redshift_data_client.execute_statement(
@@ -82,14 +85,17 @@ class RedshiftStatementNotFinishedError(Exception):
     retry=retry_if_exception_type(RedshiftStatementNotFinishedError),
 )
 def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
-    """
-    Waits for the Redshift statement to finish. Raises RedshiftQueryError if the statement didn't succeed.
+    """Waits for the Redshift statement to finish. Raises RedshiftQueryError if the statement didn't succeed.
 
     We use exponential backoff for checking the query state until it's not running. The backoff starts with
     0.1 seconds and doubles exponentially until reaching 30 seconds, at which point the backoff is fixed.
 
-    :param redshift_data_client: Redshift Data API Service client
-    :param statement: The redshift statement to wait for (result of execute_redshift_statement)
+    Args:
+        redshift_data_client:  Redshift Data API Service client
+        statement:  The redshift statement to wait for (result of execute_redshift_statement)
+
+    Returns: None
+
     """
     desc = redshift_data_client.describe_statement(Id=statement["Id"])
     if desc["Status"] in ("SUBMITTED", "STARTED", "PICKED"):
@@ -101,17 +107,21 @@ def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
 def execute_redshift_statement(
     redshift_data_client, cluster_id: str, database: str, user: str, query: str
 ) -> str:
-    """
-    Execute Redshift statement synchronously. Waits for the query to finish.
+    """Execute Redshift statement synchronously. Waits for the query to finish.
+
     Raises RedshiftCredentialsError if the statement couldn't be executed due to the validation error.
     Raises RedshiftQueryError if the query runs but finishes with errors.
 
-    :param redshift_data_client: Redshift Data API Service client
-    :param cluster_id: Redshift Cluster Identifier
-    :param database: Redshift Database Name
-    :param user: Redshift username
-    :param query: The SQL query to execute
-    :return: Statement ID
+
+    Args:
+        redshift_data_client: Redshift Data API Service client
+        cluster_id: Redshift Cluster Identifier
+        database: Redshift Database Name
+        user: Redshift username
+        query: The SQL query to execute
+
+    Returns: Statement ID
+
     """
     statement = execute_redshift_statement_async(
         redshift_data_client, cluster_id, database, user, query
@@ -125,7 +135,7 @@ def get_redshift_statement_result(redshift_data_client, statement_id: str) -> di
     return redshift_data_client.get_statement_result(Id=statement_id)
 
 
-def copy_df_to_redshift(
+def upload_df_to_redshift(
     redshift_data_client,
     cluster_id: str,
     database: str,
@@ -136,8 +146,8 @@ def copy_df_to_redshift(
     table_name: str,
     df: pd.DataFrame,
 ) -> None:
-    """
-    Uploads a Pandas DataFrame to Redshift as a new table.
+    """Uploads a Pandas DataFrame to Redshift as a new table.
+
     The caller is responsible for deleting the table when no longer necessary.
 
     Here's how the upload process works:
@@ -147,16 +157,20 @@ def copy_df_to_redshift(
         4. The S3 file is uploaded to Redshift as a new table through COPY command
         5. The local disk & s3 paths are cleaned up
 
-    :param redshift_data_client: Redshift Data API Service client
-    :param cluster_id: Redshift Cluster Identifier
-    :param database: Redshift Database Name
-    :param user: Redshift username
-    :param s3_resource: S3 Resource object
-    :param s3_path: S3 path where the Parquet file is temporarily uploaded
-    :param iam_role: IAM Role for Redshift to assume during the COPY command.
-                     The role must grant permission to read the S3 location.
-    :param table_name: The name of the new Redshift table where we copy the dataframe
-    :param df: The Pandas DataFrame to upload
+    Args:
+        redshift_data_client: Redshift Data API Service client
+        cluster_id: Redshift Cluster Identifier
+        database: Redshift Database Name
+        user: Redshift username
+        s3_resource: S3 Resource object
+        s3_path: S3 path where the Parquet file is temporarily uploaded
+        iam_role: IAM Role for Redshift to assume during the COPY command.
+                  The role must grant permission to read the S3 location.
+        table_name: The name of the new Redshift table where we copy the dataframe
+        df: The Pandas DataFrame to upload
+
+    Returns: None
+
     """
     bucket, key = get_bucket_and_key(s3_path)
 
@@ -173,24 +187,20 @@ def copy_df_to_redshift(
         ]
     )
 
-    # Create the temporary table with the desired schema
-    create_query = f"CREATE TABLE {table_name}({column_query_list})"
-    execute_redshift_statement(
-        redshift_data_client, cluster_id, database, user, create_query
-    )
-
     # Write the PyArrow Table on disk in Parquet format and upload it to S3
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path = f"{temp_dir}/{uuid.uuid4()}.parquet"
         pq.write_table(table, file_path)
         s3_resource.Object(bucket, key).put(Body=open(file_path, "rb"))
 
-    # Copy the Parquet file contents to the Redshift table
-    copy_query = (
-        f"COPY {table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
+    # Create the table with the desired schema and
+    # copy the Parquet file contents to the Redshift table
+    create_and_copy_query = (
+        f"CREATE TABLE {table_name}({column_query_list}); "
+        + f"COPY {table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
     )
     execute_redshift_statement(
-        redshift_data_client, cluster_id, database, user, copy_query
+        redshift_data_client, cluster_id, database, user, create_and_copy_query
     )
 
     # Clean up S3 temporary data

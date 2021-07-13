@@ -18,8 +18,8 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
@@ -130,17 +130,17 @@ def prep_redshift_fs_and_fv(
         region="us-west-2",
         user="admin",
         database="feast",
-        s3_path="s3://feast-integration-tests/redshift/tests/ingestion",
+        s3_staging_location="s3://feast-integration-tests/redshift/tests/ingestion",
         iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
     )
 
-    aws_utils.copy_df_to_redshift(
+    aws_utils.upload_df_to_redshift(
         client,
         offline_store.cluster_id,
         offline_store.database,
         offline_store.user,
         s3,
-        f"{offline_store.s3_path}/copy/{table_name}.parquet",
+        f"{offline_store.s3_staging_location}/copy/{table_name}.parquet",
         offline_store.iam_role,
         table_name,
         df,
@@ -347,7 +347,10 @@ def check_offline_and_online_features(
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView, full_feature_names: bool, check_offline_store: bool = True
+    fs: FeatureStore,
+    fv: FeatureView,
+    full_feature_names: bool,
+    check_offline_store: bool = True,
 ) -> None:
     now = datetime.utcnow()
     # Run materialize()
@@ -434,7 +437,9 @@ def test_dynamodb_offline_online_store_consistency(full_feature_names: bool):
     "source_type", ["query", "table"],
 )
 @pytest.mark.parametrize("full_feature_names", [True, False])
-def test_redshift_offline_online_store_consistency(source_type: str, full_feature_names: bool):
+def test_redshift_offline_online_store_consistency(
+    source_type: str, full_feature_names: bool
+):
     with prep_redshift_fs_and_fv(source_type) as (fs, fv):
         # TODO: remove check_offline_store parameter once Redshift's get_historical_features is implemented
         run_offline_online_store_consistency_test(fs, fv, full_feature_names, False)
