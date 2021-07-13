@@ -78,7 +78,7 @@ def prep_bq_fs_and_fv(
     df = create_dataset()
 
     job_config = bigquery.LoadJobConfig()
-    table_ref = f"{gcp_project}.{bigquery_dataset}.{bq_source_type}_correctness_{int(time.time())}"
+    table_ref = f"{gcp_project}.{bigquery_dataset}.{bq_source_type}_correctness_{int(time.time_ns())}"
     query = f"SELECT * FROM `{table_ref}`"
     job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
     job.result()
