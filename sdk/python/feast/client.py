@@ -40,27 +40,17 @@ from feast.loaders.ingest import (
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
-    ApplyEntityResponse,
     ApplyFeatureTableRequest,
-    ApplyFeatureTableResponse,
     ArchiveProjectRequest,
-    ArchiveProjectResponse,
     CreateProjectRequest,
-    CreateProjectResponse,
     DeleteFeatureTableRequest,
     GetEntityRequest,
-    GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureTableRequest,
-    GetFeatureTableResponse,
     ListEntitiesRequest,
-    ListEntitiesResponse,
     ListFeaturesRequest,
-    ListFeaturesResponse,
     ListFeatureTablesRequest,
-    ListFeatureTablesResponse,
     ListProjectsRequest,
-    ListProjectsResponse,
 )
 from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.protos.feast.serving.ServingService_pb2 import (
