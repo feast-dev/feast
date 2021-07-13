@@ -40,27 +40,17 @@ from feast.loaders.ingest import (
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
-    ApplyEntityResponse,
     ApplyFeatureTableRequest,
-    ApplyFeatureTableResponse,
     ArchiveProjectRequest,
-    ArchiveProjectResponse,
     CreateProjectRequest,
-    CreateProjectResponse,
     DeleteFeatureTableRequest,
     GetEntityRequest,
-    GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureTableRequest,
-    GetFeatureTableResponse,
     ListEntitiesRequest,
-    ListEntitiesResponse,
     ListFeaturesRequest,
-    ListFeaturesResponse,
     ListFeatureTablesRequest,
-    ListFeatureTablesResponse,
     ListProjectsRequest,
-    ListProjectsResponse,
 )
 from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -388,7 +378,7 @@ class Client:
                 ListProjectsRequest(),
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
-            )  # type: ListProjectsResponse
+            )
             return list(response.projects)
 
     def create_project(self, project: str):
@@ -408,7 +398,7 @@ class Client:
                 CreateProjectRequest(name=project),
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
-            )  # type: CreateProjectResponse
+            )
 
     def archive_project(self, project):
         """
@@ -430,7 +420,7 @@ class Client:
                     ArchiveProjectRequest(name=project),
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
-                )  # type: ArchiveProjectResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
@@ -523,7 +513,7 @@ class Client:
                     ApplyEntityRequest(project=project, spec=entity_proto),  # type: ignore
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
-                )  # type: ApplyEntityResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
@@ -558,7 +548,7 @@ class Client:
             # Get latest entities from Feast Core
             entity_protos = self._core_service.ListEntities(
                 ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
-            )  # type: ListEntitiesResponse
+            )
 
             # Extract entities and return
             entities = []
@@ -593,7 +583,7 @@ class Client:
                 get_entity_response = self._core_service.GetEntity(
                     GetEntityRequest(project=project, name=name.strip()),
                     metadata=self._get_grpc_metadata(),
-                )  # type: GetEntityResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
             entity = Entity.from_proto(get_entity_response.entity)
@@ -646,7 +636,7 @@ class Client:
                     ApplyFeatureTableRequest(project=project, table_spec=feature_table_proto),  # type: ignore
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
-                )  # type: ApplyFeatureTableResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
@@ -683,7 +673,7 @@ class Client:
             feature_table_protos = self._core_service.ListFeatureTables(
                 ListFeatureTablesRequest(filter=filter),
                 metadata=self._get_grpc_metadata(),
-            )  # type: ListFeatureTablesResponse
+            )
 
             # Extract feature tables and return
             feature_tables = []
@@ -718,7 +708,7 @@ class Client:
                 get_feature_table_response = self._core_service.GetFeatureTable(
                     GetFeatureTableRequest(project=project, name=name.strip()),
                     metadata=self._get_grpc_metadata(),
-                )  # type: GetFeatureTableResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
             return FeatureTable.from_proto(get_feature_table_response.table)
@@ -785,7 +775,7 @@ class Client:
 
             feature_protos = self._core_service.ListFeatures(
                 ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
-            )  # type: ListFeaturesResponse
+            )
 
             # Extract features and return
             features_dict = {}

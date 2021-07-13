@@ -49,8 +49,9 @@ class Entity:
         else:
             self._join_key = name
 
+        self._labels: MutableMapping[str, str]
         if labels is None:
-            self._labels = dict()  # type: MutableMapping[str, str]
+            self._labels = dict()
         else:
             self._labels = labels
 
