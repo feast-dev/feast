@@ -3,8 +3,9 @@ import string
 import tempfile
 from pathlib import Path
 from textwrap import dedent
-import redis
+
 import pytest
+import redis
 
 from feast.feature_store import FeatureStore
 from tests.cli_utils import CliRunner
@@ -95,7 +96,7 @@ def test_connection_error() -> None:
 
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
-        
+
         # Redis does not support names for its databases.
         with pytest.raises(redis.exceptions.ResponseError):
             basic_rw_test(
