@@ -21,7 +21,7 @@ class ServingServicer(Serving.ServingServiceServicer):
             self.__connect_core(core_url)
             self._feature_tables = (
                 dict()
-            )  # type: Dict[str, FeatureTableProto.FeatureTable]
+            )
 
     def __connect_core(self, core_url: str):
         if not core_url:
@@ -44,7 +44,7 @@ class ServingServicer(Serving.ServingServiceServicer):
         # Get updated list of feature tables
         feature_tables = (
             self._core_service_stub.ListFeatureTables
-        )  # type: ListFeatureTablesResponse
+        )
 
         # Store each feature table locally
         for feature_table in list(feature_tables.tables):
