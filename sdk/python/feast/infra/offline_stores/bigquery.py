@@ -312,7 +312,7 @@ def block_until_done(
 
     Raises:
         BigQueryJobStillRunning exception if the function has blocked longer than 30 minutes.
-        BigQueryJobCancelled exception on a KeyboardInterrupt.
+        BigQueryJobCancelled exception to signify when that the job has been cancelled (i.e. from timeout or KeyboardInterrupt.
     """
 
     def _wait_until_done(job_id):
