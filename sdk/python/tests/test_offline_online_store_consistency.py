@@ -12,8 +12,8 @@ import pytest
 from google.cloud import bigquery
 from pytz import timezone, utc
 
+from feast import BigQuerySource, FileSource
 from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore

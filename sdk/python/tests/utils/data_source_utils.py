@@ -3,8 +3,8 @@ import tempfile
 
 from google.cloud import bigquery
 
+from feast import BigQuerySource, FileSource
 from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
 
 
 @contextlib.contextmanager

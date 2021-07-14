@@ -20,10 +20,10 @@ from typing import Any, Dict, List, Optional, Union
 import grpc
 import pandas as pd
 
+from feast import BigQuerySource, FileSource
 from feast.config import Config
 from feast.constants import ConfigOptions as opt
 from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature, FeatureRef, _build_feature_references
 from feast.feature_table import FeatureTable

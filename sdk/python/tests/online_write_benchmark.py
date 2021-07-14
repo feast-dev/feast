@@ -8,7 +8,7 @@ import click
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast.data_source import FileSource
+from feast import FileSource
 from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.entity import Entity
 from feast.feature import Feature

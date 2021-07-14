@@ -14,8 +14,7 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 import feast.driver_test_data as driver_data
-from feast import RepoConfig, errors, utils
-from feast.data_source import BigQuerySource, FileSource
+from feast import BigQuerySource, FileSource, RepoConfig, errors, utils
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature

@@ -18,8 +18,8 @@ from tempfile import mkstemp
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
+from feast import FileSource
 from feast.data_format import ParquetFormat
-from feast.data_source import FileSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore

@@ -34,6 +34,7 @@ message DataSource {
     STREAM_KAFKA = 3;
     STREAM_KINESIS = 4;
     BATCH_REDSHIFT = 5;
+    CUSTOM_SOURCE = 6;
   }
   SourceType type = 1;
 
@@ -111,6 +112,13 @@ message DataSource {
     string query = 2;
   }
 
+  // Defines configuration for custom third-party data sources.
+  message CustomSourceOptions {
+    // Serialized configuration information for the data source. The implementer of the custom data source is
+    // responsible for serializing and deserializing data from bytes
+    bytes configuration = 1;
+  }
+
   // DataSource options.
   oneof options {
     FileOptions file_options = 11;
@@ -118,5 +126,6 @@ message DataSource {
     KafkaOptions kafka_options = 13;
     KinesisOptions kinesis_options = 14;
     RedshiftOptions redshift_options = 15;
+    CustomSourceOptions custom_options = 16;
   }
 }
