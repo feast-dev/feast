@@ -3,7 +3,7 @@
 ### Feature Service
 
 A feature service is an object that represents a logical group of features from one or more [feature views](feature-view.md). 
-Feature Services allows features from within a feature view to be used as needed by an ML model. Users can expect to create one Feature Service per Model, keeping the features needed by the model tracked.   
+Feature Services allows features from within a feature view to be used as needed by an ML model. Users can expect to create one feature service per model, allowing for tracking of the features used by models.   
 
 {% tabs %}
 {% tab title="driver\_trips\_feature\_service.py" %}
@@ -26,4 +26,3 @@ Feature services are used during
 {% hint style="info" %}
 Feast does not currently spin up any servers to serve these features.
 {% endhint %}
-
