@@ -22,7 +22,7 @@ driver_stats_fs = FeatureService(
 Feature services are used during
 
 * The generation of training datasets when querying feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
-* Retrieval of features from the online store. 
+* Retrieval of features from the online store. The features retrieved from the online store may also belong to multiple feature views.
 
 {% hint style="info" %}
 Feast does not currently spin up any servers to serve these features.
