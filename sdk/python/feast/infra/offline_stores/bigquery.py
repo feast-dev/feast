@@ -10,7 +10,7 @@ from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
-from tenacity import retry, stop_after_delay, wait_fixed
+from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import BigQuerySource, DataSource
@@ -301,7 +301,12 @@ def block_until_done(client, bq_job):
         BigQueryJobCancelled exception on a KeyboardInterrupt.
     """
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(1800), reraise=True)
+    @retry(
+        wait=wait_fixed(10),
+        stop=stop_after_delay(1800),
+        retry=retry_if_exception_type(BigQueryJobStillRunning),
+        reraise=True,
+    )
     def _wait_until_done(job_id):
         if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
             raise BigQueryJobStillRunning(job_id=job_id)
