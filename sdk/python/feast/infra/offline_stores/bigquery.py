@@ -266,7 +266,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         Args:
             job_config: An optional bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
             timeout: An optional number of seconds for setting the time limit of the QueryJob.
-            retry_cadence: An optional number of seconds for setting how long the job should checked for completion. 
+            retry_cadence: An optional number of seconds for setting how long the job should checked for completion.
 
         Returns:
             Returns the destination table name or returns None if job_config.dry_run is True.
@@ -308,7 +308,7 @@ def block_until_done(
         client: A bigquery.client.Client to monitor the bq_job.
         bq_job: The bigquery.job.QueryJob that blocks until done runnning.
         timeout: An optional number of seconds for setting the time limit of the job.
-        retry_cadence: An optional number of seconds for setting how long the job should checked for completion. 
+        retry_cadence: An optional number of seconds for setting how long the job should checked for completion.
 
     Raises:
         BigQueryJobStillRunning exception if the function has blocked longer than 30 minutes.
