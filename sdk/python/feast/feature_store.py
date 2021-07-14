@@ -209,6 +209,25 @@ class FeatureStore:
 
         return self._registry.delete_feature_view(name, self.project)
 
+    def _get_features(
+        self,
+        features: Union[List[str], FeatureService],
+        feature_refs: Optional[List[str]],
+    ) -> List[str]:
+        _features = features or feature_refs
+        if not _features:
+            raise ValueError("No features specified for retrieval")
+
+        _feature_refs: List[str]
+        if isinstance(_features, FeatureService):
+            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
+            _feature_refs = _get_features_refs_from_feature_services(
+                self.get_feature_service(_features.name)
+            )
+        else:
+            _feature_refs = _features
+        return _feature_refs
+
     @log_exceptions_and_usage
     def apply(
         self,
@@ -359,18 +378,8 @@ class FeatureStore:
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-        _features = features or feature_refs
-        if not _features:
-            raise ValueError("No features specified for retrieval")
 
-        _feature_refs: List[str]
-        if isinstance(_features, FeatureService):
-            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _feature_refs = _get_features_refs_from_feature_services(
-                self.get_feature_service(_features.name)
-            )
-        else:
-            _feature_refs = _features
+        _feature_refs = self._get_features(features, feature_refs)
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
         feature_views = list(
@@ -595,22 +604,7 @@ class FeatureStore:
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
 
-        _features = features or feature_refs
-        if isinstance(_features, FeatureService):
-            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _features = self.get_feature_service(_features.name)
-
-        if not _features:
-            raise ValueError("No features specified for retrieval")
-
-        _feature_refs: List[str]
-        if isinstance(_features, FeatureService):
-            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _feature_refs = _get_features_refs_from_feature_services(
-                self.get_feature_service(_features.name)
-            )
-        else:
-            _feature_refs = _features
+        _feature_refs = self._get_features(features, feature_refs)
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
