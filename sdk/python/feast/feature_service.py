@@ -17,8 +17,8 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 
 class FeatureService:
     """
-    A FeatureService object is used to group features together for retrieval.
-    The features may all be part of the same Feature view, or from a combination of Feature views.
+    A feature service allows users to group features together for retrieval.
+    The features may all be part of the same feature view, or from a combination of feature views.
 
     """
 
@@ -36,10 +36,12 @@ class FeatureService:
     ):
         """
         Create a new Feature Service object.
-        :param name: A unique name for the Feature Service.
-        :param features: A list of Features that are grouped as part of this FeatureService.
-            The list may contain Feature Views, Feature Tables, or a subset of either.
-        :param tags: A dictionary of key-value pairs used for organizing Feature Services.
+
+        Args:
+            name: A unique name for the Feature Service.
+            features: A list of Features that are grouped as part of this FeatureService.
+                The list may contain Feature Views, Feature Tables, or a subset of either.
+            tags: A dictionary of key-value pairs used for organizing Feature Services.
         """
         self.name = name
         self.features = []
