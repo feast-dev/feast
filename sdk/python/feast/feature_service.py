@@ -17,7 +17,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 
 class FeatureService:
     """
-    A feature service allows users to group features together for retrieval.
+    A feature service is a logical grouping of features for retrieval (training or serving).
     The features may all be part of the same feature view, or from a combination of feature views.
 
     """
