@@ -112,8 +112,8 @@ class Config:
         if options and isinstance(options, dict):
             self._options = options
 
-        self._config = config  # type: ConfigParser
-        self._path = path  # type: str
+        self._config = config
+        self._path = path
 
     def _get(self, option, default, get_method):
         fallback = {} if default is _UNSET else {"fallback": default}

@@ -24,6 +24,7 @@ from tqdm import tqdm
 from feast import utils
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
+from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -253,6 +254,23 @@ class FeatureStore:
             entities_to_keep=entities_to_update,
             partial=True,
         )
+
+    @log_exceptions_and_usage
+    def teardown(self):
+        tables: List[Union[FeatureView, FeatureTable]] = []
+        feature_views = self.list_feature_views()
+        feature_tables = self._registry.list_feature_tables(self.project)
+
+        tables.extend(feature_views)
+        tables.extend(feature_tables)
+
+        entities = self.list_entities()
+
+        self._get_provider().teardown_infra(self.project, tables, entities)
+        for feature_view in feature_views:
+            self.delete_feature_view(feature_view.name)
+        for feature_table in feature_tables:
+            self._registry.delete_feature_table(feature_table.name, self.project)
 
     @log_exceptions_and_usage
     def get_historical_features(

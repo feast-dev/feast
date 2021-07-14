@@ -657,7 +657,7 @@ class TestClient:
             entity_rows=entity_rows,
             feature_refs=["driver:age", "driver:rating", "driver:null_value"],
             project="driver_project",
-        )  # type: GetOnlineFeaturesResponse
+        )
         mocked_client._serving_service_stub.GetOnlineFeaturesV2.assert_called_with(
             request, metadata=auth_metadata, timeout=10
         )
@@ -747,7 +747,7 @@ class TestClient:
             entity_rows=entity_rows,
             feature_refs=["driver:age", "driver:rating", "driver:null_value"],
             project="driver_project",
-        )  # type: GetOnlineFeaturesResponse
+        )
         mocked_client._serving_service_stub.GetOnlineFeaturesV2.assert_called_with(
             request, metadata=auth_metadata, timeout=10
         )
