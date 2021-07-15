@@ -4,9 +4,10 @@ from pkg_resources import DistributionNotFound, get_distribution
 
 from feast.infra.offline_stores.bigquery import BigQuerySource
 from feast.infra.offline_stores.file import FileSource
+from feast.infra.offline_stores.redshift import RedshiftSource
 
 from .client import Client
-from .data_source import KafkaSource, KinesisSource, RedshiftSource, SourceType
+from .data_source import KafkaSource, KinesisSource, SourceType
 from .entity import Entity
 from .feature import Feature
 from .feature_store import FeatureStore
