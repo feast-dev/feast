@@ -17,7 +17,7 @@ This Terraform configuration creates the following resources:
 * Amazon EMR cluster to run Spark \(3x spot m4.xlarge\)
 * Staging S3 bucket to store temporary data
 
-![](../../../.gitbook/assets/feast-on-aws-3-%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29.png)
+![](../../../.gitbook/assets/feast-on-aws-3-%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%283%29.png)
 
 ### 1. Requirements
 
