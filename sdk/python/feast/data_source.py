@@ -326,27 +326,13 @@ class DataSource(ABC):
         if data_source.file_options.file_format and data_source.file_options.file_url:
             from feast.infra.offline_stores.file import FileSource
 
-            data_source_obj = FileSource(
-                field_mapping=dict(data_source.field_mapping),
-                file_format=FileFormat.from_proto(data_source.file_options.file_format),
-                path=data_source.file_options.file_url,
-                event_timestamp_column=data_source.event_timestamp_column,
-                created_timestamp_column=data_source.created_timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
+            data_source_obj = FileSource.from_proto(data_source)
         elif (
             data_source.bigquery_options.table_ref or data_source.bigquery_options.query
         ):
             from feast.infra.offline_stores.bigquery import BigQuerySource
 
-            data_source_obj = BigQuerySource(
-                field_mapping=dict(data_source.field_mapping),
-                table_ref=data_source.bigquery_options.table_ref,
-                event_timestamp_column=data_source.event_timestamp_column,
-                created_timestamp_column=data_source.created_timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-                query=data_source.bigquery_options.query,
-            )
+            data_source_obj = BigQuerySource.from_proto(data_source)
         elif data_source.redshift_options.table or data_source.redshift_options.query:
             data_source_obj = RedshiftSource(
                 field_mapping=dict(data_source.field_mapping),

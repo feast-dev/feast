@@ -755,7 +755,18 @@ class BigQuerySource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        pass
+
+        assert data_source.HasField("bigquery_options")
+        assert data_source.bigquery_options.HasField("table_ref") or data_source.bigquery_options.HasField("query")
+
+        return BigQuerySource(
+            field_mapping=dict(data_source.field_mapping),
+            table_ref=data_source.bigquery_options.table_ref,
+            event_timestamp_column=data_source.event_timestamp_column,
+            created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+            query=data_source.bigquery_options.query,
+        )
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(

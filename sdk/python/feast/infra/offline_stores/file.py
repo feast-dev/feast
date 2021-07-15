@@ -356,7 +356,14 @@ class FileSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        pass
+        return FileSource(
+            field_mapping=dict(data_source.field_mapping),
+            file_format=FileFormat.from_proto(data_source.file_options.file_format),
+            path=data_source.file_options.file_url,
+            event_timestamp_column=data_source.event_timestamp_column,
+            created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
