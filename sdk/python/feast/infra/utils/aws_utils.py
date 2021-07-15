@@ -228,7 +228,7 @@ def delete_s3_directory(s3_resource, bucket: str, key: str):
         obj.delete()
 
 
-def unload_redshift_query_to_s3(
+def execute_redshift_query_and_unload_to_s3(
     redshift_data_client,
     cluster_id: str,
     database: str,
@@ -262,7 +262,7 @@ def unload_redshift_query_to_pa(
     """ Unload Redshift Query results to S3 and get the results in PyArrow Table format """
     bucket, key = get_bucket_and_key(s3_path)
 
-    unload_redshift_query_to_s3(
+    execute_redshift_query_and_unload_to_s3(
         redshift_data_client, cluster_id, database, user, s3_path, iam_role, query
     )
 

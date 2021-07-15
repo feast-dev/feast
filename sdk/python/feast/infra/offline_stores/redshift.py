@@ -151,7 +151,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_s3(self) -> str:
         """ Export dataset to S3 in Parquet format and return path """
-        aws_utils.unload_redshift_query_to_s3(
+        aws_utils.execute_redshift_query_and_unload_to_s3(
             self._redshift_client,
             self._config.offline_store.cluster_id,
             self._config.offline_store.database,
