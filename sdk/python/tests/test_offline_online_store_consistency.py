@@ -5,7 +5,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterator, Optional, Tuple, Union
+from typing import Iterator, Optional, Tuple
 
 import pandas as pd
 import pytest
@@ -13,16 +13,18 @@ from google.cloud import bigquery
 from pytz import timezone, utc
 
 from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
+from feast.data_source import BigQuerySource, DataSource, FileSource, RedshiftSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisType
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.infra.utils import aws_utils
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
@@ -50,7 +52,7 @@ def create_dataset() -> pd.DataFrame:
     return pd.DataFrame.from_dict(data)
 
 
-def get_feature_view(data_source: Union[FileSource, BigQuerySource]) -> FeatureView:
+def get_feature_view(data_source: DataSource) -> FeatureView:
     return FeatureView(
         name="test_bq_correctness",
         entities=["driver"],
@@ -112,6 +114,79 @@ def prep_bq_fs_and_fv(
         yield fs, fv
 
         fs.teardown()
+
+
+@contextlib.contextmanager
+def prep_redshift_fs_and_fv(
+    source_type: str,
+) -> Iterator[Tuple[FeatureStore, FeatureView]]:
+    client = aws_utils.get_redshift_data_client("us-west-2")
+    s3 = aws_utils.get_s3_resource("us-west-2")
+
+    df = create_dataset()
+
+    table_name = f"test_ingestion_{source_type}_correctness_{int(time.time())}"
+
+    offline_store = RedshiftOfflineStoreConfig(
+        cluster_id="feast-integration-tests",
+        region="us-west-2",
+        user="admin",
+        database="feast",
+        s3_staging_location="s3://feast-integration-tests/redshift/tests/ingestion",
+        iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
+    )
+
+    aws_utils.upload_df_to_redshift(
+        client,
+        offline_store.cluster_id,
+        offline_store.database,
+        offline_store.user,
+        s3,
+        f"{offline_store.s3_staging_location}/copy/{table_name}.parquet",
+        offline_store.iam_role,
+        table_name,
+        df,
+    )
+
+    redshift_source = RedshiftSource(
+        table=table_name if source_type == "table" else None,
+        query=f"SELECT * FROM {table_name}" if source_type == "query" else None,
+        event_timestamp_column="ts",
+        created_timestamp_column="created_ts",
+        date_partition_column="",
+        field_mapping={"ts_1": "ts", "id": "driver_id"},
+    )
+
+    fv = get_feature_view(redshift_source)
+    e = Entity(
+        name="driver",
+        description="id for driver",
+        join_key="driver_id",
+        value_type=ValueType.INT32,
+    )
+    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+        config = RepoConfig(
+            registry=str(Path(repo_dir_name) / "registry.db"),
+            project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(
+                path=str(Path(data_dir_name) / "online_store.db")
+            ),
+            offline_store=offline_store,
+        )
+        fs = FeatureStore(config=config)
+        fs.apply([fv, e])
+
+        yield fs, fv
+
+    # Clean up the uploaded Redshift table
+    aws_utils.execute_redshift_statement(
+        client,
+        offline_store.cluster_id,
+        offline_store.database,
+        offline_store.user,
+        f"DROP TABLE {table_name}",
+    )
 
 
 @contextlib.contextmanager
@@ -244,6 +319,7 @@ def check_offline_and_online_features(
     event_timestamp: datetime,
     expected_value: Optional[float],
     full_feature_names: bool,
+    check_offline_store: bool = True,
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
@@ -264,28 +340,32 @@ def check_offline_and_online_features(
             assert response_dict["value"][0] is None
 
     # Check offline store
-    df = fs.get_historical_features(
-        entity_df=pd.DataFrame.from_dict(
-            {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
-        ),
-        feature_refs=[f"{fv.name}:value"],
-        full_feature_names=full_feature_names,
-    ).to_df()
+    if check_offline_store:
+        df = fs.get_historical_features(
+            entity_df=pd.DataFrame.from_dict(
+                {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
+            ),
+            feature_refs=[f"{fv.name}:value"],
+            full_feature_names=full_feature_names,
+        ).to_df()
 
-    if full_feature_names:
-        if expected_value:
-            assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+        if full_feature_names:
+            if expected_value:
+                assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+            else:
+                assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
         else:
-            assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
-    else:
-        if expected_value:
-            assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
-        else:
-            assert math.isnan(df.to_dict()["value"][0])
+            if expected_value:
+                assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
+            else:
+                assert math.isnan(df.to_dict()["value"][0])
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView, full_feature_names: bool
+    fs: FeatureStore,
+    fv: FeatureView,
+    full_feature_names: bool,
+    check_offline_store: bool = True,
 ) -> None:
     now = datetime.utcnow()
     # Run materialize()
@@ -302,6 +382,7 @@ def run_offline_online_store_consistency_test(
         event_timestamp=end_date,
         expected_value=0.3,
         full_feature_names=full_feature_names,
+        check_offline_store=check_offline_store,
     )
 
     check_offline_and_online_features(
@@ -311,6 +392,7 @@ def run_offline_online_store_consistency_test(
         event_timestamp=end_date,
         expected_value=None,
         full_feature_names=full_feature_names,
+        check_offline_store=check_offline_store,
     )
 
     # check prior value for materialize_incremental()
@@ -321,6 +403,7 @@ def run_offline_online_store_consistency_test(
         event_timestamp=end_date,
         expected_value=4,
         full_feature_names=full_feature_names,
+        check_offline_store=check_offline_store,
     )
 
     # run materialize_incremental()
@@ -334,6 +417,7 @@ def run_offline_online_store_consistency_test(
         event_timestamp=now,
         expected_value=5,
         full_feature_names=full_feature_names,
+        check_offline_store=check_offline_store,
     )
 
 
@@ -361,6 +445,19 @@ def test_redis_offline_online_store_consistency(full_feature_names: bool):
 def test_dynamodb_offline_online_store_consistency(full_feature_names: bool):
     with prep_dynamodb_fs_and_fv() as (fs, fv):
         run_offline_online_store_consistency_test(fs, fv, full_feature_names)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "source_type", ["query", "table"],
+)
+@pytest.mark.parametrize("full_feature_names", [True, False])
+def test_redshift_offline_online_store_consistency(
+    source_type: str, full_feature_names: bool
+):
+    with prep_redshift_fs_and_fv(source_type) as (fs, fv):
+        # TODO: remove check_offline_store parameter once Redshift's get_historical_features is implemented
+        run_offline_online_store_consistency_test(fs, fv, full_feature_names, False)
 
 
 @pytest.mark.parametrize("full_feature_names", [True, False])
