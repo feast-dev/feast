@@ -321,9 +321,7 @@ class DataSource(ABC):
 
         if data_source.data_source_class_type:
             print(f"Data Source class type: {data_source.data_source_class_type}")
-            cls = get_data_source_class_from_type(
-                data_source.data_source_class_type
-            )
+            cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
 
         if data_source.file_options.file_format and data_source.file_options.file_url:

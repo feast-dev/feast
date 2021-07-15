@@ -319,7 +319,6 @@ class FeatureTable:
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
-
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,

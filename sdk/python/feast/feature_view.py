@@ -183,7 +183,9 @@ class FeatureView:
             ttl_duration.FromTimedelta(self.ttl)
 
         batch_source_proto = self.input.to_proto()
-        batch_source_proto.data_source_class_type = f"{self.input.__class__.__module__}.{self.input.__class__.__name__}"
+        batch_source_proto.data_source_class_type = (
+            f"{self.input.__class__.__module__}.{self.input.__class__.__name__}"
+        )
 
         stream_source_proto = None
         if self.stream_source:
