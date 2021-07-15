@@ -319,9 +319,10 @@ class DataSource(ABC):
         Convert data source config in FeatureTable spec to a DataSource class object.
         """
 
-        if data_source.HasField("custom_options"):
+        if data_source.data_source_class_type:
+            print(f"Data Source class type: {data_source.data_source_class_type}")
             cls = get_data_source_class_from_type(
-                data_source.custom_options.source_class_type
+                data_source.data_source_class_type
             )
             return cls.from_proto(data_source)
 
@@ -349,33 +350,13 @@ class DataSource(ABC):
             and data_source.kafka_options.topic
             and data_source.kafka_options.message_format
         ):
-            data_source_obj = KafkaSource(
-                field_mapping=dict(data_source.field_mapping),
-                bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-                message_format=StreamFormat.from_proto(
-                    data_source.kafka_options.message_format
-                ),
-                topic=data_source.kafka_options.topic,
-                event_timestamp_column=data_source.event_timestamp_column,
-                created_timestamp_column=data_source.created_timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
+            data_source_obj = KafkaSource.from_proto(data_source)
         elif (
             data_source.kinesis_options.record_format
             and data_source.kinesis_options.region
             and data_source.kinesis_options.stream_name
         ):
-            data_source_obj = KinesisSource(
-                field_mapping=dict(data_source.field_mapping),
-                record_format=StreamFormat.from_proto(
-                    data_source.kinesis_options.record_format
-                ),
-                region=data_source.kinesis_options.region,
-                stream_name=data_source.kinesis_options.stream_name,
-                event_timestamp_column=data_source.event_timestamp_column,
-                created_timestamp_column=data_source.created_timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
+            data_source_obj = KinesisSource.from_proto(data_source)
         else:
             raise ValueError("Could not identify the source type being added")
 
@@ -466,7 +447,17 @@ class KafkaSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        pass
+        return KafkaSource(
+            field_mapping=dict(data_source.field_mapping),
+            bootstrap_servers=data_source.kafka_options.bootstrap_servers,
+            message_format=StreamFormat.from_proto(
+                data_source.kafka_options.message_format
+            ),
+            topic=data_source.kafka_options.topic,
+            event_timestamp_column=data_source.event_timestamp_column,
+            created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
@@ -489,7 +480,17 @@ class KafkaSource(DataSource):
 class KinesisSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        pass
+        return KinesisSource(
+            field_mapping=dict(data_source.field_mapping),
+            record_format=StreamFormat.from_proto(
+                data_source.kinesis_options.record_format
+            ),
+            region=data_source.kinesis_options.region,
+            stream_name=data_source.kinesis_options.stream_name,
+            event_timestamp_column=data_source.event_timestamp_column,
+            created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:

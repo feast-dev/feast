@@ -311,6 +311,15 @@ class FeatureTable:
             last_updated_timestamp=self.last_updated_timestamp,
         )
 
+        batch_source_proto = self.batch_source.to_proto()
+        batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+
+        stream_source_proto = None
+        if self.stream_source:
+            stream_source_proto = self.stream_source.to_proto()
+            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+
+
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,
@@ -320,16 +329,8 @@ class FeatureTable:
             ],
             labels=self.labels,
             max_age=self.max_age,
-            batch_source=(
-                self.batch_source.to_proto()
-                if issubclass(type(self.batch_source), DataSource)
-                else self.batch_source
-            ),
-            stream_source=(
-                self.stream_source.to_proto()
-                if issubclass(type(self.stream_source), DataSource)
-                else self.stream_source
-            ),
+            batch_source=batch_source_proto,
+            stream_source=stream_source_proto,
         )
 
         return FeatureTableProto(spec=spec, meta=meta)

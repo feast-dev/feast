@@ -198,7 +198,7 @@ class FeastConfigError(Exception):
 def get_data_source_class_from_type(offline_store_type: str):
     module_name, offline_store_type = offline_store_type.rsplit(".", 1)
     config_class_name = offline_store_type.replace("OfflineStore", "Source")
-    return get_class_from_type(module_name, config_class_name, "DataSource")
+    return get_class_from_type(module_name, config_class_name, "Source")
 
 
 def get_online_config_from_type(online_store_type: str):
