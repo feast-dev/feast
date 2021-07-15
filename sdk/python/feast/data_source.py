@@ -431,7 +431,7 @@ class KafkaSource(DataSource):
         message_format: StreamFormat,
         topic: str,
         created_timestamp_column: Optional[str] = "",
-        field_mapping: Optional[Dict[str, str]] = dict(),
+        field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
@@ -506,7 +506,7 @@ class KinesisSource(DataSource):
         record_format: StreamFormat,
         region: str,
         stream_name: str,
-        field_mapping: Optional[Dict[str, str]] = dict(),
+        field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
