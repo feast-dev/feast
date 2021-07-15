@@ -100,8 +100,6 @@ class TestFeatureTable:
         actual_feature_table_from_string = FeatureTable.from_yaml(string_yaml)
 
         # Ensure equality is upheld to original feature table
-        print(f"test_feature_table: {test_feature_table}")
-        print(f"actual_feature_table_from_string: {actual_feature_table_from_string}")
         assert test_feature_table == actual_feature_table_from_string
 
     def test_add_feature(self, batch_source):
