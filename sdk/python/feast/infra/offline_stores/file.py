@@ -7,7 +7,8 @@ import pytz
 from pyarrow.parquet import ParquetFile
 from pydantic.typing import Literal
 
-from feast import ValueType, type_map
+from feast import type_map
+from feast.value_type import ValueType
 from feast.data_format import FileFormat
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
@@ -352,6 +353,10 @@ class FileSource(DataSource):
         Returns the file path of this feature data source
         """
         return self._file_options.file_url
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        pass
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(

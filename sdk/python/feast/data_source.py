@@ -14,11 +14,12 @@
 
 
 import enum
+from abc import ABC, abstractmethod
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from tenacity import retry, retry_unless_exception_type, wait_exponential
 
-from feast import BigQuerySource, FileSource, type_map
+from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
 from feast.errors import (
     DataSourceNotFoundException,
@@ -26,7 +27,7 @@ from feast.errors import (
     RedshiftQueryError,
 )
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.value_type import ValueType
 
 
@@ -224,7 +225,7 @@ class KinesisOptions:
         return kinesis_options_proto
 
 
-class DataSource:
+class DataSource(ABC):
     """
     DataSource that can be used source features
     """
@@ -312,14 +313,21 @@ class DataSource:
         self._date_partition_column = date_partition_column
 
     @staticmethod
-    def from_proto(data_source):
+    @abstractmethod
+    def from_proto(data_source: DataSourceProto):
         """
         Convert data source config in FeatureTable spec to a DataSource class object.
         """
 
+        if data_source.HasField("custom_options"):
+            cls = get_data_source_class_from_type(data_source.custom_options.source_class_type)
+            return cls.from_proto(data_source)
+
         if data_source.file_options.file_format and data_source.file_options.file_url:
+            from feast.infra.offline_stores.file import FileSource
+
             data_source_obj = FileSource(
-                field_mapping=data_source.field_mapping,
+                field_mapping=dict(data_source.field_mapping),
                 file_format=FileFormat.from_proto(data_source.file_options.file_format),
                 path=data_source.file_options.file_url,
                 event_timestamp_column=data_source.event_timestamp_column,
@@ -329,8 +337,10 @@ class DataSource:
         elif (
             data_source.bigquery_options.table_ref or data_source.bigquery_options.query
         ):
+            from feast.infra.offline_stores.bigquery import BigQuerySource
+
             data_source_obj = BigQuerySource(
-                field_mapping=data_source.field_mapping,
+                field_mapping=dict(data_source.field_mapping),
                 table_ref=data_source.bigquery_options.table_ref,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
@@ -339,7 +349,7 @@ class DataSource:
             )
         elif data_source.redshift_options.table or data_source.redshift_options.query:
             data_source_obj = RedshiftSource(
-                field_mapping=data_source.field_mapping,
+                field_mapping=dict(data_source.field_mapping),
                 table=data_source.redshift_options.table,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
@@ -352,7 +362,7 @@ class DataSource:
             and data_source.kafka_options.message_format
         ):
             data_source_obj = KafkaSource(
-                field_mapping=data_source.field_mapping,
+                field_mapping=dict(data_source.field_mapping),
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
                 message_format=StreamFormat.from_proto(
                     data_source.kafka_options.message_format
@@ -368,7 +378,7 @@ class DataSource:
             and data_source.kinesis_options.stream_name
         ):
             data_source_obj = KinesisSource(
-                field_mapping=data_source.field_mapping,
+                field_mapping=dict(data_source.field_mapping),
                 record_format=StreamFormat.from_proto(
                     data_source.kinesis_options.record_format
                 ),
@@ -383,6 +393,7 @@ class DataSource:
 
         return data_source_obj
 
+    @abstractmethod
     def to_proto(self) -> DataSourceProto:
         """
         Converts an DataSourceProto object to its protobuf representation.
@@ -396,6 +407,7 @@ class DataSource:
         raise NotImplementedError
 
     @staticmethod
+    @abstractmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         """
         Get the callable method that returns Feast type given the raw column type
@@ -464,6 +476,10 @@ class KafkaSource(DataSource):
         """
         self._kafka_options = kafka_options
 
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        pass
+
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.STREAM_KAFKA,
@@ -476,6 +492,10 @@ class KafkaSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        return type_map.redshift_to_feast_value_type
 
 
 class KinesisSource(DataSource):

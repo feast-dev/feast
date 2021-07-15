@@ -20,7 +20,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast import BigQuerySource, FileSource
 from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
@@ -44,7 +43,7 @@ class FeatureTable:
         name: str,
         entities: List[str],
         features: List[Feature],
-        batch_source: Union[BigQuerySource, FileSource] = None,
+        batch_source: DataSource = None,
         stream_source: Optional[Union[KafkaSource, KinesisSource]] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
@@ -142,7 +141,7 @@ class FeatureTable:
         return self._batch_source
 
     @batch_source.setter
-    def batch_source(self, batch_source: Union[BigQuerySource, FileSource]):
+    def batch_source(self, batch_source: DataSource):
         """
         Sets the batch source of this feature table
         """

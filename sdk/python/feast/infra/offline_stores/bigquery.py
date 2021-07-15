@@ -12,9 +12,9 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
-from feast.data_source import BigQuerySource
 from feast.errors import BigQueryJobStillRunning
-from feast import ValueType, errors, type_map
+from feast.value_type import ValueType
+from feast import errors, type_map
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -752,6 +752,10 @@ class BigQuerySource(DataSource):
         Sets the bigquery options of this data source
         """
         self._bigquery_options = bigquery_options
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        pass
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(

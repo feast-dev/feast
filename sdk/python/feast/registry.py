@@ -190,7 +190,8 @@ class Registry:
                     == feature_view_proto.spec.name
                     and existing_feature_view_proto.spec.project == project
                 ):
-                    # do not update if feature view has not changed; updating will erase tracked materialization intervals
+                    # do not update if feature view has not changed;
+                    # updating will erase tracked materialization intervals
                     if (
                         FeatureView.from_proto(existing_feature_view_proto)
                         == feature_view

@@ -114,9 +114,10 @@ message DataSource {
 
   // Defines configuration for custom third-party data sources.
   message CustomSourceOptions {
+    string source_class_type = 1;
     // Serialized configuration information for the data source. The implementer of the custom data source is
     // responsible for serializing and deserializing data from bytes
-    bytes configuration = 1;
+    bytes configuration = 2;
   }
 
   // DataSource options.
