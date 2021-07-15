@@ -1,6 +1,6 @@
 # Overview
 
-### Concepts
+## Concepts
 
 [Entities](entities.md) are objects in an organization like customers, transactions, and drivers, products, etc.
 
@@ -8,9 +8,9 @@
 
 [Feature Tables](feature-tables.md) are objects that define logical groupings of features, data sources, and other related metadata.
 
-### Concept Hierarchy
+## Concept Hierarchy
 
-![](../../.gitbook/assets/image%20%284%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29.png)
+![](../../.gitbook/assets/image%20%284%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%285%29.png)
 
 Feast contains the following core concepts:
 

@@ -48,7 +48,7 @@ Feast Serving exports the following metrics:
 | :--- | :--- | :--- |
 | `feast_serving_request_latency_seconds` | Feast Serving's latency in serving Requests in  Seconds. | `method` |
 | `feast_serving_request_feature_count` | No. of requests retrieving a Feature from Feast Serving. | `project`, `feature_name` |
-| `feast_serving_not_found_feature_count` | No. of requests retrieving a Feature has resulted in a [`NOT_FOUND` field status.](../user-guide/getting-training-features.md#online-field-statuses)  | `project`, `feature_name` |
+| `feast_serving_not_found_feature_count` | No. of requests retrieving a Feature has resulted in a [`NOT_FOUND` field status.](../user-guide/getting-training-features.md#online-field-statuses) | `project`, `feature_name` |
 | `feast_serving_stale_feature_count` | No. of requests retrieving a Feature resulted in a [`OUTSIDE_MAX_AGE` field status.](../user-guide/getting-training-features.md#online-field-statuses) | `project`, `feature_name` |
 | `feast_serving_grpc_request_count` | Total gRPC requests served. | `method` |
 
@@ -69,12 +69,12 @@ Feast Ingestion computes both metrics an statistics on [data ingestion.](../user
 
 **Metrics Namespace**
 
-Metrics are computed at  two stages of the Feature Row's/Feature Value's life cycle when being processed by the Ingestion Job:
+Metrics are computed at two stages of the Feature Row's/Feature Value's life cycle when being processed by the Ingestion Job:
 
 * `Inflight`- Prior to writing data to stores, but after successful validation of data.
 * `WriteToStoreSucess`-  After a successful store write.
 
-Metrics processed by each staged will be tagged with `metrics_namespace`  to the stage where the metric was computed.
+Metrics processed by each staged will be tagged with `metrics_namespace` to the stage where the metric was computed.
 
 **Metrics Bucketing**
 
@@ -165,7 +165,7 @@ Metrics with a `{BUCKET}` are computed on a 60 second window/bucket. Suffix with
 
 **Metric Tags**
 
-Exported Feast Ingestion Job  metrics may be filtered by the following tags/keys
+Exported Feast Ingestion Job metrics may be filtered by the following tags/keys
 
 | Tag | Description |
 | :--- | :--- |

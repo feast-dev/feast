@@ -1,17 +1,17 @@
 # Sources
 
-### Overview
+## Overview
 
 Sources are descriptions of external feature data and are registered to Feast as part of [feature tables](feature-tables.md). Once registered, Feast can ingest feature data from these sources into stores.
 
 Currently, Feast supports the following source types:
 
-#### Batch Source
+### Batch Source
 
 * File \(as in Spark\): Parquet \(only\).
 * BigQuery
 
-#### Stream Source
+### Stream Source
 
 * Kafka
 * Kinesis
@@ -21,12 +21,12 @@ The following encodings are supported on streams
 * Avro
 * Protobuf
 
-### Structure of a Source
+## Structure of a Source
 
 For both batch and stream sources, the following configurations are necessary:
 
-* **Event timestamp column**: Name of column containing timestamp when event data occurred. Used during point-in-time join of feature values to [entity timestamps]().
-* **Created timestamp column**: Name of column containing timestamp when data is created. Used to deduplicate data when multiple copies of the same [entity key]() is ingested.
+* **Event timestamp column**: Name of column containing timestamp when event data occurred. Used during point-in-time join of feature values to [entity timestamps](sources.md).
+* **Created timestamp column**: Name of column containing timestamp when data is created. Used to deduplicate data when multiple copies of the same [entity key](sources.md) is ingested.
 
 Example data source specifications:
 
@@ -63,9 +63,9 @@ stream_kafka_source = KafkaSource(
 
 The [Feast Python API documentation](https://api.docs.feast.dev/python/) provides more information about options to specify for the above sources.
 
-### Working with a Source
+## Working with a Source
 
-#### Creating a Source
+### Creating a Source
 
 Sources are defined as part of [feature tables](feature-tables.md):
 

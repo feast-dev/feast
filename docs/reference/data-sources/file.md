@@ -1,10 +1,10 @@
 # File
 
-### Description
+## Description
 
 File data sources allow for the retrieval of historical feature values from files on disk for building training datasets, as well as for materializing features into an online store.
 
-### Example
+## Example
 
 ```python
 from feast import FileSource

@@ -6,5 +6,3 @@ Please see [Data Source](../../concepts/feature-view.md#data-source) for an expl
 
 {% page-ref page="file.md" %}
 
-
-
