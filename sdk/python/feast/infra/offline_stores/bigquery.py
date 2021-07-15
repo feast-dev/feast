@@ -12,13 +12,13 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
-from feast.errors import BigQueryJobStillRunning
 from feast import errors, type_map
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
+    BigQueryJobStillRunning,
     DataSourceNotFoundException,
-    FeastProviderLoginError
+    FeastProviderLoginError,
 )
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
