@@ -757,9 +757,6 @@ class BigQuerySource(DataSource):
     def from_proto(data_source: DataSourceProto):
 
         assert data_source.HasField("bigquery_options")
-        assert data_source.bigquery_options.HasField(
-            "table_ref"
-        ) or data_source.bigquery_options.HasField("query")
 
         return BigQuerySource(
             field_mapping=dict(data_source.field_mapping),
