@@ -13,7 +13,6 @@ from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast.errors import BigQueryJobStillRunning
-from feast.value_type import ValueType
 from feast import errors, type_map
 from feast.data_source import DataSource
 from feast.errors import (
@@ -30,6 +29,7 @@ from feast.infra.provider import (
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.value_type import ValueType
 
 try:
     from google.api_core.exceptions import NotFound
@@ -757,7 +757,9 @@ class BigQuerySource(DataSource):
     def from_proto(data_source: DataSourceProto):
 
         assert data_source.HasField("bigquery_options")
-        assert data_source.bigquery_options.HasField("table_ref") or data_source.bigquery_options.HasField("query")
+        assert data_source.bigquery_options.HasField(
+            "table_ref"
+        ) or data_source.bigquery_options.HasField("query")
 
         return BigQuerySource(
             field_mapping=dict(data_source.field_mapping),

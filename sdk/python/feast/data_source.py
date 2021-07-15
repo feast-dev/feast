@@ -20,7 +20,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from tenacity import retry, retry_unless_exception_type, wait_exponential
 
 from feast import type_map
-from feast.data_format import FileFormat, StreamFormat
+from feast.data_format import StreamFormat
 from feast.errors import (
     DataSourceNotFoundException,
     RedshiftCredentialsError,
@@ -320,7 +320,9 @@ class DataSource(ABC):
         """
 
         if data_source.HasField("custom_options"):
-            cls = get_data_source_class_from_type(data_source.custom_options.source_class_type)
+            cls = get_data_source_class_from_type(
+                data_source.custom_options.source_class_type
+            )
             return cls.from_proto(data_source)
 
         if data_source.file_options.file_format and data_source.file_options.file_url:
@@ -485,6 +487,14 @@ class KafkaSource(DataSource):
 
 
 class KinesisSource(DataSource):
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        pass
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        pass
+
     def __init__(
         self,
         event_timestamp_column: str,
@@ -639,6 +649,10 @@ class RedshiftSource(DataSource):
         )
 
         self._redshift_options = RedshiftOptions(table=table, query=query)
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        pass
 
     def __eq__(self, other):
         if not isinstance(other, RedshiftSource):

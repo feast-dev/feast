@@ -8,7 +8,6 @@ from pyarrow.parquet import ParquetFile
 from pydantic.typing import Literal
 
 from feast import type_map
-from feast.value_type import ValueType
 from feast.data_format import FileFormat
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
@@ -22,6 +21,7 @@ from feast.infra.provider import (
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.value_type import ValueType
 
 
 class FileOfflineStoreConfig(FeastConfigBaseModel):
