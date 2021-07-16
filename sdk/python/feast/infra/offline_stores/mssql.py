@@ -1,7 +1,6 @@
 import time
-import uuid
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, Set, Union, Tuple
 
 import pandas
@@ -9,13 +8,11 @@ import pandas as pd
 import pyarrow
 from jinja2 import BaseLoader, Environment
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine, Connection, ResultProxy
+from sqlalchemy.engine import Engine, ResultProxy
 from sqlalchemy.orm import Session, sessionmaker
-from tenacity import retry, stop_after_delay, wait_fixed
 
 from feast import errors
 from feast.data_source import SqlServerSource, DataSource
-from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import (
@@ -96,13 +93,13 @@ class SqlServerOfflineStore(OfflineStore):
             expected_join_keys, entity_df_event_timestamp_col, table_schema,
         )
 
-        # Build a query context containing all information required to template the BigQuery SQL query
+        # Build a query context containing all information required to template the SQL query
         query_context = get_feature_view_query_context(
             feature_refs, feature_views, registry, project
         )
 
         # TODO: Infer min_timestamp and max_timestamp from entity_df
-        # Generate the BigQuery SQL query from the query context
+        # Generate the SQL query from the query context
         query = build_point_in_time_query(
             query_context,
             min_timestamp=datetime.now() - timedelta(days=365),
@@ -192,7 +189,7 @@ class SqlServerRetrievalJob(RetrievalJob):
 
 @dataclass(frozen=True)
 class FeatureViewQueryContext:
-    """Context object used to template a BigQuery point-in-time SQL query"""
+    """Context object used to template a point-in-time SQL query"""
 
     name: str
     ttl: int
@@ -245,7 +242,7 @@ def get_feature_view_query_context(
     registry: Registry,
     project: str,
 ) -> List[FeatureViewQueryContext]:
-    """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
+    """Build a query context containing all information required to template a point-in-time SQL query"""
 
     feature_views_to_feature_map = _get_requested_feature_views_to_features_dict(
         feature_refs, feature_views
@@ -327,7 +324,7 @@ def build_point_in_time_query(
 
 
 # TODO: Optimizations
-#   * Use GENERATE_UUID() instead of ROW_NUMBER(), or join on entity columns directly
+#   * Use NEWID() instead of ROW_NUMBER(), or join on entity columns directly
 #   * Precompute ROW_NUMBER() so that it doesn't have to be recomputed for every query on entity_dataframe
 #   * Create temporary tables instead of keeping all tables in memory
 
