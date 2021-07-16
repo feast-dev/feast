@@ -1,7 +1,6 @@
 import contextlib
-import random
-
 import math
+import random
 import tempfile
 import time
 import uuid
