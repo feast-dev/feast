@@ -1,5 +1,6 @@
 import contextlib
 import math
+import random
 import tempfile
 import time
 import uuid
@@ -125,7 +126,7 @@ def prep_redshift_fs_and_fv(
 
     df = create_dataset()
 
-    table_name = f"test_ingestion_{source_type}_correctness_{int(time.time())}"
+    table_name = f"test_ingestion_{source_type}_correctness_{int(time.time_ns())}_{random.randint(1000, 9999)}"
 
     offline_store = RedshiftOfflineStoreConfig(
         cluster_id="feast-integration-tests",
