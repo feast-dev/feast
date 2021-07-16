@@ -365,16 +365,18 @@ class KinesisOptions:
 
         return kinesis_options_proto
 
-        
+
 class SqlServerOptions:
     """
     DataSource SqlServer options used to source features from SqlServer query
     """
 
-    def __init__(self,
-                 connection_str: Optional[str],
-                 table_ref: Optional[str],
-                 query: Optional[str]):
+    def __init__(
+        self,
+        connection_str: Optional[str],
+        table_ref: Optional[str],
+        query: Optional[str],
+    ):
         self._connection_str = connection_str
         self._query = query
         self._table_ref = table_ref
@@ -436,7 +438,7 @@ class SqlServerOptions:
         sqlserver_options = cls(
             query=sqlserver_options_proto.query,
             table_ref=sqlserver_options_proto.table_ref,
-            connection_str=sqlserver_options_proto.connection_str
+            connection_str=sqlserver_options_proto.connection_str,
         )
 
         return sqlserver_options
@@ -452,7 +454,7 @@ class SqlServerOptions:
         sqlserver_options_proto = DataSourceProto.SqlServerOptions(
             query=self.query,
             table_ref=self.table_ref,
-            connection_str=self.connection_str
+            connection_str=self.connection_str,
         )
 
         return sqlserver_options_proto
@@ -603,7 +605,8 @@ class DataSource:
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
-            data_source.sqlserver_options.query or data_source.sqlserver_options.table_ref
+            data_source.sqlserver_options.query
+            or data_source.sqlserver_options.table_ref
         ):
             data_source_obj = SqlServerSource(
                 event_timestamp_column=data_source.event_timestamp_column,
@@ -612,7 +615,7 @@ class DataSource:
                 query=data_source.sqlserver_options.query,
                 field_mapping=data_source.field_mapping,
                 connection_str=data_source.sqlserver_options.connection_str,
-                table_ref=data_source.sqlserver_options.table_ref
+                table_ref=data_source.sqlserver_options.table_ref,
             )
 
         else:
@@ -1014,9 +1017,11 @@ class SqlServerSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
-        connection_str: Optional[str] = ""
+        connection_str: Optional[str] = "",
     ):
-        self._sqlserver_options = SqlServerOptions(connection_str=connection_str, query=query, table_ref=table_ref)
+        self._sqlserver_options = SqlServerOptions(
+            connection_str=connection_str, query=query, table_ref=table_ref
+        )
         self._connection_str = connection_str
 
         super().__init__(
@@ -1035,7 +1040,8 @@ class SqlServerSource(DataSource):
 
         return (
             self.sqlserver_options.query == other.sqlserver_options.query
-            and self.sqlserver_options.connection_str == other.sqlserver_options.connection_str
+            and self.sqlserver_options.connection_str
+            == other.sqlserver_options.connection_str
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -1097,7 +1103,11 @@ class SqlServerSource(DataSource):
         """
         table_schema = pd.read_sql(columns_query, conn)
         name_type_pairs.extend(
-            list(zip(table_schema["COLUMN_NAME"].to_list(),
-                     table_schema["DATA_TYPE"].to_list()))
+            list(
+                zip(
+                    table_schema["COLUMN_NAME"].to_list(),
+                    table_schema["DATA_TYPE"].to_list(),
+                )
+            )
         )
         return name_type_pairs

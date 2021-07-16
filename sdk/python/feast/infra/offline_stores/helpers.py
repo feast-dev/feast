@@ -26,7 +26,6 @@ def get_offline_store_from_config(
         from feast.infra.offline_stores.mssql import SqlServerOfflineStore
 
         return SqlServerOfflineStore(offline_store_config)
-    
 
     raise ValueError(f"Unsupported offline store config '{offline_store_config}'")
 

@@ -1,7 +1,7 @@
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import List, Optional, Set, Union, Tuple
+from typing import List, Optional, Set, Tuple, Union
 
 import pandas
 import pandas as pd
@@ -12,7 +12,7 @@ from sqlalchemy.engine import Engine, ResultProxy
 from sqlalchemy.orm import Session, sessionmaker
 
 from feast import errors
-from feast.data_source import SqlServerSource, DataSource
+from feast.data_source import DataSource, SqlServerSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import (
@@ -21,7 +21,11 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import OfflineStoreConfig, SqlServerOfflineStoreConfig, RepoConfig
+from feast.repo_config import (
+    OfflineStoreConfig,
+    RepoConfig,
+    SqlServerOfflineStoreConfig,
+)
 
 
 class SqlServerOfflineStore(OfflineStore):
@@ -108,7 +112,9 @@ class SqlServerOfflineStore(OfflineStore):
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
 
-        job = SqlServerRetrievalJob(query=query, engine=self._engine, config=config.offline_store)
+        job = SqlServerRetrievalJob(
+            query=query, engine=self._engine, config=config.offline_store
+        )
         return job
 
 
@@ -130,7 +136,7 @@ def _assert_expected_columns_in_sqlserver(
 ):
     entity_columns = set()
     for schema_field in table_schema:
-        entity_columns.add(schema_field['COLUMN_NAME'])
+        entity_columns.add(schema_field["COLUMN_NAME"])
 
     expected_columns = join_keys.copy()
     expected_columns.add(entity_df_event_timestamp_col)
@@ -155,7 +161,7 @@ def _get_join_keys(
 
 def _infer_event_timestamp_from_sqlserver_schema(table_schema) -> str:
     if any(
-        schema_field['COLUMN_NAME'] == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        schema_field["COLUMN_NAME"] == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
         for schema_field in table_schema
     ):
         return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
@@ -209,9 +215,7 @@ def _get_table_id_for_new_entity(project: str) -> str:
 
 
 def _upload_entity_df_into_sqlserver(
-    session: Session,
-    project: str,
-    entity_df: Union[pandas.DataFrame, str],
+    session: Session, project: str, entity_df: Union[pandas.DataFrame, str],
 ) -> Tuple[ResultProxy, str]:
     """Uploads a Pandas entity dataframe into a SQL Server table and returns the resulting table"""
     table_id = _get_table_id_for_new_entity(project)
@@ -226,15 +230,18 @@ def _upload_entity_df_into_sqlserver(
 
     # TODO: Table expiry?
 
-    schema = session.execute(f"""
+    schema = session.execute(
+        f"""
         SELECT *
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_NAME='{table_id}'
-    """).fetchall()
+    """
+    ).fetchall()
 
     session.commit()
 
     return schema, table_id
+
 
 def get_feature_view_query_context(
     feature_refs: List[str],

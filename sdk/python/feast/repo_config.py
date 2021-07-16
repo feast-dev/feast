@@ -100,13 +100,14 @@ class SqlServerOfflineStoreConfig(FeastBaseModel):
     type: Literal["sqlserver"] = "sqlserver"
     """ Offline store type selector"""
 
-    connection_string: StrictStr = 'mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server'
+    connection_string: StrictStr = "mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"
     """Connection string containing the host, port, and configuration parameters for SQL Server
      format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
 
 
-OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig,
-                           SqlServerOfflineStoreConfig]
+OfflineStoreConfig = Union[
+    FileOfflineStoreConfig, BigQueryOfflineStoreConfig, SqlServerOfflineStoreConfig
+]
 
 
 class RegistryConfig(FeastBaseModel):
