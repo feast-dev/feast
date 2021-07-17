@@ -1,8 +1,8 @@
 import re
 from typing import List
 
-from feast import Entity
-from feast.data_source import BigQuerySource, DataSource, FileSource, RedshiftSource
+from feast import BigQuerySource, Entity, FileSource, RedshiftSource
+from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig

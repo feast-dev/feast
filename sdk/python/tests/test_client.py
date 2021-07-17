@@ -30,9 +30,10 @@ from pandas.util.testing import assert_frame_equal
 from pyarrow import parquet as pq
 from pytest_lazyfixture import lazy_fixture
 
+from feast import FileSource
 from feast.client import Client
 from feast.data_format import ParquetFormat, ProtoFormat
-from feast.data_source import FileSource, KafkaSource
+from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable

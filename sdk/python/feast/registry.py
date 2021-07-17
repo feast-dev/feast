@@ -177,7 +177,6 @@ class Registry:
         self.cached_registry_proto.feature_tables.append(feature_table_proto)
         if commit:
             self.commit()
-        return
 
     def apply_feature_view(
         self, feature_view: FeatureView, project: str, commit: bool = True
@@ -203,7 +202,6 @@ class Registry:
                 existing_feature_view_proto.spec.name == feature_view_proto.spec.name
                 and existing_feature_view_proto.spec.project == project
             ):
-                # do not update if feature view has not changed; updating will erase tracked materialization intervals
                 if FeatureView.from_proto(existing_feature_view_proto) == feature_view:
                     return
                 else:
@@ -213,7 +211,6 @@ class Registry:
         self.cached_registry_proto.feature_views.append(feature_view_proto)
         if commit:
             self.commit()
-        return
 
     def apply_materialization(
         self,

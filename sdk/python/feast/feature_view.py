@@ -182,6 +182,16 @@ class FeatureView:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
 
+        batch_source_proto = self.input.to_proto()
+        batch_source_proto.data_source_class_type = (
+            f"{self.input.__class__.__module__}.{self.input.__class__.__name__}"
+        )
+
+        stream_source_proto = None
+        if self.stream_source:
+            stream_source_proto = self.stream_source.to_proto()
+            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -189,12 +199,8 @@ class FeatureView:
             tags=self.tags,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
-            batch_source=self.input.to_proto(),
-            stream_source=(
-                self.stream_source.to_proto()
-                if self.stream_source is not None
-                else None
-            ),
+            batch_source=batch_source_proto,
+            stream_source=stream_source_proto,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
