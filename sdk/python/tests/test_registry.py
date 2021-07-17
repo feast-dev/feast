@@ -16,10 +16,10 @@ from datetime import timedelta
 from tempfile import mkstemp
 
 import pytest
+from feast import FileSource
 from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
-from feast.data_source import FileSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
