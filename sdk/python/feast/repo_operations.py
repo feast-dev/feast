@@ -111,7 +111,7 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 
 
 @log_exceptions_and_usage
-def apply_total(repo_config: RepoConfig, repo_path: Path):
+def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     from colorama import Fore, Style
 
     os.chdir(repo_path)
@@ -133,9 +133,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     repo = parse_repo(repo_path)
     data_sources = [t.input for t in repo.feature_views]
 
-    # Make sure the data source used by this feature view is supported by Feast
-    for data_source in data_sources:
-        data_source.validate(repo_config)
+    if not skip_source_validation:
+        # Make sure the data source used by this feature view is supported by Feast
+        for data_source in data_sources:
+            data_source.validate(repo_config)
 
     # Make inferences
     update_entities_with_inferred_types_from_feature_views(
@@ -144,13 +145,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     update_data_sources_with_inferred_event_timestamp_col(data_sources, repo_config)
     for view in repo.feature_views:
         view.infer_features_from_input_source(repo_config)
-
-    sys.dont_write_bytecode = False
-    for entity in repo.entities:
-        registry.apply_entity(entity, project=project)
-        click.echo(
-            f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
-        )
 
     repo_table_names = set(t.name for t in repo.feature_tables)
 
@@ -167,33 +161,43 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         if registry_view.name not in repo_table_names:
             views_to_delete.append(registry_view)
 
+    sys.dont_write_bytecode = False
+    for entity in repo.entities:
+        registry.apply_entity(entity, project=project, commit=False)
+        click.echo(
+            f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
+        )
+
     # Delete tables that should not exist
     for registry_table in tables_to_delete:
-        registry.delete_feature_table(registry_table.name, project=project)
+        registry.delete_feature_table(
+            registry_table.name, project=project, commit=False
+        )
         click.echo(
             f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL} from registry"
         )
 
     # Create tables that should
     for table in repo.feature_tables:
-        registry.apply_feature_table(table, project)
+        registry.apply_feature_table(table, project, commit=False)
         click.echo(
             f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
         )
 
     # Delete views that should not exist
     for registry_view in views_to_delete:
-        registry.delete_feature_view(registry_view.name, project=project)
+        registry.delete_feature_view(registry_view.name, project=project, commit=False)
         click.echo(
             f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
         )
 
     # Create views that should
     for view in repo.feature_views:
-        registry.apply_feature_view(view, project)
+        registry.apply_feature_view(view, project, commit=False)
         click.echo(
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
         )
+    registry.commit()
 
     infra_provider = get_provider(repo_config, repo_path)
 

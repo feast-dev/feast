@@ -87,6 +87,8 @@
     * [Python SDK](https://api.docs.feast.dev/python/)
     * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast/serving/servingservice.pb.html)
     * [gRPC Types](https://api.docs.feast.dev/grpc/feast/types/value.pb)
+    * [Online Store Format Spec](specs/online_store_format.md)
+    * [Offline Store Format Spec](specs/offline_store_format.md)
 * [Advanced](feast-on-kubernetes/advanced-1/README.md)
   * [Troubleshooting](feast-on-kubernetes/advanced-1/troubleshooting.md)
   * [Metrics](feast-on-kubernetes/advanced-1/metrics.md)

@@ -217,7 +217,6 @@ class FeatureStore:
         """
 
         # TODO: Add locking
-        # TODO: Optimize by only making a single call (read/write)
 
         if isinstance(objects, Entity) or isinstance(objects, FeatureView):
             objects = [objects]
@@ -242,9 +241,10 @@ class FeatureStore:
             raise ValueError("Unknown object type provided as part of apply() call")
 
         for view in views_to_update:
-            self._registry.apply_feature_view(view, project=self.project)
+            self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
-            self._registry.apply_entity(ent, project=self.project)
+            self._registry.apply_entity(ent, project=self.project, commit=False)
+        self._registry.commit()
 
         self._get_provider().update_infra(
             project=self.project,
