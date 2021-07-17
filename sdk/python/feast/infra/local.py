@@ -80,6 +80,7 @@ class LocalProvider(Provider):
 
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
@@ -98,7 +99,7 @@ class LocalProvider(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        table = self.offline_store.pull_latest_from_table_or_query(
+        offline_job = self.offline_store.pull_latest_from_table_or_query(
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -106,7 +107,9 @@ class LocalProvider(Provider):
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
+            config=config,
         )
+        table = offline_job.to_arrow()
 
         if feature_view.input.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.input.field_mapping)
@@ -127,6 +130,7 @@ class LocalProvider(Provider):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool,
     ) -> RetrievalJob:
         return self.offline_store.get_historical_features(
             config=config,
@@ -135,6 +139,7 @@ class LocalProvider(Provider):
             entity_df=entity_df,
             registry=registry,
             project=project,
+            full_feature_names=full_feature_names,
         )
 
 

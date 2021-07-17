@@ -76,6 +76,10 @@ MSSQL_REQUIRED = [
     "pyodbc==4.0.30",
 ]
 
+AWS_REQUIRED = [
+    "boto3==1.17.*",
+]
+
 CI_REQUIRED = [
     "cryptography==3.3.2",
     "flake8",
@@ -92,6 +96,7 @@ CI_REQUIRED = [
     "urllib3>=1.25.4",
     "pytest==6.0.0",
     "pytest-cov",
+    "pytest-xdist",
     "pytest-lazy-fixture==0.6.3",
     "pytest-timeout==1.4.2",
     "pytest-ordering==0.6.*",
@@ -108,7 +113,9 @@ CI_REQUIRED = [
     "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
+    "boto3==1.17.*",
 ]
+
 
 # README file from Feast repo root directory
 repo_root = (
@@ -202,6 +209,7 @@ setup(
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
+        "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
         "mssql": MSSQL_REQUIRED
     },

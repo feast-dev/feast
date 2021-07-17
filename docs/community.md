@@ -1,7 +1,7 @@
 # Community
 
 {% hint style="success" %}
-**Office Hours:** Have a question, feature request, idea, or just looking to speak to a real person? Come and join the [Feast Office Hours](https://calendly.com/d/gc29-y88c/feast-chat-w-willem-and-jay) on Friday and chat with a Feast contributor!
+**Office Hours:** Have a question, feature request, idea, or just looking to speak to a real person? Come and join the [Feast Office Hours](https://calendly.com/d/gc29-y88c/chat-with-feast-maintainers) on Friday and chat with a Feast contributor!
 {% endhint %}
 
 ## Links & Resources

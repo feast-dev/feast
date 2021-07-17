@@ -5,8 +5,6 @@ from typing import Dict
 
 import grpc
 
-from feast.protos.feast.core import FeatureTable_pb2 as FeatureTableProto
-from feast.protos.feast.core.CoreService_pb2 import ListFeatureTablesResponse
 from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.protos.feast.serving import ServingService_pb2_grpc as Serving
 from feast.protos.feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
@@ -19,9 +17,7 @@ class ServingServicer(Serving.ServingServiceServicer):
         if core_url:
             self.__core_channel = None
             self.__connect_core(core_url)
-            self._feature_tables = (
-                dict()
-            )  # type: Dict[str, FeatureTableProto.FeatureTable]
+            self._feature_tables: Dict[str, str] = (dict())
 
     def __connect_core(self, core_url: str):
         if not core_url:
@@ -42,9 +38,7 @@ class ServingServicer(Serving.ServingServiceServicer):
 
     def __get_feature_tables_from_core(self):
         # Get updated list of feature tables
-        feature_tables = (
-            self._core_service_stub.ListFeatureTables
-        )  # type: ListFeatureTablesResponse
+        feature_tables = self._core_service_stub.ListFeatureTables
 
         # Store each feature table locally
         for feature_table in list(feature_tables.tables):

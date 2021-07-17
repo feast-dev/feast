@@ -23,7 +23,7 @@ from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
-from feast.telemetry import log_exceptions
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -49,8 +49,9 @@ class Entity:
         else:
             self._join_key = name
 
+        self._labels: MutableMapping[str, str]
         if labels is None:
-            self._labels = dict()  # type: MutableMapping[str, str]
+            self._labels = dict()
         else:
             self._labels = labels
 

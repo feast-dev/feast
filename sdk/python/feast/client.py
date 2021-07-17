@@ -40,27 +40,17 @@ from feast.loaders.ingest import (
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
-    ApplyEntityResponse,
     ApplyFeatureTableRequest,
-    ApplyFeatureTableResponse,
     ArchiveProjectRequest,
-    ArchiveProjectResponse,
     CreateProjectRequest,
-    CreateProjectResponse,
     DeleteFeatureTableRequest,
     GetEntityRequest,
-    GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureTableRequest,
-    GetFeatureTableResponse,
     ListEntitiesRequest,
-    ListEntitiesResponse,
     ListFeaturesRequest,
-    ListFeaturesResponse,
     ListFeatureTablesRequest,
-    ListFeatureTablesResponse,
     ListProjectsRequest,
-    ListProjectsResponse,
 )
 from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -69,7 +59,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.registry import Registry
-from feast.telemetry import Telemetry
+from feast.usage import Usage
 
 _logger = logging.getLogger(__name__)
 
@@ -117,7 +107,7 @@ class Client:
         if self._config.getboolean(opt.ENABLE_AUTH):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
-        self._tele = Telemetry()
+        self._usage = Usage()
 
     @property
     def config(self) -> Config:
@@ -388,7 +378,7 @@ class Client:
                 ListProjectsRequest(),
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
-            )  # type: ListProjectsResponse
+            )
             return list(response.projects)
 
     def create_project(self, project: str):
@@ -408,7 +398,7 @@ class Client:
                 CreateProjectRequest(name=project),
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
-            )  # type: CreateProjectResponse
+            )
 
     def archive_project(self, project):
         """
@@ -430,7 +420,7 @@ class Client:
                     ArchiveProjectRequest(name=project),
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
-                )  # type: ArchiveProjectResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
@@ -467,7 +457,7 @@ class Client:
             >>> feast_client.apply(entity)
         """
 
-        self._tele.log("apply")
+        self._usage.log("apply")
         if project is None:
             project = self.project
 
@@ -523,7 +513,7 @@ class Client:
                     ApplyEntityRequest(project=project, spec=entity_proto),  # type: ignore
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
-                )  # type: ApplyEntityResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
@@ -558,7 +548,7 @@ class Client:
             # Get latest entities from Feast Core
             entity_protos = self._core_service.ListEntities(
                 ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
-            )  # type: ListEntitiesResponse
+            )
 
             # Extract entities and return
             entities = []
@@ -581,7 +571,7 @@ class Client:
             none is found
         """
 
-        self._tele.log("get_entity")
+        self._usage.log("get_entity")
 
         if project is None:
             project = self.project
@@ -593,7 +583,7 @@ class Client:
                 get_entity_response = self._core_service.GetEntity(
                     GetEntityRequest(project=project, name=name.strip()),
                     metadata=self._get_grpc_metadata(),
-                )  # type: GetEntityResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
             entity = Entity.from_proto(get_entity_response.entity)
@@ -646,7 +636,7 @@ class Client:
                     ApplyFeatureTableRequest(project=project, table_spec=feature_table_proto),  # type: ignore
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
-                )  # type: ApplyFeatureTableResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
@@ -683,7 +673,7 @@ class Client:
             feature_table_protos = self._core_service.ListFeatureTables(
                 ListFeatureTablesRequest(filter=filter),
                 metadata=self._get_grpc_metadata(),
-            )  # type: ListFeatureTablesResponse
+            )
 
             # Extract feature tables and return
             feature_tables = []
@@ -706,7 +696,7 @@ class Client:
             none is found
         """
 
-        self._tele.log("get_feature_table")
+        self._usage.log("get_feature_table")
 
         if project is None:
             project = self.project
@@ -718,7 +708,7 @@ class Client:
                 get_feature_table_response = self._core_service.GetFeatureTable(
                     GetFeatureTableRequest(project=project, name=name.strip()),
                     metadata=self._get_grpc_metadata(),
-                )  # type: GetFeatureTableResponse
+                )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
             return FeatureTable.from_proto(get_feature_table_response.table)
@@ -785,7 +775,7 @@ class Client:
 
             feature_protos = self._core_service.ListFeatures(
                 ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
-            )  # type: ListFeaturesResponse
+            )
 
             # Extract features and return
             features_dict = {}
@@ -847,7 +837,7 @@ class Client:
             >>> client.ingest(driver_ft, ft_df)
         """
 
-        self._tele.log("ingest")
+        self._usage.log("ingest")
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
@@ -972,7 +962,7 @@ class Client:
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
 
-        self._tele.log("get_online_features")
+        self._usage.log("get_online_features")
         try:
             response = self._serving_service.GetOnlineFeaturesV2(
                 GetOnlineFeaturesRequestV2(

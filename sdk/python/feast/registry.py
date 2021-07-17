@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Callable, List, Optional
+from typing import List, Optional
 from urllib.parse import urlparse
 
 from feast.entity import Entity
@@ -25,6 +26,8 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
+    S3RegistryBucketForbiddenAccess,
+    S3RegistryBucketNotExist,
 )
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -38,6 +41,9 @@ class Registry:
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
 
+    # The cached_registry_proto object is used for both reads and writes. In particular,
+    # all write operations refresh the cache and modify it in memory; the write must
+    # then be persisted to the underlying RegistryStore with a call to commit().
     cached_registry_proto: Optional[RegistryProto] = None
     cached_registry_proto_created: Optional[datetime] = None
     cached_registry_proto_ttl: timedelta
@@ -56,6 +62,8 @@ class Registry:
         uri = urlparse(registry_path)
         if uri.scheme == "gs":
             self._registry_store: RegistryStore = GCSRegistryStore(registry_path)
+        elif uri.scheme == "s3":
+            self._registry_store = S3RegistryStore(registry_path)
         elif uri.scheme == "file" or uri.scheme == "":
             self._registry_store = LocalRegistryStore(
                 repo_path=repo_path, registry_path_string=registry_path
@@ -68,34 +76,39 @@ class Registry:
         return
 
     def _initialize_registry(self):
-        """Explicitly forces the initialization of a registry"""
-        self._registry_store.update_registry_proto(updater=None)
+        """Explicitly initializes the registry with an empty proto."""
+        registry_proto = RegistryProto()
+        registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+        self._registry_store.update_registry_proto(registry_proto)
 
-    def apply_entity(self, entity: Entity, project: str):
+    def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         """
         Registers a single entity with Feast
 
         Args:
             entity: Entity that will be registered
             project: Feast project that this entity belongs to
+            commit: Whether the change should be persisted immediately
         """
         entity.is_valid()
         entity_proto = entity.to_proto()
         entity_proto.spec.project = project
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_entity_proto in enumerate(registry_proto.entities):
-                if (
-                    existing_entity_proto.spec.name == entity_proto.spec.name
-                    and existing_entity_proto.spec.project == project
-                ):
-                    del registry_proto.entities[idx]
-                    registry_proto.entities.append(entity_proto)
-                    return registry_proto
-            registry_proto.entities.append(entity_proto)
-            return registry_proto
+        for idx, existing_entity_proto in enumerate(
+            self.cached_registry_proto.entities
+        ):
+            if (
+                existing_entity_proto.spec.name == entity_proto.spec.name
+                and existing_entity_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.entities[idx]
+                break
 
-        self._registry_store.update_registry_proto(updater)
+        self.cached_registry_proto.entities.append(entity_proto)
+        if commit:
+            self.commit()
         return
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
@@ -134,71 +147,73 @@ class Registry:
                 return Entity.from_proto(entity_proto)
         raise EntityNotFoundException(name, project=project)
 
-    def apply_feature_table(self, feature_table: FeatureTable, project: str):
+    def apply_feature_table(
+        self, feature_table: FeatureTable, project: str, commit: bool = True
+    ):
         """
         Registers a single feature table with Feast
 
         Args:
             feature_table: Feature table that will be registered
             project: Feast project that this feature table belongs to
+            commit: Whether the change should be persisted immediately
         """
         feature_table.is_valid()
         feature_table_proto = feature_table.to_proto()
         feature_table_proto.spec.project = project
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_feature_table_proto in enumerate(
-                registry_proto.feature_tables
+        for idx, existing_feature_table_proto in enumerate(
+            self.cached_registry_proto.feature_tables
+        ):
+            if (
+                existing_feature_table_proto.spec.name == feature_table_proto.spec.name
+                and existing_feature_table_proto.spec.project == project
             ):
-                if (
-                    existing_feature_table_proto.spec.name
-                    == feature_table_proto.spec.name
-                    and existing_feature_table_proto.spec.project == project
-                ):
-                    del registry_proto.feature_tables[idx]
-                    registry_proto.feature_tables.append(feature_table_proto)
-                    return registry_proto
-            registry_proto.feature_tables.append(feature_table_proto)
-            return registry_proto
+                del self.cached_registry_proto.feature_tables[idx]
+                break
 
-        self._registry_store.update_registry_proto(updater)
+        self.cached_registry_proto.feature_tables.append(feature_table_proto)
+        if commit:
+            self.commit()
         return
 
-    def apply_feature_view(self, feature_view: FeatureView, project: str):
+    def apply_feature_view(
+        self, feature_view: FeatureView, project: str, commit: bool = True
+    ):
         """
         Registers a single feature view with Feast
 
         Args:
             feature_view: Feature view that will be registered
             project: Feast project that this feature view belongs to
+            commit: Whether the change should be persisted immediately
         """
         feature_view.is_valid()
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_feature_view_proto in enumerate(
-                registry_proto.feature_views
+        for idx, existing_feature_view_proto in enumerate(
+            self.cached_registry_proto.feature_views
+        ):
+            if (
+                existing_feature_view_proto.spec.name == feature_view_proto.spec.name
+                and existing_feature_view_proto.spec.project == project
             ):
-                if (
-                    existing_feature_view_proto.spec.name
-                    == feature_view_proto.spec.name
-                    and existing_feature_view_proto.spec.project == project
-                ):
-                    # do not update if feature view has not changed; updating will erase tracked materialization intervals
-                    if (
-                        FeatureView.from_proto(existing_feature_view_proto)
-                        == feature_view
-                    ):
-                        return registry_proto
-                    else:
-                        del registry_proto.feature_views[idx]
-                        registry_proto.feature_views.append(feature_view_proto)
-                        return registry_proto
-            registry_proto.feature_views.append(feature_view_proto)
-            return registry_proto
+                # do not update if feature view has not changed; updating will erase tracked materialization intervals
+                if FeatureView.from_proto(existing_feature_view_proto) == feature_view:
+                    return
+                else:
+                    del self.cached_registry_proto.feature_views[idx]
+                    break
 
-        self._registry_store.update_registry_proto(updater)
+        self.cached_registry_proto.feature_views.append(feature_view_proto)
+        if commit:
+            self.commit()
+        return
 
     def apply_materialization(
         self,
@@ -206,6 +221,7 @@ class Registry:
         project: str,
         start_date: datetime,
         end_date: datetime,
+        commit: bool = True,
     ):
         """
         Updates materialization intervals tracked for a single feature view in Feast
@@ -215,30 +231,33 @@ class Registry:
             project: Feast project that this feature view belongs to
             start_date (datetime): Start date of the materialization interval to track
             end_date (datetime): End date of the materialization interval to track
+            commit: Whether the change should be persisted immediately
         """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_feature_view_proto in enumerate(
-                registry_proto.feature_views
+        for idx, existing_feature_view_proto in enumerate(
+            self.cached_registry_proto.feature_views
+        ):
+            if (
+                existing_feature_view_proto.spec.name == feature_view.name
+                and existing_feature_view_proto.spec.project == project
             ):
-                if (
-                    existing_feature_view_proto.spec.name == feature_view.name
-                    and existing_feature_view_proto.spec.project == project
-                ):
-                    existing_feature_view = FeatureView.from_proto(
-                        existing_feature_view_proto
-                    )
-                    existing_feature_view.materialization_intervals.append(
-                        (start_date, end_date)
-                    )
-                    feature_view_proto = existing_feature_view.to_proto()
-                    feature_view_proto.spec.project = project
-                    del registry_proto.feature_views[idx]
-                    registry_proto.feature_views.append(feature_view_proto)
-                    return registry_proto
-            raise FeatureViewNotFoundException(feature_view.name, project)
+                existing_feature_view = FeatureView.from_proto(
+                    existing_feature_view_proto
+                )
+                existing_feature_view.materialization_intervals.append(
+                    (start_date, end_date)
+                )
+                feature_view_proto = existing_feature_view.to_proto()
+                feature_view_proto.spec.project = project
+                del self.cached_registry_proto.feature_views[idx]
+                self.cached_registry_proto.feature_views.append(feature_view_proto)
+                if commit:
+                    self.commit()
+                return
 
-        self._registry_store.update_registry_proto(updater)
+        raise FeatureViewNotFoundException(feature_view.name, project)
 
     def list_feature_tables(self, project: str) -> List[FeatureTable]:
         """
@@ -319,56 +338,77 @@ class Registry:
                 return FeatureView.from_proto(feature_view_proto)
         raise FeatureViewNotFoundException(name, project)
 
-    def delete_feature_table(self, name: str, project: str):
+    def delete_feature_table(self, name: str, project: str, commit: bool = True):
         """
         Deletes a feature table or raises an exception if not found.
 
         Args:
             name: Name of feature table
             project: Feast project that this feature table belongs to
+            commit: Whether the change should be persisted immediately
         """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_feature_table_proto in enumerate(
-                registry_proto.feature_tables
+        for idx, existing_feature_table_proto in enumerate(
+            self.cached_registry_proto.feature_tables
+        ):
+            if (
+                existing_feature_table_proto.spec.name == name
+                and existing_feature_table_proto.spec.project == project
             ):
-                if (
-                    existing_feature_table_proto.spec.name == name
-                    and existing_feature_table_proto.spec.project == project
-                ):
-                    del registry_proto.feature_tables[idx]
-                    return registry_proto
-            raise FeatureTableNotFoundException(name, project)
+                del self.cached_registry_proto.feature_tables[idx]
+                if commit:
+                    self.commit()
+                return
 
-        self._registry_store.update_registry_proto(updater)
-        return
+        raise FeatureTableNotFoundException(name, project)
 
-    def delete_feature_view(self, name: str, project: str):
+    def delete_feature_view(self, name: str, project: str, commit: bool = True):
         """
         Deletes a feature view or raises an exception if not found.
 
         Args:
             name: Name of feature view
             project: Feast project that this feature view belongs to
+            commit: Whether the change should be persisted immediately
         """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_feature_view_proto in enumerate(
-                registry_proto.feature_views
+        for idx, existing_feature_view_proto in enumerate(
+            self.cached_registry_proto.feature_views
+        ):
+            if (
+                existing_feature_view_proto.spec.name == name
+                and existing_feature_view_proto.spec.project == project
             ):
-                if (
-                    existing_feature_view_proto.spec.name == name
-                    and existing_feature_view_proto.spec.project == project
-                ):
-                    del registry_proto.feature_views[idx]
-                    return registry_proto
-            raise FeatureViewNotFoundException(name, project)
+                del self.cached_registry_proto.feature_views[idx]
+                if commit:
+                    self.commit()
+                return
 
-        self._registry_store.update_registry_proto(updater)
+        raise FeatureViewNotFoundException(name, project)
+
+    def commit(self):
+        """Commits the state of the registry cache to the remote registry store."""
+        if self.cached_registry_proto:
+            self._registry_store.update_registry_proto(self.cached_registry_proto)
 
     def refresh(self):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         self._get_registry_proto(allow_cache=False)
+
+    def _prepare_registry_for_changes(self):
+        """Prepares the Registry for changes by refreshing the cache if necessary."""
+        try:
+            self._get_registry_proto(allow_cache=True)
+        except FileNotFoundError:
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+            self.cached_registry_proto = registry_proto
+            self.cached_registry_proto_created = datetime.now()
+        return self.cached_registry_proto
 
     def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
         """Returns the cached or remote registry state
@@ -414,7 +454,7 @@ class RegistryStore(ABC):
     def get_registry_proto(self):
         """
         Retrieves the registry proto from the registry path. If there is no file at that path,
-        returns an empty registry proto.
+        raises a FileNotFoundError.
 
         Returns:
             Returns either the registry proto stored at the registry path, or an empty registry proto.
@@ -422,15 +462,13 @@ class RegistryStore(ABC):
         pass
 
     @abstractmethod
-    def update_registry_proto(
-        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
-    ):
+    def update_registry_proto(self, registry_proto: RegistryProto):
         """
-        Updates the registry using the function passed in. If the registry proto has not been created yet
-        this method will create it. This method writes to the registry path.
+        Overwrites the current registry proto with the proto passed in. This method
+        writes to the registry path.
 
         Args:
-            updater: function that takes in the current registry proto and outputs the desired registry proto
+            registry_proto: the new RegistryProto
         """
         pass
 
@@ -452,17 +490,7 @@ class LocalRegistryStore(RegistryStore):
             f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
         )
 
-    def update_registry_proto(
-        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
-    ):
-        try:
-            registry_proto = self.get_registry_proto()
-        except FileNotFoundError:
-            registry_proto = RegistryProto()
-            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-
-        if updater:
-            registry_proto = updater(registry_proto)
+    def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
         return
 
@@ -513,16 +541,7 @@ class GCSRegistryStore(RegistryStore):
             f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
         )
 
-    def update_registry_proto(
-        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
-    ):
-        try:
-            registry_proto = self.get_registry_proto()
-        except FileNotFoundError:
-            registry_proto = RegistryProto()
-            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-        if updater:
-            registry_proto = updater(registry_proto)
+    def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
         return
 
@@ -537,3 +556,65 @@ class GCSRegistryStore(RegistryStore):
         file_obj.seek(0)
         blob.upload_from_file(file_obj)
         return
+
+
+class S3RegistryStore(RegistryStore):
+    def __init__(self, uri: str):
+        try:
+            import boto3
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        self._uri = urlparse(uri)
+        self._bucket = self._uri.hostname
+        self._key = self._uri.path.lstrip("/")
+
+        self.s3_client = boto3.resource(
+            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
+        )
+
+    def get_registry_proto(self):
+        file_obj = TemporaryFile()
+        registry_proto = RegistryProto()
+        try:
+            from botocore.exceptions import ClientError
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        try:
+            bucket = self.s3_client.Bucket(self._bucket)
+            self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
+        except ClientError as e:
+            # If a client error is thrown, then check that it was a 404 error.
+            # If it was a 404 error, then the bucket does not exist.
+            error_code = int(e.response["Error"]["Code"])
+            if error_code == 404:
+                raise S3RegistryBucketNotExist(self._bucket)
+            else:
+                raise S3RegistryBucketForbiddenAccess(self._bucket) from e
+
+        try:
+            obj = bucket.Object(self._key)
+            obj.download_fileobj(file_obj)
+            file_obj.seek(0)
+            registry_proto.ParseFromString(file_obj.read())
+            return registry_proto
+        except ClientError as e:
+            raise FileNotFoundError(
+                f"Error while trying to locate Registry at path {self._uri.geturl()}"
+            ) from e
+
+    def update_registry_proto(self, registry_proto: RegistryProto):
+        self._write_registry(registry_proto)
+        return
+
+    def _write_registry(self, registry_proto: RegistryProto):
+        registry_proto.version_id = str(uuid.uuid4())
+        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        # we have already checked the bucket exists so no need to do it again
+        file_obj = TemporaryFile()
+        file_obj.write(registry_proto.SerializeToString())
+        file_obj.seek(0)
+        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)

@@ -2,7 +2,7 @@
 
 ## Backlog
 
-* Add On demand transformations support
+* Add On-demand transformations support
 * Add Data quality monitoring
 * Add Snowflake offline store support
 * Add Bigtable support

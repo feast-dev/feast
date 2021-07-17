@@ -4,6 +4,7 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 import pytz
+from pydantic.typing import Literal
 
 from feast.data_source import DataSource, FileSource
 from feast.errors import FeastJoinKeysDuringMaterialization
@@ -15,7 +16,14 @@ from feast.infra.provider import (
     _run_field_mapping,
 )
 from feast.registry import Registry
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
+
+
+class FileOfflineStoreConfig(FeastConfigBaseModel):
+    """ Offline store config for local (file-based) store """
+
+    type: Literal["file"] = "file"
+    """ Offline store type selector"""
 
 
 class FileRetrievalJob(RetrievalJob):
@@ -30,6 +38,11 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function()
         return df
 
+    def to_arrow(self):
+        # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
+        df = self.evaluation_function()
+        return pyarrow.Table.from_pandas(df)
+
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
@@ -40,7 +53,8 @@ class FileOfflineStore(OfflineStore):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
-    ) -> FileRetrievalJob:
+        full_feature_names: bool = False,
+    ) -> RetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
@@ -59,7 +73,6 @@ class FileOfflineStore(OfflineStore):
                 raise ValueError(
                     f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
-
         feature_views_to_features = _get_requested_feature_views_to_features_dict(
             feature_refs, feature_views
         )
@@ -125,14 +138,16 @@ class FileOfflineStore(OfflineStore):
                     # Modify the separator for feature refs in column names to double underscore. We are using
                     # double underscore as separator for consistency with other databases like BigQuery,
                     # where there are very few characters available for use as separators
-                    prefixed_feature_name = f"{feature_view.name}__{feature}"
-
+                    if full_feature_names:
+                        formatted_feature_name = f"{feature_view.name}__{feature}"
+                    else:
+                        formatted_feature_name = feature
                     # Add the feature name to the list of columns
-                    feature_names.append(prefixed_feature_name)
+                    feature_names.append(formatted_feature_name)
 
                     # Ensure that the source dataframe feature column includes the feature view name as a prefix
                     df_to_join.rename(
-                        columns={feature: prefixed_feature_name}, inplace=True,
+                        columns={feature: formatted_feature_name}, inplace=True,
                     )
 
                 # Build a list of entity columns to join on (from the right table)
@@ -197,6 +212,7 @@ class FileOfflineStore(OfflineStore):
 
     @staticmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -204,42 +220,48 @@ class FileOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> RetrievalJob:
         assert isinstance(data_source, FileSource)
 
-        source_df = pd.read_parquet(data_source.path)
-        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
-        )
-        if created_timestamp_column:
-            source_df[created_timestamp_column] = source_df[
-                created_timestamp_column
-            ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
+        # Create lazy function that is only called from the RetrievalJob object
+        def evaluate_offline_job():
+            source_df = pd.read_parquet(data_source.path)
+            # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+            source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
+                lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+            )
+            if created_timestamp_column:
+                source_df[created_timestamp_column] = source_df[
+                    created_timestamp_column
+                ].apply(
+                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+                )
 
-        source_columns = set(source_df.columns)
-        if not set(join_key_columns).issubset(source_columns):
-            raise FeastJoinKeysDuringMaterialization(
-                data_source.path, set(join_key_columns), source_columns
+            source_columns = set(source_df.columns)
+            if not set(join_key_columns).issubset(source_columns):
+                raise FeastJoinKeysDuringMaterialization(
+                    data_source.path, set(join_key_columns), source_columns
+                )
+
+            ts_columns = (
+                [event_timestamp_column, created_timestamp_column]
+                if created_timestamp_column
+                else [event_timestamp_column]
             )
 
-        ts_columns = (
-            [event_timestamp_column, created_timestamp_column]
-            if created_timestamp_column
-            else [event_timestamp_column]
-        )
+            source_df.sort_values(by=ts_columns, inplace=True)
 
-        source_df.sort_values(by=ts_columns, inplace=True)
+            filtered_df = source_df[
+                (source_df[event_timestamp_column] >= start_date)
+                & (source_df[event_timestamp_column] < end_date)
+            ]
+            last_values_df = filtered_df.drop_duplicates(
+                join_key_columns, keep="last", ignore_index=True
+            )
 
-        filtered_df = source_df[
-            (source_df[event_timestamp_column] >= start_date)
-            & (source_df[event_timestamp_column] < end_date)
-        ]
-        last_values_df = filtered_df.drop_duplicates(
-            join_key_columns, keep="last", ignore_index=True
-        )
+            columns_to_extract = set(
+                join_key_columns + feature_name_columns + ts_columns
+            )
+            return last_values_df[columns_to_extract]
 
-        columns_to_extract = set(join_key_columns + feature_name_columns + ts_columns)
-        table = pyarrow.Table.from_pandas(last_values_df[columns_to_extract])
-
-        return table
+        return FileRetrievalJob(evaluation_function=evaluate_offline_job)

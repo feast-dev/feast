@@ -1,12 +1,13 @@
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import List, Optional, Set, Tuple, Union
+from typing import List, Literal, Optional, Set, Tuple, Union
 
 import pandas
 import pandas as pd
 import pyarrow
 from jinja2 import BaseLoader, Environment
+from pydantic.types import StrictStr
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, ResultProxy
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,10 +23,22 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import (
+    FeastBaseModel,
     OfflineStoreConfig,
     RepoConfig,
     SqlServerOfflineStoreConfig,
 )
+
+
+class SqlServerOfflineStoreConfig(FeastBaseModel):
+    """ Offline store config for SQL Server """
+
+    type: Literal["sqlserver"] = "sqlserver"
+    """ Offline store type selector"""
+
+    connection_string: StrictStr = "mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"
+    """Connection string containing the host, port, and configuration parameters for SQL Server
+     format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
 
 
 class SqlServerOfflineStore(OfflineStore):

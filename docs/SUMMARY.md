@@ -15,17 +15,35 @@
 
 ## Concepts
 
-* [Data model and concepts](concepts/data-model-and-concepts.md)
-* [Architecture and components](concepts/architecture-and-components.md)
+* [Overview](concepts/overview.md)
+* [Feature view](concepts/feature-view.md)
+* [Data model](concepts/data-model-and-concepts.md)
+* [Online store](concepts/online-store.md)
+* [Offline store](concepts/offline-store.md)
+* [Provider](concepts/provider.md)
+* [Architecture](concepts/architecture-and-components.md)
 
 ## Reference
 
-* [Feature repository](reference/feature-repository.md)
-* [feature\_store.yaml](reference/feature-store-yaml.md)
+* [Data sources](reference/data-sources/README.md)
+  * [BigQuery](reference/data-sources/bigquery.md)
+  * [File](reference/data-sources/file.md)
+* [Offline stores](reference/offline-stores/README.md)
+  * [File](reference/offline-stores/file.md)
+  * [BigQuery](reference/offline-stores/untitled.md)
+* [Online stores](reference/online-stores/README.md)
+  * [SQLite](reference/online-stores/sqlite.md)
+  * [Redis](reference/online-stores/redis.md)
+  * [Datastore](reference/online-stores/datastore.md)
+* [Providers](reference/providers/README.md)
+  * [Local](reference/providers/local.md)
+  * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
+* [Feature repository](reference/feature-repository/README.md)
+  * [feature\_store.yaml](reference/feature-repository/feature-store-yaml.md)
+  * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
-* [.feastignore](reference/feast-ignore.md)
 * [Python API reference](http://rtd.feast.dev/)
-* [Telemetry](reference/telemetry.md)
+* [Usage](reference/usage.md)
 
 ## Feast on Kubernetes
 
@@ -69,6 +87,8 @@
     * [Python SDK](https://api.docs.feast.dev/python/)
     * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast/serving/servingservice.pb.html)
     * [gRPC Types](https://api.docs.feast.dev/grpc/feast/types/value.pb)
+    * [Online Store Format Spec](specs/online_store_format.md)
+    * [Offline Store Format Spec](specs/offline_store_format.md)
 * [Advanced](feast-on-kubernetes/advanced-1/README.md)
   * [Troubleshooting](feast-on-kubernetes/advanced-1/troubleshooting.md)
   * [Metrics](feast-on-kubernetes/advanced-1/metrics.md)

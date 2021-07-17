@@ -20,8 +20,10 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
-from feast.data_source import BigQuerySource, DataSource, FileSource, SqlServerSource
+from feast.data_source import DataSource
+from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -32,7 +34,8 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.telemetry import log_exceptions
+from feast.repo_config import RepoConfig
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -47,8 +50,9 @@ class FeatureView:
     tags: Optional[Dict[str, str]]
     ttl: Optional[timedelta]
     online: bool
-    input: Union[BigQuerySource, FileSource, SqlServerSource]
-
+    input: DataSource
+    batch_source: Optional[DataSource] = None
+    stream_source: Optional[DataSource] = None
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
@@ -59,44 +63,30 @@ class FeatureView:
         name: str,
         entities: List[str],
         ttl: Optional[Union[Duration, timedelta]],
-        input: Union[BigQuerySource, FileSource, SqlServerSource],
-        features: List[Feature] = [],
+        input: DataSource,
+        batch_source: Optional[DataSource] = None,
+        stream_source: Optional[DataSource] = None,
+        features: List[Feature] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
-        if not features:
-            features = []  # to handle python's mutable default arguments
-            columns_to_exclude = {
-                input.event_timestamp_column,
-                input.created_timestamp_column,
-            } | set(entities)
+        _input = input or batch_source
+        assert _input is not None
 
-            for col_name, col_datatype in input.get_table_column_names_and_types():
-                if col_name not in columns_to_exclude and not re.match(
-                    "^__|__$", col_name
-                ):
-                    features.append(
-                        Feature(
-                            col_name,
-                            input.source_datatype_to_feast_value_type()(col_datatype),
-                        )
-                    )
+        _features = features or []
 
-            if not features:
-                raise ValueError(
-                    f"Could not infer Features for the FeatureView named {name}. Please specify Features explicitly for this FeatureView."
-                )
-
-        cols = [entity for entity in entities] + [feat.name for feat in features]
+        cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
-            if input.field_mapping is not None and col in input.field_mapping.keys():
+            if _input.field_mapping is not None and col in _input.field_mapping.keys():
                 raise ValueError(
-                    f"The field {col} is mapped to {input.field_mapping[col]} for this data source. Please either remove this field mapping or use {input.field_mapping[col]} as the Entity or Feature name."
+                    f"The field {col} is mapped to {_input.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {_input.field_mapping[col]} as the "
+                    f"Entity or Feature name."
                 )
 
         self.name = name
         self.entities = entities
-        self.features = features
+        self.features = _features
         self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
@@ -105,7 +95,9 @@ class FeatureView:
             self.ttl = ttl
 
         self.online = online
-        self.input = input
+        self.input = _input
+        self.batch_source = _input
+        self.stream_source = stream_source
 
         self.materialization_intervals = []
 
@@ -118,6 +110,16 @@ class FeatureView:
 
     def __hash__(self):
         return hash(self.name)
+
+    def __getitem__(self, item) -> FeatureViewProjection:
+        assert isinstance(item, list)
+
+        referenced_features = []
+        for feature in self.features:
+            if feature.name in item:
+                referenced_features.append(feature)
+
+        return FeatureViewProjection(self.name, referenced_features)
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
@@ -138,6 +140,8 @@ class FeatureView:
         if sorted(self.features) != sorted(other.features):
             return False
         if self.input != other.input:
+            return False
+        if self.stream_source != other.stream_source:
             return False
 
         return True
@@ -185,7 +189,12 @@ class FeatureView:
             tags=self.tags,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
-            input=self.input.to_proto(),
+            batch_source=self.input.to_proto(),
+            stream_source=(
+                self.stream_source.to_proto()
+                if self.stream_source is not None
+                else None
+            ),
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -202,6 +211,12 @@ class FeatureView:
             Returns a FeatureViewProto object based on the feature view protobuf
         """
 
+        _input = DataSource.from_proto(feature_view_proto.spec.batch_source)
+        stream_source = (
+            DataSource.from_proto(feature_view_proto.spec.stream_source)
+            if feature_view_proto.spec.HasField("stream_source")
+            else None
+        )
         feature_view = cls(
             name=feature_view_proto.spec.name,
             entities=[entity for entity in feature_view_proto.spec.entities],
@@ -221,7 +236,9 @@ class FeatureView:
                 and feature_view_proto.spec.ttl.nanos == 0
                 else feature_view_proto.spec.ttl
             ),
-            input=DataSource.from_proto(feature_view_proto.spec.input),
+            input=_input,
+            batch_source=_input,
+            stream_source=stream_source,
         )
 
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
@@ -241,3 +258,37 @@ class FeatureView:
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    def infer_features_from_input_source(self, config: RepoConfig):
+        if not self.features:
+            columns_to_exclude = {
+                self.input.event_timestamp_column,
+                self.input.created_timestamp_column,
+            } | set(self.entities)
+
+            for col_name, col_datatype in self.input.get_table_column_names_and_types(
+                config
+            ):
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$",
+                    col_name,  # double underscores often signal an internal-use column
+                ):
+                    feature_name = (
+                        self.input.field_mapping[col_name]
+                        if col_name in self.input.field_mapping.keys()
+                        else col_name
+                    )
+                    self.features.append(
+                        Feature(
+                            feature_name,
+                            self.input.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            ),
+                        )
+                    )
+
+            if not self.features:
+                raise RegistryInferenceFailure(
+                    "FeatureView",
+                    f"Could not infer Features for the FeatureView named {self.name}.",
+                )
