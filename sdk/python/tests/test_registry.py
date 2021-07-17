@@ -16,9 +16,9 @@ from datetime import timedelta
 from tempfile import mkstemp
 
 import pytest
-from feast import FileSource
 from pytest_lazyfixture import lazy_fixture
 
+from feast import FileSource
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.feature import Feature

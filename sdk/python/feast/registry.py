@@ -212,7 +212,6 @@ class Registry:
         if commit:
             self.commit()
 
-
     def apply_materialization(
         self,
         feature_view: FeatureView,
