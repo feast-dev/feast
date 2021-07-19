@@ -4,7 +4,6 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 import pytz
-from pyarrow.parquet import ParquetFile
 from pydantic.typing import Literal
 
 from feast import FileSource

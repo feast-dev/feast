@@ -40,4 +40,7 @@ __all__ = [
     "RepoConfig",
     "SourceType",
     "ValueType",
+    "BigQuerySource",
+    "FileSource",
+    "RedshiftSource",
 ]
