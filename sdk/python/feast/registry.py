@@ -21,8 +21,6 @@ from tempfile import TemporaryFile
 from typing import List, Optional
 from urllib.parse import urlparse
 
-from google.cloud.exceptions import NotFound
-
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -558,6 +556,8 @@ class GCSRegistryStore(RegistryStore):
         self._write_registry(registry_proto)
 
     def teardown(self):
+        from google.cloud.exceptions import NotFound
+
         gs_bucket = self.gcs_client.get_bucket(self._bucket)
         try:
             gs_bucket.delete_blob(self._blob)
