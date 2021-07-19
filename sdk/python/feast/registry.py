@@ -132,9 +132,9 @@ class Registry:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
 
-    def apply_feature_service(self, feature_service: FeatureService,
-                              project: str,
-                              commit: bool = True):
+    def apply_feature_service(
+        self, feature_service: FeatureService, project: str, commit: bool = True
+    ):
         """
         Registers a single feature service with Feast
 
@@ -144,6 +144,8 @@ class Registry:
         """
         feature_service_proto = feature_service.to_proto()
         feature_service_proto.spec.project = project
+
+        assert self.cached_registry_proto
 
         for idx, existing_feature_service_proto in enumerate(
             self.cached_registry_proto.feature_services
@@ -195,6 +197,8 @@ class Registry:
             Returns either the specified feature service, or raises an exception if
             none is found
         """
+        assert self.cached_registry_proto
+
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         for feature_service_proto in registry_proto.feature_services:
             if (

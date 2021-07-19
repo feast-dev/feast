@@ -6,8 +6,9 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
-def basic_rw_test(store: FeatureStore, view_name: str,
-                  feature_service_name: Optional[str] = None) -> None:
+def basic_rw_test(
+    store: FeatureStore, view_name: str, feature_service_name: Optional[str] = None
+) -> None:
     """
     This is a provider-independent test suite for reading and writing from the online store, to
     be used by provider-specific tests.
