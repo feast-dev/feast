@@ -7,7 +7,7 @@ In this tutorial we will
 3. Materialize feature values from the offline store into the online store.
 4. Read the latest features from the online store for inference.
 
-### Install Feast
+## Install Feast
 
 Install the Feast SDK and CLI using pip:
 
@@ -15,9 +15,9 @@ Install the Feast SDK and CLI using pip:
 pip install feast
 ```
 
-### Create a feature repository
+## Create a feature repository
 
-Bootstrap a new feature repository using `feast init`  from the command line:
+Bootstrap a new feature repository using `feast init` from the command line:
 
 ```text
 feast init feature_repo
@@ -28,7 +28,7 @@ cd feature_repo
 Creating a new Feast repository in /home/Jovyan/feature_repo.
 ```
 
-### Register feature definitions and deploy your feature store
+## Register feature definitions and deploy your feature store
 
 The `apply` command registers all the objects in your feature repository and deploys a feature store:
 
@@ -42,7 +42,7 @@ Registered feature view driver_hourly_stats
 Deploying infrastructure for driver_hourly_stats
 ```
 
-### Generating training data
+## Generating training data
 
 The `apply` command builds a training dataset based on the time-series features defined in the feature repository:
 
@@ -87,7 +87,7 @@ event_timestamp   driver_id  driver_hourly_stats__conv_rate  driver_hourly_stats
 2021-04-12        1003       0.556326                        0.605357                       335
 ```
 
-### Load features into your online store
+## Load features into your online store
 
 The `materialize` command loads the latest feature values from your feature views into your online store:
 
@@ -96,7 +96,7 @@ CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
 
-### Fetching feature vectors for inference
+## Fetching feature vectors for inference
 
 ```python
 from pprint import pprint
@@ -125,7 +125,7 @@ pprint(feature_vector)
 }
 ```
 
-### Next steps
+## Next steps
 
 * Follow our [Getting Started](getting-started/) guide for a hands tutorial in using Feast
 * Join other Feast users and contributors in [Slack](https://slack.feast.dev/) and become part of the community!

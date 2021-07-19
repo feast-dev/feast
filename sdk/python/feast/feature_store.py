@@ -268,7 +268,6 @@ class FeatureStore:
         """
 
         # TODO: Add locking
-        # TODO: Optimize by only making a single call (read/write)
 
         if not isinstance(objects, Iterable):
             objects = [objects]
@@ -292,16 +291,17 @@ class FeatureStore:
             view.infer_features_from_input_source(self.config)
 
         if len(views_to_update) + len(entities_to_update) + len(
-            services_to_update
+                services_to_update
         ) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         for view in views_to_update:
-            self._registry.apply_feature_view(view, project=self.project)
+            self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
-            self._registry.apply_entity(ent, project=self.project)
+            self._registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
             self._registry.apply_feature_service(feature_service, project=self.project)
+        self._registry.commit()
 
         self._get_provider().update_infra(
             project=self.project,

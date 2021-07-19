@@ -19,9 +19,10 @@ from contextlib import closing
 import grpc
 import pytest
 
+from feast import FileSource
 from feast.client import Client
 from feast.data_format import ParquetFormat, ProtoFormat
-from feast.data_source import FileSource, KafkaSource
+from feast.data_source import KafkaSource
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
 from feast.protos.feast.core import CoreService_pb2_grpc as Core

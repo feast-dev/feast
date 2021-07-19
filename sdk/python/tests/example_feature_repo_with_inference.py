@@ -1,7 +1,6 @@
 from google.protobuf.duration_pb2 import Duration
 
-from feast import Entity, FeatureView
-from feast.data_source import FileSource
+from feast import Entity, FeatureView, FileSource
 
 driver_hourly_stats = FileSource(
     path="%PARQUET_PATH%",  # placeholder to be replaced by the test
