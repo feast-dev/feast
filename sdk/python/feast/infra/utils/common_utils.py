@@ -6,7 +6,7 @@ import pandas as pd
 from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
 
-from feast import FeatureView
+import feast
 from feast.errors import (
     EntityTimestampInferenceException,
     FeastEntityDFMissingColumnsError,
@@ -48,7 +48,7 @@ def assert_expected_columns_in_entity_df(
 
 
 def get_expected_join_keys(
-    project: str, feature_views: List[FeatureView], registry: Registry
+    project: str, feature_views: List["feast.FeatureView"], registry: Registry
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
@@ -82,7 +82,7 @@ class FeatureViewQueryContext:
 
 def get_feature_view_query_context(
     feature_refs: List[str],
-    feature_views: List[FeatureView],
+    feature_views: List["feast.FeatureView"],
     registry: Registry,
     project: str,
 ) -> List[FeatureViewQueryContext]:
