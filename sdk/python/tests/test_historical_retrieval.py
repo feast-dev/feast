@@ -4,7 +4,6 @@ import string
 import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
-from typing import List, Union
 
 import assertpy
 import numpy as np
@@ -21,7 +20,6 @@ from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
 from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
-from feast.feature_view_projection import FeatureViewProjection
 from feast.infra.offline_stores.bigquery import (
     BigQueryOfflineStoreConfig,
     _get_entity_df_timestamp_bounds,
