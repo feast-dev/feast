@@ -221,7 +221,7 @@ class FeatureStore:
         _feature_refs: List[str]
         if isinstance(_features, FeatureService):
             # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _feature_refs = _get_features_refs_from_feature_services(
+            _feature_refs = _get_feature_refs_from_feature_services(
                 self.get_feature_service(_features.name)
             )
         else:
@@ -754,7 +754,7 @@ def _group_feature_refs(
     return result
 
 
-def _get_features_refs_from_feature_services(
+def _get_feature_refs_from_feature_services(
     feature_service: FeatureService,
 ) -> List[str]:
     feature_refs = []

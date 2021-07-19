@@ -79,7 +79,3 @@ all_drivers_feature_service = FeatureService(
     features=[driver_locations],
     tags={"release": "production"},
 )
-
-partial_drivers_feature_service = FeatureService(
-    name="driver_latitudes_service", features=[driver_locations[["lat"]]]
-)
