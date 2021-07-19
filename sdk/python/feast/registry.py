@@ -145,18 +145,18 @@ class Registry:
         feature_service_proto = feature_service.to_proto()
         feature_service_proto.spec.project = project
 
-        assert self.cached_registry_proto
+        registry = self._prepare_registry_for_changes()
 
         for idx, existing_feature_service_proto in enumerate(
-            self.cached_registry_proto.feature_services
+                registry.feature_services
         ):
             if (
                 existing_feature_service_proto.spec.name
                 == feature_service_proto.spec.name
                 and existing_feature_service_proto.spec.project == project
             ):
-                del self.cached_registry_proto.feature_services[idx]
-        self.cached_registry_proto.feature_services.append(feature_service_proto)
+                del registry.feature_services[idx]
+        registry.feature_services.append(feature_service_proto)
         if commit:
             self.commit()
 
@@ -174,9 +174,9 @@ class Registry:
             List of feature services
         """
 
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(allow_cache=allow_cache)
         feature_services = []
-        for feature_service_proto in registry_proto.feature_services:
+        for feature_service_proto in registry.feature_services:
             if feature_service_proto.spec.project == project:
                 feature_services.append(
                     FeatureService.from_proto(feature_service_proto)
@@ -197,10 +197,9 @@ class Registry:
             Returns either the specified feature service, or raises an exception if
             none is found
         """
-        assert self.cached_registry_proto
+        registry = self._get_registry_proto(allow_cache=allow_cache)
 
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
-        for feature_service_proto in registry_proto.feature_services:
+        for feature_service_proto in registry.feature_services:
             if (
                 feature_service_proto.spec.project == project
                 and feature_service_proto.spec.name == name
