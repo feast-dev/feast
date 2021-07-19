@@ -291,7 +291,7 @@ class FeatureStore:
             view.infer_features_from_input_source(self.config)
 
         if len(views_to_update) + len(entities_to_update) + len(
-                services_to_update
+            services_to_update
         ) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 

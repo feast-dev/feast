@@ -132,7 +132,9 @@ class Registry:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
 
-    def apply_feature_service(self, feature_service: FeatureService, project: str):
+    def apply_feature_service(self, feature_service: FeatureService,
+                              project: str,
+                              commit: bool = True):
         """
         Registers a single Feature service with Feast
 
@@ -143,23 +145,18 @@ class Registry:
         feature_service_proto = feature_service.to_proto()
         feature_service_proto.spec.project = project
 
-        def updater(registry_proto: RegistryProto):
-            for idx, existing_feature_service_proto in enumerate(
-                registry_proto.feature_services
+        for idx, existing_feature_service_proto in enumerate(
+            self.cached_registry_proto.feature_services
+        ):
+            if (
+                existing_feature_service_proto.spec.name
+                == feature_service_proto.spec.name
+                and existing_feature_service_proto.spec.project == project
             ):
-                if (
-                    existing_feature_service_proto.spec.name
-                    == feature_service_proto.spec.name
-                    and existing_feature_service_proto.spec.project == project
-                ):
-                    del registry_proto.feature_services[idx]
-                    registry_proto.feature_services.append(feature_service_proto)
-                    return registry_proto
-            registry_proto.feature_services.append(feature_service_proto)
-            return registry_proto
-
-        self._registry_store.update_registry_proto(updater)
-        return
+                del self.cached_registry_proto.feature_services[idx]
+        self.cached_registry_proto.feature_services.append(feature_service_proto)
+        if commit:
+            self.commit()
 
     def list_feature_services(
         self, project: str, allow_cache: bool = False
