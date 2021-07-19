@@ -14,10 +14,10 @@ from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
-    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
     _run_field_mapping,
 )
+from feast.infra.utils.common_utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig

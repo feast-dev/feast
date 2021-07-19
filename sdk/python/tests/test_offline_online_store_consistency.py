@@ -321,7 +321,6 @@ def check_offline_and_online_features(
     event_timestamp: datetime,
     expected_value: Optional[float],
     full_feature_names: bool,
-    check_offline_store: bool = True,
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
@@ -342,32 +341,28 @@ def check_offline_and_online_features(
             assert response_dict["value"][0] is None
 
     # Check offline store
-    if check_offline_store:
-        df = fs.get_historical_features(
-            entity_df=pd.DataFrame.from_dict(
-                {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
-            ),
-            feature_refs=[f"{fv.name}:value"],
-            full_feature_names=full_feature_names,
-        ).to_df()
+    df = fs.get_historical_features(
+        entity_df=pd.DataFrame.from_dict(
+            {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
+        ),
+        feature_refs=[f"{fv.name}:value"],
+        full_feature_names=full_feature_names,
+    ).to_df()
 
-        if full_feature_names:
-            if expected_value:
-                assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
-            else:
-                assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
+    if full_feature_names:
+        if expected_value:
+            assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
         else:
-            if expected_value:
-                assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
-            else:
-                assert math.isnan(df.to_dict()["value"][0])
+            assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
+    else:
+        if expected_value:
+            assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
+        else:
+            assert math.isnan(df.to_dict()["value"][0])
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore,
-    fv: FeatureView,
-    full_feature_names: bool,
-    check_offline_store: bool = True,
+    fs: FeatureStore, fv: FeatureView, full_feature_names: bool,
 ) -> None:
     now = datetime.utcnow()
     # Run materialize()
@@ -384,7 +379,6 @@ def run_offline_online_store_consistency_test(
         event_timestamp=end_date,
         expected_value=0.3,
         full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
     )
 
     check_offline_and_online_features(
@@ -394,7 +388,6 @@ def run_offline_online_store_consistency_test(
         event_timestamp=end_date,
         expected_value=None,
         full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
     )
 
     # check prior value for materialize_incremental()
@@ -405,7 +398,6 @@ def run_offline_online_store_consistency_test(
         event_timestamp=end_date,
         expected_value=4,
         full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
     )
 
     # run materialize_incremental()
@@ -419,7 +411,6 @@ def run_offline_online_store_consistency_test(
         event_timestamp=now,
         expected_value=5,
         full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
     )
 
 
@@ -458,8 +449,7 @@ def test_redshift_offline_online_store_consistency(
     source_type: str, full_feature_names: bool
 ):
     with prep_redshift_fs_and_fv(source_type) as (fs, fv):
-        # TODO: remove check_offline_store parameter once Redshift's get_historical_features is implemented
-        run_offline_online_store_consistency_test(fs, fv, full_feature_names, False)
+        run_offline_online_store_consistency_test(fs, fv, full_feature_names)
 
 
 @pytest.mark.parametrize("full_feature_names", [True, False])

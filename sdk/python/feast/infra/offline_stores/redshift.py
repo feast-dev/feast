@@ -12,7 +12,7 @@ from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
-from feast.infra.utils import aws_utils
+from feast.infra.utils import aws_utils, common_utils
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -106,11 +106,79 @@ class RedshiftOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
-        pass
+        assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
+
+        redshift_client = aws_utils.get_redshift_data_client(
+            config.offline_store.region
+        )
+        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
+
+        # Generate random table name for uploading the entity dataframe
+        table_name = "feast_entity_df_" + uuid.uuid4().hex
+
+        aws_utils.upload_df_to_redshift(
+            redshift_client,
+            config.offline_store.cluster_id,
+            config.offline_store.database,
+            config.offline_store.user,
+            s3_resource,
+            f"{config.offline_store.s3_staging_location}/entity_df/{table_name}.parquet",
+            config.offline_store.iam_role,
+            table_name,
+            entity_df,
+        )
+
+        entity_df_event_timestamp_col = common_utils.infer_event_timestamp_from_entity_df(
+            entity_df
+        )
+
+        expected_join_keys = common_utils.get_expected_join_keys(
+            project, feature_views, registry
+        )
+
+        common_utils.assert_expected_columns_in_entity_df(
+            entity_df, expected_join_keys, entity_df_event_timestamp_col
+        )
+
+        # Build a query context containing all information required to template the BigQuery SQL query
+        query_context = common_utils.get_feature_view_query_context(
+            feature_refs, feature_views, registry, project,
+        )
+
+        # Infer min and max timestamps from entity_df to limit data read in BigQuery SQL query
+        min_timestamp, max_timestamp = common_utils.get_entity_df_timestamp_bounds(
+            entity_df, entity_df_event_timestamp_col
+        )
+
+        # Generate the BigQuery SQL query from the query context
+        query = common_utils.build_point_in_time_query(
+            query_context,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
+            left_table_query_string=table_name,
+            entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=full_feature_names,
+        )
+
+        return RedshiftRetrievalJob(
+            query=query,
+            redshift_client=redshift_client,
+            s3_resource=s3_resource,
+            config=config,
+            drop_columns=["entity_row_unique_id"],
+        )
 
 
 class RedshiftRetrievalJob(RetrievalJob):
-    def __init__(self, query: str, redshift_client, s3_resource, config: RepoConfig):
+    def __init__(
+        self,
+        query: str,
+        redshift_client,
+        s3_resource,
+        config: RepoConfig,
+        drop_columns: Optional[List[str]] = None,
+    ):
         """Initialize RedshiftRetrievalJob object.
 
         Args:
@@ -118,6 +186,8 @@ class RedshiftRetrievalJob(RetrievalJob):
             redshift_client: boto3 redshift-data client
             s3_resource: boto3 s3 resource object
             config: Feast repo config
+            drop_columns: Optionally a list of columns to drop before unloading to S3.
+                          This is a convenient field, since "SELECT ... EXCEPT col" isn't supported in Redshift.
         """
         self.query = query
         self._redshift_client = redshift_client
@@ -128,6 +198,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             + "/unload/"
             + str(uuid.uuid4())
         )
+        self._drop_columns = drop_columns
 
     def to_df(self) -> pd.DataFrame:
         return aws_utils.unload_redshift_query_to_df(
@@ -139,6 +210,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             self._s3_path,
             self._config.offline_store.iam_role,
             self.query,
+            self._drop_columns,
         )
 
     def to_arrow(self) -> pa.Table:
@@ -151,6 +223,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             self._s3_path,
             self._config.offline_store.iam_role,
             self.query,
+            self._drop_columns,
         )
 
     def to_s3(self) -> str:
@@ -163,18 +236,179 @@ class RedshiftRetrievalJob(RetrievalJob):
             self._s3_path,
             self._config.offline_store.iam_role,
             self.query,
+            self._drop_columns,
         )
         return self._s3_path
 
     def to_redshift(self, table_name: str) -> None:
         """ Save dataset as a new Redshift table """
+        query = f'CREATE TABLE "{table_name}" AS ({self.query});\n'
+        if self._drop_columns is not None:
+            for column in self._drop_columns:
+                query += f"ALTER TABLE {table_name} DROP COLUMN {column};\n"
+
         aws_utils.execute_redshift_statement(
             self._redshift_client,
             self._config.offline_store.cluster_id,
             self._config.offline_store.database,
             self._config.offline_store.user,
-            f'CREATE TABLE "{table_name}" AS ({self.query})',
+            query,
         )
+
+
+# This is based on sdk/python/feast/infra/offline_stores/bigquery.py:MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
+# There are couple of changes from BigQuery:
+# 1. Use VARCHAR instead of STRING type
+# 2. Use DATEADD(...) instead of Timestamp_sub(...)
+# 3. Replace `SELECT * EXCEPT (...)` with `SELECT *`, because `EXCEPT` is not supported by Redshift.
+#    Instead, we drop the column later after creating the table out of the query.
+# We need to keep this query in sync with BigQuery.
+
+MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+/*
+ Compute a deterministic hash for the `left_table_query_string` that will be used throughout
+ all the logic as the field to GROUP BY the data
+*/
+WITH entity_dataframe AS (
+    SELECT
+        *,
+        CONCAT(
+            {% for entity_key in unique_entity_keys %}
+                CAST({{entity_key}} AS VARCHAR),
+            {% endfor %}
+            CAST({{entity_df_event_timestamp_col}} AS VARCHAR)
+        ) AS entity_row_unique_id
+    FROM {{ left_table_query_string }}
+),
+
+{% for featureview in featureviews %}
+
+/*
+ This query template performs the point-in-time correctness join for a single feature set table
+ to the provided entity table.
+
+ 1. We first join the current feature_view to the entity dataframe that has been passed.
+ This JOIN has the following logic:
+    - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
+    is less than the one provided in the entity dataframe
+    - If there a TTL for the current feature_view, also keep the rows where the `event_timestamp_column`
+    is higher the the one provided minus the TTL
+    - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
+    computed previously
+
+ The output of this CTE will contain all the necessary information and already filtered out most
+ of the data that is not relevant.
+*/
+
+{{ featureview.name }}__subquery AS (
+    SELECT
+        {{ featureview.event_timestamp_column }} as event_timestamp,
+        {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
+        {{ featureview.entity_selections | join(', ')}},
+        {% for feature in featureview.features %}
+            {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
+        {% endfor %}
+    FROM {{ featureview.table_subquery }}
+    WHERE {{ featureview.event_timestamp_column }} <= '{{max_timestamp}}'
+    {% if featureview.ttl == 0 %}{% else %}
+    AND {{ featureview.event_timestamp_column }} >= DATEADD(second, {{ -featureview.ttl }} ,'{{min_timestamp}}')
+    {% endif %}
+),
+
+{{ featureview.name }}__base AS (
+    SELECT
+        subquery.*,
+        entity_dataframe.{{entity_df_event_timestamp_col}} AS entity_timestamp,
+        entity_dataframe.entity_row_unique_id
+    FROM {{ featureview.name }}__subquery AS subquery
+    INNER JOIN entity_dataframe
+    ON TRUE
+        AND subquery.event_timestamp <= entity_dataframe.{{entity_df_event_timestamp_col}}
+
+        {% if featureview.ttl == 0 %}{% else %}
+        AND subquery.event_timestamp >= DATEADD(second, {{ -featureview.ttl }}, entity_dataframe.{{entity_df_event_timestamp_col}})
+        {% endif %}
+
+        {% for entity in featureview.entities %}
+        AND subquery.{{ entity }} = entity_dataframe.{{ entity }}
+        {% endfor %}
+),
+
+/*
+ 2. If the `created_timestamp_column` has been set, we need to
+ deduplicate the data first. This is done by calculating the
+ `MAX(created_at_timestamp)` for each event_timestamp.
+ We then join the data on the next CTE
+*/
+{% if featureview.created_timestamp_column %}
+{{ featureview.name }}__dedup AS (
+    SELECT
+        entity_row_unique_id,
+        event_timestamp,
+        MAX(created_timestamp) as created_timestamp
+    FROM {{ featureview.name }}__base
+    GROUP BY entity_row_unique_id, event_timestamp
+),
+{% endif %}
+
+/*
+ 3. The data has been filtered during the first CTE "*__base"
+ Thus we only need to compute the latest timestamp of each feature.
+*/
+{{ featureview.name }}__latest AS (
+    SELECT
+        entity_row_unique_id,
+        MAX(event_timestamp) AS event_timestamp
+        {% if featureview.created_timestamp_column %}
+            ,ANY_VALUE(created_timestamp) AS created_timestamp
+        {% endif %}
+
+    FROM {{ featureview.name }}__base
+    {% if featureview.created_timestamp_column %}
+        INNER JOIN {{ featureview.name }}__dedup
+        USING (entity_row_unique_id, event_timestamp, created_timestamp)
+    {% endif %}
+
+    GROUP BY entity_row_unique_id
+),
+
+/*
+ 4. Once we know the latest value of each feature for a given timestamp,
+ we can join again the data back to the original "base" dataset
+*/
+{{ featureview.name }}__cleaned AS (
+    SELECT base.*
+    FROM {{ featureview.name }}__base as base
+    INNER JOIN {{ featureview.name }}__latest
+    USING(
+        entity_row_unique_id,
+        event_timestamp
+        {% if featureview.created_timestamp_column %}
+            ,created_timestamp
+        {% endif %}
+    )
+){% if loop.last %}{% else %}, {% endif %}
+
+
+{% endfor %}
+/*
+ Joins the outputs of multiple time travel joins to a single table.
+ The entity_dataframe dataset being our source of truth here.
+ */
+
+SELECT *
+FROM entity_dataframe
+{% for featureview in featureviews %}
+LEFT JOIN (
+    SELECT
+        entity_row_unique_id
+        {% for feature in featureview.features %}
+            ,{% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}
+        {% endfor %}
+    FROM {{ featureview.name }}__cleaned
+) USING (entity_row_unique_id)
+{% endfor %}
+"""
 
 
 class RedshiftSource(DataSource):
