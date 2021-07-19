@@ -25,5 +25,5 @@ Feature services are used during
 * Retrieval of features from the online store. The features retrieved from the online store may also belong to multiple feature views.
 
 {% hint style="info" %}
-Feast does not currently spin up any servers to serve these features.
+Applying a feature service does not result in an actual service being deployed.
 {% endhint %}
