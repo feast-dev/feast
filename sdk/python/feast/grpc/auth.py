@@ -124,7 +124,7 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         )
         if response_token.status_code == HTTPStatus.OK:
             self._token = response_token.json().get("access_token")
-            self._token_expiry_ts = response_token.json().get('expires_in')
+            self._token_expiry_ts = response_token.json().get("expires_in")
         else:
             raise RuntimeError(
                 f"Could not fetch OAuth token, got response : {response_token.status_code}"
