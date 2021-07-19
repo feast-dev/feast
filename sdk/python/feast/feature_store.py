@@ -381,6 +381,8 @@ class FeatureStore:
 
         _feature_refs = self._get_features(features, feature_refs)
 
+        print(f"_feature_refs: {_feature_refs}")
+
         all_feature_views = self._registry.list_feature_views(project=self.project)
         feature_views = list(
             view for view, _ in _group_feature_refs(_feature_refs, all_feature_views)
@@ -745,8 +747,6 @@ def _group_feature_refs(
             views_features[feature_projection.name].extend(
                 [f.name for f in projected_features]
             )
-
-    print(f"Views Features: {views_features}")
 
     result = []
     for view_name, feature_names in views_features.items():

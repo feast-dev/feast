@@ -181,6 +181,8 @@ class FileOfflineStore(OfflineStore):
                     inplace=True,
                 )
 
+                print(f"df_to_join: {df_to_join.columns}")
+
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
 
