@@ -14,7 +14,7 @@ def test_read_pre_applied() -> None:
         get_example_repo("example_feature_repo_1.py"), "bigquery"
     ) as store:
 
-        assert len(store.list_feature_services()) == 2
+        assert len(store.list_feature_services()) == 1
         fs = store.get_feature_service("driver_locations_service")
         assert len(fs.tags) == 1
         assert fs.tags["release"] == "production"
@@ -25,5 +25,5 @@ def test_read_pre_applied() -> None:
 
         store.apply([fs])
 
-        assert len(store.list_feature_services()) == 3
+        assert len(store.list_feature_services()) == 2
         store.get_feature_service("new_feature_service")
