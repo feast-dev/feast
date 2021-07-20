@@ -395,7 +395,7 @@ class Registry:
         self._get_registry_proto(allow_cache=False)
 
     def teardown(self):
-        """Tears down all local and cloud resources."""
+        """Tears down (removes) the registry."""
         self._registry_store.teardown()
 
     def _prepare_registry_for_changes(self):
