@@ -7,8 +7,8 @@ from textwrap import dedent
 import pytest
 
 from feast.feature_store import FeatureStore
-from tests.cli_utils import CliRunner
-from tests.online_read_write_test import basic_rw_test
+from tests.utils.cli_utils import CliRunner
+from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration

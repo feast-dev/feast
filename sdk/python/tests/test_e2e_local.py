@@ -8,7 +8,7 @@ from pytz import utc
 
 import feast.driver_test_data as driver_data
 from feast import FeatureStore
-from tests.cli_utils import CliRunner, get_example_repo
+from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
 def _get_last_feature_row(df: pd.DataFrame, driver_id, max_date: datetime):
