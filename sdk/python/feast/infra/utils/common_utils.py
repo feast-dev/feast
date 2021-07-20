@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from typing import Dict, List, Optional, Set, Tuple
@@ -160,3 +161,8 @@ def build_point_in_time_query(
 
     query = template.render(template_context)
     return query
+
+
+def get_temp_entity_table_name() -> str:
+    """Returns a random table name for uploading the entity dataframe"""
+    return "feast_entity_df_" + uuid.uuid4().hex

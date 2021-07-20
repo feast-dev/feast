@@ -1,4 +1,3 @@
-import time
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
@@ -31,7 +30,7 @@ try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
-    from google.cloud.bigquery import Client, Table
+    from google.cloud.bigquery import Client
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -108,12 +107,12 @@ class BigQueryOfflineStore(OfflineStore):
 
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
-        table_name = _get_table_id_for_new_entity(
-            client, config.project, config.offline_store.dataset, client.project
+        table_reference = _get_table_reference_for_new_entity(
+            client, client.project, config.offline_store.dataset
         )
 
         entity_schema = _upload_entity_df_and_get_entity_schema(
-            client=client, table_name=table_name, entity_df=entity_df,
+            client=client, table_name=table_reference, entity_df=entity_df,
         )
 
         entity_df_event_timestamp_col = common_utils.infer_event_timestamp_from_entity_df(
@@ -136,7 +135,7 @@ class BigQueryOfflineStore(OfflineStore):
         # Generate the BigQuery SQL query from the query context
         query = common_utils.build_point_in_time_query(
             query_context,
-            left_table_query_string=table_name,
+            left_table_query_string=table_reference,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
@@ -247,8 +246,8 @@ def block_until_done(
             raise bq_job.exception()
 
 
-def _get_table_id_for_new_entity(
-    client: Client, project: str, dataset_name: str, dataset_project: str
+def _get_table_reference_for_new_entity(
+    client: Client, dataset_project: str, dataset_name: str
 ) -> str:
     """Gets the table_id for the new entity to be uploaded."""
 
@@ -262,7 +261,9 @@ def _get_table_id_for_new_entity(
         # Only create the dataset if it does not exist
         client.create_dataset(dataset, exists_ok=True)
 
-    return f"{dataset_project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
+    table_name = common_utils.get_temp_entity_table_name()
+
+    return f"{dataset_project}.{dataset_name}.{table_name}"
 
 
 def _upload_entity_df_and_get_entity_schema(

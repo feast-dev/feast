@@ -118,8 +118,7 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        # Generate random table name for uploading the entity dataframe
-        table_name = "feast_entity_df_" + uuid.uuid4().hex
+        table_name = common_utils.get_temp_entity_table_name()
 
         entity_schema = _upload_entity_df_and_get_entity_schema(
             entity_df, redshift_client, config, s3_resource, table_name
@@ -137,12 +136,12 @@ class RedshiftOfflineStore(OfflineStore):
             entity_schema, expected_join_keys, entity_df_event_timestamp_col
         )
 
-        # Build a query context containing all information required to template the BigQuery SQL query
+        # Build a query context containing all information required to template the Redshift SQL query
         query_context = common_utils.get_feature_view_query_context(
             feature_refs, feature_views, registry, project,
         )
 
-        # Generate the BigQuery SQL query from the query context
+        # Generate the Redshift SQL query from the query context
         query = common_utils.build_point_in_time_query(
             query_context,
             left_table_query_string=table_name,

@@ -561,10 +561,10 @@ def test_historical_features_from_bigquery_sources(
 
         # Make sure that custom dataset name is being used from the offline_store config
         if provider_type == "gcp_custom_offline_config":
-            assertpy.assert_that(job_from_df.query).contains("foo.entity_df")
+            assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
         else:
             assertpy.assert_that(job_from_df.query).contains(
-                f"{bigquery_dataset}.entity_df"
+                f"{bigquery_dataset}.feast_entity_df"
             )
 
         start_time = datetime.utcnow()
