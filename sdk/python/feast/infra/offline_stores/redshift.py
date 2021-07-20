@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 from pydantic import StrictStr
@@ -9,7 +10,11 @@ from pydantic.typing import Literal
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
+from feast.errors import (
+    DataSourceNotFoundException,
+    InvalidEntityType,
+    RedshiftCredentialsError,
+)
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.utils import aws_utils, common_utils
@@ -116,20 +121,12 @@ class RedshiftOfflineStore(OfflineStore):
         # Generate random table name for uploading the entity dataframe
         table_name = "feast_entity_df_" + uuid.uuid4().hex
 
-        aws_utils.upload_df_to_redshift(
-            redshift_client,
-            config.offline_store.cluster_id,
-            config.offline_store.database,
-            config.offline_store.user,
-            s3_resource,
-            f"{config.offline_store.s3_staging_location}/entity_df/{table_name}.parquet",
-            config.offline_store.iam_role,
-            table_name,
-            entity_df,
+        entity_schema = _upload_entity_df_and_get_entity_schema(
+            entity_df, redshift_client, config, s3_resource, table_name
         )
 
         entity_df_event_timestamp_col = common_utils.infer_event_timestamp_from_entity_df(
-            entity_df
+            entity_schema
         )
 
         expected_join_keys = common_utils.get_expected_join_keys(
@@ -137,7 +134,7 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
         common_utils.assert_expected_columns_in_entity_df(
-            entity_df, expected_join_keys, entity_df_event_timestamp_col
+            entity_schema, expected_join_keys, entity_df_event_timestamp_col
         )
 
         # Build a query context containing all information required to template the BigQuery SQL query
@@ -145,16 +142,9 @@ class RedshiftOfflineStore(OfflineStore):
             feature_refs, feature_views, registry, project,
         )
 
-        # Infer min and max timestamps from entity_df to limit data read in BigQuery SQL query
-        min_timestamp, max_timestamp = common_utils.get_entity_df_timestamp_bounds(
-            entity_df, entity_df_event_timestamp_col
-        )
-
         # Generate the BigQuery SQL query from the query context
         query = common_utils.build_point_in_time_query(
             query_context,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
             left_table_query_string=table_name,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
@@ -260,6 +250,46 @@ class RedshiftRetrievalJob(RetrievalJob):
         )
 
 
+def _upload_entity_df_and_get_entity_schema(
+    entity_df: Union[pd.DataFrame, str],
+    redshift_client,
+    config: RepoConfig,
+    s3_resource,
+    table_name: str,
+) -> Dict[str, np.dtype]:
+    if isinstance(entity_df, pd.DataFrame):
+        # If the entity_df is a pandas dataframe, upload it to Redshift
+        # and construct the schema from the original entity_df dataframe
+        aws_utils.upload_df_to_redshift(
+            redshift_client,
+            config.offline_store.cluster_id,
+            config.offline_store.database,
+            config.offline_store.user,
+            s3_resource,
+            f"{config.offline_store.s3_staging_location}/entity_df/{table_name}.parquet",
+            config.offline_store.iam_role,
+            table_name,
+            entity_df,
+        )
+        return dict(zip(entity_df.columns, entity_df.dtypes))
+    elif isinstance(entity_df, str):
+        # If the entity_df is a string (SQL query), create a Redshift table out of it,
+        # get pandas dataframe consisting of 1 row (LIMIT 1) and generate the schema out of it
+        aws_utils.execute_redshift_statement(
+            redshift_client,
+            config.offline_store.cluster_id,
+            config.offline_store.database,
+            config.offline_store.user,
+            f"CREATE TABLE {table_name} AS ({entity_df})",
+        )
+        limited_entity_df = RedshiftRetrievalJob(
+            f"SELECT * FROM {table_name} LIMIT 1", redshift_client, s3_resource, config
+        ).to_df()
+        return dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+
 # This is based on sdk/python/feast/infra/offline_stores/bigquery.py:MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
 # There are couple of changes from BigQuery:
 # 1. Use VARCHAR instead of STRING type
@@ -324,9 +354,9 @@ WITH entity_dataframe AS (
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= '{{max_timestamp}}'
+    WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= DATEADD(second, {{ -featureview.ttl }} ,'{{min_timestamp}}')
+    AND {{ featureview.event_timestamp_column }} >= DATEADD(second, {{ -featureview.ttl }} , (SELECT MIN(entity_timestamp) FROM entity_dataframe))
     {% endif %}
 ),
 

@@ -252,10 +252,7 @@ def execute_redshift_query_and_unload_to_s3(
         drop_columns: Optionally a list of columns to drop before unloading to S3.
                       This is a convenient field, since "SELECT ... EXCEPT col" isn't supported in Redshift.
 
-    Returns:
-
     """
-    """  """
     # Run the query, unload the results to S3
     unique_table_name = "_" + str(uuid.uuid4()).replace("-", "")
     query = f"CREATE TEMPORARY TABLE {unique_table_name} AS ({query});\n"

@@ -3,6 +3,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 import pandas
 import pyarrow
 from pydantic import StrictStr
@@ -16,6 +17,7 @@ from feast.errors import (
     BigQueryJobStillRunning,
     DataSourceNotFoundException,
     FeastProviderLoginError,
+    InvalidEntityType,
 )
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
@@ -106,16 +108,16 @@ class BigQueryOfflineStore(OfflineStore):
 
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
-        table = _upload_entity_df_into_bigquery(
-            client=client,
-            project=config.project,
-            dataset_name=config.offline_store.dataset,
-            dataset_project=client.project,
-            entity_df=entity_df,
+        table_name = _get_table_id_for_new_entity(
+            client, config.project, config.offline_store.dataset, client.project
+        )
+
+        entity_schema = _upload_entity_df_and_get_entity_schema(
+            client=client, table_name=table_name, entity_df=entity_df,
         )
 
         entity_df_event_timestamp_col = common_utils.infer_event_timestamp_from_entity_df(
-            entity_df
+            entity_schema
         )
 
         expected_join_keys = common_utils.get_expected_join_keys(
@@ -123,7 +125,7 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
         common_utils.assert_expected_columns_in_entity_df(
-            entity_df, expected_join_keys, entity_df_event_timestamp_col
+            entity_schema, expected_join_keys, entity_df_event_timestamp_col
         )
 
         # Build a query context containing all information required to template the BigQuery SQL query
@@ -131,17 +133,10 @@ class BigQueryOfflineStore(OfflineStore):
             feature_refs, feature_views, registry, project,
         )
 
-        # Infer min and max timestamps from entity_df to limit data read in BigQuery SQL query
-        min_timestamp, max_timestamp = common_utils.get_entity_df_timestamp_bounds(
-            entity_df, entity_df_event_timestamp_col
-        )
-
         # Generate the BigQuery SQL query from the query context
         query = common_utils.build_point_in_time_query(
             query_context,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
-            left_table_query_string=str(table.reference),
+            left_table_query_string=table_name,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
@@ -270,22 +265,19 @@ def _get_table_id_for_new_entity(
     return f"{dataset_project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
 
 
-def _upload_entity_df_into_bigquery(
-    client: Client,
-    project: str,
-    dataset_name: str,
-    dataset_project: str,
-    entity_df: Union[pandas.DataFrame, str],
-) -> Table:
+def _upload_entity_df_and_get_entity_schema(
+    client: Client, table_name: str, entity_df: Union[pandas.DataFrame, str],
+) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
 
-    table_id = _get_table_id_for_new_entity(
-        client, project, dataset_name, dataset_project
-    )
-
     if type(entity_df) is str:
-        job = client.query(f"CREATE TABLE {table_id} AS ({entity_df})")
+        job = client.query(f"CREATE TABLE {table_name} AS ({entity_df})")
         block_until_done(client, job)
+
+        limited_entity_df = (
+            client.query(f"SELECT * FROM {table_name} LIMIT 1").result().to_dataframe()
+        )
+        entity_schema = dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
@@ -293,21 +285,20 @@ def _upload_entity_df_into_bigquery(
         # Upload the dataframe into BigQuery, creating a temporary table
         job_config = bigquery.LoadJobConfig()
         job = client.load_table_from_dataframe(
-            entity_df, table_id, job_config=job_config
+            entity_df, table_name, job_config=job_config
         )
         block_until_done(client, job)
+
+        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
     else:
-        raise ValueError(
-            f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
-            f"but we found: {type(entity_df)} "
-        )
+        raise InvalidEntityType(type(entity_df))
 
     # Ensure that the table expires after some time
-    table = client.get_table(table=table_id)
+    table = client.get_table(table=table_name)
     table.expires = datetime.utcnow() + timedelta(minutes=30)
     client.update_table(table, ["expires"])
 
-    return table
+    return entity_schema
 
 
 def _get_bigquery_client(project: Optional[str] = None):
@@ -393,9 +384,9 @@ WITH entity_dataframe AS (
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= '{{max_timestamp}}'
+    WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub('{{min_timestamp}}', interval {{ featureview.ttl }} second)
+    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub((SELECT MIN(entity_timestamp) FROM entity_dataframe), interval {{ featureview.ttl }} second)
     {% endif %}
 ),
 

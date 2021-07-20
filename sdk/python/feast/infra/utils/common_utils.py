@@ -1,7 +1,8 @@
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
+import numpy as np
 import pandas as pd
 from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
@@ -17,13 +18,13 @@ from feast.registry import Registry
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
 
-def infer_event_timestamp_from_entity_df(entity_df: pd.DataFrame) -> str:
-    if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in entity_df.columns:
+def infer_event_timestamp_from_entity_df(entity_schema: Dict[str, np.dtype]) -> str:
+    if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in entity_schema.keys():
         return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 
     datetime_columns = [
         column
-        for column, dtype in zip(entity_df.columns, entity_df.dtypes)
+        for column, dtype in entity_schema.items()
         if pd.core.dtypes.common.is_datetime64_any_dtype(dtype)
     ]
 
@@ -37,9 +38,11 @@ def infer_event_timestamp_from_entity_df(entity_df: pd.DataFrame) -> str:
 
 
 def assert_expected_columns_in_entity_df(
-    entity_df: pd.DataFrame, join_keys: Set[str], entity_df_event_timestamp_col: str
+    entity_schema: Dict[str, np.dtype],
+    join_keys: Set[str],
+    entity_df_event_timestamp_col: str,
 ):
-    entity_columns = set(entity_df.columns)
+    entity_columns = set(entity_schema.keys())
     expected_columns = join_keys | {entity_df_event_timestamp_col}
     missing_keys = expected_columns - entity_columns
 
@@ -136,8 +139,6 @@ def get_feature_view_query_context(
 
 def build_point_in_time_query(
     feature_view_query_contexts: List[FeatureViewQueryContext],
-    min_timestamp: Timestamp,
-    max_timestamp: Timestamp,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
     query_template: str,
@@ -148,8 +149,6 @@ def build_point_in_time_query(
 
     # Add additional fields to dict
     template_context = {
-        "min_timestamp": min_timestamp,
-        "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
         "entity_df_event_timestamp_col": entity_df_event_timestamp_col,
         "unique_entity_keys": set(
