@@ -317,17 +317,17 @@ class DataSource(ABC):
             return cls.from_proto(data_source)
 
         if data_source.file_options.file_format and data_source.file_options.file_url:
-            from feast.infra.offline_stores.file import FileSource
+            from feast.infra.offline_stores.file_source import FileSource
 
             data_source_obj = FileSource.from_proto(data_source)
         elif (
             data_source.bigquery_options.table_ref or data_source.bigquery_options.query
         ):
-            from feast.infra.offline_stores.bigquery import BigQuerySource
+            from feast.infra.offline_stores.bigquery_source import BigQuerySource
 
             data_source_obj = BigQuerySource.from_proto(data_source)
         elif data_source.redshift_options.table or data_source.redshift_options.query:
-            from feast.infra.offline_stores.redshift import RedshiftSource
+            from feast.infra.offline_stores.redshift_source import RedshiftSource
 
             data_source_obj = RedshiftSource.from_proto(data_source)
         elif (
@@ -382,6 +382,14 @@ class DataSource(ABC):
 
 
 class KafkaSource(DataSource):
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
+
     def __init__(
         self,
         event_timestamp_column: str,
@@ -467,6 +475,14 @@ class KafkaSource(DataSource):
 
 
 class KinesisSource(DataSource):
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
+
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         return KinesisSource(
