@@ -147,9 +147,7 @@ class Registry:
 
         registry = self._prepare_registry_for_changes()
 
-        for idx, existing_feature_service_proto in enumerate(
-                registry.feature_services
-        ):
+        for idx, existing_feature_service_proto in enumerate(registry.feature_services):
             if (
                 existing_feature_service_proto.spec.name
                 == feature_service_proto.spec.name
