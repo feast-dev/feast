@@ -11,19 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import tempfile
 import uuid
 from datetime import datetime
-
-from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from tenacity import retry, wait_exponential, stop_after_attempt
-
-from google.cloud import bigquery
-import os
 from time import sleep
 
-from feast import Client, Entity, ValueType, FeatureStore, RepoConfig
+from google.cloud import bigquery
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+from feast import Client, Entity, FeatureStore, RepoConfig, ValueType
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 
 USAGE_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"

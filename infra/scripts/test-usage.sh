@@ -7,5 +7,4 @@ LOGS_ARTIFACT_PATH=/logs/artifacts
 
 cd sdk/python/
 pip install -e ".[ci]"
-cd usage_tests/
-pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml tests/integration/misc/test_usage.py
