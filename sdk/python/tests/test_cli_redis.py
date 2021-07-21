@@ -8,7 +8,7 @@ import pytest
 import redis
 
 from feast.feature_store import FeatureStore
-from tests.utils.cli_utils import CliRunner
+from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.online_read_write_test import basic_rw_test
 
 
@@ -42,7 +42,7 @@ def test_basic() -> None:
 
         repo_example = repo_path / "example.py"
         repo_example.write_text(
-            (Path(__file__).parent / "example_feature_repo_1.py").read_text()
+            get_example_repo("example_feature_repo_1.py")
         )
 
         result = runner.run(["apply"], cwd=repo_path)
@@ -91,7 +91,7 @@ def test_connection_error() -> None:
 
         repo_example = repo_path / "example.py"
         repo_example.write_text(
-            (Path(__file__).parent / "example_feature_repo_2.py").read_text()
+            get_example_repo("example_feature_repo_2.py")
         )
 
         result = runner.run(["apply"], cwd=repo_path)
