@@ -283,7 +283,7 @@ def _upload_entity_df_and_get_entity_schema(
         raise InvalidEntityType(type(entity_df))
 
 
-# This is based on sdk/python/feast/infra/offline_stores/bigquery.py:MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
+# This query is based on sdk/python/feast/infra/offline_stores/bigquery.py:MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
 # There are couple of changes from BigQuery:
 # 1. Use VARCHAR instead of STRING type
 # 2. Use DATEADD(...) instead of Timestamp_sub(...)
