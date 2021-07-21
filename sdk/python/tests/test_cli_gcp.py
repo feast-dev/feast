@@ -35,9 +35,7 @@ def test_basic() -> None:
         )
 
         repo_example = repo_path / "example.py"
-        repo_example.write_text(
-            get_example_repo("example_feature_repo_1.py")
-        )
+        repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
 
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
