@@ -144,7 +144,7 @@ def setup_third_party_provider_repo(provider_name: str):
 
         (repo_path / "foo").mkdir()
         repo_example = repo_path / "foo/provider.py"
-        repo_example.write_text((Path(__file__).parent / "foo_provider.py").read_text())
+        repo_example.write_text((Path(__file__).parents[2] / "foo_provider.py").read_text())
 
         yield repo_path
 
