@@ -20,13 +20,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.data_source import (
-    BigQuerySource,
-    DataSource,
-    FileSource,
-    KafkaSource,
-    KinesisSource,
-)
+from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
@@ -49,7 +43,7 @@ class FeatureTable:
         name: str,
         entities: List[str],
         features: List[Feature],
-        batch_source: Union[BigQuerySource, FileSource] = None,
+        batch_source: DataSource = None,
         stream_source: Optional[Union[KafkaSource, KinesisSource]] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
@@ -59,8 +53,10 @@ class FeatureTable:
         self._features = features
         self._batch_source = batch_source
         self._stream_source = stream_source
+
+        self._labels: MutableMapping[str, str]
         if labels is None:
-            self._labels = dict()  # type: MutableMapping[str, str]
+            self._labels = dict()
         else:
             self._labels = labels
 
@@ -145,7 +141,7 @@ class FeatureTable:
         return self._batch_source
 
     @batch_source.setter
-    def batch_source(self, batch_source: Union[BigQuerySource, FileSource]):
+    def batch_source(self, batch_source: DataSource):
         """
         Sets the batch source of this feature table
         """
@@ -315,6 +311,14 @@ class FeatureTable:
             last_updated_timestamp=self.last_updated_timestamp,
         )
 
+        batch_source_proto = self.batch_source.to_proto()
+        batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+
+        stream_source_proto = None
+        if self.stream_source:
+            stream_source_proto = self.stream_source.to_proto()
+            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,
@@ -324,16 +328,8 @@ class FeatureTable:
             ],
             labels=self.labels,
             max_age=self.max_age,
-            batch_source=(
-                self.batch_source.to_proto()
-                if issubclass(type(self.batch_source), DataSource)
-                else self.batch_source
-            ),
-            stream_source=(
-                self.stream_source.to_proto()
-                if issubclass(type(self.stream_source), DataSource)
-                else self.stream_source
-            ),
+            batch_source=batch_source_proto,
+            stream_source=stream_source_proto,
         )
 
         return FeatureTableProto(spec=spec, meta=meta)

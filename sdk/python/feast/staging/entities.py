@@ -7,9 +7,9 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
+from feast import BigQuerySource, FileSource
 from feast.config import Config
 from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
 from feast.staging.storage_client import get_staging_client
 
 try:

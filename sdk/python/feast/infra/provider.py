@@ -116,6 +116,7 @@ class Provider(abc.ABC):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool,
     ) -> RetrievalJob:
         pass
 
@@ -168,13 +169,16 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 def _get_requested_feature_views_to_features_dict(
     feature_refs: List[str], feature_views: List[FeatureView]
 ) -> Dict[FeatureView, List[str]]:
-    """Create a dict of FeatureView -> List[Feature] for all requested features"""
+    """Create a dict of FeatureView -> List[Feature] for all requested features.
+    Set full_feature_names to True to have feature names prefixed by their feature view name."""
 
-    feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
+    feature_views_to_feature_map: Dict[FeatureView, List[str]] = {}
+
     for ref in feature_refs:
         ref_parts = ref.split(":")
         feature_view_from_ref = ref_parts[0]
         feature_from_ref = ref_parts[1]
+
         found = False
         for feature_view_from_registry in feature_views:
             if feature_view_from_registry.name == feature_view_from_ref:
@@ -190,6 +194,7 @@ def _get_requested_feature_views_to_features_dict(
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
+
     return feature_views_to_feature_map
 
 

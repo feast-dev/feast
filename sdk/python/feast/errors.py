@@ -1,4 +1,4 @@
-from typing import Set
+from typing import List, Set
 
 from colorama import Fore, Style
 
@@ -88,6 +88,27 @@ class FeastOfflineStoreUnsupportedDataSource(Exception):
         )
 
 
+class FeatureNameCollisionError(Exception):
+    def __init__(self, feature_refs_collisions: List[str], full_feature_names: bool):
+        if full_feature_names:
+            collisions = [ref.replace(":", "__") for ref in feature_refs_collisions]
+            error_message = (
+                "To resolve this collision, please ensure that the features in question "
+                "have different names."
+            )
+        else:
+            collisions = [ref.split(":")[1] for ref in feature_refs_collisions]
+            error_message = (
+                "To resolve this collision, either use the full feature name by setting "
+                "'full_feature_names=True', or ensure that the features in question have different names."
+            )
+
+        feature_names = ", ".join(set(collisions))
+        super().__init__(
+            f"Duplicate features named {feature_names} found.\n{error_message}"
+        )
+
+
 class FeastOnlineStoreInvalidName(Exception):
     def __init__(self, online_store_class_name: str):
         super().__init__(
@@ -134,6 +155,11 @@ class RegistryInferenceFailure(Exception):
             f"Inference to fill in missing information for {repo_obj_type} failed. {specific_issue}. "
             "Try filling the information explicitly."
         )
+
+
+class BigQueryJobStillRunning(Exception):
+    def __init__(self, job_id):
+        super().__init__(f"The BigQuery job with ID '{job_id}' is still running.")
 
 
 class BigQueryJobCancelled(Exception):

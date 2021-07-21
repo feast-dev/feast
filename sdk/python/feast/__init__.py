@@ -2,15 +2,12 @@ import logging
 
 from pkg_resources import DistributionNotFound, get_distribution
 
+from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.redshift_source import RedshiftSource
+
 from .client import Client
-from .data_source import (
-    BigQuerySource,
-    FileSource,
-    KafkaSource,
-    KinesisSource,
-    RedshiftSource,
-    SourceType,
-)
+from .data_source import KafkaSource, KinesisSource, SourceType
 from .entity import Entity
 from .feature import Feature
 from .feature_store import FeatureStore
@@ -34,11 +31,8 @@ except DistributionNotFound:
 __all__ = [
     "Client",
     "Entity",
-    "BigQuerySource",
-    "FileSource",
     "KafkaSource",
     "KinesisSource",
-    "RedshiftSource",
     "Feature",
     "FeatureStore",
     "FeatureTable",
@@ -46,4 +40,7 @@ __all__ = [
     "RepoConfig",
     "SourceType",
     "ValueType",
+    "BigQuerySource",
+    "FileSource",
+    "RedshiftSource",
 ]

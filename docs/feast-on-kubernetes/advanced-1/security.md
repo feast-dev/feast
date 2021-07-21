@@ -10,7 +10,7 @@ This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 
 ### Overview
 
-![Overview of Feast&apos;s Security Methods.](../../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%283%29.jpg)
+![Overview of Feast&apos;s Security Methods.](../../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%284%29.jpg)
 
 Feast supports the following security methods:
 

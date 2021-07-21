@@ -2,8 +2,7 @@
 
 from google.protobuf.duration_pb2 import Duration
 
-from feast import Entity, Feature, FeatureView, ValueType
-from feast.data_source import FileSource
+from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
