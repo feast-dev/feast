@@ -21,8 +21,8 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.infra.utils.common_utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.value_type import ValueType
 
 np.random.seed(0)
