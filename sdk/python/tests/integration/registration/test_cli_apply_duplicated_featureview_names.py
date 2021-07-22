@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-from tests.cli_utils import CliRunner
+from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
 def test_cli_apply_duplicated_featureview_names() -> None:
@@ -32,10 +32,9 @@ def test_cli_apply_duplicated_featureview_names() -> None:
 
         repo_example = repo_path / "example.py"
         repo_example.write_text(
-            (
-                Path(__file__).parent
-                / "example_feature_repo_with_duplicated_featureview_names.py"
-            ).read_text()
+            get_example_repo(
+                "example_feature_repo_with_duplicated_featureview_names.py"
+            )
         )
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
