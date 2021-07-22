@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import re
+import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -37,6 +38,8 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
+
+warnings.simplefilter("once", DeprecationWarning)
 
 
 class FeatureView:
@@ -70,6 +73,14 @@ class FeatureView:
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
+        warnings.warn(
+            (
+                "The argument 'input' is being deprecated. Please use 'batch_source' "
+                "instead. Feast 0.11.3 and onwards will not support the argument 'input'."
+            ),
+            DeprecationWarning,
+        )
+
         _input = input or batch_source
         assert _input is not None
 
