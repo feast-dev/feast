@@ -2,7 +2,6 @@
 
 ## Backlog
 
-* Add On-demand transformations support
 * Add Data quality monitoring
 * Add Snowflake offline store support
 * Add Bigtable support
@@ -16,10 +15,24 @@
   * Decouple Feast Serving from Feast Core
   * Add FeatureView support to Feast Serving
   * Update Helm Charts \(remove Core, Postgres, Job Service, Spark\)
-* Add Redis support for Feast
 * Add direct deployment support to AWS and GCP
 * Add Dynamo support
 * Add Redshift support
+* Add support for on-demand transformations
+* Add support for a REST/HTTP based Feature Server
+
+## Feast 0.11
+
+### **New Functionality**
+
+1. Feature inferencing
+2. Entity inferencing
+3. Redis and Redis Cluster online store support
+4. Add Unix Timestamp value type 
+
+### **Technical debt, refactoring, or housekeeping**
+
+1. Introduced OnlineStore interfaces
 
 ## Feast 0.10
 
