@@ -1,7 +1,5 @@
 # Feature Service
 
-### Feature Service
-
 A feature service is an object that represents a logical group of features from one or more [feature views](feature-view.md). 
 Feature Services allows features from within a feature view to be used as needed by an ML model. Users can expect to create one feature service per model, allowing for tracking of the features used by models.   
 
