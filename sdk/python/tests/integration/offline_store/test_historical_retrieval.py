@@ -380,6 +380,7 @@ def test_historical_features_from_parquet_sources(
         )
 
         assert_frame_equal(expected_df, feature_service_df)
+        store.teardown()
 
 
 @pytest.mark.integration
@@ -632,6 +633,8 @@ def test_historical_features_from_bigquery_sources(
         assert_frame_equal(
             actual_df_from_df_entities, table_from_df_entities.to_pandas()
         )
+
+        store.teardown()
 
 
 @pytest.mark.integration

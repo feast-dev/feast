@@ -181,6 +181,8 @@ def prep_redshift_fs_and_fv(
 
         yield fs, fv
 
+        fs.teardown()
+
     # Clean up the uploaded Redshift table
     aws_utils.execute_redshift_statement(
         client,
@@ -199,7 +201,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
         df.to_parquet(f.name)
         file_source = FileSource(
             file_format=ParquetFormat(),
-            file_url=f"file://{f.name}",
+            path=f"file://{f.name}",
             event_timestamp_column="ts",
             created_timestamp_column="created_ts",
             date_partition_column="",
@@ -240,7 +242,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
         df.to_parquet(f.name)
         file_source = FileSource(
             file_format=ParquetFormat(),
-            file_url=f"file://{f.name}",
+            path=f"file://{f.name}",
             event_timestamp_column="ts",
             created_timestamp_column="created_ts",
             date_partition_column="",
@@ -282,7 +284,7 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
         df.to_parquet(f.name)
         file_source = FileSource(
             file_format=ParquetFormat(),
-            file_url=f"file://{f.name}",
+            path=f"file://{f.name}",
             event_timestamp_column="ts",
             created_timestamp_column="created_ts",
             date_partition_column="",

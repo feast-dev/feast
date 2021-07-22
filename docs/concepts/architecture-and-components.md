@@ -28,6 +28,6 @@ A complete Feast deployment contains the following components:
 * **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets. Feast does not manage the offline store directly, but runs queries against it.
 
 {% hint style="info" %}
-Java and Go Clients are also available for online feature retrieval. See [API Reference](../feast-on-kubernetes/reference-1/api/).
+Java and Go Clients are also available for online feature retrieval. See [API Reference](../feast-on-kubernetes-1/reference-1/api/).
 {% endhint %}
 

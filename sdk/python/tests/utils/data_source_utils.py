@@ -14,7 +14,7 @@ def prep_file_source(df, event_timestamp_column=None) -> FileSource:
         df.to_parquet(f.name)
         file_source = FileSource(
             file_format=ParquetFormat(),
-            file_url=f.name,
+            path=f.name,
             event_timestamp_column=event_timestamp_column,
         )
         yield file_source

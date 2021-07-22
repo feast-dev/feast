@@ -22,7 +22,7 @@ For Feast maintainers, these are the concrete steps for making a new release.
    2. Add the change log by applying the change log commit created in step 2.
    3. Check that versions are updated with `env TARGET_MERGE_BRANCH=master make lint-versions`
 7. Create a [GitHub release](https://github.com/feast-dev/feast/releases) which includes a summary of im~~p~~ortant changes as well as any artifacts associated with the release. Make sure to include the same change log as added in [CHANGELOG.md](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md). Use `Feast vX.Y.Z` as the title.
-8. Update the[ Upgrade Guide](../feast-on-kubernetes/advanced-1/upgrading.md)  to include the action required instructions for users to upgrade to this new release. Instructions should include a migration for each breaking change made to this release.
+8. Update the[ Upgrade Guide](../feast-on-kubernetes-1/advanced-1/upgrading.md)  to include the action required instructions for users to upgrade to this new release. Instructions should include a migration for each breaking change made to this release.
 
 When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available. The `sdk/go/v tag` is required to version the Go SDK go module so that users can go get a specific tagged release of the Go SDK.
 

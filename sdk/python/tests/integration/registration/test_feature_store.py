@@ -113,6 +113,8 @@ def test_apply_entity_success(test_feature_store):
         and entity.labels["team"] == "matchmaking"
     )
 
+    test_feature_store.teardown()
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -154,6 +156,8 @@ def test_apply_entity_integration(test_feature_store):
         and entity.labels["team"] == "matchmaking"
     )
 
+    test_feature_store.teardown()
+
 
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
@@ -162,7 +166,7 @@ def test_apply_feature_view_success(test_feature_store):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
-        file_url="file://feast/*",
+        path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
         date_partition_column="date_partition_col",
@@ -201,6 +205,8 @@ def test_apply_feature_view_success(test_feature_store):
         and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
+
+    test_feature_store.teardown()
 
 
 @pytest.mark.integration
@@ -266,6 +272,8 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             == actual_bq_using_query_arg_source
         )
 
+        test_feature_store.teardown()
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -279,7 +287,7 @@ def test_apply_feature_view_integration(test_feature_store):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
-        file_url="file://feast/*",
+        path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
         date_partition_column="date_partition_col",
@@ -337,6 +345,8 @@ def test_apply_feature_view_integration(test_feature_store):
     feature_views = test_feature_store.list_feature_views()
     assert len(feature_views) == 0
 
+    test_feature_store.teardown()
+
 
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
@@ -346,7 +356,7 @@ def test_apply_object_and_read(test_feature_store):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
-        file_url="file://feast/*",
+        path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
     )
@@ -397,6 +407,8 @@ def test_apply_object_and_read(test_feature_store):
     assert e1 == e1_actual
     assert fv2 != fv1_actual
     assert e2 != e1_actual
+
+    test_feature_store.teardown()
 
 
 def test_apply_remote_repo():
@@ -466,3 +478,5 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         # Check Feature View
         fv_stored = test_feature_store.get_feature_view(fv1.name)
         assert len(fv_stored.materialization_intervals) == 0
+
+        test_feature_store.teardown()
