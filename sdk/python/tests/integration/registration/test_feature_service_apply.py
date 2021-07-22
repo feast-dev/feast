@@ -1,7 +1,7 @@
 import pytest
 
 from feast import FeatureService
-from tests.cli_utils import CliRunner, get_example_repo
+from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
 @pytest.mark.integration
