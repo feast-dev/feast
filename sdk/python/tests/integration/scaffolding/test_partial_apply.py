@@ -2,8 +2,8 @@ import pytest
 from google.protobuf.duration_pb2 import Duration
 
 from feast import BigQuerySource, Feature, FeatureView, ValueType
-from tests.cli_utils import CliRunner, get_example_repo
-from tests.online_read_write_test import basic_rw_test
+from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration

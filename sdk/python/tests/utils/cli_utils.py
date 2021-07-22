@@ -13,7 +13,16 @@ from feast.feature_store import FeatureStore
 
 
 def get_example_repo(example_repo_py) -> str:
-    return (Path(__file__).parent / example_repo_py).read_text()
+    parent = Path(__file__).parent
+    traversal_limit = 5
+    while traversal_limit > 0 and parent.parts[-1] != "tests":
+        traversal_limit -= 1
+        parent = parent.parent
+
+    if parent.parts[-1] != "tests":
+        raise ValueError(f"Unable to find where repo {example_repo_py} is located")
+
+    return (parent / "example_repos" / example_repo_py).read_text()
 
 
 class CliRunner:
