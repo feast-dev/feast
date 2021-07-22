@@ -287,7 +287,7 @@ def _upload_entity_df_and_get_entity_schema(
 # This query is based on sdk/python/feast/infra/offline_stores/bigquery.py:MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
 # There are couple of changes from BigQuery:
 # 1. Use VARCHAR instead of STRING type
-# 2. Use DATEADD(...) instead of Timestamp_sub(...)
+# 2. Use "t - x * interval '1' second" instead of "Timestamp_sub(...)"
 # 3. Replace `SELECT * EXCEPT (...)` with `SELECT *`, because `EXCEPT` is not supported by Redshift.
 #    Instead, we drop the column later after creating the table out of the query.
 # We need to keep this query in sync with BigQuery.
@@ -350,7 +350,7 @@ WITH entity_dataframe AS (
     FROM {{ featureview.table_subquery }}
     WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= DATEADD(second, {{ -featureview.ttl }} , (SELECT MIN(entity_timestamp) FROM entity_dataframe))
+    AND {{ featureview.event_timestamp_column }} >= (SELECT MIN(entity_timestamp) FROM entity_dataframe) - {{ featureview.ttl }} * interval '1' second
     {% endif %}
 ),
 
@@ -365,7 +365,7 @@ WITH entity_dataframe AS (
         AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
 
         {% if featureview.ttl == 0 %}{% else %}
-        AND subquery.event_timestamp >= DATEADD(second, {{ -featureview.ttl }}, entity_dataframe.entity_timestamp)
+        AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
         {% endif %}
 
         {% for entity in featureview.entities %}

@@ -1,7 +1,8 @@
+import contextlib
 import os
 import tempfile
 import uuid
-from typing import List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -174,6 +175,9 @@ def upload_df_to_redshift(
     """
     bucket, key = get_bucket_and_key(s3_path)
 
+    # Drop the index so that we dont have unnecessary columns
+    df.reset_index(drop=True, inplace=True)
+
     # Convert Pandas DataFrame into PyArrow table and compile the Redshift table schema
     table = pa.Table.from_pandas(df)
     column_names, column_types = [], []
@@ -205,6 +209,49 @@ def upload_df_to_redshift(
 
     # Clean up S3 temporary data
     s3_resource.Object(bucket, key).delete()
+
+
+@contextlib.contextmanager
+def temporarily_upload_df_to_redshift(
+    redshift_data_client,
+    cluster_id: str,
+    database: str,
+    user: str,
+    s3_resource,
+    s3_path: str,
+    iam_role: str,
+    table_name: str,
+    df: pd.DataFrame,
+) -> Generator[None, None, None]:
+    """Uploads a Pandas DataFrame to Redshift as a new table with cleanup logic.
+
+    This is essentially the same as upload_df_to_redshift (check out its docstring for full details),
+    but unlike it this method is a generator and should be used with `with` block. For example:
+
+    >>> with temporarily_upload_df_to_redshift(...):
+    >>>     # Use `table_name` table in Redshift here
+    >>> # `table_name` will not exist at this point, since it's cleaned up by the `with` block
+
+    """
+    # Upload the dataframe to Redshift
+    upload_df_to_redshift(
+        redshift_data_client,
+        cluster_id,
+        database,
+        user,
+        s3_resource,
+        s3_path,
+        iam_role,
+        table_name,
+        df,
+    )
+
+    yield
+
+    # Clean up the uploaded Redshift table
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
+    )
 
 
 def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
