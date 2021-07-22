@@ -155,7 +155,7 @@ def test_apply_feature_view_success(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
-        file_url="file://feast/*",
+        path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
         date_partition_column="date_partition_col",
@@ -230,7 +230,7 @@ def test_apply_feature_view_integration(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
-        file_url="file://feast/*",
+        path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
         date_partition_column="date_partition_col",
