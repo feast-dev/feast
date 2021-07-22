@@ -171,7 +171,7 @@ def test_apply_feature_view_success(test_registry):
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
-        input=batch_source,
+        batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -246,7 +246,7 @@ def test_apply_feature_view_integration(test_registry):
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
-        input=batch_source,
+        batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

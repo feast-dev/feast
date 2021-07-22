@@ -16,5 +16,5 @@ nonexistent_features = FeatureView(
         Feature(name="lat", dtype=ValueType.FLOAT),
         Feature(name="lon", dtype=ValueType.STRING),
     ],
-    input=nonexistent_source,
+    batch_source=nonexistent_source,
 )
