@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
 from feast.feature_store import FeatureStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
-def basic_rw_test(store: FeatureStore, view_name: str) -> None:
+def basic_rw_test(
+    store: FeatureStore, view_name: str, feature_service_name: Optional[str] = None
+) -> None:
     """
     This is a provider-independent test suite for reading and writing from the online store, to
     be used by provider-specific tests.
@@ -39,13 +42,23 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
             progress=None,
         )
 
-        read_rows = provider.online_read(
-            config=store.config, table=table, entity_keys=[entity_key]
-        )
-        assert len(read_rows) == 1
-        _, val = read_rows[0]
-        assert val["lon"].string_val == expect_lon
-        assert abs(val["lat"].double_val - expect_lat) < 1e-6
+        if feature_service_name:
+            entity_dict = {"driver": 1}
+            feature_service = store.get_feature_service(feature_service_name)
+            features = store.get_online_features(
+                features=feature_service, entity_rows=[entity_dict]
+            ).to_dict()
+            assert len(features["driver"]) == 1
+            assert features["lon"][0] == expect_lon
+            assert abs(features["lat"][0] - expect_lat) < 1e-6
+        else:
+            read_rows = provider.online_read(
+                config=store.config, table=table, entity_keys=[entity_key]
+            )
+            assert len(read_rows) == 1
+            _, val = read_rows[0]
+            assert val["lon"].string_val == expect_lon
+            assert abs(val["lat"].double_val - expect_lat) < 1e-6
 
     """ 1. Basic test: write value, read it back """
 

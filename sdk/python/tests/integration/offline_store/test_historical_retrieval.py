@@ -14,7 +14,7 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 import feast.driver_test_data as driver_data
-from feast import BigQuerySource, FileSource, RepoConfig, errors, utils
+from feast import BigQuerySource, FeatureService, FileSource, RepoConfig, errors, utils
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
@@ -93,6 +93,10 @@ def stage_customer_daily_profile_parquet_source(directory, df):
         event_timestamp_column="datetime",
         created_timestamp_column="created",
     )
+
+
+def feature_service(name: str, views) -> FeatureService:
+    return FeatureService(name, views)
 
 
 def stage_customer_daily_profile_bigquery_source(df, table_id):
@@ -292,6 +296,18 @@ def test_historical_features_from_parquet_sources(
             temp_dir, customer_df
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
+
+        customer_fs = feature_service(
+            "customer_feature_service",
+            [
+                customer_fv[
+                    ["current_balance", "avg_passenger_count", "lifetime_trip_count"]
+                ],
+                driver_fv[["conv_rate", "avg_daily_trips"]],
+            ],
+        )
+        print(f"Customer fs features: {customer_fs.features}")
+
         driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
         customer = Entity(name="customer_id", value_type=ValueType.INT64)
 
@@ -306,11 +322,11 @@ def test_historical_features_from_parquet_sources(
             )
         )
 
-        store.apply([driver, customer, driver_fv, customer_fv])
+        store.apply([driver, customer, driver_fv, customer_fv, customer_fs])
 
         job = store.get_historical_features(
             entity_df=orders_df,
-            feature_refs=[
+            features=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
                 "customer_profile:current_balance",
@@ -335,15 +351,35 @@ def test_historical_features_from_parquet_sources(
             event_timestamp,
             full_feature_names=full_feature_names,
         )
+
+        expected_df.sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).reset_index(drop=True)
+        expected_df = expected_df.reindex(sorted(expected_df.columns), axis=1)
+
+        actual_df = actual_df.sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).reset_index(drop=True)
+        actual_df = actual_df.reindex(sorted(actual_df.columns), axis=1)
+
         assert_frame_equal(
-            expected_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            actual_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
+            expected_df, actual_df,
         )
 
+        feature_service_job = store.get_historical_features(
+            entity_df=orders_df,
+            features=customer_fs,
+            full_feature_names=full_feature_names,
+        )
+        feature_service_df = feature_service_job.to_df()
+        feature_service_df = feature_service_df.sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).reset_index(drop=True)
+        feature_service_df = feature_service_df.reindex(
+            sorted(feature_service_df.columns), axis=1
+        )
+
+        assert_frame_equal(expected_df, feature_service_df)
         store.teardown()
 
 
@@ -473,7 +509,7 @@ def test_historical_features_from_bigquery_sources(
 
         job_from_sql = store.get_historical_features(
             entity_df=entity_df_query,
-            feature_refs=[
+            features=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
                 "customer_profile:current_balance",
@@ -526,7 +562,7 @@ def test_historical_features_from_bigquery_sources(
             errors.FeastEntityDFMissingColumnsError
         ).when_called_with(
             entity_df=entity_df_query_with_invalid_join_key,
-            feature_refs=[
+            features=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
                 "customer_profile:current_balance",
@@ -537,7 +573,7 @@ def test_historical_features_from_bigquery_sources(
 
         job_from_df = store.get_historical_features(
             entity_df=orders_df,
-            feature_refs=[
+            features=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
                 "customer_profile:current_balance",
@@ -555,7 +591,7 @@ def test_historical_features_from_bigquery_sources(
             errors.FeastEntityDFMissingColumnsError
         ).when_called_with(
             entity_df=orders_df_with_invalid_join_key,
-            feature_refs=[
+            features=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
                 "customer_profile:current_balance",

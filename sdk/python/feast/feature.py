@@ -52,6 +52,14 @@ class Feature:
     def __lt__(self, other):
         return self.name < other.name
 
+    def __repr__(self):
+        # return string representation of the reference
+        return self.name
+
+    def __str__(self):
+        # readable string of the reference
+        return f"Feature<{self.__repr__()}>"
+
     @property
     def name(self):
         """

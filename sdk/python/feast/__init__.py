@@ -10,6 +10,7 @@ from .client import Client
 from .data_source import KafkaSource, KinesisSource, SourceType
 from .entity import Entity
 from .feature import Feature
+from .feature_service import FeatureService
 from .feature_store import FeatureStore
 from .feature_table import FeatureTable
 from .feature_view import FeatureView
@@ -34,6 +35,7 @@ __all__ = [
     "KafkaSource",
     "KinesisSource",
     "Feature",
+    "FeatureService",
     "FeatureStore",
     "FeatureTable",
     "FeatureView",
