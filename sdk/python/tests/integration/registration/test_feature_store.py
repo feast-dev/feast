@@ -481,6 +481,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
 
         test_feature_store.teardown()
 
+
 def test_apply_duplicated_featureview_names(feature_store_with_local_registry):
     """ Test applying feature views with duplicated names"""
 
