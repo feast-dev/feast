@@ -2,7 +2,7 @@ import contextlib
 import os
 import tempfile
 import uuid
-from typing import Generator, List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -222,7 +222,7 @@ def temporarily_upload_df_to_redshift(
     iam_role: str,
     table_name: str,
     df: pd.DataFrame,
-) -> Generator[None, None, None]:
+) -> Iterator[None]:
     """Uploads a Pandas DataFrame to Redshift as a new table with cleanup logic.
 
     This is essentially the same as upload_df_to_redshift (check out its docstring for full details),
