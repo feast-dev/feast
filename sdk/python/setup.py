@@ -135,12 +135,6 @@ TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
 
-# Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
-if shutil.which("git"):
-    use_scm_version = {"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX}
-else:
-    use_scm_version = None
-
 
 class BuildProtoCommand(Command):
     description = "Builds the proto files into python files."
@@ -199,8 +193,16 @@ class DevelopCommand(develop):
         develop.run(self)
 
 
+# Get version from version module.
+with open('feast/version.py') as fp:
+  globals_dict = {}
+  exec(fp.read(), globals_dict)  # pylint: disable=exec-used
+__version__ = globals_dict['__version__']
+
+
 setup(
     name=NAME,
+    version=__version__,
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
@@ -229,7 +231,6 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version=use_scm_version,
     setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf", "sphinx!=4.0.0"],
     package_data={
         "": [
