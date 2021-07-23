@@ -3,7 +3,7 @@ Feast Python API Documentation
 
 
 Feature Store
----------------------------
+==================
 
 .. automodule:: feast.feature_store
    :members:
@@ -43,5 +43,12 @@ Feature
 ==================
 
 .. automodule:: feast.feature
+    :inherited-members:
+    :members:
+
+Feature Service
+==================
+
+.. automodule:: feast.feature_service
     :inherited-members:
     :members:
