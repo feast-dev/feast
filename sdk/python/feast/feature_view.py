@@ -45,13 +45,28 @@ warnings.simplefilter("once", DeprecationWarning)
 class FeatureView:
     """
     A FeatureView defines a logical grouping of serveable features.
+
+    Args:
+        name: Name of the group of features.
+        entities: The entities to which this group of features is associated.
+        ttl: The amount of time this group of features lives. A ttl of 0 indicates that
+            this group of features lives forever. Note that large ttl's or a ttl of 0
+            can result in extremely computationally intensive queries.
+        input: The source of data where this group of features is stored.
+        batch_source (optional): The batch source of data where this group of features
+            is stored.
+        stream_source (optional): The stream source of data where this group of features
+            is stored.
+        features (optional): The set of features defined as part of this FeatureView.
+        tags (optional): A dictionary of key-value pairs used for organizing
+            FeatureViews.
     """
 
     name: str
     entities: List[str]
     features: List[Feature]
     tags: Optional[Dict[str, str]]
-    ttl: Optional[timedelta]
+    ttl: timedelta
     online: bool
     input: DataSource
     batch_source: DataSource
@@ -65,14 +80,15 @@ class FeatureView:
         self,
         name: str,
         entities: List[str],
-        ttl: Optional[Union[Duration, timedelta]],
+        ttl: Union[Duration, timedelta],
         input: Optional[DataSource] = None,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
-        features: List[Feature] = None,
+        features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
+        """Inits the FeatureView class."""
         warnings.warn(
             (
                 "The argument 'input' is being deprecated. Please use 'batch_source' "
@@ -159,24 +175,24 @@ class FeatureView:
 
     def is_valid(self):
         """
-        Validates the state of a feature view locally. Raises an exception
-        if feature view is invalid.
-        """
+        Validates the state of this feature view locally.
 
+        Raises:
+            ValueError: The feature view does not have a name or does not have entities.
+        """
         if not self.name:
-            raise ValueError("Feature view needs a name")
+            raise ValueError("Feature view needs a name.")
 
         if not self.entities:
-            raise ValueError("Feature view has no entities")
+            raise ValueError("Feature view has no entities.")
 
     def to_proto(self) -> FeatureViewProto:
         """
-        Converts an feature view object to its protobuf representation.
+        Converts a feature view object to its protobuf representation.
 
         Returns:
-            FeatureViewProto protobuf
+            A FeatureViewProto protobuf.
         """
-
         meta = FeatureViewMetaProto(
             created_timestamp=self.created_timestamp,
             last_updated_timestamp=self.last_updated_timestamp,
@@ -217,15 +233,14 @@ class FeatureView:
     @classmethod
     def from_proto(cls, feature_view_proto: FeatureViewProto):
         """
-        Creates a feature view from a protobuf representation of a feature view
+        Creates a feature view from a protobuf representation of a feature view.
 
         Args:
-            feature_view_proto: A protobuf representation of a feature view
+            feature_view_proto: A protobuf representation of a feature view.
 
         Returns:
-            Returns a FeatureViewProto object based on the feature view protobuf
+            A FeatureViewProto object based on the feature view protobuf.
         """
-
         batch_source = DataSource.from_proto(feature_view_proto.spec.batch_source)
         stream_source = (
             DataSource.from_proto(feature_view_proto.spec.stream_source)
@@ -270,11 +285,26 @@ class FeatureView:
 
     @property
     def most_recent_end_time(self) -> Optional[datetime]:
+        """
+        Retrieves the latest time up to which the feature view has been materialized.
+
+        Returns:
+            The latest time, or None if the feature view has not been materialized.
+        """
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
 
     def infer_features_from_batch_source(self, config: RepoConfig):
+        """
+        Infers the set of features associated to this feature view from the input source.
+
+        Args:
+            config: Configuration object used to configure the feature store.
+
+        Raises:
+            RegistryInferenceFailure: The set of features could not be inferred.
+        """
         if not self.features:
             columns_to_exclude = {
                 self.batch_source.event_timestamp_column,
