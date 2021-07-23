@@ -6,3 +6,4 @@ Please see [Offline Store](../../concepts/offline-store.md) for an explanation o
 
 {% page-ref page="bigquery.md" %}
 
+{% page-ref page="redshift.md" %}
