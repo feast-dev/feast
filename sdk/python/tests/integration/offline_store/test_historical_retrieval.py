@@ -29,8 +29,10 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
-from feast.infra.offline_stores.utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.utils import aws_utils
@@ -448,7 +450,7 @@ def test_historical_features_from_bigquery_sources(
         customer_source = BigQuerySource(
             table_ref=customer_table_id,
             event_timestamp_column="datetime",
-            created_timestamp_column="",
+            created_timestamp_column="created",
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
@@ -743,7 +745,7 @@ def test_historical_features_from_redshift_sources(
         customer_source = RedshiftSource(
             table=customer_table_name,
             event_timestamp_column="datetime",
-            created_timestamp_column="",
+            created_timestamp_column="created",
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 

@@ -17,7 +17,7 @@ from feast.errors import (
     InvalidEntityType,
 )
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores import utils
+from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -113,25 +113,25 @@ class BigQueryOfflineStore(OfflineStore):
             client=client, table_name=table_reference, entity_df=entity_df,
         )
 
-        entity_df_event_timestamp_col = utils.infer_event_timestamp_from_entity_df(
+        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
             entity_schema
         )
 
-        expected_join_keys = utils.get_expected_join_keys(
+        expected_join_keys = offline_utils.get_expected_join_keys(
             project, feature_views, registry
         )
 
-        utils.assert_expected_columns_in_entity_df(
+        offline_utils.assert_expected_columns_in_entity_df(
             entity_schema, expected_join_keys, entity_df_event_timestamp_col
         )
 
         # Build a query context containing all information required to template the BigQuery SQL query
-        query_context = utils.get_feature_view_query_context(
+        query_context = offline_utils.get_feature_view_query_context(
             feature_refs, feature_views, registry, project,
         )
 
         # Generate the BigQuery SQL query from the query context
-        query = utils.build_point_in_time_query(
+        query = offline_utils.build_point_in_time_query(
             query_context,
             left_table_query_string=table_reference,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
@@ -259,7 +259,7 @@ def _get_table_reference_for_new_entity(
         # Only create the dataset if it does not exist
         client.create_dataset(dataset, exists_ok=True)
 
-    table_name = utils.get_temp_entity_table_name()
+    table_name = offline_utils.get_temp_entity_table_name()
 
     return f"{dataset_project}.{dataset_name}.{table_name}"
 

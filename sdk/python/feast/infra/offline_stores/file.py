@@ -11,7 +11,9 @@ from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
-from feast.infra.offline_stores.utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
     _run_field_mapping,
