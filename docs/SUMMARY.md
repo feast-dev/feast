@@ -13,6 +13,10 @@
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 
+## Tutorials
+
+* [Driver ranking](tutorials/driver-ranking-with-feast.md)
+
 ## Concepts
 
 * [Overview](concepts/overview.md)
@@ -22,6 +26,10 @@
 * [Offline store](concepts/offline-store.md)
 * [Provider](concepts/provider.md)
 * [Architecture](concepts/architecture-and-components.md)
+
+## How-to Guides
+
+* [Running Feast in production](how-to-guides/untitled.md)
 
 ## Reference
 
