@@ -823,7 +823,7 @@ def _validate_feature_views(feature_views: List[FeatureView]):
     for fv in feature_views:
         if fv.name in name_to_fv_dict:
             raise ValueError(
-                f"More than one feature view with name {fv.name} found. Please ensure that all feature view names are unique."
+                f"More than one feature view with name {fv.name} found. Please ensure that all feature view names are unique. It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
             )
         else:
             name_to_fv_dict[fv.name] = fv
