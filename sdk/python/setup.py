@@ -129,9 +129,6 @@ with open(README_FILE, "r") as f:
 TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
-TAG_REGEX = re.compile(
-    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
-)
 
 
 class BuildProtoCommand(Command):
