@@ -8,3 +8,8 @@ def get_version():
     except pkg_resources.DistributionNotFound:
         sdk_version = "unknown"
     return sdk_version
+
+
+"""Contains the version string of Twitter Feast."""
+
+__version__ = '0.11.1+twtr2'
