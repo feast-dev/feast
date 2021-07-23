@@ -8,7 +8,7 @@ from tqdm import tqdm
 from feast import FeatureTable
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.helpers import get_offline_store_from_config
+from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
     Provider,

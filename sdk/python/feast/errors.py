@@ -185,3 +185,18 @@ class RedshiftCredentialsError(Exception):
 class RedshiftQueryError(Exception):
     def __init__(self, details):
         super().__init__(f"Redshift SQL Query failed to finish. Details: {details}")
+
+
+class EntityTimestampInferenceException(Exception):
+    def __init__(self, expected_column_name: str):
+        super().__init__(
+            f"Please provide an entity_df with a column named {expected_column_name} representing the time of events."
+        )
+
+
+class InvalidEntityType(Exception):
+    def __init__(self, entity_type: type):
+        super().__init__(
+            f"The entity dataframe you have provided must be a Pandas DataFrame or a SQL query, "
+            f"but we found: {entity_type} "
+        )

@@ -14,18 +14,28 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 import feast.driver_test_data as driver_data
-from feast import BigQuerySource, FeatureService, FileSource, RepoConfig, errors, utils
+from feast import (
+    BigQuerySource,
+    FeatureService,
+    FileSource,
+    RedshiftSource,
+    RepoConfig,
+    errors,
+    utils,
+)
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
 from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.bigquery import (
-    BigQueryOfflineStoreConfig,
-    _get_entity_df_timestamp_bounds,
+from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
+from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
+from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.utils import aws_utils
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -440,7 +450,7 @@ def test_historical_features_from_bigquery_sources(
         customer_source = BigQuerySource(
             table_ref=customer_table_id,
             event_timestamp_column="datetime",
-            created_timestamp_column="",
+            created_timestamp_column="created",
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
@@ -602,10 +612,10 @@ def test_historical_features_from_bigquery_sources(
 
         # Make sure that custom dataset name is being used from the offline_store config
         if provider_type == "gcp_custom_offline_config":
-            assertpy.assert_that(job_from_df.query).contains("foo.entity_df")
+            assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
         else:
             assertpy.assert_that(job_from_df.query).contains(
-                f"{bigquery_dataset}.entity_df"
+                f"{bigquery_dataset}.feast_entity_df"
             )
 
         start_time = datetime.utcnow()
@@ -638,28 +648,282 @@ def test_historical_features_from_bigquery_sources(
 
 
 @pytest.mark.integration
-def test_timestamp_bound_inference_from_entity_df_using_bigquery():
+@pytest.mark.parametrize(
+    "provider_type", ["local", "aws"],
+)
+@pytest.mark.parametrize(
+    "infer_event_timestamp_col", [False, True],
+)
+@pytest.mark.parametrize(
+    "full_feature_names", [False, True],
+)
+def test_historical_features_from_redshift_sources(
+    provider_type, infer_event_timestamp_col, capsys, full_feature_names
+):
+    client = aws_utils.get_redshift_data_client("us-west-2")
+    s3 = aws_utils.get_s3_resource("us-west-2")
+
+    offline_store = RedshiftOfflineStoreConfig(
+        cluster_id="feast-integration-tests",
+        region="us-west-2",
+        user="admin",
+        database="feast",
+        s3_staging_location="s3://feast-integration-tests/redshift/tests/ingestion",
+        iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
+    )
+
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
-    (_, _, _, entity_df, start_date) = generate_entities(
-        start_date, infer_event_timestamp_col=True
+    (
+        customer_entities,
+        driver_entities,
+        end_date,
+        orders_df,
+        start_date,
+    ) = generate_entities(start_date, infer_event_timestamp_col)
+
+    redshift_table_prefix = (
+        f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(1000, 9999)}"
     )
 
-    table_id = f"foo.table_id_{int(time.time_ns())}_{random.randint(1000, 9999)}"
-    stage_orders_bigquery(entity_df, table_id)
-
-    client = bigquery.Client()
-    table = client.get_table(table=table_id)
-
-    # Ensure that the table expires after some time
-    table.expires = datetime.utcnow() + timedelta(minutes=30)
-    client.update_table(table, ["expires"])
-
-    min_timestamp, max_timestamp = _get_entity_df_timestamp_bounds(
-        client, str(table.reference), "e_ts"
+    # Stage orders_df to Redshift
+    table_name = f"{redshift_table_prefix}_orders"
+    entity_df_query = f"SELECT * FROM {table_name}"
+    orders_context = aws_utils.temporarily_upload_df_to_redshift(
+        client,
+        offline_store.cluster_id,
+        offline_store.database,
+        offline_store.user,
+        s3,
+        f"{offline_store.s3_staging_location}/copy/{table_name}.parquet",
+        offline_store.iam_role,
+        table_name,
+        orders_df,
     )
 
-    assert min_timestamp.astimezone("UTC") == min(entity_df["e_ts"]).astimezone("UTC")
-    assert max_timestamp.astimezone("UTC") == max(entity_df["e_ts"]).astimezone("UTC")
+    # Stage driver_df to Redshift
+    driver_df = driver_data.create_driver_hourly_stats_df(
+        driver_entities, start_date, end_date
+    )
+    driver_table_name = f"{redshift_table_prefix}_driver_hourly"
+    driver_context = aws_utils.temporarily_upload_df_to_redshift(
+        client,
+        offline_store.cluster_id,
+        offline_store.database,
+        offline_store.user,
+        s3,
+        f"{offline_store.s3_staging_location}/copy/{driver_table_name}.parquet",
+        offline_store.iam_role,
+        driver_table_name,
+        driver_df,
+    )
+
+    # Stage customer_df to Redshift
+    customer_df = driver_data.create_customer_daily_profile_df(
+        customer_entities, start_date, end_date
+    )
+    customer_table_name = f"{redshift_table_prefix}_customer_profile"
+    customer_context = aws_utils.temporarily_upload_df_to_redshift(
+        client,
+        offline_store.cluster_id,
+        offline_store.database,
+        offline_store.user,
+        s3,
+        f"{offline_store.s3_staging_location}/copy/{customer_table_name}.parquet",
+        offline_store.iam_role,
+        customer_table_name,
+        customer_df,
+    )
+
+    with orders_context, driver_context, customer_context, TemporaryDirectory() as temp_dir:
+        driver_source = RedshiftSource(
+            table=driver_table_name,
+            event_timestamp_column="datetime",
+            created_timestamp_column="created",
+        )
+        driver_fv = create_driver_hourly_stats_feature_view(driver_source)
+
+        customer_source = RedshiftSource(
+            table=customer_table_name,
+            event_timestamp_column="datetime",
+            created_timestamp_column="created",
+        )
+        customer_fv = create_customer_daily_profile_feature_view(customer_source)
+
+        driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
+        customer = Entity(name="customer_id", value_type=ValueType.INT64)
+
+        if provider_type == "local":
+            store = FeatureStore(
+                config=RepoConfig(
+                    registry=os.path.join(temp_dir, "registry.db"),
+                    project="default",
+                    provider="local",
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(temp_dir, "online_store.db"),
+                    ),
+                    offline_store=offline_store,
+                )
+            )
+        elif provider_type == "aws":
+            store = FeatureStore(
+                config=RepoConfig(
+                    registry=os.path.join(temp_dir, "registry.db"),
+                    project="".join(
+                        random.choices(string.ascii_uppercase + string.digits, k=10)
+                    ),
+                    provider="aws",
+                    online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+                    offline_store=offline_store,
+                )
+            )
+        else:
+            raise Exception("Invalid provider used as part of test configuration")
+
+        store.apply([driver, customer, driver_fv, customer_fv])
+
+        event_timestamp = (
+            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+            else "e_ts"
+        )
+        expected_df = get_expected_training_df(
+            customer_df,
+            customer_fv,
+            driver_df,
+            driver_fv,
+            orders_df,
+            event_timestamp,
+            full_feature_names,
+        )
+
+        job_from_sql = store.get_historical_features(
+            entity_df=entity_df_query,
+            features=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+            full_feature_names=full_feature_names,
+        )
+
+        start_time = datetime.utcnow()
+        actual_df_from_sql_entities = job_from_sql.to_df()
+        end_time = datetime.utcnow()
+        with capsys.disabled():
+            print(
+                str(
+                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
+                )
+            )
+
+        assert sorted(expected_df.columns) == sorted(
+            actual_df_from_sql_entities.columns
+        )
+        assert_frame_equal(
+            expected_df.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            actual_df_from_sql_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
+            check_dtype=False,
+        )
+
+        table_from_sql_entities = job_from_sql.to_arrow()
+        assert_frame_equal(
+            actual_df_from_sql_entities.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            table_from_sql_entities.to_pandas()
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
+        )
+
+        timestamp_column = (
+            "e_ts"
+            if infer_event_timestamp_col
+            else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        )
+
+        entity_df_query_with_invalid_join_key = (
+            f"select order_id, driver_id, customer_id as customer, "
+            f"order_is_success, {timestamp_column} FROM {table_name}"
+        )
+        # Rename the join key; this should now raise an error.
+        assertpy.assert_that(store.get_historical_features).raises(
+            errors.FeastEntityDFMissingColumnsError
+        ).when_called_with(
+            entity_df=entity_df_query_with_invalid_join_key,
+            features=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+
+        job_from_df = store.get_historical_features(
+            entity_df=orders_df,
+            features=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+            full_feature_names=full_feature_names,
+        )
+
+        # Rename the join key; this should now raise an error.
+        orders_df_with_invalid_join_key = orders_df.rename(
+            {"customer_id": "customer"}, axis="columns"
+        )
+        assertpy.assert_that(store.get_historical_features).raises(
+            errors.FeastEntityDFMissingColumnsError
+        ).when_called_with(
+            entity_df=orders_df_with_invalid_join_key,
+            features=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+
+        start_time = datetime.utcnow()
+        actual_df_from_df_entities = job_from_df.to_df()
+        end_time = datetime.utcnow()
+        with capsys.disabled():
+            print(
+                str(
+                    f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
+                )
+            )
+
+        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
+        assert_frame_equal(
+            expected_df.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            actual_df_from_df_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
+            check_dtype=False,
+        )
+
+        table_from_df_entities = job_from_df.to_arrow()
+        assert_frame_equal(
+            actual_df_from_df_entities.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            ).reset_index(drop=True),
+            table_from_df_entities.to_pandas()
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .reset_index(drop=True),
+        )
 
 
 def test_feature_name_collision_on_historical_retrieval():

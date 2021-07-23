@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 from pytz import FixedOffset, timezone, utc
 
-from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 
 
 class EventTimestampType(Enum):

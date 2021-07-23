@@ -376,6 +376,10 @@ class DataSource(ABC):
         """
         raise NotImplementedError
 
+    def get_table_query_string(self) -> str:
+        """Returns a string that can directly be used to reference this table in SQL"""
+        raise NotImplementedError
+
 
 class KafkaSource(DataSource):
     def validate(self, config: RepoConfig):
