@@ -2,11 +2,11 @@
 
 ### Overview
 
-In this guide we will show you
+In this guide we will show you how to:
 
-1. How to deploy your feature store and keep your infrastructure in sync with your feature repository
-2. How to keep the data in your online store up to date
-3. How to use Feast for model training and serving
+1. Deploy your feature store and keep your infrastructure in sync with your feature repository
+2. Keep the data in your online store up to date
+3. Use Feast for model training and serving
 
 ### 1. Automatically deploying changes to your feature definitions
 
