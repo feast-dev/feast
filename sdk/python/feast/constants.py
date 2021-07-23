@@ -49,9 +49,6 @@ class ConfigMeta(type):
         return super().__new__(cls, name, bases, attrs)
 
 
-#: Default datetime column name for point-in-time join
-DATETIME_COLUMN: str = "datetime"
-
 #: Environmental variable to specify Feast configuration file location
 FEAST_CONFIG_FILE_ENV: str = "FEAST_CONFIG"
 

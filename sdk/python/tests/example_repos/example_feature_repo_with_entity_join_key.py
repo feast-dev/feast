@@ -4,7 +4,7 @@ from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
 driver_hourly_stats = FileSource(
     path="%PARQUET_PATH%",  # placeholder to be replaced by the test
-    event_timestamp_column="datetime",
+    event_timestamp_column="event_timestamp",
     created_timestamp_column="created",
 )
 

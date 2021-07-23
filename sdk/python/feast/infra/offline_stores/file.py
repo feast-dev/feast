@@ -201,7 +201,7 @@ class FileOfflineStore(OfflineStore):
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
 
-            # Move "datetime" column to front
+            # Move "event_timestamp" column to front
             current_cols = entity_df_with_features.columns.tolist()
             current_cols.remove(entity_df_event_timestamp_col)
             entity_df_with_features = entity_df_with_features[

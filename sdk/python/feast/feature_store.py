@@ -378,8 +378,6 @@ class FeatureStore:
 
         _feature_refs = self._get_features(features, feature_refs)
 
-        print(f"_feature_refs: {_feature_refs}")
-
         all_feature_views = self._registry.list_feature_views(project=self.project)
         feature_views = list(
             view for view, _ in _group_feature_refs(_feature_refs, all_feature_views)

@@ -826,7 +826,7 @@ class Client:
             >>> client = Client(core_url="localhost:6565")
             >>> ft_df = pd.DataFrame(
             >>>         {
-            >>>            "datetime": [pd.datetime.now()],
+            >>>            "event_timestamp": [pd.datetime.now()],
             >>>            "driver": [1001],
             >>>            "rating": [4.3],
             >>>         }

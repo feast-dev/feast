@@ -90,9 +90,7 @@ class RedshiftSource(DataSource):
     def validate(self, config: RepoConfig):
         # As long as the query gets successfully executed, or the table exists,
         # the data source is validated. We don't need the results though.
-        # TODO: uncomment this
-        # self.get_table_column_names_and_types(config)
-        print("Validate", self.get_table_column_names_and_types(config))
+        self.get_table_column_names_and_types(config)
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
