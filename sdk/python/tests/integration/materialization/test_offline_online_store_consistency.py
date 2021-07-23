@@ -11,13 +11,11 @@ from typing import Iterator, Optional, Tuple
 import pandas as pd
 import pytest
 from google.cloud import bigquery
-from pytz import timezone, utc
+from pytz import utc
 
 from feast import BigQuerySource, FileSource, RedshiftSource
 from feast.data_format import ParquetFormat
-from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
@@ -29,42 +27,12 @@ from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.utils import aws_utils
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
+from tests.data.data_creator import create_dataset
+from tests.integration.feature_repos.universal.feature_views import (
+    correctness_feature_view,
+)
 
 
-def create_dataset() -> pd.DataFrame:
-    now = datetime.utcnow()
-    ts = pd.Timestamp(now).round("ms")
-    data = {
-        "id": [1, 2, 1, 3, 3],
-        "value": [0.1, None, 0.3, 4, 5],
-        "ts_1": [
-            ts - timedelta(hours=4),
-            ts,
-            ts - timedelta(hours=3),
-            # Use different time zones to test tz-naive -> tz-aware conversion
-            (ts - timedelta(hours=4))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("Europe/Berlin")),
-            (ts - timedelta(hours=1))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("US/Pacific")),
-        ],
-        "created_ts": [ts, ts, ts, ts, ts],
-    }
-    return pd.DataFrame.from_dict(data)
-
-
-def get_feature_view(data_source: DataSource) -> FeatureView:
-    return FeatureView(
-        name="test_bq_correctness",
-        entities=["driver"],
-        features=[Feature("value", ValueType.FLOAT)],
-        ttl=timedelta(days=5),
-        batch_source=data_source,
-    )
-
-
-# bq_source_type must be one of "query" and "table"
 @contextlib.contextmanager
 def prep_bq_fs_and_fv(
     bq_source_type: str,
@@ -96,7 +64,7 @@ def prep_bq_fs_and_fv(
         field_mapping={"ts_1": "ts", "id": "driver_id"},
     )
 
-    fv = get_feature_view(bigquery_source)
+    fv = correctness_feature_view(bigquery_source)
     e = Entity(
         name="driver",
         description="id for driver",
@@ -159,7 +127,7 @@ def prep_redshift_fs_and_fv(
         field_mapping={"ts_1": "ts", "id": "driver_id"},
     )
 
-    fv = get_feature_view(redshift_source)
+    fv = correctness_feature_view(redshift_source)
     e = Entity(
         name="driver",
         description="id for driver",
@@ -207,7 +175,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        fv = get_feature_view(file_source)
+        fv = correctness_feature_view(file_source)
         e = Entity(
             name="driver",
             description="id for driver",
@@ -248,7 +216,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        fv = get_feature_view(file_source)
+        fv = correctness_feature_view(file_source)
         e = Entity(
             name="driver",
             description="id for driver",
@@ -290,7 +258,7 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        fv = get_feature_view(file_source)
+        fv = correctness_feature_view(file_source)
         e = Entity(
             name="driver",
             description="id for driver",
