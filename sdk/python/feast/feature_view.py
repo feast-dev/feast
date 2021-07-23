@@ -76,7 +76,7 @@ class FeatureView:
         warnings.warn(
             (
                 "The argument 'input' is being deprecated. Please use 'batch_source' "
-                "instead. Feast 0.11.3 and onwards will not support the argument 'input'."
+                "instead. Feast 0.12 and onwards will not support the argument 'input'."
             ),
             DeprecationWarning,
         )
