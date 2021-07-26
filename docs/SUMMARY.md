@@ -29,7 +29,7 @@
 
 ## How-to Guides
 
-* [Running Feast in production](how-to-guides/untitled.md)
+* [Running Feast in production](how-to-guides/running-feast-in-production.md)
 
 ## Reference
 
