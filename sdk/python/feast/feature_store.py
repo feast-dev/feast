@@ -49,8 +49,8 @@ class FeatureStore:
     A FeatureStore object is used to define, create, and retrieve features.
 
     Args:
-        repo_path: Path to a `feature_store.yaml` used to configure the feature store
-        config (RepoConfig): Configuration object used to configure the feature store
+        repo_path: Path to a `feature_store.yaml` used to configure the feature store.
+        config: Configuration object used to configure the feature store.
     """
 
     config: RepoConfig
@@ -61,8 +61,14 @@ class FeatureStore:
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
+        """
+        Inits the FeatureStore class.
+
+        Raises:
+            ValueError: If both or neither of repo_path and config are specified.
+        """
         if repo_path is not None and config is not None:
-            raise ValueError("You cannot specify both repo_path and config")
+            raise ValueError("You cannot specify both repo_path and config.")
         if config is not None:
             self.repo_path = Path(os.getcwd())
             self.config = config
@@ -70,7 +76,7 @@ class FeatureStore:
             self.repo_path = Path(repo_path)
             self.config = load_repo_config(Path(repo_path))
         else:
-            raise ValueError("Please specify one of repo_path or config")
+            raise ValueError("Please specify one of repo_path or config.")
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
@@ -81,12 +87,12 @@ class FeatureStore:
 
     @log_exceptions
     def version(self) -> str:
-        """Returns the version of the current Feast SDK/CLI"""
-
+        """Returns the version of the current Feast SDK/CLI."""
         return get_version()
 
     @property
     def project(self) -> str:
+        """Gets the project of this feature store."""
         return self.config.project
 
     def _get_provider(self) -> Provider:
@@ -108,7 +114,6 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
-
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
@@ -120,37 +125,34 @@ class FeatureStore:
     @log_exceptions_and_usage
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
-        Retrieve a list of entities from the registry
+        Retrieves the list of entities from the registry.
 
         Args:
-            allow_cache (bool): Whether to allow returning entities from a cached registry
+            allow_cache: Whether to allow returning entities from a cached registry.
 
         Returns:
-            List of entities
+            A list of entities.
         """
-
         return self._registry.list_entities(self.project, allow_cache=allow_cache)
 
     @log_exceptions_and_usage
     def list_feature_services(self) -> List[FeatureService]:
         """
-        Retrieve a list of feature services from the registry
+        Retrieves the list of feature services from the registry.
 
         Returns:
-            List of feature services
+            A list of feature services.
         """
-
         return self._registry.list_feature_services(self.project)
 
     @log_exceptions_and_usage
     def list_feature_views(self) -> List[FeatureView]:
         """
-        Retrieve a list of feature views from the registry
+        Retrieves the list of feature views from the registry.
 
         Returns:
-            List of feature views
+            A list of feature views.
         """
-
         return self._registry.list_feature_views(self.project)
 
     @log_exceptions_and_usage
@@ -159,13 +161,14 @@ class FeatureStore:
         Retrieves an entity.
 
         Args:
-            name: Name of entity
+            name: Name of entity.
 
         Returns:
-            Returns either the specified entity, or raises an exception if
-            none is found
-        """
+            The specified entity.
 
+        Raises:
+            EntityNotFoundException: The entity could not be found.
+        """
         return self._registry.get_entity(name, self.project)
 
     @log_exceptions_and_usage
@@ -174,13 +177,14 @@ class FeatureStore:
         Retrieves a feature service.
 
         Args:
-            name: Name of FeatureService
+            name: Name of feature service.
 
         Returns:
-            Returns either the specified FeatureService, or raises an exception if
-            none is found
-        """
+            The specified feature service.
 
+        Raises:
+            FeatureServiceNotFoundException: The feature service could not be found.
+        """
         return self._registry.get_feature_service(name, self.project)
 
     @log_exceptions_and_usage
@@ -189,24 +193,27 @@ class FeatureStore:
         Retrieves a feature view.
 
         Args:
-            name: Name of feature view
+            name: Name of feature view.
 
         Returns:
-            Returns either the specified feature view, or raises an exception if
-            none is found
-        """
+            The specified feature view.
 
+        Raises:
+            FeatureViewNotFoundException: The feature view could not be found.
+        """
         return self._registry.get_feature_view(name, self.project)
 
     @log_exceptions_and_usage
     def delete_feature_view(self, name: str):
         """
-        Deletes a feature view or raises an exception if not found.
+        Deletes a feature view.
 
         Args:
-            name: Name of feature view
-        """
+            name: Name of feature view.
 
+        Raises:
+            FeatureViewNotFoundException: The feature view could not be found.
+        """
         return self._registry.delete_feature_view(name, self.project)
 
     def _get_features(
@@ -248,6 +255,9 @@ class FeatureStore:
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
 
+        Raises:
+            ValueError: The 'objects' parameter could not be parsed properly.
+
         Examples:
             Register a single Entity and FeatureView.
 
@@ -266,7 +276,6 @@ class FeatureStore:
             >>> )
             >>> fs.apply([customer_entity, customer_feature_view])
         """
-
         # TODO: Add locking
 
         if not isinstance(objects, Iterable):
@@ -314,6 +323,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def teardown(self):
+        """Tears down all local and cloud resources for the feature store."""
         tables: List[Union[FeatureView, FeatureTable]] = []
         feature_views = self.list_feature_views()
         feature_tables = self._registry.list_feature_tables(self.project)
@@ -375,7 +385,6 @@ class FeatureStore:
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-
         _feature_refs = self._get_features(features, feature_refs)
 
         print(f"_feature_refs: {_feature_refs}")
@@ -419,6 +428,9 @@ class FeatureStore:
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
 
+        Raises:
+            Exception: A feature view being materialized does not have a TTL set.
+
         Examples:
             Materialize all features into the online store up to 5 minutes ago.
 
@@ -428,7 +440,6 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp", registry="gs://my-fs/", project="my_fs_proj"))
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
         """
-
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
@@ -514,7 +525,6 @@ class FeatureStore:
             >>>   start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             >>> )
         """
-
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
@@ -587,8 +597,13 @@ class FeatureStore:
                 the feature and feature table names respectively.
                 Only the feature name is required.
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+
         Returns:
             OnlineResponse containing the feature data in records.
+
+        Raises:
+            Exception: No entity with the specified name exists.
+
         Examples:
             >>> from feast import FeatureStore
             >>>
@@ -602,7 +617,6 @@ class FeatureStore:
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
-
         _feature_refs = self._get_features(features, feature_refs)
 
         provider = self._get_provider()
