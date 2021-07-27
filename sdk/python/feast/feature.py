@@ -38,7 +38,7 @@ class Feature:
         dtype: ValueType,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
-        """Inits the Feature class."""
+        """Creates a Feature object."""
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")

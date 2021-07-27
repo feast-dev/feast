@@ -41,7 +41,7 @@ class FeatureService:
         tags: Optional[Dict[str, str]] = None,
     ):
         """
-        Inits the FeatureService class.
+        Creates a FeatureService object.
 
         Raises:
             ValueError: If one of the specified features is not a valid type.

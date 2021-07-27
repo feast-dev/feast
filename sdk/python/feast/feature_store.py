@@ -63,7 +63,7 @@ class FeatureStore:
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
         """
-        Inits the FeatureStore class.
+        Creates a FeatureStore object.
 
         Raises:
             ValueError: If both or neither of repo_path and config are specified.

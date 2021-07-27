@@ -89,7 +89,7 @@ class FeatureView:
         online: bool = True,
     ):
         """
-        Inits the FeatureView class.
+        Creates a FeatureView object.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.

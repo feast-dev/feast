@@ -58,7 +58,7 @@ class Entity:
         join_key: Optional[str] = None,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
-        """Inits the Entity class."""
+        """Creates an Entity object."""
         self._name = name
         self._description = description
         self._value_type = value_type

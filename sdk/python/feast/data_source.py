@@ -245,7 +245,7 @@ class DataSource(ABC):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
     ):
-        """Inits the DataSource class."""
+        """Creates a DataSource object."""
         self._event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
@@ -335,6 +335,9 @@ class DataSource(ABC):
 
         Args:
             data_source: A protobuf representation of a DataSource.
+
+        Returns:
+            A DataSource class object.
 
         Raises:
             ValueError: The type of DataSource could not be identified.
