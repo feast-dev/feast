@@ -1,4 +1,4 @@
-import inquirer
+import click
 
 from feast.infra.utils import aws_utils
 
@@ -17,14 +17,14 @@ def bootstrap():
     driver_entities = [1001, 1002, 1003, 1004, 1005]
     driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
 
-    aws_region = inquirer.text("AWS Region (e.g. us-west-2)")
-    cluster_id = inquirer.text("Redshift Cluster ID")
-    database = inquirer.text("Redshift Database Name")
-    user = inquirer.text("Redshift User Name")
-    s3_staging_location = inquirer.text("Redshift S3 Staging Location (s3://*)")
-    iam_role = inquirer.text("Redshift IAM Role for S3 (arn:aws:iam::*:role/*)")
+    aws_region = click.prompt("AWS Region (e.g. us-west-2)")
+    cluster_id = click.prompt("Redshift Cluster ID")
+    database = click.prompt("Redshift Database Name")
+    user = click.prompt("Redshift User Name")
+    s3_staging_location = click.prompt("Redshift S3 Staging Location (s3://*)")
+    iam_role = click.prompt("Redshift IAM Role for S3 (arn:aws:iam::*:role/*)")
 
-    if inquirer.confirm(
+    if click.confirm(
         "Should I upload example data to Redshift (overwriting 'feast_driver_hourly_stats' table)?",
         default=True,
     ):
@@ -36,7 +36,7 @@ def bootstrap():
             cluster_id,
             database,
             user,
-            f"DROP TABLE IF EXISTS feast_driver_hourly_stats",
+            "DROP TABLE IF EXISTS feast_driver_hourly_stats",
         )
 
         aws_utils.upload_df_to_redshift(

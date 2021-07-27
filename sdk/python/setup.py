@@ -57,7 +57,6 @@ REQUIRED = [
     "tenacity>=7.*",
     "toml==0.10.*",
     "tqdm==4.*",
-    "inquirer==2.7.0",
 ]
 
 GCP_REQUIRED = [
