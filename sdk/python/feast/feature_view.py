@@ -18,7 +18,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
 from feast.data_source import DataSource
@@ -71,8 +70,8 @@ class FeatureView:
     input: DataSource
     batch_source: DataSource
     stream_source: Optional[DataSource] = None
-    created_timestamp: Optional[Timestamp] = None
-    last_updated_timestamp: Optional[Timestamp] = None
+    created_timestamp: Optional[datetime] = None
+    last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
 
     @log_exceptions
@@ -132,6 +131,9 @@ class FeatureView:
         self.stream_source = stream_source
 
         self.materialization_intervals = []
+
+        self.created_timestamp: Optional[datetime] = None
+        self.last_updated_timestamp: Optional[datetime] = None
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -198,11 +200,11 @@ class FeatureView:
         Returns:
             A FeatureViewProto protobuf.
         """
-        meta = FeatureViewMetaProto(
-            created_timestamp=self.created_timestamp,
-            last_updated_timestamp=self.last_updated_timestamp,
-            materialization_intervals=[],
-        )
+        meta = FeatureViewMetaProto(materialization_intervals=[])
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
         for interval in self.materialization_intervals:
             interval_proto = MaterializationIntervalProto()
             interval_proto.start_time.FromDatetime(interval[0])
@@ -276,7 +278,14 @@ class FeatureView:
             stream_source=stream_source,
         )
 
-        feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
+        if feature_view_proto.meta.HasField("created_timestamp"):
+            feature_view.created_timestamp = (
+                feature_view_proto.meta.created_timestamp.ToDatetime()
+            )
+        if feature_view_proto.meta.HasField("last_updated_timestamp"):
+            feature_view.last_updated_timestamp = (
+                feature_view_proto.meta.last_updated_timestamp.ToDatetime()
+            )
 
         for interval in feature_view_proto.meta.materialization_intervals:
             feature_view.materialization_intervals.append(

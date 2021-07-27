@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import datetime
 from typing import Dict, Optional
 
 import yaml
 from google.protobuf import json_format
 from google.protobuf.json_format import MessageToDict, MessageToJson
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
@@ -46,8 +46,8 @@ class Entity:
     _description: str
     _join_key: str
     _labels: Dict[str, str]
-    _created_timestamp: Optional[Timestamp]
-    _last_updated_timestamp: Optional[Timestamp]
+    _created_timestamp: Optional[datetime]
+    _last_updated_timestamp: Optional[datetime]
 
     @log_exceptions
     def __init__(
@@ -72,8 +72,8 @@ class Entity:
         else:
             self._labels = labels
 
-        self._created_timestamp: Optional[Timestamp] = None
-        self._last_updated_timestamp: Optional[Timestamp] = None
+        self._created_timestamp: Optional[datetime] = None
+        self._last_updated_timestamp: Optional[datetime] = None
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
@@ -164,14 +164,14 @@ class Entity:
         self._labels = labels
 
     @property
-    def created_timestamp(self) -> Optional[Timestamp]:
+    def created_timestamp(self) -> Optional[datetime]:
         """
         Gets the created_timestamp of this entity.
         """
         return self._created_timestamp
 
     @property
-    def last_updated_timestamp(self) -> Optional[Timestamp]:
+    def last_updated_timestamp(self) -> Optional[datetime]:
         """
         Gets the last_updated_timestamp of this entity.
         """
@@ -238,8 +238,12 @@ class Entity:
             join_key=entity_proto.spec.join_key,
         )
 
-        entity._created_timestamp = entity_proto.meta.created_timestamp
-        entity._last_updated_timestamp = entity_proto.meta.last_updated_timestamp
+        if entity_proto.meta.HasField("created_timestamp"):
+            entity._created_timestamp = entity_proto.meta.created_timestamp.ToDatetime()
+        if entity_proto.meta.HasField("last_updated_timestamp"):
+            entity._last_updated_timestamp = (
+                entity_proto.meta.last_updated_timestamp.ToDatetime()
+            )
 
         return entity
 
@@ -250,10 +254,11 @@ class Entity:
         Returns:
             An EntityV2Proto protobuf.
         """
-        meta = EntityMetaProto(
-            created_timestamp=self.created_timestamp,
-            last_updated_timestamp=self.last_updated_timestamp,
-        )
+        meta = EntityMetaProto()
+        if self._created_timestamp:
+            meta.created_timestamp.FromDatetime(self._created_timestamp)
+        if self._last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self._last_updated_timestamp)
 
         spec = EntitySpecProto(
             name=self.name,
