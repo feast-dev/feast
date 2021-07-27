@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, MutableMapping, Optional
+from typing import Dict, Optional
 
 import yaml
 from google.protobuf import json_format
@@ -45,7 +45,7 @@ class Entity:
     _value_type: ValueType
     _description: str
     _join_key: str
-    _labels: MutableMapping[str, str]
+    _labels: Dict[str, str]
     _created_timestamp: Optional[Timestamp]
     _last_updated_timestamp: Optional[Timestamp]
 
@@ -56,7 +56,7 @@ class Entity:
         value_type: ValueType = ValueType.UNKNOWN,
         description: str = "",
         join_key: Optional[str] = None,
-        labels: Optional[MutableMapping[str, str]] = None,
+        labels: Optional[Dict[str, str]] = None,
     ):
         """Creates an Entity object."""
         self._name = name
@@ -150,14 +150,14 @@ class Entity:
         self._value_type = value_type
 
     @property
-    def labels(self) -> MutableMapping[str, str]:
+    def labels(self) -> Dict[str, str]:
         """
         Gets the labels of this entity.
         """
         return self._labels
 
     @labels.setter
-    def labels(self, labels: MutableMapping[str, str]):
+    def labels(self, labels: Dict[str, str]):
         """
         Sets the labels of this entity.
         """

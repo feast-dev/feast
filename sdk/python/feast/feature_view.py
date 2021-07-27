@@ -259,7 +259,7 @@ class FeatureView:
                 Feature(
                     name=feature.name,
                     dtype=ValueType(feature.value_type),
-                    labels=feature.labels,
+                    labels=dict(feature.labels),
                 )
                 for feature in feature_view_proto.spec.features
             ],

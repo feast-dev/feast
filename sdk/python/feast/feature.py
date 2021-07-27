@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, MutableMapping, Optional
+from typing import Dict, List, Optional
 
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -33,10 +33,7 @@ class Feature:
     """
 
     def __init__(
-        self,
-        name: str,
-        dtype: ValueType,
-        labels: Optional[MutableMapping[str, str]] = None,
+        self, name: str, dtype: ValueType, labels: Optional[Dict[str, str]] = None,
     ):
         """Creates a Feature object."""
         self._name = name
@@ -44,7 +41,7 @@ class Feature:
             raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
         if labels is None:
-            self._labels = dict()  # type: MutableMapping
+            self._labels = dict()
         else:
             self._labels = labels
 
@@ -83,7 +80,7 @@ class Feature:
         return self._dtype
 
     @property
-    def labels(self) -> MutableMapping[str, str]:
+    def labels(self) -> Dict[str, str]:
         """
         Gets the labels of this feature.
         """
@@ -114,7 +111,7 @@ class Feature:
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
-            labels=feature_proto.labels,
+            labels=dict(feature_proto.labels),
         )
 
         return feature
