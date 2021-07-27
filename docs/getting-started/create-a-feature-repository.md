@@ -20,6 +20,22 @@ feast init -t gcp
 Creating a new Feast repository in /<...>/tiny_pika.
 ```
 {% endtab %}
+
+{% tab title="AWS template" %}
+```
+feast init -t aws
+[?] AWS Region (e.g. us-west-2): ...
+[?] Redshift Cluster ID: ...
+[?] Redshift Database Name: ...
+[?] Redshift User Name: ...
+[?] Redshift S3 Staging Location (s3://*): ...
+[?] Redshift IAM Role for S3 (arn:aws:iam::*:role/*): ...
+[?] Should I upload example data to Redshift (overwriting 'feast_driver_hourly_stats' table)? (Y/n): 
+
+Creating a new Feast repository in /<...>/tiny_pika.
+```
+{% endtab %}
+
 {% endtabs %}
 
 The `init` command creates a Python file with feature definitions, sample data, and a Feast configuration file for local development:
