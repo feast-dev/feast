@@ -19,6 +19,13 @@ class FeatureService:
     """
     A feature service is a logical grouping of features for retrieval (training or serving).
     The features grouped by a feature service may come from any number of feature views.
+
+    Args:
+        name: Unique name of the feature service.
+        features: A list of Features that are grouped as part of this FeatureService.
+            The list may contain Feature Views, Feature Tables, or a subset of either.
+        tags (optional): A dictionary of key-value pairs used for organizing Feature
+            Services.
     """
 
     name: str
@@ -34,13 +41,10 @@ class FeatureService:
         tags: Optional[Dict[str, str]] = None,
     ):
         """
-        Create a new Feature Service object.
+        Creates a FeatureService object.
 
-        Args:
-            name: A unique name for the Feature Service.
-            features: A list of Features that are grouped as part of this FeatureService.
-                The list may contain Feature Views, Feature Tables, or a subset of either.
-            tags: A dictionary of key-value pairs used for organizing Feature Services.
+        Raises:
+            ValueError: If one of the specified features is not a valid type.
         """
         self.name = name
         self.features = []
@@ -80,6 +84,12 @@ class FeatureService:
 
     @staticmethod
     def from_proto(feature_service_proto: FeatureServiceProto):
+        """
+        Converts a FeatureServiceProto to a FeatureService object.
+
+        Args:
+            feature_service_proto: A protobuf representation of a FeatureService.
+        """
         fs = FeatureService(
             name=feature_service_proto.spec.name,
             features=[
@@ -101,6 +111,12 @@ class FeatureService:
         return fs
 
     def to_proto(self) -> FeatureServiceProto:
+        """
+        Converts a FeatureService to its protobuf representation.
+
+        Returns:
+            A FeatureServiceProto protobuf.
+        """
         meta = FeatureServiceMeta()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)

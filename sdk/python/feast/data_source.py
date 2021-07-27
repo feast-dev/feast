@@ -15,7 +15,7 @@
 
 import enum
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_format import StreamFormat
@@ -220,20 +220,42 @@ class KinesisOptions:
 
 class DataSource(ABC):
     """
-    DataSource that can be used source features
+    DataSource that can be used to source features.
+
+    Args:
+        event_timestamp_column (optional): Event timestamp column used for point in time
+            joins of feature values.
+        created_timestamp_column (optional): Timestamp column indicating when the row
+            was created, used for deduplicating rows.
+        field_mapping (optional): A dictionary mapping of column names in this data
+            source to feature names in a feature table or view. Only used for feature
+            columns, not entity or timestamp columns.
+        date_partition_column (optional): Timestamp column used for partitioning.
     """
+
+    _event_timestamp_column: str
+    _created_timestamp_column: str
+    _field_mapping: Dict[str, str]
+    _date_partition_column: str
 
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = "",
-        created_timestamp_column: Optional[str] = "",
+        event_timestamp_column: Optional[str] = None,
+        created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
     ):
-        self._event_timestamp_column = event_timestamp_column
-        self._created_timestamp_column = created_timestamp_column
+        """Creates a DataSource object."""
+        self._event_timestamp_column = (
+            event_timestamp_column if event_timestamp_column else ""
+        )
+        self._created_timestamp_column = (
+            created_timestamp_column if created_timestamp_column else ""
+        )
         self._field_mapping = field_mapping if field_mapping else {}
-        self._date_partition_column = date_partition_column
+        self._date_partition_column = (
+            date_partition_column if date_partition_column else ""
+        )
 
     def __eq__(self, other):
         if not isinstance(other, DataSource):
@@ -250,68 +272,76 @@ class DataSource(ABC):
         return True
 
     @property
-    def field_mapping(self):
+    def field_mapping(self) -> Dict[str, str]:
         """
-        Returns the field mapping of this data source
+        Returns the field mapping of this data source.
         """
         return self._field_mapping
 
     @field_mapping.setter
     def field_mapping(self, field_mapping):
         """
-        Sets the field mapping of this data source
+        Sets the field mapping of this data source.
         """
         self._field_mapping = field_mapping
 
     @property
-    def event_timestamp_column(self):
+    def event_timestamp_column(self) -> str:
         """
-        Returns the event timestamp column of this data source
+        Returns the event timestamp column of this data source.
         """
         return self._event_timestamp_column
 
     @event_timestamp_column.setter
     def event_timestamp_column(self, event_timestamp_column):
         """
-        Sets the event timestamp column of this data source
+        Sets the event timestamp column of this data source.
         """
         self._event_timestamp_column = event_timestamp_column
 
     @property
-    def created_timestamp_column(self):
+    def created_timestamp_column(self) -> str:
         """
-        Returns the created timestamp column of this data source
+        Returns the created timestamp column of this data source.
         """
         return self._created_timestamp_column
 
     @created_timestamp_column.setter
     def created_timestamp_column(self, created_timestamp_column):
         """
-        Sets the created timestamp column of this data source
+        Sets the created timestamp column of this data source.
         """
         self._created_timestamp_column = created_timestamp_column
 
     @property
-    def date_partition_column(self):
+    def date_partition_column(self) -> str:
         """
-        Returns the date partition column of this data source
+        Returns the date partition column of this data source.
         """
         return self._date_partition_column
 
     @date_partition_column.setter
     def date_partition_column(self, date_partition_column):
         """
-        Sets the date partition column of this data source
+        Sets the date partition column of this data source.
         """
         self._date_partition_column = date_partition_column
 
     @staticmethod
     @abstractmethod
-    def from_proto(data_source: DataSourceProto):
+    def from_proto(data_source: DataSourceProto) -> Any:
         """
-        Convert data source config in FeatureTable spec to a DataSource class object.
-        """
+        Converts data source config in FeatureTable spec to a DataSource class object.
 
+        Args:
+            data_source: A protobuf representation of a DataSource.
+
+        Returns:
+            A DataSource class object.
+
+        Raises:
+            ValueError: The type of DataSource could not be identified.
+        """
         if data_source.data_source_class_type:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
@@ -343,7 +373,7 @@ class DataSource(ABC):
         ):
             data_source_obj = KinesisSource.from_proto(data_source)
         else:
-            raise ValueError("Could not identify the source type being added")
+            raise ValueError("Could not identify the source type being added.")
 
         return data_source_obj
 
@@ -357,6 +387,9 @@ class DataSource(ABC):
     def validate(self, config: RepoConfig):
         """
         Validates the underlying data source.
+
+        Args:
+            config: Configuration object used to configure a feature store.
         """
         raise NotImplementedError
 
@@ -364,7 +397,7 @@ class DataSource(ABC):
     @abstractmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         """
-        Get the callable method that returns Feast type given the raw column type
+        Returns the callable method that returns Feast type given the raw column type.
         """
         raise NotImplementedError
 
@@ -372,12 +405,17 @@ class DataSource(ABC):
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
         """
-        Get the list of column names and raw column types
+        Returns the list of column names and raw column types.
+
+        Args:
+            config: Configuration object used to configure a feature store.
         """
         raise NotImplementedError
 
     def get_table_query_string(self) -> str:
-        """Returns a string that can directly be used to reference this table in SQL"""
+        """
+        Returns a string that can directly be used to reference this table in SQL.
+        """
         raise NotImplementedError
 
 

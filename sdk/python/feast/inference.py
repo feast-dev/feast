@@ -108,6 +108,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     matched_flag = True
                     event_timestamp_column = col_name
             if matched_flag:
+                assert event_timestamp_column
                 data_source.event_timestamp_column = event_timestamp_column
             else:
                 raise RegistryInferenceFailure(
