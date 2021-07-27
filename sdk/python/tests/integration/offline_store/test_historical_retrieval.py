@@ -89,7 +89,7 @@ def create_driver_hourly_stats_feature_view(source):
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
-        input=source,
+        batch_source=source,
         ttl=timedelta(hours=2),
     )
     return driver_stats_feature_view
@@ -127,7 +127,7 @@ def create_customer_daily_profile_feature_view(source):
             Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
-        input=source,
+        batch_source=source,
         ttl=timedelta(days=2),
     )
     return customer_profile_feature_view
@@ -164,17 +164,17 @@ def get_expected_training_df(
         orders_df.to_dict("records"), event_timestamp
     )
     driver_records = convert_timestamp_records_to_utc(
-        driver_df.to_dict("records"), driver_fv.input.event_timestamp_column
+        driver_df.to_dict("records"), driver_fv.batch_source.event_timestamp_column
     )
     customer_records = convert_timestamp_records_to_utc(
-        customer_df.to_dict("records"), customer_fv.input.event_timestamp_column
+        customer_df.to_dict("records"), customer_fv.batch_source.event_timestamp_column
     )
 
     # Manually do point-in-time join of orders to drivers and customers records
     for order_record in order_records:
         driver_record = find_asof_record(
             driver_records,
-            ts_key=driver_fv.input.event_timestamp_column,
+            ts_key=driver_fv.batch_source.event_timestamp_column,
             ts_start=order_record[event_timestamp] - driver_fv.ttl,
             ts_end=order_record[event_timestamp],
             filter_key="driver_id",
@@ -182,7 +182,7 @@ def get_expected_training_df(
         )
         customer_record = find_asof_record(
             customer_records,
-            ts_key=customer_fv.input.event_timestamp_column,
+            ts_key=customer_fv.batch_source.event_timestamp_column,
             ts_start=order_record[event_timestamp] - customer_fv.ttl,
             ts_end=order_record[event_timestamp],
             filter_key="customer_id",

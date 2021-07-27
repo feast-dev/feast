@@ -261,7 +261,7 @@ class FeatureStore:
             >>>     name="customer_fv",
             >>>     entities=["customer"],
             >>>     features=[Feature(name="age", dtype=ValueType.INT64)],
-            >>>     input=FileSource(path="file.parquet", event_timestamp_column="timestamp"),
+            >>>     batch_source=FileSource(path="file.parquet", event_timestamp_column="timestamp"),
             >>>     ttl=timedelta(days=1)
             >>> )
             >>> fs.apply([customer_entity, customer_feature_view])
@@ -284,11 +284,11 @@ class FeatureStore:
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.input for view in views_to_update], self.config
+            [view.batch_source for view in views_to_update], self.config
         )
 
         for view in views_to_update:
-            view.infer_features_from_input_source(self.config)
+            view.infer_features_from_batch_source(self.config)
 
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update

@@ -111,7 +111,7 @@ driver_locations = FeatureView(
         Feature(name="lat", dtype=ValueType.FLOAT),
         Feature(name="lon", dtype=ValueType.STRING),
     ],
-    input=driver_locations_source,
+    batch_source=driver_locations_source,
 )
 ```
 {% endcode %}
