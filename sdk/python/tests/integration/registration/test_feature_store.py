@@ -182,7 +182,7 @@ def test_apply_feature_view_success(test_feature_store):
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
-        input=batch_source,
+        batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -223,7 +223,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
-            input=file_source,
+            batch_source=file_source,
             tags={},
         )
 
@@ -232,7 +232,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
-            input=simple_bq_source_using_table_ref_arg(dataframe_source, "ts_1"),
+            batch_source=simple_bq_source_using_table_ref_arg(dataframe_source, "ts_1"),
             tags={},
         )
 
@@ -241,7 +241,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
-            input=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
+            batch_source=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
             tags={},
         )
 
@@ -303,7 +303,7 @@ def test_apply_feature_view_integration(test_feature_store):
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
-        input=batch_source,
+        batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -379,7 +379,7 @@ def test_apply_object_and_read(test_feature_store):
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
-        input=batch_source,
+        batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -393,7 +393,7 @@ def test_apply_object_and_read(test_feature_store):
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
-        input=batch_source,
+        batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -440,7 +440,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
             name="my_feature_view_1",
             features=[Feature(name="string_col", dtype=ValueType.STRING)],
             entities=["id"],
-            input=file_source,
+            batch_source=file_source,
             ttl=timedelta(minutes=5),
         )
 
@@ -470,7 +470,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
             name="my_feature_view_1",
             features=[Feature(name="int64_col", dtype=ValueType.INT64)],
             entities=["id"],
-            input=file_source,
+            batch_source=file_source,
             ttl=timedelta(minutes=5),
         )
         test_feature_store.apply([fv1])

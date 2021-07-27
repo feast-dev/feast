@@ -23,8 +23,12 @@ def test_update_entities_with_inferred_types_from_feature_views(
         df=simple_dataset_2, event_timestamp_column="ts_1"
     ) as file_source_2:
 
-        fv1 = FeatureView(name="fv1", entities=["id"], input=file_source, ttl=None,)
-        fv2 = FeatureView(name="fv2", entities=["id"], input=file_source_2, ttl=None,)
+        fv1 = FeatureView(
+            name="fv1", entities=["id"], batch_source=file_source, ttl=None,
+        )
+        fv2 = FeatureView(
+            name="fv2", entities=["id"], batch_source=file_source_2, ttl=None,
+        )
 
         actual_1 = Entity(name="id")
         actual_2 = Entity(name="id")

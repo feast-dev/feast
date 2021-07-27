@@ -104,15 +104,21 @@ class FileOfflineStore(OfflineStore):
 
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
-                event_timestamp_column = feature_view.input.event_timestamp_column
-                created_timestamp_column = feature_view.input.created_timestamp_column
+                event_timestamp_column = (
+                    feature_view.batch_source.event_timestamp_column
+                )
+                created_timestamp_column = (
+                    feature_view.batch_source.created_timestamp_column
+                )
 
                 # Read offline parquet data in pyarrow format
-                table = pyarrow.parquet.read_table(feature_view.input.path)
+                table = pyarrow.parquet.read_table(feature_view.batch_source.path)
 
                 # Rename columns by the field mapping dictionary if it exists
-                if feature_view.input.field_mapping is not None:
-                    table = _run_field_mapping(table, feature_view.input.field_mapping)
+                if feature_view.batch_source.field_mapping is not None:
+                    table = _run_field_mapping(
+                        table, feature_view.batch_source.field_mapping
+                    )
 
                 # Convert pyarrow table to pandas dataframe
                 df_to_join = table.to_pandas()

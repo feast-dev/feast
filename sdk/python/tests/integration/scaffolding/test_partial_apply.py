@@ -34,7 +34,7 @@ def test_partial() -> None:
                 Feature(name="name", dtype=ValueType.STRING),
             ],
             online=True,
-            input=driver_locations_source,
+            batch_source=driver_locations_source,
             tags={},
         )
 

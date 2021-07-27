@@ -14,7 +14,7 @@ driver_stats_fv = FeatureView(
         Feature(name="trips_today", dtype=ValueType.INT64),
         Feature(name="rating", dtype=ValueType.FLOAT),
     ],
-    input=BigQuerySource(
+    batch_source=BigQuerySource(
         table_ref="feast-oss.demo_data.driver_activity"
     )
 )

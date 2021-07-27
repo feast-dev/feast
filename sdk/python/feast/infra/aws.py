@@ -99,7 +99,7 @@ class AwsProvider(Provider):
 
         offline_job = self.offline_store.pull_latest_from_table_or_query(
             config=config,
-            data_source=feature_view.input,
+            data_source=feature_view.batch_source,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             event_timestamp_column=event_timestamp_column,
@@ -110,8 +110,8 @@ class AwsProvider(Provider):
 
         table = offline_job.to_arrow()
 
-        if feature_view.input.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.input.field_mapping)
+        if feature_view.batch_source.field_mapping is not None:
+            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
 
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)

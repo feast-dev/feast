@@ -28,7 +28,7 @@ def create_driver_hourly_stats_feature_view(source):
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
-        input=source,
+        batch_source=source,
         ttl=timedelta(hours=2),
     )
     return driver_stats_feature_view

@@ -54,10 +54,10 @@ driver_stats_fv = FeatureView(
         Feature(name="acc_rate", dtype=ValueType.FLOAT),
         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
     ],
-    # Inputs are used to find feature values. In the case of this feature
+    # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on Redshift for driver statistics
     # features
-    input=driver_stats_source,
+    batch_source=driver_stats_source,
     # Tags are user defined key/value pairs that are attached to each
     # feature view
     tags={"team": "driver_performance"},
