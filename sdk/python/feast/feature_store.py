@@ -49,8 +49,9 @@ class FeatureStore:
     A FeatureStore object is used to define, create, and retrieve features.
 
     Args:
-        repo_path: Path to a `feature_store.yaml` used to configure the feature store.
-        config: Configuration object used to configure the feature store.
+        repo_path (optional): Path to a `feature_store.yaml` used to configure the
+            feature store.
+        config (optional): Configuration object used to configure the feature store.
     """
 
     config: RepoConfig

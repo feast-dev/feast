@@ -88,7 +88,12 @@ class FeatureView:
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
-        """Inits the FeatureView class."""
+        """
+        Inits the FeatureView class.
+
+        Raises:
+            ValueError: A field mapping conflicts with an Entity or a Feature.
+        """
         warnings.warn(
             (
                 "The argument 'input' is being deprecated. Please use 'batch_source' "
