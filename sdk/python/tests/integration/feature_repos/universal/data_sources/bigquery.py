@@ -17,6 +17,9 @@ class BigQueryDataSourceCreator(DataSourceCreator):
     def __init__(self):
         self.client = bigquery.Client()
 
+    def create_offline_store_config(self):
+        return BigQueryOfflne
+
     def create_data_source(
         self,
         name: str,

@@ -18,7 +18,7 @@ class DataSourceCreator(ABC):
         ...
 
     @abstractmethod
-    def create_offline_store(self):
+    def create_offline_store_config(self):
         pass
 
     @abstractmethod
