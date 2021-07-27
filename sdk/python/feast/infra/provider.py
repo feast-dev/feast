@@ -211,13 +211,13 @@ def _get_column_names(
         the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.input.event_timestamp_column
+    event_timestamp_column = feature_view.batch_source.event_timestamp_column
     feature_names = [feature.name for feature in feature_view.features]
-    created_timestamp_column = feature_view.input.created_timestamp_column
+    created_timestamp_column = feature_view.batch_source.created_timestamp_column
     join_keys = [entity.join_key for entity in entities]
-    if feature_view.input.field_mapping is not None:
+    if feature_view.batch_source.field_mapping is not None:
         reverse_field_mapping = {
-            v: k for k, v in feature_view.input.field_mapping.items()
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
         event_timestamp_column = (
             reverse_field_mapping[event_timestamp_column]
@@ -292,13 +292,13 @@ def _convert_arrow_to_proto(
             value = python_value_to_proto_value(row[idx], feature.dtype)
             feature_dict[feature.name] = value
         event_timestamp_idx = table.column_names.index(
-            feature_view.input.event_timestamp_column
+            feature_view.batch_source.event_timestamp_column
         )
         event_timestamp = _coerce_datetime(row[event_timestamp_idx])
 
-        if feature_view.input.created_timestamp_column:
+        if feature_view.batch_source.created_timestamp_column:
             created_timestamp_idx = table.column_names.index(
-                feature_view.input.created_timestamp_column
+                feature_view.batch_source.created_timestamp_column
             )
             created_timestamp = _coerce_datetime(row[created_timestamp_idx])
         else:

@@ -162,7 +162,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
-    data_sources = [t.input for t in repo.feature_views]
+    data_sources = [t.batch_source for t in repo.feature_views]
 
     if not skip_source_validation:
         # Make sure the data source used by this feature view is supported by Feast
@@ -175,7 +175,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     )
     update_data_sources_with_inferred_event_timestamp_col(data_sources, repo_config)
     for view in repo.feature_views:
-        view.infer_features_from_input_source(repo_config)
+        view.infer_features_from_batch_source(repo_config)
 
     repo_table_names = set(t.name for t in repo.feature_tables)
 

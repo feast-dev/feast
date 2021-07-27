@@ -45,7 +45,7 @@ driver_locations = FeatureView(
         Feature(name="lon", dtype=ValueType.STRING),
     ],
     online=True,
-    input=driver_locations_source,
+    batch_source=driver_locations_source,
     tags={},
 )
 
@@ -59,7 +59,7 @@ customer_profile = FeatureView(
         Feature(name="age", dtype=ValueType.INT64),
     ],
     online=True,
-    input=customer_profile_source,
+    batch_source=customer_profile_source,
     tags={},
 )
 
@@ -69,7 +69,7 @@ customer_driver_combined = FeatureView(
     ttl=timedelta(days=1),
     features=[Feature(name="trips", dtype=ValueType.INT64)],
     online=True,
-    input=customer_driver_combined_source,
+    batch_source=customer_driver_combined_source,
     tags={},
 )
 

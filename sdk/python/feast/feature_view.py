@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import re
+import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -38,6 +39,8 @@ from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
+warnings.simplefilter("once", DeprecationWarning)
+
 
 class FeatureView:
     """
@@ -51,7 +54,7 @@ class FeatureView:
     ttl: Optional[timedelta]
     online: bool
     input: DataSource
-    batch_source: Optional[DataSource] = None
+    batch_source: DataSource
     stream_source: Optional[DataSource] = None
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
@@ -63,13 +66,21 @@ class FeatureView:
         name: str,
         entities: List[str],
         ttl: Optional[Union[Duration, timedelta]],
-        input: DataSource,
+        input: Optional[DataSource] = None,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: List[Feature] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
+        warnings.warn(
+            (
+                "The argument 'input' is being deprecated. Please use 'batch_source' "
+                "instead. Feast 0.13 and onwards will not support the argument 'input'."
+            ),
+            DeprecationWarning,
+        )
+
         _input = input or batch_source
         assert _input is not None
 
@@ -139,7 +150,7 @@ class FeatureView:
             return False
         if sorted(self.features) != sorted(other.features):
             return False
-        if self.input != other.input:
+        if self.batch_source != other.batch_source:
             return False
         if self.stream_source != other.stream_source:
             return False
@@ -182,10 +193,8 @@ class FeatureView:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
 
-        batch_source_proto = self.input.to_proto()
-        batch_source_proto.data_source_class_type = (
-            f"{self.input.__class__.__module__}.{self.input.__class__.__name__}"
-        )
+        batch_source_proto = self.batch_source.to_proto()
+        batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
 
         stream_source_proto = None
         if self.stream_source:
@@ -217,7 +226,7 @@ class FeatureView:
             Returns a FeatureViewProto object based on the feature view protobuf
         """
 
-        _input = DataSource.from_proto(feature_view_proto.spec.batch_source)
+        batch_source = DataSource.from_proto(feature_view_proto.spec.batch_source)
         stream_source = (
             DataSource.from_proto(feature_view_proto.spec.stream_source)
             if feature_view_proto.spec.HasField("stream_source")
@@ -242,8 +251,8 @@ class FeatureView:
                 and feature_view_proto.spec.ttl.nanos == 0
                 else feature_view_proto.spec.ttl
             ),
-            input=_input,
-            batch_source=_input,
+            input=batch_source,
+            batch_source=batch_source,
             stream_source=stream_source,
         )
 
@@ -265,29 +274,30 @@ class FeatureView:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
 
-    def infer_features_from_input_source(self, config: RepoConfig):
+    def infer_features_from_batch_source(self, config: RepoConfig):
         if not self.features:
             columns_to_exclude = {
-                self.input.event_timestamp_column,
-                self.input.created_timestamp_column,
+                self.batch_source.event_timestamp_column,
+                self.batch_source.created_timestamp_column,
             } | set(self.entities)
 
-            for col_name, col_datatype in self.input.get_table_column_names_and_types(
-                config
-            ):
+            for (
+                col_name,
+                col_datatype,
+            ) in self.batch_source.get_table_column_names_and_types(config):
                 if col_name not in columns_to_exclude and not re.match(
                     "^__|__$",
                     col_name,  # double underscores often signal an internal-use column
                 ):
                     feature_name = (
-                        self.input.field_mapping[col_name]
-                        if col_name in self.input.field_mapping.keys()
+                        self.batch_source.field_mapping[col_name]
+                        if col_name in self.batch_source.field_mapping.keys()
                         else col_name
                     )
                     self.features.append(
                         Feature(
                             feature_name,
-                            self.input.source_datatype_to_feast_value_type()(
+                            self.batch_source.source_datatype_to_feast_value_type()(
                                 col_datatype
                             ),
                         )

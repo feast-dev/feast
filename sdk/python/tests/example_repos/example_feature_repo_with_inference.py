@@ -15,6 +15,6 @@ driver_hourly_stats_view = FeatureView(
     entities=["driver_id"],
     ttl=Duration(seconds=86400 * 1),
     online=True,
-    input=driver_hourly_stats,
+    batch_source=driver_hourly_stats,
     tags={},
 )
