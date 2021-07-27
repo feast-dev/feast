@@ -7,22 +7,22 @@ import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
-)
 from tests.integration.feature_repos.test_repo_configuration import construct_feature_store
+from tests.integration.feature_repos.test_repo_configuration import TestRepoConfig as C
 
-parameters = [
-    ("bigquery", BigQueryDataSourceCreator, "datastore"),
+configs = [
+    # C(),
+    C(offline_store="bigquery", online_store="datastore"),
+    # C(offline_store="redshift", online_store="dynamodb")
 ]
 
 
-@pytest.mark.parametrize("params", parameters)
-@pytest.mark.skip(reason="Still working on this test")
-def test_e2e_consistency(params):
-    with construct_feature_store(params) as fs:
-        fv = fs.get_feature_view("test_correctness")
-        run_offline_online_store_consistency_test(fs, fv, True)
+@pytest.mark.parametrize("config", configs)
+# @pytest.mark.skip(reason="Still working on this test")
+def test_e2e_consistency(config):
+        with construct_feature_store(config) as fs:
+            fv = fs.get_feature_view("test_correctness")
+            run_offline_online_store_consistency_test(fs, fv, True)
 
 
 def check_offline_and_online_features(
