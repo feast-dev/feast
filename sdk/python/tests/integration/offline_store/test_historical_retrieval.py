@@ -502,149 +502,156 @@ def test_historical_features_from_bigquery_sources(
 
         store.apply([driver, customer, driver_fv, customer_fv])
 
-        event_timestamp = (
-            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
-            else "e_ts"
-        )
-        expected_df = get_expected_training_df(
-            customer_df,
-            customer_fv,
-            driver_df,
-            driver_fv,
-            orders_df,
-            event_timestamp,
-            full_feature_names,
-        )
+        try:
+            event_timestamp = (
+                DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+                if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+                else "e_ts"
+            )
+            expected_df = get_expected_training_df(
+                customer_df,
+                customer_fv,
+                driver_df,
+                driver_fv,
+                orders_df,
+                event_timestamp,
+                full_feature_names,
+            )
 
-        job_from_sql = store.get_historical_features(
-            entity_df=entity_df_query,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-            full_feature_names=full_feature_names,
-        )
+            job_from_sql = store.get_historical_features(
+                entity_df=entity_df_query,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+                full_feature_names=full_feature_names,
+            )
 
-        start_time = datetime.utcnow()
-        actual_df_from_sql_entities = job_from_sql.to_df()
-        end_time = datetime.utcnow()
-        with capsys.disabled():
-            print(
-                str(
-                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
+            start_time = datetime.utcnow()
+            actual_df_from_sql_entities = job_from_sql.to_df()
+            end_time = datetime.utcnow()
+            with capsys.disabled():
+                print(
+                    str(
+                        f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
+                    )
                 )
+
+            assert sorted(expected_df.columns) == sorted(
+                actual_df_from_sql_entities.columns
             )
-
-        assert sorted(expected_df.columns) == sorted(
-            actual_df_from_sql_entities.columns
-        )
-        assert_frame_equal(
-            expected_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            actual_df_from_sql_entities[expected_df.columns]
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
-            check_dtype=False,
-        )
-
-        table_from_sql_entities = job_from_sql.to_arrow()
-        assert_frame_equal(
-            actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
-        )
-
-        timestamp_column = (
-            "e_ts"
-            if infer_event_timestamp_col
-            else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-        )
-
-        entity_df_query_with_invalid_join_key = (
-            f"select order_id, driver_id, customer_id as customer, "
-            f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
-        )
-        # Rename the join key; this should now raise an error.
-        assertpy.assert_that(store.get_historical_features).raises(
-            errors.FeastEntityDFMissingColumnsError
-        ).when_called_with(
-            entity_df=entity_df_query_with_invalid_join_key,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-        )
-
-        job_from_df = store.get_historical_features(
-            entity_df=orders_df,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-            full_feature_names=full_feature_names,
-        )
-
-        # Rename the join key; this should now raise an error.
-        orders_df_with_invalid_join_key = orders_df.rename(
-            {"customer_id": "customer"}, axis="columns"
-        )
-        assertpy.assert_that(store.get_historical_features).raises(
-            errors.FeastEntityDFMissingColumnsError
-        ).when_called_with(
-            entity_df=orders_df_with_invalid_join_key,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-        )
-
-        # Make sure that custom dataset name is being used from the offline_store config
-        if provider_type == "gcp_custom_offline_config":
-            assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
-        else:
-            assertpy.assert_that(job_from_df.query).contains(
-                f"{bigquery_dataset}.feast_entity_df"
-            )
-
-        start_time = datetime.utcnow()
-        actual_df_from_df_entities = job_from_df.to_df()
-        end_time = datetime.utcnow()
-        with capsys.disabled():
-            print(
-                str(
-                    f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
+            assert_frame_equal(
+                expected_df.sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                ).reset_index(drop=True),
+                actual_df_from_sql_entities[expected_df.columns]
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 )
+                .reset_index(drop=True),
+                check_dtype=False,
             )
 
-        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
-        assert_frame_equal(
-            expected_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            actual_df_from_df_entities[expected_df.columns]
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
-            check_dtype=False,
-        )
+            table_from_sql_entities = job_from_sql.to_arrow()
+            assert_frame_equal(
+                actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
+            )
 
-        table_from_df_entities = job_from_df.to_arrow()
-        assert_frame_equal(
-            actual_df_from_df_entities, table_from_df_entities.to_pandas()
-        )
+            timestamp_column = (
+                "e_ts"
+                if infer_event_timestamp_col
+                else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            )
 
-        store.teardown()
+            entity_df_query_with_invalid_join_key = (
+                f"select order_id, driver_id, customer_id as customer, "
+                f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
+            )
+            # Rename the join key; this should now raise an error.
+            assertpy.assert_that(store.get_historical_features).raises(
+                errors.FeastEntityDFMissingColumnsError
+            ).when_called_with(
+                entity_df=entity_df_query_with_invalid_join_key,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+            )
+
+            job_from_df = store.get_historical_features(
+                entity_df=orders_df,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+                full_feature_names=full_feature_names,
+            )
+
+            # Rename the join key; this should now raise an error.
+            orders_df_with_invalid_join_key = orders_df.rename(
+                {"customer_id": "customer"}, axis="columns"
+            )
+            assertpy.assert_that(store.get_historical_features).raises(
+                errors.FeastEntityDFMissingColumnsError
+            ).when_called_with(
+                entity_df=orders_df_with_invalid_join_key,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+            )
+
+            # Make sure that custom dataset name is being used from the offline_store config
+            if provider_type == "gcp_custom_offline_config":
+                assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
+            else:
+                assertpy.assert_that(job_from_df.query).contains(
+                    f"{bigquery_dataset}.feast_entity_df"
+                )
+
+            start_time = datetime.utcnow()
+            actual_df_from_df_entities = job_from_df.to_df()
+            end_time = datetime.utcnow()
+            with capsys.disabled():
+                print(
+                    str(
+                        f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
+                    )
+                )
+
+            assert sorted(expected_df.columns) == sorted(
+                actual_df_from_df_entities.columns
+            )
+            assert_frame_equal(
+                expected_df.sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                ).reset_index(drop=True),
+                actual_df_from_df_entities[expected_df.columns]
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
+                .reset_index(drop=True),
+                check_dtype=False,
+            )
+
+            table_from_df_entities = job_from_df.to_arrow()
+            assert_frame_equal(
+                actual_df_from_df_entities, table_from_df_entities.to_pandas()
+            )
+        finally:
+            store.teardown()
 
 
 @pytest.mark.integration
@@ -781,149 +788,162 @@ def test_historical_features_from_redshift_sources(
 
         store.apply([driver, customer, driver_fv, customer_fv])
 
-        event_timestamp = (
-            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
-            else "e_ts"
-        )
-        expected_df = get_expected_training_df(
-            customer_df,
-            customer_fv,
-            driver_df,
-            driver_fv,
-            orders_df,
-            event_timestamp,
-            full_feature_names,
-        )
-
-        job_from_sql = store.get_historical_features(
-            entity_df=entity_df_query,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-            full_feature_names=full_feature_names,
-        )
-
-        start_time = datetime.utcnow()
-        actual_df_from_sql_entities = job_from_sql.to_df()
-        end_time = datetime.utcnow()
-        with capsys.disabled():
-            print(
-                str(
-                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
-                )
+        try:
+            event_timestamp = (
+                DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+                if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+                else "e_ts"
+            )
+            expected_df = get_expected_training_df(
+                customer_df,
+                customer_fv,
+                driver_df,
+                driver_fv,
+                orders_df,
+                event_timestamp,
+                full_feature_names,
             )
 
-        assert sorted(expected_df.columns) == sorted(
-            actual_df_from_sql_entities.columns
-        )
-        assert_frame_equal(
-            expected_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            actual_df_from_sql_entities[expected_df.columns]
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
-            check_dtype=False,
-        )
-
-        table_from_sql_entities = job_from_sql.to_arrow()
-        assert_frame_equal(
-            actual_df_from_sql_entities.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            table_from_sql_entities.to_pandas()
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
-        )
-
-        timestamp_column = (
-            "e_ts"
-            if infer_event_timestamp_col
-            else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-        )
-
-        entity_df_query_with_invalid_join_key = (
-            f"select order_id, driver_id, customer_id as customer, "
-            f"order_is_success, {timestamp_column} FROM {table_name}"
-        )
-        # Rename the join key; this should now raise an error.
-        assertpy.assert_that(store.get_historical_features).raises(
-            errors.FeastEntityDFMissingColumnsError
-        ).when_called_with(
-            entity_df=entity_df_query_with_invalid_join_key,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-        )
-
-        job_from_df = store.get_historical_features(
-            entity_df=orders_df,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-            full_feature_names=full_feature_names,
-        )
-
-        # Rename the join key; this should now raise an error.
-        orders_df_with_invalid_join_key = orders_df.rename(
-            {"customer_id": "customer"}, axis="columns"
-        )
-        assertpy.assert_that(store.get_historical_features).raises(
-            errors.FeastEntityDFMissingColumnsError
-        ).when_called_with(
-            entity_df=orders_df_with_invalid_join_key,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-        )
-
-        start_time = datetime.utcnow()
-        actual_df_from_df_entities = job_from_df.to_df()
-        end_time = datetime.utcnow()
-        with capsys.disabled():
-            print(
-                str(
-                    f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
-                )
+            job_from_sql = store.get_historical_features(
+                entity_df=entity_df_query,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+                full_feature_names=full_feature_names,
             )
 
-        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
-        assert_frame_equal(
-            expected_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            actual_df_from_df_entities[expected_df.columns]
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
-            check_dtype=False,
-        )
+            start_time = datetime.utcnow()
+            actual_df_from_sql_entities = job_from_sql.to_df()
+            end_time = datetime.utcnow()
+            with capsys.disabled():
+                print(
+                    str(
+                        f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
+                    )
+                )
 
-        table_from_df_entities = job_from_df.to_arrow()
-        assert_frame_equal(
-            actual_df_from_df_entities.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            table_from_df_entities.to_pandas()
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
-        )
+            assert sorted(expected_df.columns) == sorted(
+                actual_df_from_sql_entities.columns
+            )
+            assert_frame_equal(
+                expected_df.sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                ).reset_index(drop=True),
+                actual_df_from_sql_entities[expected_df.columns]
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
+                .reset_index(drop=True),
+                check_dtype=False,
+            )
+
+            table_from_sql_entities = job_from_sql.to_arrow()
+            assert_frame_equal(
+                actual_df_from_sql_entities.sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                ).reset_index(drop=True),
+                table_from_sql_entities.to_pandas()
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
+                .reset_index(drop=True),
+            )
+
+            timestamp_column = (
+                "e_ts"
+                if infer_event_timestamp_col
+                else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            )
+
+            entity_df_query_with_invalid_join_key = (
+                f"select order_id, driver_id, customer_id as customer, "
+                f"order_is_success, {timestamp_column} FROM {table_name}"
+            )
+            # Rename the join key; this should now raise an error.
+            assertpy.assert_that(store.get_historical_features).raises(
+                errors.FeastEntityDFMissingColumnsError
+            ).when_called_with(
+                entity_df=entity_df_query_with_invalid_join_key,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+            )
+
+            job_from_df = store.get_historical_features(
+                entity_df=orders_df,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+                full_feature_names=full_feature_names,
+            )
+
+            # Rename the join key; this should now raise an error.
+            orders_df_with_invalid_join_key = orders_df.rename(
+                {"customer_id": "customer"}, axis="columns"
+            )
+            assertpy.assert_that(store.get_historical_features).raises(
+                errors.FeastEntityDFMissingColumnsError
+            ).when_called_with(
+                entity_df=orders_df_with_invalid_join_key,
+                features=[
+                    "driver_stats:conv_rate",
+                    "driver_stats:avg_daily_trips",
+                    "customer_profile:current_balance",
+                    "customer_profile:avg_passenger_count",
+                    "customer_profile:lifetime_trip_count",
+                ],
+            )
+
+            start_time = datetime.utcnow()
+            actual_df_from_df_entities = job_from_df.to_df()
+            end_time = datetime.utcnow()
+            with capsys.disabled():
+                print(
+                    str(
+                        f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
+                    )
+                )
+
+            assert sorted(expected_df.columns) == sorted(
+                actual_df_from_df_entities.columns
+            )
+            assert_frame_equal(
+                expected_df.sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                ).reset_index(drop=True),
+                actual_df_from_df_entities[expected_df.columns]
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
+                .reset_index(drop=True),
+                check_dtype=False,
+            )
+
+            table_from_df_entities = job_from_df.to_arrow()
+            assert_frame_equal(
+                actual_df_from_df_entities.sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                ).reset_index(drop=True),
+                table_from_df_entities.to_pandas()
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
+                .reset_index(drop=True),
+            )
+        finally:
+            store.teardown()
 
 
 def test_feature_name_collision_on_historical_retrieval():
