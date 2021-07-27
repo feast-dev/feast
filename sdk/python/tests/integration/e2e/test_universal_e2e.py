@@ -7,8 +7,10 @@ import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.test_repo_configuration import construct_feature_store
 from tests.integration.feature_repos.test_repo_configuration import TestRepoConfig as C
+from tests.integration.feature_repos.test_repo_configuration import (
+    construct_feature_store,
+)
 
 configs = [
     # C(),
@@ -20,9 +22,9 @@ configs = [
 @pytest.mark.parametrize("config", configs)
 # @pytest.mark.skip(reason="Still working on this test")
 def test_e2e_consistency(config):
-        with construct_feature_store(config) as fs:
-            fv = fs.get_feature_view("test_correctness")
-            run_offline_online_store_consistency_test(fs, fv, True)
+    with construct_feature_store(config) as fs:
+        fv = fs.get_feature_view("test_correctness")
+        run_offline_online_store_consistency_test(fs, fv, True)
 
 
 def check_offline_and_online_features(

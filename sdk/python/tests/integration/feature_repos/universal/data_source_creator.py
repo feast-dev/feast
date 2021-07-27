@@ -18,5 +18,9 @@ class DataSourceCreator(ABC):
         ...
 
     @abstractmethod
+    def create_offline_store(self):
+        pass
+
+    @abstractmethod
     def teardown(self, name: str):
         ...

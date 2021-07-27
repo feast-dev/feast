@@ -5,8 +5,12 @@ from pathlib import Path
 from typing import Optional
 
 from attr import dataclass
+
 from feast import FeatureStore, RepoConfig
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStore, BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.bigquery import (
+    BigQueryOfflineStore,
+    BigQueryOfflineStoreConfig,
+)
 from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_sources.bigquery import (
