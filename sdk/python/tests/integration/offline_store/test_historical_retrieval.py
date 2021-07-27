@@ -548,7 +548,9 @@ def test_historical_features_from_bigquery_sources(
                     by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 ).reset_index(drop=True),
                 actual_df_from_sql_entities[expected_df.columns]
-                .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
                 .reset_index(drop=True),
                 check_dtype=False,
             )
@@ -629,13 +631,17 @@ def test_historical_features_from_bigquery_sources(
                     )
                 )
 
-            assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
+            assert sorted(expected_df.columns) == sorted(
+                actual_df_from_df_entities.columns
+            )
             assert_frame_equal(
                 expected_df.sort_values(
                     by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 ).reset_index(drop=True),
                 actual_df_from_df_entities[expected_df.columns]
-                .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
                 .reset_index(drop=True),
                 check_dtype=False,
             )
@@ -828,7 +834,9 @@ def test_historical_features_from_redshift_sources(
                     by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 ).reset_index(drop=True),
                 actual_df_from_sql_entities[expected_df.columns]
-                .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
                 .reset_index(drop=True),
                 check_dtype=False,
             )
@@ -839,7 +847,9 @@ def test_historical_features_from_redshift_sources(
                     by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 ).reset_index(drop=True),
                 table_from_sql_entities.to_pandas()
-                .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
                 .reset_index(drop=True),
             )
 
@@ -906,13 +916,17 @@ def test_historical_features_from_redshift_sources(
                     )
                 )
 
-            assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
+            assert sorted(expected_df.columns) == sorted(
+                actual_df_from_df_entities.columns
+            )
             assert_frame_equal(
                 expected_df.sort_values(
                     by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 ).reset_index(drop=True),
                 actual_df_from_df_entities[expected_df.columns]
-                .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
                 .reset_index(drop=True),
                 check_dtype=False,
             )
@@ -923,7 +937,9 @@ def test_historical_features_from_redshift_sources(
                     by=[event_timestamp, "order_id", "driver_id", "customer_id"]
                 ).reset_index(drop=True),
                 table_from_df_entities.to_pandas()
-                .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+                .sort_values(
+                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+                )
                 .reset_index(drop=True),
             )
         finally:
