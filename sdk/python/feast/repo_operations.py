@@ -193,7 +193,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     apply_feature_services(registry, project, repo)
 
     infra_provider = get_provider(repo_config, repo_path)
-    for name in [table.name for table in views_to_keep]:
+    for name in [view.name for view in views_to_keep]:
         click.echo(
             f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
