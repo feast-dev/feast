@@ -52,7 +52,7 @@ REQUIRED = [
     "protobuf>=3.10",
     "pyarrow>=2.0.0",
     "pydantic>=1.0.0",
-    "PyYAML==5.3.*",
+    "PyYAML>=5.4.*",
     "tabulate==0.8.*",
     "tenacity>=7.*",
     "toml==0.10.*",
