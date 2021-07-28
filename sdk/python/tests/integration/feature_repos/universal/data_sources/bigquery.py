@@ -5,6 +5,7 @@ from google.cloud import bigquery
 
 from feast import BigQuerySource
 from feast.data_source import DataSource
+from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -18,7 +19,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self.client = bigquery.Client()
 
     def create_offline_store_config(self):
-        return BigQueryOfflne
+        return BigQueryOfflineStoreConfig()
 
     def create_data_source(
         self,

@@ -2,19 +2,13 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 
 from attr import dataclass
 
-from feast import FeatureStore, RepoConfig
-from feast.infra.offline_stores.bigquery import (
-    BigQueryOfflineStore,
-    BigQueryOfflineStoreConfig,
-)
-from feast.infra.online_stores.datastore import DatastoreOnlineStoreConfig
+from feast import FeatureStore, RepoConfig, importer
 from tests.data.data_creator import create_dataset
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
+from tests.integration.feature_repos.universal.data_source_creator import (
+    DataSourceCreator,
 )
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import (
@@ -29,8 +23,9 @@ class TestRepoConfig:
     """
 
     provider: str = "local"
-    offline_store: str = "file"
     online_store: str = "sqlite"
+
+    offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator"
 
     full_feature_names: bool = True
 
@@ -53,9 +48,17 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
 
     # TODO: Parameterize over data sources, by pulling this into individual data_source classes behind
     # TODO: an appropriate interface.
-    ds = BigQueryDataSourceCreator().create_data_source(project, df)
-    offline_store = BigQueryOfflineStoreConfig()
-    online_store = DatastoreOnlineStoreConfig(namespace="integration_test")
+
+    module_name, config_class_name = test_repo_config.offline_store_creator.rsplit(
+        ".", 1
+    )
+
+    offline_creator: DataSourceCreator = importer.get_class_from_type(
+        module_name, config_class_name, "DataSourceCreator"
+    )()
+    ds = offline_creator.create_data_source(project, df)
+    offline_store = offline_creator.create_offline_store_config()
+    online_store = test_repo_config.online_store
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
         config = RepoConfig(
@@ -72,4 +75,4 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
     yield fs
 
     fs.teardown()
-    BigQueryDataSourceCreator().teardown(project)
+    offline_creator.teardown(project)

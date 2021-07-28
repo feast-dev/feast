@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 from feast.data_source import DataSource
+from feast.repo_config import FeastConfigBaseModel
 
 
 class DataSourceCreator(ABC):
@@ -13,13 +14,12 @@ class DataSourceCreator(ABC):
         df: pd.DataFrame,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        **kwargs,
     ) -> DataSource:
         ...
 
     @abstractmethod
-    def create_offline_store_config(self):
-        pass
+    def create_offline_store_config(self) -> FeastConfigBaseModel:
+        ...
 
     @abstractmethod
     def teardown(self, name: str):

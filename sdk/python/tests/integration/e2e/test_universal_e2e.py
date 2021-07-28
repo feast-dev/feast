@@ -13,14 +13,14 @@ from tests.integration.feature_repos.test_repo_configuration import (
 )
 
 configs = [
-    # C(),
-    C(offline_store="bigquery", online_store="datastore"),
-    # C(offline_store="redshift", online_store="dynamodb")
+    C(),
+    C(
+        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator"
+    ),
 ]
 
 
 @pytest.mark.parametrize("config", configs)
-# @pytest.mark.skip(reason="Still working on this test")
 def test_e2e_consistency(config):
     with construct_feature_store(config) as fs:
         fv = fs.get_feature_view("test_correctness")
