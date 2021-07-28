@@ -20,6 +20,7 @@ configs = [
 ]
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("config", configs)
 def test_e2e_consistency(config):
     with construct_feature_store(config) as fs:
