@@ -154,7 +154,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
     _validate_feature_views(repo.feature_views)
-    data_sources = [t.batch_source for t in repo.feature_views]
 
     if not skip_source_validation:
         data_sources = [t.input for t in repo.feature_views]
