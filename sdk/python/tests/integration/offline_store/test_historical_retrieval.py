@@ -864,18 +864,18 @@ def test_historical_features_from_redshift_sources(
                 f"order_is_success, {timestamp_column} FROM {table_name}"
             )
             # Rename the join key; this should now raise an error.
-            assertpy.assert_that(store.get_historical_features).raises(
-                errors.FeastEntityDFMissingColumnsError
-            ).when_called_with(
-                entity_df=entity_df_query_with_invalid_join_key,
-                features=[
-                    "driver_stats:conv_rate",
-                    "driver_stats:avg_daily_trips",
-                    "customer_profile:current_balance",
-                    "customer_profile:avg_passenger_count",
-                    "customer_profile:lifetime_trip_count",
-                ],
-            )
+            assertpy.assert_that(
+                store.get_historical_features(
+                    entity_df=entity_df_query_with_invalid_join_key,
+                    features=[
+                        "driver_stats:conv_rate",
+                        "driver_stats:avg_daily_trips",
+                        "customer_profile:current_balance",
+                        "customer_profile:avg_passenger_count",
+                        "customer_profile:lifetime_trip_count",
+                    ],
+                ).to_df
+            ).raises(errors.FeastEntityDFMissingColumnsError).when_called_with()
 
             job_from_df = store.get_historical_features(
                 entity_df=orders_df,
@@ -893,18 +893,18 @@ def test_historical_features_from_redshift_sources(
             orders_df_with_invalid_join_key = orders_df.rename(
                 {"customer_id": "customer"}, axis="columns"
             )
-            assertpy.assert_that(store.get_historical_features).raises(
-                errors.FeastEntityDFMissingColumnsError
-            ).when_called_with(
-                entity_df=orders_df_with_invalid_join_key,
-                features=[
-                    "driver_stats:conv_rate",
-                    "driver_stats:avg_daily_trips",
-                    "customer_profile:current_balance",
-                    "customer_profile:avg_passenger_count",
-                    "customer_profile:lifetime_trip_count",
-                ],
-            )
+            assertpy.assert_that(
+                store.get_historical_features(
+                    entity_df=orders_df_with_invalid_join_key,
+                    features=[
+                        "driver_stats:conv_rate",
+                        "driver_stats:avg_daily_trips",
+                        "customer_profile:current_balance",
+                        "customer_profile:avg_passenger_count",
+                        "customer_profile:lifetime_trip_count",
+                    ],
+                ).to_df
+            ).raises(errors.FeastEntityDFMissingColumnsError).when_called_with()
 
             start_time = datetime.utcnow()
             actual_df_from_df_entities = job_from_df.to_df()

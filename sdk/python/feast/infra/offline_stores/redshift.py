@@ -1,6 +1,7 @@
+import contextlib
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Callable, ContextManager, Dict, Iterator, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -113,40 +114,53 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        table_name = offline_utils.get_temp_entity_table_name()
+        @contextlib.contextmanager
+        def query_generator() -> Iterator[str]:
+            table_name = offline_utils.get_temp_entity_table_name()
 
-        entity_schema = _upload_entity_df_and_get_entity_schema(
-            entity_df, redshift_client, config, s3_resource, table_name
-        )
+            entity_schema = _upload_entity_df_and_get_entity_schema(
+                entity_df, redshift_client, config, s3_resource, table_name
+            )
 
-        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema
-        )
+            entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+                entity_schema
+            )
 
-        expected_join_keys = offline_utils.get_expected_join_keys(
-            project, feature_views, registry
-        )
+            expected_join_keys = offline_utils.get_expected_join_keys(
+                project, feature_views, registry
+            )
 
-        offline_utils.assert_expected_columns_in_entity_df(
-            entity_schema, expected_join_keys, entity_df_event_timestamp_col
-        )
+            offline_utils.assert_expected_columns_in_entity_df(
+                entity_schema, expected_join_keys, entity_df_event_timestamp_col
+            )
 
-        # Build a query context containing all information required to template the Redshift SQL query
-        query_context = offline_utils.get_feature_view_query_context(
-            feature_refs, feature_views, registry, project,
-        )
+            # Build a query context containing all information required to template the Redshift SQL query
+            query_context = offline_utils.get_feature_view_query_context(
+                feature_refs, feature_views, registry, project,
+            )
 
-        # Generate the Redshift SQL query from the query context
-        query = offline_utils.build_point_in_time_query(
-            query_context,
-            left_table_query_string=table_name,
-            entity_df_event_timestamp_col=entity_df_event_timestamp_col,
-            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
-            full_feature_names=full_feature_names,
-        )
+            # Generate the Redshift SQL query from the query context
+            query = offline_utils.build_point_in_time_query(
+                query_context,
+                left_table_query_string=table_name,
+                entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+                query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+                full_feature_names=full_feature_names,
+            )
+
+            yield query
+
+            # Clean up the uploaded Redshift table
+            aws_utils.execute_redshift_statement(
+                redshift_client,
+                config.offline_store.cluster_id,
+                config.offline_store.database,
+                config.offline_store.user,
+                f"DROP TABLE {table_name}",
+            )
 
         return RedshiftRetrievalJob(
-            query=query,
+            query=query_generator,
             redshift_client=redshift_client,
             s3_resource=s3_resource,
             config=config,
@@ -161,7 +175,7 @@ class RedshiftOfflineStore(OfflineStore):
 class RedshiftRetrievalJob(RetrievalJob):
     def __init__(
         self,
-        query: str,
+        query: Union[str, Callable[[], ContextManager[str]]],
         redshift_client,
         s3_resource,
         config: RepoConfig,
@@ -170,14 +184,23 @@ class RedshiftRetrievalJob(RetrievalJob):
         """Initialize RedshiftRetrievalJob object.
 
         Args:
-            query: Redshift SQL query to execute.
+            query: Redshift SQL query to execute. Either a string, or a generator function that handles the artifact cleanup.
             redshift_client: boto3 redshift-data client
             s3_resource: boto3 s3 resource object
             config: Feast repo config
             drop_columns: Optionally a list of columns to drop before unloading to S3.
                           This is a convenient field, since "SELECT ... EXCEPT col" isn't supported in Redshift.
         """
-        self.query = query
+        if not isinstance(query, str):
+            self._query_generator = query
+        else:
+
+            @contextlib.contextmanager
+            def query_generator() -> Iterator[str]:
+                assert isinstance(query, str)
+                yield query
+
+            self._query_generator = query_generator
         self._redshift_client = redshift_client
         self._s3_resource = s3_resource
         self._config = config
@@ -189,59 +212,63 @@ class RedshiftRetrievalJob(RetrievalJob):
         self._drop_columns = drop_columns
 
     def to_df(self) -> pd.DataFrame:
-        return aws_utils.unload_redshift_query_to_df(
-            self._redshift_client,
-            self._config.offline_store.cluster_id,
-            self._config.offline_store.database,
-            self._config.offline_store.user,
-            self._s3_resource,
-            self._s3_path,
-            self._config.offline_store.iam_role,
-            self.query,
-            self._drop_columns,
-        )
+        with self._query_generator() as query:
+            return aws_utils.unload_redshift_query_to_df(
+                self._redshift_client,
+                self._config.offline_store.cluster_id,
+                self._config.offline_store.database,
+                self._config.offline_store.user,
+                self._s3_resource,
+                self._s3_path,
+                self._config.offline_store.iam_role,
+                query,
+                self._drop_columns,
+            )
 
     def to_arrow(self) -> pa.Table:
-        return aws_utils.unload_redshift_query_to_pa(
-            self._redshift_client,
-            self._config.offline_store.cluster_id,
-            self._config.offline_store.database,
-            self._config.offline_store.user,
-            self._s3_resource,
-            self._s3_path,
-            self._config.offline_store.iam_role,
-            self.query,
-            self._drop_columns,
-        )
+        with self._query_generator() as query:
+            return aws_utils.unload_redshift_query_to_pa(
+                self._redshift_client,
+                self._config.offline_store.cluster_id,
+                self._config.offline_store.database,
+                self._config.offline_store.user,
+                self._s3_resource,
+                self._s3_path,
+                self._config.offline_store.iam_role,
+                query,
+                self._drop_columns,
+            )
 
     def to_s3(self) -> str:
         """ Export dataset to S3 in Parquet format and return path """
-        aws_utils.execute_redshift_query_and_unload_to_s3(
-            self._redshift_client,
-            self._config.offline_store.cluster_id,
-            self._config.offline_store.database,
-            self._config.offline_store.user,
-            self._s3_path,
-            self._config.offline_store.iam_role,
-            self.query,
-            self._drop_columns,
-        )
-        return self._s3_path
+        with self._query_generator() as query:
+            aws_utils.execute_redshift_query_and_unload_to_s3(
+                self._redshift_client,
+                self._config.offline_store.cluster_id,
+                self._config.offline_store.database,
+                self._config.offline_store.user,
+                self._s3_path,
+                self._config.offline_store.iam_role,
+                query,
+                self._drop_columns,
+            )
+            return self._s3_path
 
     def to_redshift(self, table_name: str) -> None:
         """ Save dataset as a new Redshift table """
-        query = f'CREATE TABLE "{table_name}" AS ({self.query});\n'
-        if self._drop_columns is not None:
-            for column in self._drop_columns:
-                query += f"ALTER TABLE {table_name} DROP COLUMN {column};\n"
+        with self._query_generator() as query:
+            query = f'CREATE TABLE "{table_name}" AS ({query});\n'
+            if self._drop_columns is not None:
+                for column in self._drop_columns:
+                    query += f"ALTER TABLE {table_name} DROP COLUMN {column};\n"
 
-        aws_utils.execute_redshift_statement(
-            self._redshift_client,
-            self._config.offline_store.cluster_id,
-            self._config.offline_store.database,
-            self._config.offline_store.user,
-            query,
-        )
+            aws_utils.execute_redshift_statement(
+                self._redshift_client,
+                self._config.offline_store.cluster_id,
+                self._config.offline_store.database,
+                self._config.offline_store.user,
+                query,
+            )
 
 
 def _upload_entity_df_and_get_entity_schema(
