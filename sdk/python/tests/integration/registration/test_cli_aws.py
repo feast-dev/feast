@@ -33,6 +33,14 @@ def test_basic() -> None:
             online_store:
                 type: dynamodb
                 region: us-west-2
+            offline_store:
+              type: redshift
+              cluster_id: feast-integration-tests
+              region: us-west-2
+              user: admin
+              database: feast
+              s3_staging_location: s3://feast-integration-tests/redshift
+              iam_role: arn:aws:iam::402087665549:role/redshift_s3_access_role
             """
             )
         )

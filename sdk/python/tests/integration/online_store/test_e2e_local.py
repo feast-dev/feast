@@ -14,10 +14,11 @@ from tests.utils.cli_utils import CliRunner, get_example_repo
 def _get_last_feature_row(df: pd.DataFrame, driver_id, max_date: datetime):
     """ Manually extract last feature value from a dataframe for a given driver_id with up to `max_date` date """
     filtered = df[
-        (df["driver_id"] == driver_id) & (df["datetime"] < max_date.replace(tzinfo=utc))
+        (df["driver_id"] == driver_id)
+        & (df["event_timestamp"] < max_date.replace(tzinfo=utc))
     ]
-    max_ts = filtered.loc[filtered["datetime"].idxmax()]["datetime"]
-    filtered_by_ts = filtered[filtered["datetime"] == max_ts]
+    max_ts = filtered.loc[filtered["event_timestamp"].idxmax()]["event_timestamp"]
+    filtered_by_ts = filtered[filtered["event_timestamp"] == max_ts]
     return filtered_by_ts.loc[filtered_by_ts["created"].idxmax()]
 
 

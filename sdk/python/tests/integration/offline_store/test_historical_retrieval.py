@@ -67,7 +67,7 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
     df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
     return FileSource(
         path=driver_stats_path,
-        event_timestamp_column="datetime",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="",
     )
 
@@ -100,7 +100,7 @@ def stage_customer_daily_profile_parquet_source(directory, df):
     df.to_parquet(path=customer_profile_path, allow_truncated_timestamps=True)
     return FileSource(
         path=customer_profile_path,
-        event_timestamp_column="datetime",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
 
@@ -214,7 +214,7 @@ def get_expected_training_df(
     # Convert records back to pandas dataframe
     expected_df = pd.DataFrame(order_records)
 
-    # Move "datetime" column to front
+    # Move "event_timestamp" column to front
     current_cols = expected_df.columns.tolist()
     current_cols.remove(event_timestamp)
     expected_df = expected_df[[event_timestamp] + current_cols]
@@ -435,7 +435,7 @@ def test_historical_features_from_bigquery_sources(
         stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
         driver_source = BigQuerySource(
             table_ref=driver_table_id,
-            event_timestamp_column="datetime",
+            event_timestamp_column="event_timestamp",
             created_timestamp_column="created",
         )
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
@@ -449,7 +449,7 @@ def test_historical_features_from_bigquery_sources(
         stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
         customer_source = BigQuerySource(
             table_ref=customer_table_id,
-            event_timestamp_column="datetime",
+            event_timestamp_column="event_timestamp",
             created_timestamp_column="created",
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
@@ -744,14 +744,14 @@ def test_historical_features_from_redshift_sources(
     with orders_context, driver_context, customer_context, TemporaryDirectory() as temp_dir:
         driver_source = RedshiftSource(
             table=driver_table_name,
-            event_timestamp_column="datetime",
+            event_timestamp_column="event_timestamp",
             created_timestamp_column="created",
         )
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
 
         customer_source = RedshiftSource(
             table=customer_table_name,
-            event_timestamp_column="datetime",
+            event_timestamp_column="event_timestamp",
             created_timestamp_column="created",
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)

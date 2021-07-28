@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
+from feast import Entity, Feature, FeatureView, RedshiftSource, ValueType
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
 # retrieve features. Entities are also used to join multiple tables/views during the
@@ -18,9 +18,9 @@ driver = Entity(
 
 # Indicates a data source from which feature values can be retrieved. Sources are queried when building training
 # datasets or materializing features into an online store.
-driver_stats_source = BigQuerySource(
-    # The BigQuery table where features can be found
-    table_ref="feast-oss.demo_data.driver_hourly_stats_2",
+driver_stats_source = RedshiftSource(
+    # The Redshift table where features can be found
+    table="feast_driver_hourly_stats",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
     event_timestamp_column="event_timestamp",
@@ -55,7 +55,7 @@ driver_stats_fv = FeatureView(
         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
     ],
     # Batch sources are used to find feature values. In the case of this feature
-    # view we will query a source table on BigQuery for driver statistics
+    # view we will query a source table on Redshift for driver statistics
     # features
     batch_source=driver_stats_source,
     # Tags are user defined key/value pairs that are attached to each
