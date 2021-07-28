@@ -6,12 +6,12 @@ import sys
 from datetime import timedelta
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set, Union
+from typing import List, NamedTuple, Set
 
 import click
 from click.exceptions import BadParameter
 
-from feast import Entity, FeatureStore, FeatureTable
+from feast import Entity, FeatureTable
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore, _validate_feature_views
 from feast.feature_view import FeatureView
