@@ -111,7 +111,7 @@ class FileOfflineStore(OfflineStore):
                     feature_view.batch_source.created_timestamp_column
                 )
 
-                # Read offline parquet data in pyarrow format
+                # Read offline parquet data in pyarrow format.
                 table = pyarrow.parquet.read_table(feature_view.batch_source.path)
 
                 # Rename columns by the field mapping dictionary if it exists
@@ -120,7 +120,11 @@ class FileOfflineStore(OfflineStore):
                         table, feature_view.batch_source.field_mapping
                     )
 
-                # Convert pyarrow table to pandas dataframe
+                # Convert pyarrow table to pandas dataframe. Note, if the underlying data has missing values,
+                # pandas will convert those values to np.nan if the dtypes are numerical (floats, ints, etc.) or boolean
+                # If the dtype is 'object', then missing values are inferred as python `None`s.
+                # More details at:
+                # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#values-considered-missing
                 df_to_join = table.to_pandas()
 
                 # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
