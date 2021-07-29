@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import warnings
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -42,6 +43,8 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.usage import log_exceptions, log_exceptions_and_usage
 from feast.version import get_version
+
+warnings.simplefilter("once", DeprecationWarning)
 
 
 class FeatureStore:
@@ -219,7 +222,7 @@ class FeatureStore:
 
     def _get_features(
         self,
-        features: Union[List[str], FeatureService],
+        features: Optional[Union[List[str], FeatureService]],
         feature_refs: Optional[List[str]],
     ) -> List[str]:
         _features = features or feature_refs
@@ -342,7 +345,7 @@ class FeatureStore:
     def get_historical_features(
         self,
         entity_df: Union[pd.DataFrame, str],
-        features: Union[List[str], FeatureService],
+        features: Optional[Union[List[str], FeatureService]] = None,
         feature_refs: Optional[List[str]] = None,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -374,6 +377,9 @@ class FeatureStore:
         Returns:
             RetrievalJob which can be used to materialize the results.
 
+        Raises:
+            ValueError: Both or neither of features and feature_refs are specified.
+
         Examples:
             Retrieve historical features using a BigQuery SQL entity dataframe
 
@@ -387,6 +393,22 @@ class FeatureStore:
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
+        if (features is not None and feature_refs is not None) or (
+            features is None and feature_refs is None
+        ):
+            raise ValueError(
+                "You must specify exactly one of features and feature_refs."
+            )
+
+        if feature_refs:
+            warnings.warn(
+                (
+                    "The argument 'feature_refs' is being deprecated. Please use 'features' "
+                    "instead. Feast 0.13 and onwards will not support the argument 'feature_refs'."
+                ),
+                DeprecationWarning,
+            )
+
         _feature_refs = self._get_features(features, feature_refs)
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
