@@ -225,7 +225,7 @@ def _tag_registry_entities_for_keep_delete(project, registry, repo):
 
 def _tag_registry_views_for_keep_delete(project, registry, repo):
     views_to_keep: List[FeatureView] = repo.feature_views
-    views_to_delete = []
+    views_to_delete: List[FeatureView] = []
     repo_feature_view_names = set(t.name for t in repo.feature_views)
     for registry_view in registry.list_feature_views(project=project):
         if registry_view.name not in repo_feature_view_names:

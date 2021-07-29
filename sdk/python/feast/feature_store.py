@@ -100,6 +100,7 @@ class FeatureStore:
 
     @property
     def registry(self) -> Registry:
+        """Gets the registry of this feature store."""
         return self._registry
 
     @property
