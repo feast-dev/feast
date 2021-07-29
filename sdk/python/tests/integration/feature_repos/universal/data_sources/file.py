@@ -1,4 +1,5 @@
 import tempfile
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -13,6 +14,8 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class FileDataSourceCreator(DataSourceCreator):
+    f: Any
+
     def create_data_source(
         self,
         name: str,
@@ -20,11 +23,11 @@ class FileDataSourceCreator(DataSourceCreator):
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
     ) -> DataSource:
-        f = tempfile.NamedTemporaryFile(suffix=".parquet")
-        df.to_parquet(f.name)
+        self.f = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
+        df.to_parquet(self.f.name)
         return FileSource(
             file_format=ParquetFormat(),
-            path=f"file://{f.name}",
+            path=f"file://{self.f.name}",
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
@@ -35,4 +38,4 @@ class FileDataSourceCreator(DataSourceCreator):
         return FileOfflineStoreConfig()
 
     def teardown(self, name: str):
-        pass
+        self.f.delete()
