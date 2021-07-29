@@ -2,6 +2,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Dict, Union
 
 from attr import dataclass
 
@@ -23,7 +24,7 @@ class TestRepoConfig:
     """
 
     provider: str = "local"
-    online_store: str = "sqlite"
+    online_store: Union[str, Dict] = "sqlite"
 
     offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.file.FileDataSourceCreator"
 

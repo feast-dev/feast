@@ -16,7 +16,7 @@ configs = [
     C(),
     C(
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
-        online_store="dynamodb",
+        online_store={"type": "dynamodb", "region": "us-west-2"},
     ),
     C(
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator",
