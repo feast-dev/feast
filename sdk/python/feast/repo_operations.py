@@ -168,10 +168,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    entities_to_delete, entities_to_keep = _tag_registry_entities_for_keep_delete(
+    entities_to_keep, entities_to_delete = _tag_registry_entities_for_keep_delete(
         project, registry, repo
     )
-    views_to_delete, views_to_keep = _tag_registry_views_for_keep_delete(
+    views_to_keep, views_to_delete = _tag_registry_views_for_keep_delete(
         project, registry, repo
     )
 
@@ -189,7 +189,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     # Delete views that should not exist
     for registry_view in views_to_delete:
-        store.delete_feature_view(registry_view.name, project=project, commit=False)
+        store.delete_feature_view(registry_view.name)
         click.echo(
             f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
         )
@@ -232,24 +232,24 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry.commit()
 
 
-def _tag_registry_entities_for_keep_delete(project, registry, repo):
+def _tag_registry_entities_for_keep_delete(project: str, registry: Registry, repo: ParsedRepo):
     entities_to_keep: List[Entity] = repo.entities
     entities_to_delete: List[Entity] = []
     repo_entities_names = set([e.name for e in repo.entities])
     for registry_entity in registry.list_entities(project=project):
         if registry_entity.name not in repo_entities_names:
             entities_to_delete.append(registry_entity)
-    return entities_to_delete, entities_to_keep
+    return entities_to_keep, entities_to_delete
 
 
-def _tag_registry_views_for_keep_delete(project, registry, repo):
+def _tag_registry_views_for_keep_delete(project: str, registry: Registry, repo: ParsedRepo):
     views_to_keep: List[FeatureView] = repo.feature_views
     views_to_delete = []
     repo_feature_view_names = set(t.name for t in repo.feature_views)
     for registry_view in registry.list_feature_views(project=project):
         if registry_view.name not in repo_feature_view_names:
             views_to_delete.append(registry_view)
-    return views_to_delete, views_to_keep
+    return views_to_keep, views_to_delete
 
 
 @log_exceptions_and_usage
