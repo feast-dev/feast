@@ -93,13 +93,14 @@ class FeatureView:
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        warnings.warn(
-            (
-                "The argument 'input' is being deprecated. Please use 'batch_source' "
-                "instead. Feast 0.13 and onwards will not support the argument 'input'."
-            ),
-            DeprecationWarning,
-        )
+        if input is not None:
+            warnings.warn(
+                (
+                    "The argument 'input' is being deprecated. Please use 'batch_source' "
+                    "instead. Feast 0.13 and onwards will not support the argument 'input'."
+                ),
+                DeprecationWarning,
+            )
 
         _input = input or batch_source
         assert _input is not None

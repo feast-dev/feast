@@ -490,7 +490,7 @@ def test_apply_duplicated_featureview_names(feature_store_with_local_registry):
         entities=["driver_id"],
         ttl=timedelta(seconds=10),
         online=False,
-        input=FileSource(path="driver_stats.parquet"),
+        batch_source=FileSource(path="driver_stats.parquet"),
         tags={},
     )
 
@@ -499,7 +499,7 @@ def test_apply_duplicated_featureview_names(feature_store_with_local_registry):
         entities=["id"],
         ttl=timedelta(seconds=10),
         online=False,
-        input=FileSource(path="customer_stats.parquet"),
+        batch_source=FileSource(path="customer_stats.parquet"),
         tags={},
     )
     try:
