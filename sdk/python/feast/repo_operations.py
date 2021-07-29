@@ -6,7 +6,7 @@ import sys
 from datetime import timedelta
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set
+from typing import List, NamedTuple, Set, Union
 
 import click
 from click.exceptions import BadParameter
@@ -167,8 +167,20 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     views_to_keep, views_to_delete = _tag_registry_views_for_keep_delete(
         project, registry, repo
     )
+    tables_to_keep, tables_to_delete = _tag_registry_tables_for_keep_delete(
+        project, registry, repo
+    )
 
     sys.dont_write_bytecode = False
+
+    # Delete tables that should not exist
+    for registry_table in tables_to_delete:
+        registry.delete_feature_table(
+            registry_table.name, project=project, commit=False
+        )
+        click.echo(
+            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL} from registry"
+        )
 
     # Delete views that should not exist
     for registry_view in views_to_delete:
@@ -189,24 +201,41 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
         )
+    # Create tables that should exist
+    for table in tables_to_keep:
+        registry.apply_feature_table(table, project, commit=False)
+        click.echo(
+            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
+        )
+    registry.commit()
 
     apply_feature_services(registry, project, repo)
 
     infra_provider = get_provider(repo_config, repo_path)
-    for name in [view.name for view in views_to_keep]:
+    for name in [view.name for view in repo.feature_tables] + [
+        table.name for table in repo.feature_views
+    ]:
         click.echo(
             f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
-    for name in [view.name for view in views_to_delete]:
+    for name in [view.name for view in views_to_delete] + [
+        table.name for table in tables_to_delete
+    ]:
         click.echo(
             f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
     # TODO: consider echoing also entities being deployed/removed
 
+    all_to_delete: List[Union[FeatureTable, FeatureView]] = []
+    all_to_delete.extend(tables_to_delete)
+    all_to_delete.extend(views_to_delete)
+    all_to_keep: List[Union[FeatureTable, FeatureView]] = []
+    all_to_keep.extend(tables_to_keep)
+    all_to_keep.extend(views_to_delete)
     infra_provider.update_infra(
         project,
-        tables_to_delete=views_to_delete,
-        tables_to_keep=views_to_keep,
+        tables_to_delete=all_to_delete,
+        tables_to_keep=all_to_keep,
         entities_to_delete=entities_to_delete,
         entities_to_keep=entities_to_keep,
         partial=False,
@@ -235,6 +264,18 @@ def _tag_registry_views_for_keep_delete(
         if registry_view.name not in repo_feature_view_names:
             views_to_delete.append(registry_view)
     return views_to_keep, views_to_delete
+
+
+def _tag_registry_tables_for_keep_delete(
+    project: str, registry: Registry, repo: ParsedRepo
+):
+    tables_to_keep: List[FeatureTable] = repo.feature_tables
+    tables_to_delete: List[FeatureTable] = []
+    repo_table_names = set(t.name for t in repo.feature_tables)
+    for registry_table in registry.list_feature_tables(project=project):
+        if registry_table.name not in repo_table_names:
+            tables_to_delete.append(registry_table)
+    return tables_to_keep, tables_to_delete
 
 
 @log_exceptions_and_usage
