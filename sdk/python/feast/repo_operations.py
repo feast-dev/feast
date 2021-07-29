@@ -213,7 +213,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     )
 
 
-def _tag_registry_entities_for_keep_delete(project: str, registry: Registry, repo: ParsedRepo):
+def _tag_registry_entities_for_keep_delete(
+    project: str, registry: Registry, repo: ParsedRepo
+):
     entities_to_keep: List[Entity] = repo.entities
     entities_to_delete: List[Entity] = []
     repo_entities_names = set([e.name for e in repo.entities])
@@ -223,7 +225,9 @@ def _tag_registry_entities_for_keep_delete(project: str, registry: Registry, rep
     return entities_to_keep, entities_to_delete
 
 
-def _tag_registry_views_for_keep_delete(project: str, registry: Registry, repo: ParsedRepo):
+def _tag_registry_views_for_keep_delete(
+    project: str, registry: Registry, repo: ParsedRepo
+):
     views_to_keep: List[FeatureView] = repo.feature_views
     views_to_delete: List[FeatureView] = []
     repo_feature_view_names = set(t.name for t in repo.feature_views)
