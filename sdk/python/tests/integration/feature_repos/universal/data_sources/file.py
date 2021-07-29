@@ -38,4 +38,4 @@ class FileDataSourceCreator(DataSourceCreator):
         return FileOfflineStoreConfig()
 
     def teardown(self, name: str):
-        self.f.delete()
+        self.f.close()
