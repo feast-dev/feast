@@ -6,7 +6,6 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 
-from .client import Client
 from .data_source import KafkaSource, KinesisSource, SourceType
 from .entity import Entity
 from .feature import Feature
@@ -30,7 +29,6 @@ except DistributionNotFound:
     pass
 
 __all__ = [
-    "Client",
     "Entity",
     "KafkaSource",
     "KinesisSource",

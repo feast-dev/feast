@@ -22,68 +22,12 @@ from google.cloud import bigquery
 import os
 from time import sleep
 
-from feast import Client, Entity, ValueType, FeatureStore, RepoConfig
+from feast import Entity, ValueType, FeatureStore, RepoConfig
 
 
 USAGE_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
 )
-
-
-def test_usage_on_v09(mocker):
-    # Setup environment
-    old_environ = dict(os.environ)
-    os.environ["FEAST_IS_USAGE_TEST"] = "True"
-    test_usage_id = str(uuid.uuid4())
-    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
-    test_client = Client(serving_url=None, core_url=None, usage=True)
-    test_client.set_project("project1")
-    entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
-    )
-
-    mocker.patch.object(
-        test_client, "_apply_entity", return_value=None,
-    )
-
-    test_client.apply(entity)
-
-    os.environ.clear()
-    os.environ.update(old_environ)
-
-    ensure_bigquery_usage_id_with_retry(test_usage_id)
-
-
-def test_usage_off_v09(mocker):
-    old_environ = dict(os.environ)
-    os.environ["FEAST_IS_USAGE_TEST"] = "True"
-    test_usage_id = str(uuid.uuid4())
-    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
-    os.environ["FEAST_USAGE"] = "False"
-
-    test_client = Client(serving_url=None, core_url=None, usage=False)
-    test_client.set_project("project1")
-    entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
-    )
-
-    mocker.patch.object(
-        test_client, "_apply_entity", return_value=None,
-    )
-
-    test_client.apply(entity)
-
-    os.environ.clear()
-    os.environ.update(old_environ)
-    sleep(30)
-    rows = read_bigquery_usage_id(test_usage_id)
-    assert rows.total_rows == 0
 
 
 def test_usage_on():
