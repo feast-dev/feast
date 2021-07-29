@@ -15,7 +15,12 @@ from tests.integration.feature_repos.test_repo_configuration import (
 configs = [
     C(),
     C(
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator"
+        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
+        online_store="dynamo",
+    ),
+    C(
+        offline_store_creator="tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator",
+        online_store="datastore",
     ),
 ]
 

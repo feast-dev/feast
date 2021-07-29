@@ -25,7 +25,7 @@ class TestRepoConfig:
     provider: str = "local"
     online_store: str = "sqlite"
 
-    offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator"
+    offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.file.FileDataSourceCreator"
 
     full_feature_names: bool = True
 
