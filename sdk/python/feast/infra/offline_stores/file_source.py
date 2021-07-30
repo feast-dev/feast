@@ -35,7 +35,8 @@ class FileSource(DataSource):
                 or view. Only used for feature columns, not entities or timestamp columns.
 
         Examples:
-            >>> FileSource(path="/data/my_features.parquet", event_timestamp_column="event_timestamp")
+            >>> from feast import FileSource
+            >>> file_source = FileSource(path="my_features.parquet", event_timestamp_column="event_timestamp")
         """
         if path is None and file_url is None:
             raise ValueError(
