@@ -6,4 +6,3 @@ Please see [Provider](../../concepts/provider.md) for an explanation of provider
 
 {% page-ref page="google-cloud-platform.md" %}
 
-{% page-ref page="amazon-web-services.md" %}

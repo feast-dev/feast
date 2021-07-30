@@ -15,7 +15,8 @@
 
 ## Tutorials
 
-* [Driver ranking](tutorials/driver-ranking-with-feast.md)
+* [Driver Ranking](tutorials/driver-ranking-with-feast.md)
+* [Fraud Detection](tutorials/fraud-detection.md)
 
 ## Concepts
 

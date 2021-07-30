@@ -14,7 +14,7 @@ Creating a new Feast repository in /<...>/tiny_pika.
 {% endtab %}
 
 {% tab title="GCP template" %}
-```
+```text
 feast init -t gcp
 
 Creating a new Feast repository in /<...>/tiny_pika.
@@ -22,7 +22,7 @@ Creating a new Feast repository in /<...>/tiny_pika.
 {% endtab %}
 
 {% tab title="AWS template" %}
-```
+```text
 feast init -t aws
 [?] AWS Region (e.g. us-west-2): ...
 [?] Redshift Cluster ID: ...
@@ -35,7 +35,6 @@ feast init -t aws
 Creating a new Feast repository in /<...>/tiny_pika.
 ```
 {% endtab %}
-
 {% endtabs %}
 
 The `init` command creates a Python file with feature definitions, sample data, and a Feast configuration file for local development:
@@ -45,7 +44,7 @@ $ tree
 .
 └── tiny_pika
     ├── data
-    │   └── driver_stats.parquet
+    │   └── driver_stats.parquet
     ├── example.py
     └── feature_store.yaml
 
@@ -64,6 +63,4 @@ You can now use this feature repository for development. You can try the followi
 * Run `feast apply` to apply these definitions to Feast.
 * Edit the example feature definitions in  `example.py` and run `feast apply` again to change feature definitions.
 * Initialize a git repository in the same directory and checking the feature repository into version control.
-
-
 
