@@ -274,7 +274,6 @@ class FeatureView:
                 and feature_view_proto.spec.ttl.nanos == 0
                 else feature_view_proto.spec.ttl
             ),
-            input=batch_source,
             batch_source=batch_source,
             stream_source=stream_source,
         )
