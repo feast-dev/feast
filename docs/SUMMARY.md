@@ -26,6 +26,7 @@
 * [Offline store](concepts/offline-store.md)
 * [Provider](concepts/provider.md)
 * [Architecture](concepts/architecture-and-components.md)
+* [Feature service](concepts/feature-service.md)
 
 ## How-to Guides
 
