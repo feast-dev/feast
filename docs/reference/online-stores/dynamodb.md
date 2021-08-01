@@ -85,3 +85,5 @@ The following inline policy can be used to grant Feast the necessary permissions
     "Version": "2012-10-17"
 }
 ```
+
+Lastly, this IAM role needs to be associated with the desired Redshift cluster. Please follow the official AWS guide for the necessary steps [here](https://docs.aws.amazon.com/redshift/latest/dg/c-getting-started-using-spectrum-add-role.html).
