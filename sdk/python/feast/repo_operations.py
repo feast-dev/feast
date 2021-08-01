@@ -116,18 +116,24 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     return res
 
 
-def apply_feature_services(registry: Registry, project: str, repo: ParsedRepo):
+def apply_feature_services(
+    registry: Registry,
+    project: str,
+    repo: ParsedRepo,
+    existing_feature_services: List[FeatureService],
+):
     from colorama import Fore, Style
 
     # Determine which feature services should be deleted.
-    existing_feature_services = registry.list_feature_services(project)
     for feature_service in repo.feature_services:
         if feature_service in existing_feature_services:
             existing_feature_services.remove(feature_service)
 
     # The remaining features services in the list should be deleted.
     for feature_service_to_delete in existing_feature_services:
-        registry.delete_feature_service(feature_service_to_delete.name, project)
+        registry.delete_feature_service(
+            feature_service_to_delete.name, project, commit=False
+        )
         click.echo(
             f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service_to_delete.name}{Style.RESET_ALL} "
             f"from registry"
@@ -192,6 +198,16 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         if registry_view.name not in repo_table_names:
             views_to_delete.append(registry_view)
 
+    entities_to_delete: List[Entity] = []
+    repo_entities_names = set([e.name for e in repo.entities])
+    for registry_entity in registry.list_entities(project=project):
+        if registry_entity.name not in repo_entities_names:
+            entities_to_delete.append(registry_entity)
+
+    entities_to_keep: List[Entity] = repo.entities
+
+    existing_feature_services = registry.list_feature_services(project)
+
     sys.dont_write_bytecode = False
     for entity in repo.entities:
         registry.apply_entity(entity, project=project, commit=False)
@@ -228,9 +244,8 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
         )
-    registry.commit()
 
-    apply_feature_services(registry, project, repo)
+    apply_feature_services(registry, project, repo, existing_feature_services)
 
     infra_provider = get_provider(repo_config, repo_path)
 
@@ -241,14 +256,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_keep: List[Union[FeatureTable, FeatureView]] = []
     all_to_keep.extend(repo.feature_tables)
     all_to_keep.extend(repo.feature_views)
-
-    entities_to_delete: List[Entity] = []
-    repo_entities_names = set([e.name for e in repo.entities])
-    for registry_entity in registry.list_entities(project=project):
-        if registry_entity.name not in repo_entities_names:
-            entities_to_delete.append(registry_entity)
-
-    entities_to_keep: List[Entity] = repo.entities
 
     for name in [view.name for view in repo.feature_tables] + [
         table.name for table in repo.feature_views
@@ -271,6 +278,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         entities_to_keep=entities_to_keep,
         partial=False,
     )
+
+    # Commit the update to the registry only after successful infra update
+    registry.commit()
 
 
 @log_exceptions_and_usage

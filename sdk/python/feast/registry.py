@@ -78,10 +78,13 @@ class Registry:
         self.cached_registry_proto_ttl = cache_ttl
 
     def _initialize_registry(self):
-        """Explicitly initializes the registry with an empty proto."""
-        registry_proto = RegistryProto()
-        registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-        self._registry_store.update_registry_proto(registry_proto)
+        """Explicitly initializes the registry with an empty proto if it doesn't exist."""
+        try:
+            self._get_registry_proto()
+        except FileNotFoundError:
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+            self._registry_store.update_registry_proto(registry_proto)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         """
@@ -409,22 +412,29 @@ class Registry:
                 return FeatureView.from_proto(feature_view_proto)
         raise FeatureViewNotFoundException(name, project)
 
-    def delete_feature_service(self, name: str, project: str):
+    def delete_feature_service(self, name: str, project: str, commit: bool = True):
         """
         Deletes a feature service or raises an exception if not found.
 
         Args:
             name: Name of feature service
             project: Feast project that this feature service belongs to
+            commit: Whether the change should be persisted immediately
         """
-        registry_proto = self._get_registry_proto()
-        for idx, feature_service_proto in enumerate(registry_proto.feature_services):
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        for idx, feature_service_proto in enumerate(
+            self.cached_registry_proto.feature_services
+        ):
             if (
                 feature_service_proto.spec.name == name
                 and feature_service_proto.spec.project == project
             ):
-                del registry_proto.feature_services[idx]
-                return feature_service_proto
+                del self.cached_registry_proto.feature_services[idx]
+                if commit:
+                    self.commit()
+                return
         raise FeatureServiceNotFoundException(name, project)
 
     def delete_feature_table(self, name: str, project: str, commit: bool = True):

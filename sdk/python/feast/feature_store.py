@@ -24,7 +24,11 @@ from tqdm import tqdm
 
 from feast import utils
 from feast.entity import Entity
-from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
+from feast.errors import (
+    EntityNotFoundException,
+    FeatureNameCollisionError,
+    FeatureViewNotFoundException,
+)
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -654,9 +658,7 @@ class FeatureStore:
                 try:
                     join_key = entity_name_to_join_key_map[entity_name]
                 except KeyError:
-                    raise Exception(
-                        f"Entity {entity_name} does not exist in project {self.project}"
-                    )
+                    raise EntityNotFoundException(entity_name, self.project)
                 join_key_row[join_key] = entity_value
             join_key_rows.append(join_key_row)
 
