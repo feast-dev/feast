@@ -6,7 +6,7 @@ import sys
 from datetime import timedelta
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set, Union
+from typing import List, NamedTuple, Set, Tuple, Union
 
 import click
 from click.exceptions import BadParameter
@@ -169,7 +169,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
             f"from registry"
         )
 
-        # Delete tables that should not exist
+    # Delete tables that should not exist
     for registry_table in tables_to_delete:
         registry.delete_feature_table(
             registry_table.name, project=project, commit=False
@@ -180,8 +180,12 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     # TODO: delete entities from the registry too
 
-    # Add / update views + entities
-    store.apply(entities_to_keep + views_to_keep + services_to_keep, commit=False)
+    # Add / update views + entities + services
+    all_to_apply: List[Union[Entity, FeatureView, FeatureService]] = []
+    all_to_apply.extend(entities_to_keep)
+    all_to_apply.extend(views_to_keep)
+    all_to_apply.extend(services_to_keep)
+    store.apply(all_to_apply, commit=False)
     for entity in entities_to_keep:
         click.echo(
             f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
@@ -237,7 +241,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
 def _tag_registry_entities_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-):
+) -> Tuple[List[Entity], List[Entity]]:
     entities_to_keep: List[Entity] = repo.entities
     entities_to_delete: List[Entity] = []
     repo_entities_names = set([e.name for e in repo.entities])
@@ -249,9 +253,9 @@ def _tag_registry_entities_for_keep_delete(
 
 def _tag_registry_views_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-):
+) -> Tuple[List[FeatureView], List[FeatureView]]:
     views_to_keep: List[FeatureView] = repo.feature_views
-    views_to_delete = []
+    views_to_delete: List[FeatureView] = []
     repo_feature_view_names = set(t.name for t in repo.feature_views)
     for registry_view in registry.list_feature_views(project=project):
         if registry_view.name not in repo_feature_view_names:
@@ -261,7 +265,7 @@ def _tag_registry_views_for_keep_delete(
 
 def _tag_registry_tables_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-):
+) -> Tuple[List[FeatureTable], List[FeatureTable]]:
     tables_to_keep: List[FeatureTable] = repo.feature_tables
     tables_to_delete: List[FeatureTable] = []
     repo_table_names = set(t.name for t in repo.feature_tables)
@@ -273,7 +277,7 @@ def _tag_registry_tables_for_keep_delete(
 
 def _tag_registry_services_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-):
+) -> Tuple[List[FeatureService], List[FeatureService]]:
     services_to_keep: List[FeatureService] = repo.feature_services
     services_to_delete: List[FeatureService] = []
     repo_feature_service_names = set(t.name for t in repo.feature_services)
