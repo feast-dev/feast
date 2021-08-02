@@ -2,7 +2,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 
 from attr import dataclass
 
@@ -32,7 +32,7 @@ class TestRepoConfig:
 
 
 FULL_REPO_CONFIGS: List[TestRepoConfig] = [
-    TestRepoConfig(),
+    TestRepoConfig(),  # Local
     TestRepoConfig(
         provider="aws",
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
@@ -45,6 +45,10 @@ FULL_REPO_CONFIGS: List[TestRepoConfig] = [
     ),
 ]
 
+
+OFFLINE_STORES: List[str] = []
+ONLINE_STORES: List[str] = []
+PROVIDERS: List[str] = []
 
 
 @contextmanager

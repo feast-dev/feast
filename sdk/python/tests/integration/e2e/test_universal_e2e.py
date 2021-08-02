@@ -7,8 +7,8 @@ import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.test_repo_configuration import FULL_REPO_CONFIGS
 from tests.integration.feature_repos.test_repo_configuration import (
+    FULL_REPO_CONFIGS,
     construct_feature_store,
 )
 
