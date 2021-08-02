@@ -100,7 +100,6 @@ class FeatureStore:
 
     @property
     def registry(self) -> Registry:
-        """Gets the registry of this feature store."""
         return self._registry
 
     @property
@@ -228,19 +227,6 @@ class FeatureStore:
             FeatureViewNotFoundException: The feature view could not be found.
         """
         return self._registry.delete_feature_view(name, self.project)
-
-    @log_exceptions_and_usage
-    def delete_feature_service(self, name: str):
-        """
-            Deletes a feature service.
-
-            Args:
-                name: Name of feature service.
-
-            Raises:
-                FeatureServiceNotFoundException: The feature view could not be found.
-            """
-        return self._registry.delete_feature_service(name, self.project)
 
     def _get_features(
         self,
