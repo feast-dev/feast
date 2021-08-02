@@ -209,24 +209,11 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     apply_feature_services(registry, project, repo, existing_feature_services)
 
     infra_provider = get_provider(repo_config, repo_path)
-
-    all_to_delete: List[Union[FeatureTable, FeatureView]] = []
-    all_to_delete.extend(tables_to_delete)
-    all_to_delete.extend(views_to_delete)
-
-    all_to_keep: List[Union[FeatureTable, FeatureView]] = []
-    all_to_keep.extend(repo.feature_tables)
-    all_to_keep.extend(repo.feature_views)
-
-    for name in [view.name for view in repo.feature_tables] + [
-        table.name for table in repo.feature_views
-    ]:
+    for name in [view.name for view in views_to_keep]:
         click.echo(
             f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
-    for name in [view.name for view in views_to_delete] + [
-        table.name for table in tables_to_delete
-    ]:
+    for name in [view.name for view in views_to_delete]:
         click.echo(
             f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
