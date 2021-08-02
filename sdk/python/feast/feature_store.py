@@ -265,14 +265,8 @@ class FeatureStore:
         Examples:
             Register an Entity and a FeatureView.
 
-            >>> from feast.repo_operations import init_repo #doctest: +ELLIPSIS
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
-            >>> import pandas as pd
-            >>> init_repo("feature_repo", "local") # init example feature repo locally for doctest
-            <BLANKLINE>
-            Creating a new Feast repository in...
-            <BLANKLINE>
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
             >>> driver_hourly_stats = FileSource(
@@ -287,9 +281,6 @@ class FeatureStore:
             ...     batch_source=driver_hourly_stats,
             ... )
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
-            >>> import shutil
-            >>> shutil.rmtree("feature_repo", ignore_errors=True) # clean up local feature repo
-            >>> shutil.rmtree("data", ignore_errors=True) # clean up online store
         """
         # TODO: Add locking
 
@@ -394,14 +385,9 @@ class FeatureStore:
         Examples:
             Retrieve historical features from a local offline store.
 
-            >>> from feast.repo_operations import init_repo #doctest: +ELLIPSIS
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
             >>> import pandas as pd
-            >>> init_repo("feature_repo", "local") # init example feature repo locally for doctest
-            <BLANKLINE>
-            Creating a new Feast repository in...
-            <BLANKLINE>
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
             >>> # Before retrieving historical features, we must register the appropriate entity and featureview.
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
@@ -440,9 +426,6 @@ class FeatureStore:
             ...     ],
             ... )
             >>> feature_data = retrieval_job.to_df()
-            >>> import shutil
-            >>> shutil.rmtree("feature_repo", ignore_errors=True) # clean up local feature repo
-            >>> shutil.rmtree("data", ignore_errors=True) # clean up online store
         """
         if (features is not None and feature_refs is not None) or (
             features is None and feature_refs is None
@@ -507,14 +490,8 @@ class FeatureStore:
         Examples:
             Materialize all features into the online store up to 5 minutes ago.
 
-            >>> from feast.repo_operations import init_repo #doctest: +ELLIPSIS
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
-            >>> import pandas as pd
-            >>> init_repo("feature_repo", "local") # init example feature repo locally for doctest
-            <BLANKLINE>
-            Creating a new Feast repository in...
-            <BLANKLINE>
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
             >>> # Before materializing, we must register the appropriate entity and featureview.
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
@@ -539,9 +516,6 @@ class FeatureStore:
             Materializing...
             <BLANKLINE>
             ...
-            >>> import shutil
-            >>> shutil.rmtree("feature_repo", ignore_errors=True) # clean up local feature repo
-            >>> shutil.rmtree("data", ignore_errors=True) # clean up online store
         """
         feature_views_to_materialize = []
         if feature_views is None:
@@ -620,14 +594,8 @@ class FeatureStore:
             Materialize all features into the online store over the interval
             from 3 hours ago to 10 minutes ago.
 
-            >>> from feast.repo_operations import init_repo #doctest: +ELLIPSIS
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
-            >>> import pandas as pd
-            >>> init_repo("feature_repo", "local") # init example feature repo locally for doctest
-            <BLANKLINE>
-            Creating a new Feast repository in...
-            <BLANKLINE>
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
             >>> # Before materializing, we must register the appropriate entity and featureview.
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
@@ -654,9 +622,6 @@ class FeatureStore:
             Materializing...
             <BLANKLINE>
             ...
-            >>> import shutil
-            >>> shutil.rmtree("feature_repo", ignore_errors=True) # clean up local feature repo
-            >>> shutil.rmtree("data", ignore_errors=True) # clean up online store
         """
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
@@ -741,14 +706,9 @@ class FeatureStore:
             Materialize all features into the online store over the interval
             from 3 hours ago to 10 minutes ago, and then retrieve these online features.
 
-            >>> from feast.repo_operations import init_repo #doctest: +ELLIPSIS
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
             >>> import pandas as pd
-            >>> init_repo("feature_repo", "local") # init example feature repo locally for doctest
-            <BLANKLINE>
-            Creating a new Feast repository in...
-            <BLANKLINE>
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
             >>> # Before getting online features, we must register the appropriate entity and featureview and then materialize the features.
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
@@ -784,9 +744,6 @@ class FeatureStore:
             ...     entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}, {"driver_id": 1004}],
             ... )
             >>> online_response_dict = online_response.to_dict()
-            >>> import shutil
-            >>> shutil.rmtree("feature_repo", ignore_errors=True) # clean up local feature repo
-            >>> shutil.rmtree("data", ignore_errors=True) # clean up online store
         """
         _feature_refs = self._get_features(features, feature_refs)
 
