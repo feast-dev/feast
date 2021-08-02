@@ -11,7 +11,7 @@ from typing import List, NamedTuple, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast import Entity, FeatureStore, FeatureTable
+from feast import Entity, FeatureTable
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore, _validate_feature_views
 from feast.feature_view import FeatureView
@@ -112,36 +112,6 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     return res
 
 
-def apply_feature_services(
-    registry: Registry,
-    project: str,
-    repo: ParsedRepo,
-    existing_feature_services: List[FeatureService],
-):
-    from colorama import Fore, Style
-
-    # Determine which feature services should be deleted.
-    for feature_service in repo.feature_services:
-        if feature_service in existing_feature_services:
-            existing_feature_services.remove(feature_service)
-
-    # The remaining features services in the list should be deleted.
-    for feature_service_to_delete in existing_feature_services:
-        registry.delete_feature_service(
-            feature_service_to_delete.name, project, commit=False
-        )
-        click.echo(
-            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service_to_delete.name}{Style.RESET_ALL} "
-            f"from registry"
-        )
-
-    for feature_service in repo.feature_services:
-        registry.apply_feature_service(feature_service, project=project)
-        click.echo(
-            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
-        )
-
-
 @log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     from colorama import Fore, Style
@@ -160,10 +130,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
     _validate_feature_views(repo.feature_views)
-    data_sources = [t.batch_source for t in repo.feature_views]
 
     if not skip_source_validation:
-        data_sources = [t.input for t in repo.feature_views]
+        data_sources = [t.batch_source for t in repo.feature_views]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
             data_source.validate(store.config)
@@ -177,20 +146,30 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     tables_to_keep, tables_to_delete = _tag_registry_tables_for_keep_delete(
         project, registry, repo
     )
-
-    entities_to_delete: List[Entity] = []
-    repo_entities_names = set([e.name for e in repo.entities])
-    for registry_entity in registry.list_entities(project=project):
-        if registry_entity.name not in repo_entities_names:
-            entities_to_delete.append(registry_entity)
-
-    entities_to_keep: List[Entity] = repo.entities
-
-    existing_feature_services = registry.list_feature_services(project)
+    (services_to_keep, services_to_delete,) = _tag_registry_services_for_keep_delete(
+        project, registry, repo
+    )
 
     sys.dont_write_bytecode = False
 
-    # Delete tables that should not exist
+    # Delete views that should not exist
+    for registry_view in views_to_delete:
+        registry.delete_feature_view(registry_view.name, project=project, commit=False)
+        click.echo(
+            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
+        )
+
+    # Delete feature services that should not exist
+    for feature_service_to_delete in services_to_delete:
+        registry.delete_feature_service(
+            feature_service_to_delete.name, project=project, commit=False
+        )
+        click.echo(
+            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service_to_delete.name}{Style.RESET_ALL} "
+            f"from registry"
+        )
+
+        # Delete tables that should not exist
     for registry_table in tables_to_delete:
         registry.delete_feature_table(
             registry_table.name, project=project, commit=False
@@ -199,16 +178,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
             f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL} from registry"
         )
 
-    # Delete views that should not exist
-    for registry_view in views_to_delete:
-        store.delete_feature_view(registry_view.name)
-        click.echo(
-            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
-        )
     # TODO: delete entities from the registry too
 
     # Add / update views + entities
-    store.apply(entities_to_keep + views_to_keep)
+    store.apply(entities_to_keep + views_to_keep + services_to_keep, commit=False)
     for entity in entities_to_keep:
         click.echo(
             f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
@@ -217,15 +190,16 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
         )
+    for feature_service in services_to_keep:
+        click.echo(
+            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
+        )
     # Create tables that should exist
     for table in tables_to_keep:
         registry.apply_feature_table(table, project, commit=False)
         click.echo(
             f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
         )
-    registry.commit()
-
-    apply_feature_services(registry, project, repo, existing_feature_services)
 
     infra_provider = get_provider(repo_config, repo_path)
     for name in [view.name for view in repo.feature_tables] + [
@@ -295,6 +269,18 @@ def _tag_registry_tables_for_keep_delete(
         if registry_table.name not in repo_table_names:
             tables_to_delete.append(registry_table)
     return tables_to_keep, tables_to_delete
+
+
+def _tag_registry_services_for_keep_delete(
+    project: str, registry: Registry, repo: ParsedRepo
+):
+    services_to_keep: List[FeatureService] = repo.feature_services
+    services_to_delete: List[FeatureService] = []
+    repo_feature_service_names = set(t.name for t in repo.feature_services)
+    for registry_service in registry.list_feature_services(project=project):
+        if registry_service.name not in repo_feature_service_names:
+            services_to_delete.append(registry_service)
+    return services_to_keep, services_to_delete
 
 
 @log_exceptions_and_usage
