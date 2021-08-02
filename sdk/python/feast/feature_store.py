@@ -99,6 +99,10 @@ class FeatureStore:
         return get_version()
 
     @property
+    def registry(self) -> Registry:
+        return self._registry
+
+    @property
     def project(self) -> str:
         """Gets the project of this feature store."""
         return self.config.project
