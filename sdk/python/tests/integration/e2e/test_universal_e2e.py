@@ -7,26 +7,14 @@ import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.test_repo_configuration import TestRepoConfig as C
+from tests.integration.feature_repos.test_repo_configuration import FULL_REPO_CONFIGS
 from tests.integration.feature_repos.test_repo_configuration import (
     construct_feature_store,
 )
 
-configs = [
-    C(),
-    C(
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
-        online_store={"type": "dynamodb", "region": "us-west-2"},
-    ),
-    C(
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator",
-        online_store="datastore",
-    ),
-]
-
 
 @pytest.mark.integration
-@pytest.mark.parametrize("config", configs)
+@pytest.mark.parametrize("config", FULL_REPO_CONFIGS)
 def test_e2e_consistency(config):
     with construct_feature_store(config) as fs:
         fv = fs.get_feature_view("test_correctness")

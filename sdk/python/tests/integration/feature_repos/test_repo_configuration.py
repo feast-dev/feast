@@ -2,7 +2,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 from attr import dataclass
 
@@ -29,6 +29,22 @@ class TestRepoConfig:
     offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.file.FileDataSourceCreator"
 
     full_feature_names: bool = True
+
+
+FULL_REPO_CONFIGS: List[TestRepoConfig] = [
+    TestRepoConfig(),
+    TestRepoConfig(
+        provider="aws",
+        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
+        online_store={"type": "dynamodb", "region": "us-west-2"},
+    ),
+    TestRepoConfig(
+        provider="gcp",
+        offline_store_creator="tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator",
+        online_store="datastore",
+    ),
+]
+
 
 
 @contextmanager
