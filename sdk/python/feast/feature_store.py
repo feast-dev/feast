@@ -99,6 +99,11 @@ class FeatureStore:
         return get_version()
 
     @property
+    def registry(self) -> Registry:
+        """Gets the registry of this feature store."""
+        return self._registry
+
+    @property
     def project(self) -> str:
         """Gets the project of this feature store."""
         return self.config.project
@@ -224,6 +229,19 @@ class FeatureStore:
         """
         return self._registry.delete_feature_view(name, self.project)
 
+    @log_exceptions_and_usage
+    def delete_feature_service(self, name: str):
+        """
+            Deletes a feature service.
+
+            Args:
+                name: Name of feature service.
+
+            Raises:
+                FeatureServiceNotFoundException: The feature view could not be found.
+            """
+        return self._registry.delete_feature_service(name, self.project)
+
     def _get_features(
         self,
         features: Optional[Union[List[str], FeatureService]],
@@ -252,6 +270,7 @@ class FeatureStore:
             FeatureService,
             List[Union[FeatureView, Entity, FeatureService]],
         ],
+        commit: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -262,6 +281,7 @@ class FeatureStore:
 
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
+            commit: whether to commit changes to the registry
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -319,7 +339,6 @@ class FeatureStore:
             self._registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
             self._registry.apply_feature_service(feature_service, project=self.project)
-        self._registry.commit()
 
         self._get_provider().update_infra(
             project=self.project,
@@ -329,6 +348,9 @@ class FeatureStore:
             entities_to_keep=entities_to_update,
             partial=True,
         )
+
+        if commit:
+            self._registry.commit()
 
     @log_exceptions_and_usage
     def teardown(self):
