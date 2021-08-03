@@ -233,7 +233,7 @@ def temporarily_upload_df_to_redshift(
     This is essentially the same as upload_df_to_redshift (check out its docstring for full details),
     but unlike it this method is a generator and should be used with `with` block. For example:
 
-    >>> with temporarily_upload_df_to_redshift(...):
+    >>> with temporarily_upload_df_to_redshift(...): # doctest: +SKIP
     >>>     # Use `table_name` table in Redshift here
     >>> # `table_name` will not exist at this point, since it's cleaned up by the `with` block
 
