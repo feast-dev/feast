@@ -66,10 +66,7 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
     """
     df = create_dataset()
 
-    project = f"test_correctness_{str(uuid.uuid4()).replace('-', '')}"
-
-    # TODO: Parameterize over data sources, by pulling this into individual data_source classes behind
-    # TODO: an appropriate interface.
+    project = f"test_correctness_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
     module_name, config_class_name = test_repo_config.offline_store_creator.rsplit(
         ".", 1
@@ -89,15 +86,17 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
             provider=test_repo_config.provider,
             offline_store=offline_store,
             online_store=online_store,
+            repo_path=repo_dir_name,
         )
         fs = FeatureStore(config=config)
         fv = correctness_feature_view(ds)
         entity = driver
         fs.apply([fv, entity])
+
         yield fs
 
         fs.teardown()
-    offline_creator.teardown(project)
+        offline_creator.teardown(project)
 
 
 def parametrize_e2e_test(e2e_test):

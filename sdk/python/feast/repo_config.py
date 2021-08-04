@@ -80,6 +80,7 @@ class RepoConfig(FeastBaseModel):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
+
         if isinstance(self.online_store, Dict):
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
