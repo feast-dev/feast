@@ -2,7 +2,7 @@
 
 ## Custom OnlineStore
 
-Feast allow users to create their own OnlineStore implementations, allowing Feast to read and write feature values to stores other than first-party implementations already in Feast directly. The interface for the is found at [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/online_stores/online_store.py), and consists of four methods that need to be implemented.
+Feast allow users to create their own OnlineStore implementations, allowing Feast to read and write feature values to stores other than first-party implementations already in Feast directly. The interface for the oneline store is found at [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/online_stores/online_store.py), and consists of four methods that need to be implemented.
 
 ### Update/Teardown methods
 
@@ -58,7 +58,7 @@ def online_read(
 
 ## Custom OfflineStore
 
-Feast allow users to create their own OfflineStore implementations, allowing Feast to read and write feature values to stores other than first-party implementations already in Feast directly. The interface for the is found at [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/offline_store.py), and consists of two methods that need to be implemented.
+Feast allow users to create their own OfflineStore implementations, allowing Feast to read and write feature values to stores other than first-party implementations already in Feast directly. The interface for the offline store is found at [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/offline_store.py), and consists of two methods that need to be implemented.
 
 ### Write method
 
