@@ -55,7 +55,7 @@ Feast requires the following permissions in order to execute commands for Redshi
       </td>
     </tr>
     <tr>
-      <td style="text-align:left" rowspan="3"><b>Materialize</b></td>
+      <td style="text-align:left"><b>Materialize</b></td>
       <td style="text-align:left">
         <p>redshift-data:ExecuteStatement</p>
       </td>
@@ -64,12 +64,14 @@ Feast requires the following permissions in order to execute commands for Redshi
       </td>
     </tr>
     <tr>
+      <td style="text-align:left"><b>Materialize</b></td>
       <td style="text-align:left">
         <p>redshift-data:DescribeStatement</p>
       </td>
       <td style="text-align:left">*</td>
     </tr>
     <tr>
+      <td style="text-align:left"><b>Materialize</b></td>
       <td style="text-align:left">
         <p>s3:ListBucket</p>
         <p>s3:GetObject</p>
@@ -81,7 +83,7 @@ Feast requires the following permissions in order to execute commands for Redshi
       </td>
     </tr>
     <tr>
-      <td style="text-align:left" rowspan="3"><b>Get Historical Features</b></td>
+      <td style="text-align:left"><b>Get Historical Features</b></td>
       <td style="text-align:left">
         <p>redshift-data:ExecuteStatement</p>
         <p>redshift:GetClusterCredentials</p>
@@ -93,12 +95,14 @@ Feast requires the following permissions in order to execute commands for Redshi
       </td>
     </tr>
     <tr>
+      <td style="text-align:left"><b>Get Historical Features</b></td>
       <td style="text-align:left">
         <p>redshift-data:DescribeStatement</p>
       </td>
       <td style="text-align:left">*</td>
     </tr>
     <tr>
+      <td style="text-align:left"><b>Get Historical Features</b></td>
       <td style="text-align:left">
         <p>s3:ListBucket</p>
         <p>s3:GetObject</p>
