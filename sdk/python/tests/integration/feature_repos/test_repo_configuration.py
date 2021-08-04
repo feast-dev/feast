@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Union
 
+import pytest
 from attr import dataclass
 
 from feast import FeatureStore, RepoConfig, importer
@@ -97,3 +98,13 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
 
     fs.teardown()
     offline_creator.teardown(project)
+
+
+def parametrize_e2e_test(e2e_test):
+    @pytest.mark.integration
+    @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: v.provider)
+    def inner_test(config):
+        with construct_feature_store(config) as fs:
+            e2e_test(fs)
+
+    return inner_test

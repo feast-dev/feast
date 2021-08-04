@@ -3,22 +3,18 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
-import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.test_repo_configuration import (
-    FULL_REPO_CONFIGS,
-    construct_feature_store,
-)
+from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test
 
 
-@pytest.mark.integration
-@pytest.mark.parametrize("config", FULL_REPO_CONFIGS)
-def test_e2e_consistency(config):
-    with construct_feature_store(config) as fs:
-        fv = fs.get_feature_view("test_correctness")
-        run_offline_online_store_consistency_test(fs, fv, True)
+# @pytest.mark.integration
+# @pytest.mark.parametrize("config", FULL_REPO_CONFIGS)
+@parametrize_e2e_test
+def test_e2e_consistency(fs: FeatureStore):
+    # with construct_feature_store(config) as fs:
+    run_offline_online_store_consistency_test(fs)
 
 
 def check_offline_and_online_features(
@@ -72,11 +68,13 @@ def check_offline_and_online_features(
 
 def run_offline_online_store_consistency_test(
     fs: FeatureStore,
-    fv: FeatureView,
-    full_feature_names: bool,
-    check_offline_store: bool = True,
 ) -> None:
     now = datetime.utcnow()
+
+    fv = fs.get_feature_view("test_correctness")
+    full_feature_names = True
+    check_offline_store: bool = True
+
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
     start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
