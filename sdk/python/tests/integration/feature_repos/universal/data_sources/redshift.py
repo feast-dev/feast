@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Optional
 
 import pandas as pd
@@ -39,7 +40,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
     ) -> DataSource:
-        self.table_name = f"{name}_{random.randint(1000, 9999)}"
+        self.table_name = f"{name}_{time.time_ns()}_{random.randint(1000, 9999)}"
         aws_utils.upload_df_to_redshift(
             self.client,
             self.offline_store_config.cluster_id,

@@ -9,11 +9,8 @@ from feast import FeatureStore, FeatureView
 from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test
 
 
-# @pytest.mark.integration
-# @pytest.mark.parametrize("config", FULL_REPO_CONFIGS)
 @parametrize_e2e_test
 def test_e2e_consistency(fs: FeatureStore):
-    # with construct_feature_store(config) as fs:
     run_offline_online_store_consistency_test(fs)
 
 
