@@ -90,13 +90,13 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
             offline_store=offline_store,
             online_store=online_store,
         )
-    fs = FeatureStore(config=config)
-    fv = correctness_feature_view(ds)
-    entity = driver
-    fs.apply([fv, entity])
-    yield fs
+        fs = FeatureStore(config=config)
+        fv = correctness_feature_view(ds)
+        entity = driver
+        fs.apply([fv, entity])
+        yield fs
 
-    fs.teardown()
+        fs.teardown()
     offline_creator.teardown(project)
 
 
