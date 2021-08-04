@@ -66,9 +66,7 @@ def check_offline_and_online_features(
                 assert math.isnan(df.to_dict()["value"][0])
 
 
-def run_offline_online_store_consistency_test(
-    fs: FeatureStore,
-) -> None:
+def run_offline_online_store_consistency_test(fs: FeatureStore,) -> None:
     now = datetime.utcnow()
 
     fv = fs.get_feature_view("test_correctness")
