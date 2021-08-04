@@ -90,7 +90,7 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
         )
         fs = FeatureStore(config=config)
         fv = correctness_feature_view(ds)
-        entity = driver
+        entity = driver()
         fs.apply([fv, entity])
 
         yield fs
