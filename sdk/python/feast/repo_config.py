@@ -38,6 +38,10 @@ class FeastBaseModel(BaseModel):
 class FeastConfigBaseModel(BaseModel):
     """ Feast Pydantic Configuration Class """
 
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "forbid"
+
 
 class RegistryConfig(FeastBaseModel):
     """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
