@@ -69,7 +69,7 @@ class MsSqlServerOptions:
         self._connection_str = connection_str
 
     @classmethod
-    def from_proto(cls, sqlserver_options_proto: DataSourceProto.SqlServerOptions):
+    def from_proto(cls, sqlserver_options_proto: DataSourceProto.MsSqlServerOptions):
         """
         Creates a SqlServerOptions from a protobuf representation of a SqlServer option
         Args:

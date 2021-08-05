@@ -125,7 +125,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
 
-        job = SqlServerRetrievalJob(
+        job = MsSqlServerRetrievalJob(
             query=query, engine=self._engine, config=config.offline_store
         )
         return job
@@ -196,7 +196,7 @@ def _infer_event_timestamp_from_sqlserver_schema(table_schema) -> str:
             )
 
 
-class SqlServerRetrievalJob(RetrievalJob):
+class MsSqlServerRetrievalJob(RetrievalJob):
     def __init__(self, query: str, engine: Engine, config: RepoConfig):
         self.query = query
         self.config = config
