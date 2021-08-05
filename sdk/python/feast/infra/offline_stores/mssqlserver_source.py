@@ -103,9 +103,6 @@ class MsSqlServerOptions:
 
 
 class MsSqlServerSource(DataSource):
-    """
-    TODO: Where does this go now?
-    """
     def __init__(
         self,
         table_ref: Optional[str] = None,
