@@ -1,5 +1,83 @@
 # Changelog
 
+## [v0.12.0](https://github.com/feast-dev/feast/tree/v0.12.0) (2021-08-05)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.11.0...v0.12.0)
+
+**Breaking changes:**
+
+- Set default feature naming to not include feature view name. Add option to include feature view name in feature naming. [\#1641](https://github.com/feast-dev/feast/pull/1641) ([Mwad22](https://github.com/Mwad22))
+
+**Implemented enhancements:**
+
+- AWS Template improvements \(input prompt for configs, default to Redshift\) [\#1731](https://github.com/feast-dev/feast/pull/1731) ([tsotnet](https://github.com/tsotnet))
+- Clean up uploaded entities in Redshift offline store [\#1730](https://github.com/feast-dev/feast/pull/1730) ([tsotnet](https://github.com/tsotnet))
+- Implement Redshift historical retrieval [\#1720](https://github.com/feast-dev/feast/pull/1720) ([tsotnet](https://github.com/tsotnet))
+- Add custom data sources [\#1713](https://github.com/feast-dev/feast/pull/1713) ([achals](https://github.com/achals))
+- Added --skip-source-validation flag to feast apply [\#1702](https://github.com/feast-dev/feast/pull/1702) ([mavysavydav](https://github.com/mavysavydav))
+- Allow specifying FeatureServices in FeatureStore methods [\#1691](https://github.com/feast-dev/feast/pull/1691) ([achals](https://github.com/achals))
+- Implement materialization for RedshiftOfflineStore & RedshiftRetrievalJob [\#1680](https://github.com/feast-dev/feast/pull/1680) ([tsotnet](https://github.com/tsotnet))
+- Add FeatureService proto definition [\#1676](https://github.com/feast-dev/feast/pull/1676) ([achals](https://github.com/achals))
+- Add RedshiftDataSource [\#1669](https://github.com/feast-dev/feast/pull/1669) ([tsotnet](https://github.com/tsotnet))
+- Add streaming sources to the FeatureView API [\#1664](https://github.com/feast-dev/feast/pull/1664) ([achals](https://github.com/achals))
+- Add to\_table\(\) to RetrievalJob object [\#1663](https://github.com/feast-dev/feast/pull/1663) ([MattDelac](https://github.com/MattDelac))
+- Provide the user with more options for setting the to\_bigquery config [\#1661](https://github.com/feast-dev/feast/pull/1661) ([codyjlin](https://github.com/codyjlin))
+
+**Fixed bugs:**
+
+- Fix `feast apply` bugs [\#1754](https://github.com/feast-dev/feast/pull/1754) ([tsotnet](https://github.com/tsotnet))
+- Teardown integration tests resources for aws [\#1740](https://github.com/feast-dev/feast/pull/1740) ([achals](https://github.com/achals))
+- Fix GCS version [\#1732](https://github.com/feast-dev/feast/pull/1732) ([potatochip](https://github.com/potatochip))
+- Fix unit test warnings related to file\_url [\#1726](https://github.com/feast-dev/feast/pull/1726) ([tedhtchang](https://github.com/tedhtchang))
+- Refactor data source classes to fix import issues [\#1723](https://github.com/feast-dev/feast/pull/1723) ([achals](https://github.com/achals))
+- Append ns time and random integer to redshift test tables [\#1716](https://github.com/feast-dev/feast/pull/1716) ([achals](https://github.com/achals))
+- Add randomness to bigquery table name [\#1711](https://github.com/feast-dev/feast/pull/1711) ([felixwang9817](https://github.com/felixwang9817))
+- Fix dry\_run bug that was making to\_bigquery hang indefinitely [\#1706](https://github.com/feast-dev/feast/pull/1706) ([codyjlin](https://github.com/codyjlin))
+- Stringify WhichOneof to make mypy happy [\#1705](https://github.com/feast-dev/feast/pull/1705) ([achals](https://github.com/achals))
+- Update redis options parsing  [\#1704](https://github.com/feast-dev/feast/pull/1704) ([DvirDukhan](https://github.com/DvirDukhan))
+- Cancel BigQuery job if block\_until\_done call times out or is interrupted [\#1699](https://github.com/feast-dev/feast/pull/1699) ([codyjlin](https://github.com/codyjlin))
+- Teardown infrastructure after integration tests [\#1697](https://github.com/feast-dev/feast/pull/1697) ([achals](https://github.com/achals))
+- Fix unit tests that got broken by Pandas 1.3.0 release [\#1683](https://github.com/feast-dev/feast/pull/1683) ([tsotnet](https://github.com/tsotnet))
+- Remove default list from the FeatureView constructor [\#1679](https://github.com/feast-dev/feast/pull/1679) ([achals](https://github.com/achals))
+- BQ exception should be raised first before we check the timedout [\#1675](https://github.com/feast-dev/feast/pull/1675) ([MattDelac](https://github.com/MattDelac))
+- Allow strings for online/offline store instead of dicts [\#1673](https://github.com/feast-dev/feast/pull/1673) ([achals](https://github.com/achals))
+- Cancel BigQuery job if timeout hits [\#1672](https://github.com/feast-dev/feast/pull/1672) ([MattDelac](https://github.com/MattDelac))
+- Make sure FeatureViews with same name can not be applied at the same … [\#1651](https://github.com/feast-dev/feast/pull/1651) ([tedhtchang](https://github.com/tedhtchang))
+
+**Merged pull requests:**
+
+- Add AWS docs in summary.md [\#1761](https://github.com/feast-dev/feast/pull/1761) ([tsotnet](https://github.com/tsotnet))
+- Document permissions for AWS \(DynamoDB & Redshift\) [\#1753](https://github.com/feast-dev/feast/pull/1753) ([tsotnet](https://github.com/tsotnet))
+- Adding small note for project naming convention [\#1752](https://github.com/feast-dev/feast/pull/1752) ([codyjlin](https://github.com/codyjlin))
+- Fix warning in FeatureView.from\_proto [\#1751](https://github.com/feast-dev/feast/pull/1751) ([tsotnet](https://github.com/tsotnet))
+- Add Feature Service to the concepts group [\#1750](https://github.com/feast-dev/feast/pull/1750) ([achals](https://github.com/achals))
+- Docstring tests [\#1749](https://github.com/feast-dev/feast/pull/1749) ([felixwang9817](https://github.com/felixwang9817))
+- Document how pandas deals with missing values [\#1748](https://github.com/feast-dev/feast/pull/1748) ([achals](https://github.com/achals))
+- Restore feature refs [\#1746](https://github.com/feast-dev/feast/pull/1746) ([felixwang9817](https://github.com/felixwang9817))
+- Updating CLI apply to use FeatureStore [\#1745](https://github.com/feast-dev/feast/pull/1745) ([adchia](https://github.com/adchia))
+- Delete old code [\#1743](https://github.com/feast-dev/feast/pull/1743) ([felixwang9817](https://github.com/felixwang9817))
+- Bump dependency on pyyaml [\#1742](https://github.com/feast-dev/feast/pull/1742) ([achals](https://github.com/achals))
+- Docstrings [\#1739](https://github.com/feast-dev/feast/pull/1739) ([felixwang9817](https://github.com/felixwang9817))
+- Add the foundation of the universal feature repo and a test that uses it [\#1734](https://github.com/feast-dev/feast/pull/1734) ([achals](https://github.com/achals))
+- Add AWS documentation \(DynamoDB, Redshift\) [\#1733](https://github.com/feast-dev/feast/pull/1733) ([tsotnet](https://github.com/tsotnet))
+- Change internal references from input to batch\_source [\#1729](https://github.com/feast-dev/feast/pull/1729) ([felixwang9817](https://github.com/felixwang9817))
+- Refactor tests into new directory layout [\#1725](https://github.com/feast-dev/feast/pull/1725) ([achals](https://github.com/achals))
+- Registry teardown [\#1718](https://github.com/feast-dev/feast/pull/1718) ([felixwang9817](https://github.com/felixwang9817))
+- Redirect telemetry to usage [\#1717](https://github.com/feast-dev/feast/pull/1717) ([felixwang9817](https://github.com/felixwang9817))
+- Link to offline and online store specs in docs summary [\#1715](https://github.com/feast-dev/feast/pull/1715) ([achals](https://github.com/achals))
+- Avoid skewed join between entity\_df & feature views [\#1712](https://github.com/feast-dev/feast/pull/1712) ([MattDelac](https://github.com/MattDelac))
+- Remove type comments [\#1710](https://github.com/feast-dev/feast/pull/1710) ([achals](https://github.com/achals))
+- Increase efficiency of Registry updates [\#1698](https://github.com/feast-dev/feast/pull/1698) ([felixwang9817](https://github.com/felixwang9817))
+- Parallelize integration tests [\#1684](https://github.com/feast-dev/feast/pull/1684) ([tsotnet](https://github.com/tsotnet))
+- Remove debug logging  [\#1678](https://github.com/feast-dev/feast/pull/1678) ([charliec443](https://github.com/charliec443))
+- Docs: Fix Feature References example [\#1674](https://github.com/feast-dev/feast/pull/1674) ([GregKuhlmann](https://github.com/GregKuhlmann))
+- Rename to\_table to to\_arrow [\#1671](https://github.com/feast-dev/feast/pull/1671) ([MattDelac](https://github.com/MattDelac))
+- Small reference documentation update [\#1668](https://github.com/feast-dev/feast/pull/1668) ([nels](https://github.com/nels))
+- Grouped inferencing statements together in apply methods for easier readability [\#1667](https://github.com/feast-dev/feast/pull/1667) ([mavysavydav](https://github.com/mavysavydav))
+- Infer min and max timestamps from entity\_df to limit data read from BQ source [\#1665](https://github.com/feast-dev/feast/pull/1665) ([Mwad22](https://github.com/Mwad22))
+- Rename telemetry to usage [\#1660](https://github.com/feast-dev/feast/pull/1660) ([tsotnet](https://github.com/tsotnet))
+- Update charts README [\#1659](https://github.com/feast-dev/feast/pull/1659) ([szalai1](https://github.com/szalai1))
+
 ## [v0.11.0](https://github.com/feast-dev/feast/tree/v0.11.0) (2021-06-24)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.8...v0.11.0)
