@@ -3,8 +3,8 @@ import tempfile
 
 from google.cloud import bigquery
 
+from feast import BigQuerySource, FileSource
 from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
 
 
 @contextlib.contextmanager
@@ -14,7 +14,7 @@ def prep_file_source(df, event_timestamp_column=None) -> FileSource:
         df.to_parquet(f.name)
         file_source = FileSource(
             file_format=ParquetFormat(),
-            file_url=f.name,
+            path=f.name,
             event_timestamp_column=event_timestamp_column,
         )
         yield file_source

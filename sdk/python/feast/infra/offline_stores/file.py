@@ -6,12 +6,15 @@ import pyarrow
 import pytz
 from pydantic.typing import Literal
 
-from feast.data_source import DataSource, FileSource
+from feast import FileSource
+from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
-from feast.infra.provider import (
+from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
+from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
     _run_field_mapping,
 )
@@ -101,17 +104,27 @@ class FileOfflineStore(OfflineStore):
 
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
-                event_timestamp_column = feature_view.input.event_timestamp_column
-                created_timestamp_column = feature_view.input.created_timestamp_column
+                event_timestamp_column = (
+                    feature_view.batch_source.event_timestamp_column
+                )
+                created_timestamp_column = (
+                    feature_view.batch_source.created_timestamp_column
+                )
 
-                # Read offline parquet data in pyarrow format
-                table = pyarrow.parquet.read_table(feature_view.input.path)
+                # Read offline parquet data in pyarrow format.
+                table = pyarrow.parquet.read_table(feature_view.batch_source.path)
 
                 # Rename columns by the field mapping dictionary if it exists
-                if feature_view.input.field_mapping is not None:
-                    table = _run_field_mapping(table, feature_view.input.field_mapping)
+                if feature_view.batch_source.field_mapping is not None:
+                    table = _run_field_mapping(
+                        table, feature_view.batch_source.field_mapping
+                    )
 
-                # Convert pyarrow table to pandas dataframe
+                # Convert pyarrow table to pandas dataframe. Note, if the underlying data has missing values,
+                # pandas will convert those values to np.nan if the dtypes are numerical (floats, ints, etc.) or boolean
+                # If the dtype is 'object', then missing values are inferred as python `None`s.
+                # More details at:
+                # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#values-considered-missing
                 df_to_join = table.to_pandas()
 
                 # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
@@ -198,7 +211,7 @@ class FileOfflineStore(OfflineStore):
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
 
-            # Move "datetime" column to front
+            # Move "event_timestamp" column to front
             current_cols = entity_df_with_features.columns.tolist()
             current_cols.remove(entity_df_event_timestamp_col)
             entity_df_with_features = entity_df_with_features[

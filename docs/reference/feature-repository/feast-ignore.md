@@ -20,7 +20,7 @@ scripts/**/foo.py
 ```
 {% endcode %}
 
-`.feastignore` file is optional. If the file can not be found, every Python in the feature repo directory will be parsed by `feast apply`.
+`.feastignore` file is optional. If the file can not be found, every Python file in the feature repo directory will be parsed by `feast apply`.
 
 ## Feast Ignore Patterns
 

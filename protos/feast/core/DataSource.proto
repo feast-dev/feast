@@ -26,6 +26,10 @@ import "feast/core/DataFormat.proto";
 
 // Defines a Data Source that can be used source Feature data
 message DataSource {
+  // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
+  // but they are going to be reserved for backwards compatibility.
+  reserved 6 to 10;
+
   // Type of Data Source.
   enum SourceType {
     INVALID = 0;
@@ -34,7 +38,8 @@ message DataSource {
     STREAM_KAFKA = 3;
     STREAM_KINESIS = 4;
     BATCH_REDSHIFT = 5;
-    BATCH_SQLSERVER = 6;
+    CUSTOM_SOURCE = 6;
+    BATCH_SQLSERVER = 7;
   }
   SourceType type = 1;
 
@@ -51,6 +56,10 @@ message DataSource {
 
   // Must specify creation timestamp column name
   string created_timestamp_column = 5;
+
+  // This is an internal field that is represents the python class for the data source object a proto object represents.
+  // This should be set by feast, and not by users.
+  string data_source_class_type = 17;
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {
@@ -126,6 +135,13 @@ message DataSource {
     string query = 2;
   }
 
+  // Defines configuration for custom third-party data sources.
+  message CustomSourceOptions {
+    // Serialized configuration information for the data source. The implementer of the custom data source is
+    // responsible for serializing and deserializing data from bytes
+    bytes configuration = 1;
+  }
+
   // DataSource options.
   oneof options {
     FileOptions file_options = 11;
@@ -133,6 +149,7 @@ message DataSource {
     KafkaOptions kafka_options = 13;
     KinesisOptions kinesis_options = 14;
     RedshiftOptions redshift_options = 15;
-    SqlServerOptions sqlserver_options = 16;
+    CustomSourceOptions custom_options = 16;
+    SqlServerOptions sqlserver_options = 18;
   }
 }

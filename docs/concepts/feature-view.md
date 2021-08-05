@@ -1,6 +1,6 @@
 # Feature view
 
-### Feature View
+## Feature View
 
 A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](feature-view.md#data-source). Feature views consist of one or more [entities](feature-view.md#entity), [features](feature-view.md#feature), and a [data source](feature-view.md#data-source). Feature views allow Feast to model your existing feature data in a consistent way in both an offline \(training\) and online \(serving\) environment.
 
@@ -14,7 +14,7 @@ driver_stats_fv = FeatureView(
         Feature(name="trips_today", dtype=ValueType.INT64),
         Feature(name="rating", dtype=ValueType.FLOAT),
     ],
-    input=BigQuerySource(
+    batch_source=BigQuerySource(
         table_ref="feast-oss.demo_data.driver_activity"
     )
 )
@@ -32,7 +32,7 @@ Feature views are used during
 Feast does not generate feature values. It acts as the ingestion and serving system. The data sources described within feature views should reference feature values in their already computed form.
 {% endhint %}
 
-### Data Source
+## Data Source
 
 Feast uses a time-series data model to represent data. This data model is used to interpret feature data in data sources in order to build training datasets or when materializing features into an online store.
 
@@ -40,7 +40,7 @@ Below is an example data source with a single entity \(`driver`\) and two featur
 
 ![Ride-hailing data source](../.gitbook/assets/image%20%2816%29.png)
 
-### Entity
+## Entity
 
 An entity is a collection of semantically related features. Users define entities to map to the domain of their use case. For example, a ride-hailing service could have customers and drivers as their entities, which group related features that correspond to these customers and drivers.
 
@@ -52,9 +52,9 @@ Entities are defined as part of feature views. Entities are used to identify the
 
 Entities should be reused across feature views.
 
-### Feature
+## Feature
 
-A feature is an individual measurable property observed on an entity. For example, a feature of a `customer` entity could be the number of transactions they have made on an average month. 
+A feature is an individual measurable property observed on an entity. For example, a feature of a `customer` entity could be the number of transactions they have made on an average month.
 
 Features are defined as part of feature views. Since Feast does not transform data, a feature is essentially a schema that only contains a name and a type:
 

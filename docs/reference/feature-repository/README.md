@@ -2,6 +2,8 @@
 
 Feast manages two important sets of configuration: feature definitions, and configuration about how to run the feature store. With Feast, this configuration can be written declaratively and stored as code in a central location. This central location is called a feature repository, and it's essentially just a directory that contains some code files.
 
+Feast manages two important sets of configuration: feature definitions, and configuration about how to run the feature store. With Feast, this configuration can be written declaratively and stored as code in a central location. This central location is called a feature repository, and it's essentially just a directory that contains some code files.
+
 The feature repository is the declarative source of truth for what the desired state of a feature store should be. The Feast CLI uses the feature repository to configure your infrastructure, e.g., migrate tables.
 
 ## What is a feature repository?
@@ -111,7 +113,7 @@ driver_locations = FeatureView(
         Feature(name="lat", dtype=ValueType.FLOAT),
         Feature(name="lon", dtype=ValueType.STRING),
     ],
-    input=driver_locations_source,
+    batch_source=driver_locations_source,
 )
 ```
 {% endcode %}

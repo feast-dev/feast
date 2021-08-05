@@ -6,33 +6,33 @@ The Feast Python SDK allows users to retrieve feature values from an online stor
 Online stores only maintain the current state of features, i.e latest feature values. No historical data is stored or served.
 {% endhint %}
 
-### Retrieving online features
+## Retrieving online features
 
-#### 1. Ensure that feature values have been loaded into the online store
+### 1. Ensure that feature values have been loaded into the online store
 
 Please ensure that you have materialized \(loaded\) your feature values into the online store before starting
 
 {% page-ref page="load-data-into-the-online-store.md" %}
 
-#### 2. Define feature references
+### 2. Define feature references
 
 Create a list of features that you would like to retrieve. This list typically comes from the model training step and should accompany the model binary.
 
 ```python
-feature_refs = [
+features = [
     "driver_hourly_stats:conv_rate",
     "driver_hourly_stats:acc_rate"
 ]
 ```
 
-#### 3. Read online features
+### 3. Read online features
 
 Next, we will create a feature store object and call `get_online_features()` which reads the relevant feature values directly from the online store.
 
 ```python
 fs = FeatureStore(repo_path="path/to/feature/repo")
 online_features = fs.get_online_features(
-    feature_refs=feature_refs,
+    features=features,
     entity_rows=[
         {"driver_id": 1001},
         {"driver_id": 1002}]

@@ -1,7 +1,8 @@
+import contextlib
 import os
 import tempfile
 import uuid
-from typing import Tuple
+from typing import Iterator, List, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -174,7 +175,15 @@ def upload_df_to_redshift(
     """
     bucket, key = get_bucket_and_key(s3_path)
 
-    # Convert Pandas DataFrame into PyArrow table and compile the Redshift table schema
+    # Drop the index so that we dont have unnecessary columns
+    df.reset_index(drop=True, inplace=True)
+
+    # Convert Pandas DataFrame into PyArrow table and compile the Redshift table schema.
+    # Note, if the underlying data has missing values,
+    # pandas will convert those values to np.nan if the dtypes are numerical (floats, ints, etc.) or boolean.
+    # If the dtype is 'object', then missing values are inferred as python `None`s.
+    # More details at:
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#values-considered-missing
     table = pa.Table.from_pandas(df)
     column_names, column_types = [], []
     for field in table.schema:
@@ -207,6 +216,49 @@ def upload_df_to_redshift(
     s3_resource.Object(bucket, key).delete()
 
 
+@contextlib.contextmanager
+def temporarily_upload_df_to_redshift(
+    redshift_data_client,
+    cluster_id: str,
+    database: str,
+    user: str,
+    s3_resource,
+    s3_path: str,
+    iam_role: str,
+    table_name: str,
+    df: pd.DataFrame,
+) -> Iterator[None]:
+    """Uploads a Pandas DataFrame to Redshift as a new table with cleanup logic.
+
+    This is essentially the same as upload_df_to_redshift (check out its docstring for full details),
+    but unlike it this method is a generator and should be used with `with` block. For example:
+
+    >>> with temporarily_upload_df_to_redshift(...): # doctest: +SKIP
+    >>>     # Use `table_name` table in Redshift here
+    >>> # `table_name` will not exist at this point, since it's cleaned up by the `with` block
+
+    """
+    # Upload the dataframe to Redshift
+    upload_df_to_redshift(
+        redshift_data_client,
+        cluster_id,
+        database,
+        user,
+        s3_resource,
+        s3_path,
+        iam_role,
+        table_name,
+        df,
+    )
+
+    yield
+
+    # Clean up the uploaded Redshift table
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
+    )
+
+
 def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
     """ Download the S3 directory to a local disk """
     bucket_obj = s3_resource.Bucket(bucket)
@@ -236,17 +288,31 @@ def execute_redshift_query_and_unload_to_s3(
     s3_path: str,
     iam_role: str,
     query: str,
+    drop_columns: Optional[List[str]] = None,
 ) -> None:
-    """ Unload Redshift Query results to S3 """
+    """Unload Redshift Query results to S3
+
+    Args:
+        redshift_data_client: Redshift Data API Service client
+        cluster_id: Redshift Cluster Identifier
+        database: Redshift Database Name
+        user: Redshift username
+        s3_path: S3 directory where the unloaded data is written
+        iam_role: IAM Role for Redshift to assume during the UNLOAD command.
+                  The role must grant permission to write to the S3 location.
+        query: The SQL query to execute
+        drop_columns: Optionally a list of columns to drop before unloading to S3.
+                      This is a convenient field, since "SELECT ... EXCEPT col" isn't supported in Redshift.
+
+    """
     # Run the query, unload the results to S3
     unique_table_name = "_" + str(uuid.uuid4()).replace("-", "")
-    unload_query = f"""
-        CREATE TEMPORARY TABLE {unique_table_name} AS ({query});
-        UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' PARQUET
-    """
-    execute_redshift_statement(
-        redshift_data_client, cluster_id, database, user, unload_query
-    )
+    query = f"CREATE TEMPORARY TABLE {unique_table_name} AS ({query});\n"
+    if drop_columns is not None:
+        for column in drop_columns:
+            query += f"ALTER TABLE {unique_table_name} DROP COLUMN {column};\n"
+    query += f"UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' PARQUET"
+    execute_redshift_statement(redshift_data_client, cluster_id, database, user, query)
 
 
 def unload_redshift_query_to_pa(
@@ -258,12 +324,20 @@ def unload_redshift_query_to_pa(
     s3_path: str,
     iam_role: str,
     query: str,
+    drop_columns: Optional[List[str]] = None,
 ) -> pa.Table:
     """ Unload Redshift Query results to S3 and get the results in PyArrow Table format """
     bucket, key = get_bucket_and_key(s3_path)
 
     execute_redshift_query_and_unload_to_s3(
-        redshift_data_client, cluster_id, database, user, s3_path, iam_role, query
+        redshift_data_client,
+        cluster_id,
+        database,
+        user,
+        s3_path,
+        iam_role,
+        query,
+        drop_columns,
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -281,6 +355,7 @@ def unload_redshift_query_to_df(
     s3_path: str,
     iam_role: str,
     query: str,
+    drop_columns: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """ Unload Redshift Query results to S3 and get the results in Pandas DataFrame format """
     table = unload_redshift_query_to_pa(
@@ -292,5 +367,6 @@ def unload_redshift_query_to_df(
         s3_path,
         iam_role,
         query,
+        drop_columns,
     )
     return table.to_pandas()

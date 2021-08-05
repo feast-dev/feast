@@ -1,8 +1,8 @@
 import re
 from typing import List
 
-from feast import Entity
-from feast.data_source import BigQuerySource, DataSource, FileSource, RedshiftSource
+from feast import BigQuerySource, Entity, FileSource, RedshiftSource
+from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig
@@ -13,7 +13,7 @@ def update_entities_with_inferred_types_from_feature_views(
     entities: List[Entity], feature_views: List[FeatureView], config: RepoConfig
 ) -> None:
     """
-    Infer entity value type by examining schema of feature view input sources
+    Infer entity value type by examining schema of feature view batch sources
     """
     incomplete_entities = {
         entity.name: entity
@@ -26,22 +26,22 @@ def update_entities_with_inferred_types_from_feature_views(
         if not (incomplete_entities_keys & set(view.entities)):
             continue  # skip if view doesn't contain any entities that need inference
 
-        col_names_and_types = view.input.get_table_column_names_and_types(config)
+        col_names_and_types = view.batch_source.get_table_column_names_and_types(config)
         for entity_name in view.entities:
             if entity_name in incomplete_entities:
-                # get entity information from information extracted from the view input source
+                # get entity information from information extracted from the view batch source
                 extracted_entity_name_type_pairs = list(
                     filter(lambda tup: tup[0] == entity_name, col_names_and_types)
                 )
                 if len(extracted_entity_name_type_pairs) == 0:
                     # Doesn't mention inference error because would also be an error without inferencing
                     raise ValueError(
-                        f"""No column in the input source for the {view.name} feature view matches
+                        f"""No column in the batch source for the {view.name} feature view matches
                         its entity's name."""
                     )
 
                 entity = incomplete_entities[entity_name]
-                inferred_value_type = view.input.source_datatype_to_feast_value_type()(
+                inferred_value_type = view.batch_source.source_datatype_to_feast_value_type()(
                     extracted_entity_name_type_pairs[0][1]
                 )
 
@@ -108,6 +108,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     matched_flag = True
                     event_timestamp_column = col_name
             if matched_flag:
+                assert event_timestamp_column
                 data_source.event_timestamp_column = event_timestamp_column
             else:
                 raise RegistryInferenceFailure(

@@ -52,7 +52,7 @@ REQUIRED = [
     "protobuf>=3.10",
     "pyarrow>=2.0.0",
     "pydantic>=1.0.0",
-    "PyYAML==5.3.*",
+    "PyYAML>=5.4.*",
     "tabulate==0.8.*",
     "tenacity>=7.*",
     "toml==0.10.*",
@@ -63,7 +63,7 @@ GCP_REQUIRED = [
     "google-cloud-bigquery>=2.0.*",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
-    "google-cloud-storage>=1.20.*",
+    "google-cloud-storage>=1.34.*",
     "google-cloud-core==1.4.*",
 ]
 

@@ -24,11 +24,13 @@ from urllib.parse import urlparse
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
+    FeatureServiceNotFoundException,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
+from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -70,16 +72,19 @@ class Registry:
             )
         else:
             raise Exception(
-                f"Registry path {registry_path} has unsupported scheme {uri.scheme}. Supported schemes are file and gs."
+                f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
+                f"Supported schemes are file and gs."
             )
         self.cached_registry_proto_ttl = cache_ttl
-        return
 
     def _initialize_registry(self):
-        """Explicitly initializes the registry with an empty proto."""
-        registry_proto = RegistryProto()
-        registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-        self._registry_store.update_registry_proto(registry_proto)
+        """Explicitly initializes the registry with an empty proto if it doesn't exist."""
+        try:
+            self._get_registry_proto()
+        except FileNotFoundError:
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+            self._registry_store.update_registry_proto(registry_proto)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         """
@@ -109,7 +114,6 @@ class Registry:
         self.cached_registry_proto.entities.append(entity_proto)
         if commit:
             self.commit()
-        return
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         """
@@ -128,6 +132,79 @@ class Registry:
             if entity_proto.spec.project == project:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
+
+    def apply_feature_service(
+        self, feature_service: FeatureService, project: str, commit: bool = True
+    ):
+        """
+        Registers a single feature service with Feast
+
+        Args:
+            feature_service: A feature service that will be registered
+            project: Feast project that this entity belongs to
+        """
+        feature_service_proto = feature_service.to_proto()
+        feature_service_proto.spec.project = project
+
+        registry = self._prepare_registry_for_changes()
+
+        for idx, existing_feature_service_proto in enumerate(registry.feature_services):
+            if (
+                existing_feature_service_proto.spec.name
+                == feature_service_proto.spec.name
+                and existing_feature_service_proto.spec.project == project
+            ):
+                del registry.feature_services[idx]
+        registry.feature_services.append(feature_service_proto)
+        if commit:
+            self.commit()
+
+    def list_feature_services(
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureService]:
+        """
+        Retrieve a list of feature services from the registry
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry
+            project: Filter entities based on project name
+
+        Returns:
+            List of feature services
+        """
+
+        registry = self._get_registry_proto(allow_cache=allow_cache)
+        feature_services = []
+        for feature_service_proto in registry.feature_services:
+            if feature_service_proto.spec.project == project:
+                feature_services.append(
+                    FeatureService.from_proto(feature_service_proto)
+                )
+        return feature_services
+
+    def get_feature_service(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureService:
+        """
+        Retrieves a feature service.
+
+        Args:
+            name: Name of feature service
+            project: Feast project that this feature service belongs to
+
+        Returns:
+            Returns either the specified feature service, or raises an exception if
+            none is found
+        """
+        registry = self._get_registry_proto(allow_cache=allow_cache)
+
+        for feature_service_proto in registry.feature_services:
+            if (
+                feature_service_proto.spec.project == project
+                and feature_service_proto.spec.name == name
+            ):
+                return FeatureService.from_proto(feature_service_proto)
+        raise FeatureServiceNotFoundException(name, project=project)
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         """
@@ -177,7 +254,6 @@ class Registry:
         self.cached_registry_proto.feature_tables.append(feature_table_proto)
         if commit:
             self.commit()
-        return
 
     def apply_feature_view(
         self, feature_view: FeatureView, project: str, commit: bool = True
@@ -203,7 +279,6 @@ class Registry:
                 existing_feature_view_proto.spec.name == feature_view_proto.spec.name
                 and existing_feature_view_proto.spec.project == project
             ):
-                # do not update if feature view has not changed; updating will erase tracked materialization intervals
                 if FeatureView.from_proto(existing_feature_view_proto) == feature_view:
                     return
                 else:
@@ -213,7 +288,6 @@ class Registry:
         self.cached_registry_proto.feature_views.append(feature_view_proto)
         if commit:
             self.commit()
-        return
 
     def apply_materialization(
         self,
@@ -338,6 +412,31 @@ class Registry:
                 return FeatureView.from_proto(feature_view_proto)
         raise FeatureViewNotFoundException(name, project)
 
+    def delete_feature_service(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a feature service or raises an exception if not found.
+
+        Args:
+            name: Name of feature service
+            project: Feast project that this feature service belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        for idx, feature_service_proto in enumerate(
+            self.cached_registry_proto.feature_services
+        ):
+            if (
+                feature_service_proto.spec.name == name
+                and feature_service_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.feature_services[idx]
+                if commit:
+                    self.commit()
+                return
+        raise FeatureServiceNotFoundException(name, project)
+
     def delete_feature_table(self, name: str, project: str, commit: bool = True):
         """
         Deletes a feature table or raises an exception if not found.
@@ -398,6 +497,10 @@ class Registry:
     def refresh(self):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         self._get_registry_proto(allow_cache=False)
+
+    def teardown(self):
+        """Tears down (removes) the registry."""
+        self._registry_store.teardown()
 
     def _prepare_registry_for_changes(self):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
@@ -472,6 +575,13 @@ class RegistryStore(ABC):
         """
         pass
 
+    @abstractmethod
+    def teardown(self):
+        """
+        Tear down all resources.
+        """
+        pass
+
 
 class LocalRegistryStore(RegistryStore):
     def __init__(self, repo_path: Path, registry_path_string: str):
@@ -492,7 +602,14 @@ class LocalRegistryStore(RegistryStore):
 
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
-        return
+
+    def teardown(self):
+        try:
+            self._filepath.unlink()
+        except FileNotFoundError:
+            # If the file deletion fails with FileNotFoundError, the file has already
+            # been deleted.
+            pass
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
@@ -500,7 +617,6 @@ class LocalRegistryStore(RegistryStore):
         file_dir = self._filepath.parent
         file_dir.mkdir(exist_ok=True)
         self._filepath.write_bytes(registry_proto.SerializeToString())
-        return
 
 
 class GCSRegistryStore(RegistryStore):
@@ -516,7 +632,6 @@ class GCSRegistryStore(RegistryStore):
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._blob = self._uri.path.lstrip("/")
-        return
 
     def get_registry_proto(self):
         from google.cloud import storage
@@ -543,7 +658,16 @@ class GCSRegistryStore(RegistryStore):
 
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
-        return
+
+    def teardown(self):
+        from google.cloud.exceptions import NotFound
+
+        gs_bucket = self.gcs_client.get_bucket(self._bucket)
+        try:
+            gs_bucket.delete_blob(self._blob)
+        except NotFound:
+            # If the blob deletion fails with NotFound, it has already been deleted.
+            pass
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
@@ -555,7 +679,6 @@ class GCSRegistryStore(RegistryStore):
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
         blob.upload_from_file(file_obj)
-        return
 
 
 class S3RegistryStore(RegistryStore):
@@ -608,7 +731,9 @@ class S3RegistryStore(RegistryStore):
 
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
-        return
+
+    def teardown(self):
+        self.s3_client.Object(self._bucket, self._key).delete()
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())

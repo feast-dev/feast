@@ -2,19 +2,19 @@
 
 ## What is Feast?
 
-Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
+Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production. It can serve features from a low-latency offline store \(for real-time prediction\) or from an off-line store \(for scale-out batch scoring or training models\).
 
 ![](.gitbook/assets/feast_hero_010.png)
 
 ## Problems Feast Solves
 
-**Models need consistent access to data:** ML systems built on traditional data infrastructure are often coupled to databases, object stores, streams, and files. A result of this coupling, however, is that any change in data infrastructure may break dependent ML systems. Another challenge is that dual implementations of data retrieval for training and serving can lead to inconsistencies in data, which in turn can lead to training-serving skew.
+**Models need consistent access to data:** Machine Learning \(ML\) systems built on traditional data infrastructure are often coupled to databases, object stores, streams, and files. A result of this coupling, however, is that any change in data infrastructure may break dependent ML systems. Another challenge is that dual implementations of data retrieval for training and serving can lead to inconsistencies in data, which in turn can lead to training-serving skew.
 
 Feast decouples your models from your data infrastructure by providing a single data access layer that abstracts feature storage from feature retrieval. Feast also provides a consistent means of referencing feature data for retrieval, and therefore ensures that models remain portable when moving from training to serving.
 
 **Deploying new features into production is difficult:** Many ML teams consist of members with different objectives. Data scientists, for example, aim to deploy features into production as soon as possible, while engineers want to ensure that production systems remain stable. These differing objectives can create an organizational friction that slows time-to-market for new features.
 
-Feast addresses this friction by providing both a centralized registry to which data scientists can publish features, and a battle-hardened serving layer. Together, these enable non-engineering teams to ship features into production with minimal oversight.
+Feast addresses this friction by providing both a centralized registry to which data scientists can publish features and a battle-hardened serving layer. Together, these enable non-engineering teams to ship features into production with minimal oversight.
 
 **Models need point-in-time correct data:** ML models in production require a view of data consistent with the one on which they are trained, otherwise the accuracy of these models could be compromised. Despite this need, many data science projects suffer from inconsistencies introduced by future feature values being leaked to models during training.
 
@@ -22,7 +22,7 @@ Feast solves the challenge of data leakage by providing point-in-time correct fe
 
 **Features aren't reused across projects:** Different teams within an organization are often unable to reuse features across projects. The siloed nature of development and the monolithic design of end-to-end ML systems contribute to duplication of feature creation and usage across teams and projects.
 
-Feast addresses this problem by introducing feature reuse through a centralized system \(a registry\). This registry enables multiple teams working on different projects not only to contribute features, but also to reuse these same features. With Feast, data scientists can start new ML projects by selecting previously engineered features from a centralized registry, and are no longer required to develop new features for each project.
+Feast addresses this problem by introducing feature reuse through a centralized registry. This registry enables multiple teams working on different projects not only to contribute features, but also to reuse these same features. With Feast, data scientists can start new ML projects by selecting previously engineered features from a centralized registry, and are no longer required to develop new features for each project.
 
 ## Problems Feast does not yet solve
 
@@ -53,4 +53,6 @@ Explore the following resources to get started with Feast:
 * [Concepts](concepts/data-model-and-concepts.md#concepts) describes all important Feast API concepts.
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
 * [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
+
+
 

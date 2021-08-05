@@ -2,15 +2,15 @@
 
 Feast allows users to build a training dataset from time-series feature data that already exists in an offline store. Users are expected to provide a list of features to retrieve \(which may span multiple feature views\), and a dataframe to join the resulting features onto. Feast will then execute a point-in-time join of multiple feature views onto the provided dataframe, and return the full resulting dataframe.
 
-### Retrieving historical features
+## Retrieving historical features
 
-#### 1. Register your feature views
+### 1. Register your feature views
 
 Please ensure that you have created a feature repository and that you have registered \(applied\) your feature views with Feast.
 
 {% page-ref page="deploy-a-feature-store.md" %}
 
-#### 2. Define feature references
+### 2. Define feature references
 
 Start by defining the feature references \(e.g., `driver_trips:average_daily_rides`\) for the features that you would like to retrieve from the offline store. These features can come from multiple feature tables. The only requirement is that the feature tables that make up the feature references have the same entity \(or composite entity\), and that they aren't located in the same offline store.
 
@@ -61,7 +61,7 @@ from feast import FeatureStore
 fs = FeatureStore(repo_path="path/to/your/feature/repo")
 
 training_df = fs.get_historical_features(
-    feature_refs=[
+    features=[
         "driver_hourly_stats:conv_rate",
         "driver_hourly_stats:acc_rate"
     ],
@@ -69,5 +69,5 @@ training_df = fs.get_historical_features(
 ).to_df()
 ```
 
-Once the feature references and an entity dataframe are defined, it is possible to call `get_historical_features()`. This method launches a job that executes a point-in-time join of features from the offline store onto the entity dataframe. Once completed, a job reference will be returned. This job reference can then be converted to a Pandas dataframe by calling `to_df()`. 
+Once the feature references and an entity dataframe are defined, it is possible to call `get_historical_features()`. This method launches a job that executes a point-in-time join of features from the offline store onto the entity dataframe. Once completed, a job reference will be returned. This job reference can then be converted to a Pandas dataframe by calling `to_df()`.
 

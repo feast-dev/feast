@@ -23,7 +23,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "file": "feast.infra.offline_stores.file.FileOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
-    "sqlserver": "feast.infra.offline_stores.sqlserver.SqlServerOfflineStore"
+    "sqlserver": "feast.infra.offline_stores.mssqlserver.MsSqlServerOfflineStore"
 }
 
 
@@ -77,6 +77,7 @@ class RepoConfig(FeastBaseModel):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
+
         if isinstance(self.online_store, Dict):
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
@@ -161,7 +162,7 @@ class RepoConfig(FeastBaseModel):
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
-                values["offline_store"]["type"] = "file"
+                values["offline_store"]["type"] = "redshift"
 
         offline_store_type = values["offline_store"]["type"]
 
@@ -190,6 +191,11 @@ class FeastConfigError(Exception):
         return (
             f"FeastConfigError({repr(self._error_message)}, {repr(self._config_path)})"
         )
+
+
+def get_data_source_class_from_type(data_source_type: str):
+    module_name, config_class_name = data_source_type.rsplit(".", 1)
+    return get_class_from_type(module_name, config_class_name, "Source")
 
 
 def get_online_config_from_type(online_store_type: str):

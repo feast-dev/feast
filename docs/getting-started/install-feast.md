@@ -12,3 +12,9 @@ Install Feast with GCP dependencies \(required when using BigQuery or Firestore\
 pip install 'feast[gcp]'
 ```
 
+Install Feast with AWS dependencies \(required when using Redshift or DynamoDB\):
+
+```text
+pip install 'feast[aws]'
+```
+
