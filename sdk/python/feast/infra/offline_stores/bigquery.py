@@ -430,20 +430,21 @@ WITH entity_dataframe AS (
  Thus we only need to compute the latest timestamp of each feature.
 */
 {{ featureview.name }}__latest AS (
-    SELECT
-        {{featureview.name}}__entity_row_unique_id,
-        MAX(event_timestamp) AS event_timestamp
+    SELECT * EXCEPT(row_number)
+    FROM
+    (
+        SELECT *,
+            ROW_NUMBER() OVER(
+                PARTITION BY {{featureview.name}}__entity_row_unique_id
+                ORDER BY event_timestamp DESC{% if featureview.created_timestamp_column %},created_timestamp DESC{% endif %}
+            ) AS row_number,
+        FROM {{ featureview.name }}__base
         {% if featureview.created_timestamp_column %}
-            ,ANY_VALUE(created_timestamp) AS created_timestamp
+            INNER JOIN {{ featureview.name }}__dedup
+            USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
         {% endif %}
-
-    FROM {{ featureview.name }}__base
-    {% if featureview.created_timestamp_column %}
-        INNER JOIN {{ featureview.name }}__dedup
-        USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
-    {% endif %}
-
-    GROUP BY {{featureview.name}}__entity_row_unique_id
+    )
+    WHERE row_number = 1
 ),
 
 /*
