@@ -87,10 +87,6 @@ message DataSource {
     // SQLAlchemy-formatted string to SQL Server instance
     string connection_str = 1;
 
-    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
-    // entity columns
-    string query = 2;
-
     // Full table reference in the form of [database.table]
     string table_ref = 3;
   }
