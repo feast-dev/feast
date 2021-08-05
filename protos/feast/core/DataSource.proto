@@ -83,7 +83,7 @@ message DataSource {
   }
 
   // Defines options for DataSource that sources features from a MSSQL Query
-  message SqlServerOptions {
+  message MsSqlServerOptions {
     // SQLAlchemy-formatted string to SQL Server instance
     string connection_str = 1;
 
@@ -150,6 +150,6 @@ message DataSource {
     KinesisOptions kinesis_options = 14;
     RedshiftOptions redshift_options = 15;
     CustomSourceOptions custom_options = 16;
-    SqlServerOptions sqlserver_options = 18;
+    MsSqlServerOptions sqlserver_options = 18;
   }
 }
