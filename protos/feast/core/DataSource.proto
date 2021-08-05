@@ -39,7 +39,7 @@ message DataSource {
     STREAM_KINESIS = 4;
     BATCH_REDSHIFT = 5;
     CUSTOM_SOURCE = 6;
-    BATCH_SQLSERVER = 7;
+    BATCH_MSSQLSERVER = 7;
   }
   SourceType type = 1;
 

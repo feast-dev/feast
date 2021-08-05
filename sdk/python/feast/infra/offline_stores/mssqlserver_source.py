@@ -86,7 +86,7 @@ class MsSqlServerOptions:
 
         return sqlserver_options
 
-    def to_proto(self) -> DataSourceProto.SqlServerOptions:
+    def to_proto(self) -> DataSourceProto.MsSqlServerOptions:
         """
         Converts an SqlServerOptionsProto object to its protobuf representation.
         Returns:
@@ -168,7 +168,7 @@ class MsSqlServerSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=DataSourceProto.BATCH_SQLSERVER,
+            type=DataSourceProto.BATCH_MSSQLSERVER,
             field_mapping=self.field_mapping,
             sqlserver_options=self.sqlserver_options.to_proto(),
         )
