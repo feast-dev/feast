@@ -13,7 +13,7 @@ from sqlalchemy.engine import Engine, ResultProxy
 from sqlalchemy.orm import Session, sessionmaker
 
 from feast import data_source, errors
-from feast.infra.offline_stores.mssql_source import MsSqlServerSource
+from feast.infra.offline_stores.mssqlserver_source import MsSqlServerSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.offline_stores.offline_utils import (
