@@ -2,6 +2,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional, Set, Tuple, Union
+from feast.infra.offline_stores import offline_utils
 
 import pandas
 import pyarrow
@@ -188,7 +189,7 @@ def _infer_event_timestamp_from_sqlserver_schema(table_schema) -> str:
     else:
         datetime_columns = list(
             filter(
-                lambda schema_field: schema_field["DATA_TYPE"] == "TIMESTAMP",
+                lambda schema_field: schema_field["DATA_TYPE"] == "DATETIME",
                 table_schema,
             )
         )
@@ -212,6 +213,10 @@ class MsSqlServerRetrievalJob(RetrievalJob):
     def to_df(self):
         return pandas.read_sql(self.query, con=self.engine)
 
+    def to_arrow(self) -> pyarrow.Table:
+        result = pandas.read_sql(self.query, con=self.engine)
+        return pyarrow.Table.from_pandas(result)
+
 
 @dataclass(frozen=True)
 class FeatureViewQueryContext:
@@ -224,21 +229,15 @@ class FeatureViewQueryContext:
     table_ref: str
     event_timestamp_column: str
     created_timestamp_column: Optional[str]
-    query: str
     table_subquery: str
     entity_selections: List[str]
-
-
-def _get_table_id_for_new_entity(project: str) -> str:
-    """Gets the table_id for the new entity to be uploaded."""
-    return f"entity_df_{project}_{int(time.time())}"
 
 
 def _upload_entity_df_into_sqlserver(
     session: Session, project: str, entity_df: Union[pandas.DataFrame, str],
 ) -> Tuple[ResultProxy, str]:
     """Uploads a Pandas entity dataframe into a SQL Server table and returns the resulting table"""
-    table_id = _get_table_id_for_new_entity(project)
+    table_id = offline_utils.get_temp_entity_table_name()
 
     if type(entity_df) is str:
         session.execute(f"SELECT * INTO {table_id} FROM ({entity_df}) t")
@@ -313,7 +312,6 @@ def get_feature_view_query_context(
                 created_timestamp_column, created_timestamp_column
             ),
             # TODO: Make created column optional and not hardcoded
-            query=feature_view.input.query,
             table_subquery=feature_view.input.get_table_query_string().replace("`", ""),
             entity_selections=entity_selections,
         )
