@@ -324,7 +324,7 @@ def build_point_in_time_query(
 
     """Build point-in-time query between each feature view table and the entity dataframe"""
     template = Environment(loader=BaseLoader()).from_string(
-        source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
+        source=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
     )
 
     # Add additional fields to dict
@@ -348,7 +348,7 @@ def build_point_in_time_query(
 #   * Precompute ROW_NUMBER() so that it doesn't have to be recomputed for every query on entity_dataframe
 #   * Create temporary tables instead of keeping all tables in memory
 
-SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 /*
  Compute a deterministic hash for the `left_table_query_string` that will be used throughout
  all the logic as the field to GROUP BY the data
