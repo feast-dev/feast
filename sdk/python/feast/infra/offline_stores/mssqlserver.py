@@ -42,10 +42,15 @@ class MsSqlServerOfflineStoreConfig(FeastBaseModel):
 
 
 class MsSqlServerOfflineStore(OfflineStore):
-    def __init__(self, config: RepoConfig):
-        assert isinstance(config, MsSqlServerOfflineStoreConfig)
-        self._engine = create_engine(config.connection_string)
-        self._make_session = sessionmaker(bind=self._engine)
+    def __init__(self):
+        self._engine = None
+        self._session_maker = None
+
+    def _make_session(self, config: RepoConfig = None) -> Session:
+        if self._session_maker is None:
+            self._engine = create_engine(config.connection_string)
+            self._session_maker = sessionmaker(bind=self._engine)
+        return self._session_maker()
 
     def pull_latest_from_table_or_query(
         self,
@@ -93,11 +98,12 @@ class MsSqlServerOfflineStore(OfflineStore):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
-        session = self._make_session()
+        session = self._make_session(config.offline_store)
 
         table_schema, table_name = _upload_entity_df_into_sqlserver(
             session, config.project, entity_df
@@ -123,6 +129,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=table_name,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+            full_feature_names=full_feature_names,
         )
 
         job = MsSqlServerRetrievalJob(
@@ -320,6 +327,7 @@ def build_point_in_time_query(
     max_timestamp: datetime,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
+    full_feature_names: bool = False,
 ):
 
     """Build point-in-time query between each feature view table and the entity dataframe"""
@@ -337,6 +345,7 @@ def build_point_in_time_query(
             [entity for fv in feature_view_query_contexts for entity in fv.entities]
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
+        "full_feature_names": full_feature_names,
     }
 
     query = template.render(template_context)
@@ -390,7 +399,7 @@ WITH entity_dataframe AS (
         {{ 't.' + featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
         t.{{ featureview.entity_selections | join(', ')}},
         {% for feature in featureview.features %}
-            t.{{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+            {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }} t
 ),
@@ -483,7 +492,7 @@ LEFT JOIN (
     SELECT
         entity_row_unique_id,
         {% for feature in featureview.features %}
-            {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %},{% endif %}
+            {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %},{% endif %}
         {% endfor %}
     FROM {{ featureview.name }}__cleaned
 ) {{ featureview.name }}__cleaned

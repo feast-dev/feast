@@ -20,25 +20,9 @@ class MsSqlServerOptions:
         self,
         connection_str: Optional[str],
         table_ref: Optional[str],
-        query: Optional[str],
     ):
         self._connection_str = connection_str
-        self._query = query
         self._table_ref = table_ref
-
-    @property
-    def query(self):
-        """
-        Returns the SQL Server SQL query referenced by this source
-        """
-        return self._query
-
-    @query.setter
-    def query(self, query):
-        """
-        Sets the SQL Server SQL query referenced by this source
-        """
-        self._query = query
 
     @property
     def table_ref(self):
@@ -71,7 +55,7 @@ class MsSqlServerOptions:
     @classmethod
     def from_proto(cls, sqlserver_options_proto: DataSourceProto.MsSqlServerOptions):
         """
-        Creates a SqlServerOptions from a protobuf representation of a SqlServer option
+        Creates an MsSqlServerOptions from a protobuf representation of a SqlServer option
         Args:
             sqlserver_options_proto: A protobuf representation of a DataSource
         Returns:
@@ -79,7 +63,6 @@ class MsSqlServerOptions:
         """
 
         sqlserver_options = cls(
-            query=sqlserver_options_proto.query,
             table_ref=sqlserver_options_proto.table_ref,
             connection_str=sqlserver_options_proto.connection_str,
         )
@@ -93,8 +76,7 @@ class MsSqlServerOptions:
             SqlServerOptionsProto protobuf
         """
 
-        sqlserver_options_proto = DataSourceProto.SqlServerOptions(
-            query=self.query,
+        sqlserver_options_proto = DataSourceProto.MsSqlServerOptions(
             table_ref=self.table_ref,
             connection_str=self.connection_str,
         )
@@ -110,11 +92,10 @@ class MsSqlServerSource(DataSource):
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
-        query: Optional[str] = None,
         connection_str: Optional[str] = "",
     ):
-        self._sqlserver_options = MsSqlServerOptions(
-            cnnection_str=connection_str, query=query, table_ref=table_ref
+        self._mssqlserver_options = MsSqlServerOptions(
+            connection_str=connection_str, table_ref=table_ref
         )
         self._connection_str = connection_str
 
@@ -133,9 +114,7 @@ class MsSqlServerSource(DataSource):
             )
 
         return (
-            self.sqlserver_options.query == other.sqlserver_options.query
-            and self.sqlserver_options.connection_str
-            == other.sqlserver_options.connection_str
+            self.mssqlserver_options.connection_str == other.mssqlserver_options.connection_str
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -143,31 +122,37 @@ class MsSqlServerSource(DataSource):
 
     @property
     def table_ref(self):
-        return self._sqlserver_options.table_ref
+        return self._mssqlserver_options.table_ref
 
     @property
-    def query(self):
-        return self._sqlserver_options.query
+    def mssqlserver_options(self):
+        """
+        Returns the SQL Server options of this data source
+        """
+        return self._mssqlserver_options
 
-    @property
-    def sqlserver_options(self):
+    @mssqlserver_options.setter
+    def mssqlserver_options(self, sqlserver_options):
         """
-        Returns the sqlserver options of this data source
+        Sets the SQL Server options of this data source
         """
-        return self._sqlserver_options
+        self._mssqlserver_options = sqlserver_options
 
-    @sqlserver_options.setter
-    def sqlserver_options(self, sqlserver_options):
-        """
-        Sets the sqlserver options of this data source
-        """
-        self._sqlserver_options = sqlserver_options
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        return MsSqlServerSource(
+            field_mapping=dict(data_source.field_mapping),
+            table_ref=data_source.mssqlserver_options.table_ref,
+            event_timestamp_column=data_source.event_timestamp_column,
+            created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.BATCH_MSSQLSERVER,
             field_mapping=self.field_mapping,
-            sqlserver_options=self.sqlserver_options.to_proto(),
+            mssqlserver_options=self.mssqlserver_options.to_proto(),
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
@@ -178,14 +163,11 @@ class MsSqlServerSource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
-        if self.table_ref:
-            return f"`{self.table_ref}`"
-        else:
-            return f"({self.query})"
+        return f"`{self.table_ref}`"
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        return type_map.sqlserver_to_feast_value_type
+        return type_map.mssqlserver_to_feast_value_type
 
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
         conn = create_engine(self._connection_str)

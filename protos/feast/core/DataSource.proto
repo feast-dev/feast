@@ -146,6 +146,6 @@ message DataSource {
     KinesisOptions kinesis_options = 14;
     RedshiftOptions redshift_options = 15;
     CustomSourceOptions custom_options = 16;
-    MsSqlServerOptions sqlserver_options = 18;
+    MsSqlServerOptions mssqlserver_options = 18;
   }
 }
