@@ -10,5 +10,5 @@ def correctness_feature_view(data_source: DataSource) -> FeatureView:
         entities=["driver"],
         features=[Feature("value", ValueType.FLOAT)],
         ttl=timedelta(days=5),
-        input=data_source,
+        batch_source=data_source,
     )

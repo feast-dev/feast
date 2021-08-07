@@ -105,7 +105,7 @@ def get_feature_view_query_context(
         join_keys = []
         entity_selections = []
         reverse_field_mapping = {
-            v: k for k, v in feature_view.input.field_mapping.items()
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
         for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
@@ -120,8 +120,8 @@ def get_feature_view_query_context(
         else:
             ttl_seconds = 0
 
-        event_timestamp_column = feature_view.input.event_timestamp_column
-        created_timestamp_column = feature_view.input.created_timestamp_column
+        event_timestamp_column = feature_view.batch_source.event_timestamp_column
+        created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
         context = FeatureViewQueryContext(
             name=feature_view.name,
@@ -135,7 +135,7 @@ def get_feature_view_query_context(
                 created_timestamp_column, created_timestamp_column
             ),
             # TODO: Make created column optional and not hardcoded
-            table_subquery=feature_view.input.get_table_query_string(),
+            table_subquery=feature_view.batch_source.get_table_query_string(),
             entity_selections=entity_selections,
         )
         query_context.append(context)
