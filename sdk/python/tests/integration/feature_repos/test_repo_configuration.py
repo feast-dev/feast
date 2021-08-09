@@ -2,7 +2,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Tuple, Union
 
 import pytest
 from attr import dataclass
@@ -50,7 +50,9 @@ PROVIDERS: List[str] = []
 
 
 @contextmanager
-def construct_feature_store(test_repo_config: TestRepoConfig) -> Tuple[FeatureStore, DataSource]:
+def construct_feature_store(
+    test_repo_config: TestRepoConfig,
+) -> Tuple[FeatureStore, DataSource]:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
     and return the constructed feature store object to callers.
@@ -105,6 +107,7 @@ def parametrize_e2e_test(e2e_test):
 
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
+
     @pytest.mark.integration
     @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: v.provider)
     def inner_test(config):
@@ -126,6 +129,7 @@ def parametrize_offline_retrival_test(offline_retrival_test):
 
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
+
     @pytest.mark.integration
     @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: v.provider)
     def inner_test(config):

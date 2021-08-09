@@ -5,8 +5,8 @@ from typing import Optional
 import pandas as pd
 from pytz import utc
 
-from feast.data_source import DataSource
 from feast import FeatureStore, FeatureView
+from feast.data_source import DataSource
 from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
@@ -70,7 +70,9 @@ def check_offline_and_online_features(
                 assert math.isnan(df.to_dict()["value"][0])
 
 
-def run_offline_online_store_consistency_test(fs: FeatureStore, fv: FeatureView) -> None:
+def run_offline_online_store_consistency_test(
+    fs: FeatureStore, fv: FeatureView
+) -> None:
     now = datetime.utcnow()
 
     full_feature_names = True

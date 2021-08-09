@@ -28,9 +28,7 @@ from feast.infra.utils import aws_utils
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
-from tests.integration.feature_repos.universal.feature_views import (
-    driver_feature_view,
-)
+from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 @contextlib.contextmanager

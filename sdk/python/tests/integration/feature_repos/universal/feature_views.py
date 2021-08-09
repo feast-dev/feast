@@ -4,8 +4,9 @@ from feast import Feature, FeatureView, ValueType
 from feast.data_source import DataSource
 
 
-def driver_feature_view(data_source: DataSource,
-                        name="test_correctness") -> FeatureView:
+def driver_feature_view(
+    data_source: DataSource, name="test_correctness"
+) -> FeatureView:
     return FeatureView(
         name=name,
         entities=["driver"],
