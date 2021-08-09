@@ -1,6 +1,6 @@
 # Connect to Feast
 
-### Feast Python SDK
+## Feast Python SDK
 
 The Feast Python SDK is used as a library to interact with a Feast deployment.
 
@@ -11,7 +11,7 @@ The Feast Python SDK is used as a library to interact with a Feast deployment.
 
 {% page-ref page="python-sdk.md" %}
 
-### Feast CLI
+## Feast CLI
 
 The Feast CLI is a command line implementation of the Feast Python SDK.
 
@@ -21,7 +21,7 @@ The Feast CLI is a command line implementation of the Feast Python SDK.
 
 {% page-ref page="feast-cli.md" %}
 
-### Online Serving Clients
+## Online Serving Clients
 
 The following clients can be used to retrieve online feature values:
 

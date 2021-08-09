@@ -54,5 +54,3 @@ Explore the following resources to get started with Feast:
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
 * [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
 
-
-

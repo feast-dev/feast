@@ -6,9 +6,9 @@ This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 
 If at any point in time you cannot resolve a problem, please see the [Community](../../community.md) section for reaching out to the Feast community.
 
-### How can I verify that all services are operational?
+## How can I verify that all services are operational?
 
-#### Docker Compose
+### Docker Compose
 
 The containers should be in an `up` state:
 
@@ -16,7 +16,7 @@ The containers should be in an `up` state:
 docker ps
 ```
 
-#### Google Kubernetes Engine
+### Google Kubernetes Engine
 
 All services should either be in a `RUNNING` state or `COMPLETED`state:
 
@@ -24,11 +24,11 @@ All services should either be in a `RUNNING` state or `COMPLETED`state:
 kubectl get pods
 ```
 
-### How can I verify that I can connect to all services?
+## How can I verify that I can connect to all services?
 
 First locate the the host and port of the Feast Services.
 
-#### **Docker Compose \(from inside the docker network\)**
+### **Docker Compose \(from inside the docker network\)**
 
 You will probably need to connect using the hostnames of services and standard Feast ports:
 
@@ -39,7 +39,7 @@ export FEAST_HISTORICAL_SERVING_URL=historical_serving:6567
 export FEAST_JOBCONTROLLER_URL=jobcontroller:6570
 ```
 
-#### **Docker Compose \(from outside the docker network\)**
+### **Docker Compose \(from outside the docker network\)**
 
 You will probably need to connect using `localhost` and standard ports:
 
@@ -50,7 +50,7 @@ export FEAST_HISTORICAL_SERVING_URL=localhost:6567
 export FEAST_JOBCONTROLLER_URL=localhost:6570
 ```
 
-#### **Google Kubernetes Engine \(GKE\)**
+### **Google Kubernetes Engine \(GKE\)**
 
 You will need to find the external IP of one of the nodes as well as the NodePorts. Please make sure that your firewall is open for these ports:
 
@@ -63,7 +63,7 @@ export FEAST_HISTORICAL_SERVING_URL=${FEAST_IP}:32092
 
 `netcat`, `telnet`, or even `curl` can be used to test whether all services are available and ports are open, but `grpc_cli` is the most powerful. It can be installed from [here](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md).
 
-#### Testing Connectivity From Feast Services:
+### Testing Connectivity From Feast Services:
 
 Use `grpc_cli` to test connetivity by listing the gRPC methods exposed by Feast services:
 
@@ -83,7 +83,7 @@ grpc_cli ls ${FEAST_HISTORICAL_SERVING_URL} feast.serving.ServingService
 grpc_cli ls ${FEAST_ONLINE_SERVING_URL} feast.serving.ServingService
 ```
 
-### How can I print logs from the Feast Services?
+## How can I print logs from the Feast Services?
 
 Feast will typically have three services that you need to monitor if something goes wrong.
 
@@ -94,7 +94,7 @@ Feast will typically have three services that you need to monitor if something g
 
 In order to print the logs from these services, please run the commands below.
 
-#### Docker Compose
+### Docker Compose
 
 Use `docker-compose logs` to obtain Feast component logs:
 
@@ -114,7 +114,7 @@ docker logs -f feast_historical_serving_1
 docker logs -f feast_online_serving_1
 ```
 
-#### Google Kubernetes Engine
+### Google Kubernetes Engine
 
 Use `kubectl logs` to obtain Feast component logs:
 

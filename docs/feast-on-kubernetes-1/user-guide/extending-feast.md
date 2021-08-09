@@ -1,6 +1,6 @@
 # Extending Feast
 
-## Custom OnlineStore 
+## Custom OnlineStore
 
 Feast allow users to create their own OnlineStore implementations, allowing Feast to read and write feature values to stores other than first-party implementations already in Feast directly. The interface for the is found at [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/online_stores/online_store.py), and consists of four methods that need to be implemented.
 
@@ -27,12 +27,11 @@ def teardown(
     entities: Sequence[Entity],
 ):
     ...
-
 ```
 
 ### Write/Read methods
 
-The `online_write_batch` method is responsible for writing the data into the online store - and `online_read` method is responsible for reading data from the online store. 
+The `online_write_batch` method is responsible for writing the data into the online store - and `online_read` method is responsible for reading data from the online store.
 
 ```python
 def online_write_batch(
@@ -76,12 +75,11 @@ def pull_latest_from_table_or_query(
     end_date: datetime,
 ) -> pyarrow.Table:
     ...
-
 ```
 
 ### Read method
 
-The read method is responsible for reading historical features from the OfflineStore. The feature retrieval may be asynchronous, so the read method is expected to return an object that should produce a DataFrame representing the historical features once the feature retrieval job is complete. 
+The read method is responsible for reading historical features from the OfflineStore. The feature retrieval may be asynchronous, so the read method is expected to return an object that should produce a DataFrame representing the historical features once the feature retrieval job is complete.
 
 ```python
 class RetrievalJob:
@@ -99,8 +97,5 @@ def get_historical_features(
     project: str,
 ) -> RetrievalJob:
     pass
-
 ```
-
-
 

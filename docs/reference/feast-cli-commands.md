@@ -1,6 +1,6 @@
 # Feast CLI reference
 
-### Overview
+## Overview
 
 The Feast CLI comes bundled with the Feast Python package. It is immediately available after [installing Feast](../getting-started/install-feast.md).
 
@@ -31,7 +31,7 @@ Commands:
   version                  Display Feast SDK version
 ```
 
-### Global Options
+## Global Options
 
 The Feast CLI provides one global top-level option that can be used with other commands
 
@@ -43,7 +43,7 @@ This command allows users to run Feast CLI commands in a different folder from t
 feast -c path/to/my/feature/repo apply
 ```
 
-### Apply
+## Apply
 
 Creates or updates a feature store deployment
 
@@ -62,7 +62,7 @@ feast apply
 `feast apply` \(when configured to use cloud provider like `gcp` or `aws`\) will create cloud infrastructure. This may incur costs.
 {% endhint %}
 
-### Entities
+## Entities
 
 List all registered entities
 
@@ -75,7 +75,7 @@ NAME       DESCRIPTION    TYPE
 driver_id  driver id      ValueType.INT64
 ```
 
-### Feature views
+## Feature views
 
 List all registered feature views
 
@@ -88,7 +88,7 @@ NAME                 ENTITIES
 driver_hourly_stats  ['driver_id']
 ```
 
-### Init
+## Init
 
 Creates a new feature repository
 
@@ -103,7 +103,7 @@ Creating a new Feast repository in /projects/my_repo_name.
 ```text
 .
 ├── data
-│   └── driver_stats.parquet
+│   └── driver_stats.parquet
 ├── example.py
 └── feature_store.yaml
 ```
@@ -120,7 +120,7 @@ or to set the name of the new project
 feast init -t gcp my_feature_repo
 ```
 
-### Materialize
+## Materialize
 
 Load data from feature views into the online store between two dates
 
@@ -141,7 +141,7 @@ driver_hourly_stats:
 100%|██████████████████████████| 5/5 [00:00<00:00, 5949.37it/s]
 ```
 
-### Materialize incremental
+## Materialize incremental
 
 Load data from feature views into the online store, beginning from either the previous `materialize` or `materialize-incremental` end date, or the beginning of time.
 
@@ -149,7 +149,7 @@ Load data from feature views into the online store, beginning from either the pr
 feast materialize-incremental 2022-01-01T00:00:00
 ```
 
-### Teardown
+## Teardown
 
 Tear down deployed feature store infrastructure
 
@@ -157,7 +157,7 @@ Tear down deployed feature store infrastructure
 feast teardown
 ```
 
-### Version
+## Version
 
 Print the current Feast version
 

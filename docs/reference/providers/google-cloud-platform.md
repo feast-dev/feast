@@ -1,21 +1,21 @@
 # Google Cloud Platform
 
-### Description
+## Description
 
 * Offline Store: Uses the **BigQuery** offline store by default. Also supports File as the offline store.
 * Online Store: Uses the **Datastore** online store by default. Also supports Sqlite as an online store.
 
-### Example
+## Example
 
 {% code title="feature\_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: gs://my-bucket/data/registry.db
-provider: gcp  
+provider: gcp
 ```
 {% endcode %}
 
-### **Permissions**
+## **Permissions**
 
 <table>
   <thead>

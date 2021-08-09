@@ -1,13 +1,13 @@
 # File
 
-### Description
+## Description
 
 The File offline store provides support for reading [FileSources](../data-sources/file.md).
 
 * Only Parquet files are currently supported.
 * All data is downloaded and joined using Python and may not scale to production workloads.
 
-### Example
+## Example
 
 {% code title="feature\_store.yaml" %}
 ```yaml

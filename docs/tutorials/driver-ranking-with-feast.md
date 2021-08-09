@@ -9,7 +9,7 @@ description: >-
 
 In this example you'll learn how to use some of the key functionality in Feast. The tutorial runs in both local mode and on the Google Cloud Platform \(GCP\). For GCP, you must have access to a GCP project already, including read and write permissions to BigQuery.
 
-### [Driver Ranking Example](https://github.com/feast-dev/feast-driver-ranking-tutorial)
+## [Driver Ranking Example](https://github.com/feast-dev/feast-driver-ranking-tutorial)
 
 This tutorial guides you in how to use Feast with [scikit-learn](https://scikit-learn.org/stable/). You will learn how to:
 

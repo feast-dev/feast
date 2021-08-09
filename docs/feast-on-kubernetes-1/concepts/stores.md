@@ -10,7 +10,7 @@ The offline store maintains historical copies of feature values. These features 
 
 The online store maintains only the latest values for a specific feature.
 
-* Feature values are stored based on their [entity keys]()
+* Feature values are stored based on their [entity keys](stores.md)
 * Feast currently supports Redis as an online store.
 * Online stores are meant for very high throughput writes from ingestion jobs and very low latency access to features during online serving.
 

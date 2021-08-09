@@ -1,8 +1,8 @@
 # Upgrading Feast
 
-### Migration from v0.6 to v0.7
+## Migration from v0.6 to v0.7
 
-#### Feast Core Validation changes
+### Feast Core Validation changes
 
 In v0.7, Feast Core no longer accepts starting with number \(0-9\) and using dash in names for:
 
@@ -20,9 +20,9 @@ Feast now prevents feature sets from being applied if no store is subscribed to 
 
 * Ensure that a store is configured to subscribe to the Feature Set before applying the Feature Set.
 
-#### Feast Core's Job Coordinator is now Feast Job Controller
+### Feast Core's Job Coordinator is now Feast Job Controller
 
-In v0.7,  Feast Core's Job Coordinator has been decoupled from Feast Core and runs as a separate Feast Job Controller application. See its [Configuration reference](../reference-1/configuration-reference.md#2-feast-core-serving-and-job-controller) for how to configure Feast Job Controller.
+In v0.7, Feast Core's Job Coordinator has been decoupled from Feast Core and runs as a separate Feast Job Controller application. See its [Configuration reference](../reference-1/configuration-reference.md#2-feast-core-serving-and-job-controller) for how to configure Feast Job Controller.
 
 **Ingestion Job API**
 
@@ -42,15 +42,15 @@ Users of Ingestion Job via Python SDK \(ie `feast ingest-jobs list` or `client.s
 * `ingest_job()`methods only: Create a new separate [Job Controller client](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/contrib/job_controller/client.py) to connect to the job controller and call `ingest_job()` methods using the new client.
 * Configure the Feast Job Controller endpoint url via `jobcontroller_url` config option.
 
-#### Configuration Properties Changes
+### Configuration Properties Changes
 
 * Rename `feast.jobs.consolidate-jobs-per-source property` to `feast.jobs.controller.consolidate-jobs-per-sources`
 * Rename`feast.security.authorization.options.subjectClaim` to  `feast.security.authentication.options.subjectClaim`
 * Rename `feast.logging.audit.messageLoggingEnabled` to `feast.audit.messageLogging.enabled`
 
-### Migration from v0.5 to v0.6
+## Migration from v0.5 to v0.6
 
-#### Database schema
+### Database schema
 
 In Release 0.6 we introduced [Flyway](https://flywaydb.org/) to handle schema migrations in PostgreSQL. Flyway is integrated into `core` and for now on all migrations will be run automatically on `core` start. It uses table `flyway_schema_history` in the same database \(also created automatically\) to keep track of already applied migrations. So no specific maintenance should be needed.
 
@@ -94,9 +94,9 @@ Minor changes:
 
   has now `version` and `delivery_status`.
 
-### Migration from v0.4 to v0.6
+## Migration from v0.4 to v0.6
 
-#### Database
+### Database
 
 For all versions earlier than 0.5 seamless migration is not feasible due to earlier breaking changes and creation of new database will be required.
 

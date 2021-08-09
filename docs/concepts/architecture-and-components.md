@@ -2,7 +2,7 @@
 
 ![Feast Architecture Diagram](../.gitbook/assets/image%20%284%29.png)
 
-#### Functionality
+## Functionality
 
 * **Create Batch Features:** ELT/ETL systems like Spark and SQL are used to transform data in the batch store.
 * **Feast Apply:**  The user \(or CI\) publishes versioned controlled feature definitions using `feast apply`. This CLI command updates infrastructure and persists definitions in the object store registry.
@@ -13,7 +13,7 @@
 * **Prediction:** A backend system makes a request for a prediction from the model serving service.
 * **Get Online Features:** The model serving service makes a request to the Feast Online Serving service for online features using a Feast SDK.
 
-#### Components
+## Components
 
 A complete Feast deployment contains the following components:
 

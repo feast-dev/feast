@@ -1,6 +1,6 @@
 # Redshift
 
-### Description
+## Description
 
 The Redshift offline store provides support for reading [RedshiftSources](../data-sources/redshift.md).
 
@@ -9,7 +9,7 @@ The Redshift offline store provides support for reading [RedshiftSources](../dat
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. Pandas dataframes will be uploaded to Redshift in order to complete join operations.
 * A [RedshiftRetrievalJob](https://github.com/feast-dev/feast/blob/bf557bcb72c7878a16dccb48443bbbe9dc3efa49/sdk/python/feast/infra/offline_stores/redshift.py#L161) is returned when calling `get_historical_features()`.
 
-### Example
+## Example
 
 {% code title="feature\_store.yaml" %}
 ```yaml
@@ -29,49 +29,48 @@ offline_store:
 
 Configuration options are available [here](https://github.com/feast-dev/feast/blob/bf557bcb72c7878a16dccb48443bbbe9dc3efa49/sdk/python/feast/infra/offline_stores/redshift.py#L22).
 
-### Permissions
+## Permissions
 
 Feast requires the following permissions in order to execute commands for Redshift offline store:
 
 <table>
   <thead>
     <tr>
-      <th style="text-align:left"><b>Command</b></th>
+      <th style="text-align:left"><b>Command</b>
+      </th>
       <th style="text-align:left">Permissions</th>
       <th style="text-align:left">Resources</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td style="text-align:left"><b>Apply</b></td>
+      <td style="text-align:left"><b>Apply</b>
+      </td>
       <td style="text-align:left">
         <p>redshift-data:DescribeTable</p>
         <p>redshift:GetClusterCredentials</p>
       </td>
       <td style="text-align:left">
-          <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbuser:&lt;redshift_cluster_id&gt;/&lt;redshift_username&gt;</p>
-          <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbname:&lt;redshift_cluster_id&gt;/&lt;redshift_database_name&gt;</p>
-          <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Materialize</b></td>
-      <td style="text-align:left">
-        <p>redshift-data:ExecuteStatement</p>
-      </td>
-      <td style="text-align:left">
+        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbuser:&lt;redshift_cluster_id&gt;/&lt;redshift_username&gt;</p>
+        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbname:&lt;redshift_cluster_id&gt;/&lt;redshift_database_name&gt;</p>
         <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</p>
       </td>
     </tr>
     <tr>
-      <td style="text-align:left"><b>Materialize</b></td>
-      <td style="text-align:left">
-        <p>redshift-data:DescribeStatement</p>
+      <td style="text-align:left"><b>Materialize</b>
       </td>
+      <td style="text-align:left">redshift-data:ExecuteStatement</td>
+      <td style="text-align:left">arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</td>
+    </tr>
+    <tr>
+      <td style="text-align:left"><b>Materialize</b>
+      </td>
+      <td style="text-align:left">redshift-data:DescribeStatement</td>
       <td style="text-align:left">*</td>
     </tr>
     <tr>
-      <td style="text-align:left"><b>Materialize</b></td>
+      <td style="text-align:left"><b>Materialize</b>
+      </td>
       <td style="text-align:left">
         <p>s3:ListBucket</p>
         <p>s3:GetObject</p>
@@ -83,26 +82,27 @@ Feast requires the following permissions in order to execute commands for Redshi
       </td>
     </tr>
     <tr>
-      <td style="text-align:left"><b>Get Historical Features</b></td>
+      <td style="text-align:left"><b>Get Historical Features</b>
+      </td>
       <td style="text-align:left">
         <p>redshift-data:ExecuteStatement</p>
         <p>redshift:GetClusterCredentials</p>
       </td>
       <td style="text-align:left">
-          <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbuser:&lt;redshift_cluster_id&gt;/&lt;redshift_username&gt;</p>
-          <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbname:&lt;redshift_cluster_id&gt;/&lt;redshift_database_name&gt;</p>
-          <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</p>
+        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbuser:&lt;redshift_cluster_id&gt;/&lt;redshift_username&gt;</p>
+        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbname:&lt;redshift_cluster_id&gt;/&lt;redshift_database_name&gt;</p>
+        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</p>
       </td>
     </tr>
     <tr>
-      <td style="text-align:left"><b>Get Historical Features</b></td>
-      <td style="text-align:left">
-        <p>redshift-data:DescribeStatement</p>
+      <td style="text-align:left"><b>Get Historical Features</b>
       </td>
+      <td style="text-align:left">redshift-data:DescribeStatement</td>
       <td style="text-align:left">*</td>
     </tr>
     <tr>
-      <td style="text-align:left"><b>Get Historical Features</b></td>
+      <td style="text-align:left"><b>Get Historical Features</b>
+      </td>
       <td style="text-align:left">
         <p>s3:ListBucket</p>
         <p>s3:GetObject</p>
@@ -119,7 +119,7 @@ Feast requires the following permissions in order to execute commands for Redshi
 
 The following inline policy can be used to grant Feast the necessary permissions:
 
-```json
+```javascript
 {
     "Statement": [
         {
@@ -160,11 +160,11 @@ The following inline policy can be used to grant Feast the necessary permissions
 }
 ```
 
-In addition to this, Redshift offline store requires an IAM role that will be used by Redshift itself to interact with S3. More concretely, Redshift has to use this IAM role to run <a href="https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html">UNLOAD</a> and <a href="https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html">COPY</a> commands. Once created, this IAM role needs to be configured in `feature_store.yaml` file as `offline_store: iam_role`.
+In addition to this, Redshift offline store requires an IAM role that will be used by Redshift itself to interact with S3. More concretely, Redshift has to use this IAM role to run [UNLOAD](https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html) and [COPY](https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html) commands. Once created, this IAM role needs to be configured in `feature_store.yaml` file as `offline_store: iam_role`.
 
 The following inline policy can be used to grant Redshift necessary permissions to access S3:
 
-```json
+```javascript
 {
     "Statement": [
         {
@@ -182,7 +182,7 @@ The following inline policy can be used to grant Redshift necessary permissions 
 
 While the following trust relationship is necessary to make sure that Redshift, and only Redshift can assume this role:
 
-```json
+```javascript
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -196,3 +196,4 @@ While the following trust relationship is necessary to make sure that Redshift, 
   ]
 }
 ```
+

@@ -9,7 +9,7 @@ In this tutorial we will
 
 You can run this tutorial in Google Colab or run it on your local host, following the guided steps below.
 
-| ![](.gitbook/assets/colab_logo_32px.png) [Run in Google Colab](https://colab.research.google.com/github/dmatrix/feast_workshops/blob/master/notebooks/Feast_Tutorial_Module_1.ipynb) |
+| ![](.gitbook/assets/colab_logo_32px.png) [Run in Google Colab](https://colab.research.google.com/github/feast-dev/feast/blob/master/examples/quickstart/quickstart.ipynb) |
 | :--- |
 
 

@@ -1,13 +1,13 @@
 # Redis
 
-### Description
+## Description
 
 The [Redis](https://redis.io/) online store provides support for materializing feature values into Redis.
 
 * Both Redis and Redis Cluster are supported
 * The data model used to store feature values in Redis is described in more detail [here](https://github.com/feast-dev/feast/blob/master/docs/specs/online_store_format.md).
 
-### Examples
+## Examples
 
 Connecting to a single Redis instance
 
