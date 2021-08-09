@@ -31,6 +31,7 @@ class FeatureService:
     name: str
     features: List[FeatureViewProjection]
     tags: Dict[str, str]
+    description: Optional[str] = None
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
 
@@ -39,6 +40,7 @@ class FeatureService:
         name: str,
         features: List[Union[FeatureTable, FeatureView, FeatureViewProjection]],
         tags: Optional[Dict[str, str]] = None,
+        description: Optional[str] = None,
     ):
         """
         Creates a FeatureService object.
@@ -56,6 +58,7 @@ class FeatureService:
             else:
                 raise ValueError(f"Unexpected type: {type(feature)}")
         self.tags = tags or {}
+        self.description = description
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
@@ -97,6 +100,11 @@ class FeatureService:
                 for fp in feature_service_proto.spec.features
             ],
             tags=dict(feature_service_proto.spec.tags),
+            description=(
+                feature_service_proto.spec.description
+                if feature_service_proto.spec.description != ""
+                else None
+            ),
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
@@ -137,6 +145,8 @@ class FeatureService:
 
         if self.tags:
             spec.tags.update(self.tags)
+        if self.description:
+            spec.description = self.description
 
         feature_service_proto = FeatureServiceProto(spec=spec, meta=meta)
         return feature_service_proto
