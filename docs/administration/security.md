@@ -6,7 +6,7 @@ description: 'Secure Feast with SSL/TLS, Authentication and Authorization.'
 
 ## 1. Overview
 
-![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%285%29.jpg)
+![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%286%29.jpg)
 
 Feast supports the following security methods:
 
