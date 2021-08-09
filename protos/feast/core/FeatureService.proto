@@ -29,6 +29,9 @@ message FeatureServiceSpec {
 
   // User defined metadata
   map<string,string> tags = 4;
+
+  // Description of the feature service.
+  string description = 5;
 }
 
 
