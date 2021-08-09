@@ -100,8 +100,7 @@ class FeatureService:
                 for fp in feature_service_proto.spec.features
             ],
             tags=dict(feature_service_proto.spec.tags),
-            description=(feature_service_proto.spec.description if feature_service_proto.spec.HasField("description")
-                         else None)
+            description=feature_service_proto.spec.description
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
