@@ -4,9 +4,10 @@ from feast import Feature, FeatureView, ValueType
 from feast.data_source import DataSource
 
 
-def correctness_feature_view(data_source: DataSource) -> FeatureView:
+def driver_feature_view(data_source: DataSource,
+                        name="test_correctness") -> FeatureView:
     return FeatureView(
-        name="test_correctness",
+        name=name,
         entities=["driver"],
         features=[Feature("value", ValueType.FLOAT)],
         ttl=timedelta(days=5),

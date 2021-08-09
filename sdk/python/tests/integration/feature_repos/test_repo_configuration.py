@@ -2,19 +2,16 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import pytest
 from attr import dataclass
 
 from feast import FeatureStore, RepoConfig, importer
+from feast.data_source import DataSource
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
-)
-from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import (
-    correctness_feature_view,
 )
 
 
@@ -53,7 +50,7 @@ PROVIDERS: List[str] = []
 
 
 @contextmanager
-def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
+def construct_feature_store(test_repo_config: TestRepoConfig) -> Tuple[FeatureStore, DataSource]:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
     and return the constructed feature store object to callers.
@@ -89,21 +86,50 @@ def construct_feature_store(test_repo_config: TestRepoConfig) -> FeatureStore:
             repo_path=repo_dir_name,
         )
         fs = FeatureStore(config=config)
-        fv = correctness_feature_view(ds)
-        entity = driver()
-        fs.apply([fv, entity])
 
-        yield fs
+        yield fs, ds
 
         fs.teardown()
         offline_creator.teardown(project)
 
 
 def parametrize_e2e_test(e2e_test):
+    """
+    This decorator should be used for end-to-end tests. These tests are expected to be parameterized,
+    and receive an empty feature repo created for all supported configurations.
+
+    The decorator also ensures that sample data needed for the test is available in the relevant offline store.
+
+    Decorated tests should create and apply the objects needed by the tests, and perform any operations needed
+    (such as materialization and looking up feature values).
+
+    The decorator takes care of tearing down the feature store, as well as the sample data.
+    """
     @pytest.mark.integration
     @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: v.provider)
     def inner_test(config):
-        with construct_feature_store(config) as fs:
-            e2e_test(fs)
+        with construct_feature_store(config) as (fs, ds):
+            e2e_test(fs, ds)
+
+    return inner_test
+
+
+def parametrize_offline_retrival_test(offline_retrival_test):
+    """
+    This decorator should be used for end-to-end tests. These tests are expected to be parameterized,
+    and receive an empty feature repo created for all supported configurations.
+
+    The decorator also ensures that sample data needed for the test is available in the relevant offline store.
+
+    Decorated tests should create and apply the objects needed by the tests, and perform any operations needed
+    (such as materialization and looking up feature values).
+
+    The decorator takes care of tearing down the feature store, as well as the sample data.
+    """
+    @pytest.mark.integration
+    @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: v.provider)
+    def inner_test(config):
+        with construct_feature_store(config) as (fs, ds):
+            offline_retrival_test(fs, ds)
 
     return inner_test

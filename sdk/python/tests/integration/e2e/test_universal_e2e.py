@@ -5,13 +5,20 @@ from typing import Optional
 import pandas as pd
 from pytz import utc
 
+from feast.data_source import DataSource
 from feast import FeatureStore, FeatureView
 from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test
+from tests.integration.feature_repos.universal.entities import driver
+from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 @parametrize_e2e_test
-def test_e2e_consistency(fs: FeatureStore):
-    run_offline_online_store_consistency_test(fs)
+def test_e2e_consistency(fs: FeatureStore, ds: DataSource):
+    fv = driver_feature_view(ds)
+    entity = driver()
+    fs.apply([fv, entity])
+
+    run_offline_online_store_consistency_test(fs, fv)
 
 
 def check_offline_and_online_features(
@@ -63,10 +70,9 @@ def check_offline_and_online_features(
                 assert math.isnan(df.to_dict()["value"][0])
 
 
-def run_offline_online_store_consistency_test(fs: FeatureStore,) -> None:
+def run_offline_online_store_consistency_test(fs: FeatureStore, fv: FeatureView) -> None:
     now = datetime.utcnow()
 
-    fv = fs.get_feature_view("test_correctness")
     full_feature_names = True
     check_offline_store: bool = True
 
