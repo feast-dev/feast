@@ -40,7 +40,7 @@ class FeatureService:
         name: str,
         features: List[Union[FeatureTable, FeatureView, FeatureViewProjection]],
         tags: Optional[Dict[str, str]] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ):
         """
         Creates a FeatureService object.
@@ -100,7 +100,11 @@ class FeatureService:
                 for fp in feature_service_proto.spec.features
             ],
             tags=dict(feature_service_proto.spec.tags),
-            description=feature_service_proto.spec.description
+            description=(
+                feature_service_proto.spec.description
+                if feature_service_proto.spec.description != ""
+                else None
+            ),
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
