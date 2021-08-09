@@ -1,11 +1,11 @@
 # Amazon Web Services
 
-### Description
+## Description
 
 * Offline Store: Uses the **Redshift** offline store by default. Also supports File as the offline store.
 * Online Store: Uses the **DynamoDB** online store by default. Also supports Sqlite as an online store.
 
-### Example
+## Example
 
 {% code title="feature\_store.yaml" %}
 ```yaml
@@ -25,3 +25,4 @@ offline_store:
   iam_role: arn:aws:iam::123456789012:role/redshift_s3_access_role
 ```
 {% endcode %}
+

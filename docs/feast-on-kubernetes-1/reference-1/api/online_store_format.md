@@ -54,7 +54,7 @@ The values in the Redis Hash are encoded as serialized `feast.types.Value` proto
 
 Here's an example of how the entire thing looks like:
 
-![Redis Online Store Example](../../../.gitbook/assets/redis_online_example.png)
+![Redis Online Store Example](../../../.gitbook/assets/redis_online_example%20%281%29.png)
 
 #### Known Issues
 
@@ -95,7 +95,7 @@ Other types of entity keys are not supported in this version of the specificatio
 
 **Example:**
 
-![Datastore Online Example](../../../.gitbook/assets/datastore_online_example.png)
+![Datastore Online Example](../../../.gitbook/assets/datastore_online_example%20%281%29.png)
 
 ## Appendix
 
