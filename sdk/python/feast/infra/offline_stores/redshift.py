@@ -239,8 +239,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._s3_path,
                 self._config.offline_store.iam_role,
                 query,
-                self._drop_columns,
-                self._config.offline_store.temp_schema_name,
+                self._drop_columns
             )
 
     def to_s3(self) -> str:
