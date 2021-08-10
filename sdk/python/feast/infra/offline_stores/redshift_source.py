@@ -2,7 +2,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
+from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError, UndefinedDatasourceSchemaException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
@@ -48,6 +48,7 @@ class RedshiftSource(DataSource):
         return (
             self.redshift_options.table == other.redshift_options.table
             and self.redshift_options.query == other.redshift_options.query
+            and self.redshift_options.schema == other.redshift_options.schema
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -61,6 +62,10 @@ class RedshiftSource(DataSource):
     def query(self):
         return self._redshift_options.query
 
+    @property
+    def schema(self):
+        return self._redshift_options.schema
+    
     @property
     def redshift_options(self):
         """
@@ -119,12 +124,16 @@ class RedshiftSource(DataSource):
 
         if self.table is not None:
             try:
-                table = client.describe_table(
-                    ClusterIdentifier=config.offline_store.cluster_id,
-                    Database=config.offline_store.database,
-                    DbUser=config.offline_store.user,
-                    Table=self.table,
-                )
+                desribe_table_req = {
+                    'ClusterIdentifier': config.offline_store.cluster_id,
+                    'Database': config.offline_store.database,
+                    'DbUser': config.offline_store.user,
+                    'Table': self.table,
+                }
+                if self.schema is not None:
+                    desribe_table_req['Schema'] = self.schema
+                
+                table = client.describe_table(**desribe_table_req)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ValidationException":
                     raise RedshiftCredentialsError() from e
@@ -133,6 +142,10 @@ class RedshiftSource(DataSource):
             # The API returns valid JSON with empty column list when the table doesn't exist
             if len(table["ColumnList"]) == 0:
                 raise DataSourceNotFoundException(self.table)
+
+            unique_schemas = {col['schemaName'] for col in table["ColumnList"]}
+            if len(unique_schemas) > 1:
+                raise UndefinedDatasourceSchemaException(unique_schemas, self.table) 
 
             columns = table["ColumnList"]
         else:
