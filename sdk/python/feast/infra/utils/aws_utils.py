@@ -146,6 +146,7 @@ def upload_df_to_redshift(
     iam_role: str,
     table_name: str,
     df: pd.DataFrame,
+    schema_name: Optional[str] = None,
 ) -> None:
     """Uploads a Pandas DataFrame to Redshift as a new table.
 
@@ -204,9 +205,11 @@ def upload_df_to_redshift(
 
     # Create the table with the desired schema and
     # copy the Parquet file contents to the Redshift table
+    schema_prefix = f'{schema_name}.' if schema_name is not None else ''
+    full_table_name = f'{schema_prefix}{table_name}'
     create_and_copy_query = (
-        f"CREATE TABLE {table_name}({column_query_list}); "
-        + f"COPY {table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
+        f"CREATE TABLE {full_table_name}({column_query_list}); "
+        + f"COPY {full_table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
     )
     execute_redshift_statement(
         redshift_data_client, cluster_id, database, user, create_and_copy_query
@@ -227,6 +230,7 @@ def temporarily_upload_df_to_redshift(
     iam_role: str,
     table_name: str,
     df: pd.DataFrame,
+    schema_name: Optional[str] = None
 ) -> Iterator[None]:
     """Uploads a Pandas DataFrame to Redshift as a new table with cleanup logic.
 
@@ -249,6 +253,7 @@ def temporarily_upload_df_to_redshift(
         iam_role,
         table_name,
         df,
+        schema_name
     )
 
     yield
@@ -325,6 +330,7 @@ def unload_redshift_query_to_pa(
     iam_role: str,
     query: str,
     drop_columns: Optional[List[str]] = None,
+    temp_schema_name: Optional[str] = None,
 ) -> pa.Table:
     """ Unload Redshift Query results to S3 and get the results in PyArrow Table format """
     bucket, key = get_bucket_and_key(s3_path)
@@ -356,6 +362,7 @@ def unload_redshift_query_to_df(
     iam_role: str,
     query: str,
     drop_columns: Optional[List[str]] = None,
+    schema: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """ Unload Redshift Query results to S3 and get the results in Pandas DataFrame format """
     table = unload_redshift_query_to_pa(
@@ -368,5 +375,6 @@ def unload_redshift_query_to_df(
         iam_role,
         query,
         drop_columns,
+        schema,
     )
     return table.to_pandas()

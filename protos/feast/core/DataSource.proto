@@ -118,6 +118,9 @@ message DataSource {
     // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
     // entity columns
     string query = 2;
+
+    // Redshift table schema name
+    string schema = 3;
   }
 
   // Defines configuration for custom third-party data sources.

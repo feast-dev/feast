@@ -38,6 +38,9 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     database: StrictStr
     """ Redshift database name """
 
+    temp_schema_name: StrictStr
+    """ Redshift schema name to offload temporary tables """
+
     s3_staging_location: StrictStr
     """ S3 path for importing & exporting data to Redshift """
 
@@ -237,6 +240,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._config.offline_store.iam_role,
                 query,
                 self._drop_columns,
+                self._config.offline_store.temp_schema_name,
             )
 
     def to_s3(self) -> str:
@@ -254,13 +258,15 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
             return self._s3_path
 
-    def to_redshift(self, table_name: str) -> None:
+    def to_redshift(self, table_name: str, schema: Optional[str] = None) -> None:
         """ Save dataset as a new Redshift table """
         with self._query_generator() as query:
-            query = f'CREATE TABLE "{table_name}" AS ({query});\n'
+            schema_prefix = f'{schema}.' if schema is not None else ''
+            full_table_name = f'{schema_prefix}{table_name}'
+            query = f'CREATE TABLE "{full_table_name}" AS ({query});\n'
             if self._drop_columns is not None:
                 for column in self._drop_columns:
-                    query += f"ALTER TABLE {table_name} DROP COLUMN {column};\n"
+                    query += f"ALTER TABLE {full_table_name} DROP COLUMN {column};\n"
 
             aws_utils.execute_redshift_statement(
                 self._redshift_client,
@@ -291,20 +297,22 @@ def _upload_entity_df_and_get_entity_schema(
             config.offline_store.iam_role,
             table_name,
             entity_df,
+            config.offline_store.temp_schema_name,
         )
         return dict(zip(entity_df.columns, entity_df.dtypes))
     elif isinstance(entity_df, str):
         # If the entity_df is a string (SQL query), create a Redshift table out of it,
         # get pandas dataframe consisting of 1 row (LIMIT 1) and generate the schema out of it
+        full_table_name = f'{config.offline_store.temp_schema_name}.{table_name}'
         aws_utils.execute_redshift_statement(
             redshift_client,
             config.offline_store.cluster_id,
             config.offline_store.database,
             config.offline_store.user,
-            f"CREATE TABLE {table_name} AS ({entity_df})",
+            f"CREATE TABLE {full_table_name} AS ({entity_df})",
         )
         limited_entity_df = RedshiftRetrievalJob(
-            f"SELECT * FROM {table_name} LIMIT 1", redshift_client, s3_resource, config
+            f"SELECT * FROM {full_table_name} LIMIT 1", redshift_client, s3_resource, config
         ).to_df()
         return dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
     else:

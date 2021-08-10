@@ -13,6 +13,7 @@ class RedshiftSource(DataSource):
         self,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
+        schema: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
@@ -25,7 +26,7 @@ class RedshiftSource(DataSource):
             date_partition_column,
         )
 
-        self._redshift_options = RedshiftOptions(table=table, query=query)
+        self._redshift_options = RedshiftOptions(table=table, schema=schema, query=query)
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -95,7 +96,8 @@ class RedshiftSource(DataSource):
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
-            return f'"{self.table}"'
+            schema_prefix = f'{self.schema}.' if self.schema is not None else ''
+            return f'"{schema_prefix}{self.table}"'
         else:
             return f"({self.query})"
 
@@ -153,9 +155,19 @@ class RedshiftOptions:
     DataSource Redshift options used to source features from Redshift query
     """
 
-    def __init__(self, table: Optional[str], query: Optional[str]):
+    def __init__(self, table: Optional[str], query: Optional[str], schema: Optional[str]):
+        """Redshift options to encapsulate logic for parsing and working with 2 kinds of source creation
+        table + schema or query
+
+        Args:
+            table (Optional[str]): Redshift table to be looked for in redshift cluster to form datasource
+            query (Optional[str]): Query to run to gather datasource
+            schema (Optional[str]): Schema in redshift cluster to lookup a table. 
+                Has to be provided in case of tables with same name.
+        """
         self._table = table
         self._query = query
+        self._schema = schema
 
     @property
     def query(self):
@@ -185,6 +197,20 @@ class RedshiftOptions:
         """
         self._table = table_name
 
+    @property
+    def schema(self):
+        """
+        Returns the schema name of this Redshift table schema
+        """
+        return self._schema
+    
+    @schema.setter
+    def table(self, schema_name):
+        """
+        Sets the schema ref of this Redshift table schema
+        """
+        self._schema = schema_name
+
     @classmethod
     def from_proto(cls, redshift_options_proto: DataSourceProto.RedshiftOptions):
         """
@@ -198,7 +224,9 @@ class RedshiftOptions:
         """
 
         redshift_options = cls(
-            table=redshift_options_proto.table, query=redshift_options_proto.query,
+            table=redshift_options_proto.table, 
+            query=redshift_options_proto.query,
+            schema=redshift_options_proto.schema
         )
 
         return redshift_options
@@ -212,7 +240,7 @@ class RedshiftOptions:
         """
 
         redshift_options_proto = DataSourceProto.RedshiftOptions(
-            table=self.table, query=self.query,
+            table=self.table, query=self.query, schema=self.schema
         )
 
         return redshift_options_proto
