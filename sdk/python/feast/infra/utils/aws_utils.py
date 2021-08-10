@@ -330,7 +330,6 @@ def unload_redshift_query_to_pa(
     iam_role: str,
     query: str,
     drop_columns: Optional[List[str]] = None,
-    temp_schema_name: Optional[str] = None,
 ) -> pa.Table:
     """ Unload Redshift Query results to S3 and get the results in PyArrow Table format """
     bucket, key = get_bucket_and_key(s3_path)
@@ -362,7 +361,6 @@ def unload_redshift_query_to_df(
     iam_role: str,
     query: str,
     drop_columns: Optional[List[str]] = None,
-    schema: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """ Unload Redshift Query results to S3 and get the results in Pandas DataFrame format """
     table = unload_redshift_query_to_pa(
@@ -375,6 +373,5 @@ def unload_redshift_query_to_df(
         iam_role,
         query,
         drop_columns,
-        schema,
     )
     return table.to_pandas()
