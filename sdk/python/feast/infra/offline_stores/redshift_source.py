@@ -2,7 +2,11 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError, UndefinedDatasourceSchemaException
+from feast.errors import (
+    DataSourceNotFoundException,
+    RedshiftCredentialsError,
+    UndefinedDatasourceSchemaException,
+)
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
@@ -26,7 +30,9 @@ class RedshiftSource(DataSource):
             date_partition_column,
         )
 
-        self._redshift_options = RedshiftOptions(table=table, schema=schema, query=query)
+        self._redshift_options = RedshiftOptions(
+            table=table, schema=schema, query=query
+        )
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -65,7 +71,7 @@ class RedshiftSource(DataSource):
     @property
     def schema(self):
         return self._redshift_options.schema
-    
+
     @property
     def redshift_options(self):
         """
@@ -101,7 +107,7 @@ class RedshiftSource(DataSource):
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
-            schema_prefix = f'{self.schema}.' if self.schema is not None else ''
+            schema_prefix = f"{self.schema}." if self.schema is not None else ""
             return f'"{schema_prefix}{self.table}"'
         else:
             return f"({self.query})"
@@ -125,14 +131,14 @@ class RedshiftSource(DataSource):
         if self.table is not None:
             try:
                 desribe_table_req = {
-                    'ClusterIdentifier': config.offline_store.cluster_id,
-                    'Database': config.offline_store.database,
-                    'DbUser': config.offline_store.user,
-                    'Table': self.table,
+                    "ClusterIdentifier": config.offline_store.cluster_id,
+                    "Database": config.offline_store.database,
+                    "DbUser": config.offline_store.user,
+                    "Table": self.table,
                 }
                 if self.schema is not None:
-                    desribe_table_req['Schema'] = self.schema
-                
+                    desribe_table_req["Schema"] = self.schema
+
                 table = client.describe_table(**desribe_table_req)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ValidationException":
@@ -143,9 +149,9 @@ class RedshiftSource(DataSource):
             if len(table["ColumnList"]) == 0:
                 raise DataSourceNotFoundException(self.table)
 
-            unique_schemas = {col['schemaName'] for col in table["ColumnList"]}
+            unique_schemas = {col["schemaName"] for col in table["ColumnList"]}
             if len(unique_schemas) > 1:
-                raise UndefinedDatasourceSchemaException(unique_schemas, self.table) 
+                raise UndefinedDatasourceSchemaException(unique_schemas, self.table)
 
             columns = table["ColumnList"]
         else:
@@ -168,14 +174,16 @@ class RedshiftOptions:
     DataSource Redshift options used to source features from Redshift query
     """
 
-    def __init__(self, table: Optional[str], query: Optional[str], schema: Optional[str]):
+    def __init__(
+        self, table: Optional[str], query: Optional[str], schema: Optional[str]
+    ):
         """Redshift options to encapsulate logic for parsing and working with 2 kinds of source creation
         table + schema or query
 
         Args:
             table (Optional[str]): Redshift table to be looked for in redshift cluster to form datasource
             query (Optional[str]): Query to run to gather datasource
-            schema (Optional[str]): Schema in redshift cluster to lookup a table. 
+            schema (Optional[str]): Schema in redshift cluster to lookup a table.
                 Has to be provided in case of tables with same name.
         """
         self._table = table
@@ -216,9 +224,9 @@ class RedshiftOptions:
         Returns the schema name of this Redshift table schema
         """
         return self._schema
-    
+
     @schema.setter
-    def table(self, schema_name):
+    def schema(self, schema_name):
         """
         Sets the schema ref of this Redshift table schema
         """
@@ -237,9 +245,9 @@ class RedshiftOptions:
         """
 
         redshift_options = cls(
-            table=redshift_options_proto.table, 
+            table=redshift_options_proto.table,
             query=redshift_options_proto.query,
-            schema=redshift_options_proto.schema
+            schema=redshift_options_proto.schema,
         )
 
         return redshift_options

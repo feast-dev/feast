@@ -9,12 +9,14 @@ class DataSourceNotFoundException(Exception):
             f"Unable to find table at '{path}'. Please check that table exists."
         )
 
+
 class UndefinedDatasourceSchemaException(Exception):
     def __init__(self, schemas_found, path):
         super().__init__(
             f"Unable to identify correct schema location from table at '{path}'. \
                 Found schemas: [{', '.join(schemas_found)}]"
         )
+
 
 class FeastObjectNotFoundException(Exception):
     pass

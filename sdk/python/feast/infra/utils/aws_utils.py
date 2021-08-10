@@ -205,8 +205,8 @@ def upload_df_to_redshift(
 
     # Create the table with the desired schema and
     # copy the Parquet file contents to the Redshift table
-    schema_prefix = f'{schema_name}.' if schema_name is not None else ''
-    full_table_name = f'{schema_prefix}{table_name}'
+    schema_prefix = f"{schema_name}." if schema_name is not None else ""
+    full_table_name = f"{schema_prefix}{table_name}"
     create_and_copy_query = (
         f"CREATE TABLE {full_table_name}({column_query_list}); "
         + f"COPY {full_table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
@@ -230,7 +230,7 @@ def temporarily_upload_df_to_redshift(
     iam_role: str,
     table_name: str,
     df: pd.DataFrame,
-    schema_name: Optional[str] = None
+    schema_name: Optional[str] = None,
 ) -> Iterator[None]:
     """Uploads a Pandas DataFrame to Redshift as a new table with cleanup logic.
 
@@ -253,7 +253,7 @@ def temporarily_upload_df_to_redshift(
         iam_role,
         table_name,
         df,
-        schema_name
+        schema_name,
     )
 
     yield

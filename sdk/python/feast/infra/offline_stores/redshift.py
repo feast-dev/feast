@@ -239,7 +239,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._s3_path,
                 self._config.offline_store.iam_role,
                 query,
-                self._drop_columns
+                self._drop_columns,
             )
 
     def to_s3(self) -> str:
@@ -260,8 +260,8 @@ class RedshiftRetrievalJob(RetrievalJob):
     def to_redshift(self, table_name: str, schema: Optional[str] = None) -> None:
         """ Save dataset as a new Redshift table """
         with self._query_generator() as query:
-            schema_prefix = f'{schema}.' if schema is not None else ''
-            full_table_name = f'{schema_prefix}{table_name}'
+            schema_prefix = f"{schema}." if schema is not None else ""
+            full_table_name = f"{schema_prefix}{table_name}"
             query = f'CREATE TABLE "{full_table_name}" AS ({query});\n'
             if self._drop_columns is not None:
                 for column in self._drop_columns:
@@ -302,7 +302,7 @@ def _upload_entity_df_and_get_entity_schema(
     elif isinstance(entity_df, str):
         # If the entity_df is a string (SQL query), create a Redshift table out of it,
         # get pandas dataframe consisting of 1 row (LIMIT 1) and generate the schema out of it
-        full_table_name = f'{config.offline_store.temp_schema_name}.{table_name}'
+        full_table_name = f"{config.offline_store.temp_schema_name}.{table_name}"
         aws_utils.execute_redshift_statement(
             redshift_client,
             config.offline_store.cluster_id,
@@ -311,7 +311,10 @@ def _upload_entity_df_and_get_entity_schema(
             f"CREATE TABLE {full_table_name} AS ({entity_df})",
         )
         limited_entity_df = RedshiftRetrievalJob(
-            f"SELECT * FROM {full_table_name} LIMIT 1", redshift_client, s3_resource, config
+            f"SELECT * FROM {full_table_name} LIMIT 1",
+            redshift_client,
+            s3_resource,
+            config,
         ).to_df()
         return dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
     else:
