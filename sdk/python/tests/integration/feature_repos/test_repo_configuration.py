@@ -69,13 +69,14 @@ class Environment:
     start_date = end_date - timedelta(days=7)
 
     def customer_fixtures(self) -> Tuple[pd.DataFrame, FeatureView]:
-        customer_df = driver_test_data.create_customer_daily_profile_df(
-            self.customer_entities, self.start_date, self.end_date
-        )
-        customer_table_id = self.data_source_creator.get_prefixed_table_name(
-            self.name, "customer_profile"
-        )
+        # customer_df = driver_test_data.create_customer_daily_profile_df(
+        #     self.customer_entities, self.start_date, self.end_date
+        # )
+        # customer_table_id = self.data_source_creator.get_prefixed_table_name(
+        #     self.name, "customer_profile"
+        # )
         # self.data_source_creator.upload_df(customer_df, customer_table_id)
+        pass
 
     def driver_stats_fixtures(self) -> Tuple[pd.DataFrame, FeatureView]:
         pass

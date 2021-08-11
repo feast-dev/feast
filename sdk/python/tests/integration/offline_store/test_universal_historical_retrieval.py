@@ -15,10 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_offline_retrieval_test,
-)
+from tests.integration.feature_repos.test_repo_configuration import Environment
 
 np.random.seed(0)
 

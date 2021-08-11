@@ -3,7 +3,7 @@ from datetime import timedelta
 
 import pandas as pd
 
-from feast import FeatureView, driver_test_data
+from feast import driver_test_data
 from feast.data_source import DataSource
 from feast.repo_config import FeastConfigBaseModel
 
