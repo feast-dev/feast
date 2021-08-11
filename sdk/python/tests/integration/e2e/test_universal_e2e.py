@@ -6,7 +6,10 @@ import pandas as pd
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test, Environment
+from tests.integration.feature_repos.test_repo_configuration import (
+    Environment,
+    parametrize_e2e_test,
+)
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 

@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from datetime import timedelta
 
 import pandas as pd
-from feast import driver_test_data, FeatureView
 
+from feast import FeatureView, driver_test_data
 from feast.data_source import DataSource
 from feast.repo_config import FeastConfigBaseModel
 
@@ -47,4 +47,3 @@ class DataSourceCreator(ABC):
             order_count=order_count,
         )
         return customer_entities, driver_entities, end_date, orders_df, start_date
-

@@ -15,6 +15,7 @@ def driver_feature_view(
         input=data_source,
     )
 
+
 def create_driver_hourly_stats_feature_view(source):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",

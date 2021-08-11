@@ -8,17 +8,17 @@ from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
-from feast import (
-    errors,
-    utils,
-)
+from feast import errors, utils
 from feast.errors import FeatureNameCollisionError
 from feast.feature_store import _validate_feature_refs
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from tests.integration.feature_repos.test_repo_configuration import parametrize_offline_retrieval_test, Environment
+from tests.integration.feature_repos.test_repo_configuration import (
+    Environment,
+    parametrize_offline_retrieval_test,
+)
 
 np.random.seed(0)
 
@@ -165,10 +165,8 @@ class BigQueryDataSet:
             )
 
 
-@parametrize_offline_retrieval_test
-def test_historical_features_from_bigquery_sources(
-    environment: Environment
-):
+# @parametrize_offline_retrieval_test
+def test_historical_features_from_bigquery_sources(environment: Environment):
     store = environment.feature_store
 
     try:
@@ -302,22 +300,16 @@ def test_historical_features_from_bigquery_sources(
         actual_df_from_df_entities = job_from_df.to_df()
         end_time = datetime.utcnow()
         print(
-            str(
-                f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"
-            )
+            str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
         )
 
-        assert sorted(expected_df.columns) == sorted(
-            actual_df_from_df_entities.columns
-        )
+        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
         assert_frame_equal(
             expected_df.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
             actual_df_from_df_entities[expected_df.columns]
-            .sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            )
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
             .reset_index(drop=True),
             check_dtype=False,
         )

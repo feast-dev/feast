@@ -1,19 +1,20 @@
-from datetime import datetime
-
 import time
+from datetime import datetime
 
 import pandas as pd
 from google.cloud import bigquery
+from pandas import DataFrame
 
-from feast import BigQuerySource, driver_test_data, FeatureView
+from feast import BigQuerySource, FeatureView, driver_test_data
 from feast.data_source import DataSource
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
-from pandas import DataFrame
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.feature_views import create_customer_daily_profile_feature_view, \
-    create_driver_hourly_stats_feature_view
+from tests.integration.feature_repos.universal.feature_views import (
+    create_customer_daily_profile_feature_view,
+    create_driver_hourly_stats_feature_view,
+)
 
 
 class BigQueryDataSourceCreator(DataSourceCreator):
@@ -30,7 +31,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         dataset = bigquery.Dataset(f"{self.gcp_project}.{project_name}")
         self.client.create_dataset(dataset, exists_ok=True)
         dataset.default_table_expiration_ms = (
-                1000 * 60 * 60 * 24 * 14
+            1000 * 60 * 60 * 24 * 14
         )  # 2 weeks in milliseconds
         self.client.update_dataset(dataset, ["default_table_expiration_ms"])
 
@@ -70,8 +71,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         )
         job.result()
 
-    def create_entity_data(self,
-                           name: str) -> [FeatureView]:
+    def create_entity_data(self, name: str) -> [FeatureView]:
         bigquery_dataset = name
         gcp_project = self.client.project
 

@@ -2,21 +2,21 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
-import pytest
 import pandas as pd
+import pytest
 from attr import dataclass
 
-from feast import FeatureStore, RepoConfig, importer, driver_test_data, FeatureView
+from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
 from feast.data_source import DataSource
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.entities import driver, customer
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 
 @dataclass(frozen=True, str=True)
@@ -72,8 +72,9 @@ class Environment:
         customer_df = driver_test_data.create_customer_daily_profile_df(
             self.customer_entities, self.start_date, self.end_date
         )
-        customer_table_id = self.data_source_creator.get_prefixed_table_name(self.name,
-                                                                             "customer_profile")
+        customer_table_id = self.data_source_creator.get_prefixed_table_name(
+            self.name, "customer_profile"
+        )
         # self.data_source_creator.upload_df(customer_df, customer_table_id)
 
     def driver_stats_fixtures(self) -> Tuple[pd.DataFrame, FeatureView]:
@@ -95,7 +96,9 @@ def vary_full_feature_names(configs: List[TestRepoConfig]) -> List[TestRepoConfi
     return new_configs
 
 
-def vary_infer_event_timestamp_col(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
+def vary_infer_event_timestamp_col(
+    configs: List[TestRepoConfig],
+) -> List[TestRepoConfig]:
     new_configs = []
     for c in configs:
         true_c = replace(c, infer_event_timestamp_col=True)
@@ -104,15 +107,17 @@ def vary_infer_event_timestamp_col(configs: List[TestRepoConfig]) -> List[TestRe
     return new_configs
 
 
-def vary_providers_for_offline_stores(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
+def vary_providers_for_offline_stores(
+    configs: List[TestRepoConfig],
+) -> List[TestRepoConfig]:
     new_configs = []
     for c in configs:
-        if 'FileDataSourceCreator' in c.offline_store_creator:
+        if "FileDataSourceCreator" in c.offline_store_creator:
             new_configs.append(c)
-        elif 'RedshiftDataSourceCreator' in c.offline_store_creator:
+        elif "RedshiftDataSourceCreator" in c.offline_store_creator:
             for p in ["local", "aws"]:
                 new_configs.append(replace(c, provider=p))
-        elif 'BigQueryDataSourceCreator' in c.offline_store_creator:
+        elif "BigQueryDataSourceCreator" in c.offline_store_creator:
             for p in ["local", "gcp", "gcp_custom_offline_config"]:
                 new_configs.append(replace(c, provider=p))
     return new_configs
@@ -120,8 +125,7 @@ def vary_providers_for_offline_stores(configs: List[TestRepoConfig]) -> List[Tes
 
 @contextmanager
 def construct_test_environment(
-    test_repo_config: TestRepoConfig,
-    create_and_apply: bool = False
+    test_repo_config: TestRepoConfig, create_and_apply: bool = False
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -166,11 +170,13 @@ def construct_test_environment(
 
                 fs.apply(fvs)
 
-            environment = Environment(name=project,
-                                      test_repo_config=test_repo_config,
-                                      feature_store=fs,
-                                      data_source=ds,
-                                      data_source_creator=offline_creator)
+            environment = Environment(
+                name=project,
+                test_repo_config=test_repo_config,
+                feature_store=fs,
+                data_source=ds,
+                data_source_creator=offline_creator,
+            )
 
             yield environment
         finally:
@@ -220,8 +226,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config):
-        with construct_test_environment(config,
-                                        create_and_apply=True) as environment:
+        with construct_test_environment(config, create_and_apply=True) as environment:
             offline_retrieval_test(environment)
 
     return inner_test
