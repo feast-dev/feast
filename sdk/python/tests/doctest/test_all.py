@@ -11,8 +11,6 @@ def setup_feature_store(docstring_tests):
     """Prepares the local environment for a FeatureStore docstring test."""
     from datetime import datetime, timedelta
 
-    import pandas as pd
-
     from feast import (
         Entity,
         Feature,
