@@ -16,9 +16,12 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 class FileDataSourceCreator(DataSourceCreator):
     f: Any
 
-    def create_data_source(
+    def __init__(self, project_name: str):
+        pass
+
+    def create_data_sources(
         self,
-        name: str,
+        destination: str,
         df: pd.DataFrame,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
@@ -33,6 +36,9 @@ class FileDataSourceCreator(DataSourceCreator):
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
+
+    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
+        return f"{name}.{suffix}"
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return FileOfflineStoreConfig()

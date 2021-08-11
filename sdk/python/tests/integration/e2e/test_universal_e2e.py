@@ -6,14 +6,14 @@ import pandas as pd
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from feast.data_source import DataSource
-from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test
+from tests.integration.feature_repos.test_repo_configuration import parametrize_e2e_test, Environment
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 @parametrize_e2e_test
-def test_e2e_consistency(fs: FeatureStore, ds: DataSource):
+def test_e2e_consistency(test_environment: Environment):
+    fs, ds = test_environment.feature_store, test_environment.data_source
     fv = driver_feature_view(ds)
     entity = driver()
     fs.apply([fv, entity])
