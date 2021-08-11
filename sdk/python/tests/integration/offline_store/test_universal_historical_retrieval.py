@@ -166,6 +166,7 @@ class BigQueryDataSet:
 
 
 # @parametrize_offline_retrieval_test
+@pytest.mark.skip("Still iterating on this test")
 def test_historical_features_from_bigquery_sources(environment: Environment):
     store = environment.feature_store
 
