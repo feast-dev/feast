@@ -411,29 +411,9 @@ class FeatureStore:
         Examples:
             Retrieve historical features from a local offline store.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
-            >>> from datetime import timedelta
+            >>> from feast import FeatureStore, RepoConfig
             >>> import pandas as pd
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
-            >>> # Before retrieving historical features, we must register the appropriate entity and featureview.
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
-            >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
-            ...     event_timestamp_column="event_timestamp",
-            ...     created_timestamp_column="created",
-            ... )
-            >>> driver_hourly_stats_view = FeatureView(
-            ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
-            ...     ttl=timedelta(seconds=86400 * 1),
-            ...     features=[
-            ...         Feature(name="conv_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="acc_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
-            ...     ],
-            ...     batch_source=driver_hourly_stats,
-            ... )
-            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
             >>> entity_df = pd.DataFrame.from_dict(
             ...     {
             ...         "driver_id": [1001, 1002],
@@ -516,28 +496,9 @@ class FeatureStore:
         Examples:
             Materialize all features into the online store up to 5 minutes ago.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
-            >>> from datetime import timedelta
+            >>> from feast import FeatureStore, RepoConfig
+            >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
-            >>> # Before materializing, we must register the appropriate entity and featureview.
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
-            >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
-            ...     event_timestamp_column="event_timestamp",
-            ...     created_timestamp_column="created",
-            ... )
-            >>> driver_hourly_stats_view = FeatureView(
-            ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
-            ...     ttl=timedelta(seconds=86400 * 1),
-            ...     features=[
-            ...         Feature(name="conv_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="acc_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
-            ...     ],
-            ...     batch_source=driver_hourly_stats,
-            ... )
-            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
             Materializing...
             <BLANKLINE>
@@ -620,28 +581,9 @@ class FeatureStore:
             Materialize all features into the online store over the interval
             from 3 hours ago to 10 minutes ago.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
-            >>> from datetime import timedelta
+            >>> from feast import FeatureStore, RepoConfig
+            >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
-            >>> # Before materializing, we must register the appropriate entity and featureview.
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
-            >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
-            ...     event_timestamp_column="event_timestamp",
-            ...     created_timestamp_column="created",
-            ... )
-            >>> driver_hourly_stats_view = FeatureView(
-            ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
-            ...     ttl=timedelta(seconds=86400 * 1),
-            ...     features=[
-            ...         Feature(name="conv_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="acc_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
-            ...     ],
-            ...     batch_source=driver_hourly_stats,
-            ... )
-            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
             >>> fs.materialize(
             ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             ... )
@@ -732,35 +674,8 @@ class FeatureStore:
             Materialize all features into the online store over the interval
             from 3 hours ago to 10 minutes ago, and then retrieve these online features.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
-            >>> from datetime import timedelta
-            >>> import pandas as pd
+            >>> from feast import FeatureStore, RepoConfig
             >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
-            >>> # Before getting online features, we must register the appropriate entity and featureview and then materialize the features.
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
-            >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
-            ...     event_timestamp_column="event_timestamp",
-            ...     created_timestamp_column="created",
-            ... )
-            >>> driver_hourly_stats_view = FeatureView(
-            ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
-            ...     ttl=timedelta(seconds=86400 * 1),
-            ...     features=[
-            ...         Feature(name="conv_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="acc_rate", dtype=ValueType.FLOAT),
-            ...         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
-            ...     ],
-            ...     batch_source=driver_hourly_stats,
-            ... )
-            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
-            >>> fs.materialize(
-            ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
-            ... )
-            Materializing...
-            <BLANKLINE>
-            ...
             >>> online_response = fs.get_online_features(
             ...     features=[
             ...         "driver_hourly_stats:conv_rate",
