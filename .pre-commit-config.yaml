@@ -2,7 +2,7 @@ repos:
   - repo: local
     hooks:
       - id: format
-        name: Format
+        name: make format
         language: system
         entry: make format
       - id: lint
