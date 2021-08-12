@@ -56,7 +56,7 @@ In the example below there are two tables \(or dataframes\):
 
 The user would like to have the driver features joined onto the entity dataframe to produce a training dataset that contains both the target \(trip\_completed\) and features \(average\_daily\_rides, maximum\_daily\_rides, rating\). This dataset will then be used to train their model.
 
-![](../../.gitbook/assets/point_in_time_join%20%281%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%282%29.png)
+![](../../.gitbook/assets/point_in_time_join%20%281%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.png)
 
 Feast is able to intelligently join feature data with different timestamps to a single entity dataframe. It does this through a point-in-time join as follows:
 
