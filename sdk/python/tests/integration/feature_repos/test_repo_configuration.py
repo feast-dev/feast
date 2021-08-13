@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-import pandas as pd
 import pytest
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer

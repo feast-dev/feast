@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -22,19 +22,23 @@ from tests.integration.feature_repos.test_repo_configuration import (
 np.random.seed(0)
 
 
-def convert_timestamp_records_to_utc(records: List[Dict[str, Any]], column: str) -> List[Dict[str, Any]]:
+def convert_timestamp_records_to_utc(
+    records: List[Dict[str, Any]], column: str
+) -> List[Dict[str, Any]]:
     for record in records:
         record[column] = utils.make_tzaware(record[column]).astimezone(utc)
     return records
 
 
 # Find the latest record in the given time range and filter
-def find_asof_record(records: List[Dict[str, Any]],
-                     ts_key: str,
-                     ts_start: datetime,
-                     ts_end: datetime,
-                     filter_key: str,
-                     filter_value: Any) -> Dict[str, Any]:
+def find_asof_record(
+    records: List[Dict[str, Any]],
+    ts_key: str,
+    ts_start: datetime,
+    ts_end: datetime,
+    filter_key: str,
+    filter_value: Any,
+) -> Dict[str, Any]:
     found_record = {}
     for record in records:
         if record[filter_key] == filter_value and ts_start <= record[ts_key] <= ts_end:
@@ -138,8 +142,14 @@ def get_expected_training_df(
 def test_historical_features_from_bigquery_sources(environment: Environment):
     store = environment.feature_store
 
-    customer_df, customer_fv = environment.customer_df, environment.customer_feature_view()
-    driver_df, driver_fv = environment.driver_df, environment.driver_stats_feature_view()
+    customer_df, customer_fv = (
+        environment.customer_df,
+        environment.customer_feature_view(),
+    )
+    driver_df, driver_fv = (
+        environment.driver_df,
+        environment.driver_stats_feature_view(),
+    )
     orders_df = environment.orders_df
     full_feature_names = environment.test_repo_config.full_feature_names
     entity_df_query = environment.orders_sql_fixtures()

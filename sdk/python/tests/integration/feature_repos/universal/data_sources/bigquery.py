@@ -63,6 +63,5 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
 
-
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
         return f"{self.client.project}.{name}.{suffix}"
