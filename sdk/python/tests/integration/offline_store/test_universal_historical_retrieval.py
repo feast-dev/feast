@@ -1,6 +1,5 @@
 from datetime import datetime
 
-import assertpy
 import numpy as np
 import pandas as pd
 import pytest
@@ -8,7 +7,7 @@ from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
-from feast import errors, utils
+from feast import utils
 from feast.errors import FeatureNameCollisionError
 from feast.feature_store import _validate_feature_refs
 from feast.feature_view import FeatureView

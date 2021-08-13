@@ -258,7 +258,6 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
 
-    c = TestRepoConfig()
     configs = vary_providers_for_offline_stores([TestRepoConfig()])
     configs = vary_full_feature_names(configs)
     configs = vary_infer_event_timestamp_col(configs)
