@@ -194,7 +194,7 @@ class DevelopCommand(develop):
 
 
 # Get version from version module.
-with open('feast/version.py') as fp:
+with open('sdk/python/feast/version.py') as fp:
   globals_dict = {}
   exec(fp.read(), globals_dict)  # pylint: disable=exec-used
 __version__ = globals_dict['__version__']

@@ -12,4 +12,4 @@ def get_version():
 
 """Contains the version string of Twitter Feast."""
 
-__version__ = '0.11.1+twtr2'
+__version__ = '0.12.0+twtr1'
