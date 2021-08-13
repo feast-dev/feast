@@ -43,5 +43,5 @@ class FileDataSourceCreator(DataSourceCreator):
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return FileOfflineStoreConfig()
 
-    def teardown(self, name: str):
+    def teardown(self):
         self.f.close()

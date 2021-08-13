@@ -1,18 +1,12 @@
-from datetime import datetime
-
 import pandas as pd
 from google.cloud import bigquery
 from pandas import DataFrame
 
-from feast import BigQuerySource, FeatureView, driver_test_data
+from feast import BigQuerySource
 from feast.data_source import DataSource
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
-)
-from tests.integration.feature_repos.universal.feature_views import (
-    create_customer_daily_profile_feature_view,
-    create_driver_hourly_stats_feature_view,
 )
 
 
@@ -78,4 +72,3 @@ class BigQueryDataSourceCreator(DataSourceCreator):
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
         return f"{self.client.project}.{name}.{suffix}"
-

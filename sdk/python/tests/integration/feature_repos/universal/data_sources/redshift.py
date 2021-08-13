@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pandas as pd
 
 from feast import RedshiftSource

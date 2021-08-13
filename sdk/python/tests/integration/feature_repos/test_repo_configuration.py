@@ -1,23 +1,25 @@
 import tempfile
 import uuid
 from contextlib import contextmanager
-from dataclasses import replace, is_dataclass, dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import pytest
 
-from feast import FeatureStore, FeatureView, RepoConfig, importer, driver_test_data
+from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
 from feast.data_source import DataSource
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 from tests.integration.feature_repos.universal.entities import customer, driver
-from tests.integration.feature_repos.universal.feature_views import create_customer_daily_profile_feature_view, \
-    create_driver_hourly_stats_feature_view
+from tests.integration.feature_repos.universal.feature_views import (
+    create_customer_daily_profile_feature_view,
+    create_driver_hourly_stats_feature_view,
+)
 
 
 @dataclass(frozen=True, repr=True)
@@ -90,18 +92,24 @@ class Environment:
         customer_table_id = self.data_source_creator.get_prefixed_table_name(
             self.name, "customer_profile"
         )
-        ds = self.data_source_creator.create_data_sources(customer_table_id,
-                                                          self.customer_df,
-                                                          event_timestamp_column="event_timestamp",
-                                                          created_timestamp_column="created")
+        ds = self.data_source_creator.create_data_sources(
+            customer_table_id,
+            self.customer_df,
+            event_timestamp_column="event_timestamp",
+            created_timestamp_column="created",
+        )
         return create_customer_daily_profile_feature_view(ds)
 
     def driver_stats_fixtures(self) -> FeatureView:
-        driver_table_id = self.data_source_creator.get_prefixed_table_name(self.name, "driver_hourly")
-        ds = self.data_source_creator.create_data_sources(driver_table_id,
-                                                          self.driver_df,
-                                                          event_timestamp_column="event_timestamp",
-                                                          created_timestamp_column="created")
+        driver_table_id = self.data_source_creator.get_prefixed_table_name(
+            self.name, "driver_hourly"
+        )
+        ds = self.data_source_creator.create_data_sources(
+            driver_table_id,
+            self.driver_df,
+            event_timestamp_column="event_timestamp",
+            created_timestamp_column="created",
+        )
         return create_driver_hourly_stats_feature_view(ds)
 
     def order_fixtures(self) -> pd.DataFrame:
@@ -200,8 +208,12 @@ def construct_test_environment(
             if create_and_apply:
                 fvs = []
                 entities.extend([driver(), customer()])
-                fvs.extend([environment.driver_stats_fixtures(),
-                            environment.customer_fixtures()])
+                fvs.extend(
+                    [
+                        environment.driver_stats_fixtures(),
+                        environment.customer_fixtures(),
+                    ]
+                )
                 fs.apply(fvs + entities)
 
             yield environment
