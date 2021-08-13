@@ -17,12 +17,6 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 
 class BigQueryDataSourceCreator(DataSourceCreator):
-    def teardown(self, name: str):
-        dataset_id = f"{self.client.project}.{name}"
-
-        self.client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
-        print(f"Deleted dataset '{dataset_id}'")
-
     def __init__(self, project_name: str):
         self.client = bigquery.Client()
         self.project_name = project_name
@@ -33,6 +27,17 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             1000 * 60 * 60 * 24 * 14
         )  # 2 weeks in milliseconds
         self.client.update_dataset(dataset, ["default_table_expiration_ms"])
+
+        self.tables = []
+
+    def teardown(self):
+        dataset_id = f"{self.client.project}.{self.project_name}"
+
+        for table in self.tables:
+            self.client.delete_table(table, not_found_ok=True)
+
+        self.client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+        print(f"Deleted dataset '{dataset_id}'")
 
     def create_offline_store_config(self):
         return BigQueryOfflineStoreConfig()
@@ -69,63 +74,8 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             df, destination, job_config=job_config
         )
         job.result()
-
-    def create_entity_data(self, name: str) -> [FeatureView]:
-        bigquery_dataset = name
-        gcp_project = self.client.project
-
-        # Create a DataSet in BQ to organize tables
-        dataset = bigquery.Dataset(f"{self.client.project}.{name}")
-        dataset.location = "US"
-        self.dataset = self.client.create_dataset(dataset, exists_ok=True)
-
-        start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
-        (
-            customer_entities,
-            driver_entities,
-            end_date,
-            orders_df,
-            start_date,
-        ) = self.generate_entities(start_date)
-
-        # Upload entites data into table
-        table_id = f"{bigquery_dataset}.orders"
-        self.upload_df_to_table(orders_df, table_id)
-
-        driver_df = driver_test_data.create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
-        driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
-        self.upload_df_to_table(driver_df, driver_table_id)
-
-        driver_source = BigQuerySource(
-            table_ref=driver_table_id,
-            event_timestamp_column="event_timestamp",
-            created_timestamp_column="created",
-        )
-        driver_fv = create_driver_hourly_stats_feature_view(driver_source)
-
-        # Customer Feature View
-        customer_df = driver_test_data.create_customer_daily_profile_df(
-            customer_entities, start_date, end_date
-        )
-        customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
-
-        self.upload_df_to_table(customer_df, customer_table_id)
-        customer_source = BigQuerySource(
-            table_ref=customer_table_id,
-            event_timestamp_column="event_timestamp",
-            created_timestamp_column="created",
-        )
-        customer_fv = create_customer_daily_profile_feature_view(customer_source)
-
-        return [driver_fv, customer_fv]
+        self.tables.append(destination)
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
         return f"{self.client.project}.{name}.{suffix}"
 
-    def upload_df_to_table(self, df, table_id):
-        df.reset_index(drop=True, inplace=True)
-        job_config = bigquery.LoadJobConfig()
-        job = self.client.load_table_from_dataframe(df, table_id, job_config=job_config)
-        job.result()

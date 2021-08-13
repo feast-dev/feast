@@ -14,8 +14,7 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 class RedshiftDataSourceCreator(DataSourceCreator):
 
-    redshift_source: Optional[RedshiftSource] = None
-    table_name: Optional[str] = None
+    tables = []
 
     def __init__(self, project_name: str):
         super().__init__()
@@ -40,8 +39,6 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         created_timestamp_column="created_ts",
     ) -> DataSource:
 
-        self.table_name = destination
-
         aws_utils.upload_df_to_redshift(
             self.client,
             self.offline_store_config.cluster_id,
@@ -54,14 +51,14 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             df,
         )
 
-        self.redshift_source = RedshiftSource(
+        self.tables.append(destination)
+        return RedshiftSource(
             table=destination,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        return self.redshift_source
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config
@@ -69,12 +66,12 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
         return f"{name}.{suffix}"
 
-    def teardown(self, _: str):
-        if self.table_name:
+    def teardown(self):
+        for table in self.tables:
             aws_utils.execute_redshift_statement(
                 self.client,
                 self.offline_store_config.cluster_id,
                 self.offline_store_config.database,
                 self.offline_store_config.user,
-                f"DROP TABLE {self.table_name}",
+                f"DROP TABLE {table}",
             )

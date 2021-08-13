@@ -15,7 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from tests.integration.feature_repos.test_repo_configuration import Environment
+from tests.integration.feature_repos.test_repo_configuration import Environment, parametrize_offline_retrieval_test
 
 np.random.seed(0)
 
@@ -162,102 +162,34 @@ class BigQueryDataSet:
             )
 
 
-# @parametrize_offline_retrieval_test
-@pytest.mark.skip("Still iterating on this test")
+@parametrize_offline_retrieval_test
 def test_historical_features_from_bigquery_sources(environment: Environment):
     store = environment.feature_store
 
-    try:
+    customer_df, customer_fv = environment.customer_df, environment.customer_fixtures()
+    driver_df, driver_fv = environment.driver_df, environment.driver_stats_fixtures()
+    orders_df = environment.order_fixtures()
+    full_feature_names = environment.test_repo_config.full_feature_names
+    entity_df_query = environment.orders_sql_fixtures()
 
-        customer_df, customer_fv = environment.customer_fixtures()
-        driver_df, driver_fv = environment.driver_stats_fixtures()
-        orders_df, _ = environment.order_fixtures()
-        full_feature_names = environment.test_repo_config.full_feature_names
-        entity_df_query = environment.orders_sql_fixtures()
+    event_timestamp = (
+        DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+        else "e_ts"
+    )
+    expected_df = get_expected_training_df(
+        customer_df,
+        customer_fv,
+        driver_df,
+        driver_fv,
+        orders_df,
+        event_timestamp,
+        full_feature_names,
+    )
 
-        event_timestamp = (
-            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
-            else "e_ts"
-        )
-        expected_df = get_expected_training_df(
-            customer_df,
-            customer_fv,
-            driver_df,
-            driver_fv,
-            orders_df,
-            event_timestamp,
-            full_feature_names,
-        )
-
-        if entity_df_query:
-            job_from_sql = store.get_historical_features(
-                entity_df=entity_df_query,
-                features=[
-                    "driver_stats:conv_rate",
-                    "driver_stats:avg_daily_trips",
-                    "customer_profile:current_balance",
-                    "customer_profile:avg_passenger_count",
-                    "customer_profile:lifetime_trip_count",
-                ],
-                full_feature_names=full_feature_names,
-            )
-
-            start_time = datetime.utcnow()
-            actual_df_from_sql_entities = job_from_sql.to_df()
-            end_time = datetime.utcnow()
-            print(
-                str(
-                    f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
-                )
-            )
-
-            assert sorted(expected_df.columns) == sorted(
-                actual_df_from_sql_entities.columns
-            )
-            assert_frame_equal(
-                expected_df.sort_values(
-                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-                ).reset_index(drop=True),
-                actual_df_from_sql_entities[expected_df.columns]
-                .sort_values(
-                    by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-                )
-                .reset_index(drop=True),
-                check_dtype=False,
-            )
-
-            table_from_sql_entities = job_from_sql.to_arrow()
-            assert_frame_equal(
-                actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
-            )
-
-        # timestamp_column = (
-        #     "e_ts"
-        #     if infer_event_timestamp_col
-        #     else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-        # )
-
-        # entity_df_query_with_invalid_join_key = (
-        #     f"select order_id, driver_id, customer_id as customer, "
-        #     f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
-        # )
-        # # Rename the join key; this should now raise an error.
-        # assertpy.assert_that(store.get_historical_features).raises(
-        #     errors.FeastEntityDFMissingColumnsError
-        # ).when_called_with(
-        #     entity_df=entity_df_query_with_invalid_join_key,
-        #     features=[
-        #         "driver_stats:conv_rate",
-        #         "driver_stats:avg_daily_trips",
-        #         "customer_profile:current_balance",
-        #         "customer_profile:avg_passenger_count",
-        #         "customer_profile:lifetime_trip_count",
-        #     ],
-        # )
-
-        job_from_df = store.get_historical_features(
-            entity_df=orders_df,
+    if entity_df_query:
+        job_from_sql = store.get_historical_features(
+            entity_df=entity_df_query,
             features=[
                 "driver_stats:conv_rate",
                 "driver_stats:avg_daily_trips",
@@ -268,56 +200,119 @@ def test_historical_features_from_bigquery_sources(environment: Environment):
             full_feature_names=full_feature_names,
         )
 
-        # Rename the join key; this should now raise an error.
-        orders_df_with_invalid_join_key = orders_df.rename(
-            {"customer_id": "customer"}, axis="columns"
-        )
-        assertpy.assert_that(store.get_historical_features).raises(
-            errors.FeastEntityDFMissingColumnsError
-        ).when_called_with(
-            entity_df=orders_df_with_invalid_join_key,
-            features=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
-        )
-
-        # Make sure that custom dataset name is being used from the offline_store config
-        #
-        # if provider_type == "gcp_custom_offline_config":
-        #     assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
-        # else:
-        #     assertpy.assert_that(job_from_df.query).contains(
-        #         f"{name}.feast_entity_df"
-        #     )
-
         start_time = datetime.utcnow()
-        actual_df_from_df_entities = job_from_df.to_df()
+        actual_df_from_sql_entities = job_from_sql.to_df()
         end_time = datetime.utcnow()
         print(
-            str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
+            str(
+                f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"
+            )
         )
 
-        assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
+        assert sorted(expected_df.columns) == sorted(
+            actual_df_from_sql_entities.columns
+        )
         assert_frame_equal(
             expected_df.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
-            actual_df_from_df_entities[expected_df.columns]
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            actual_df_from_sql_entities[expected_df.columns]
+            .sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            )
             .reset_index(drop=True),
             check_dtype=False,
         )
 
-        table_from_df_entities = job_from_df.to_arrow()
+        table_from_sql_entities = job_from_sql.to_arrow()
         assert_frame_equal(
-            actual_df_from_df_entities, table_from_df_entities.to_pandas()
+            actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
         )
-    finally:
-        store.teardown()
+
+    # timestamp_column = (
+    #     "e_ts"
+    #     if infer_event_timestamp_col
+    #     else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    # )
+
+    # entity_df_query_with_invalid_join_key = (
+    #     f"select order_id, driver_id, customer_id as customer, "
+    #     f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
+    # )
+    # # Rename the join key; this should now raise an error.
+    # assertpy.assert_that(store.get_historical_features).raises(
+    #     errors.FeastEntityDFMissingColumnsError
+    # ).when_called_with(
+    #     entity_df=entity_df_query_with_invalid_join_key,
+    #     features=[
+    #         "driver_stats:conv_rate",
+    #         "driver_stats:avg_daily_trips",
+    #         "customer_profile:current_balance",
+    #         "customer_profile:avg_passenger_count",
+    #         "customer_profile:lifetime_trip_count",
+    #     ],
+    # )
+
+    job_from_df = store.get_historical_features(
+        entity_df=orders_df,
+        features=[
+            "driver_stats:conv_rate",
+            "driver_stats:avg_daily_trips",
+            "customer_profile:current_balance",
+            "customer_profile:avg_passenger_count",
+            "customer_profile:lifetime_trip_count",
+        ],
+        full_feature_names=full_feature_names,
+    )
+
+    # Rename the join key; this should now raise an error.
+    # orders_df_with_invalid_join_key = orders_df.rename(
+    #     {"customer_id": "customer"}, axis="columns"
+    # )
+    # assertpy.assert_that(store.get_historical_features).raises(
+    #     errors.FeastEntityDFMissingColumnsError
+    # ).when_called_with(
+    #     entity_df=orders_df_with_invalid_join_key,
+    #     features=[
+    #         "driver_stats:conv_rate",
+    #         "driver_stats:avg_daily_trips",
+    #         "customer_profile:current_balance",
+    #         "customer_profile:avg_passenger_count",
+    #         "customer_profile:lifetime_trip_count",
+    #     ],
+    # )
+
+    # Make sure that custom dataset name is being used from the offline_store config
+    #
+    # if provider_type == "gcp_custom_offline_config":
+    #     assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
+    # else:
+    #     assertpy.assert_that(job_from_df.query).contains(
+    #         f"{name}.feast_entity_df"
+    #     )
+
+    start_time = datetime.utcnow()
+    actual_df_from_df_entities = job_from_df.to_df()
+    end_time = datetime.utcnow()
+    print(
+        str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
+    )
+
+    assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
+    assert_frame_equal(
+        expected_df.sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).reset_index(drop=True),
+        actual_df_from_df_entities[expected_df.columns]
+        .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+        .reset_index(drop=True),
+        check_dtype=False,
+    )
+
+    table_from_df_entities = job_from_df.to_arrow()
+    assert_frame_equal(
+        actual_df_from_df_entities, table_from_df_entities.to_pandas()
+    )
 
 
 def test_feature_name_collision_on_historical_retrieval():

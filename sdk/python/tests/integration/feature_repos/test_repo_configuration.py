@@ -1,25 +1,26 @@
 import tempfile
 import uuid
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import replace, is_dataclass, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
-from attr import dataclass
 
-from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
+from feast import FeatureStore, FeatureView, RepoConfig, importer, driver_test_data
 from feast.data_source import DataSource
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 from tests.integration.feature_repos.universal.entities import customer, driver
+from tests.integration.feature_repos.universal.feature_views import create_customer_daily_profile_feature_view, \
+    create_driver_hourly_stats_feature_view
 
 
-@dataclass(frozen=True, str=True)
+@dataclass(frozen=True, repr=True)
 class TestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
@@ -62,27 +63,49 @@ class Environment:
     data_source: DataSource
     data_source_creator: DataSourceCreator
 
-    customer_entities = list(range(1001, 1110))
-    driver_entities = list(range(5001, 5110))
-
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     start_date = end_date - timedelta(days=7)
+    before_start_date = end_date - timedelta(days=365)
+    after_end_date = end_date + timedelta(days=365)
 
-    def customer_fixtures(self) -> Tuple[pd.DataFrame, FeatureView]:
-        # customer_df = driver_test_data.create_customer_daily_profile_df(
-        #     self.customer_entities, self.start_date, self.end_date
-        # )
-        # customer_table_id = self.data_source_creator.get_prefixed_table_name(
-        #     self.name, "customer_profile"
-        # )
-        # self.data_source_creator.upload_df(customer_df, customer_table_id)
-        pass
+    customer_entities = list(range(1001, 1110))
+    customer_df = driver_test_data.create_customer_daily_profile_df(
+        customer_entities, start_date, end_date
+    )
 
-    def driver_stats_fixtures(self) -> Tuple[pd.DataFrame, FeatureView]:
-        pass
+    driver_entities = list(range(5001, 5110))
+    driver_df = driver_test_data.create_driver_hourly_stats_df(
+        driver_entities, start_date, end_date
+    )
 
-    def order_fixtures(self) -> Tuple[pd.DataFrame, FeatureView]:
-        pass
+    orders_df = driver_test_data.create_orders_df(
+        customers=customer_entities,
+        drivers=driver_entities,
+        start_date=before_start_date,
+        end_date=after_end_date,
+        order_count=1000,
+    )
+
+    def customer_fixtures(self) -> FeatureView:
+        customer_table_id = self.data_source_creator.get_prefixed_table_name(
+            self.name, "customer_profile"
+        )
+        ds = self.data_source_creator.create_data_sources(customer_table_id,
+                                                          self.customer_df,
+                                                          event_timestamp_column="event_timestamp",
+                                                          created_timestamp_column="created")
+        return create_customer_daily_profile_feature_view(ds)
+
+    def driver_stats_fixtures(self) -> FeatureView:
+        driver_table_id = self.data_source_creator.get_prefixed_table_name(self.name, "driver_hourly")
+        ds = self.data_source_creator.create_data_sources(driver_table_id,
+                                                          self.driver_df,
+                                                          event_timestamp_column="event_timestamp",
+                                                          created_timestamp_column="created")
+        return create_driver_hourly_stats_feature_view(ds)
+
+    def order_fixtures(self) -> pd.DataFrame:
+        return self.orders_df
 
     def orders_sql_fixtures(self) -> Optional[str]:
         pass
@@ -163,26 +186,29 @@ def construct_test_environment(
             repo_path=repo_dir_name,
         )
         fs = FeatureStore(config=config)
+        environment = Environment(
+            name=project,
+            test_repo_config=test_repo_config,
+            feature_store=fs,
+            data_source=ds,
+            data_source_creator=offline_creator,
+        )
 
+        fvs = []
+        entities = []
         try:
             if create_and_apply:
                 fvs = []
-                fvs.extend([driver(), customer()])
-
-                fs.apply(fvs)
-
-            environment = Environment(
-                name=project,
-                test_repo_config=test_repo_config,
-                feature_store=fs,
-                data_source=ds,
-                data_source_creator=offline_creator,
-            )
+                entities.extend([driver(), customer()])
+                fvs.extend([environment.driver_stats_fixtures(),
+                            environment.customer_fixtures()])
+                fs.apply(fvs + entities)
 
             yield environment
         finally:
+            if create_and_apply:
+                offline_creator.teardown(project)
             fs.teardown()
-            offline_creator.teardown(project)
 
 
 def parametrize_e2e_test(e2e_test):
@@ -220,7 +246,8 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
 
-    configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
+    c = TestRepoConfig()
+    configs = vary_providers_for_offline_stores([TestRepoConfig()])
     configs = vary_full_feature_names(configs)
     configs = vary_infer_event_timestamp_col(configs)
 
