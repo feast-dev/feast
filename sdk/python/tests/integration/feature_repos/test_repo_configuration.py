@@ -39,14 +39,14 @@ class TestRepoConfig:
 FULL_REPO_CONFIGS: List[TestRepoConfig] = [
     TestRepoConfig(),  # Local
     TestRepoConfig(
-        provider="aws",
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
-        online_store={"type": "dynamodb", "region": "us-west-2"},
-    ),
-    TestRepoConfig(
         provider="gcp",
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator",
         online_store="datastore",
+    ),
+    TestRepoConfig(
+        provider="aws",
+        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
+        online_store={"type": "dynamodb", "region": "us-west-2"},
     ),
 ]
 
@@ -73,11 +73,13 @@ class Environment:
     customer_df = driver_test_data.create_customer_daily_profile_df(
         customer_entities, start_date, end_date
     )
+    _customer_feature_view: Optional[FeatureView] = None
 
     driver_entities = list(range(5001, 5110))
     driver_df = driver_test_data.create_driver_hourly_stats_df(
         driver_entities, start_date, end_date
     )
+    _driver_stats_feature_view: Optional[FeatureView] = None
 
     orders_df = driver_test_data.create_orders_df(
         customers=customer_entities,
@@ -88,28 +90,34 @@ class Environment:
     )
 
     def customer_feature_view(self) -> FeatureView:
-        customer_table_id = self.data_source_creator.get_prefixed_table_name(
-            self.name, "customer_profile"
-        )
-        ds = self.data_source_creator.create_data_sources(
-            customer_table_id,
-            self.customer_df,
-            event_timestamp_column="event_timestamp",
-            created_timestamp_column="created",
-        )
-        return create_customer_daily_profile_feature_view(ds)
+        if self._customer_feature_view is None:
+            customer_table_id = self.data_source_creator.get_prefixed_table_name(
+                self.name, "customer_profile"
+            )
+            ds = self.data_source_creator.create_data_sources(
+                customer_table_id,
+                self.customer_df,
+                event_timestamp_column="event_timestamp",
+                created_timestamp_column="created",
+            )
+            self._customer_feature_view = create_customer_daily_profile_feature_view(ds)
+        return self._customer_feature_view
 
     def driver_stats_feature_view(self) -> FeatureView:
-        driver_table_id = self.data_source_creator.get_prefixed_table_name(
-            self.name, "driver_hourly"
-        )
-        ds = self.data_source_creator.create_data_sources(
-            driver_table_id,
-            self.driver_df,
-            event_timestamp_column="event_timestamp",
-            created_timestamp_column="created",
-        )
-        return create_driver_hourly_stats_feature_view(ds)
+        if self._driver_stats_feature_view is None:
+            driver_table_id = self.data_source_creator.get_prefixed_table_name(
+                self.name, "driver_hourly"
+            )
+            ds = self.data_source_creator.create_data_sources(
+                driver_table_id,
+                self.driver_df,
+                event_timestamp_column="event_timestamp",
+                created_timestamp_column="created",
+            )
+            self._driver_stats_feature_view = create_driver_hourly_stats_feature_view(
+                ds
+            )
+        return self._driver_stats_feature_view
 
     def orders_sql_fixtures(self) -> Optional[str]:
         pass
@@ -146,7 +154,7 @@ def vary_providers_for_offline_stores(
             for p in ["local", "aws"]:
                 new_configs.append(replace(c, provider=p))
         elif "BigQueryDataSourceCreator" in c.offline_store_creator:
-            for p in ["local", "gcp", "gcp_custom_offline_config"]:
+            for p in ["local", "gcp"]:
                 new_configs.append(replace(c, provider=p))
     return new_configs
 
@@ -253,7 +261,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
 
-    configs = vary_providers_for_offline_stores([TestRepoConfig()])
+    configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
     configs = vary_full_feature_names(configs)
     configs = vary_infer_event_timestamp_col(configs)
 

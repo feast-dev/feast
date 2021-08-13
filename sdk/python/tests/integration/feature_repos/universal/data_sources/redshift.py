@@ -50,19 +50,20 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         )
 
         self.tables.append(destination)
+
         return RedshiftSource(
             table=destination,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
-            field_mapping={"ts_1": "ts", "id": "driver_id"},
+            field_mapping={"ts_1": "ts"},
         )
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
-        return f"{name}.{suffix}"
+        return f"{name}_{suffix}"
 
     def teardown(self):
         for table in self.tables:

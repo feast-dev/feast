@@ -3,13 +3,10 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-import pytest
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
 from feast import utils
-from feast.errors import FeatureNameCollisionError
-from feast.feature_store import _validate_feature_refs
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -139,7 +136,7 @@ def get_expected_training_df(
 
 
 @parametrize_offline_retrieval_test
-def test_historical_features_from_bigquery_sources(environment: Environment):
+def test_historical_features(environment: Environment):
     store = environment.feature_store
 
     customer_df, customer_fv = (
@@ -231,18 +228,6 @@ def test_historical_features_from_bigquery_sources(environment: Environment):
     #     ],
     # )
 
-    job_from_df = store.get_historical_features(
-        entity_df=orders_df,
-        features=[
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips",
-            "customer_profile:current_balance",
-            "customer_profile:avg_passenger_count",
-            "customer_profile:lifetime_trip_count",
-        ],
-        full_feature_names=full_feature_names,
-    )
-
     # Rename the join key; this should now raise an error.
     # orders_df_with_invalid_join_key = orders_df.rename(
     #     {"customer_id": "customer"}, axis="columns"
@@ -269,69 +254,49 @@ def test_historical_features_from_bigquery_sources(environment: Environment):
     #         f"{name}.feast_entity_df"
     #     )
 
+    job_from_df = store.get_historical_features(
+        entity_df=orders_df,
+        features=[
+            "driver_stats:conv_rate",
+            "driver_stats:avg_daily_trips",
+            "customer_profile:current_balance",
+            "customer_profile:avg_passenger_count",
+            "customer_profile:lifetime_trip_count",
+        ],
+        full_feature_names=full_feature_names,
+    )
+
     start_time = datetime.utcnow()
     actual_df_from_df_entities = job_from_df.to_df()
+
+    print(f"actual_df_from_df_entities shape: {actual_df_from_df_entities.shape}")
     end_time = datetime.utcnow()
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
-    assert_frame_equal(
+    expected_df = (
         expected_df.sort_values(
             by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-        ).reset_index(drop=True),
+        )
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    actual_df_from_df_entities = (
         actual_df_from_df_entities[expected_df.columns]
         .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-        .reset_index(drop=True),
-        check_dtype=False,
+        .drop_duplicates()
+        .reset_index(drop=True)
     )
 
-    table_from_df_entities = job_from_df.to_arrow()
-    assert_frame_equal(actual_df_from_df_entities, table_from_df_entities.to_pandas())
-
-
-def test_feature_name_collision_on_historical_retrieval():
-
-    # _validate_feature_refs is the function that checks for colliding feature names
-    # check when feature names collide and 'full_feature_names=False'
-    with pytest.raises(FeatureNameCollisionError) as error:
-        _validate_feature_refs(
-            feature_refs=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-                "customer_profile:avg_daily_trips",
-            ],
-            full_feature_names=False,
-        )
-
-    expected_error_message = (
-        "Duplicate features named avg_daily_trips found.\n"
-        "To resolve this collision, either use the full feature name by setting "
-        "'full_feature_names=True', or ensure that the features in question have different names."
+    assert_frame_equal(
+        expected_df, actual_df_from_df_entities, check_dtype=False,
     )
 
-    assert str(error.value) == expected_error_message
-
-    # check when feature names collide and 'full_feature_names=True'
-    with pytest.raises(FeatureNameCollisionError) as error:
-        _validate_feature_refs(
-            feature_refs=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-                "customer_profile:avg_daily_trips",
-            ],
-            full_feature_names=True,
-        )
-
-    expected_error_message = (
-        "Duplicate features named driver_stats__avg_daily_trips found.\n"
-        "To resolve this collision, please ensure that the features in question "
-        "have different names."
+    table_from_df_entities = job_from_df.to_arrow().to_pandas()
+    table_from_df_entities = (
+        table_from_df_entities[expected_df.columns]
+        .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+        .drop_duplicates()
+        .reset_index(drop=True)
     )
-    assert str(error.value) == expected_error_message
+    assert_frame_equal(actual_df_from_df_entities, table_from_df_entities)

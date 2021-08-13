@@ -14,23 +14,26 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self.client = bigquery.Client()
         self.project_name = project_name
         self.gcp_project = self.client.project
-        dataset = bigquery.Dataset(f"{self.gcp_project}.{project_name}")
-        self.client.create_dataset(dataset, exists_ok=True)
-        dataset.default_table_expiration_ms = (
+        self.dataset_id = f"{self.gcp_project}.{project_name}"
+        self.dataset = bigquery.Dataset(self.dataset_id)
+        print(f"Creating dataset: {self.dataset_id}")
+        self.client.create_dataset(self.dataset, exists_ok=True)
+        self.dataset.default_table_expiration_ms = (
             1000 * 60 * 60 * 24 * 14
         )  # 2 weeks in milliseconds
-        self.client.update_dataset(dataset, ["default_table_expiration_ms"])
+        self.client.update_dataset(self.dataset, ["default_table_expiration_ms"])
 
         self.tables = []
 
     def teardown(self):
-        dataset_id = f"{self.client.project}.{self.project_name}"
 
         for table in self.tables:
             self.client.delete_table(table, not_found_ok=True)
 
-        self.client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
-        print(f"Deleted dataset '{dataset_id}'")
+        self.client.delete_dataset(
+            self.dataset_id, delete_contents=True, not_found_ok=True
+        )
+        print(f"Deleted dataset '{self.dataset_id}'")
 
     def create_offline_store_config(self):
         return BigQueryOfflineStoreConfig()
@@ -60,7 +63,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
-            field_mapping={"ts_1": "ts", "id": "driver_id"},
+            field_mapping={"ts_1": "ts"},
         )
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:

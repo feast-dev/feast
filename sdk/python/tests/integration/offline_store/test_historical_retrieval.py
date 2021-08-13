@@ -257,6 +257,7 @@ class BigQueryDataSet:
         client = bigquery.Client()
         dataset = bigquery.Dataset(f"{client.project}.{self.name}")
         dataset.location = "US"
+        print(f"Creating dataset: {dataset}")
         dataset = client.create_dataset(dataset, exists_ok=True)
         return dataset
 
