@@ -1,9 +1,9 @@
 from datetime import datetime
+from typing import Dict, Any, List
 
 import numpy as np
 import pandas as pd
 import pytest
-from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
@@ -22,15 +22,19 @@ from tests.integration.feature_repos.test_repo_configuration import (
 np.random.seed(0)
 
 
-# Converts the given column of the pandas records to UTC timestamps
-def convert_timestamp_records_to_utc(records, column):
+def convert_timestamp_records_to_utc(records: List[Dict[str, Any]], column: str) -> List[Dict[str, Any]]:
     for record in records:
         record[column] = utils.make_tzaware(record[column]).astimezone(utc)
     return records
 
 
 # Find the latest record in the given time range and filter
-def find_asof_record(records, ts_key, ts_start, ts_end, filter_key, filter_value):
+def find_asof_record(records: List[Dict[str, Any]],
+                     ts_key: str,
+                     ts_start: datetime,
+                     ts_end: datetime,
+                     filter_key: str,
+                     filter_value: Any) -> Dict[str, Any]:
     found_record = {}
     for record in records:
         if record[filter_key] == filter_value and ts_start <= record[ts_key] <= ts_end:
@@ -130,47 +134,13 @@ def get_expected_training_df(
     return expected_df
 
 
-def stage_orders_bigquery(df, table_id):
-    client = bigquery.Client()
-    job_config = bigquery.LoadJobConfig()
-    df.reset_index(drop=True, inplace=True)
-    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    job.result()
-
-
-class BigQueryDataSet:
-    def __init__(self, dataset_name):
-        self.name = dataset_name
-
-    def __enter__(self):
-        client = bigquery.Client()
-        dataset = bigquery.Dataset(f"{client.project}.{self.name}")
-        dataset.location = "US"
-        dataset = client.create_dataset(dataset, exists_ok=True)
-        return dataset
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        print("Tearing down BigQuery dataset")
-        client = bigquery.Client()
-        dataset_id = f"{client.project}.{self.name}"
-
-        client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
-        print(f"Deleted dataset '{dataset_id}'")
-        if exc_type:
-            print(
-                "***Logging exception {}***".format(
-                    (exc_type, exc_value, exc_traceback)
-                )
-            )
-
-
 @parametrize_offline_retrieval_test
 def test_historical_features_from_bigquery_sources(environment: Environment):
     store = environment.feature_store
 
-    customer_df, customer_fv = environment.customer_df, environment.customer_fixtures()
-    driver_df, driver_fv = environment.driver_df, environment.driver_stats_fixtures()
-    orders_df = environment.order_fixtures()
+    customer_df, customer_fv = environment.customer_df, environment.customer_feature_view()
+    driver_df, driver_fv = environment.driver_df, environment.driver_stats_feature_view()
+    orders_df = environment.orders_df
     full_feature_names = environment.test_repo_config.full_feature_names
     entity_df_query = environment.orders_sql_fixtures()
 

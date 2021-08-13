@@ -88,7 +88,7 @@ class Environment:
         order_count=1000,
     )
 
-    def customer_fixtures(self) -> FeatureView:
+    def customer_feature_view(self) -> FeatureView:
         customer_table_id = self.data_source_creator.get_prefixed_table_name(
             self.name, "customer_profile"
         )
@@ -100,7 +100,7 @@ class Environment:
         )
         return create_customer_daily_profile_feature_view(ds)
 
-    def driver_stats_fixtures(self) -> FeatureView:
+    def driver_stats_feature_view(self) -> FeatureView:
         driver_table_id = self.data_source_creator.get_prefixed_table_name(
             self.name, "driver_hourly"
         )
@@ -111,9 +111,6 @@ class Environment:
             created_timestamp_column="created",
         )
         return create_driver_hourly_stats_feature_view(ds)
-
-    def order_fixtures(self) -> pd.DataFrame:
-        return self.orders_df
 
     def orders_sql_fixtures(self) -> Optional[str]:
         pass
@@ -210,16 +207,15 @@ def construct_test_environment(
                 entities.extend([driver(), customer()])
                 fvs.extend(
                     [
-                        environment.driver_stats_fixtures(),
-                        environment.customer_fixtures(),
+                        environment.driver_stats_feature_view(),
+                        environment.customer_feature_view(),
                     ]
                 )
                 fs.apply(fvs + entities)
 
             yield environment
         finally:
-            if create_and_apply:
-                offline_creator.teardown(project)
+            offline_creator.teardown()
             fs.teardown()
 
 

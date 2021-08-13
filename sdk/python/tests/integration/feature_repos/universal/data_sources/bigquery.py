@@ -1,6 +1,5 @@
 import pandas as pd
 from google.cloud import bigquery
-from pandas import DataFrame
 
 from feast import BigQuerySource
 from feast.data_source import DataSource
@@ -54,6 +53,8 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         )
         job.result()
 
+        self.tables.append(destination)
+
         return BigQuerySource(
             table_ref=destination,
             event_timestamp_column=event_timestamp_column,
@@ -62,13 +63,6 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
 
-    def upload_df(self, df: DataFrame, destination: str):
-        job_config = bigquery.LoadJobConfig()
-        job = self.client.load_table_from_dataframe(
-            df, destination, job_config=job_config
-        )
-        job.result()
-        self.tables.append(destination)
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
         return f"{self.client.project}.{name}.{suffix}"
