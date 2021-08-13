@@ -12,5 +12,3 @@
 
 {% page-ref page="read-features-from-the-online-store.md" %}
 
-
-

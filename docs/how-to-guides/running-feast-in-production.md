@@ -1,6 +1,6 @@
 # Running Feast in production
 
-### Overview
+## Overview
 
 In this guide we will show you how to:
 
@@ -8,7 +8,7 @@ In this guide we will show you how to:
 2. Keep the data in your online store up to date
 3. Use Feast for model training and serving
 
-### 1. Automatically deploying changes to your feature definitions
+## 1. Automatically deploying changes to your feature definitions
 
 The first step to setting up a deployment of Feast is to create a Git repository that contains your feature definitions. The recommended way to version and track your feature definitions is by committing them to a repository and tracking changes through commits.
 
@@ -18,18 +18,17 @@ The contents of this repository are shown below:
 
 ```bash
 ├── .github
-│   └── workflows
-│       ├── production.yml
-│       └── staging.yml
+│   └── workflows
+│       ├── production.yml
+│       └── staging.yml
 │
 ├── staging
-│   ├── driver_repo.py
-│   └── feature_store.yaml
+│   ├── driver_repo.py
+│   └── feature_store.yaml
 │
 └── production
     ├── driver_repo.py
     └── feature_store.yaml
-
 ```
 
 The repository contains three sub-folders:
@@ -54,7 +53,7 @@ It is important to note that the CI system above must have access to create, mod
 
 In summary, once you have set up a Git based repository with CI that runs `feast apply` on changes, your infrastructure \(offline store, online store, and cloud environment\) will automatically be updated to support loading of data into the feature store or retrieval of data.
 
-### 2. How to keep the data in your online store up to date
+## 2. How to keep the data in your online store up to date
 
 In order to keep your online store up to date, you need to run a job that loads feature data from your feature view sources into your online store. In Feast, this loading operation is called materialization.
 
@@ -78,7 +77,7 @@ In the above example we are materializing the source data from the `driver_hourl
 
 The timestamps above should match the interval of data that has been computed by the data transformation system.
 
-### 3. How to use Feast for model training and serving
+## 3. How to use Feast for model training and serving
 
 Now that you have deployed a registry, provisioned your feature store, and loaded your data into your online store, your clients can start to consume features for training and inference.
 

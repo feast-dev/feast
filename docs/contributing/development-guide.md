@@ -92,11 +92,11 @@ Feast is composed of [multiple components](https://docs.feast.dev/v/master/conce
 
 ## Making a Pull Request
 
-#### Incorporating upstream changes from master
+### Incorporating upstream changes from master
 
 Our preference is the use of `git rebase` instead of `git merge` : `git pull -r`
 
-#### Signing commits
+### Signing commits
 
 Commits have to be signed before they are allowed to be merged into the Feast codebase:
 
@@ -105,7 +105,7 @@ Commits have to be signed before they are allowed to be merged into the Feast co
 git commit -s -m "My first commit"
 ```
 
-#### Good practices to keep in mind
+### Good practices to keep in mind
 
 * Fill in the description based on the default template configured when you first open the PR
   * What this PR does/why we need it
@@ -136,7 +136,7 @@ Feast Protobuf API defines the common API used by Feast's Components:
 * Feast Protobuf API specifications are written in [proto3](https://developers.google.com/protocol-buffers/docs/proto3) in the Main Feast Repository.
 * Changes to the API should be proposed via a [GitHub Issue](https://github.com/feast-dev/feast/issues/new/choose) for discussion first.
 
-#### Generating Language Bindings
+### Generating Language Bindings
 
 The language specific bindings have to be regenerated when changes are made to the Feast Protobuf API:
 
@@ -145,6 +145,4 @@ The language specific bindings have to be regenerated when changes are made to t
 | [Main Feast Repository](https://github.com/feast-dev/feast) | Python | Run `make compile-protos-python` to generate bindings |
 | [Main Feast Repository](https://github.com/feast-dev/feast) | Golang | Run `make compile-protos-go` to generate bindings |
 | [Feast Java](https://github.com/feast-dev/feast-java) | Java | No action required: bindings are generated automatically during compilation. |
-
-#### 
 

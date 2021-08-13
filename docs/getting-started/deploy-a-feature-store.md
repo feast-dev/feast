@@ -25,7 +25,7 @@ At this point, no data has been materialized to your online store. Feast apply s
 
 ## Cleaning up
 
-If you need to clean up the  infrastructure created by `feast apply`, use the `teardown` command.
+If you need to clean up the infrastructure created by `feast apply`, use the `teardown` command.
 
 {% hint style="danger" %}
 Warning: `teardown` is an irreversible command and will remove all feature store infrastructure. Proceed with caution!
@@ -35,11 +35,5 @@ Warning: `teardown` is an irreversible command and will remove all feature store
 feast teardown
 ```
 
- 
-
 \*\*\*\*
-
-
-
-
 

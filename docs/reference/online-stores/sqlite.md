@@ -1,13 +1,13 @@
 # SQLite
 
-### Description
+## Description
 
 The [SQLite](https://www.sqlite.org/index.html) online store provides support for materializing feature values into an SQLite database for serving online features.
 
 * All feature values are stored in an on-disk SQLite database
 * Only the latest feature values are persisted
 
-### Example
+## Example
 
 {% code title="feature\_store.yaml" %}
 ```yaml

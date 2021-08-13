@@ -1,6 +1,6 @@
 # Limitations
 
-### Feast API
+## Feast API
 
 <table>
   <thead>
@@ -38,13 +38,13 @@
   </tbody>
 </table>
 
-### Ingestion
+## Ingestion
 
 | Limitation | Motivation |
 | :--- | :--- |
 | Once data has been ingested into Feast, there is currently no way to delete the data without manually going to the database and deleting it. However, during retrieval only the latest rows will be returned for a specific key \(`event_timestamp`, `entity`\) based on its `created_timestamp`. | This functionality simply doesn't exist yet as a Feast API |
 
-### Storage
+## Storage
 
 | Limitation | Motivation |
 | :--- | :--- |
