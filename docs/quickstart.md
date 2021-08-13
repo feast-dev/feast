@@ -134,6 +134,6 @@ pprint(feature_vector)
 ## Next steps
 
 * Follow our [Getting Started](getting-started/) guide for a hands tutorial in using Feast
+* Check out our [Tutorials](feast-on-kubernetes-1/tutorials-1/) section for more examples on how to use Feast.
 * Join other Feast users and contributors in [Slack](https://slack.feast.dev/) and become part of the community!
-* For more tutorials, check the the Tutorials section.
 
