@@ -10,7 +10,7 @@ This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 
 ## Overview
 
-![Overview of Feast&apos;s Security Methods.](../../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%285%29.jpg)
+![Overview of Feast&apos;s Security Methods.](../../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%283%29.jpg)
 
 Feast supports the following security methods:
 
@@ -243,54 +243,8 @@ OAuth Provider makes an OAuth [client credentials](https://auth0.com/docs/flows/
   </thead>
   <tbody></tbody>
 </table>
-{% endtab %}
-{% endtabs %}
 
-### **Enabling Authentication in Go SDK**
-
-Configure the [Feast Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html) to use authentication by specifying the credential via `SecurityConfig`:
-
-```go
-// error handling omitted.
-// Use Google Credential as provider.
-cred, _ := feast.NewGoogleCredential("localhost:6566")
-cli, _ := feast.NewSecureGrpcClient("localhost", 6566, feast.SecurityConfig{
-  // Specify the credential to provide tokens for Feast Authentication.  
-    Credential: cred, 
-})
-```
-
-{% tabs %}
-{% tab title="Google Credential" %}
-Google Credential uses Service Account credentials JSON file set via`GOOGLE_APPLICATION_CREDENTIALS` environmental variable \([Google Cloud Authentication documentation](https://cloud.google.com/docs/authentication/getting-started)\) to obtain tokens for Authenticating Feast requests:
-
-* Exporting `GOOGLE_APPLICATION_CREDENTIALS`
-
-```bash
-$ export GOOGLE_APPLICATION_CREDENTIALS="path/to/key.json"
-```
-
-* Create a Google Credential with target audience. 
-
-```go
-cred, _ := feast.NewGoogleCredential("localhost:6566")
-```
-
-> Target audience of the credential should be set to host URL of target Service. \(ie `https://localhost` if Service listens on `localhost`\):
-{% endtab %}
-
-{% tab title="OAuth Credential" %}
-OAuth Credential makes an OAuth [client credentials](https://auth0.com/docs/flows/call-your-api-using-the-client-credentials-flow) request to obtain the credential/token used to authenticate Feast requests:
-
-* Create OAuth Credential with parameters:
-
-```go
-cred := feast.NewOAuthCredential("localhost:6566", "client_id", "secret", "https://oauth.endpoint/auth")
-```
-
-| Parameter | Description |
-| :--- | :--- |
-
+ {% endtab %} {% endtabs %} \#\#\# \*\*Enabling Authentication in Go SDK\*\* Configure the \[Feast Java SDK\]\(https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html\) to use authentication by specifying the credential via \`SecurityConfig\`: \`\`\`go // error handling omitted. // Use Google Credential as provider. cred, \_ := feast.NewGoogleCredential\("localhost:6566"\) cli, \_ := feast.NewSecureGrpcClient\("localhost", 6566, feast.SecurityConfig{ // Specify the credential to provide tokens for Feast Authentication. Credential: cred, }\) \`\`\` {% tabs %} {% tab title="Google Credential" %} Google Credential uses Service Account credentials JSON file set via\`GOOGLE\_APPLICATION\_CREDENTIALS\` environmental variable \\(\[Google Cloud Authentication documentation\]\(https://cloud.google.com/docs/authentication/getting-started\)\\) to obtain tokens for Authenticating Feast requests: \* Exporting \`GOOGLE\_APPLICATION\_CREDENTIALS\` \`\`\`bash $ export GOOGLE\_APPLICATION\_CREDENTIALS="path/to/key.json" \`\`\` \* Create a Google Credential with target audience. \`\`\`go cred, \_ := feast.NewGoogleCredential\("localhost:6566"\) \`\`\` &gt; Target audience of the credential should be set to host URL of target Service. \\(ie \`https://localhost\` if Service listens on \`localhost\`\\): {% endtab %} {% tab title="OAuth Credential" %} OAuth Credential makes an OAuth \[client credentials\]\(https://auth0.com/docs/flows/call-your-api-using-the-client-credentials-flow\) request to obtain the credential/token used to authenticate Feast requests: \* Create OAuth Credential with parameters: \`\`\`go cred := feast.NewOAuthCredential\("localhost:6566", "client\_id", "secret", "https://oauth.endpoint/auth"\) \`\`\` \| Parameter \| Description \| \| :--- \| :--- \|
 
 <table>
   <thead>

@@ -1,10 +1,13 @@
 # Feature repository
 
-Feast manages two important sets of configuration: feature definitions, and configuration about how to run the feature store. With Feast, this configuration can be written declaratively and stored as code in a central location. This central location is called a feature repository, and it's essentially just a directory that contains some code files.
+Feast users use Feast to manage two important sets of configuration:
 
-Feast manages two important sets of configuration: feature definitions, and configuration about how to run the feature store. With Feast, this configuration can be written declaratively and stored as code in a central location. This central location is called a feature repository, and it's essentially just a directory that contains some code files.
+* Configuration about how to run Feast on your infrastructure
+* Feature definitions
 
-The feature repository is the declarative source of truth for what the desired state of a feature store should be. The Feast CLI uses the feature repository to configure your infrastructure, e.g., migrate tables.
+With Feast, the above configuration can be written declaratively and stored as code in a central location. This central location is called a feature repository. The feature repository is the declarative source of truth for what the desired state of a feature store should be.
+
+The Feast CLI uses the feature repository to configure, deploy, and manage your feature store.
 
 ## What is a feature repository?
 

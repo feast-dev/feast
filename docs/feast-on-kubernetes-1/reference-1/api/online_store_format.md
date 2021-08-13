@@ -95,7 +95,7 @@ Other types of entity keys are not supported in this version of the specificatio
 
 **Example:**
 
-![Datastore Online Example](../../../.gitbook/assets/datastore_online_example%20%281%29.png)
+![Datastore Online Example](../../../.gitbook/assets/datastore_online_example.png)
 
 ## Appendix
 

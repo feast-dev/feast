@@ -2,7 +2,7 @@
 
 ## What is Feast?
 
-Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production. It can serve features from a low-latency online store \(for real-time prediction\) or from an off-line store \(for scale-out batch scoring or training models\).
+Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production. Feast is able to serve feature data to models from a low-latency online store \(for real-time prediction\) or from an offline store \(for scale-out batch scoring or model training\).
 
 ![](.gitbook/assets/feast_hero_010.png)
 
