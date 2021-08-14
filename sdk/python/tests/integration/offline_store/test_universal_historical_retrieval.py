@@ -3,10 +3,11 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+from assertpy import assertpy
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
-from feast import utils
+from feast import utils, errors
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -149,7 +150,10 @@ def test_historical_features(environment: Environment):
     )
     orders_df = environment.orders_df
     full_feature_names = environment.test_repo_config.full_feature_names
-    entity_df_query = environment.orders_sql_fixtures()
+
+    entity_df_query = None
+    if environment.orders_table():
+        entity_df_query = f"SELECT * FROM {environment.orders_table()}"
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
@@ -189,30 +193,37 @@ def test_historical_features(environment: Environment):
         assert sorted(expected_df.columns) == sorted(
             actual_df_from_sql_entities.columns
         )
+
+        actual_df_from_sql_entities = actual_df_from_sql_entities[expected_df.columns].sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).drop_duplicates().reset_index(drop=True)
+        expected_df = expected_df.sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).drop_duplicates().reset_index(drop=True)
+
         assert_frame_equal(
-            expected_df.sort_values(
-                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-            ).reset_index(drop=True),
-            actual_df_from_sql_entities[expected_df.columns]
-            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
-            .reset_index(drop=True),
+            actual_df_from_sql_entities,
+            expected_df,
             check_dtype=False,
         )
 
         table_from_sql_entities = job_from_sql.to_arrow()
+        df_from_sql_entities = table_from_sql_entities.to_pandas()[expected_df.columns].sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        ).drop_duplicates().reset_index(drop=True)
         assert_frame_equal(
-            actual_df_from_sql_entities, table_from_sql_entities.to_pandas()
+            actual_df_from_sql_entities, df_from_sql_entities
         )
 
     # timestamp_column = (
     #     "e_ts"
-    #     if infer_event_timestamp_col
+    #     if environment.test_repo_config.infer_event_timestamp_col
     #     else DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
     # )
 
     # entity_df_query_with_invalid_join_key = (
     #     f"select order_id, driver_id, customer_id as customer, "
-    #     f"order_is_success, {timestamp_column}, FROM {gcp_project}.{table_id}"
+    #     f"order_is_success, {timestamp_column}, FROM {environment.orders_table()}"
     # )
     # # Rename the join key; this should now raise an error.
     # assertpy.assert_that(store.get_historical_features).raises(
@@ -244,15 +255,6 @@ def test_historical_features(environment: Environment):
     #         "customer_profile:lifetime_trip_count",
     #     ],
     # )
-
-    # Make sure that custom dataset name is being used from the offline_store config
-    #
-    # if provider_type == "gcp_custom_offline_config":
-    #     assertpy.assert_that(job_from_df.query).contains("foo.feast_entity_df")
-    # else:
-    #     assertpy.assert_that(job_from_df.query).contains(
-    #         f"{name}.feast_entity_df"
-    #     )
 
     job_from_df = store.get_historical_features(
         entity_df=orders_df,

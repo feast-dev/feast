@@ -88,6 +88,7 @@ class Environment:
         end_date=after_end_date,
         order_count=1000,
     )
+    _orders_table: Optional[str] = None
 
     def customer_feature_view(self) -> FeatureView:
         if self._customer_feature_view is None:
@@ -119,9 +120,22 @@ class Environment:
             )
         return self._driver_stats_feature_view
 
-    def orders_sql_fixtures(self) -> Optional[str]:
-        pass
-
+    def orders_table(self) -> Optional[str]:
+        if self._orders_table is None:
+            orders_table_id = self.data_source_creator.get_prefixed_table_name(
+                self.name, "orders"
+            )
+            ds = self.data_source_creator.create_data_sources(
+                orders_table_id,
+                self.orders_df,
+                event_timestamp_column="event_timestamp",
+                created_timestamp_column="created",
+            )
+            if hasattr(ds, "table_ref"):
+                self._orders_table = ds.table_ref
+            elif hasattr(ds, "table"):
+                self._orders_table = ds.table
+        return self._orders_table
 
 def vary_full_feature_names(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
     new_configs = []
