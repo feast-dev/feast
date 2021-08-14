@@ -199,7 +199,8 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = importer.get_class_from_type(
         module_name, config_class_name, "DataSourceCreator"
     )(project)
-    ds = offline_creator.create_data_sources(project, df)
+    ds = offline_creator.create_data_sources(project, df,
+                                             field_mapping={"ts_1": "ts", "id": "driver_id"})
     offline_store = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 
@@ -225,7 +226,6 @@ def construct_test_environment(
         entities = []
         try:
             if create_and_apply:
-                fvs = []
                 entities.extend([driver(), customer()])
                 fvs.extend(
                     [

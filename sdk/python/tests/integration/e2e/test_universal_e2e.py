@@ -11,14 +11,12 @@ from tests.integration.feature_repos.test_repo_configuration import (
     parametrize_e2e_test,
 )
 from tests.integration.feature_repos.universal.entities import driver
+from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 @parametrize_e2e_test
 def test_e2e_consistency(test_environment: Environment):
-    fs, fv = (
-        test_environment.feature_store,
-        test_environment.driver_stats_feature_view(),
-    )
+    fs, fv = test_environment.feature_store, driver_feature_view(test_environment.data_source)
     entity = driver()
     fs.apply([fv, entity])
 

@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pandas as pd
 from google.cloud import bigquery
 
@@ -44,6 +46,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         df: pd.DataFrame,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
+        field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
 
@@ -63,7 +66,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
-            field_mapping={"ts_1": "ts"},
+            field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:

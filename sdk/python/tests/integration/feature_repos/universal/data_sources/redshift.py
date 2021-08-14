@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pandas as pd
 
 from feast import RedshiftSource
@@ -35,6 +37,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         df: pd.DataFrame,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
+        field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
         aws_utils.upload_df_to_redshift(
@@ -56,7 +59,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
-            field_mapping={"ts_1": "ts"},
+            field_mapping= field_mapping or {"ts_1": "ts"},
         )
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:

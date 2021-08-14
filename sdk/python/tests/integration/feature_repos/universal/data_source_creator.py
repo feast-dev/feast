@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Dict
 
 import pandas as pd
 
@@ -14,6 +15,7 @@ class DataSourceCreator(ABC):
         df: pd.DataFrame,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
+        field_mapping: Dict[str, str] = None,
     ) -> DataSource:
         ...
 
