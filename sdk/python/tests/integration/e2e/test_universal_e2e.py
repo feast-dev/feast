@@ -15,7 +15,10 @@ from tests.integration.feature_repos.universal.entities import driver
 
 @parametrize_e2e_test
 def test_e2e_consistency(test_environment: Environment):
-    fs, fv = test_environment.feature_store, test_environment.driver_stats_feature_view()
+    fs, fv = (
+        test_environment.feature_store,
+        test_environment.driver_stats_feature_view(),
+    )
     entity = driver()
     fs.apply([fv, entity])
 

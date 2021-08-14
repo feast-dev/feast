@@ -3,11 +3,10 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-from assertpy import assertpy
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
-from feast import utils, errors
+from feast import utils
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -194,26 +193,32 @@ def test_historical_features(environment: Environment):
             actual_df_from_sql_entities.columns
         )
 
-        actual_df_from_sql_entities = actual_df_from_sql_entities[expected_df.columns].sort_values(
-            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-        ).drop_duplicates().reset_index(drop=True)
-        expected_df = expected_df.sort_values(
-            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-        ).drop_duplicates().reset_index(drop=True)
+        actual_df_from_sql_entities = (
+            actual_df_from_sql_entities[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+        expected_df = (
+            expected_df.sort_values(
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+            )
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
 
         assert_frame_equal(
-            actual_df_from_sql_entities,
-            expected_df,
-            check_dtype=False,
+            actual_df_from_sql_entities, expected_df, check_dtype=False,
         )
 
         table_from_sql_entities = job_from_sql.to_arrow()
-        df_from_sql_entities = table_from_sql_entities.to_pandas()[expected_df.columns].sort_values(
-            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
-        ).drop_duplicates().reset_index(drop=True)
-        assert_frame_equal(
-            actual_df_from_sql_entities, df_from_sql_entities
+        df_from_sql_entities = (
+            table_from_sql_entities.to_pandas()[expected_df.columns]
+            .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+            .drop_duplicates()
+            .reset_index(drop=True)
         )
+        assert_frame_equal(actual_df_from_sql_entities, df_from_sql_entities)
 
     # timestamp_column = (
     #     "e_ts"
