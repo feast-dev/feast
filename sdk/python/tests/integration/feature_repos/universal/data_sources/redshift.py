@@ -75,5 +75,5 @@ class RedshiftDataSourceCreator(DataSourceCreator):
                 self.offline_store_config.cluster_id,
                 self.offline_store_config.database,
                 self.offline_store_config.user,
-                f"DROP TABLE {table}",
+                f"DROP TABLE IF EXISTS {table}",
             )
