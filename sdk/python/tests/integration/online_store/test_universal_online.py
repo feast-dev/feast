@@ -19,7 +19,10 @@ def test_online_retrieval(environment: Environment):
     # customers_df = environment.customer_df[environment.customer_df['customer_id'].isin(sample_customers)]
     # print(customers_df.to_dict())
 
-    entity_rows = [{'driver': d, 'customer_id': c} for (d, c) in zip(sample_drivers, sample_customers)]
+    entity_rows = [
+        {"driver": d, "customer_id": c}
+        for (d, c) in zip(sample_drivers, sample_customers)
+    ]
 
     online_features = fs.get_online_features(
         features=[
@@ -30,6 +33,6 @@ def test_online_retrieval(environment: Environment):
             "customer_profile:lifetime_trip_count",
         ],
         entity_rows=entity_rows,
-        full_feature_names=full_feature_names
+        full_feature_names=full_feature_names,
     )
     assert online_features is not None
