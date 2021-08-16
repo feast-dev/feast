@@ -9,9 +9,51 @@ import feast
 
 def setup_feature_store(docstring_tests):
     """Prepares the local environment for a FeatureStore docstring test."""
+    from datetime import datetime, timedelta
+
+    from feast import (
+        Entity,
+        Feature,
+        FeatureStore,
+        FeatureView,
+        FileSource,
+        RepoConfig,
+        ValueType,
+    )
     from feast.repo_operations import init_repo
 
     init_repo("feature_repo", "local")
+    fs = FeatureStore(
+        config=RepoConfig(
+            registry="feature_repo/data/registry.db",
+            project="feature_repo",
+            provider="local",
+        )
+    )
+    driver = Entity(
+        name="driver_id", value_type=ValueType.INT64, description="driver id",
+    )
+    driver_hourly_stats = FileSource(
+        path="feature_repo/data/driver_stats.parquet",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
+    driver_hourly_stats_view = FeatureView(
+        name="driver_hourly_stats",
+        entities=["driver_id"],
+        ttl=timedelta(seconds=86400 * 1),
+        features=[
+            Feature(name="conv_rate", dtype=ValueType.FLOAT),
+            Feature(name="acc_rate", dtype=ValueType.FLOAT),
+            Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+        ],
+        batch_source=driver_hourly_stats,
+    )
+    fs.apply([driver_hourly_stats_view, driver])
+    fs.materialize(
+        start_date=datetime.utcnow() - timedelta(hours=3),
+        end_date=datetime.utcnow() - timedelta(minutes=10),
+    )
 
 
 def teardown_feature_store(docstring_tests):
