@@ -176,7 +176,9 @@ def vary_providers_for_offline_stores(
 
 @contextmanager
 def construct_test_environment(
-    test_repo_config: TestRepoConfig, create_and_apply: bool = False
+    test_repo_config: TestRepoConfig,
+    create_and_apply: bool = False,
+    materialize: bool = False,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -236,6 +238,9 @@ def construct_test_environment(
                 )
                 fs.apply(fvs + entities)
 
+            if materialize:
+                fs.materialize(environment.start_date, environment.end_date)
+
             yield environment
         finally:
             offline_creator.teardown()
@@ -266,13 +271,14 @@ def parametrize_e2e_test(e2e_test):
 
 def parametrize_offline_retrieval_test(offline_retrieval_test):
     """
-    This decorator should be used for end-to-end tests. These tests are expected to be parameterized,
-    and receive an empty feature repo created for all supported configurations.
+    This decorator should be used by tests that rely on the offline store. These tests are expected to be parameterized,
+    and receive an Environment object that contains a reference to a Feature Store with pre-applied
+    entities and feature views.
 
     The decorator also ensures that sample data needed for the test is available in the relevant offline store.
 
-    Decorated tests should create and apply the objects needed by the tests, and perform any operations needed
-    (such as materialization and looking up feature values).
+    Decorated tests should interact with the offline store, via the FeatureStore.get_historical_features method. They
+    may perform more operations as needed.
 
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
@@ -286,5 +292,32 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     def inner_test(config):
         with construct_test_environment(config, create_and_apply=True) as environment:
             offline_retrieval_test(environment)
+
+    return inner_test
+
+
+def parametrize_online_test(online_test):
+    """
+    This decorator should be used by tests that rely on the offline store. These tests are expected to be parameterized,
+    and receive an Environment object that contains a reference to a Feature Store with pre-applied
+    entities and feature views.
+
+    The decorator also ensures that sample data needed for the test is available in the relevant offline store. This
+    data is also materialized into the online store.
+
+    The decorator takes care of tearing down the feature store, as well as the sample data.
+    """
+
+    configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
+    configs = vary_full_feature_names(configs)
+    configs = vary_infer_event_timestamp_col(configs)
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
+    def inner_test(config):
+        with construct_test_environment(
+            config, create_and_apply=True, materialize=True
+        ) as environment:
+            online_test(environment)
 
     return inner_test

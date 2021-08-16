@@ -35,7 +35,7 @@ class FileDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
-            field_mapping=field_mapping or {"ts_1": "ts", "id": "driver_id"},
+            field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
     def get_prefixed_table_name(self, name: str, suffix: str) -> str:
