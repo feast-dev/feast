@@ -28,9 +28,7 @@ from feast.infra.utils import aws_utils
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
-from tests.integration.feature_repos.universal.feature_views import (
-    correctness_feature_view,
-)
+from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 @contextlib.contextmanager
@@ -64,7 +62,7 @@ def prep_bq_fs_and_fv(
         field_mapping={"ts_1": "ts", "id": "driver_id"},
     )
 
-    fv = correctness_feature_view(bigquery_source)
+    fv = driver_feature_view(bigquery_source)
     e = Entity(
         name="driver",
         description="id for driver",
@@ -127,7 +125,7 @@ def prep_redshift_fs_and_fv(
         field_mapping={"ts_1": "ts", "id": "driver_id"},
     )
 
-    fv = correctness_feature_view(redshift_source)
+    fv = driver_feature_view(redshift_source)
     e = Entity(
         name="driver",
         description="id for driver",
@@ -175,7 +173,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        fv = correctness_feature_view(file_source)
+        fv = driver_feature_view(file_source)
         e = Entity(
             name="driver",
             description="id for driver",
@@ -216,7 +214,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        fv = correctness_feature_view(file_source)
+        fv = driver_feature_view(file_source)
         e = Entity(
             name="driver",
             description="id for driver",
@@ -258,7 +256,7 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             date_partition_column="",
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
-        fv = correctness_feature_view(file_source)
+        fv = driver_feature_view(file_source)
         e = Entity(
             name="driver",
             description="id for driver",

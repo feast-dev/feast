@@ -8,3 +8,7 @@ def driver():
         description="driver id",
         join_key="driver_id",
     )
+
+
+def customer():
+    return Entity(name="customer_id", value_type=ValueType.INT64)
