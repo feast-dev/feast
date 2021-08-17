@@ -158,6 +158,32 @@ def vary_infer_event_timestamp_col(
     return new_configs
 
 
+def vary_redis_online_store(configs: List[TestRepoConfig],) -> List[TestRepoConfig]:
+    new_configs = []
+    redis_config = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+    for c in configs:
+        if (
+            "FileDataSourceCreator" in c.offline_store_creator
+            and "sqlite" in c.online_store
+        ):
+            new_configs.append(c)
+            new_configs.append(replace(c, online_store=redis_config))
+        elif (
+            "RedshiftDataSourceCreator" in c.offline_store_creator
+            and isinstance(c.online_store, Dict)
+            and c.online_store["type"] == "dynamodb"
+        ):
+            new_configs.append(c)
+            new_configs.append(replace(c, online_store=redis_config))
+        elif (
+            "BigQueryDataSourceCreator" in c.offline_store_creator
+            and c.online_store == "datastore"
+        ):
+            new_configs.append(c)
+            new_configs.append(replace(c, online_store=redis_config))
+    return new_configs
+
+
 def vary_providers_for_offline_stores(
     configs: List[TestRepoConfig],
 ) -> List[TestRepoConfig]:
@@ -256,7 +282,9 @@ def parametrize_e2e_test(e2e_test):
     """
 
     @pytest.mark.integration
-    @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: str(v))
+    @pytest.mark.parametrize(
+        "config", vary_redis_online_store(FULL_REPO_CONFIGS), ids=lambda v: str(v)
+    )
     def inner_test(config):
         with construct_test_environment(config) as environment:
             e2e_test(environment)
@@ -277,7 +305,8 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
 
-    configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
+    configs = vary_redis_online_store(FULL_REPO_CONFIGS)
+    configs = vary_providers_for_offline_stores(configs)
     configs = vary_full_feature_names(configs)
     configs = vary_infer_event_timestamp_col(configs)
 
