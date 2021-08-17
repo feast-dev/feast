@@ -4,11 +4,13 @@ from fastapi.logger import logger
 from google.protobuf.json_format import MessageToDict, Parse
 
 import feast
+from feast import proto_json
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
-from feast.type_map import feast_value_type_to_python_type
 
 
 def get_app(store: "feast.FeatureStore"):
+    proto_json.patch()
+
     app = FastAPI()
 
     @app.get("/get-online-features/")
@@ -20,21 +22,21 @@ def get_app(store: "feast.FeatureStore"):
             Parse(body, request_proto)
 
             # Initialize parameters for FeatureStore.get_online_features(...) call
-            if request_proto.HasField("feature_service_name"):
-                features = store.get_feature_service(request_proto.feature_service_name)
-                full_feature_names = False
+            if request_proto.HasField("feature_service"):
+                features = store.get_feature_service(request_proto.feature_service)
             else:
-                features = request_proto.feature_list_config.features
-                full_feature_names = (
-                    request_proto.feature_list_config.full_feature_names
-                )
+                features = list(request_proto.features.val)
+
+            full_feature_names = request_proto.full_feature_names
+
+            batch_sizes = [len(v.val) for v in request_proto.entities.values()]
+            num_entities = batch_sizes[0]
+            if any(batch_size != num_entities for batch_size in batch_sizes):
+                raise HTTPException(status_code=500, detail="Uneven number of columns")
 
             entity_rows = [
-                {
-                    k: feast_value_type_to_python_type(v)
-                    for k, v in entity_row_proto.fields.items()
-                }
-                for entity_row_proto in request_proto.entity_rows
+                {k: v.val[idx] for k, v in request_proto.entities.items()}
+                for idx in range(num_entities)
             ]
 
             response_proto = store.get_online_features(

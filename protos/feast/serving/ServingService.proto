@@ -84,21 +84,20 @@ message GetOnlineFeaturesRequestV2 {
     }
 }
 
-message FeatureListConfig {
-    repeated string features = 1;
-    bool full_feature_names = 2;
-}
-
-message EntityRow {
-    map<string,feast.types.Value> fields = 1;
+// In JSON "val" field can be omitted
+message FeatureList {
+    repeated string val = 1;
 }
 
 message GetOnlineFeaturesRequest {
-    oneof features {
-        string feature_service_name = 1;
-        FeatureListConfig feature_list_config = 2;
+    oneof kind {
+        string feature_service = 1;
+        FeatureList features = 2;
     }
-    repeated EntityRow entity_rows = 3;
+    // The entity data is specified in a columnar format
+    // A map of entity name -> list of values
+    map<string, feast.types.RepeatedValue> entities = 3;
+    bool full_feature_names = 4;
 }
 
 message GetOnlineFeaturesResponse {

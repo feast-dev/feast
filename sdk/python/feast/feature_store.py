@@ -848,7 +848,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
-        """Start a the feature consumption server locally on a given port."""
+        """Start the feature consumption server locally on a given port."""
         feature_server.start_server(self, port)
 
 
