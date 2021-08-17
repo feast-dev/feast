@@ -39,7 +39,6 @@ def create_customer_daily_profile_feature_view(source):
             Feature(name="current_balance", dtype=ValueType.FLOAT),
             Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
             Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
-            Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
         batch_source=source,
         ttl=timedelta(days=2),
