@@ -153,3 +153,27 @@ def test_no_project():
         "project\n"
         "  field required (type=value_error.missing)",
     )
+
+
+def test_invalid_project_name():
+    _test_config(
+        dedent(
+            """
+        project: foo-1
+        registry: "registry.db"
+        provider: local
+        """
+        ),
+        expect_error="alphanumerical values ",
+    )
+
+    _test_config(
+        dedent(
+            """
+        project: _foo
+        registry: "registry.db"
+        provider: local
+        """
+        ),
+        expect_error="alphanumerical values ",
+    )

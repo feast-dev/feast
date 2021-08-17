@@ -2,7 +2,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
+from pydantic import (
+    BaseModel,
+    StrictInt,
+    StrictStr,
+    ValidationError,
+    root_validator,
+    validator,
+)
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
@@ -179,6 +186,17 @@ class RepoConfig(FeastBaseModel):
             )
 
         return values
+
+    @validator("project")
+    def _validate_project_name(cls, v):
+        from feast.repo_operations import is_valid_name
+
+        if not is_valid_name(v):
+            raise ValueError(
+                f"Project name, {v}, should only have "
+                f"alphanumerical values and underscores but not start with an underscore."
+            )
+        return v
 
 
 class FeastConfigError(Exception):
