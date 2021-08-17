@@ -36,17 +36,37 @@ class TestRepoConfig:
     infer_event_timestamp_col: bool = True
 
 
+def ds_creator_path(cls: str):
+    return f"tests.integration.feature_repos.universal.data_sources.{cls}"
+
+
+DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
+REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 FULL_REPO_CONFIGS: List[TestRepoConfig] = [
-    TestRepoConfig(),  # Local
+    # Local configurations
+    TestRepoConfig(),
+    TestRepoConfig(online_store=REDIS_CONFIG),
+    # GCP configurations
     TestRepoConfig(
         provider="gcp",
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.bigquery.BigQueryDataSourceCreator",
+        offline_store_creator=ds_creator_path("bigquery.BigQueryDataSourceCreator"),
         online_store="datastore",
     ),
     TestRepoConfig(
+        provider="gcp",
+        offline_store_creator=ds_creator_path("bigquery.BigQueryDataSourceCreator"),
+        online_store=REDIS_CONFIG,
+    ),
+    # AWS configurations
+    TestRepoConfig(
         provider="aws",
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.redshift.RedshiftDataSourceCreator",
-        online_store={"type": "dynamodb", "region": "us-west-2"},
+        offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
+        online_store=DYNAMO_CONFIG,
+    ),
+    TestRepoConfig(
+        provider="aws",
+        offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
+        online_store=REDIS_CONFIG,
     ),
 ]
 
