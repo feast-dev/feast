@@ -93,6 +93,7 @@ CI_REQUIRED = [
     "pytest-cov",
     "pytest-xdist",
     "pytest-lazy-fixture==0.6.3",
+    "pytest-rerunfailures==10.1",
     "pytest-timeout==1.4.2",
     "pytest-ordering==0.6.*",
     "pytest-mock==1.10.4",
