@@ -45,7 +45,9 @@ def test_feature_get_historical_features_types_match(environment: Environment):
 
     features = [f"{fv.name}:value"]
     df = pd.DataFrame()
-    df["driver_id"] = [1, 3]
+    df["driver_id"] = (
+        ["1", "3"] if environment.entity_type == ValueType.STRING else [1, 3]
+    )
     now = datetime.utcnow()
     ts = pd.Timestamp(now).round("ms")
     df["ts"] = [
@@ -117,7 +119,7 @@ def assert_expected_historical_feature_types(
         "int64": "int64",
         "float": "float64",
         "string": "object",
-        "bool": "object",
+        "bool": "bool",
     }
     assert (
         str(historical_features_df.dtypes["value"])
