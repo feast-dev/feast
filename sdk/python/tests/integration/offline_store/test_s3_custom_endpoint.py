@@ -1,7 +1,10 @@
+import pytest
+
 from tests.integration.feature_repos.test_repo_configuration import (
     TestRepoConfig,
     construct_test_environment,
 )
+
 
 @pytest.mark.integration
 def test_registration_and_retrieval_from_custom_s3_endpoint():
