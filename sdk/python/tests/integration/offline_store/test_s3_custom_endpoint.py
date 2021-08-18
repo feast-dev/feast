@@ -10,11 +10,13 @@ def test_registration_and_retrieval_from_custom_s3_endpoint():
     )
     import os
 
-    if 'AWS_ACCESS_KEY_ID' in os.environ:
-        raise Exception("AWS_ACCESS_KEY_ID has already been set in the environment. Setting it again may cause a conflict. It may be better to deduplicate AWS configuration or use sub-processes for isolation")
+    if "AWS_ACCESS_KEY_ID" in os.environ:
+        raise Exception(
+            "AWS_ACCESS_KEY_ID has already been set in the environment. Setting it again may cause a conflict. It may be better to deduplicate AWS configuration or use sub-processes for isolation"
+        )
 
-    os.environ['AWS_ACCESS_KEY_ID'] = 'AKIAIOSFODNN7EXAMPLE'
-    os.environ['AWS_SECRET_ACCESS_KEY'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+    os.environ["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
     with construct_test_environment(
         config, create_and_apply=True, materialize=True
@@ -25,5 +27,5 @@ def test_registration_and_retrieval_from_custom_s3_endpoint():
         ).to_dict()
         assert out["conv_rate"][0] is not None
 
-    del os.environ['AWS_ACCESS_KEY_ID']
-    del os.environ['AWS_SECRET_ACCESS_KEY']
+    del os.environ["AWS_ACCESS_KEY_ID"]
+    del os.environ["AWS_SECRET_ACCESS_KEY"]
