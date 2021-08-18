@@ -112,12 +112,9 @@ class Environment:
 
     def customer_feature_view(self) -> FeatureView:
         if self._customer_feature_view is None:
-            customer_table_id = self.data_source_creator.get_prefixed_table_name(
-                self.name, "customer_profile"
-            )
             ds = self.data_source_creator.create_data_sources(
-                customer_table_id,
                 self.customer_df,
+                suffix="customer_profile",
                 event_timestamp_column="event_timestamp",
                 created_timestamp_column="created",
             )
@@ -126,12 +123,9 @@ class Environment:
 
     def driver_stats_feature_view(self) -> FeatureView:
         if self._driver_stats_feature_view is None:
-            driver_table_id = self.data_source_creator.get_prefixed_table_name(
-                self.name, "driver_hourly"
-            )
             ds = self.data_source_creator.create_data_sources(
-                driver_table_id,
                 self.driver_df,
+                suffix="driver_hourly",
                 event_timestamp_column="event_timestamp",
                 created_timestamp_column="created",
             )
@@ -142,12 +136,9 @@ class Environment:
 
     def orders_table(self) -> Optional[str]:
         if self._orders_table is None:
-            orders_table_id = self.data_source_creator.get_prefixed_table_name(
-                self.name, "orders"
-            )
             ds = self.data_source_creator.create_data_sources(
-                orders_table_id,
                 self.orders_df,
+                suffix="orders",
                 event_timestamp_column="event_timestamp",
                 created_timestamp_column="created",
             )
@@ -210,7 +201,6 @@ def construct_test_environment(
     :param test_repo_config: configuration
     :return: A feature store built using the supplied configuration.
     """
-    df = create_dataset()
 
     project = f"test_correctness_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
@@ -221,9 +211,13 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = importer.get_class_from_type(
         module_name, config_class_name, "DataSourceCreator"
     )(project)
+
+    # This needs to be abstracted away for test_e2e_universal which uses a different dataset.
+    df = create_dataset()
     ds = offline_creator.create_data_sources(
-        project, df, field_mapping={"ts_1": "ts", "id": "driver_id"}
+        df, destination=project, field_mapping={"ts_1": "ts", "id": "driver_id"}
     )
+
     offline_store = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 

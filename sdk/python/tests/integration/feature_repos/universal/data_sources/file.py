@@ -1,5 +1,5 @@
 import tempfile
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -22,12 +22,18 @@ class FileDataSourceCreator(DataSourceCreator):
 
     def create_data_sources(
         self,
-        destination: str,
         df: pd.DataFrame,
+        destination: Optional[str] = None,
+        suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
+
+        assert destination or suffix
+        if not destination:
+            destination = self.get_prefixed_table_name(suffix)
+
         f = tempfile.NamedTemporaryFile(
             prefix=self.project_name, suffix=".parquet", delete=False
         )

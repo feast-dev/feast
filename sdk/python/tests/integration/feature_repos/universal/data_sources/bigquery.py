@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import pandas as pd
 from google.cloud import bigquery
@@ -42,13 +42,18 @@ class BigQueryDataSourceCreator(DataSourceCreator):
 
     def create_data_sources(
         self,
-        destination: str,
         df: pd.DataFrame,
+        destination: Optional[str] = None,
+        suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
+
+        assert destination or suffix
+        if not destination:
+            destination = self.get_prefixed_table_name(suffix)
 
         job_config = bigquery.LoadJobConfig()
         if self.gcp_project not in destination:

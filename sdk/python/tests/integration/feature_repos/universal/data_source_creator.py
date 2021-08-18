@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
 
 import pandas as pd
 
@@ -11,8 +11,9 @@ class DataSourceCreator(ABC):
     @abstractmethod
     def create_data_sources(
         self,
-        destination: str,
         df: pd.DataFrame,
+        destination: Optional[str] = None,
+        suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
