@@ -69,5 +69,5 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
-    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
-        return f"{self.client.project}.{name}.{suffix}"
+    def get_prefixed_table_name(self, suffix: str) -> str:
+        return f"{self.client.project}.{self.project_name}.{suffix}"

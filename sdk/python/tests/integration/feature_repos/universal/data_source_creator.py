@@ -28,5 +28,5 @@ class DataSourceCreator(ABC):
         ...
 
     @abstractmethod
-    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
+    def get_prefixed_table_name(self, table_name: str) -> str:
         ...

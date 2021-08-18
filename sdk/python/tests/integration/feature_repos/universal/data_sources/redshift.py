@@ -65,8 +65,8 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config
 
-    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
-        return f"{name}_{suffix}"
+    def get_prefixed_table_name(self, suffix: str) -> str:
+        return f"{self.project_name}_{suffix}"
 
     def teardown(self):
         for table in self.tables:
