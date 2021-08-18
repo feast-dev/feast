@@ -10,6 +10,7 @@ import pytest
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
 from feast.data_source import DataSource
+from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -70,7 +71,6 @@ FULL_REPO_CONFIGS: List[TestRepoConfig] = [
     ),
 ]
 
-
 OFFLINE_STORES: List[str] = []
 ONLINE_STORES: List[str] = []
 PROVIDERS: List[str] = []
@@ -83,6 +83,9 @@ class Environment:
     feature_store: FeatureStore
     data_source: DataSource
     data_source_creator: DataSourceCreator
+    entity_type: ValueType
+    feature_dtype: str
+    feature_is_list: bool
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     start_date = end_date - timedelta(days=7)
@@ -199,6 +202,9 @@ def construct_test_environment(
     test_repo_config: TestRepoConfig,
     create_and_apply: bool = False,
     materialize: bool = False,
+    entity_type: ValueType = ValueType.INT32,
+    feature_dtype: str = None,
+    feature_is_list: bool = False,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -208,9 +214,14 @@ def construct_test_environment(
     The user is *not* expected to perform any clean up actions.
 
     :param test_repo_config: configuration
+    :param create_and_apply: whether to create and apply the repo config
+    :param materialize: whether to materialize features to online store
+    :param entity_type: the data type for the entity column (i.e. id)
+    :param feature_dtype: the data type for the feature column (i.e. value)
+    :param feature_is_list: whether the feature column (i.e. value) should be a list feature
     :return: A feature store built using the supplied configuration.
     """
-    df = create_dataset()
+    df = create_dataset(entity_type, feature_dtype, feature_is_list)
 
     project = f"test_correctness_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
@@ -221,9 +232,7 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = importer.get_class_from_type(
         module_name, config_class_name, "DataSourceCreator"
     )(project)
-    ds = offline_creator.create_data_source(
-        project, df, field_mapping={"ts_1": "ts", "id": "driver_id"}
-    )
+    ds = offline_creator.create_data_source(project, df, field_mapping={"ts_1": "ts"})
     offline_store = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 
@@ -243,6 +252,9 @@ def construct_test_environment(
             feature_store=fs,
             data_source=ds,
             data_source_creator=offline_creator,
+            entity_type=entity_type,
+            feature_dtype=feature_dtype,
+            feature_is_list=feature_is_list,
         )
 
         fvs = []
@@ -339,5 +351,82 @@ def parametrize_online_test(online_test):
             config, create_and_apply=True, materialize=True
         ) as environment:
             online_test(environment)
+
+    return inner_test
+
+
+def parametrize_types_no_materialize_test(types_test):
+    """
+    This decorator should be used by tests that want to parametrize by different kinds of entity + feature types and
+    not materialize said features
+    """
+    return _parametrize_types_test_internal(types_test, create_apply_materialize=False)
+
+
+def parametrize_types_materialize_test(types_test):
+    """
+    This decorator should be used by tests that want to parametrize by different kinds of entity + feature types and
+    materialize said features
+    """
+    return _parametrize_types_test_internal(types_test, create_apply_materialize=True)
+
+
+def parametrize_types_no_materialize_test_no_list(types_test):
+    """
+    This decorator should be used by tests that want to parametrize by different kinds of entity + feature types, but
+    not materializing and not allowing for feature list types
+    """
+    return _parametrize_types_test_internal(
+        types_test, create_apply_materialize=False, vary_feature_is_list=False
+    )
+
+
+def _parametrize_types_test_internal(
+    types_test, create_apply_materialize: bool, vary_feature_is_list: bool = True
+):
+    def entity_feature_types_ids(entity_type: ValueType, feature_dtype: str):
+        return f"entity_type:{str(entity_type)}-feature_dtype:{feature_dtype}"
+
+    # TODO(adchia): consider adding timestamp / bytes for feature_dtypes
+    # TODO(adchia): test materializing float entity types and ensure we throw an error before querying BQ
+    entity_type_feature_dtypes = [
+        (ValueType.INT32, "int32"),
+        (ValueType.INT64, "int64"),
+        (ValueType.STRING, "float"),
+        (ValueType.STRING, "bool"),
+    ]
+
+    # TODO(adchia): fix conversion to allow for lists in materialization
+    feature_is_list = [True, False] if vary_feature_is_list else [False]
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        "entity_type,feature_dtype",
+        entity_type_feature_dtypes,
+        ids=[
+            entity_feature_types_ids(entity_type, feature_dtype)
+            for entity_type, feature_dtype in entity_type_feature_dtypes
+        ],
+    )
+    @pytest.mark.parametrize(
+        "feature_is_list", feature_is_list, ids=lambda v: f"feature_is_list:{str(v)}"
+    )
+    def inner_test(entity_type: ValueType, feature_dtype: str, feature_is_list: bool):
+        # TODO: parametrize config
+        with construct_test_environment(
+            TestRepoConfig(
+                provider="gcp",
+                offline_store_creator=ds_creator_path(
+                    "bigquery.BigQueryDataSourceCreator"
+                ),
+                online_store="datastore",
+            ),
+            create_and_apply=create_apply_materialize,
+            materialize=create_apply_materialize,
+            entity_type=entity_type,
+            feature_dtype=feature_dtype,
+            feature_is_list=feature_is_list,
+        ) as environment:
+            types_test(environment)
 
     return inner_test

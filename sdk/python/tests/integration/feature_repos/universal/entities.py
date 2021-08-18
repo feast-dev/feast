@@ -10,5 +10,10 @@ def driver():
     )
 
 
+def driver_no_value_type():
+    # Don't specify value type in entity to force inference
+    return Entity(name="driver", description="driver id", join_key="driver_id",)
+
+
 def customer():
     return Entity(name="customer_id", value_type=ValueType.INT64)
