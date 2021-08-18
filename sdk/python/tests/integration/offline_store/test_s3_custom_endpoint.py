@@ -3,7 +3,7 @@ from tests.integration.feature_repos.test_repo_configuration import (
     construct_test_environment,
 )
 
-
+@pytest.mark.integration
 def test_registration_and_retrieval_from_custom_s3_endpoint():
     config = TestRepoConfig(
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.file.S3FileDataSourceCreator"
