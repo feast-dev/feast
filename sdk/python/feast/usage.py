@@ -77,8 +77,8 @@ class Usage:
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
             if function_name == "get_online_features":
+                self._usage_counter["get_online_features"] += 1
                 if self._usage_counter["get_online_features"] % 10000 != 0:
-                    self._usage_counter["get_online_features"] += 1
                     return
 
             json = {
