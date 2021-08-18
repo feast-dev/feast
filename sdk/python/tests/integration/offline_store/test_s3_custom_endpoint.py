@@ -12,7 +12,8 @@ def test_registration_and_retrieval_from_custom_s3_endpoint():
 
     if "AWS_ACCESS_KEY_ID" in os.environ:
         raise Exception(
-            "AWS_ACCESS_KEY_ID has already been set in the environment. Setting it again may cause a conflict. It may be better to deduplicate AWS configuration or use sub-processes for isolation"
+            "AWS_ACCESS_KEY_ID has already been set in the environment. Setting it again may cause a conflict. "
+            "It may be better to deduplicate AWS configuration or use sub-processes for isolation"
         )
 
     os.environ["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE"

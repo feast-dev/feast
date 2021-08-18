@@ -57,23 +57,23 @@ class S3FileDataSourceCreator(DataSourceCreator):
     bucket = "feast-test"
     access_key = "AKIAIOSFODNN7EXAMPLE"
     secret = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    minio_image = "minio/minio:RELEASE.2021-08-17T20-53-08Z"
 
     def __init__(self, _: str):
         self._setup_minio()
 
     def _setup_minio(self):
-        minio = DockerContainer("minio/minio:RELEASE.2021-08-17T20-53-08Z")
-        self.minio = minio
-        minio.with_exposed_ports(9000).with_exposed_ports(9001).with_env(
+        self.minio = DockerContainer(self.minio_image)
+        self.minio.with_exposed_ports(9000).with_exposed_ports(9001).with_env(
             "MINIO_ROOT_USER", self.access_key
         ).with_env("MINIO_ROOT_PASSWORD", self.secret).with_command(
             'server /data --console-address ":9001"'
         )
-        minio.start()
+        self.minio.start()
         log_string_to_wait_for = (
             "API"  # The minio container will print "API: ..." when ready.
         )
-        wait_for_logs(container=minio, predicate=log_string_to_wait_for, timeout=5)
+        wait_for_logs(container=self.minio, predicate=log_string_to_wait_for, timeout=5)
 
     def _upload_parquet_file(self, df, file_name, minio_endpoint):
         self.f = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
