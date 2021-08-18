@@ -80,7 +80,7 @@ class Usage:
                 self._usage_counter["get_online_features"] += 1
                 if self._usage_counter["get_online_features"] % 10000 != 0:
                     return
-
+                self._usage_counter["get_online_features"] = 0  # avoid overflow
             json = {
                 "function_name": function_name,
                 "telemetry_id": self.usage_id,
