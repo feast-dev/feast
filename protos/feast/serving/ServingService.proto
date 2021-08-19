@@ -32,9 +32,6 @@ service ServingService {
 
     // Get online features (v2) synchronously.
     rpc GetOnlineFeaturesV2 (GetOnlineFeaturesRequestV2) returns (GetOnlineFeaturesResponse);
-
-    // Get online features synchronously.
-    rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
 }
 
 message GetFeastServingInfoRequest {}
