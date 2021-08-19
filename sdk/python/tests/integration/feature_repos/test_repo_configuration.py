@@ -277,7 +277,7 @@ def construct_test_environment(
         try:
             if create_and_apply:
                 entities.extend([driver(), customer()])
-                fvs.extend(environment.feature_views)
+                fvs.extend(environment.feature_views.values())
                 fs.apply(fvs + entities)
 
             if materialize:

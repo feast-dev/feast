@@ -19,7 +19,7 @@ def test_online_retrieval(environment: Environment):
         environment.datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
 
-    sample_customers = random.sample(environment.customer_entities, 10)
+    sample_customers = random.sample(environment.entities["customer"], 10)
     customers_df = environment.datasets["customer"][
         environment.datasets["customer"]["customer_id"].isin(sample_customers)
     ]
