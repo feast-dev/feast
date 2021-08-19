@@ -139,20 +139,20 @@ class Environment:
     data_source: DataSource
     data_source_creator: DataSourceCreator
 
-    entites_creator: Callable[[], Dict[str, List[Any]]] = field(
+    entities_creator: Callable[[], Dict[str, List[Any]]] = field(
         default=construct_entities
     )
     datasets_creator: Callable[
         [Dict[str, List[Any]], datetime, datetime], Dict[str, pd.DataFrame]
     ] = field(default=construct_datasets)
     datasources_creator: Callable[
-        [Dict[str, pd.DataFrame]], Dict[str, DataSource]
+        [Dict[str, pd.DataFrame], DataSourceCreator], Dict[str, DataSource]
     ] = field(default=construct_data_sources)
     feature_views_creator: Callable[
         [Dict[str, DataSource]], Dict[str, FeatureView]
     ] = field(default=construct_feature_views)
 
-    entites: Dict[str, List[Any]] = field(default_factory=dict)
+    entities: Dict[str, List[Any]] = field(default_factory=dict)
     datasets: Dict[str, pd.DataFrame] = field(default_factory=dict)
     datasources: Dict[str, DataSource] = field(default_factory=dict)
     feature_views: Dict[str, FeatureView] = field(default_factory=list)
@@ -164,11 +164,13 @@ class Environment:
     def __post_init__(self):
         self.start_date: datetime = self.end_date - timedelta(days=7)
 
-        self.entites = self.entites_creator()
+        self.entities = self.entities_creator()
         self.datasets = self.datasets_creator(
-            self.entites, self.start_date, self.end_date
+            self.entities, self.start_date, self.end_date
         )
-        self.datasources = self.datasources_creator(self.datasets)
+        self.datasources = self.datasources_creator(
+            self.datasets, self.data_source_creator
+        )
         self.feature_views = self.feature_views_creator(self.datasources)
 
 

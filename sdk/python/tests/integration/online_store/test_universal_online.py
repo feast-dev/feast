@@ -14,7 +14,7 @@ def test_online_retrieval(environment: Environment):
     fs = environment.feature_store
     full_feature_names = environment.test_repo_config.full_feature_names
 
-    sample_drivers = random.sample(environment.entites["driver"], 10)
+    sample_drivers = random.sample(environment.entities["driver"], 10)
     drivers_df = environment.datasets["driver"][
         environment.datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
