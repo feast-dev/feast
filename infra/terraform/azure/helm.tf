@@ -82,7 +82,8 @@ resource "helm_release" "feast" {
 
   name  = var.name_prefix
   namespace = var.aks_namespace
-  chart = "../../charts/feast"
+  repository = "https://feast-helm-charts.storage.googleapis.com"
+  chart = "feast"
 
   values = [
     yamlencode(local.feast_helm_values)
