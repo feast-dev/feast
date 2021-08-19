@@ -155,14 +155,15 @@ class Environment:
     entites: Dict[str, List[Any]] = field(default_factory=dict)
     datasets: Dict[str, pd.DataFrame] = field(default_factory=dict)
     datasources: Dict[str, DataSource] = field(default_factory=dict)
-    feature_views: List[FeatureView] = field(default_factory=list)
+    feature_views: Dict[str, FeatureView] = field(default_factory=list)
 
     end_date: datetime = field(
         default=datetime.now().replace(microsecond=0, second=0, minute=0)
     )
-    start_date: datetime = end_date - timedelta(days=7)
 
     def __post_init__(self):
+        self.start_date: datetime = self.end_date - timedelta(days=7)
+
         self.entites = self.entites_creator()
         self.datasets = self.datasets_creator(
             self.entites, self.start_date, self.end_date
