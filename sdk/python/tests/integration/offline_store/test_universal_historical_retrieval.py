@@ -152,8 +152,8 @@ def test_historical_features(environment: Environment):
     full_feature_names = environment.test_repo_config.full_feature_names
 
     entity_df_query = None
-    if "orders" in environment.datasources:
-        orders_table = table_name_from_data_source(environment.datasources["orders"])
+    orders_table = table_name_from_data_source(environment.datasources["orders"])
+    if orders_table:
         entity_df_query = f"SELECT * FROM {orders_table}"
 
     event_timestamp = (
