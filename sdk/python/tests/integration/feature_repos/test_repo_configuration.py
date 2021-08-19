@@ -325,7 +325,6 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
 
     configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
     configs = vary_full_feature_names(configs)
-    configs = vary_infer_event_timestamp_col(configs)
 
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
@@ -350,7 +349,6 @@ def parametrize_online_test(online_test):
 
     configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
     configs = vary_full_feature_names(configs)
-    configs = vary_infer_event_timestamp_col(configs)
 
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
