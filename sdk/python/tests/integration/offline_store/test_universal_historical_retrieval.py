@@ -14,6 +14,7 @@ from feast.infra.offline_stores.offline_utils import (
 from tests.integration.feature_repos.test_repo_configuration import (
     Environment,
     parametrize_offline_retrieval_test,
+    table_name_from_data_source,
 )
 
 np.random.seed(0)
@@ -139,20 +140,21 @@ def get_expected_training_df(
 def test_historical_features(environment: Environment):
     store = environment.feature_store
 
-    customer_df, customer_fv = (
-        environment.customer_df,
-        environment.customer_feature_view(),
+    customer_df, driver_df, orders_df = (
+        environment.datasets["customer"],
+        environment.datasets["driver"],
+        environment.datasets["orders"],
     )
-    driver_df, driver_fv = (
-        environment.driver_df,
-        environment.driver_stats_feature_view(),
+    customer_fv, driver_fv = (
+        environment.feature_views["customer"],
+        environment.feature_views["driver"],
     )
-    orders_df = environment.orders_df
     full_feature_names = environment.test_repo_config.full_feature_names
 
     entity_df_query = None
-    if environment.orders_table():
-        entity_df_query = f"SELECT * FROM {environment.orders_table()}"
+    if "orders" in environment.datasources:
+        orders_table = table_name_from_data_source(environment.datasources["orders"])
+        entity_df_query = f"SELECT * FROM {orders_table}"
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL

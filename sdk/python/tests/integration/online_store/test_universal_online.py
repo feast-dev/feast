@@ -14,14 +14,14 @@ def test_online_retrieval(environment: Environment):
     fs = environment.feature_store
     full_feature_names = environment.test_repo_config.full_feature_names
 
-    sample_drivers = random.sample(environment.driver_entities, 10)
-    drivers_df = environment.driver_df[
-        environment.driver_df["driver_id"].isin(sample_drivers)
+    sample_drivers = random.sample(environment.entites["driver"], 10)
+    drivers_df = environment.datasets["driver"][
+        environment.datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
 
     sample_customers = random.sample(environment.customer_entities, 10)
-    customers_df = environment.customer_df[
-        environment.customer_df["customer_id"].isin(sample_customers)
+    customers_df = environment.datasets["customer"][
+        environment.datasets["customer"]["customer_id"].isin(sample_customers)
     ]
 
     entity_rows = [

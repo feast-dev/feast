@@ -1,11 +1,12 @@
 import tempfile
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
+import pandas as pd
 import pytest
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
@@ -71,9 +72,63 @@ FULL_REPO_CONFIGS: List[TestRepoConfig] = [
 ]
 
 
-OFFLINE_STORES: List[str] = []
-ONLINE_STORES: List[str] = []
-PROVIDERS: List[str] = []
+def construct_entities() -> Dict[str, List[Any]]:
+    return {"customer": list(range(1001, 1110)), "driver": list(range(5001, 5110))}
+
+
+def construct_datasets(
+    entities: Dict[str, List[Any]], start_time: datetime, end_time: datetime
+) -> Dict[str, pd.DataFrame]:
+    customer_df = driver_test_data.create_customer_daily_profile_df(
+        entities["customer"], start_time, end_time
+    )
+    driver_df = driver_test_data.create_driver_hourly_stats_df(
+        entities["driver"], start_time, end_time
+    )
+    orders_df = driver_test_data.create_orders_df(
+        customers=entities["customer"],
+        drivers=entities["driver"],
+        start_date=end_time - timedelta(days=365),
+        end_date=end_time + timedelta(days=365),
+        order_count=1000,
+    )
+
+    return {"customer": customer_df, "driver": driver_df, "orders": orders_df}
+
+
+def construct_data_sources(
+    datasets: Dict[str, pd.DataFrame], data_source_creator: DataSourceCreator
+) -> Dict[str, DataSource]:
+    customer_ds = data_source_creator.create_data_sources(
+        datasets["customer"],
+        suffix="customer_profile",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
+    driver_ds = data_source_creator.create_data_sources(
+        datasets["driver"],
+        suffix="driver_hourly",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
+    orders_ds = data_source_creator.create_data_sources(
+        datasets["orders"],
+        suffix="orders",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
+    return {"customer": customer_ds, "driver": driver_ds, "orders": orders_ds}
+
+
+def construct_feature_views(
+    data_sources: Dict[str, DataSource]
+) -> Dict[str, FeatureView]:
+    return {
+        "customer": create_customer_daily_profile_feature_view(
+            data_sources["customer"]
+        ),
+        "driver": create_driver_hourly_stats_feature_view(data_sources["driver"]),
+    }
 
 
 @dataclass
@@ -84,69 +139,44 @@ class Environment:
     data_source: DataSource
     data_source_creator: DataSourceCreator
 
-    end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
-    start_date = end_date - timedelta(days=7)
-    before_start_date = end_date - timedelta(days=365)
-    after_end_date = end_date + timedelta(days=365)
-
-    customer_entities = list(range(1001, 1110))
-    customer_df = driver_test_data.create_customer_daily_profile_df(
-        customer_entities, start_date, end_date
+    entites_creator: Callable[[], Dict[str, List[Any]]] = field(
+        default_factory=construct_entities
     )
-    _customer_feature_view: Optional[FeatureView] = None
+    datasets_creator: Callable[
+        [Dict[str, List[Any]], datetime, datetime], Dict[str, pd.DataFrame]
+    ] = field(default=construct_datasets)
+    datasources_creator: Callable[
+        [Dict[str, pd.DataFrame]], Dict[str, DataSource]
+    ] = field(default=construct_data_sources)
+    feature_views_creator: Callable[
+        [Dict[str, DataSource]], Dict[str, FeatureView]
+    ] = field(default=construct_feature_views)
 
-    driver_entities = list(range(5001, 5110))
-    driver_df = driver_test_data.create_driver_hourly_stats_df(
-        driver_entities, start_date, end_date
+    entites: Dict[str, List[Any]] = field(default_factory=dict)
+    datasets: Dict[str, pd.DataFrame] = field(default_factory=dict)
+    datasources: Dict[str, DataSource] = field(default_factory=dict)
+    feature_views: List[FeatureView] = field(default_factory=list)
+
+    end_date: datetime = field(
+        default=datetime.now().replace(microsecond=0, second=0, minute=0)
     )
-    _driver_stats_feature_view: Optional[FeatureView] = None
+    start_date: datetime = end_date - timedelta(days=7)
 
-    orders_df = driver_test_data.create_orders_df(
-        customers=customer_entities,
-        drivers=driver_entities,
-        start_date=before_start_date,
-        end_date=after_end_date,
-        order_count=1000,
-    )
-    _orders_table: Optional[str] = None
+    def __post_init__(self):
+        self.entites = self.entites_creator()
+        self.datasets = self.datasets_creator(
+            self.entites, self.start_date, self.end_date
+        )
+        self.datasources = self.datasources_creator(self.datasets)
+        self.feature_views = self.feature_views_creator(self.datasources)
 
-    def customer_feature_view(self) -> FeatureView:
-        if self._customer_feature_view is None:
-            ds = self.data_source_creator.create_data_sources(
-                self.customer_df,
-                suffix="customer_profile",
-                event_timestamp_column="event_timestamp",
-                created_timestamp_column="created",
-            )
-            self._customer_feature_view = create_customer_daily_profile_feature_view(ds)
-        return self._customer_feature_view
 
-    def driver_stats_feature_view(self) -> FeatureView:
-        if self._driver_stats_feature_view is None:
-            ds = self.data_source_creator.create_data_sources(
-                self.driver_df,
-                suffix="driver_hourly",
-                event_timestamp_column="event_timestamp",
-                created_timestamp_column="created",
-            )
-            self._driver_stats_feature_view = create_driver_hourly_stats_feature_view(
-                ds
-            )
-        return self._driver_stats_feature_view
-
-    def orders_table(self) -> Optional[str]:
-        if self._orders_table is None:
-            ds = self.data_source_creator.create_data_sources(
-                self.orders_df,
-                suffix="orders",
-                event_timestamp_column="event_timestamp",
-                created_timestamp_column="created",
-            )
-            if hasattr(ds, "table_ref"):
-                self._orders_table = ds.table_ref
-            elif hasattr(ds, "table"):
-                self._orders_table = ds.table
-        return self._orders_table
+def table_name_from_data_source(ds: DataSource) -> Optional[str]:
+    if hasattr(ds, "table_ref"):
+        return ds.table_ref
+    elif hasattr(ds, "table"):
+        return ds.table
+    return None
 
 
 def vary_full_feature_names(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
@@ -244,12 +274,7 @@ def construct_test_environment(
         try:
             if create_and_apply:
                 entities.extend([driver(), customer()])
-                fvs.extend(
-                    [
-                        environment.driver_stats_feature_view(),
-                        environment.customer_feature_view(),
-                    ]
-                )
+                fvs.extend(environment.feature_views)
                 fs.apply(fvs + entities)
 
             if materialize:
