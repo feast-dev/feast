@@ -131,6 +131,55 @@ def construct_universal_feature_views(
     }
 
 
+def setup_entities(
+    environment: "Environment", entities_override: Optional[Dict[str, List[Any]]] = None
+) -> "Environment":
+    environment.entities = (
+        entities_override if entities_override else construct_universal_entities()
+    )
+    return environment
+
+
+def setup_datasets(
+    environment: "Environment",
+    datasets_override: Optional[Dict[str, pd.DataFrame]] = None,
+) -> "Environment":
+    environment.datasets = (
+        datasets_override
+        if datasets_override
+        else construct_universal_datasets(
+            environment.entities, environment.start_date, environment.end_date
+        )
+    )
+    return environment
+
+
+def setup_data_sources(
+    environment: "Environment",
+    data_sources_override: Optional[Dict[str, DataSource]] = None,
+) -> "Environment":
+    environment.datasources = (
+        data_sources_override
+        if data_sources_override
+        else construct_universal_data_sources(
+            environment.datasets, environment.data_source_creator
+        )
+    )
+    return environment
+
+
+def setup_feature_views(
+    environment: "Environment",
+    feature_views_override: Optional[Dict[str, FeatureView]] = None,
+) -> "Environment":
+    environment.feature_views = (
+        feature_views_override
+        if feature_views_override
+        else construct_universal_feature_views(environment.datasources)
+    )
+    return environment
+
+
 @dataclass
 class Environment:
     name: str
@@ -142,15 +191,6 @@ class Environment:
     entities_creator: Callable[[], Dict[str, List[Any]]] = field(
         default=construct_universal_entities
     )
-    datasets_creator: Callable[
-        [Dict[str, List[Any]], datetime, datetime], Dict[str, pd.DataFrame]
-    ] = field(default=construct_universal_datasets)
-    datasources_creator: Callable[
-        [Dict[str, pd.DataFrame], DataSourceCreator], Dict[str, DataSource]
-    ] = field(default=construct_universal_data_sources)
-    feature_views_creator: Callable[
-        [Dict[str, DataSource]], Dict[str, FeatureView]
-    ] = field(default=construct_universal_feature_views)
 
     entities: Dict[str, List[Any]] = field(default_factory=dict)
     datasets: Dict[str, pd.DataFrame] = field(default_factory=dict)
@@ -163,15 +203,6 @@ class Environment:
 
     def __post_init__(self):
         self.start_date: datetime = self.end_date - timedelta(days=7)
-
-        self.entities = self.entities_creator()
-        self.datasets = self.datasets_creator(
-            self.entities, self.start_date, self.end_date
-        )
-        self.datasources = self.datasources_creator(
-            self.datasets, self.data_source_creator
-        )
-        self.feature_views = self.feature_views_creator(self.datasources)
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
@@ -271,6 +302,10 @@ def construct_universal_test_environment(
             data_source=ds,
             data_source_creator=offline_creator,
         )
+        environment = setup_entities(environment)
+        environment = setup_datasets(environment)
+        environment = setup_data_sources(environment)
+        environment = setup_feature_views(environment)
 
         fvs = []
         entities = []
