@@ -7,12 +7,7 @@ from typing import Iterator, List, Optional, Tuple
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
+from tenacity import retry, retry_if_exception_type, wait_exponential
 
 from feast.errors import RedshiftCredentialsError, RedshiftQueryError
 from feast.type_map import pa_to_redshift_value_type
@@ -20,7 +15,7 @@ from feast.type_map import pa_to_redshift_value_type
 try:
     import boto3
     from botocore.config import Config
-    from botocore.exceptions import ClientError, ConnectionClosedError
+    from botocore.exceptions import ClientError
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -55,11 +50,6 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-@retry(
-    wait=wait_exponential(multiplier=1, max=30),
-    retry=retry_if_exception_type(ConnectionClosedError),
-    stop=stop_after_attempt(3),
-)
 def execute_redshift_statement_async(
     redshift_data_client, cluster_id: str, database: str, user: str, query: str
 ) -> dict:
