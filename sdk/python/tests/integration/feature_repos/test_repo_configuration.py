@@ -72,11 +72,11 @@ FULL_REPO_CONFIGS: List[TestRepoConfig] = [
 ]
 
 
-def construct_entities() -> Dict[str, List[Any]]:
+def construct_universal_entities() -> Dict[str, List[Any]]:
     return {"customer": list(range(1001, 1110)), "driver": list(range(5001, 5110))}
 
 
-def construct_datasets(
+def construct_universal_datasets(
     entities: Dict[str, List[Any]], start_time: datetime, end_time: datetime
 ) -> Dict[str, pd.DataFrame]:
     customer_df = driver_test_data.create_customer_daily_profile_df(
@@ -96,7 +96,7 @@ def construct_datasets(
     return {"customer": customer_df, "driver": driver_df, "orders": orders_df}
 
 
-def construct_data_sources(
+def construct_universal_data_sources(
     datasets: Dict[str, pd.DataFrame], data_source_creator: DataSourceCreator
 ) -> Dict[str, DataSource]:
     customer_ds = data_source_creator.create_data_sources(
@@ -120,7 +120,7 @@ def construct_data_sources(
     return {"customer": customer_ds, "driver": driver_ds, "orders": orders_ds}
 
 
-def construct_feature_views(
+def construct_universal_feature_views(
     data_sources: Dict[str, DataSource]
 ) -> Dict[str, FeatureView]:
     return {
@@ -140,17 +140,17 @@ class Environment:
     data_source_creator: DataSourceCreator
 
     entities_creator: Callable[[], Dict[str, List[Any]]] = field(
-        default=construct_entities
+        default=construct_universal_entities
     )
     datasets_creator: Callable[
         [Dict[str, List[Any]], datetime, datetime], Dict[str, pd.DataFrame]
-    ] = field(default=construct_datasets)
+    ] = field(default=construct_universal_datasets)
     datasources_creator: Callable[
         [Dict[str, pd.DataFrame], DataSourceCreator], Dict[str, DataSource]
-    ] = field(default=construct_data_sources)
+    ] = field(default=construct_universal_data_sources)
     feature_views_creator: Callable[
         [Dict[str, DataSource]], Dict[str, FeatureView]
-    ] = field(default=construct_feature_views)
+    ] = field(default=construct_universal_feature_views)
 
     entities: Dict[str, List[Any]] = field(default_factory=dict)
     datasets: Dict[str, pd.DataFrame] = field(default_factory=dict)
@@ -219,7 +219,7 @@ def vary_providers_for_offline_stores(
 
 
 @contextmanager
-def construct_test_environment(
+def construct_universal_test_environment(
     test_repo_config: TestRepoConfig,
     create_and_apply: bool = False,
     materialize: bool = False,
@@ -305,7 +305,7 @@ def parametrize_e2e_test(e2e_test):
     @pytest.mark.integration
     @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: str(v))
     def inner_test(config):
-        with construct_test_environment(config) as environment:
+        with construct_universal_test_environment(config) as environment:
             e2e_test(environment)
 
     return inner_test
@@ -331,7 +331,9 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config):
-        with construct_test_environment(config, create_and_apply=True) as environment:
+        with construct_universal_test_environment(
+            config, create_and_apply=True
+        ) as environment:
             offline_retrieval_test(environment)
 
     return inner_test
@@ -355,7 +357,7 @@ def parametrize_online_test(online_test):
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config):
-        with construct_test_environment(
+        with construct_universal_test_environment(
             config, create_and_apply=True, materialize=True
         ) as environment:
             online_test(environment)
