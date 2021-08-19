@@ -140,7 +140,7 @@ class Environment:
     data_source_creator: DataSourceCreator
 
     entites_creator: Callable[[], Dict[str, List[Any]]] = field(
-        default_factory=construct_entities
+        default=construct_entities
     )
     datasets_creator: Callable[
         [Dict[str, List[Any]], datetime, datetime], Dict[str, pd.DataFrame]
