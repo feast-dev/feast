@@ -360,8 +360,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
 
-    configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
-    configs = vary_full_feature_names(configs)
+    configs = vary_full_feature_names(FULL_REPO_CONFIGS)
 
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
@@ -386,8 +385,7 @@ def parametrize_online_test(online_test):
     The decorator takes care of tearing down the feature store, as well as the sample data.
     """
 
-    configs = vary_providers_for_offline_stores(FULL_REPO_CONFIGS)
-    configs = vary_full_feature_names(configs)
+    configs = vary_full_feature_names(FULL_REPO_CONFIGS)
 
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
