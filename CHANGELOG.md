@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.12.1](https://github.com/feast-dev/feast/tree/v0.12.1) (2021-08-20)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.12.0...v0.12.1)
+
+**Fixed bugs:**
+
+- Fix get\_online\_features telemetry to only log every 10000 times [\#1786](https://github.com/feast-dev/feast/pull/1786) ([felixwang9817](https://github.com/felixwang9817))
+
 ## [v0.12.0](https://github.com/feast-dev/feast/tree/v0.12.0) (2021-08-05)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.11.0...v0.12.0)
