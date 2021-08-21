@@ -22,7 +22,7 @@ import pandas as pd
 from colorama import Fore, Style
 from tqdm import tqdm
 
-from feast import utils
+from feast import feature_server, utils
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -760,6 +760,11 @@ class FeatureStore:
                             ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
+
+    @log_exceptions_and_usage
+    def serve(self, port: int) -> None:
+        """Start the feature consumption server locally on a given port."""
+        feature_server.start_server(self, port)
 
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:

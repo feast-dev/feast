@@ -57,6 +57,8 @@ REQUIRED = [
     "tenacity>=7.*",
     "toml==0.10.*",
     "tqdm==4.*",
+    "fastapi>=0.68.0",
+    "uvicorn[standard]>=0.14.0",
 ]
 
 GCP_REQUIRED = [
