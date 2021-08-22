@@ -115,7 +115,7 @@ class Environment:
             customer_table_id = self.data_source_creator.get_prefixed_table_name(
                 self.name, "customer_profile"
             )
-            ds = self.data_source_creator.create_data_sources(
+            ds = self.data_source_creator.create_data_source(
                 customer_table_id,
                 self.customer_df,
                 event_timestamp_column="event_timestamp",
@@ -129,7 +129,7 @@ class Environment:
             driver_table_id = self.data_source_creator.get_prefixed_table_name(
                 self.name, "driver_hourly"
             )
-            ds = self.data_source_creator.create_data_sources(
+            ds = self.data_source_creator.create_data_source(
                 driver_table_id,
                 self.driver_df,
                 event_timestamp_column="event_timestamp",
@@ -145,7 +145,7 @@ class Environment:
             orders_table_id = self.data_source_creator.get_prefixed_table_name(
                 self.name, "orders"
             )
-            ds = self.data_source_creator.create_data_sources(
+            ds = self.data_source_creator.create_data_source(
                 orders_table_id,
                 self.orders_df,
                 event_timestamp_column="event_timestamp",
@@ -221,7 +221,7 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = importer.get_class_from_type(
         module_name, config_class_name, "DataSourceCreator"
     )(project)
-    ds = offline_creator.create_data_sources(
+    ds = offline_creator.create_data_source(
         project, df, field_mapping={"ts_1": "ts", "id": "driver_id"}
     )
     offline_store = offline_creator.create_offline_store_config()

@@ -9,7 +9,7 @@ from feast.repo_config import FeastConfigBaseModel
 
 class DataSourceCreator(ABC):
     @abstractmethod
-    def create_data_sources(
+    def create_data_source(
         self,
         destination: str,
         df: pd.DataFrame,

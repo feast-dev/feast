@@ -31,7 +31,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
         )
 
-    def create_data_sources(
+    def create_data_source(
         self,
         destination: str,
         df: pd.DataFrame,
