@@ -1,6 +1,7 @@
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
-from pyarrow import fs
+from pyarrow._fs import FileSystem
+from pyarrow._s3fs import S3FileSystem
 from pyarrow.parquet import ParquetFile
 
 from feast import type_map
@@ -138,7 +139,7 @@ class FileSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        filesystem, path = FileSource.prepare_path(
+        filesystem, path = FileSource.create_filesystem_and_path(
             self.path, self._file_options.s3_endpoint_override
         )
         schema = ParquetFile(
@@ -147,12 +148,14 @@ class FileSource(DataSource):
         return zip(schema.names, map(str, schema.types))
 
     @staticmethod
-    def prepare_path(path: str, s3_endpoint_override: str):
+    def create_filesystem_and_path(
+        path: str, s3_endpoint_override: str
+    ) -> Tuple[Optional[FileSystem], str]:
         if path.startswith("s3://"):
-            s3 = fs.S3FileSystem(
+            s3fs = S3FileSystem(
                 endpoint_override=s3_endpoint_override if s3_endpoint_override else None
             )
-            return s3, path.replace("s3://", "")
+            return s3fs, path.replace("s3://", "")
         else:
             return None, path
 

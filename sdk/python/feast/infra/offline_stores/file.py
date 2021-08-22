@@ -112,7 +112,7 @@ class FileOfflineStore(OfflineStore):
                 )
 
                 # Read offline parquet data in pyarrow format.
-                filesystem, path = FileSource.prepare_path(
+                filesystem, path = FileSource.create_filesystem_and_path(
                     feature_view.batch_source.path,
                     feature_view.batch_source.file_options.s3_endpoint_override,
                 )
@@ -242,7 +242,7 @@ class FileOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
-            filesystem, path = FileSource.prepare_path(
+            filesystem, path = FileSource.create_filesystem_and_path(
                 data_source.path, data_source.file_options.s3_endpoint_override
             )
             source_df = pd.read_parquet(path, filesystem=filesystem)
