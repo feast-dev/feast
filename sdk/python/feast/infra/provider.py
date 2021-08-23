@@ -21,6 +21,10 @@ from feast.type_map import python_value_to_proto_value
 
 class Provider(abc.ABC):
     @abc.abstractmethod
+    def __init__(self, config: RepoConfig):
+        ...
+
+    @abc.abstractmethod
     def update_infra(
         self,
         project: str,
