@@ -14,6 +14,7 @@
 import multiprocessing
 from datetime import datetime, timedelta
 from sys import platform
+from typing import Any, Dict
 
 import pandas as pd
 import pytest
@@ -90,7 +91,7 @@ def simple_dataset_2() -> pd.DataFrame:
 
 
 class DataSourceCache:
-    cache = {}
+    cache: Dict[str, Any] = {}
 
     def get(self, test_repo_config):
         return self.cache.get(test_repo_config.offline_store_creator, None)
