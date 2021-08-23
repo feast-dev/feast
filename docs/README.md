@@ -52,5 +52,5 @@ Explore the following resources to get started with Feast:
 * [Getting started ](getting-started/)provides a step-by-step guide to using Feast.
 * [Concepts](concepts/data-model-and-concepts.md#concepts) describes all important Feast API concepts.
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
-* [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
+* [Contributing](project/contributing.md) contains resources for anyone who wants to contribute to Feast.
 
