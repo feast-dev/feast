@@ -59,12 +59,13 @@
 * [Python API reference](http://rtd.feast.dev/)
 * [Usage](reference/usage.md)
 
-## Contributing
+## Project
 
-* [Contribution process](contributing/contributing.md)
-* [Development guide](contributing/development-guide.md)
-* [Versioning policy](contributing/versioning-policy.md)
-* [Release process](contributing/release-process.md)
+* [Contribution process](project/contributing.md)
+* [Development guide](project/development-guide.md)
+* [Versioning policy](project/versioning-policy.md)
+* [Release process](project/release-process.md)
+* [Feast 0.9 vs Feast 0.10+](project/feast-0.9-vs-feast-0.10+.md)
 
 ---
 
