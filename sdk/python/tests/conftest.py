@@ -87,3 +87,25 @@ def simple_dataset_2() -> pd.DataFrame:
         ],
     }
     return pd.DataFrame.from_dict(data)
+
+
+class DataSourceCache:
+    cache = {}
+
+    def get(self, test_repo_config):
+        return self.cache.get(test_repo_config.offline_store_creator, None)
+
+    def put(self, test_repo_config,
+            entites,
+            datasets,
+            data_sources,
+            data_source_creator):
+        self.cache[test_repo_config.offline_store_creator] = (entites, datasets, data_sources, data_source_creator)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def data_source_cache():
+    dsc = DataSourceCache()
+    yield dsc
+    for _, v in dsc.cache.items():
+        v[3].teardown()

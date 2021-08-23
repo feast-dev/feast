@@ -382,6 +382,9 @@ def run_offline_online_store_consistency_test(
     )
 
 
+@pytest.mark.skip(
+    reason="This is the most expensive test and is subsumed by the universal tests."
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "bq_source_type", ["query", "table"],

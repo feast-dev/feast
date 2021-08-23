@@ -394,6 +394,9 @@ def test_historical_features_from_parquet_sources(
         store.teardown()
 
 
+@pytest.mark.skip(
+    reason="This is the most expensive test and is subsumed by the universal tests."
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "provider_type", ["local", "gcp", "gcp_custom_offline_config"],
@@ -655,6 +658,9 @@ def test_historical_features_from_bigquery_sources(
             store.teardown()
 
 
+@pytest.mark.skip(
+    reason="This is the most expensive test and is subsumed by the universal tests."
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "provider_type", ["local", "aws"],
