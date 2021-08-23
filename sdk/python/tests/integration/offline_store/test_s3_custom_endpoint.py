@@ -5,8 +5,13 @@ from tests.integration.feature_repos.test_repo_configuration import (
     construct_test_environment,
 )
 
+# TODO: Allow integration tests to run using different credentials.
+
 
 @pytest.mark.integration
+@pytest.mark.skip(
+    reason="No way to run this test today. Credentials conflict with real AWS credentials in CI"
+)
 def test_registration_and_retrieval_from_custom_s3_endpoint():
     config = TestRepoConfig(
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.file.S3FileDataSourceCreator"
