@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -254,7 +254,7 @@ def construct_universal_test_environment(
     test_repo_config: TestRepoConfig,
     create_and_apply: bool = False,
     materialize: bool = False,
-    data_source_cache = None
+    data_source_cache=None,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -310,15 +310,20 @@ def construct_universal_test_environment(
             if fixtures:
                 environment = setup_entities(environment, entities_override=fixtures[0])
                 environment = setup_datasets(environment, datasets_override=fixtures[1])
-                environment = setup_data_sources(environment, data_sources_override=fixtures[2])
+                environment = setup_data_sources(
+                    environment, data_sources_override=fixtures[2]
+                )
             else:
                 environment = setup_entities(environment)
                 environment = setup_datasets(environment)
                 environment = setup_data_sources(environment)
-                data_source_cache.put(test_repo_config, environment.entities,
-                                      environment.datasets,
-                                      environment.datasources,
-                                      offline_creator)
+                data_source_cache.put(
+                    test_repo_config,
+                    environment.entities,
+                    environment.datasets,
+                    environment.datasources,
+                    offline_creator,
+                )
         else:
             environment = setup_entities(environment)
             environment = setup_datasets(environment)
@@ -360,7 +365,9 @@ def parametrize_e2e_test(e2e_test):
     @pytest.mark.integration
     @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
-        with construct_universal_test_environment(config, data_source_cache=data_source_cache) as environment:
+        with construct_universal_test_environment(
+            config, data_source_cache=data_source_cache
+        ) as environment:
             e2e_test(environment)
 
     return inner_test
@@ -386,8 +393,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
-            config, create_and_apply=True,
-            data_source_cache=data_source_cache
+            config, create_and_apply=True, data_source_cache=data_source_cache
         ) as environment:
             offline_retrieval_test(environment)
 
@@ -412,8 +418,11 @@ def parametrize_online_test(online_test):
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
-            config, create_and_apply=True, materialize=True,
-            data_source_cache=data_source_cache
+            config,
+            create_and_apply=True,
+            materialize=True,
+            data_source_cache=data_source_cache,
         ) as environment:
             online_test(environment)
+
     return inner_test

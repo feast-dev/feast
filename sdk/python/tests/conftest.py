@@ -95,12 +95,15 @@ class DataSourceCache:
     def get(self, test_repo_config):
         return self.cache.get(test_repo_config.offline_store_creator, None)
 
-    def put(self, test_repo_config,
+    def put(
+        self, test_repo_config, entites, datasets, data_sources, data_source_creator
+    ):
+        self.cache[test_repo_config.offline_store_creator] = (
             entites,
             datasets,
             data_sources,
-            data_source_creator):
-        self.cache[test_repo_config.offline_store_creator] = (entites, datasets, data_sources, data_source_creator)
+            data_source_creator,
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
