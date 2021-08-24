@@ -1,4 +1,4 @@
-# Adding support for a new online store
+# Adding a new online store
 
 ## Overview
 
