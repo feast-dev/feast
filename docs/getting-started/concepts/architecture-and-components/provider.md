@@ -6,5 +6,5 @@ Providers are built to orchestrate various components \(offline store, online st
 
 Providers also come with default configurations which makes it easier for users to start a feature store in a specific environment.
 
-Please see [feature\_store.yaml](../reference/feature-repository/feature-store-yaml.md#overview) for configuring providers.
+Please see [feature\_store.yaml](../../../reference/feature-repository/feature-store-yaml.md#overview) for configuring providers.
 

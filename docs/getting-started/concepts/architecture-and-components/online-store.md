@@ -6,9 +6,9 @@ The storage schema of features within the online store mirrors that of the data 
 
 Example batch data source
 
-![](../.gitbook/assets/image%20%286%29.png)
+![](../../../.gitbook/assets/image%20%286%29.png)
 
 Once the above data source is materialized into Feast \(using `feast materialize`\), the feature values will be stored as follows:
 
-![](../.gitbook/assets/image%20%285%29.png)
+![](../../../.gitbook/assets/image%20%285%29.png)
 

@@ -1,4 +1,4 @@
-# Getting started
+# Running Feast with GCP/AWS
 
 {% page-ref page="install-feast.md" %}
 
