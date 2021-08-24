@@ -39,6 +39,7 @@
   * [Load data into the online store](how-to-guides/feast-gcp-aws/load-data-into-the-online-store.md)
   * [Read features from the online store](how-to-guides/feast-gcp-aws/read-features-from-the-online-store.md)
 * [Running Feast in production](how-to-guides/running-feast-in-production.md)
+* [Adding support for a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
 * [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
 * [Creating a custom provider](how-to-guides/creating-a-custom-provider.md)
 
