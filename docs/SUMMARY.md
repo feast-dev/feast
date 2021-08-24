@@ -1,36 +1,43 @@
 # Table of contents
 
 * [Introduction](README.md)
-* [Quickstart](quickstart.md)
-* [Getting started](getting-started/README.md)
-  * [Install Feast](getting-started/install-feast.md)
-  * [Create a feature repository](getting-started/create-a-feature-repository.md)
-  * [Deploy a feature store](getting-started/deploy-a-feature-store.md)
-  * [Build a training dataset](getting-started/build-a-training-dataset.md)
-  * [Load data into the online store](getting-started/load-data-into-the-online-store.md)
-  * [Read features from the online store](getting-started/read-features-from-the-online-store.md)
 * [Community](community.md)
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 
+## Getting started
+
+* [Quickstart](getting-started/quickstart.md)
+* [Concepts](getting-started/concepts/README.md)
+  * [Overview](getting-started/concepts/overview.md)
+  * [Data model](getting-started/concepts/data-model-and-concepts/README.md)
+    * [Data source](getting-started/concepts/data-model-and-concepts/data-source.md)
+    * [Entity](getting-started/concepts/data-model-and-concepts/entity.md)
+    * [Feature view](getting-started/concepts/data-model-and-concepts/feature-view.md)
+    * [Feature service](getting-started/concepts/data-model-and-concepts/feature-service.md)
+    * [Feature retrieval](getting-started/concepts/data-model-and-concepts/feature-retrieval.md)
+  * [Architecture](getting-started/concepts/architecture-and-components/README.md)
+    * [Overview](getting-started/concepts/architecture-and-components/overview.md)
+    * [Feature repository](getting-started/concepts/architecture-and-components/feature-repository.md)
+    * [Offline store](getting-started/concepts/architecture-and-components/offline-store.md)
+    * [Online store](getting-started/concepts/architecture-and-components/online-store.md)
+    * [Provider](getting-started/concepts/architecture-and-components/provider.md)
+
 ## Tutorials
 
+* [Overview](tutorials/tutorials-overview.md)
 * [Driver Ranking](tutorials/driver-ranking-with-feast.md)
 * [Fraud Detection](tutorials/fraud-detection.md)
 
-## Concepts
-
-* [Overview](concepts/overview.md)
-* [Feature view](concepts/feature-view.md)
-* [Data model](concepts/data-model-and-concepts.md)
-* [Online store](concepts/online-store.md)
-* [Offline store](concepts/offline-store.md)
-* [Provider](concepts/provider.md)
-* [Architecture](concepts/architecture-and-components.md)
-* [Feature service](concepts/feature-service.md)
-
 ## How-to Guides
 
+* [Running Feast with GCP/AWS](how-to-guides/feast-gcp-aws/README.md)
+  * [Install Feast](how-to-guides/feast-gcp-aws/install-feast.md)
+  * [Create a feature repository](how-to-guides/feast-gcp-aws/create-a-feature-repository.md)
+  * [Deploy a feature store](how-to-guides/feast-gcp-aws/deploy-a-feature-store.md)
+  * [Build a training dataset](how-to-guides/feast-gcp-aws/build-a-training-dataset.md)
+  * [Load data into the online store](how-to-guides/feast-gcp-aws/load-data-into-the-online-store.md)
+  * [Read features from the online store](how-to-guides/feast-gcp-aws/read-features-from-the-online-store.md)
 * [Running Feast in production](how-to-guides/running-feast-in-production.md)
 * [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
 * [Creating a custom provider](how-to-guides/creating-a-custom-provider.md)

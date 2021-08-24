@@ -1,6 +1,6 @@
 # Online stores
 
-Please see [Online Store](../../concepts/online-store.md) for an explanation of online stores.
+Please see [Online Store](../../getting-started/concepts/architecture-and-components/online-store.md) for an explanation of online stores.
 
 {% page-ref page="sqlite.md" %}
 

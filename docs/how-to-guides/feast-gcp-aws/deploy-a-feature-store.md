@@ -1,6 +1,6 @@
 # Deploy a feature store
 
-The Feast CLI can be used to deploy a feature store to your infrastructure, spinning up any necessary persistent resources like buckets or tables in data stores. The deployment target and effects depend on the `provider` that has been configured in your [feature\_store.yaml](../reference/feature-repository/feature-store-yaml.md) file, as well as the feature definitions found in your feature repository.
+The Feast CLI can be used to deploy a feature store to your infrastructure, spinning up any necessary persistent resources like buckets or tables in data stores. The deployment target and effects depend on the `provider` that has been configured in your [feature\_store.yaml](../../reference/feature-repository/feature-store-yaml.md) file, as well as the feature definitions found in your feature repository.
 
 {% hint style="info" %}
 Here we'll be using the example repository we created in the previous guide, [Create a feature store](create-a-feature-repository.md). You can re-create it by running `feast init` in a new directory.

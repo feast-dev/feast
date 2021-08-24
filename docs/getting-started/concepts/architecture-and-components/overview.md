@@ -1,6 +1,6 @@
-# Architecture
+# Overview
 
-![Feast Architecture Diagram](../.gitbook/assets/image%20%284%29.png)
+![Feast Architecture Diagram](../../../.gitbook/assets/image%20%284%29.png)
 
 ## Functionality
 
@@ -17,7 +17,6 @@
 
 A complete Feast deployment contains the following components:
 
-* **Feast Online Serving:** Provides low-latency access to feature values stores in the online store. This component is optional. Teams can also read feature values directly from the online store if necessary.
 * **Feast Registry**: An object store \(GCS, S3\) based registry used to persist feature definitions that are registered with the feature store. Systems can discover feature data by interacting with the registry through the Feast SDK.
 * **Feast Python SDK/CLI:** The primary user facing SDK. Used to:
   * Manage version controlled feature definitions.
