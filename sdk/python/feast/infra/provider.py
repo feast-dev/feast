@@ -165,7 +165,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
         cls = importer.get_class_from_type(module_name, class_name, "Provider")
 
-        return cls(config, repo_path)
+        return cls(config)
 
 
 def _get_requested_feature_views_to_features_dict(
