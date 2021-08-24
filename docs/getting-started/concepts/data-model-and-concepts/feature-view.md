@@ -2,7 +2,7 @@
 
 ## Feature View
 
-A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](feature-view.md#data-source). Feature views consist of one or more [entities](feature-view.md#entity), [features](feature-view.md#feature), and a [data source](feature-view.md#data-source). Feature views allow Feast to model your existing feature data in a consistent way in both an offline \(training\) and online \(serving\) environment.
+A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Feature views consist of one or more [entities](entity.md), [features](feature-view.md#feature), and a [data source](data-source.md). Feature views allow Feast to model your existing feature data in a consistent way in both an offline \(training\) and online \(serving\) environment.
 
 {% tabs %}
 {% tab title="driver\_trips\_feature\_view.py" %}
@@ -45,7 +45,7 @@ trips_today = Feature(
 )
 ```
 
-Together with [data sources](./#data-source), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](./#feature-references).
+Together with [data sources](data-source.md), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](feature-retrieval.md#feature-references).
 
-Feature names must be unique within a [feature view](./#feature-view).
+Feature names must be unique within a [feature view](feature-view.md#feature-view).
 
