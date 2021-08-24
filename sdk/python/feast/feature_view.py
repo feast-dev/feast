@@ -219,7 +219,7 @@ class FeatureView:
 
         batch_source_proto = self.batch_source.to_proto()
         if batch_source_proto is not None:
-        batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
 
         stream_source_proto = None
         if self.stream_source:
