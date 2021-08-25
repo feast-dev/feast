@@ -21,7 +21,13 @@ from feast.value_type import ValueType
 
 class OnDemandFeatureView:
     """
-    Declare an OnDemandFeatureView.
+    An OnDemandFeatureView defines on demand transformations on existing feature view values and request data.
+
+    Args:
+        name: Name of the group of features.
+        features: Output schema of transformation with feature names
+        inputs: The input feature views passed into the transform.
+        udf: User defined transformation function that takes as input pandas dataframes
     """
 
     name: str
@@ -38,9 +44,7 @@ class OnDemandFeatureView:
         udf: MethodType,
     ):
         """
-        Instantiates a new OnDemandFeatureView.
-
-        :param name: Unique, human friendly name that identifies the FeatureView.
+        Creates an OnDemandFeatureView object.
         """
 
         self.name = name
@@ -50,7 +54,7 @@ class OnDemandFeatureView:
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
-        Converts a feature view object to its protobuf representation.
+        Converts an on demand feature view object to its protobuf representation.
 
         Returns:
             A OnDemandFeatureViewProto protobuf.
@@ -71,7 +75,7 @@ class OnDemandFeatureView:
     @classmethod
     def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto):
         """
-        Creates a feature view from a protobuf representation of a feature view.
+        Creates an on demand feature view from a protobuf representation.
 
         Args:
             on_demand_feature_view_proto: A protobuf representation of an on-demand feature view.
@@ -125,7 +129,7 @@ def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureVie
 
 def udf_from_proto(serialized_transform: UserDefinedFunctionProto, scope=None):
     """
-    deserialize into global scope by default. if a scope if provided, deserialize into provided scope
+    deserialize into global scope with pandas by default. if a scope if provided, deserialize into provided scope
     """
 
     if scope is None:

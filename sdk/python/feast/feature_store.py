@@ -769,9 +769,8 @@ class FeatureStore:
         initial_response_df = OnlineResponse(
             GetOnlineFeaturesResponse(field_values=result_rows)
         ).to_df()
-        # Now, we take the on demand transform definitions, reconstruct the python udf in memory,
-        # and run it on the resulting rows.
-        # Ideally, this would only have the feature values from that FV.
+        # Apply on demand transformations
+        # TODO(adchia): Ideally, this would only have the feature values from that FV.
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
         )
