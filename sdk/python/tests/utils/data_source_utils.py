@@ -1,5 +1,7 @@
 import contextlib
+import random
 import tempfile
+import time
 
 from google.cloud import bigquery
 
@@ -25,7 +27,7 @@ def simple_bq_source_using_table_ref_arg(
 ) -> BigQuerySource:
     client = bigquery.Client()
     gcp_project = client.project
-    bigquery_dataset = "ds"
+    bigquery_dataset = f"ds_{time.time_ns()}"
     dataset = bigquery.Dataset(f"{gcp_project}.{bigquery_dataset}")
     client.create_dataset(dataset, exists_ok=True)
     dataset.default_table_expiration_ms = (
@@ -34,7 +36,7 @@ def simple_bq_source_using_table_ref_arg(
         * 60  # 60 minutes in milliseconds (seems to be minimum limit for gcloud)
     )
     client.update_dataset(dataset, ["default_table_expiration_ms"])
-    table_ref = f"{gcp_project}.{bigquery_dataset}.table_1"
+    table_ref = f"{gcp_project}.{bigquery_dataset}.table_{random.randrange(100, 999)}"
 
     job = client.load_table_from_dataframe(
         df, table_ref, job_config=bigquery.LoadJobConfig()

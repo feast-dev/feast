@@ -1,37 +1,49 @@
 # Table of contents
 
 * [Introduction](README.md)
-* [Quickstart](quickstart.md)
-* [Getting started](getting-started/README.md)
-  * [Install Feast](getting-started/install-feast.md)
-  * [Create a feature repository](getting-started/create-a-feature-repository.md)
-  * [Deploy a feature store](getting-started/deploy-a-feature-store.md)
-  * [Build a training dataset](getting-started/build-a-training-dataset.md)
-  * [Load data into the online store](getting-started/load-data-into-the-online-store.md)
-  * [Read features from the online store](getting-started/read-features-from-the-online-store.md)
 * [Community](community.md)
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 
+## Getting started
+
+* [Quickstart](getting-started/quickstart.md)
+* [Concepts](getting-started/concepts/README.md)
+  * [Overview](getting-started/concepts/overview.md)
+  * [Data model](getting-started/concepts/data-model-and-concepts/README.md)
+    * [Data source](getting-started/concepts/data-model-and-concepts/data-source.md)
+    * [Entity](getting-started/concepts/data-model-and-concepts/entity.md)
+    * [Feature view](getting-started/concepts/data-model-and-concepts/feature-view.md)
+    * [Feature service](getting-started/concepts/data-model-and-concepts/feature-service.md)
+    * [Feature retrieval](getting-started/concepts/data-model-and-concepts/feature-retrieval.md)
+  * [Architecture](getting-started/concepts/architecture-and-components/README.md)
+    * [Overview](getting-started/concepts/architecture-and-components/overview.md)
+    * [Feature repository](getting-started/concepts/architecture-and-components/feature-repository.md)
+    * [Offline store](getting-started/concepts/architecture-and-components/offline-store.md)
+    * [Online store](getting-started/concepts/architecture-and-components/online-store.md)
+    * [Provider](getting-started/concepts/architecture-and-components/provider.md)
+* [FAQ](getting-started/faq.md)
+
 ## Tutorials
 
+* [Overview](tutorials/tutorials-overview.md)
 * [Driver Ranking](tutorials/driver-ranking-with-feast.md)
 * [Fraud Detection](tutorials/fraud-detection.md)
 
-## Concepts
-
-* [Overview](concepts/overview.md)
-* [Feature view](concepts/feature-view.md)
-* [Data model](concepts/data-model-and-concepts.md)
-* [Online store](concepts/online-store.md)
-* [Offline store](concepts/offline-store.md)
-* [Provider](concepts/provider.md)
-* [Architecture](concepts/architecture-and-components.md)
-* [Feature service](concepts/feature-service.md)
-
 ## How-to Guides
 
+* [Running Feast with GCP/AWS](how-to-guides/feast-gcp-aws/README.md)
+  * [Install Feast](how-to-guides/feast-gcp-aws/install-feast.md)
+  * [Create a feature repository](how-to-guides/feast-gcp-aws/create-a-feature-repository.md)
+  * [Deploy a feature store](how-to-guides/feast-gcp-aws/deploy-a-feature-store.md)
+  * [Build a training dataset](how-to-guides/feast-gcp-aws/build-a-training-dataset.md)
+  * [Load data into the online store](how-to-guides/feast-gcp-aws/load-data-into-the-online-store.md)
+  * [Read features from the online store](how-to-guides/feast-gcp-aws/read-features-from-the-online-store.md)
 * [Running Feast in production](how-to-guides/running-feast-in-production.md)
+* [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
+* [Adding a custom provider](how-to-guides/creating-a-custom-provider.md)
+* [Adding a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
+* [Adding a new offline store](how-to-guides/adding-a-new-offline-store.md)
 
 ## Reference
 
@@ -59,62 +71,11 @@
 * [Python API reference](http://rtd.feast.dev/)
 * [Usage](reference/usage.md)
 
-## Contributing
+## Project
 
-* [Contribution process](contributing/contributing.md)
-* [Development guide](contributing/development-guide.md)
-* [Versioning policy](contributing/versioning-policy.md)
-* [Release process](contributing/release-process.md)
-
----
-
-* [Feast on Kubernetes](feast-on-kubernetes-1/README.md)
-  * [Getting started](feast-on-kubernetes-1/getting-started/README.md)
-    * [Install Feast](feast-on-kubernetes-1/getting-started/install-feast/README.md)
-      * [Docker Compose](feast-on-kubernetes-1/getting-started/install-feast/quickstart.md)
-      * [Kubernetes \(with Helm\)](feast-on-kubernetes-1/getting-started/install-feast/kubernetes-with-helm.md)
-      * [Amazon EKS \(with Terraform\)](feast-on-kubernetes-1/getting-started/install-feast/kubernetes-amazon-eks-with-terraform.md)
-      * [Azure AKS \(with Helm\)](feast-on-kubernetes-1/getting-started/install-feast/kubernetes-azure-aks-with-helm.md)
-      * [Azure AKS \(with Terraform\)](feast-on-kubernetes-1/getting-started/install-feast/kubernetes-azure-aks-with-terraform.md)
-      * [Google Cloud GKE \(with Terraform\)](feast-on-kubernetes-1/getting-started/install-feast/google-cloud-gke-with-terraform.md)
-      * [IBM Cloud Kubernetes Service \(IKS\) and Red Hat OpenShift \(with Kustomize\)](feast-on-kubernetes-1/getting-started/install-feast/ibm-cloud-iks-with-kustomize.md)
-    * [Connect to Feast](feast-on-kubernetes-1/getting-started/connect-to-feast/README.md)
-      * [Python SDK](feast-on-kubernetes-1/getting-started/connect-to-feast/python-sdk.md)
-      * [Feast CLI](feast-on-kubernetes-1/getting-started/connect-to-feast/feast-cli.md)
-    * [Learn Feast](feast-on-kubernetes-1/getting-started/learn-feast.md)
-  * [Concepts](feast-on-kubernetes-1/concepts/README.md)
-    * [Overview](feast-on-kubernetes-1/concepts/overview.md)
-    * [Architecture](feast-on-kubernetes-1/concepts/architecture.md)
-    * [Entities](feast-on-kubernetes-1/concepts/entities.md)
-    * [Sources](feast-on-kubernetes-1/concepts/sources.md)
-    * [Feature Tables](feast-on-kubernetes-1/concepts/feature-tables.md)
-    * [Stores](feast-on-kubernetes-1/concepts/stores.md)
-  * [Tutorials](feast-on-kubernetes-1/tutorials-1/README.md)
-    * [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb)
-  * [User guide](feast-on-kubernetes-1/user-guide/README.md)
-    * [Overview](feast-on-kubernetes-1/user-guide/overview.md)
-    * [Getting online features](feast-on-kubernetes-1/user-guide/getting-online-features.md)
-    * [Getting training features](feast-on-kubernetes-1/user-guide/getting-training-features.md)
-    * [Define and ingest features](feast-on-kubernetes-1/user-guide/define-and-ingest-features.md)
-    * [Extending Feast](feast-on-kubernetes-1/user-guide/extending-feast.md)
-  * [Reference](feast-on-kubernetes-1/reference-1/README.md)
-    * [Configuration Reference](feast-on-kubernetes-1/reference-1/configuration-reference.md)
-    * [Feast and Spark](feast-on-kubernetes-1/reference-1/feast-and-spark.md)
-    * [Metrics Reference](feast-on-kubernetes-1/reference-1/metrics-reference.md)
-    * [Limitations](feast-on-kubernetes-1/reference-1/limitations.md)
-    * [API Reference](feast-on-kubernetes-1/reference-1/api/README.md)
-      * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
-      * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
-      * [Core gRPC API](https://api.docs.feast.dev/grpc/feast/core/coreservice.pb.html)
-      * [Python SDK](https://api.docs.feast.dev/python/)
-      * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast/serving/servingservice.pb.html)
-      * [gRPC Types](https://api.docs.feast.dev/grpc/feast/types/value.pb)
-      * [Online Store Format Spec](feast-on-kubernetes-1/reference-1/api/online_store_format.md)
-      * [Offline Store Format Spec](feast-on-kubernetes-1/reference-1/api/offline_store_format.md)
-  * [Advanced](feast-on-kubernetes-1/advanced-1/README.md)
-    * [Troubleshooting](feast-on-kubernetes-1/advanced-1/troubleshooting.md)
-    * [Metrics](feast-on-kubernetes-1/advanced-1/metrics.md)
-    * [Audit Logging](feast-on-kubernetes-1/advanced-1/audit-logging.md)
-    * [Security](feast-on-kubernetes-1/advanced-1/security.md)
-    * [Upgrading Feast](feast-on-kubernetes-1/advanced-1/upgrading.md)
+* [Contribution process](project/contributing.md)
+* [Development guide](project/development-guide.md)
+* [Versioning policy](project/versioning-policy.md)
+* [Release process](project/release-process.md)
+* [Feast 0.9 vs Feast 0.10+](project/feast-0.9-vs-feast-0.10+.md)
 

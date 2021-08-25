@@ -40,7 +40,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
     def create_offline_store_config(self):
         return BigQueryOfflineStoreConfig()
 
-    def create_data_sources(
+    def create_data_source(
         self,
         df: pd.DataFrame,
         destination: Optional[str] = None,

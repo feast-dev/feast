@@ -25,7 +25,7 @@ import requests
 
 from feast.version import get_version
 
-USAGE_ENDPOINT = "https://us-central1-kf-feast.cloudfunctions.net/bq_telemetry_logger"
+USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
 
 
@@ -83,7 +83,7 @@ class Usage:
                 self._usage_counter["get_online_features"] = 2  # avoid overflow
             json = {
                 "function_name": function_name,
-                "telemetry_id": self.usage_id,
+                "usage_id": self.usage_id,
                 "timestamp": datetime.utcnow().isoformat(),
                 "version": get_version(),
                 "os": sys.platform,
@@ -104,7 +104,7 @@ class Usage:
             json = {
                 "error_type": error_type,
                 "traceback": traceback,
-                "telemetry_id": self.usage_id,
+                "usage_id": self.usage_id,
                 "version": get_version(),
                 "os": sys.platform,
                 "is_test": self._is_test,

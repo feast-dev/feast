@@ -279,8 +279,8 @@ def construct_universal_test_environment(
 
     # This needs to be abstracted away for test_e2e_universal which uses a different dataset.
     df = create_dataset()
-    ds = offline_creator.create_data_sources(
-        df, destination=project, field_mapping={"ts_1": "ts", "id": "driver_id"}
+    ds = offline_creator.create_data_source(
+        df, project, field_mapping={"ts_1": "ts", "id": "driver_id"}
     )
 
     offline_store = offline_creator.create_offline_store_config()

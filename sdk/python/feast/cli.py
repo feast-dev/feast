@@ -357,5 +357,19 @@ def init_command(project_directory, minimal: bool, template: str):
     init_repo(project_directory, template)
 
 
+@cli.command("serve")
+@click.option(
+    "--port", "-p", type=click.INT, default=6566, help="Specify a port for the server"
+)
+@click.pass_context
+def serve_command(ctx: click.Context, port: int):
+    """Start a the feature consumption server locally on a given port."""
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    store.serve(port)
+
+
 if __name__ == "__main__":
     cli()

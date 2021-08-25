@@ -43,14 +43,14 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 ## How can I get started?
 
 {% hint style="info" %}
-The best way to learn Feast is to use it. Head over to our [Quickstart](quickstart.md) and try it out!
+The best way to learn Feast is to use it. Head over to our [Quickstart](getting-started/quickstart.md) and try it out!
 {% endhint %}
 
 Explore the following resources to get started with Feast:
 
-* [Quickstart](quickstart.md) is the fastest way to get started with Feast
-* [Getting started ](getting-started/)provides a step-by-step guide to using Feast.
-* [Concepts](concepts/data-model-and-concepts.md#concepts) describes all important Feast API concepts.
+* [Quickstart](getting-started/quickstart.md) is the fastest way to get started with Feast
+* [Getting started ](how-to-guides/feast-gcp-aws/)provides a step-by-step guide to using Feast.
+* [Concepts](getting-started/concepts/data-model-and-concepts/#concepts) describes all important Feast API concepts.
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
-* [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
+* [Contributing](project/contributing.md) contains resources for anyone who wants to contribute to Feast.
 

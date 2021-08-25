@@ -57,6 +57,8 @@ REQUIRED = [
     "tenacity>=7.*",
     "toml==0.10.*",
     "tqdm==4.*",
+    "fastapi>=0.68.0",
+    "uvicorn[standard]>=0.14.0",
 ]
 
 GCP_REQUIRED = [
@@ -82,6 +84,7 @@ CI_REQUIRED = [
     "isort>=5",
     "grpcio-tools==1.34.0",
     "grpcio-testing==1.34.0",
+    "minio==7.1.0",
     "mock==2.0.0",
     "moto",
     "mypy==0.790",
@@ -98,6 +101,7 @@ CI_REQUIRED = [
     "pytest-mock==1.10.4",
     "Sphinx!=4.0.0",
     "sphinx-rtd-theme",
+    "testcontainers==3.4.2",
     "adlfs==0.5.9",
     "firebase-admin==4.5.2",
     "pre-commit",

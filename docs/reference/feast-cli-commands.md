@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Feast CLI comes bundled with the Feast Python package. It is immediately available after [installing Feast](../getting-started/install-feast.md).
+The Feast CLI comes bundled with the Feast Python package. It is immediately available after [installing Feast](../how-to-guides/feast-gcp-aws/install-feast.md).
 
 ```text
 Usage: feast [OPTIONS] COMMAND [ARGS]...
