@@ -2,7 +2,7 @@ import pytest
 
 from tests.integration.feature_repos.test_repo_configuration import (
     TestRepoConfig,
-    construct_test_environment,
+    construct_universal_test_environment,
 )
 
 # TODO: Allow integration tests to run using different credentials.
@@ -27,7 +27,7 @@ def test_registration_and_retrieval_from_custom_s3_endpoint():
     os.environ["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
-    with construct_test_environment(
+    with construct_universal_test_environment(
         config, create_and_apply=True, materialize=True
     ) as environment:
         fs = environment.feature_store
