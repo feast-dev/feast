@@ -3,8 +3,9 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import pytest
@@ -188,10 +189,6 @@ class Environment:
     data_source: DataSource
     data_source_creator: DataSourceCreator
 
-    entities_creator: Callable[[], Dict[str, List[Any]]] = field(
-        default=construct_universal_entities
-    )
-
     entities: Dict[str, List[Any]] = field(default_factory=dict)
     datasets: Dict[str, pd.DataFrame] = field(default_factory=dict)
     datasources: Dict[str, DataSource] = field(default_factory=dict)
@@ -249,12 +246,18 @@ def vary_providers_for_offline_stores(
     return new_configs
 
 
+class EnvironmentSetupSteps(Enum):
+    INIT = 0
+    CREATE_AND_APPLY_OBJECTS = 1
+    MATERIALIZE = 2
+
+
+DEFAULT_STEP = EnvironmentSetupSteps.INIT
+
+
 @contextmanager
 def construct_universal_test_environment(
-    test_repo_config: TestRepoConfig,
-    create_and_apply: bool = False,
-    materialize: bool = False,
-    data_source_cache=None,
+    test_repo_config: TestRepoConfig, stop_at_step=DEFAULT_STEP, data_source_cache=None,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -303,10 +306,8 @@ def construct_universal_test_environment(
             data_source=ds,
             data_source_creator=offline_creator,
         )
-        print(f"Data Source Cache: {data_source_cache}")
         if data_source_cache:
             fixtures = data_source_cache.get(test_repo_config)
-            print(f"Fixtures: {fixtures}")
             if fixtures:
                 environment = setup_entities(environment, entities_override=fixtures[0])
                 environment = setup_datasets(environment, datasets_override=fixtures[1])
@@ -334,12 +335,13 @@ def construct_universal_test_environment(
         fvs = []
         entities = []
         try:
-            if create_and_apply:
+            if stop_at_step <= EnvironmentSetupSteps.INIT:
+                pass
+            if stop_at_step >= EnvironmentSetupSteps.CREATE_AND_APPLY_OBJECTS:
                 entities.extend([driver(), customer()])
                 fvs.extend(environment.feature_views.values())
                 fs.apply(fvs + entities)
-
-            if materialize:
+            if stop_at_step >= EnvironmentSetupSteps.MATERIALIZE:
                 fs.materialize(environment.start_date, environment.end_date)
 
             yield environment
@@ -393,7 +395,9 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
-            config, create_and_apply=True, data_source_cache=data_source_cache
+            config,
+            stop_at_step=EnvironmentSetupSteps.CREATE_AND_APPLY_OBJECTS,
+            data_source_cache=data_source_cache,
         ) as environment:
             offline_retrieval_test(environment)
 
@@ -419,8 +423,7 @@ def parametrize_online_test(online_test):
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
             config,
-            create_and_apply=True,
-            materialize=True,
+            stop_at_step=EnvironmentSetupSteps.MATERIALIZE,
             data_source_cache=data_source_cache,
         ) as environment:
             online_test(environment)
