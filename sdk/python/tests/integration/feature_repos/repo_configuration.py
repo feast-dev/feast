@@ -95,8 +95,9 @@ def construct_universal_datasets(
         end_date=end_time + timedelta(days=3),
         order_count=20,
     )
+    global_df = driver_data.create_global_daily_stats_df(start_time, end_time)
 
-    return {"customer": customer_df, "driver": driver_df, "orders": orders_df}
+    return {"customer": customer_df, "driver": driver_df, "orders": orders_df, "global": global_df}
 
 
 def construct_universal_data_sources(
@@ -120,7 +121,13 @@ def construct_universal_data_sources(
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
-    return {"customer": customer_ds, "driver": driver_ds, "orders": orders_ds}
+    global_ds = data_source_creator.create_data_source(
+        datasets["global"],
+        destination_name=f"global",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
+    return {"customer": customer_ds, "driver": driver_ds, "orders": orders_ds, "global": global_ds}
 
 
 def construct_universal_feature_views(

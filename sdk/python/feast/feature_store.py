@@ -36,6 +36,7 @@ from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
 )
+from feast.infra.offline_stores import offline_utils
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -541,11 +542,13 @@ class FeatureStore:
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
-                self.project
+                self.project, hide_entityless=False
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(name, self.project)
+                feature_view = self._registry.get_feature_view(
+                    name, self.project, hide_entityless=False
+                )
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -633,11 +636,13 @@ class FeatureStore:
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
-                self.project
+                self.project, hide_entityless=False
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(name, self.project)
+                feature_view = self._registry.get_feature_view(
+                    name, self.project, hide_entityless=False
+                )
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -721,6 +726,15 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
+        all_feature_views = self._registry.list_feature_views(
+            project=self.project, allow_cache=True, hide_entityless=False
+        )
+        _validate_feature_refs(_feature_refs, full_feature_names)
+        grouped_refs = _group_feature_refs(_feature_refs, all_feature_views)
+        feature_views = list(view for view, _ in grouped_refs)
+        entityless_case = "__entityless_id" in offline_utils.get_expected_join_keys(
+            self.project, feature_views, self._registry
+        )
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
@@ -737,6 +751,8 @@ class FeatureStore:
                 except KeyError:
                     raise EntityNotFoundException(entity_name, self.project)
                 join_key_row[join_key] = entity_value
+                if entityless_case:
+                    join_key_row["__entityless_id"] = ""
             join_key_rows.append(join_key_row)
 
         entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
@@ -748,11 +764,6 @@ class FeatureStore:
             union_of_entity_keys.append(_entity_row_to_key(entity_row_proto))
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
-        all_feature_views = self._registry.list_feature_views(
-            project=self.project, allow_cache=True
-        )
-        _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs = _group_feature_refs(_feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map

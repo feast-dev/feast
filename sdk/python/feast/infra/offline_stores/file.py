@@ -217,7 +217,7 @@ class FileOfflineStore(OfflineStore):
                     df_to_join,
                     left_on=entity_df_event_timestamp_col,
                     right_on=event_timestamp_column,
-                    by=right_entity_columns,
+                    by=right_entity_columns or None,
                     tolerance=feature_view.ttl,
                 )
 
@@ -296,9 +296,13 @@ class FileOfflineStore(OfflineStore):
                 (source_df[event_timestamp_column] >= start_date)
                 & (source_df[event_timestamp_column] < end_date)
             ]
-            last_values_df = filtered_df.drop_duplicates(
-                join_key_columns, keep="last", ignore_index=True
-            )
+
+            if join_key_columns:
+                last_values_df = filtered_df.drop_duplicates(
+                    join_key_columns, keep="last", ignore_index=True
+                )
+            else:
+                last_values_df["__entityless_id"] = ""
 
             columns_to_extract = set(
                 join_key_columns + feature_name_columns + ts_columns

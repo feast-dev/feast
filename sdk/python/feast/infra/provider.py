@@ -221,7 +221,9 @@ def _get_column_names(
     event_timestamp_column = feature_view.batch_source.event_timestamp_column
     feature_names = [feature.name for feature in feature_view.features]
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
-    join_keys = [entity.join_key for entity in entities]
+    join_keys = [
+        entity.join_key for entity in entities if entity.join_key != "__entityless_id"
+    ]
     if feature_view.batch_source.field_mapping is not None:
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()

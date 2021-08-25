@@ -82,6 +82,7 @@ class BigQueryOfflineStore(OfflineStore):
             SELECT {field_string}
             FROM (
                 SELECT {field_string},
+                "" AS __entityless_id,
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
                 WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
@@ -390,11 +391,14 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__entity_dataframe AS (
     SELECT
-        {{ featureview.entities | join(', ')}},
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
         entity_timestamp,
         {{featureview.name}}__entity_row_unique_id
     FROM entity_dataframe
-    GROUP BY {{ featureview.entities | join(', ')}}, entity_timestamp, {{featureview.name}}__entity_row_unique_id
+    GROUP BY
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+        entity_timestamp,
+        {{featureview.name}}__entity_row_unique_id
 ),
 
 /*
@@ -418,7 +422,7 @@ WITH entity_dataframe AS (
     SELECT
         {{ featureview.event_timestamp_column }} as event_timestamp,
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
-        {{ featureview.entity_selections | join(', ')}},
+        {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
