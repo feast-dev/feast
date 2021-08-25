@@ -43,6 +43,7 @@
 * [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
 * [Adding a custom provider](how-to-guides/creating-a-custom-provider.md)
 * [Adding a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
+* [Adding a new offline store](how-to-guides/adding-a-new-offline-store.md)
 
 ## Reference
 
