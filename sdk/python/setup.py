@@ -113,6 +113,7 @@ CI_REQUIRED = [
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
     "boto3==1.17.*",
+    "dill==0.3.0"
 ]
 
 

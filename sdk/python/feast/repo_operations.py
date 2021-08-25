@@ -17,6 +17,7 @@ from feast.feature_store import FeatureStore, _validate_feature_views
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
@@ -33,6 +34,7 @@ def py_path_to_module(path: Path, repo_root: Path) -> str:
 class ParsedRepo(NamedTuple):
     feature_tables: List[FeatureTable]
     feature_views: List[FeatureView]
+    on_demand_feature_views: List[OnDemandFeatureView]
     entities: List[Entity]
     feature_services: List[FeatureService]
 
@@ -93,7 +95,11 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 def parse_repo(repo_root: Path) -> ParsedRepo:
     """ Collect feature table definitions from feature repo """
     res = ParsedRepo(
-        feature_tables=[], entities=[], feature_views=[], feature_services=[]
+        feature_tables=[],
+        entities=[],
+        feature_views=[],
+        feature_services=[],
+        on_demand_feature_views=[],
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -109,6 +115,8 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
                 res.entities.append(obj)
             elif isinstance(obj, FeatureService):
                 res.feature_services.append(obj)
+            elif isinstance(obj, OnDemandFeatureView):
+                res.on_demand_feature_views.append(obj)
     return res
 
 
@@ -143,6 +151,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     views_to_keep, views_to_delete = _tag_registry_views_for_keep_delete(
         project, registry, repo
     )
+    (
+        odfvs_to_keep,
+        odfvs_to_delete,
+    ) = _tag_registry_on_demand_feature_views_for_keep_delete(project, registry, repo)
     tables_to_keep, tables_to_delete = _tag_registry_tables_for_keep_delete(
         project, registry, repo
     )
@@ -181,10 +193,14 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     # TODO: delete entities from the registry too
 
     # Add / update views + entities + services
-    all_to_apply: List[Union[Entity, FeatureView, FeatureService]] = []
+    all_to_apply: List[
+        Union[Entity, FeatureView, FeatureService, OnDemandFeatureView]
+    ] = []
     all_to_apply.extend(entities_to_keep)
     all_to_apply.extend(views_to_keep)
     all_to_apply.extend(services_to_keep)
+    all_to_apply.extend(odfvs_to_keep)
+    # TODO: delete odfvs
     store.apply(all_to_apply, commit=False)
     for entity in entities_to_keep:
         click.echo(
@@ -193,6 +209,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     for view in views_to_keep:
         click.echo(
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
+        )
+    for odfv in odfvs_to_keep:
+        click.echo(
+            f"Registered on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL}"
         )
     for feature_service in services_to_keep:
         click.echo(
@@ -261,6 +281,20 @@ def _tag_registry_views_for_keep_delete(
         if registry_view.name not in repo_feature_view_names:
             views_to_delete.append(registry_view)
     return views_to_keep, views_to_delete
+
+
+def _tag_registry_on_demand_feature_views_for_keep_delete(
+    project: str, registry: Registry, repo: ParsedRepo
+) -> Tuple[List[OnDemandFeatureView], List[OnDemandFeatureView]]:
+    odfvs_to_keep: List[OnDemandFeatureView] = repo.on_demand_feature_views
+    odfvs_to_delete: List[OnDemandFeatureView] = []
+    repo_on_demand_feature_view_names = set(
+        t.name for t in repo.on_demand_feature_views
+    )
+    for registry_odfv in registry.list_on_demand_feature_views(project=project):
+        if registry_odfv.name not in repo_on_demand_feature_view_names:
+            odfvs_to_delete.append(registry_odfv)
+    return odfvs_to_keep, odfvs_to_delete
 
 
 def _tag_registry_tables_for_keep_delete(
