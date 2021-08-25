@@ -92,6 +92,10 @@ Feast is composed of [multiple components](https://docs.feast.dev/v/master/conce
 
 ## Making a Pull Request
 
+{% hint style="info" %}
+See also the CONTRIBUTING.md in the corresponding GitHub repository \(e.g. [main repo doc](https://github.com/feast-dev/feast/blob/master/CONTRIBUTING.md)\)
+{% endhint %}
+
 ### Incorporating upstream changes from master
 
 Our preference is the use of `git rebase` instead of `git merge` : `git pull -r`
