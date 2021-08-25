@@ -142,16 +142,16 @@ def read_bigquery_usage_id(usage_id):
     bq_client = bigquery.Client()
     query = f"""
                 SELECT
-                  telemetry_id
+                  usage_id
                 FROM (
                   SELECT
-                    JSON_EXTRACT(textPayload, '$.telemetry_id') AS telemetry_id
+                    JSON_EXTRACT(textPayload, '$.usage_id') AS usage_id
                   FROM
                     `{USAGE_BIGQUERY_TABLE}`
                   WHERE
                     timestamp >= TIMESTAMP(\"{datetime.utcnow().date().isoformat()}\"))
                 WHERE
-                  telemetry_id = '\"{usage_id}\"'
+                  usage_id = '\"{usage_id}\"'
             """
     query_job = bq_client.query(query)
     return query_job.result()
