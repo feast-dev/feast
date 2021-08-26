@@ -226,7 +226,12 @@ class Registry:
         """
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         for entity_proto in registry_proto.entities:
-            if entity_proto.spec.name == name and entity_proto.spec.project == project:
+            if (
+                entity_proto.spec.name == name
+                and entity_proto.spec.project == project
+                and entity_proto.spec.name != "__entityless"
+            ):
+
                 return Entity.from_proto(entity_proto)
         raise EntityNotFoundException(name, project=project)
 
