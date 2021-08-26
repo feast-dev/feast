@@ -239,6 +239,7 @@ def vary_infer_feature(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
         new_configs.extend([true_c, false_c])
     return new_configs
 
+
 def vary_providers_for_offline_stores(
     configs: List[TestRepoConfig],
 ) -> List[TestRepoConfig]:
@@ -267,8 +268,10 @@ DEFAULT_STEP = EnvironmentSetupSteps.INIT
 
 @contextmanager
 def construct_universal_test_environment(
-    test_repo_config: TestRepoConfig, stop_at_step=DEFAULT_STEP, data_source_cache=None,
-    **kwargs
+    test_repo_config: TestRepoConfig,
+    stop_at_step=DEFAULT_STEP,
+    data_source_cache=None,
+    **kwargs,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -362,8 +365,10 @@ def construct_universal_test_environment(
 
             yield environment
         finally:
-            import pdb; pdb.set_trace()
-            if not data_source_cache and stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS:
+            if (
+                not data_source_cache
+                and stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS
+            ):
                 offline_creator.teardown()
             fs.teardown()
 
@@ -382,7 +387,9 @@ def parametrize_e2e_test(e2e_test):
     """
 
     @pytest.mark.integration
-    @pytest.mark.parametrize("config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v))
+    @pytest.mark.parametrize(
+        "config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v)
+    )
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
             config, data_source_cache=data_source_cache

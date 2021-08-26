@@ -44,7 +44,7 @@ class FileDataSourceCreator(DataSourceCreator):
         self.files.append(f)
         return FileSource(
             file_format=ParquetFormat(),
-            path=f"file://{f.name}",
+            path=f"{f.name}",
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",

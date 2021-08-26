@@ -5,8 +5,7 @@ from feast.data_source import DataSource
 
 
 def driver_feature_view(
-    data_source: DataSource, name="test_correctness",
-    infer_features: bool = False,
+    data_source: DataSource, name="test_correctness", infer_features: bool = False,
 ) -> FeatureView:
     return FeatureView(
         name=name,
@@ -17,12 +16,13 @@ def driver_feature_view(
     )
 
 
-def create_driver_hourly_stats_feature_view(source,
-                                            infer_features: bool = False):
+def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
         entities=["driver"],
-        features=None if infer_features else [
+        features=None
+        if infer_features
+        else [
             Feature(name="conv_rate", dtype=ValueType.FLOAT),
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
@@ -33,12 +33,13 @@ def create_driver_hourly_stats_feature_view(source,
     return driver_stats_feature_view
 
 
-def create_customer_daily_profile_feature_view(source,
-                                               infer_features: bool = False):
+def create_customer_daily_profile_feature_view(source, infer_features: bool = False):
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
         entities=["customer_id"],
-        features=None if infer_features else [
+        features=None
+        if infer_features
+        else [
             Feature(name="current_balance", dtype=ValueType.FLOAT),
             Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
             Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
