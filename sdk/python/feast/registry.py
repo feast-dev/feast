@@ -593,6 +593,7 @@ class LocalRegistryStore(RegistryStore):
 
     def get_registry_proto(self):
         registry_proto = RegistryProto()
+        import pdb; pdb.set_trace()
         if self._filepath.exists():
             registry_proto.ParseFromString(self._filepath.read_bytes())
             return registry_proto

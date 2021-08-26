@@ -36,6 +36,7 @@ class TestRepoConfig:
 
     full_feature_names: bool = True
     infer_event_timestamp_col: bool = True
+    infer_features: bool = False
 
 
 def ds_creator_path(cls: str):
@@ -230,6 +231,14 @@ def vary_infer_event_timestamp_col(
     return new_configs
 
 
+def vary_infer_feature(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
+    new_configs = []
+    for c in configs:
+        true_c = replace(c, infer_features=True)
+        false_c = replace(c, infer_features=False)
+        new_configs.extend([true_c, false_c])
+    return new_configs
+
 def vary_providers_for_offline_stores(
     configs: List[TestRepoConfig],
 ) -> List[TestRepoConfig]:
@@ -258,9 +267,8 @@ DEFAULT_STEP = EnvironmentSetupSteps.INIT
 
 @contextmanager
 def construct_universal_test_environment(
-    test_repo_config: TestRepoConfig,
-    stop_at_step=DEFAULT_STEP,
-    data_source_cache=None,
+    test_repo_config: TestRepoConfig, stop_at_step=DEFAULT_STEP, data_source_cache=None,
+    **kwargs
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -270,6 +278,8 @@ def construct_universal_test_environment(
     The user is *not* expected to perform any clean up actions.
 
     :param test_repo_config: configuration
+    :param stop_at_step: The step which should be the last one executed when setting up the test environment.
+    :param data_source_cache:
     :return: A feature store built using the supplied configuration.
     """
 
@@ -313,8 +323,6 @@ def construct_universal_test_environment(
         fvs = []
         entities = []
         try:
-            if stop_at_step <= EnvironmentSetupSteps.INIT:
-                pass
             if stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS:
                 if data_source_cache:
                     fixtures = data_source_cache.get(test_repo_config)
@@ -354,7 +362,8 @@ def construct_universal_test_environment(
 
             yield environment
         finally:
-            if not data_source_cache:
+            import pdb; pdb.set_trace()
+            if not data_source_cache and stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS:
                 offline_creator.teardown()
             fs.teardown()
 
@@ -373,7 +382,7 @@ def parametrize_e2e_test(e2e_test):
     """
 
     @pytest.mark.integration
-    @pytest.mark.parametrize("config", FULL_REPO_CONFIGS, ids=lambda v: str(v))
+    @pytest.mark.parametrize("config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
             config, data_source_cache=data_source_cache

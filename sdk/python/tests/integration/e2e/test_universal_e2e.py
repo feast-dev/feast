@@ -16,10 +16,13 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 
 @parametrize_e2e_test
 def test_e2e_consistency(test_environment: Environment):
+    infer_features = test_environment.test_repo_config.infer_features
     fs, fv = (
         test_environment.feature_store,
-        driver_feature_view(test_environment.data_source),
+        driver_feature_view(data_source=test_environment.data_source,
+                            infer_features=infer_features),
     )
+    import pdb; pdb.set_trace()
     entity = driver()
     fs.apply([fv, entity])
 

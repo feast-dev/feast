@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import re
+from datetime import datetime
 from typing import Any, Dict, Union
 
 import numpy as np
@@ -104,6 +105,7 @@ def python_type_to_feast_value_type(
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
@@ -281,6 +283,8 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
         elif feast_value_type == ValueType.INT64:
             return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.UNIX_TIMESTAMP:
+            if isinstance(value, datetime):
+                return ProtoValue(int64_val=int(value.timestamp()))
             return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.FLOAT:
             return ProtoValue(float_val=float(value))

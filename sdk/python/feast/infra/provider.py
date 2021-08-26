@@ -238,9 +238,12 @@ def _get_column_names(
             reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
             for col in feature_names
         ]
+    feature_names = set(feature_names) - set(join_keys)
+    feature_names = feature_names - {event_timestamp_column}
+    feature_names = feature_names - {created_timestamp_column}
     return (
         join_keys,
-        feature_names,
+        list(feature_names),
         event_timestamp_column,
         created_timestamp_column,
     )
