@@ -3,7 +3,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import IntEnum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -100,19 +100,19 @@ def construct_universal_datasets(
 def construct_universal_data_sources(
     datasets: Dict[str, pd.DataFrame], data_source_creator: DataSourceCreator
 ) -> Dict[str, DataSource]:
-    customer_ds = data_source_creator.create_data_sources(
+    customer_ds = data_source_creator.create_data_source(
         datasets["customer"],
         suffix="customer_profile",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
-    driver_ds = data_source_creator.create_data_sources(
+    driver_ds = data_source_creator.create_data_source(
         datasets["driver"],
         suffix="driver_hourly",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
-    orders_ds = data_source_creator.create_data_sources(
+    orders_ds = data_source_creator.create_data_source(
         datasets["orders"],
         suffix="orders",
         event_timestamp_column="event_timestamp",
@@ -246,10 +246,11 @@ def vary_providers_for_offline_stores(
     return new_configs
 
 
-class EnvironmentSetupSteps(Enum):
+class EnvironmentSetupSteps(IntEnum):
     INIT = 0
-    CREATE_AND_APPLY_OBJECTS = 1
-    MATERIALIZE = 2
+    CREATE_OBJECTS = 1
+    APPLY_OBJECTS = 2
+    MATERIALIZE = 3
 
 
 DEFAULT_STEP = EnvironmentSetupSteps.INIT
@@ -306,38 +307,43 @@ def construct_universal_test_environment(
             data_source=ds,
             data_source_creator=offline_creator,
         )
-        if data_source_cache:
-            fixtures = data_source_cache.get(test_repo_config)
-            if fixtures:
-                environment = setup_entities(environment, entities_override=fixtures[0])
-                environment = setup_datasets(environment, datasets_override=fixtures[1])
-                environment = setup_data_sources(
-                    environment, data_sources_override=fixtures[2]
-                )
-            else:
-                environment = setup_entities(environment)
-                environment = setup_datasets(environment)
-                environment = setup_data_sources(environment)
-                data_source_cache.put(
-                    test_repo_config,
-                    environment.entities,
-                    environment.datasets,
-                    environment.datasources,
-                    offline_creator,
-                )
-        else:
-            environment = setup_entities(environment)
-            environment = setup_datasets(environment)
-            environment = setup_data_sources(environment)
-
-        environment = setup_feature_views(environment)
 
         fvs = []
         entities = []
         try:
             if stop_at_step <= EnvironmentSetupSteps.INIT:
                 pass
-            if stop_at_step >= EnvironmentSetupSteps.CREATE_AND_APPLY_OBJECTS:
+            if stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS:
+                if data_source_cache:
+                    fixtures = data_source_cache.get(test_repo_config)
+                    if fixtures:
+                        environment = setup_entities(
+                            environment, entities_override=fixtures[0]
+                        )
+                        environment = setup_datasets(
+                            environment, datasets_override=fixtures[1]
+                        )
+                        environment = setup_data_sources(
+                            environment, data_sources_override=fixtures[2]
+                        )
+                    else:
+                        environment = setup_entities(environment)
+                        environment = setup_datasets(environment)
+                        environment = setup_data_sources(environment)
+                        data_source_cache.put(
+                            test_repo_config,
+                            environment.entities,
+                            environment.datasets,
+                            environment.datasources,
+                            offline_creator,
+                        )
+                else:
+                    environment = setup_entities(environment)
+                    environment = setup_datasets(environment)
+                    environment = setup_data_sources(environment)
+
+                environment = setup_feature_views(environment)
+            if stop_at_step >= EnvironmentSetupSteps.APPLY_OBJECTS:
                 entities.extend([driver(), customer()])
                 fvs.extend(environment.feature_views.values())
                 fs.apply(fvs + entities)
@@ -396,7 +402,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
             config,
-            stop_at_step=EnvironmentSetupSteps.CREATE_AND_APPLY_OBJECTS,
+            stop_at_step=EnvironmentSetupSteps.CREATE_OBJECTS,
             data_source_cache=data_source_cache,
         ) as environment:
             offline_retrieval_test(environment)
