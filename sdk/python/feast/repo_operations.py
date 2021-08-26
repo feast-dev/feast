@@ -202,13 +202,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_apply.extend(services_to_keep)
     all_to_apply.extend(odfvs_to_keep)
     # TODO: delete odfvs
-
-    # Create __entityless Entity
-    entityless_entity = Entity(
-        name="__entityless", join_key="__entityless_id", value_type=ValueType.INT32,
-    )
-    all_to_apply.append(entityless_entity)
-
     store.apply(all_to_apply, commit=False)
     for entity in entities_to_keep:
         click.echo(
