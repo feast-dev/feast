@@ -1,7 +1,7 @@
 # Introduction
 
 {% hint style="danger" %}
-_Would you prefer a lighter-weight, pip-install, no-Kubernetes deployment of Feast?_ The Feast maintainers are currently building a new deployment experience for Feast. If you have thoughts on Feast's deployment, [chat with the maintainers](https://calendly.com/d/gc29-y88c/feast-chat-w-willem-and-jay) to learn more and provide feedback.
+We strongly encourage all users to upgrade from Feast 0.9 to Feast 0.10+. Please see [this](https://docs.feast.dev/v/master/project/feast-0.9-vs-feast-0.10+) for an explanation of the differences between the two versions. A guide to upgrading can be found [here](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit#heading=h.9gb2523q4jlh). 
 {% endhint %}
 
 ## What is Feast?

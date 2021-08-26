@@ -4,6 +4,10 @@ description: Configuring Feast to use Spark for ingestion.
 
 # Feast and Spark
 
+{% hint style="danger" %}
+We strongly encourage all users to upgrade from Feast 0.9 to Feast 0.10+. Please see [this](https://docs.feast.dev/v/master/project/feast-0.9-vs-feast-0.10+) for an explanation of the differences between the two versions. A guide to upgrading can be found [here](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit#heading=h.9gb2523q4jlh). 
+{% endhint %}
+
 Feast relies on Spark to ingest data from the offline store to the online store, streaming ingestion, and running queries to retrieve historical data from the offline store. Feast supports several Spark deployment options.
 
 ## Option 1. Use Kubernetes Operator for Apache Spark

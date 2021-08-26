@@ -1,5 +1,9 @@
 # Sources
 
+{% hint style="danger" %}
+We strongly encourage all users to upgrade from Feast 0.9 to Feast 0.10+. Please see [this](https://docs.feast.dev/v/master/project/feast-0.9-vs-feast-0.10+) for an explanation of the differences between the two versions. A guide to upgrading can be found [here](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit#heading=h.9gb2523q4jlh). 
+{% endhint %}
+
 ## Overview
 
 Sources are descriptions of external feature data and are registered to Feast as part of [feature tables](feature-tables.md). Once registered, Feast can ingest feature data from these sources into stores.
