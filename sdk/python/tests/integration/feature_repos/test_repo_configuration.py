@@ -258,7 +258,9 @@ DEFAULT_STEP = EnvironmentSetupSteps.INIT
 
 @contextmanager
 def construct_universal_test_environment(
-    test_repo_config: TestRepoConfig, stop_at_step=DEFAULT_STEP, data_source_cache=None,
+    test_repo_config: TestRepoConfig,
+    stop_at_step=DEFAULT_STEP,
+    data_source_cache=None,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -402,7 +404,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
             config,
-            stop_at_step=EnvironmentSetupSteps.CREATE_OBJECTS,
+            stop_at_step=EnvironmentSetupSteps.APPLY_OBJECTS,
             data_source_cache=data_source_cache,
         ) as environment:
             offline_retrieval_test(environment)
