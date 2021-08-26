@@ -49,6 +49,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.type_map import python_value_to_proto_value
 from feast.usage import log_exceptions, log_exceptions_and_usage
+from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -95,6 +96,10 @@ class FeatureStore:
             repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
+        entityless_entity = Entity(
+            name="__entityless", join_key="__entityless_id", value_type=ValueType.INT32,
+        )
+        self.apply(entityless_entity, commit=False)
 
     @log_exceptions
     def version(self) -> str:

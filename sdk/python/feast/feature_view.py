@@ -183,16 +183,13 @@ class FeatureView:
 
     def is_valid(self):
         """
-        Validates the state of this feature view locally. Adds __entityless entity if no entities.
+        Validates the state of this feature view locally.
 
         Raises:
             ValueError: The feature view does not have a name.
         """
         if not self.name:
             raise ValueError("Feature view needs a name.")
-
-        if not self.entities:
-            self.entities.append("__entityless")
 
     def to_proto(self) -> FeatureViewProto:
         """

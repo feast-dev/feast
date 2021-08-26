@@ -21,7 +21,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
-from feast.value_type import ValueType
 
 
 def py_path_to_module(path: Path, repo_root: Path) -> str:

@@ -223,6 +223,11 @@ def test_apply_feature_view_success(test_registry):
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
+    feature_view = test_registry.get_feature_view(
+        "my_fv_entityless", project, hide_entityless=False
+    )
+    assert feature_view.entities[0] == "__entityless"
+
     test_registry.delete_feature_view("my_feature_view_1", project)
     test_registry.delete_feature_view("my_fv_entityless", project)
     feature_views = test_registry.list_feature_views(project)
