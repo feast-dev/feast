@@ -278,7 +278,7 @@ def construct_test_environment(
         module_name, config_class_name, "DataSourceCreator"
     )(project)
 
-    offline_store = offline_creator.create_offline_store_config()
+    offline_store_config = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
@@ -286,7 +286,7 @@ def construct_test_environment(
             registry=str(Path(repo_dir_name) / "registry.db"),
             project=project,
             provider=test_repo_config.provider,
-            offline_store=offline_store,
+            offline_store=offline_store_config,
             online_store=online_store,
             repo_path=repo_dir_name,
         )

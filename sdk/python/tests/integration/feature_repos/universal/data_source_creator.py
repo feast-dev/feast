@@ -27,7 +27,3 @@ class DataSourceCreator(ABC):
     @abstractmethod
     def teardown(self):
         ...
-
-    @abstractmethod
-    def get_prefixed_table_name(self, table_name: str) -> str:
-        ...
