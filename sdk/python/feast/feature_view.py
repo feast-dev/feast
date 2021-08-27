@@ -190,10 +190,13 @@ class FeatureView:
         Validates the state of this feature view locally.
 
         Raises:
-            ValueError: The feature view does not have a name.
+            ValueError: The feature view does not have a name or does not have entities.
         """
         if not self.name:
             raise ValueError("Feature view needs a name.")
+
+        if not self.entities:
+            raise ValueError("Feature view has no entities.")
 
     def to_proto(self) -> FeatureViewProto:
         """
