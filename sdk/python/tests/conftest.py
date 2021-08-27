@@ -129,4 +129,3 @@ def universal_data_source_cache():
     yield dsc
     for _, v in dsc.items():
         v[3].teardown()
-
