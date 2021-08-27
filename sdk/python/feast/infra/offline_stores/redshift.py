@@ -84,7 +84,7 @@ class RedshiftOfflineStore(OfflineStore):
             SELECT {field_string}
             FROM (
                 SELECT {field_string},
-                {ENTITYLESS_ENTITY_VAL} AS {ENTITYLESS_ENTITY_ID},
+                {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
                 WHERE {event_timestamp_column} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'

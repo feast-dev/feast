@@ -297,16 +297,18 @@ class FileOfflineStore(OfflineStore):
                 & (source_df[event_timestamp_column] < end_date)
             ]
 
+            columns_to_extract = set(
+                join_key_columns + feature_name_columns + ts_columns
+            )
             if join_key_columns:
                 last_values_df = filtered_df.drop_duplicates(
                     join_key_columns, keep="last", ignore_index=True
                 )
             else:
+                last_values_df = filtered_df
                 last_values_df[ENTITYLESS_ENTITY_ID] = ENTITYLESS_ENTITY_VAL
+                columns_to_extract.add(ENTITYLESS_ENTITY_ID)
 
-            columns_to_extract = set(
-                join_key_columns + feature_name_columns + ts_columns
-            )
             return last_values_df[columns_to_extract]
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized

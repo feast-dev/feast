@@ -101,9 +101,11 @@ class FeatureStore:
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         entityless_entity = Entity(
-            name="__entityless", join_key="__entityless_id", value_type=ValueType.INT32,
+            name=ENTITYLESS_ENTITY_NAME,
+            join_key=ENTITYLESS_ENTITY_ID,
+            value_type=ValueType.INT32,
         )
-        self.apply(entityless_entity, commit=False)
+        self.apply(entityless_entity)
 
     @log_exceptions
     def version(self) -> str:
@@ -158,11 +160,18 @@ class FeatureStore:
         Returns:
             A list of entities.
         """
+        return self._list_entities(allow_cache)
+
+    def _list_entities(
+        self, allow_cache: bool = False, hide_entityless: bool = True
+    ) -> List[Entity]:
         all_entities = self._registry.list_entities(
             self.project, allow_cache=allow_cache
         )
         return [
-            entity for entity in all_entities if entity.name != ENTITYLESS_ENTITY_NAME
+            entity
+            for entity in all_entities
+            if entity.name != ENTITYLESS_ENTITY_NAME or not hide_entityless
         ]
 
     @log_exceptions_and_usage
@@ -186,21 +195,11 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        return self.__list_feature_views(allow_cache)
+        return self._list_feature_views(allow_cache)
 
-    def __list_feature_views(
+    def _list_feature_views(
         self, allow_cache: bool = False, hide_entityless: bool = True
     ) -> List[FeatureView]:
-        """
-        Retrieves the list of feature views from the registry.
-
-        Args:
-            allow_cache: Whether to allow returning entities from a cached registry.
-            hide_entityless: Boolean to hide or show the entityless entity.
-
-        Returns:
-            A list of feature views.
-        """
         feature_views = []
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
@@ -266,24 +265,9 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self.__get_feature_view(name)
+        return self._get_feature_view(name)
 
-    def __get_feature_view(
-        self, name: str, hide_entityless: bool = True
-    ) -> FeatureView:
-        """
-        Retrieves a feature view.
-
-        Args:
-            name: Name of feature view.
-            hide_entityless: Boolean to hide or show the entityless entity.
-
-        Returns:
-            The specified feature view.
-
-        Raises:
-            FeatureViewNotFoundException: The feature view could not be found.
-        """
+    def _get_feature_view(self, name: str, hide_entityless: bool = True) -> FeatureView:
         feature_view = self._registry.get_feature_view(name, self.project)
         if hide_entityless and feature_view.entities[0] == ENTITYLESS_ENTITY_NAME:
             feature_view.entities = []
@@ -601,12 +585,12 @@ class FeatureStore:
         """
         feature_views_to_materialize = []
         if feature_views is None:
-            feature_views_to_materialize = self.__list_feature_views(
+            feature_views_to_materialize = self._list_feature_views(
                 hide_entityless=False
             )
         else:
             for name in feature_views:
-                feature_view = self.__get_feature_view(name, hide_entityless=False)
+                feature_view = self._get_feature_view(name, hide_entityless=False)
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -693,12 +677,12 @@ class FeatureStore:
 
         feature_views_to_materialize = []
         if feature_views is None:
-            feature_views_to_materialize = self.__list_feature_views(
+            feature_views_to_materialize = self._list_feature_views(
                 hide_entityless=False
             )
         else:
             for name in feature_views:
-                feature_view = self.__get_feature_view(name, hide_entityless=False)
+                feature_view = self._get_feature_view(name, hide_entityless=False)
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -782,7 +766,7 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self.__list_feature_views(
+        all_feature_views = self._list_feature_views(
             allow_cache=True, hide_entityless=False
         )
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -795,7 +779,7 @@ class FeatureStore:
         ]
 
         provider = self._get_provider()
-        entities = self.list_entities(allow_cache=True)
+        entities = self._list_entities(allow_cache=True, hide_entityless=False)
         entity_name_to_join_key_map = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
