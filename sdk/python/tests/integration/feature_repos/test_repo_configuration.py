@@ -310,7 +310,6 @@ def construct_universal_test_environment(
     test_repo_config: TestRepoConfig,
     stop_at_step=DEFAULT_STEP,
     data_source_cache=None,
-    **kwargs,
 ) -> Environment:
     """
     This method should take in the parameters from the test repo config and created a feature repo, apply it,
@@ -346,20 +345,9 @@ def construct_universal_test_environment(
                             environment, data_sources_override=fixtures[2]
                         )
                     else:
-                        environment = setup_entities(
-                            environment,
-                            entities_override=kwargs.get("entites_override", None),
-                        )
-                        environment = setup_datasets(
-                            environment,
-                            datasets_override=kwargs.get("datasets_overrides", None),
-                        )
-                        environment = setup_data_sources(
-                            environment,
-                            data_sources_override=kwargs.get(
-                                "data_sources_override", None
-                            ),
-                        )
+                        environment = setup_entities(environment)
+                        environment = setup_datasets(environment)
+                        environment = setup_data_sources(environment)
                         data_source_cache[test_repo_config.offline_store_creator] = (
                             environment.entities,
                             environment.datasets,
@@ -367,18 +355,9 @@ def construct_universal_test_environment(
                             environment.data_source_creator,
                         )
                 else:
-                    environment = setup_entities(
-                        environment,
-                        entities_override=kwargs.get("entites_override", None),
-                    )
-                    environment = setup_datasets(
-                        environment,
-                        datasets_override=kwargs.get("datasets_overrides", None),
-                    )
-                    environment = setup_data_sources(
-                        environment,
-                        data_sources_override=kwargs.get("data_sources_override", None),
-                    )
+                    environment = setup_entities(environment)
+                    environment = setup_datasets(environment)
+                    environment = setup_data_sources(environment)
 
                 environment = setup_feature_views(environment)
             if stop_at_step >= EnvironmentSetupSteps.APPLY_OBJECTS:
