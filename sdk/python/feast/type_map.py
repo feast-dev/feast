@@ -164,6 +164,7 @@ def _type_err(item, dtype):
     raise ValueError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
 
+# TODO(achals): Simplify this method and remove the noqa.
 def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:  # noqa: C901
     """
     Converts a Python (native, pandas) value to a Feast Proto Value based
