@@ -22,7 +22,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 
-@dataclass(frozen=True, repr=True)
+@dataclass(frozen=True, repr=True, unsafe_hash=True)
 class TestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.

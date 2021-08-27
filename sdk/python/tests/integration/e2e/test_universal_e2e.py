@@ -28,7 +28,7 @@ def test_e2e_consistency(config, data_source_cache: DataSourceCache):
     with construct_test_environment(test_suite_name, config) as test_environment:
         fs = test_environment.feature_store
         infer_features = test_environment.test_repo_config.infer_features
-        key = f"test_e2e_consistency_{test_environment.test_repo_config.offline_store_creator}"
+        key = f"{test_suite_name}_{test_environment.test_repo_config.offline_store_creator}"
         _, _, data_source, _ = data_source_cache.get_or_create(
             key,
             lambda: (
