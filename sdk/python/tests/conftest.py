@@ -14,12 +14,10 @@
 import multiprocessing
 from datetime import datetime, timedelta
 from sys import platform
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable
 
 import pandas as pd
 import pytest
-
-from feast.data_source import DataSource
 
 
 def pytest_configure(config):
