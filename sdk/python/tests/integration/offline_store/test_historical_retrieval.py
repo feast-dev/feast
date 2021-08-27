@@ -5,7 +5,6 @@ import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
-import assertpy
 import numpy as np
 import pandas as pd
 import pytest
@@ -14,15 +13,7 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 import feast.driver_test_data as driver_data
-from feast import (
-    BigQuerySource,
-    FeatureService,
-    FileSource,
-    RedshiftSource,
-    RepoConfig,
-    errors,
-    utils,
-)
+from feast import BigQuerySource, FeatureService, FileSource, RepoConfig, utils
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
@@ -32,10 +23,7 @@ from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from feast.infra.offline_stores.redshift import RedshiftOfflineStoreConfig
-from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.infra.utils import aws_utils
 from feast.value_type import ValueType
 
 np.random.seed(0)
