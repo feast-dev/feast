@@ -9,7 +9,7 @@ from pydantic.typing import Literal
 from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
-from feast.feature_view import FeatureView
+from feast.feature_view import ENTITYLESS_ENTITY_ID, ENTITYLESS_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -302,7 +302,7 @@ class FileOfflineStore(OfflineStore):
                     join_key_columns, keep="last", ignore_index=True
                 )
             else:
-                last_values_df["__entityless_id"] = ""
+                last_values_df[ENTITYLESS_ENTITY_ID] = ENTITYLESS_ENTITY_VAL
 
             columns_to_extract = set(
                 join_key_columns + feature_name_columns + ts_columns

@@ -70,6 +70,8 @@ class OnlineResponse:
 
         return pd.DataFrame(self.to_dict())
 
+    # TODO hide column ENTITYLESS_ENTITY_ID in to_dict and to_df
+
 
 def _infer_online_entity_rows(
     entity_rows: List[Dict[str, Any]]

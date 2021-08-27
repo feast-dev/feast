@@ -132,10 +132,7 @@ class Registry:
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         entities = []
         for entity_proto in registry_proto.entities:
-            if (
-                entity_proto.spec.project == project
-                and entity_proto.spec.name != "__entityless"
-            ):
+            if entity_proto.spec.project == project:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
 
@@ -226,12 +223,7 @@ class Registry:
         """
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         for entity_proto in registry_proto.entities:
-            if (
-                entity_proto.spec.name == name
-                and entity_proto.spec.project == project
-                and entity_proto.spec.name != "__entityless"
-            ):
-
+            if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
         raise EntityNotFoundException(name, project=project)
 
@@ -278,8 +270,6 @@ class Registry:
             commit: Whether the change should be persisted immediately
         """
         feature_view.is_valid()
-        if not feature_view.entities:
-            feature_view.entities.append("__entityless")
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
@@ -459,7 +449,7 @@ class Registry:
         return feature_tables
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False, hide_entityless: bool = True
+        self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -475,10 +465,7 @@ class Registry:
         feature_views = []
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
-                feature_view = FeatureView.from_proto(feature_view_proto)
-                if hide_entityless and feature_view.entities[0] == "__entityless":
-                    feature_view.entities = []
-                feature_views.append(feature_view)
+                feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:
@@ -502,9 +489,7 @@ class Registry:
                 return FeatureTable.from_proto(feature_table_proto)
         raise FeatureTableNotFoundException(name, project)
 
-    def get_feature_view(
-        self, name: str, project: str, hide_entityless: bool = True
-    ) -> FeatureView:
+    def get_feature_view(self, name: str, project: str) -> FeatureView:
         """
         Retrieves a feature view.
 
@@ -522,10 +507,7 @@ class Registry:
                 feature_view_proto.spec.name == name
                 and feature_view_proto.spec.project == project
             ):
-                feature_view = FeatureView.from_proto(feature_view_proto)
-                if hide_entityless and feature_view.entities[0] == "__entityless":
-                    feature_view.entities = []
-                return feature_view
+                return FeatureView.from_proto(feature_view_proto)
         raise FeatureViewNotFoundException(name, project)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):

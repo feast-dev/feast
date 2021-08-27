@@ -3,7 +3,6 @@ import os
 import random
 import re
 import sys
-from datetime import timedelta
 from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Set, Tuple, Union
@@ -331,17 +330,11 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
-    registry_config = repo_config.get_registry_config()
-    project = repo_config.project
-    registry = Registry(
-        registry_path=registry_config.path,
-        repo_path=repo_path,
-        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
-    )
+    feature_store = FeatureStore(repo_path=repo_path, config=None)
 
-    for entity in registry.list_entities(project=project):
+    for entity in feature_store.list_entities():
         print(entity)
-    for feature_view in registry.list_feature_views(project=project):
+    for feature_view in feature_store.list_feature_views():
         print(feature_view)
 
 
