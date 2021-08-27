@@ -12,7 +12,6 @@ import pytest
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
 from feast.data_source import DataSource
-from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -187,7 +186,6 @@ class Environment:
     name: str
     test_repo_config: TestRepoConfig
     feature_store: FeatureStore
-    data_source: DataSource
     data_source_creator: DataSourceCreator
 
     entities: Dict[str, List[Any]] = field(default_factory=dict)
@@ -267,26 +265,10 @@ DEFAULT_STEP = EnvironmentSetupSteps.INIT
 
 
 @contextmanager
-def construct_universal_test_environment(
-    test_repo_config: TestRepoConfig,
-    stop_at_step=DEFAULT_STEP,
-    data_source_cache=None,
-    **kwargs,
+def construct_test_environment(
+    test_suite_name: str, test_repo_config: TestRepoConfig,
 ) -> Environment:
-    """
-    This method should take in the parameters from the test repo config and created a feature repo, apply it,
-    and return the constructed feature store object to callers.
-
-    This feature store object can be interacted for the purposes of tests.
-    The user is *not* expected to perform any clean up actions.
-
-    :param test_repo_config: configuration
-    :param stop_at_step: The step which should be the last one executed when setting up the test environment.
-    :param data_source_cache:
-    :return: A feature store built using the supplied configuration.
-    """
-
-    project = f"test_correctness_{str(uuid.uuid4()).replace('-', '')[:8]}"
+    project = f"{test_suite_name}_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
     module_name, config_class_name = test_repo_config.offline_store_creator.rsplit(
         ".", 1
@@ -295,12 +277,6 @@ def construct_universal_test_environment(
     offline_creator: DataSourceCreator = importer.get_class_from_type(
         module_name, config_class_name, "DataSourceCreator"
     )(project)
-
-    # This needs to be abstracted away for test_e2e_universal which uses a different dataset.
-    df = create_dataset()
-    ds = offline_creator.create_data_source(
-        df, project, field_mapping={"ts_1": "ts", "id": "driver_id"}
-    )
 
     offline_store = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
@@ -319,16 +295,44 @@ def construct_universal_test_environment(
             name=project,
             test_repo_config=test_repo_config,
             feature_store=fs,
-            data_source=ds,
             data_source_creator=offline_creator,
         )
 
+        try:
+            yield environment
+        finally:
+            fs.teardown()
+
+
+@contextmanager
+def construct_universal_test_environment(
+    test_suite_name: str,
+    test_repo_config: TestRepoConfig,
+    stop_at_step=DEFAULT_STEP,
+    data_source_cache=None,
+    **kwargs,
+) -> Environment:
+    """
+    This method should take in the parameters from the test repo config and created a feature repo, apply it,
+    and return the constructed feature store object to callers.
+
+    This feature store object can be interacted for the purposes of tests.
+    The user is *not* expected to perform any clean up actions.
+
+    :param test_suite_name: A name for the test suite.
+    :param test_repo_config: configuration
+    :param stop_at_step: The step which should be the last one executed when setting up the test environment.
+    :param data_source_cache:
+    :return: A feature store built using the supplied configuration.
+    """
+    with construct_test_environment(test_suite_name, test_repo_config) as environment:
+        fs = environment.feature_store
         fvs = []
         entities = []
         try:
             if stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS:
-                if data_source_cache:
-                    fixtures = data_source_cache.get(test_repo_config)
+                if data_source_cache is not None:
+                    fixtures = data_source_cache.get(test_repo_config, None)
                     if fixtures:
                         environment = setup_entities(
                             environment, entities_override=fixtures[0]
@@ -340,20 +344,39 @@ def construct_universal_test_environment(
                             environment, data_sources_override=fixtures[2]
                         )
                     else:
-                        environment = setup_entities(environment)
-                        environment = setup_datasets(environment)
-                        environment = setup_data_sources(environment)
-                        data_source_cache.put(
-                            test_repo_config,
+                        environment = setup_entities(
+                            environment,
+                            entities_override=kwargs.get("entites_override", None),
+                        )
+                        environment = setup_datasets(
+                            environment,
+                            datasets_override=kwargs.get("datasets_overrides", None),
+                        )
+                        environment = setup_data_sources(
+                            environment,
+                            data_sources_override=kwargs.get(
+                                "data_sources_override", None
+                            ),
+                        )
+                        data_source_cache[test_repo_config] = (
                             environment.entities,
                             environment.datasets,
                             environment.datasources,
-                            offline_creator,
+                            environment.data_source_creator,
                         )
                 else:
-                    environment = setup_entities(environment)
-                    environment = setup_datasets(environment)
-                    environment = setup_data_sources(environment)
+                    environment = setup_entities(
+                        environment,
+                        entities_override=kwargs.get("entites_override", None),
+                    )
+                    environment = setup_datasets(
+                        environment,
+                        datasets_override=kwargs.get("datasets_overrides", None),
+                    )
+                    environment = setup_data_sources(
+                        environment,
+                        data_sources_override=kwargs.get("data_sources_override", None),
+                    )
 
                 environment = setup_feature_views(environment)
             if stop_at_step >= EnvironmentSetupSteps.APPLY_OBJECTS:
@@ -366,37 +389,10 @@ def construct_universal_test_environment(
             yield environment
         finally:
             if (
-                not data_source_cache
+                data_source_cache is None
                 and stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS
             ):
-                offline_creator.teardown()
-            fs.teardown()
-
-
-def parametrize_e2e_test(e2e_test):
-    """
-    This decorator should be used for end-to-end tests. These tests are expected to be parameterized,
-    and receive an empty feature repo created for all supported configurations.
-
-    The decorator also ensures that sample data needed for the test is available in the relevant offline store.
-
-    Decorated tests should create and apply the objects needed by the tests, and perform any operations needed
-    (such as materialization and looking up feature values).
-
-    The decorator takes care of tearing down the feature store, as well as the sample data.
-    """
-
-    @pytest.mark.integration
-    @pytest.mark.parametrize(
-        "config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v)
-    )
-    def inner_test(config, data_source_cache):
-        with construct_universal_test_environment(
-            config, data_source_cache=data_source_cache
-        ) as environment:
-            e2e_test(environment)
-
-    return inner_test
+                environment.data_source_creator.teardown()
 
 
 def parametrize_offline_retrieval_test(offline_retrieval_test):
@@ -419,6 +415,7 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
+            offline_retrieval_test.__name__,
             config,
             stop_at_step=EnvironmentSetupSteps.APPLY_OBJECTS,
             data_source_cache=data_source_cache,
@@ -446,6 +443,7 @@ def parametrize_online_test(online_test):
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
     def inner_test(config, data_source_cache):
         with construct_universal_test_environment(
+            online_test.__name__,
             config,
             stop_at_step=EnvironmentSetupSteps.MATERIALIZE,
             data_source_cache=data_source_cache,

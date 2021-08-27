@@ -38,7 +38,7 @@ class FileDataSourceCreator(DataSourceCreator):
             destination = self.get_prefixed_table_name(suffix)
 
         f = tempfile.NamedTemporaryFile(
-            prefix=self.project_name, suffix=".parquet", delete=False
+            prefix=f"{self.project_name}_{destination}", suffix=".parquet", delete=False
         )
         df.to_parquet(f.name)
         self.files.append(f)

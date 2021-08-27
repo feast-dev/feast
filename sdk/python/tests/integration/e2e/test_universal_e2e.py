@@ -3,30 +3,49 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
+import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
+from tests.conftest import DataSourceCache
+from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_e2e_test,
+    FULL_REPO_CONFIGS,
+    construct_test_environment,
+    vary_infer_feature,
 )
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
-@parametrize_e2e_test
-def test_e2e_consistency(test_environment: Environment):
-    infer_features = test_environment.test_repo_config.infer_features
-    fs, fv = (
-        test_environment.feature_store,
-        driver_feature_view(
-            data_source=test_environment.data_source, infer_features=infer_features
-        ),
-    )
-    entity = driver()
-    fs.apply([fv, entity])
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v)
+)
+def test_e2e_consistency(config, data_source_cache: DataSourceCache):
+    df = create_dataset()
+    test_suite_name = "test_e2e_consistency"
+    with construct_test_environment(test_suite_name, config) as test_environment:
+        fs = test_environment.feature_store
+        infer_features = test_environment.test_repo_config.infer_features
+        key = f"test_e2e_consistency_{test_environment.test_repo_config.offline_store_creator}"
+        _, _, data_source, _ = data_source_cache.get_or_create(
+            key,
+            lambda: (
+                None,
+                df,
+                test_environment.data_source_creator.create_data_source(
+                    df, fs.project, field_mapping={"ts_1": "ts", "id": "driver_id"}
+                ),
+                test_environment.data_source_creator,
+            ),
+        )
+        fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
 
-    run_offline_online_store_consistency_test(fs, fv)
+        entity = driver()
+        fs.apply([fv, entity])
+
+        run_offline_online_store_consistency_test(fs, fv)
 
 
 def check_offline_and_online_features(

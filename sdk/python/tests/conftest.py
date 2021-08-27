@@ -14,10 +14,12 @@
 import multiprocessing
 from datetime import datetime, timedelta
 from sys import platform
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Tuple
 
 import pandas as pd
 import pytest
+
+from feast.data_source import DataSource
 
 
 def pytest_configure(config):
@@ -90,26 +92,19 @@ def simple_dataset_2() -> pd.DataFrame:
     return pd.DataFrame.from_dict(data)
 
 
-class DataSourceCache:
-    cache: Dict[str, Any] = {}
-
-    def get(self, test_repo_config):
-        return self.cache.get(test_repo_config.offline_store_creator, None)
-
-    def put(
-        self, test_repo_config, entites, datasets, data_sources, data_source_creator
-    ):
-        self.cache[test_repo_config.offline_store_creator] = (
-            entites,
-            datasets,
-            data_sources,
-            data_source_creator,
-        )
+class DataSourceCache(dict):
+    def get_or_create(self, key, c: Callable[[], Any]):
+        if key in self:
+            return self[key]
+        else:
+            v = c()
+            self[key] = v
+            return v
 
 
 @pytest.fixture(scope="session", autouse=True)
 def data_source_cache():
     dsc = DataSourceCache()
     yield dsc
-    for _, v in dsc.cache.items():
+    for _, v in dsc.items():
         v[3].teardown()

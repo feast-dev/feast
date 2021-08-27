@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 import pandas as pd
 from google.cloud import bigquery
+from google.cloud.bigquery import Dataset
 
 from feast import BigQuerySource
 from feast.data_source import DataSource
@@ -12,20 +13,26 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class BigQueryDataSourceCreator(DataSourceCreator):
+    dataset: Optional[Dataset] = None
+
     def __init__(self, project_name: str):
         self.client = bigquery.Client()
         self.project_name = project_name
         self.gcp_project = self.client.project
         self.dataset_id = f"{self.gcp_project}.{project_name}"
-        self.dataset = bigquery.Dataset(self.dataset_id)
-        print(f"Creating dataset: {self.dataset_id}")
-        self.client.create_dataset(self.dataset, exists_ok=True)
-        self.dataset.default_table_expiration_ms = (
-            1000 * 60 * 60 * 24 * 14
-        )  # 2 weeks in milliseconds
-        self.client.update_dataset(self.dataset, ["default_table_expiration_ms"])
 
         self.tables = []
+
+    def get_dataset(self):
+        if not self.dataset:
+            self.dataset = bigquery.Dataset(self.dataset_id)
+            print(f"Creating dataset: {self.dataset_id}")
+            self.client.create_dataset(self.dataset, exists_ok=True)
+            self.dataset.default_table_expiration_ms = (
+                1000 * 60 * 60 * 24 * 14
+            )  # 2 weeks in milliseconds
+            self.client.update_dataset(self.dataset, ["default_table_expiration_ms"])
+        return self.dataset
 
     def teardown(self):
 
@@ -54,6 +61,8 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         assert destination or suffix
         if not destination:
             destination = self.get_prefixed_table_name(suffix)
+
+        self.get_dataset()
 
         job_config = bigquery.LoadJobConfig()
         if self.gcp_project not in destination:
