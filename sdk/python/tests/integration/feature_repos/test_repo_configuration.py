@@ -394,12 +394,12 @@ def parametrize_offline_retrieval_test(offline_retrieval_test):
 
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
-    def inner_test(config, data_source_cache):
+    def inner_test(config, universal_data_source_cache):
         with construct_universal_test_environment(
             offline_retrieval_test.__name__,
             config,
             stop_at_step=EnvironmentSetupSteps.APPLY_OBJECTS,
-            data_source_cache=data_source_cache,
+            data_source_cache=universal_data_source_cache,
         ) as environment:
             offline_retrieval_test(environment)
 
@@ -422,12 +422,12 @@ def parametrize_online_test(online_test):
 
     @pytest.mark.integration
     @pytest.mark.parametrize("config", configs, ids=lambda v: str(v))
-    def inner_test(config, data_source_cache):
+    def inner_test(config, universal_data_source_cache):
         with construct_universal_test_environment(
             online_test.__name__,
             config,
             stop_at_step=EnvironmentSetupSteps.MATERIALIZE,
-            data_source_cache=data_source_cache,
+            data_source_cache=universal_data_source_cache,
         ) as environment:
             online_test(environment)
 

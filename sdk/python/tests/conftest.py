@@ -115,9 +115,18 @@ class DataSourceCache(dict):
             return v
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def data_source_cache():
     dsc = DataSourceCache()
     yield dsc
     for _, v in dsc.items():
         v[3].teardown()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def universal_data_source_cache():
+    dsc = DataSourceCache()
+    yield dsc
+    for _, v in dsc.items():
+        v[3].teardown()
+
