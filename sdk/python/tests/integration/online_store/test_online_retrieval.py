@@ -14,7 +14,7 @@ from feast.repo_config import RegistryConfig
 from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 def test_online() -> None:
     """
     Test reading from the online store in local mode.

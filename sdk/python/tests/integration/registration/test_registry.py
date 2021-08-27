@@ -175,25 +175,16 @@ def test_apply_feature_view_success(test_registry):
         ttl=timedelta(minutes=5),
     )
 
-    fv_entityless = FeatureView(
-        name="my_fv_entityless",
-        features=[Feature(name="fs1_my_feature_5", dtype=ValueType.INT64)],
-        entities=[],
-        batch_source=batch_source,
-        ttl=timedelta(minutes=5),
-    )
-
     project = "project"
 
-    # Register Feature Views
+    # Register Feature View
     test_registry.apply_feature_view(fv1, project)
-    test_registry.apply_feature_view(fv_entityless, project)
 
     feature_views = test_registry.list_feature_views(project)
 
     # List Feature Views
     assert (
-        len(feature_views) == 2
+        len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
         and feature_views[0].features[0].dtype == ValueType.INT64
@@ -204,9 +195,6 @@ def test_apply_feature_view_success(test_registry):
         and feature_views[0].features[3].name == "fs1_my_feature_4"
         and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
         and feature_views[0].entities[0] == "fs1_my_entity_1"
-        and feature_views[1].features[0].name == "fs1_my_feature_5"
-        and feature_views[1].features[0].dtype == ValueType.INT64
-        and not feature_views[1].entities
     )
 
     feature_view = test_registry.get_feature_view("my_feature_view_1", project)
@@ -224,7 +212,6 @@ def test_apply_feature_view_success(test_registry):
     )
 
     test_registry.delete_feature_view("my_feature_view_1", project)
-    test_registry.delete_feature_view("my_fv_entityless", project)
     feature_views = test_registry.list_feature_views(project)
     assert len(feature_views) == 0
 

@@ -16,6 +16,7 @@ from typing import Any, Dict, List, cast
 
 import pandas as pd
 
+from feast.feature_view import ENTITYLESS_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
@@ -53,7 +54,12 @@ class OnlineResponse:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
-        fields = [k for row in self.field_values for k, _ in row.statuses.items()]
+        fields = [
+            k
+            for row in self.field_values
+            for k, _ in row.statuses.items()
+            if k != ENTITYLESS_ENTITY_ID
+        ]
         features_dict: Dict[str, List[Any]] = {k: list() for k in fields}
 
         for row in self.field_values:
@@ -68,9 +74,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
         """
 
-        return pd.DataFrame(self.to_dict())
-
-    # TODO hide column ENTITYLESS_ENTITY_ID in to_dict and to_df
+        return pd.DataFrame(self.to_dict()).drop(ENTITYLESS_ENTITY_ID, axis=1)
 
 
 def _infer_online_entity_rows(
