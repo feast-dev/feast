@@ -22,27 +22,20 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 
-@dataclass(repr=True)
+@dataclass(frozen=True, repr=True)
 class TestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
     """
 
     provider: str = "local"
-    online_store: Union[str, Dict] = field(default="sqlite", hash=False)
+    online_store: Union[str, Dict] = "sqlite"
 
     offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.file.FileDataSourceCreator"
 
     full_feature_names: bool = True
     infer_event_timestamp_col: bool = True
     infer_features: bool = False
-
-    def __post_init__(self):
-        self.online_store_type = (
-            self.online_store
-            if isinstance(self.online_store, str)
-            else self.online_store.get("type", "unknown")
-        )
 
 
 def ds_creator_path(cls: str):
@@ -339,7 +332,9 @@ def construct_universal_test_environment(
         try:
             if stop_at_step >= EnvironmentSetupSteps.CREATE_OBJECTS:
                 if data_source_cache is not None:
-                    fixtures = data_source_cache.get(test_repo_config, None)
+                    fixtures = data_source_cache.get(
+                        test_repo_config.offline_store_creator, None
+                    )
                     if fixtures:
                         environment = setup_entities(
                             environment, entities_override=fixtures[0]
@@ -365,7 +360,7 @@ def construct_universal_test_environment(
                                 "data_sources_override", None
                             ),
                         )
-                        data_source_cache[test_repo_config] = (
+                        data_source_cache[test_repo_config.offline_store_creator] = (
                             environment.entities,
                             environment.datasets,
                             environment.datasources,
