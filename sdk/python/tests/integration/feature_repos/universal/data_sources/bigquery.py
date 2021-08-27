@@ -51,16 +51,13 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination: Optional[str] = None,
-        suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
 
-        assert destination or suffix
-        if not destination:
-            destination = self.get_prefixed_table_name(suffix)
+        destination = self.get_prefixed_table_name(destination)
 
         self.get_dataset()
 

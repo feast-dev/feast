@@ -102,19 +102,19 @@ def construct_universal_data_sources(
 ) -> Dict[str, DataSource]:
     customer_ds = data_source_creator.create_data_source(
         datasets["customer"],
-        suffix="customer_profile",
+        destination="customer_profile",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
     driver_ds = data_source_creator.create_data_source(
         datasets["driver"],
-        suffix="driver_hourly",
+        destination="driver_hourly",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
     orders_ds = data_source_creator.create_data_source(
         datasets["orders"],
-        suffix="orders",
+        destination="orders",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )

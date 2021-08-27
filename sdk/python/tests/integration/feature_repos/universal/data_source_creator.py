@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict
 
 import pandas as pd
 
@@ -12,12 +12,25 @@ class DataSourceCreator(ABC):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: Optional[str] = None,
-        suffix: Optional[str] = None,
+        destination: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
+        """
+        Create a data source based on the dataframe. Implementing this method requires the underlying implementation to
+        persist the dataframe in offline store, using the destination string as a way to differentiate multiple
+        dataframes and data sources.
+
+        :param df: The dataframe to be used to create the data source.
+        :param destination: The destination that this data frame is meant for. This str is used by the implementing
+            classes to isolate the multiple dataframes from each other.
+        :param event_timestamp_column: Pass through for the underlying data source.
+        :param created_timestamp_column: Pass through for the underlying data source.
+        :param field_mapping: Pass through for the underlying data source.
+        :return: A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the
+            test.
+        """
         ...
 
     @abstractmethod

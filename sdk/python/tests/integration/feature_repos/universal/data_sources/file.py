@@ -26,16 +26,13 @@ class FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: Optional[str] = None,
-        suffix: Optional[str] = None,
+        destination: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        assert destination or suffix
-        if not destination:
-            destination = self.get_prefixed_table_name(suffix)
+        destination = self.get_prefixed_table_name(destination)
 
         f = tempfile.NamedTemporaryFile(
             prefix=f"{self.project_name}_{destination}", suffix=".parquet", delete=False

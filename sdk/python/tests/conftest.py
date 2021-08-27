@@ -91,6 +91,21 @@ def simple_dataset_2() -> pd.DataFrame:
 
 
 class DataSourceCache(dict):
+    """
+    DataSourceCache is meant to cache datasources to be reused across multiple tests.
+
+    Staging data into a remote store is an expensive operation, so we expose a way through which we can have the
+    datasources created shared between tests.
+    The key for the cache is an arbitrary string, which should be constructed using a combination of the test name along
+    with the backing store.
+    The value for the cache is a 4-valued Tuple:
+        - the entites that are meant to be used with the data source created
+        - The dataframe that is persisted into the remote store.
+        - The data source object that represents the table/file; created from the dataframe mentioned above.
+        - The data_source_creator object that is used to upload the data frame and construct the data source object.
+          This object is needed so that we can invoke the teardown method at the end of all our tests.
+    """
+
     def get_or_create(self, key, c: Callable[[], Any]):
         if key in self:
             return self[key]

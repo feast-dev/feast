@@ -34,16 +34,14 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: Optional[str] = None,
+        destination: str,
         suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        assert destination or suffix
-        if not destination:
-            destination = self.get_prefixed_table_name(suffix)
+        destination = self.get_prefixed_table_name(destination)
 
         aws_utils.upload_df_to_redshift(
             self.client,

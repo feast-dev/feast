@@ -24,7 +24,7 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 )
 def test_e2e_consistency(config, data_source_cache: DataSourceCache):
     df = create_dataset()
-    test_suite_name = "test_e2e_consistency"
+    test_suite_name = test_e2e_consistency.__name__
     with construct_test_environment(test_suite_name, config) as test_environment:
         fs = test_environment.feature_store
         infer_features = test_environment.test_repo_config.infer_features
