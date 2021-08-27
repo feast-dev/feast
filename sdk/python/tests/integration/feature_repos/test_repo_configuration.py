@@ -22,20 +22,27 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 
-@dataclass(frozen=True, repr=True, unsafe_hash=True)
+@dataclass(repr=True)
 class TestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
     """
 
     provider: str = "local"
-    online_store: Union[str, Dict] = "sqlite"
+    online_store: Union[str, Dict] = field(default="sqlite", hash=False)
 
     offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.file.FileDataSourceCreator"
 
     full_feature_names: bool = True
     infer_event_timestamp_col: bool = True
     infer_features: bool = False
+
+    def __post_init__(self):
+        self.online_store_type = (
+            self.online_store
+            if isinstance(self.online_store, str)
+            else self.online_store.get("type", "unknown")
+        )
 
 
 def ds_creator_path(cls: str):
