@@ -74,7 +74,9 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
         """
 
-        return pd.DataFrame(self.to_dict()).drop(ENTITYLESS_ENTITY_ID, axis=1)
+        return pd.DataFrame(self.to_dict()).drop(
+            ENTITYLESS_ENTITY_ID, axis=1, errors="ignore"
+        )
 
 
 def _infer_online_entity_rows(
