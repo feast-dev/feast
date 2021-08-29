@@ -1,4 +1,6 @@
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
@@ -17,6 +19,7 @@ from feast.infra.provider import (
     _get_column_names,
     _run_field_mapping,
 )
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry, RegistryStore
@@ -153,6 +156,7 @@ def _to_naive_utc(ts: datetime):
     else:
         return ts.astimezone(pytz.utc).replace(tzinfo=None)
 
+
 class LocalRegistryStore(RegistryStore):
     def __init__(self, repo_path: Path, registry_path_string: str):
         registry_path = Path(registry_path_string)
@@ -187,4 +191,3 @@ class LocalRegistryStore(RegistryStore):
         file_dir = self._filepath.parent
         file_dir.mkdir(exist_ok=True)
         self._filepath.write_bytes(registry_proto.SerializeToString())
-        

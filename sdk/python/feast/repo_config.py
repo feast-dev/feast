@@ -52,6 +52,9 @@ class FeastConfigBaseModel(BaseModel):
 class RegistryConfig(FeastBaseModel):
     """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
+    registry_store_provider: Optional[StrictStr]
+    """ str: Provider name or a class name that implements RegistryStore. """
+
     path: StrictStr
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 

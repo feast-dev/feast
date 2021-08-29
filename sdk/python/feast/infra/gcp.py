@@ -1,5 +1,8 @@
+import uuid
 from datetime import datetime
+from tempfile import TemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from urllib.parse import urlparse
 
 import pandas
 from tqdm import tqdm
@@ -16,6 +19,7 @@ from feast.infra.provider import (
     _get_column_names,
     _run_field_mapping,
 )
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry, RegistryStore
@@ -143,6 +147,7 @@ class GcpProvider(Provider):
             full_feature_names=full_feature_names,
         )
         return job
+
 
 class GCSRegistryStore(RegistryStore):
     def __init__(self, uri: str):

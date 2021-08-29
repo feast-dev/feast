@@ -25,13 +25,15 @@ from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
+from feast.repo_config import RegistryConfig
 from feast.value_type import ValueType
 
 
 @pytest.fixture
 def local_registry():
     fd, registry_path = mkstemp()
-    return Registry(registry_path, None, timedelta(600))
+    registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+    return Registry(registry_config, None)
 
 
 @pytest.fixture
@@ -47,16 +49,19 @@ def gcs_registry():
     )  # delete buckets automatically after 14 days
     bucket.patch()
     bucket.blob("registry.db")
-    return Registry(f"gs://{bucket_name}/registry.db", None, timedelta(600))
+    registry_config = RegistryConfig(
+        path=f"gs://{bucket_name}/registry.db", cache_ttl_seconds=600
+    )
+    return Registry(registry_config, None)
 
 
 @pytest.fixture
 def s3_registry():
-    return Registry(
-        f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
-        None,
-        timedelta(600),
+    registry_config = RegistryConfig(
+        path=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
+        cache_ttl_seconds=600,
     )
+    return Registry(registry_config, None)
 
 
 @pytest.mark.parametrize(
@@ -299,7 +304,8 @@ def test_apply_feature_view_integration(test_registry):
 
 def test_commit():
     fd, registry_path = mkstemp()
-    test_registry = Registry(registry_path, None, timedelta(600))
+    registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+    test_registry = Registry(registry_config, None)
 
     entity = Entity(
         name="driver_car_id",
@@ -336,7 +342,7 @@ def test_commit():
     )
 
     # Create new registry that points to the same store
-    registry_with_same_store = Registry(registry_path, None, timedelta(600))
+    registry_with_same_store = Registry(registry_config, None)
 
     # Retrieving the entity should fail since the store is empty
     entities = registry_with_same_store.list_entities(project)
@@ -346,7 +352,7 @@ def test_commit():
     test_registry.commit()
 
     # Reconstruct the new registry in order to read the newly written store
-    registry_with_same_store = Registry(registry_path, None, timedelta(600))
+    registry_with_same_store = Registry(registry_config, None)
 
     # Retrieving the entity should now succeed
     entities = registry_with_same_store.list_entities(project)

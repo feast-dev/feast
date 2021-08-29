@@ -1,11 +1,16 @@
+import os
+import uuid
 from datetime import datetime
+from tempfile import TemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from urllib.parse import urlparse
 
 import pandas
 from tqdm import tqdm
 
 from feast import FeatureTable
 from feast.entity import Entity
+from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExist
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -16,6 +21,7 @@ from feast.infra.provider import (
     _get_column_names,
     _run_field_mapping,
 )
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry, RegistryStore
@@ -141,6 +147,7 @@ class AwsProvider(Provider):
             full_feature_names=full_feature_names,
         )
         return job
+
 
 class S3RegistryStore(RegistryStore):
     def __init__(self, uri: str):
