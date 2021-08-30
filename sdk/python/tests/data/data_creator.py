@@ -62,3 +62,25 @@ def get_feature_values_for_dtype(dtype: str, is_list: bool) -> List:
         return [[n, n] if n is not None else None for n in non_list_val]
     else:
         return non_list_val
+
+
+def create_entityless_dataset() -> pd.DataFrame:
+    now = datetime.utcnow()
+    ts = pd.Timestamp(now).round("ms")
+    data = {
+        "entityless_value": [10, None, 30, 40, 50],
+        "ts_1": [
+            ts - timedelta(hours=4),
+            ts,
+            ts - timedelta(hours=3),
+            # Use different time zones to test tz-naive -> tz-aware conversion
+            (ts - timedelta(hours=4))
+            .replace(tzinfo=utc)
+            .astimezone(tz=timezone("Europe/Berlin")),
+            (ts - timedelta(hours=1))
+            .replace(tzinfo=utc)
+            .astimezone(tz=timezone("US/Pacific")),
+        ],
+        "created_ts": [ts, ts, ts, ts, ts],
+    }
+    return pd.DataFrame.from_dict(data)

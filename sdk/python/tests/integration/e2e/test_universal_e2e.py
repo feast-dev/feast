@@ -8,9 +8,13 @@ from pytz import utc
 
 from feast import FeatureStore, FeatureView
 from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.integration.feature_repos.universal.feature_views import (
+    driver_feature_view,
+    global_feature_view,
+)
 
 
+<<<<<<< HEAD
 @pytest.mark.integration
 @pytest.mark.parametrize("infer_features", [True, False])
 def test_e2e_consistency(environment, e2e_data_sources, infer_features):
@@ -18,24 +22,35 @@ def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     df, data_source = e2e_data_sources
     fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
 
+=======
+@parametrize_e2e_test
+def test_e2e_consistency(test_environment: Environment):
+    fs, fv, entityless_fv = (
+        test_environment.feature_store,
+        driver_feature_view(test_environment.data_source),
+        global_feature_view(test_environment.entityless_data_source),
+    )
+>>>>>>> 2a3e7d4f... attempt to do entityless view integration test
     entity = driver()
-    fs.apply([fv, entity])
+    fs.apply([fv, entityless_fv, entity])
 
-    run_offline_online_store_consistency_test(fs, fv)
+    run_offline_online_store_consistency_test(fs, fv, entityless_fv)
 
 
 def check_offline_and_online_features(
     fs: FeatureStore,
     fv: FeatureView,
+    entityless_fv: FeatureView,
     driver_id: int,
     event_timestamp: datetime,
     expected_value: Optional[float],
+    expected_entityless_value: Optional[int],
     full_feature_names: bool,
     check_offline_store: bool = True,
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
-        [f"{fv.name}:value"],
+        [f"{fv.name}:value", f"{entityless_fv.name}:entityless_value"],
         [{"driver": driver_id}],
         full_feature_names=full_feature_names,
     ).to_dict()
@@ -45,36 +60,62 @@ def check_offline_and_online_features(
             assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
         else:
             assert response_dict[f"{fv.name}__value"][0] is None
+        if expected_entityless_value:
+            assert (
+                response_dict[f"{entityless_fv.name}__entityless_value"][0]
+                == expected_entityless_value
+            )
+        else:
+            assert response_dict[f"{entityless_fv.name}__entityless_value"][0] is None
     else:
         if expected_value:
             assert abs(response_dict["value"][0] - expected_value) < 1e-6
         else:
             assert response_dict["value"][0] is None
+        if expected_entityless_value:
+            assert response_dict["entityless_value"][0] == expected_entityless_value
+        else:
+            assert response_dict["entityless_value"][0] is None
 
     # Check offline store
     if check_offline_store:
-        df = fs.get_historical_features(
-            entity_df=pd.DataFrame.from_dict(
-                {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
-            ),
-            features=[f"{fv.name}:value"],
-            full_feature_names=full_feature_names,
-        ).to_df()
+        df_dict = (
+            fs.get_historical_features(
+                entity_df=pd.DataFrame.from_dict(
+                    {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
+                ),
+                features=[f"{fv.name}:value", f"{entityless_fv.name}:entityless_value"],
+                full_feature_names=full_feature_names,
+            )
+            .to_df()
+            .to_dict()
+        )
 
         if full_feature_names:
             if expected_value:
-                assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+                assert abs(df_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
             else:
-                assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
+                assert math.isnan(df_dict[f"{fv.name}__value"][0])
+            if expected_entityless_value:
+                assert (
+                    df_dict[f"{entityless_fv.name}__entityless_value"][0]
+                    == expected_entityless_value
+                )
+            else:
+                assert math.isnan(df_dict[f"{entityless_fv.name}__entityless_value"][0])
         else:
             if expected_value:
-                assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
+                assert abs(df_dict["value"][0] - expected_value) < 1e-6
             else:
-                assert math.isnan(df.to_dict()["value"][0])
+                assert math.isnan(df_dict["value"][0])
+            if expected_entityless_value:
+                assert df_dict["entityless_value"][0] == expected_entityless_value
+            else:
+                assert math.isnan(df_dict["entityless_value"][0])
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView
+    fs: FeatureStore, fv: FeatureView, entityless_fv: FeatureView = None
 ) -> None:
     now = datetime.now()
 
@@ -85,15 +126,21 @@ def run_offline_online_store_consistency_test(
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
     start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
     end_date = now - timedelta(hours=2)
-    fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
+    fs.materialize(
+        feature_views=[fv.name, entityless_fv.name],
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     # check result of materialize()
     check_offline_and_online_features(
         fs=fs,
         fv=fv,
+        entityless_fv=entityless_fv,
         driver_id=1,
         event_timestamp=end_date,
         expected_value=0.3,
+        expected_entityless_value=30,
         full_feature_names=full_feature_names,
         check_offline_store=check_offline_store,
     )
@@ -101,9 +148,11 @@ def run_offline_online_store_consistency_test(
     check_offline_and_online_features(
         fs=fs,
         fv=fv,
+        entityless_fv=entityless_fv,
         driver_id=2,
         event_timestamp=end_date,
         expected_value=None,
+        expected_entityless_value=None,
         full_feature_names=full_feature_names,
         check_offline_store=check_offline_store,
     )
@@ -112,23 +161,29 @@ def run_offline_online_store_consistency_test(
     check_offline_and_online_features(
         fs=fs,
         fv=fv,
+        entityless_fv=entityless_fv,
         driver_id=3,
         event_timestamp=end_date,
         expected_value=4,
+        expected_entityless_value=40,
         full_feature_names=full_feature_names,
         check_offline_store=check_offline_store,
     )
 
     # run materialize_incremental()
-    fs.materialize_incremental(feature_views=[fv.name], end_date=now)
+    fs.materialize_incremental(
+        feature_views=[fv.name, entityless_fv.name], end_date=now
+    )
 
     # check result of materialize_incremental()
     check_offline_and_online_features(
         fs=fs,
         fv=fv,
+        entityless_fv=entityless_fv,
         driver_id=3,
         event_timestamp=now,
         expected_value=5,
+        expected_entityless_value=50,
         full_feature_names=full_feature_names,
         check_offline_store=check_offline_store,
     )

@@ -22,6 +22,16 @@ def driver_feature_view(
     )
 
 
+def global_feature_view(data_source: DataSource, name="test_entityless") -> FeatureView:
+    return FeatureView(
+        name=name,
+        entities=[],
+        features=[Feature("entityless_value", ValueType.INT32)],
+        ttl=timedelta(days=5),
+        input=data_source,
+    )
+
+
 def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["conv_rate_plus_100"] = driver_hourly_stats["conv_rate"] + 100
