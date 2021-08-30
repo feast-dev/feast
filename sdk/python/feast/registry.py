@@ -18,11 +18,12 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import List, Optional
+from typing import List, Optional, Set
 from urllib.parse import urlparse
 
 from feast.entity import Entity
 from feast.errors import (
+    ConflictingFeatureViewNames,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureTableNotFoundException,
@@ -273,6 +274,9 @@ class Registry:
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
 
+        if feature_view.name in self._get_existing_on_demand_feature_view_names():
+            raise ConflictingFeatureViewNames(feature_view.name)
+
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.feature_views
         ):
@@ -308,6 +312,9 @@ class Registry:
         on_demand_feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
+
+        if on_demand_feature_view.name in self._get_existing_feature_view_names():
+            raise ConflictingFeatureViewNames(on_demand_feature_view.name)
 
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.on_demand_feature_views
@@ -610,6 +617,16 @@ class Registry:
         finally:
             self.cache_being_updated = False
         return registry_proto
+
+    def _get_existing_feature_view_names(self) -> Set[str]:
+        assert self.cached_registry_proto
+        return set([fv.name for fv in self.cached_registry_proto.feature_views])
+
+    def _get_existing_on_demand_feature_view_names(self) -> Set[str]:
+        assert self.cached_registry_proto
+        return set(
+            [odfv.name for odfv in self.cached_registry_proto.on_demand_feature_views]
+        )
 
 
 class RegistryStore(ABC):

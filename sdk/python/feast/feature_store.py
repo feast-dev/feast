@@ -770,7 +770,7 @@ class FeatureStore:
             GetOnlineFeaturesResponse(field_values=result_rows)
         ).to_df()
         # Apply on demand transformations
-        # TODO(adchia): Ideally, this would only have the feature values from that FV.
+        # TODO(adchia): Ideally, this would only have the feature values from the specified input FVs in the ODFV.
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
         )
