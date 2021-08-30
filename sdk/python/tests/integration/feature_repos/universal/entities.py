@@ -1,18 +1,13 @@
 from feast import Entity, ValueType
 
 
-def driver():
+def driver(value_type: ValueType = ValueType.INT64):
     return Entity(
         name="driver",  # The name is derived from this argument, not object name.
-        value_type=ValueType.INT64,
+        value_type=value_type,
         description="driver id",
         join_key="driver_id",
     )
-
-
-def driver_no_value_type():
-    # Don't specify value type in entity to force inference
-    return Entity(name="driver", description="driver id", join_key="driver_id",)
 
 
 def customer():

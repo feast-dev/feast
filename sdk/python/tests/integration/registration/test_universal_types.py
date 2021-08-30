@@ -7,7 +7,7 @@ from integration.feature_repos.test_repo_configuration import (
     parametrize_types_no_materialize_test,
     parametrize_types_no_materialize_test_no_list,
 )
-from integration.feature_repos.universal.entities import driver, driver_no_value_type
+from integration.feature_repos.universal.entities import driver
 from integration.feature_repos.universal.feature_views import driver_feature_view
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -20,7 +20,7 @@ from feast.value_type import ValueType
 def test_entity_inference_types_match(environment: Environment):
     feature_dtype, feature_is_list, fs, fv = get_test_fixtures(environment)
     # Don't specify value type in entity to force inference
-    entity = driver_no_value_type()
+    entity = driver(value_type=ValueType.UNKNOWN)
     fs.apply([fv, entity])
 
     entities = fs.list_entities()
@@ -73,7 +73,7 @@ def test_feature_get_online_features_types_match(environment: Environment):
         pass
 
     features = [fv.name + ":value"]
-    entity = driver_no_value_type()
+    entity = driver(value_type=ValueType.UNKNOWN)
     fs.apply([fv, entity])
     fs.materialize(environment.start_date, environment.end_date)
     driver_id_value = "1" if environment.entity_type == ValueType.STRING else 1
