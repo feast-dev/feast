@@ -82,8 +82,8 @@ class Environment:
     test_repo_config: TestRepoConfig
     feature_store: FeatureStore
     data_source: DataSource
-    entityless_data_source: Optional[DataSource] = None
     data_source_creator: DataSourceCreator
+    entityless_data_source: Optional[DataSource] = None
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     start_date = end_date - timedelta(days=7)
