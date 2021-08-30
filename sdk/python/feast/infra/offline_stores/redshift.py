@@ -363,7 +363,7 @@ WITH entity_dataframe AS (
                 CAST({{entity_df_event_timestamp_col}} AS VARCHAR)
             ) AS {{featureview.name}}__entity_row_unique_id
             {% else %}
-            CAST({{entity_df_event_timestamp_col}} AS VARCHAR) AS {{featureview.name}}__entity_row_unique_id
+            ,CAST({{entity_df_event_timestamp_col}} AS VARCHAR) AS {{featureview.name}}__entity_row_unique_id
             {% endif %}
         {% endfor %}
     FROM {{ left_table_query_string }}
