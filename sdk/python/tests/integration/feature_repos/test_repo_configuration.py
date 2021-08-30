@@ -227,7 +227,9 @@ def construct_test_environment(
         project, df, field_mapping={"ts_1": "ts", "id": "driver_id"}
     )
     entityless_ds = offline_creator.create_data_source(
-        "test_entityless", entityless_df, field_mapping={"ts_1": "ts"}
+        f"entityless_table_{str(uuid.uuid4()).replace('-', '')[:8]}",
+        entityless_df,
+        field_mapping={"ts_1": "ts"},
     )
     offline_store = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
