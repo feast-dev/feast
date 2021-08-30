@@ -5,7 +5,7 @@ description: >-
   transaction made by a user is fraudulent.
 ---
 
-# Fraud Detection
+# Fraud detection on GCP
 
 Throughout this tutorial, we’ll walk through the creation of a production-ready fraud prediction system. A prediction is made in real-time as the user makes the transaction, so we need to be able to generate a prediction at low latency.
 

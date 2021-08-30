@@ -27,8 +27,8 @@
 ## Tutorials
 
 * [Overview](tutorials/tutorials-overview.md)
-* [Driver Ranking](tutorials/driver-ranking-with-feast.md)
-* [Fraud Detection](tutorials/fraud-detection.md)
+* [Driver ranking](tutorials/driver-ranking-with-feast.md)
+* [Fraud detection on GCP](tutorials/fraud-detection.md)
 
 ## How-to Guides
 
