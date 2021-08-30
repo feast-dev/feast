@@ -79,11 +79,10 @@ class BigQueryOfflineStore(OfflineStore):
 
         client = _get_bigquery_client(project=config.offline_store.project_id)
         query = f"""
-            SELECT
-                {field_string},
-                {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID}
+            SELECT {field_string}
             FROM (
                 SELECT {field_string},
+                {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
                 WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')

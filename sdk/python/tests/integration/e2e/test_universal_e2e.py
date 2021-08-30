@@ -165,7 +165,7 @@ def run_offline_online_store_consistency_test(
         driver_id=3,
         event_timestamp=end_date,
         expected_value=4,
-        expected_entityless_value=40,
+        expected_entityless_value=30,
         full_feature_names=full_feature_names,
         check_offline_store=check_offline_store,
     )
