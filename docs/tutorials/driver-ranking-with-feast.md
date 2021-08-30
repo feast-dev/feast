@@ -5,7 +5,7 @@ description: >-
   ingested into Feast.
 ---
 
-# Driver Ranking
+# Driver ranking
 
 In this example you'll learn how to use some of the key functionality in Feast. The tutorial runs in both local mode and on the Google Cloud Platform \(GCP\). For GCP, you must have access to a GCP project already, including read and write permissions to BigQuery.
 
