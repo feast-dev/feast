@@ -10,6 +10,7 @@ from feast import FileSource
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -52,6 +53,7 @@ class FileOfflineStore(OfflineStore):
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
@@ -205,6 +207,11 @@ class FileOfflineStore(OfflineStore):
                     by=right_entity_columns,
                     tolerance=feature_view.ttl,
                 )
+
+                for odfv in on_demand_feature_views:
+                    if odfv.name in feature_refs:
+                        entity_df_with_features = entity_df_with_features.join(odfv.udf.__call__(entity_df_with_features))
+
 
                 # Remove right (feature table/view) event_timestamp column.
                 if event_timestamp_column != entity_df_event_timestamp_col:

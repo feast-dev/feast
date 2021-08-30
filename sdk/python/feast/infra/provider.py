@@ -11,6 +11,7 @@ from feast import errors, importer
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -114,6 +115,7 @@ class Provider(abc.ABC):
         self,
         config: RepoConfig,
         feature_views: List[FeatureView],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
@@ -177,6 +179,9 @@ def _get_requested_feature_views_to_features_dict(
     feature_views_to_feature_map: Dict[FeatureView, List[str]] = {}
 
     for ref in feature_refs:
+        if ":" not in ref:
+            # ODFV
+            continue
         ref_parts = ref.split(":")
         feature_view_from_ref = ref_parts[0]
         feature_from_ref = ref_parts[1]

@@ -468,9 +468,14 @@ class FeatureStore:
 
         provider = self._get_provider()
 
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project, allow_cache=True
+        )
+
         job = provider.get_historical_features(
             self.config,
             feature_views,
+            all_on_demand_feature_views,
             _feature_refs,
             entity_df,
             self._registry,

@@ -9,6 +9,7 @@ from feast import FeatureTable
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
     Provider,
@@ -126,6 +127,7 @@ class LocalProvider(Provider):
         self,
         config: RepoConfig,
         feature_views: List[FeatureView],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
@@ -135,6 +137,7 @@ class LocalProvider(Provider):
         return self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
+            on_demand_feature_views=on_demand_feature_views,
             feature_refs=feature_refs,
             entity_df=entity_df,
             registry=registry,

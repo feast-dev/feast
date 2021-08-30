@@ -20,6 +20,7 @@ import pyarrow
 
 from feast.data_source import DataSource
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
@@ -68,6 +69,7 @@ class OfflineStore(ABC):
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,

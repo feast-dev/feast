@@ -17,6 +17,7 @@ from feast.errors import (
     InvalidEntityType,
 )
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.registry import Registry
@@ -93,6 +94,7 @@ class BigQueryOfflineStore(OfflineStore):
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
