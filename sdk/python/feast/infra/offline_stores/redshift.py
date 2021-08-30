@@ -355,12 +355,16 @@ WITH entity_dataframe AS (
     SELECT *,
         {{entity_df_event_timestamp_col}} AS entity_timestamp
         {% for featureview in featureviews %}
+            {% if featureview.entities %}
             ,CONCAT(
                 {% for entity in featureview.entities %}
                     CAST({{entity}} AS VARCHAR),
                 {% endfor %}
                 CAST({{entity_df_event_timestamp_col}} AS VARCHAR)
             ) AS {{featureview.name}}__entity_row_unique_id
+            {% else %}
+            CAST({{entity_df_event_timestamp_col}} AS VARCHAR) AS {{featureview.name}}__entity_row_unique_id
+            {% endif %}
         {% endfor %}
     FROM {{ left_table_query_string }}
 ),
