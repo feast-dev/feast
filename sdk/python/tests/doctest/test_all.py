@@ -7,7 +7,7 @@ import unittest
 import feast
 
 
-def setup_feature_store(docstring_tests):
+def setup_feature_store():
     """Prepares the local environment for a FeatureStore docstring test."""
     from datetime import datetime, timedelta
 
@@ -24,11 +24,7 @@ def setup_feature_store(docstring_tests):
 
     init_repo("feature_repo", "local")
     fs = FeatureStore(
-        config=RepoConfig(
-            registry="feature_repo/data/registry.db",
-            project="feature_repo",
-            provider="local",
-        )
+        repo_path="feature_repo"
     )
     driver = Entity(
         name="driver_id", value_type=ValueType.INT64, description="driver id",
@@ -56,12 +52,11 @@ def setup_feature_store(docstring_tests):
     )
 
 
-def teardown_feature_store(docstring_tests):
+def teardown_feature_store():
     """Cleans up the local environment after a FeatureStore docstring test."""
     import shutil
 
     shutil.rmtree("feature_repo", ignore_errors=True)
-    shutil.rmtree("data", ignore_errors=True)
 
 
 def test_docstrings():
@@ -84,28 +79,37 @@ def test_docstrings():
 
                 try:
                     temp_module = importlib.import_module(full_name)
-                    relative_path_from_feast = full_name.split(".", 1)[1]
-                    function_suffix = relative_path_from_feast.replace(".", "_")
-                    setup_function_name = "setup_" + function_suffix
-                    teardown_function_name = "teardown_" + function_suffix
-                    setup_function = globals().get(setup_function_name)
-                    teardown_function = globals().get(teardown_function_name)
+                    if is_pkg:
+                        next_packages.append(temp_module)
+                except ModuleNotFoundError:
+                    pass
+
+                # Retrieve the setup and teardown functions defined in this file.
+                relative_path_from_feast = full_name.split(".", 1)[1]
+                function_suffix = relative_path_from_feast.replace(".", "_")
+                setup_function_name = "setup_" + function_suffix
+                teardown_function_name = "teardown_" + function_suffix
+                setup_function = globals().get(setup_function_name)
+                teardown_function = globals().get(teardown_function_name)
+
+                # Execute the test with setup and teardown functions.
+                try:
+                    if setup_function:
+                        setup_function()
 
                     test_suite = doctest.DocTestSuite(
                         temp_module,
-                        setUp=setup_function,
-                        tearDown=teardown_function,
                         optionflags=doctest.ELLIPSIS,
                     )
                     if test_suite.countTestCases() > 0:
                         result = unittest.TextTestRunner(sys.stdout).run(test_suite)
                         if not result.wasSuccessful():
                             successful = False
-
-                    if is_pkg:
-                        next_packages.append(temp_module)
-                except ModuleNotFoundError:
-                    pass
+                except:
+                    successful = False
+                finally:
+                    if teardown_function:
+                        teardown_function()
 
         current_packages = next_packages
 
