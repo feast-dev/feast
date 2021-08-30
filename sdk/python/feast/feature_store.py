@@ -44,9 +44,9 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
+from feast.type_map import python_value_to_proto_value
 from feast.usage import log_exceptions, log_exceptions_and_usage
 from feast.version import get_version
 
@@ -766,24 +766,55 @@ class FeatureStore:
                                 feature_ref
                             ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
-        initial_response_df = OnlineResponse(
+        initial_response = OnlineResponse(
             GetOnlineFeaturesResponse(field_values=result_rows)
-        ).to_df()
-        # Apply on demand transformations
-        # TODO(adchia): Ideally, this would only have the feature values from the specified input FVs in the ODFV.
+        )
+        return self._augment_response_with_on_demand_transforms(
+            _feature_refs, full_feature_names, initial_response, result_rows
+        )
+
+    def _augment_response_with_on_demand_transforms(
+        self,
+        feature_refs: List[str],
+        full_feature_names: bool,
+        initial_response: OnlineResponse,
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+    ) -> OnlineResponse:
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
         )
+        if len(all_on_demand_feature_views) == 0:
+            return initial_response
+        initial_response_df = initial_response.to_df()
+        # Apply on demand transformations
+        # TODO(adchia): Include only the feature values from the specified input FVs in the ODFV.
         for odfv in all_on_demand_feature_views:
             feature_ref = odfv.name
-            if feature_ref in _feature_refs:
+            if feature_ref in feature_refs:
+                # Copy over un-prefixed features even if not requested since transform may need it
+                if full_feature_names:
+                    for input_fv in odfv.inputs.values():
+                        for feature in input_fv.features:
+                            full_feature_ref = f"{input_fv.name}__{feature.name}"
+                            if full_feature_ref in initial_response_df.keys():
+                                initial_response_df[feature.name] = initial_response_df[
+                                    full_feature_ref
+                                ]
+
+                # Compute transformed values and apply to each result row
                 ret_value = odfv.udf.__call__(initial_response_df)
-                result_row.fields[odfv.name].CopyFrom(
-                    ValueProto(double_val=ret_value[odfv.features[0].name].values[0])
-                )
-                result_row.statuses[
-                    feature_ref
-                ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                for row_idx in range(len(result_rows)):
+                    result_row = result_rows[row_idx]
+                    # TODO(adchia): support multiple output features in an ODFV, which requires different naming
+                    #  conventions
+                    result_row.fields[odfv.name].CopyFrom(
+                        python_value_to_proto_value(
+                            ret_value[odfv.features[0].name].values[row_idx]
+                        )
+                    )
+                    result_row.statuses[
+                        feature_ref
+                    ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
     @log_exceptions_and_usage

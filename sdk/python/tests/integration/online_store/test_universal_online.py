@@ -3,6 +3,9 @@ import unittest
 
 import pandas as pd
 import pytest
+from integration.feature_repos.universal.feature_views import (
+    conv_rate_plus_100_feature_view,
+)
 
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -17,10 +20,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
-
+    odfv = conv_rate_plus_100_feature_view(
+        inputs={"driver": feature_views["driver_stats"]}
+    )
     feast_objects = []
     feast_objects.extend(feature_views.values())
-    feast_objects.extend([driver(), customer()])
+    feast_objects.extend([odfv, driver(), customer()])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
 
@@ -45,8 +50,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "customer_profile:current_balance",
         "customer_profile:avg_passenger_count",
         "customer_profile:lifetime_trip_count",
+        "conv_rate_plus_100",
     ]
-    unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs]
+    unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
 
     online_features = fs.get_online_features(
         features=feature_refs,
@@ -60,6 +66,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         len(keys) == len(feature_refs) + 2
     )  # Add two for the driver id and the customer id entity keys.
     for feature in feature_refs:
+        if ":" in feature:
+            # This is the ODFV
+            continue
         if full_feature_names:
             assert feature.replace(":", "__") in keys
         else:
@@ -75,6 +84,10 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
         assert df_features["driver_id"] == online_features_dict["driver_id"][i]
+        assert (
+            online_features_dict["conv_rate_plus_100"][i]
+            == df_features["conv_rate"] + 100
+        )
         for unprefixed_feature_ref in unprefixed_feature_refs:
             tc.assertEqual(
                 df_features[unprefixed_feature_ref],

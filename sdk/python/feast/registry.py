@@ -620,12 +620,15 @@ class Registry:
 
     def _get_existing_feature_view_names(self) -> Set[str]:
         assert self.cached_registry_proto
-        return set([fv.name for fv in self.cached_registry_proto.feature_views])
+        return set([fv.spec.name for fv in self.cached_registry_proto.feature_views])
 
     def _get_existing_on_demand_feature_view_names(self) -> Set[str]:
         assert self.cached_registry_proto
         return set(
-            [odfv.name for odfv in self.cached_registry_proto.on_demand_feature_views]
+            [
+                odfv.spec.name
+                for odfv in self.cached_registry_proto.on_demand_feature_views
+            ]
         )
 
 
