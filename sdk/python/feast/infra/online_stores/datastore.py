@@ -244,17 +244,18 @@ class DatastoreOnlineStore(OnlineStore):
             keys.append(key)
 
         values = client.get_multi(keys)
-
-        for value in values:
-            if value is not None:
-                res = {}
-                for feature_name, value_bin in value["values"].items():
-                    val = ValueProto()
-                    val.ParseFromString(value_bin)
-                    res[feature_name] = val
-                result.append((value["event_ts"], res))
-            else:
-                result.append((None, None))
+        if values is not None:
+            values = sorted(values, key=lambda v: keys.index(v.key))
+            for value in values:
+                if value is not None:
+                    res = {}
+                    for feature_name, value_bin in value["values"].items():
+                        val = ValueProto()
+                        val.ParseFromString(value_bin)
+                        res[feature_name] = val
+                    result.append((value["event_ts"], res))
+                else:
+                    result.append((None, None))
         return result
 
 
