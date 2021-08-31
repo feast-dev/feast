@@ -28,8 +28,13 @@ class RetrievalJob(ABC):
     """RetrievalJob is used to manage the execution of a historical feature retrieval"""
 
     @abstractmethod
-    def to_df(self):
+    def to_df(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
+        pass
+
+    @abstractmethod
+    def to_arrow(self) -> pyarrow.Table:
+        """Return dataset as pyarrow Table synchronously"""
         pass
 
 
@@ -42,6 +47,7 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table_or_query(
+        config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
@@ -49,7 +55,7 @@ class OfflineStore(ABC):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
+    ) -> RetrievalJob:
         """
         Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
         have all already been mapped to column names of the source table and those column names are the values passed
@@ -66,5 +72,6 @@ class OfflineStore(ABC):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         pass

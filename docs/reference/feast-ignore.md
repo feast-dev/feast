@@ -2,7 +2,7 @@
 
 ## Overview
 
-`.feastignore` is a file that is placed at the root of the [Feature Repository](../concepts/feature-repository.md). This file contains paths that should be ignored when running `feast apply`. An example `.feastignore` is shown below:
+`.feastignore` is a file that is placed at the root of the [Feature Repository](feature-repository.md). This file contains paths that should be ignored when running `feast apply`. An example `.feastignore` is shown below:
 
 {% code title=".feastignore" %}
 ```text

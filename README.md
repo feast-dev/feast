@@ -62,7 +62,7 @@ store = FeatureStore(repo_path=".")
 
 training_df = store.get_historical_features(
     entity_df=entity_df, 
-    feature_refs = [
+    features = [
         'driver_hourly_stats:conv_rate',
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
@@ -75,11 +75,11 @@ print(training_df.head())
 # model = ml.fit(training_df)
 ```
 ```commandline
-      event_timestamp  driver_id  driver_hourly_stats__conv_rate  driver_hourly_stats__acc_rate
-  2021-04-12 08:12:10       1002                        0.497279                       0.357702
-  2021-04-12 10:59:42       1001                        0.979747                       0.008166
-  2021-04-12 15:01:12       1004                        0.151432                       0.551748
-  2021-04-12 16:40:26       1003                        0.951506                       0.753572
+            event_timestamp  driver_id  conv_rate  acc_rate  avg_daily_trips
+0 2021-04-12 08:12:10+00:00       1002   0.713465  0.597095              531
+1 2021-04-12 10:59:42+00:00       1001   0.072752  0.044344               11
+2 2021-04-12 15:01:12+00:00       1004   0.658182  0.079150              220
+3 2021-04-12 16:40:26+00:00       1003   0.162092  0.309035              959
 
 ```
 
@@ -101,7 +101,7 @@ from feast import FeatureStore
 store = FeatureStore(repo_path=".")
 
 feature_vector = store.get_online_features(
-    feature_refs=[
+    features=[
         'driver_hourly_stats:conv_rate',
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'

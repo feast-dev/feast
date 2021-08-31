@@ -1,4 +1,4 @@
-# Getting Started
+# Getting started
 
 {% hint style="danger" %}
 Feast on Kubernetes is only supported using Feast 0.9 \(and below\). We are working to add support for Feast on Kubernetes with the latest release of Feast \(0.10+\). Please see our [roadmap](../../roadmap.md) for more details.

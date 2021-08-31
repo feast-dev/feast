@@ -18,6 +18,9 @@ jobs:
       matrix:
         python-version: [ 3.7, 3.8, 3.9 ]
         os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     services:
       redis:
         image: redis
@@ -28,9 +31,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      OS: ${{ matrix.os }}
-      PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -44,24 +44,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v0
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
       - name: Use gcloud CLI
         run: gcloud info
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Use AWS CLI
+        run: aws sts get-caller-identity
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
-        run: FEAST_TELEMETRY=False pytest --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration
-        env:
-          REDIS_TYPE: REDIS
-          REDIS_CONNECTION_STRING: localhost:6379,db=0
+        run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: integrationtests
           env_vars: OS,PYTHON

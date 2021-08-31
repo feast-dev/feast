@@ -22,10 +22,11 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
-        run: make test-python
+        run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: unittests
           env_vars: OS,PYTHON

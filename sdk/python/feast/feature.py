@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, MutableMapping, Optional
+from typing import Dict, List, Optional
 
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -23,20 +23,25 @@ from feast.value_type import ValueType
 
 
 class Feature:
-    """Feature field type"""
+    """
+    A Feature represents a class of serveable feature.
+
+    Args:
+        name: Name of the feature.
+        dtype: The type of the feature, such as string or float.
+        labels (optional): User-defined metadata in dictionary form.
+    """
 
     def __init__(
-        self,
-        name: str,
-        dtype: ValueType,
-        labels: Optional[MutableMapping[str, str]] = None,
+        self, name: str, dtype: ValueType, labels: Optional[Dict[str, str]] = None,
     ):
+        """Creates a Feature object."""
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
         if labels is None:
-            self._labels = dict()  # type: MutableMapping
+            self._labels = dict()
         else:
             self._labels = labels
 
@@ -52,29 +57,42 @@ class Feature:
     def __lt__(self, other):
         return self.name < other.name
 
+    def __repr__(self):
+        # return string representation of the reference
+        return self.name
+
+    def __str__(self):
+        # readable string of the reference
+        return f"Feature<{self.__repr__()}>"
+
     @property
     def name(self):
         """
-        Getter for name of this field
+        Gets the name of this feature.
         """
         return self._name
 
     @property
     def dtype(self) -> ValueType:
         """
-        Getter for data type of this field
+        Gets the data type of this feature.
         """
         return self._dtype
 
     @property
-    def labels(self) -> MutableMapping[str, str]:
+    def labels(self) -> Dict[str, str]:
         """
-        Getter for labels of this field
+        Gets the labels of this feature.
         """
         return self._labels
 
     def to_proto(self) -> FeatureSpecProto:
-        """Converts Feature object to its Protocol Buffer representation"""
+        """
+        Converts Feature object to its Protocol Buffer representation.
+
+        Returns:
+            A FeatureSpecProto protobuf.
+        """
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
 
         return FeatureSpecProto(
@@ -90,11 +108,10 @@ class Feature:
         Returns:
             Feature object
         """
-
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
-            labels=feature_proto.labels,
+            labels=dict(feature_proto.labels),
         )
 
         return feature

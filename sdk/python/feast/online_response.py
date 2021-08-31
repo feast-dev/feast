@@ -14,6 +14,8 @@
 
 from typing import Any, Dict, List, cast
 
+import pandas as pd
+
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
@@ -60,6 +62,13 @@ class OnlineResponse:
                 features_dict[feature].append(native_type_value)
 
         return features_dict
+
+    def to_df(self) -> pd.DataFrame:
+        """
+        Converts GetOnlineFeaturesResponse features into Panda dataframe form.
+        """
+
+        return pd.DataFrame(self.to_dict())
 
 
 def _infer_online_entity_rows(

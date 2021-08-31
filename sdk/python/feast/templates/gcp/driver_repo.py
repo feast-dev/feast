@@ -20,10 +20,10 @@ driver = Entity(
 # datasets or materializing features into an online store.
 driver_stats_source = BigQuerySource(
     # The BigQuery table where features can be found
-    table_ref="feast-oss.demo_data.driver_hourly_stats",
+    table_ref="feast-oss.demo_data.driver_hourly_stats_2",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
-    event_timestamp_column="datetime",
+    event_timestamp_column="event_timestamp",
     # The (optional) created timestamp is used to ensure there are no duplicate
     # feature rows in the offline store or when building training datasets
     created_timestamp_column="created",
@@ -54,10 +54,10 @@ driver_stats_fv = FeatureView(
         Feature(name="acc_rate", dtype=ValueType.FLOAT),
         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
     ],
-    # Inputs are used to find feature values. In the case of this feature
+    # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on BigQuery for driver statistics
     # features
-    input=driver_stats_source,
+    batch_source=driver_stats_source,
     # Tags are user defined key/value pairs that are attached to each
     # feature view
     tags={"team": "driver_performance"},

@@ -12,35 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, MutableMapping, Optional
+from datetime import datetime
+from typing import Dict, Optional
 
 import yaml
 from google.protobuf import json_format
 from google.protobuf.json_format import MessageToDict, MessageToJson
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
-from feast.telemetry import log_exceptions
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
 class Entity:
     """
     Represents a collection of entities and associated metadata.
+
+    Args:
+        name: Name of the entity.
+        value_type (optional): The type of the entity, such as string or float.
+        description (optional): Additional information to describe the entity.
+        join_key (optional): A property that uniquely identifies different entities
+            within the collection. Used as a key for joining entities with their
+            associated features. If not specified, defaults to the name of the entity.
+        labels (optional): User-defined metadata in dictionary form.
     """
+
+    _name: str
+    _value_type: ValueType
+    _description: str
+    _join_key: str
+    _labels: Dict[str, str]
+    _created_timestamp: Optional[datetime]
+    _last_updated_timestamp: Optional[datetime]
 
     @log_exceptions
     def __init__(
         self,
         name: str,
-        value_type: ValueType,
+        value_type: ValueType = ValueType.UNKNOWN,
         description: str = "",
         join_key: Optional[str] = None,
-        labels: Optional[MutableMapping[str, str]] = None,
+        labels: Optional[Dict[str, str]] = None,
     ):
+        """Creates an Entity object."""
         self._name = name
         self._description = description
         self._value_type = value_type
@@ -50,12 +68,12 @@ class Entity:
             self._join_key = name
 
         if labels is None:
-            self._labels = dict()  # type: MutableMapping[str, str]
+            self._labels = dict()
         else:
             self._labels = labels
 
-        self._created_timestamp: Optional[Timestamp] = None
-        self._last_updated_timestamp: Optional[Timestamp] = None
+        self._created_timestamp: Optional[datetime] = None
+        self._last_updated_timestamp: Optional[datetime] = None
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
@@ -76,96 +94,96 @@ class Entity:
         return str(MessageToJson(self.to_proto()))
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
-        Returns the name of this entity
+        Gets the name of this entity.
         """
         return self._name
 
     @name.setter
     def name(self, name):
         """
-        Sets the name of this entity
+        Sets the name of this entity.
         """
         self._name = name
 
     @property
-    def description(self):
+    def description(self) -> str:
         """
-        Returns the description of this entity
+        Gets the description of this entity.
         """
         return self._description
 
     @description.setter
     def description(self, description):
         """
-        Sets the description of this entity
+        Sets the description of this entity.
         """
         self._description = description
 
     @property
-    def join_key(self):
+    def join_key(self) -> str:
         """
-        Returns the join key of this entity
+        Gets the join key of this entity.
         """
         return self._join_key
 
     @join_key.setter
     def join_key(self, join_key):
         """
-        Sets the join key of this entity
+        Sets the join key of this entity.
         """
         self._join_key = join_key
 
     @property
     def value_type(self) -> ValueType:
         """
-        Returns the type of this entity
+        Gets the type of this entity.
         """
         return self._value_type
 
     @value_type.setter
     def value_type(self, value_type: ValueType):
         """
-        Set the type for this entity
+        Sets the type of this entity.
         """
         self._value_type = value_type
 
     @property
-    def labels(self):
+    def labels(self) -> Dict[str, str]:
         """
-        Returns the labels of this entity. This is the user defined metadata
-        defined as a dictionary.
+        Gets the labels of this entity.
         """
         return self._labels
 
     @labels.setter
-    def labels(self, labels: MutableMapping[str, str]):
+    def labels(self, labels: Dict[str, str]):
         """
-        Set the labels for this entity
+        Sets the labels of this entity.
         """
         self._labels = labels
 
     @property
-    def created_timestamp(self):
+    def created_timestamp(self) -> Optional[datetime]:
         """
-        Returns the created_timestamp of this entity
+        Gets the created_timestamp of this entity.
         """
         return self._created_timestamp
 
     @property
-    def last_updated_timestamp(self):
+    def last_updated_timestamp(self) -> Optional[datetime]:
         """
-        Returns the last_updated_timestamp of this entity
+        Gets the last_updated_timestamp of this entity.
         """
         return self._last_updated_timestamp
 
     def is_valid(self):
         """
-        Validates the state of a entity locally. Raises an exception
-        if entity is invalid.
-        """
+        Validates the state of this entity locally.
 
+        Raises:
+            ValueError: The entity does not have a name or does not have a type.
+        """
         if not self.name:
             raise ValueError("No name found in entity.")
 
@@ -175,29 +193,27 @@ class Entity:
     @classmethod
     def from_yaml(cls, yml: str):
         """
-        Creates an entity from a YAML string body or a file path
+        Creates an entity from a YAML string body or a file path.
 
         Args:
-            yml: Either a file path containing a yaml file or a YAML string
+            yml: Either a file path containing a yaml file or a YAML string.
 
         Returns:
-            Returns a EntityV2 object based on the YAML file
+            An EntityV2 object based on the YAML file.
         """
-
         return cls.from_dict(feast_yaml.yaml_loader(yml, load_single=True))
 
     @classmethod
     def from_dict(cls, entity_dict):
         """
-        Creates an entity from a dict
+        Creates an entity from a dict.
 
         Args:
-            entity_dict: A dict representation of an entity
+            entity_dict: A dict representation of an entity.
 
         Returns:
-            Returns a EntityV2 object based on the entity dict
+            An EntityV2 object based on the entity dict.
         """
-
         entity_proto = json_format.ParseDict(
             entity_dict, EntityV2Proto(), ignore_unknown_fields=True
         )
@@ -206,15 +222,14 @@ class Entity:
     @classmethod
     def from_proto(cls, entity_proto: EntityV2Proto):
         """
-        Creates an entity from a protobuf representation of an entity
+        Creates an entity from a protobuf representation of an entity.
 
         Args:
-            entity_proto: A protobuf representation of an entity
+            entity_proto: A protobuf representation of an entity.
 
         Returns:
-            Returns a EntityV2 object based on the entity protobuf
+            An EntityV2 object based on the entity protobuf.
         """
-
         entity = cls(
             name=entity_proto.spec.name,
             description=entity_proto.spec.description,
@@ -223,23 +238,27 @@ class Entity:
             join_key=entity_proto.spec.join_key,
         )
 
-        entity._created_timestamp = entity_proto.meta.created_timestamp
-        entity._last_updated_timestamp = entity_proto.meta.last_updated_timestamp
+        if entity_proto.meta.HasField("created_timestamp"):
+            entity._created_timestamp = entity_proto.meta.created_timestamp.ToDatetime()
+        if entity_proto.meta.HasField("last_updated_timestamp"):
+            entity._last_updated_timestamp = (
+                entity_proto.meta.last_updated_timestamp.ToDatetime()
+            )
 
         return entity
 
     def to_proto(self) -> EntityV2Proto:
         """
-        Converts an entity object to its protobuf representation
+        Converts an entity object to its protobuf representation.
 
         Returns:
-            EntityV2Proto protobuf
+            An EntityV2Proto protobuf.
         """
-
-        meta = EntityMetaProto(
-            created_timestamp=self.created_timestamp,
-            last_updated_timestamp=self.last_updated_timestamp,
-        )
+        meta = EntityMetaProto()
+        if self._created_timestamp:
+            meta.created_timestamp.FromDatetime(self._created_timestamp)
+        if self._last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self._last_updated_timestamp)
 
         spec = EntitySpecProto(
             name=self.name,
@@ -253,12 +272,11 @@ class Entity:
 
     def to_dict(self) -> Dict:
         """
-        Converts entity to dict
+        Converts entity to dict.
 
         Returns:
-            Dictionary object representation of entity
+            Dictionary object representation of entity.
         """
-
         entity_dict = MessageToDict(self.to_proto())
 
         # Remove meta when empty for more readable exports
@@ -272,7 +290,7 @@ class Entity:
         Converts a entity to a YAML string.
 
         Returns:
-            Entity string returned in YAML format
+            An entity string returned in YAML format.
         """
         entity_dict = self.to_dict()
         return yaml.dump(entity_dict, allow_unicode=True, sort_keys=False)
@@ -283,9 +301,8 @@ class Entity:
         Used when passing EntitySpecV2 object to Feast request.
 
         Returns:
-            EntitySpecV2 protobuf
+            An EntitySpecV2 protobuf.
         """
-
         spec = EntitySpecProto(
             name=self.name,
             description=self.description,
@@ -298,12 +315,11 @@ class Entity:
 
     def _update_from_entity(self, entity):
         """
-        Deep replaces one entity with another
+        Deep replaces one entity with another.
 
         Args:
-            entity: Entity to use as a source of configuration
+            entity: Entity to use as a source of configuration.
         """
-
         self.name = entity.name
         self.description = entity.description
         self.value_type = entity.value_type

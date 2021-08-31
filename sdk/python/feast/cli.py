@@ -21,6 +21,7 @@ import click
 import pkg_resources
 import yaml
 
+from feast import utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
@@ -128,6 +129,63 @@ def entity_list(ctx: click.Context):
     print(tabulate(table, headers=["NAME", "DESCRIPTION", "TYPE"], tablefmt="plain"))
 
 
+@cli.group(name="feature-services")
+def feature_services_cmd():
+    """
+    Access feature services
+    """
+    pass
+
+
+@feature_services_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def feature_service_describe(ctx: click.Context, name: str):
+    """
+    Describe a feature service
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    try:
+        feature_service = store.get_feature_service(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(feature_service)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@feature_services_cmd.command(name="list")
+@click.pass_context
+def feature_service_list(ctx: click.Context):
+    """
+    List all feature services
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    feature_services = []
+    for feature_service in store.list_feature_services():
+        feature_names = []
+        for projection in feature_service.features:
+            feature_names.extend(
+                [f"{projection.name}:{feature.name}" for feature in projection.features]
+            )
+        feature_services.append([feature_service.name, ", ".join(feature_names)])
+
+    from tabulate import tabulate
+
+    print(tabulate(feature_services, headers=["NAME", "FEATURES"], tablefmt="plain"))
+
+
 @cli.group(name="feature-views")
 def feature_views_cmd():
     """
@@ -179,8 +237,13 @@ def feature_view_list(ctx: click.Context):
 
 
 @cli.command("apply", cls=NoOptionDefaultFormat)
+@click.option(
+    "--skip-source-validation",
+    is_flag=True,
+    help="Don't validate the data sources by checking for that the tables exist.",
+)
 @click.pass_context
-def apply_total_command(ctx: click.Context):
+def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     """
     Create or update a feature store deployment
     """
@@ -188,7 +251,7 @@ def apply_total_command(ctx: click.Context):
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
     try:
-        apply_total(repo_config, repo)
+        apply_total(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
         print(str(e))
 
@@ -242,8 +305,8 @@ def materialize_command(
     store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
-        start_date=datetime.fromisoformat(start_ts),
-        end_date=datetime.fromisoformat(end_ts),
+        start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -267,7 +330,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     store = FeatureStore(repo_path=str(repo))
     store.materialize_incremental(
         feature_views=None if not views else views,
-        end_date=datetime.fromisoformat(end_ts),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -279,7 +342,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
 @click.option(
     "--template",
     "-t",
-    type=click.Choice(["local", "gcp"], case_sensitive=False),
+    type=click.Choice(["local", "gcp", "aws"], case_sensitive=False),
     help="Specify a template for the created project",
     default="local",
 )
@@ -292,6 +355,20 @@ def init_command(project_directory, minimal: bool, template: str):
         template = "minimal"
 
     init_repo(project_directory, template)
+
+
+@cli.command("serve")
+@click.option(
+    "--port", "-p", type=click.INT, default=6566, help="Specify a port for the server"
+)
+@click.pass_context
+def serve_command(ctx: click.Context, port: int):
+    """Start a the feature consumption server locally on a given port."""
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    store.serve(port)
 
 
 if __name__ == "__main__":

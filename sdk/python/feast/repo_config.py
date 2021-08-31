@@ -1,18 +1,36 @@
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import (
     BaseModel,
-    PositiveInt,
     StrictInt,
     StrictStr,
     ValidationError,
     root_validator,
+    validator,
 )
 from pydantic.error_wrappers import ErrorWrapper
-from pydantic.typing import Dict, Literal, Optional, Union
+from pydantic.typing import Dict, Optional, Union
 
-from feast.telemetry import log_exceptions
+from feast.importer import get_class_from_type
+from feast.usage import log_exceptions
+
+# These dict exists so that:
+# - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
+# - first party and third party implementations can use the same class loading code path.
+ONLINE_STORE_CLASS_FOR_TYPE = {
+    "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
+    "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
+    "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+    "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
+}
+
+OFFLINE_STORE_CLASS_FOR_TYPE = {
+    "file": "feast.infra.offline_stores.file.FileOfflineStore",
+    "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
+    "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
+}
 
 
 class FeastBaseModel(BaseModel):
@@ -20,59 +38,15 @@ class FeastBaseModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        extra = "allow"
+
+
+class FeastConfigBaseModel(BaseModel):
+    """ Feast Pydantic Configuration Class """
+
+    class Config:
+        arbitrary_types_allowed = True
         extra = "forbid"
-
-
-class SqliteOnlineStoreConfig(FeastBaseModel):
-    """ Online store config for local (SQLite-based) store """
-
-    type: Literal["sqlite"] = "sqlite"
-    """ Online store type selector"""
-
-    path: StrictStr = "data/online.db"
-    """ (optional) Path to sqlite db """
-
-
-class DatastoreOnlineStoreConfig(FeastBaseModel):
-    """ Online store config for GCP Datastore """
-
-    type: Literal["datastore"] = "datastore"
-    """ Online store type selector"""
-
-    project_id: Optional[StrictStr] = None
-    """ (optional) GCP Project Id """
-
-    namespace: Optional[StrictStr] = None
-    """ (optional) Datastore namespace """
-
-    write_concurrency: Optional[PositiveInt] = 40
-    """ (optional) Amount of threads to use when writing batches of feature rows into Datastore"""
-
-    write_batch_size: Optional[PositiveInt] = 50
-    """ (optional) Amount of feature rows per batch being written into Datastore"""
-
-
-OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
-
-
-class FileOfflineStoreConfig(FeastBaseModel):
-    """ Offline store config for local (file-based) store """
-
-    type: Literal["file"] = "file"
-    """ Offline store type selector"""
-
-
-class BigQueryOfflineStoreConfig(FeastBaseModel):
-    """ Offline store config for GCP BigQuery """
-
-    type: Literal["bigquery"] = "bigquery"
-    """ Offline store type selector"""
-
-    dataset: Optional[StrictStr] = "feast"
-    """ (optional) BigQuery Dataset name for temporary tables """
-
-
-OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -101,13 +75,32 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp """
+    """ str: local or gcp or aws """
 
-    online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
+    online_store: Any
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
-    offline_store: OfflineStoreConfig = FileOfflineStoreConfig()
+    offline_store: Any
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
+
+    repo_path: Optional[Path] = None
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+
+        if isinstance(self.online_store, Dict):
+            self.online_store = get_online_config_from_type(self.online_store["type"])(
+                **self.online_store
+            )
+        elif isinstance(self.online_store, str):
+            self.online_store = get_online_config_from_type(self.online_store)()
+
+        if isinstance(self.offline_store, Dict):
+            self.offline_store = get_offline_config_from_type(
+                self.offline_store["type"]
+            )(**self.offline_store)
+        elif isinstance(self.offline_store, str):
+            self.offline_store = get_offline_config_from_type(self.offline_store)()
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -136,28 +129,25 @@ class RepoConfig(FeastBaseModel):
         assert "provider" in values
 
         # Set the default type
+        # This is only direct reference to a provider or online store that we should have
+        # for backwards compatibility.
         if "type" not in values["online_store"]:
             if values["provider"] == "local":
                 values["online_store"]["type"] = "sqlite"
             elif values["provider"] == "gcp":
                 values["online_store"]["type"] = "datastore"
+            elif values["provider"] == "aws":
+                values["online_store"]["type"] = "dynamodb"
 
         online_store_type = values["online_store"]["type"]
 
-        # Make sure the user hasn't provided the wrong type
-        assert online_store_type in ["datastore", "sqlite"]
-
         # Validate the dict to ensure one of the union types match
         try:
-            if online_store_type == "sqlite":
-                SqliteOnlineStoreConfig(**values["online_store"])
-            elif online_store_type == "datastore":
-                DatastoreOnlineStoreConfig(**values["online_store"])
-            else:
-                raise ValueError(f"Invalid online store type {online_store_type}")
+            online_config_class = get_online_config_from_type(online_store_type)
+            online_config_class(**values["online_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="online_store")], model=SqliteOnlineStoreConfig,
+                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
             )
 
         return values
@@ -181,28 +171,32 @@ class RepoConfig(FeastBaseModel):
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
+            elif values["provider"] == "aws":
+                values["offline_store"]["type"] = "redshift"
 
         offline_store_type = values["offline_store"]["type"]
 
-        # Make sure the user hasn't provided the wrong type
-        assert offline_store_type in ["file", "bigquery"]
-
         # Validate the dict to ensure one of the union types match
         try:
-            if offline_store_type == "file":
-                FileOfflineStoreConfig(**values["offline_store"])
-            elif offline_store_type == "bigquery":
-                BigQueryOfflineStoreConfig(**values["offline_store"])
-            else:
-                raise ValidationError(
-                    f"Invalid offline store type {offline_store_type}"
-                )
+            offline_config_class = get_offline_config_from_type(offline_store_type)
+            offline_config_class(**values["offline_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="offline_store")], model=FileOfflineStoreConfig,
+                [ErrorWrapper(e, loc="offline_store")], model=RepoConfig,
             )
 
         return values
+
+    @validator("project")
+    def _validate_project_name(cls, v):
+        from feast.repo_operations import is_valid_name
+
+        if not is_valid_name(v):
+            raise ValueError(
+                f"Project name, {v}, should only have "
+                f"alphanumerical values and underscores but not start with an underscore."
+            )
+        return v
 
 
 class FeastConfigError(Exception):
@@ -220,12 +214,41 @@ class FeastConfigError(Exception):
         )
 
 
+def get_data_source_class_from_type(data_source_type: str):
+    module_name, config_class_name = data_source_type.rsplit(".", 1)
+    return get_class_from_type(module_name, config_class_name, "Source")
+
+
+def get_online_config_from_type(online_store_type: str):
+    if online_store_type in ONLINE_STORE_CLASS_FOR_TYPE:
+        online_store_type = ONLINE_STORE_CLASS_FOR_TYPE[online_store_type]
+    else:
+        assert online_store_type.endswith("OnlineStore")
+    module_name, online_store_class_type = online_store_type.rsplit(".", 1)
+    config_class_name = f"{online_store_class_type}Config"
+
+    return get_class_from_type(module_name, config_class_name, config_class_name)
+
+
+def get_offline_config_from_type(offline_store_type: str):
+    if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
+        offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
+    else:
+        assert offline_store_type.endswith("OfflineStore")
+    module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
+    config_class_name = f"{offline_store_class_type}Config"
+
+    return get_class_from_type(module_name, config_class_name, config_class_name)
+
+
 def load_repo_config(repo_path: Path) -> RepoConfig:
     config_path = repo_path / "feature_store.yaml"
 
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
         try:
-            return RepoConfig(**raw_config)
+            c = RepoConfig(**raw_config)
+            c.repo_path = repo_path
+            return c
         except ValidationError as e:
             raise FeastConfigError(e, config_path)
