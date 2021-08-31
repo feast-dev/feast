@@ -37,7 +37,7 @@ def prep_bq_fs_and_fv(
 ) -> Iterator[Tuple[FeatureStore, FeatureView]]:
     client = bigquery.Client()
     gcp_project = client.project
-    bigquery_dataset = "test_ingestion"
+    bigquery_dataset = f"test_ingestion{time.time_ns()}"
     dataset = bigquery.Dataset(f"{gcp_project}.{bigquery_dataset}")
     client.create_dataset(dataset, exists_ok=True)
     dataset.default_table_expiration_ms = (
