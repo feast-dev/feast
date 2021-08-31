@@ -11,21 +11,11 @@ def setup_feature_store():
     """Prepares the local environment for a FeatureStore docstring test."""
     from datetime import datetime, timedelta
 
-    from feast import (
-        Entity,
-        Feature,
-        FeatureStore,
-        FeatureView,
-        FileSource,
-        RepoConfig,
-        ValueType,
-    )
+    from feast import Entity, Feature, FeatureStore, FeatureView, FileSource, ValueType
     from feast.repo_operations import init_repo
 
     init_repo("feature_repo", "local")
-    fs = FeatureStore(
-        repo_path="feature_repo"
-    )
+    fs = FeatureStore(repo_path="feature_repo")
     driver = Entity(
         name="driver_id", value_type=ValueType.INT64, description="driver id",
     )
@@ -98,14 +88,13 @@ def test_docstrings():
                         setup_function()
 
                     test_suite = doctest.DocTestSuite(
-                        temp_module,
-                        optionflags=doctest.ELLIPSIS,
+                        temp_module, optionflags=doctest.ELLIPSIS,
                     )
                     if test_suite.countTestCases() > 0:
                         result = unittest.TextTestRunner(sys.stdout).run(test_suite)
                         if not result.wasSuccessful():
                             successful = False
-                except:
+                except Exception:
                     successful = False
                 finally:
                     if teardown_function:
