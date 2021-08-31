@@ -244,18 +244,22 @@ class DatastoreOnlineStore(OnlineStore):
             keys.append(key)
 
         values = client.get_multi(keys)
+
         if values is not None:
+            keys_missing_from_response = set(keys) - set([v.key for v in values])
             values = sorted(values, key=lambda v: keys.index(v.key))
             for value in values:
-                if value is not None:
-                    res = {}
-                    for feature_name, value_bin in value["values"].items():
-                        val = ValueProto()
-                        val.ParseFromString(value_bin)
-                        res[feature_name] = val
-                    result.append((value["event_ts"], res))
-                else:
-                    result.append((None, None))
+                res = {}
+                for feature_name, value_bin in value["values"].items():
+                    val = ValueProto()
+                    val.ParseFromString(value_bin)
+                    res[feature_name] = val
+                result.append((value["event_ts"], res))
+            for missing_key_idx in sorted(
+                [keys.index(k) for k in keys_missing_from_response]
+            ):
+                result.insert(missing_key_idx, (None, None))
+
         return result
 
 
