@@ -71,7 +71,6 @@ rebase_from_master()
     read -p "Commits are not pushed. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
         y|Y ) push_rebased_commits ;;
-        n|N ) echo "Skipping this sub-step" ;;
         * ) echo "Skipping this sub-step" ;;
     esac ;
 }
@@ -80,22 +79,22 @@ if git status | grep -q "is ahead of" ; then
     read -p "Your local branch is ahead of its remote counterpart, indicating you may have already rebased. Skip this step (y) or run the rebase starting from commit $STARTING_COMMIT (n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this step" ;;
-        n|N ) rebase_from_master ;;
         * ) rebase_from_master ;;
     esac ;
 else
     read -p "Will rebase starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
     case "$choice" in
         y|Y ) rebase_from_master ;;
-        n|N ) echo "Skipping this step" ;;
         * ) echo "Skipping this step" ;;
     esac ;
 fi
 
+CHANGELOG=$(git rev-parse --show-toplevel)/CHANGELOG.md
+
 commit_changelog()
 {
     echo "Committing CHANGELOG.md"
-    git add ../../CHANGELOG.md
+    git add $CHANGELOG
     git commit -m "Update CHANGELOG for Feast v$MAJOR.$MINOR.$PATCH"
 }
 update_changelog()
@@ -116,22 +115,20 @@ update_changelog()
     --max-issues 1 -o \
     | sed -n '/## \[v'"$MAJOR.$MINOR.$PATCH"'\]/,$p' \
     | sed '$d' | sed '$d' | sed '$d' | tr -d '\r' >> temp \
-    && sed '1d' ../../CHANGELOG.md >> temp && mv temp ../../CHANGELOG.md
-    git diff ../../CHANGELOG.md
+    && sed '1d' $CHANGELOG >> temp && mv temp $CHANGELOG
+    git diff $CHANGELOG
     echo "Check CHANGELOG.md carefully and fix any errors. In particular, make sure the new enhancements/PRs/bugfixes aren't already listed somewhere lower down in the file."
     read -p "Once you're done checking, continue to commit the changelog (y) or exit (n)? " choice
     case "$choice" in
         y|Y ) commit_changelog ;;
-        n|N ) exit ;;
         * ) exit ;;
     esac ;
 }
 echo "Step 2: Updating CHANGELOG.md"
-if grep -q "https://github.com/feast-dev/feast/tree/v$MAJOR.$MINOR.$PATCH" ../../CHANGELOG.md ; then
+if grep -q "https://github.com/feast-dev/feast/tree/v$MAJOR.$MINOR.$PATCH" $CHANGELOG ; then
     read -p "CHANGELOG.md appears updated. Skip this step (y/n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this step" ;;
-        n|N ) update_changelog ;;
         * ) update_changelog ;;
     esac ;
 else
@@ -149,7 +146,6 @@ if git tag | grep -q "v$MAJOR.$MINOR.$PATCH" ; then
     read -p "The tag already exists. Skip this step (y/n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this step" ;;
-        n|N ) tag_commit ;;
         * ) tag_commit ;;
     esac ;
 else
@@ -170,7 +166,6 @@ else
     read -p "Commits are not pushed. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
         y|Y ) push_commits ;;
-        n|N ) echo "Skipping this sub-step" ;;
         * ) echo "Skipping this sub-step" ;;
     esac ;
 fi
@@ -186,14 +181,12 @@ if git ls-remote --tags $REMOTE | grep -q "v$MAJOR.$MINOR.$PATCH" ; then
     read -p "The tag appears pushed. Skip this sub-step (y/n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this sub-step" ;;
-        n|N ) push_tag ;;
         * ) push_tag ;;
     esac ;
 else
     read -p "The tag is not pushed. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
         y|Y ) push_tag ;;
-        n|N ) echo "Skipping this sub-step" ;;
         * ) echo "Skipping this sub-step" ;;
     esac ;
 fi
@@ -201,7 +194,6 @@ fi
 read -p "Now wait for the CI to pass. Continue (y) or exit and fix the problem (n)? " choice
 case "$choice" in
     y|Y ) echo "Moving on to the next step" ;;
-    n|N ) exit ;;
     * ) exit ;;
 esac ;
 
@@ -215,18 +207,16 @@ cp_changelog()
     echo "Cherry-pick done"
 }
 echo "Step 6a: Cherry-pick changelog to master"
-if grep -q "https://github.com/feast-dev/feast/tree/v$MAJOR.$MINOR.$PATCH" ../../CHANGELOG.md ; then
+if grep -q "https://github.com/feast-dev/feast/tree/v$MAJOR.$MINOR.$PATCH" $CHANGELOG ; then
     read -p "The changelog appears to be cherry-picked onto master. Skip this sub-step (y/n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this sub-step" ;;
-        n|N ) cp_changelog ;;
         * ) cp_changelog ;;
     esac ;
 else
     read -p "The changelog does not appear to be cherry-picked onto master. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
         y|Y ) cp_changelog ;;
-        n|N ) echo "Skipping this sub-step" ;;
         * ) echo "Skipping this sub-step" ;;
     esac ;
 fi
@@ -244,7 +234,6 @@ else
     read -p "The commit is not pushed. Continue (y) or skip this sub-step (n)? " choice
     case "$choice" in
         y|Y ) push_cp ;;
-        n|N ) echo "Skipping this sub-step" ;;
         * ) echo "Skipping this sub-step" ;;
     esac ;
 fi
@@ -252,7 +241,7 @@ fi
 create_release()
 {
     echo "Creating GitHub release"
-    cat ../../CHANGELOG.md | sed -n '/## \[v'"$MAJOR.$MINOR.$PATCH"'\]/,/## \[v'"$MAJOR.$MINOR.$(($PATCH-1))"'\]/p' | sed -n '/**Implemented enhancements/,$p' | sed '$d' > temp2 \
+    cat $CHANGELOG | sed -n '/## \[v'"$MAJOR.$MINOR.$PATCH"'\]/,/## \[v'"$MAJOR.$MINOR.$(($PATCH-1))"'\]/p' | sed -n '/**Implemented enhancements/,$p' | sed '$d' > temp2 \
     && gh release create v$MAJOR.$MINOR.$PATCH -t "Feast v$MAJOR.$MINOR.$PATCH" --repo feast-dev/feast --notes-file temp2 \
     && rm temp2
     echo "GitHub release created"
@@ -262,18 +251,14 @@ if gh release list --repo feast-dev/feast | grep -q "v$MAJOR.$MINOR.$PATCH" ; th
     read -p "GitHub release appears created. Skip this step (y/n)? " choice
     case "$choice" in
         y|Y ) echo "Skipping this step" ;;
-        n|N ) create_release ;;
         * ) create_release ;;
     esac ;
 else
     read -p "A GitHub release has not been created. Continue (y) or skip this step (n)? " choice
     case "$choice" in
         y|Y ) create_release ;;
-        n|N ) echo "Skipping this step" ;;
         * ) echo "Skipping this step" ;;
     esac ;
 fi
 
-echo "Do these final two steps on your own:"
-echo "Step 8: Update the Upgrade Guide"
-echo "Step 9: Update Feast Supported Versions"
+echo "Step 8: Update the Upgrade Guide manually (docs/advanced/upgrading.md)"
