@@ -52,9 +52,6 @@ message UserDefinedFunction {
     // The function name
     string name = 1;
 
-    // The Python return of of the function, e.g. 'int'
-    string return_type = 2;
-
-    // The python-syntax function body
-    string body = 3;
+    // The python-syntax function body (serialized by dill)
+    bytes body = 2;
 }

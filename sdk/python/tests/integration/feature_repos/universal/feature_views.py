@@ -21,6 +21,7 @@ def driver_feature_view(
         input=data_source,
     )
 
+
 def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["conv_rate_plus_100"] = driver_hourly_stats["conv_rate"] + 100
@@ -28,7 +29,7 @@ def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
 
 
 def conv_rate_plus_100_feature_view(
-        inputs: Dict[str, FeatureView]
+    inputs: Dict[str, FeatureView]
 ) -> OnDemandFeatureView:
     return OnDemandFeatureView(
         name=conv_rate_plus_100.__name__,

@@ -20,9 +20,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
-    odfv = conv_rate_plus_100_feature_view(
-        inputs={"driver": feature_views["driver_stats"]}
-    )
+    odfv = conv_rate_plus_100_feature_view(inputs={"driver": feature_views["driver"]})
     feast_objects = []
     feast_objects.extend(feature_views.values())
     feast_objects.extend([odfv, driver(), customer()])
