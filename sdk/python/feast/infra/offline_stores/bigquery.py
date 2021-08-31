@@ -79,7 +79,9 @@ class BigQueryOfflineStore(OfflineStore):
 
         client = _get_bigquery_client(project=config.offline_store.project_id)
         query = f"""
-            SELECT {field_string}
+            SELECT
+                {field_string},
+                {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID}
             FROM (
                 SELECT {field_string},
                 {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID},
