@@ -2,26 +2,32 @@ import random
 import unittest
 
 import pandas as pd
+import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_online_test,
-)
+from tests.integration.feature_repos.test_repo_configuration import construct_universal_feature_views
+from tests.integration.feature_repos.universal.entities import driver, customer
 
 
-@parametrize_online_test
-def test_online_retrieval(environment: Environment):
+@pytest.mark.integration
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_online_retrieval(environment, universal_data_sources, full_feature_names):
     fs = environment.feature_store
-    full_feature_names = environment.test_repo_config.full_feature_names
+    entities, datasets, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
 
-    sample_drivers = random.sample(environment.entities["driver"], 10)
-    drivers_df = environment.datasets["driver"][
-        environment.datasets["driver"]["driver_id"].isin(sample_drivers)
+    print(f"Created universal feature views {feature_views}")
+
+    fs.apply([feature_views.values()] + [driver(), customer()])
+    fs.materialize(environment.start_date, environment.end_date)
+
+    sample_drivers = random.sample(entities["driver"], 10)
+    drivers_df = datasets["driver"][
+        datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
 
-    sample_customers = random.sample(environment.entities["customer"], 10)
-    customers_df = environment.datasets["customer"][
-        environment.datasets["customer"]["customer_id"].isin(sample_customers)
+    sample_customers = random.sample(entities["customer"], 10)
+    customers_df = datasets["customer"][
+        datasets["customer"]["customer_id"].isin(sample_customers)
     ]
 
     entity_rows = [

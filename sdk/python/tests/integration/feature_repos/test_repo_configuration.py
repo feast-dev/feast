@@ -266,7 +266,8 @@ DEFAULT_STEP = EnvironmentSetupSteps.INIT
 
 @contextmanager
 def construct_test_environment(
-    test_suite_name: str, test_repo_config: TestRepoConfig,
+    test_repo_config: TestRepoConfig,
+    test_suite_name: str = "integration_test"
 ) -> Environment:
     project = f"{test_suite_name}_{str(uuid.uuid4()).replace('-', '')[:8]}"
 

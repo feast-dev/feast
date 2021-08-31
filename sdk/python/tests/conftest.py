@@ -18,6 +18,8 @@ from typing import Any, Callable
 
 import pandas as pd
 import pytest
+from tests.integration.feature_repos.test_repo_configuration import FULL_REPO_CONFIGS, construct_test_environment, \
+    construct_universal_entities, construct_universal_datasets, construct_universal_data_sources
 
 
 def pytest_configure(config):
@@ -129,3 +131,27 @@ def universal_data_source_cache():
     yield dsc
     for _, v in dsc.items():
         v[3].teardown()
+
+
+@pytest.fixture(params=FULL_REPO_CONFIGS, scope="session")
+def environment(request):
+    with construct_test_environment(request.param) as e:
+        yield e
+
+
+@pytest.fixture(scope="session")
+def universal_data_sources(environment):
+
+    with environment as environment:
+
+        entities = construct_universal_entities()
+        datasets = construct_universal_datasets(
+            entities, environment.start_date, environment.end_date
+        )
+        datasources = construct_universal_data_sources(
+            datasets, environment.data_source_creator
+        )
+
+        yield (entities, datasets, datasources)
+
+        environment.data_source_creator.teardown()
