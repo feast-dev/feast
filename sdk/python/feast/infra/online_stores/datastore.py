@@ -16,7 +16,6 @@ from datetime import datetime
 from multiprocessing.pool import ThreadPool
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
-from google.cloud.datastore import Key
 from pydantic import PositiveInt, StrictStr
 from pydantic.typing import Literal
 
