@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import abc
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Optional, Union
@@ -28,8 +29,22 @@ from feast.repo_config import RepoConfig
 class RetrievalJob(ABC):
     """RetrievalJob is used to manage the execution of a historical feature retrieval"""
 
+    @property
     @abstractmethod
+    def registry(self) -> Registry:
+        pass
+
     def to_df(self) -> pd.DataFrame:
+        """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
+        features_df = self.to_df_internal()
+        if self.registry is None:
+            return features_df
+
+        self.registry.
+        pass
+
+    @abstractmethod
+    def to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
         pass
 

@@ -56,6 +56,7 @@ class RedshiftOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
+        registry: Registry
     ) -> RetrievalJob:
         assert isinstance(data_source, RedshiftSource)
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)

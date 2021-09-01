@@ -3,6 +3,7 @@ from types import MethodType
 from typing import Dict, List
 
 import dill
+import pandas as pd
 
 from feast.feature import Feature
 from feast.feature_view import FeatureView
@@ -99,6 +100,30 @@ class OnDemandFeatureView:
         )
 
         return on_demand_feature_view_obj
+
+
+    def get_transformed_features_df(self, full_feature_names: bool, df_with_features: pd.DataFrame):
+        # Apply on demand transformations
+        # TODO(adchia): Include only the feature values from the specified input FVs in the ODFV.
+        # Copy over un-prefixed features even if not requested since transform may need it
+        columns_to_cleanup = []
+        if full_feature_names:
+            for input_fv in self.inputs.values():
+                for feature in input_fv.features:
+                    full_feature_ref = f"{input_fv.name}__{feature.name}"
+                    if full_feature_ref in df_with_features.keys():
+                        df_with_features[feature.name] = df_with_features[
+                            full_feature_ref
+                        ]
+                        columns_to_cleanup.append(feature.name)
+
+        # Compute transformed values and apply to each result row
+        df_with_transformed_features = self.udf.__call__(df_with_features)
+
+        # Cleanup extra columns used for transformation
+        df_with_features.drop(columns=columns_to_cleanup, inplace=True)
+        return df_with_transformed_features
+
 
 
 def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureView]):

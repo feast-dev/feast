@@ -142,14 +142,18 @@ class BigQueryOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
         )
 
-        return BigQueryRetrievalJob(query=query, client=client, config=config)
+        return BigQueryRetrievalJob(query=query, client=client, config=config, registry=Registry)
 
 
 class BigQueryRetrievalJob(RetrievalJob):
-    def __init__(self, query, client, config):
+    def __init__(self, query, client, config, registry):
         self.query = query
         self.client = client
         self.config = config
+        self.registry = registry
+
+    def get_registry(self):
+        return self.registry
 
     def to_df(self):
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
