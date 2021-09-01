@@ -29,6 +29,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -73,6 +74,7 @@ class SqliteOnlineStore(OnlineStore):
             )
         return self._conn
 
+    @log_exceptions_and_usage
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -127,6 +129,7 @@ class SqliteOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
+    @log_exceptions_and_usage
     def online_read(
         self,
         config: RepoConfig,
@@ -163,6 +166,7 @@ class SqliteOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
+    @log_exceptions_and_usage
     def update(
         self,
         config: RepoConfig,
@@ -186,6 +190,7 @@ class SqliteOnlineStore(OnlineStore):
         for table in tables_to_delete:
             conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
+    @log_exceptions_and_usage
     def teardown(
         self,
         config: RepoConfig,

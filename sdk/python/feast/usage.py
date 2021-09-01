@@ -28,6 +28,22 @@ from feast.version import get_version
 USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
 
+# This mapping from (function_name, method_name) to (frequency) determines how often
+# each invokation of the method will be logged. For example, if ("get_online_features",
+# "feast.feature_store") maps to 10000, then 1 of every 10000 calls will be logged.
+# If a method is not in this mapping, every invokation will be logged.
+METHOD_TO_LOG_FREQUENCY = {
+    ("get_online_features", "feast.feature_store"): 10000,
+    ("online_read", "feast.infra.online_stores.datastore"): 10000,
+    ("online_write_batch", "feast.infra.online_stores.datastore"): 10000,
+    ("online_read", "feast.infra.online_stores.dynamodb"): 10000,
+    ("online_write_batch", "feast.infra.online_stores.dynamodb"): 10000,
+    ("online_read", "feast.infra.online_stores.redis"): 10000,
+    ("online_write_batch", "feast.infra.online_stores.redis"): 10000,
+    ("online_read", "feast.infra.online_stores.sqlite"): 10000,
+    ("online_write_batch", "feast.infra.online_stores.sqlite"): 10000,
+}
+
 
 class Usage:
     def __init__(self):
@@ -50,7 +66,7 @@ class Usage:
                     usage_filepath = join(feast_home_dir, "usage")
 
                     self._is_test = os.getenv("FEAST_IS_USAGE_TEST", "False") == "True"
-                    self._usage_counter = {"get_online_features": 0}
+                    self._usage_counter = {k: 0 for k in METHOD_TO_LOG_FREQUENCY}
 
                     if os.path.exists(usage_filepath):
                         with open(usage_filepath, "r") as f:
@@ -76,11 +92,14 @@ class Usage:
     def log(self, function_name: str, module_name: str, execution_time: int):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
-            if function_name == "get_online_features":
-                self._usage_counter["get_online_features"] += 1
-                if self._usage_counter["get_online_features"] % 10000 != 2:
+            method = (function_name, module_name)
+            if method in self._usage_counter:
+                frequency = METHOD_TO_LOG_FREQUENCY[method]
+                self._usage_counter[method] += 1
+                # Begin logging on the second invokation of the method.
+                if self._usage_counter[method] % frequency != 2:
                     return
-                self._usage_counter["get_online_features"] = 2  # avoid overflow
+                self._usage_counter[method] = 2  # avoid overflow
             json = {
                 "function_name": function_name,
                 "module_name": module_name,

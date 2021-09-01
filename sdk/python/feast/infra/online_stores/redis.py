@@ -26,6 +26,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.usage import log_exceptions_and_usage
 
 try:
     from redis import Redis
@@ -60,6 +61,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
+    @log_exceptions_and_usage
     def update(
         self,
         config: RepoConfig,
@@ -74,6 +76,7 @@ class RedisOnlineStore(OnlineStore):
         """
         pass
 
+    @log_exceptions_and_usage
     def teardown(
         self,
         config: RepoConfig,
@@ -130,6 +133,7 @@ class RedisOnlineStore(OnlineStore):
                 self._client = Redis(**kwargs)
         return self._client
 
+    @log_exceptions_and_usage
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -167,6 +171,7 @@ class RedisOnlineStore(OnlineStore):
             if progress:
                 progress(1)
 
+    @log_exceptions_and_usage
     def online_read(
         self,
         config: RepoConfig,

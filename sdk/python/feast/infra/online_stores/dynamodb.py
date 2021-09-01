@@ -23,6 +23,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 try:
     import boto3
@@ -48,6 +49,7 @@ class DynamoDBOnlineStore(OnlineStore):
     Online feature store for AWS DynamoDB.
     """
 
+    @log_exceptions_and_usage
     def update(
         self,
         config: RepoConfig,
@@ -85,6 +87,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         self._delete_tables_idempotent(dynamodb_resource, config, tables_to_delete)
 
+    @log_exceptions_and_usage
     def teardown(
         self,
         config: RepoConfig,
@@ -97,6 +100,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         self._delete_tables_idempotent(dynamodb_resource, config, tables)
 
+    @log_exceptions_and_usage
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -127,6 +131,7 @@ class DynamoDBOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
+    @log_exceptions_and_usage
     def online_read(
         self,
         config: RepoConfig,
