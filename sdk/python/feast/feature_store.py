@@ -468,14 +468,9 @@ class FeatureStore:
 
         provider = self._get_provider()
 
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project, allow_cache=True
-        )
-
         job = provider.get_historical_features(
             self.config,
             feature_views,
-            all_on_demand_feature_views,
             _feature_refs,
             entity_df,
             self._registry,
@@ -792,18 +787,21 @@ class FeatureStore:
             return initial_response
         initial_response_df = initial_response.to_df()
         # Apply on demand transformations
-        # TODO(adchia): Include only the feature values from the specified input FVs in the ODFV.
         for odfv in all_on_demand_feature_views:
             feature_ref = odfv.name
             if feature_ref in feature_refs:
-                transformed_features_df = odfv.get_transformed_features_df(full_feature_names, initial_response_df)
+                transformed_features_df = odfv.get_transformed_features_df(
+                    full_feature_names, initial_response_df
+                )
                 for row_idx in range(len(result_rows)):
                     result_row = result_rows[row_idx]
                     # TODO(adchia): support multiple output features in an ODFV, which requires different naming
                     #  conventions
                     result_row.fields[odfv.name].CopyFrom(
                         python_value_to_proto_value(
-                            transformed_features_df[odfv.features[0].name].values[row_idx]
+                            transformed_features_df[odfv.features[0].name].values[
+                                row_idx
+                            ]
                         )
                     )
                     result_row.statuses[

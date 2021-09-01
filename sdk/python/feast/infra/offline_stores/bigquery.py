@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 import numpy as np
-import pandas
+import pandas as pd
 import pyarrow
 from pydantic import StrictStr
 from pydantic.typing import Literal
@@ -17,9 +17,9 @@ from feast.errors import (
     InvalidEntityType,
 )
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
@@ -88,15 +88,21 @@ class BigQueryOfflineStore(OfflineStore):
             WHERE _feast_row = 1
             """
 
-        return BigQueryRetrievalJob(query=query, client=client, config=config)
+        # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
+        return BigQueryRetrievalJob(
+            query=query,
+            client=client,
+            config=config,
+            full_feature_names=False,
+            on_demand_feature_views=None,
+        )
 
     @staticmethod
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
-        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
+        entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
         full_feature_names: bool = False,
@@ -142,20 +148,41 @@ class BigQueryOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
         )
 
-        return BigQueryRetrievalJob(query=query, client=client, config=config, registry=Registry)
+        return BigQueryRetrievalJob(
+            query=query,
+            client=client,
+            config=config,
+            full_feature_names=full_feature_names,
+            on_demand_feature_views=registry.list_on_demand_feature_views(
+                project, allow_cache=True
+            ),
+        )
 
 
 class BigQueryRetrievalJob(RetrievalJob):
-    def __init__(self, query, client, config, registry):
+    def __init__(
+        self,
+        query: str,
+        client: bigquery.Client,
+        config: RepoConfig,
+        full_feature_names: bool,
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+    ):
         self.query = query
         self.client = client
         self.config = config
-        self.registry = registry
+        self._full_feature_names = full_feature_names
+        self._on_demand_feature_views = on_demand_feature_views
 
-    def get_registry(self):
-        return self.registry
+    @property
+    def full_feature_names(self) -> bool:
+        return self._full_feature_names
 
-    def to_df(self):
+    @property
+    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+        return self._on_demand_feature_views
+
+    def to_df_internal(self) -> pd.DataFrame:
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
@@ -272,7 +299,7 @@ def _get_table_reference_for_new_entity(
 
 
 def _upload_entity_df_and_get_entity_schema(
-    client: Client, table_name: str, entity_df: Union[pandas.DataFrame, str],
+    client: Client, table_name: str, entity_df: Union[pd.DataFrame, str],
 ) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
 
@@ -284,7 +311,7 @@ def _upload_entity_df_and_get_entity_schema(
             client.query(f"SELECT * FROM {table_name} LIMIT 1").result().to_dataframe()
         )
         entity_schema = dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
-    elif isinstance(entity_df, pandas.DataFrame):
+    elif isinstance(entity_df, pd.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
 
