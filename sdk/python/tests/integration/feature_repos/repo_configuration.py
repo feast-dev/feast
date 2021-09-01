@@ -76,7 +76,7 @@ FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
 
 
 def construct_universal_entities() -> Dict[str, List[Any]]:
-    return {"customer": list(range(1001, 1110)), "driver": list(range(5001, 5110))}
+    return {"customer": list(range(1001, 1020)), "driver": list(range(5001, 5020))}
 
 
 def construct_universal_datasets(
@@ -91,9 +91,9 @@ def construct_universal_datasets(
     orders_df = driver_test_data.create_orders_df(
         customers=entities["customer"],
         drivers=entities["driver"],
-        start_date=end_time - timedelta(days=365),
-        end_date=end_time + timedelta(days=365),
-        order_count=1000,
+        start_date=end_time - timedelta(days=3),
+        end_date=end_time + timedelta(days=3),
+        order_count=20,
     )
 
     return {"customer": customer_df, "driver": driver_df, "orders": orders_df}
@@ -146,7 +146,7 @@ class Environment:
     )
 
     def __post_init__(self):
-        self.start_date: datetime = self.end_date - timedelta(days=7)
+        self.start_date: datetime = self.end_date - timedelta(days=3)
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
