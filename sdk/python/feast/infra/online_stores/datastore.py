@@ -243,22 +243,21 @@ class DatastoreOnlineStore(OnlineStore):
             )
             keys.append(key)
 
+        # NOTE: get_multi doesn't return values in the same order as the keys in the request.
+        # Also, len(values) can be less than len(keys) in the case of missing values.
         values = client.get_multi(keys)
-
-        if values is not None:
-            keys_missing_from_response = set(keys) - set([v.key for v in values])
-            values = sorted(values, key=lambda v: keys.index(v.key))
-            for value in values:
+        values_dict = {v.key: v for v in values} if values is not None else {}
+        for key in keys:
+            if key in values_dict:
+                value = values_dict[key]
                 res = {}
                 for feature_name, value_bin in value["values"].items():
                     val = ValueProto()
                     val.ParseFromString(value_bin)
                     res[feature_name] = val
                 result.append((value["event_ts"], res))
-            for missing_key_idx in sorted(
-                [keys.index(k) for k in keys_missing_from_response]
-            ):
-                result.insert(missing_key_idx, (None, None))
+            else:
+                result.append((None, None))
 
         return result
 
