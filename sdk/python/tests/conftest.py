@@ -99,7 +99,9 @@ def simple_dataset_2() -> pd.DataFrame:
     return pd.DataFrame.from_dict(data)
 
 
-@pytest.fixture(params=FULL_REPO_CONFIGS, scope="session")
+@pytest.fixture(
+    params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
+)
 def environment(request):
     with construct_test_environment(request.param) as e:
         yield e
@@ -130,3 +132,9 @@ def e2e_data_sources(environment: Environment):
     yield df, data_source
 
     environment.data_source_creator.teardown()
+
+
+@pytest.fixture(params=FULL_REPO_CONFIGS, scope="session")
+def type_test_environment(request):
+    with construct_test_environment(request.param) as e:
+        yield e

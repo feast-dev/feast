@@ -33,7 +33,6 @@ GCP_CONFIG = IntegrationTestRepoConfig(
     offline_store_creator=BigQueryDataSourceCreator,
     online_store="datastore",
 )
-feature_is_list = [True, False]
 
 
 # TODO: change parametrization to allow for other providers aside from gcp
