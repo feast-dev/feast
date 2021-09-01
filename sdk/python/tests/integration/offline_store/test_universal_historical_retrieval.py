@@ -153,10 +153,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         feature_views["customer"],
         feature_views["driver"],
     )
-    full_feature_names = environment.test_repo_config.full_feature_names
 
     entity_df_query = None
-    orders_table = table_name_from_data_source(environment.datasources["orders"])
+    orders_table = table_name_from_data_source(data_sources["orders"])
     if orders_table:
         entity_df_query = f"SELECT * FROM {orders_table}"
 
