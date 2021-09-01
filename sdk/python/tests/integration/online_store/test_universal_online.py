@@ -4,20 +4,24 @@ import unittest
 import pandas as pd
 import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import construct_universal_feature_views
-from tests.integration.feature_repos.universal.entities import driver, customer
+from tests.integration.feature_repos.test_repo_configuration import (
+    construct_universal_feature_views,
+)
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 
 @pytest.mark.integration
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(environment, universal_data_sources, full_feature_names):
+
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    print(f"Created universal feature views {feature_views}")
-
-    fs.apply([feature_views.values()] + [driver(), customer()])
+    feast_objects = []
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer()])
+    fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
 
     sample_drivers = random.sample(entities["driver"], 10)

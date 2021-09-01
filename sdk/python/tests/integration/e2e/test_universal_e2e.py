@@ -22,8 +22,9 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 @pytest.mark.parametrize(
     "config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v)
 )
-def test_e2e_consistency(config, data_source_cache: DataSourceCache, environment,
-                         universal_data_sources):
+def test_e2e_consistency(
+    config, data_source_cache: DataSourceCache, environment, universal_data_sources
+):
     df = create_dataset()
     test_suite_name = test_e2e_consistency.__name__
     with construct_test_environment(config, test_suite_name) as test_environment:

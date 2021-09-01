@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
@@ -12,8 +13,7 @@ from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
 from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_offline_retrieval_test,
+    construct_universal_feature_views,
     table_name_from_data_source,
 )
 
@@ -136,18 +136,22 @@ def get_expected_training_df(
     return expected_df
 
 
-@parametrize_offline_retrieval_test
-def test_historical_features(environment: Environment):
+@pytest.mark.integration
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
 
+    (entities, datasets, data_sources) = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+
     customer_df, driver_df, orders_df = (
-        environment.datasets["customer"],
-        environment.datasets["driver"],
-        environment.datasets["orders"],
+        datasets["customer"],
+        datasets["driver"],
+        datasets["orders"],
     )
     customer_fv, driver_fv = (
-        environment.feature_views["customer"],
-        environment.feature_views["driver"],
+        feature_views["customer"],
+        feature_views["driver"],
     )
     full_feature_names = environment.test_repo_config.full_feature_names
 
