@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import multiprocessing
-import uuid
 from datetime import datetime, timedelta
 from sys import platform
 
@@ -27,9 +26,6 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_data_sources,
     construct_universal_datasets,
     construct_universal_entities,
-)
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
 )
 
 
