@@ -16,6 +16,7 @@ from tests.integration.feature_repos.test_repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 np.random.seed(0)
 
@@ -153,6 +154,10 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         feature_views["customer"],
         feature_views["driver"],
     )
+
+    feast_objects = []
+    feast_objects.extend([customer_fv, driver_fv, driver(), customer()])
+    store.apply(feast_objects)
 
     entity_df_query = None
     orders_table = table_name_from_data_source(data_sources["orders"])
