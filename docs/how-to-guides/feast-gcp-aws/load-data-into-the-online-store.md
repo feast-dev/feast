@@ -8,8 +8,6 @@ Feast allows users to load their feature data into an online store in order to s
 
 Before proceeding, please ensure that you have applied \(registered\) the feature views that should be materialized.
 
-{% page-ref page="deploy-a-feature-store.md" %}
-
 ### 2.a Materialize
 
 The materialize command allows users to materialize features over a specific historical time range into the online store.

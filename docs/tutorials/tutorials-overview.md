@@ -1,6 +1,6 @@
 # Overview
 
-These Feast tutorials showcase how to use Feast to simplify end to end model training / serving. 
+These Feast tutorials showcase how to use Feast to simplify end to end model training / serving.
 
 {% page-ref page="fraud-detection.md" %}
 

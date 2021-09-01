@@ -2,7 +2,7 @@
 
 ## Overview
 
-Feast makes adding support for a new offline store \(database\) easy. Developers can simply implement the [OfflineStore](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/offline_store.py#L41) interface to add support for a new store \(other than the existing stores like Parquet files, Redshift, and Bigquery\). 
+Feast makes adding support for a new offline store \(database\) easy. Developers can simply implement the [OfflineStore](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/offline_store.py#L41) interface to add support for a new store \(other than the existing stores like Parquet files, Redshift, and Bigquery\).
 
 In this guide, we will show you how to extend the existing File offline store and use in a feature repo. While we will be implementing a specific store, this guide should be representative for adding support for any new offline store.
 
@@ -18,10 +18,10 @@ The process for using a custom offline store consists of 4 steps:
 ## 1. Defining an OfflineStore class
 
 {% hint style="info" %}
- OfflineStore class names must end with the OfflineStore suffix!
+OfflineStore class names must end with the OfflineStore suffix!
 {% endhint %}
 
-The OfflineStore class contains a couple of methods to read features from the offline store. Unlike the OnlineStore class, Feast does not manage any infrastructure for the offline store. 
+The OfflineStore class contains a couple of methods to read features from the offline store. Unlike the OnlineStore class, Feast does not manage any infrastructure for the offline store.
 
 There are two methods that deal with reading data from the offline stores`get_historical_features`and `pull_latest_from_table_or_query`.
 
@@ -64,7 +64,6 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                                        created_timestamp_column,
                                                        start_date,
                                                        end_date)
-
 ```
 {% endcode %}
 
@@ -72,11 +71,11 @@ There are two methods that deal with reading data from the offline stores`get_hi
 
 Additional configuration may be needed to allow the OfflineStore to talk to the backing store. For example, Redshift needs configuration information like the connection information for the Redshift instance, credentials for connecting to the database, etc.
 
-To facilitate configuration, all OfflineStore implementations are **required** to also define a corresponding OfflineStoreConfig class in the same file. This OfflineStoreConfig class should inherit from the `FeastConfigBaseModel` class, which is defined [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/repo_config.py#L44). 
+To facilitate configuration, all OfflineStore implementations are **required** to also define a corresponding OfflineStoreConfig class in the same file. This OfflineStoreConfig class should inherit from the `FeastConfigBaseModel` class, which is defined [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/repo_config.py#L44).
 
 The `FeastConfigBaseModel` is a [pydantic](https://pydantic-docs.helpmanual.io/) class, which parses yaml configuration into python objects. Pydantic also allows the model classes to define validators for the config classes, to make sure that the config classes are correctly defined.
 
-This config class **must** container a `type` field, which contains the fully qualified class name of its corresponding OfflineStore class. 
+This config class **must** container a `type` field, which contains the fully qualified class name of its corresponding OfflineStore class.
 
 Additionally, the name of the config class must be the same as the OfflineStore class, with the `Config` suffix.
 
@@ -89,7 +88,6 @@ class CustomFileOfflineStoreConfig(FeastConfigBaseModel):
 
     type: Literal["feast_custom_offline_store.file.CustomFileOfflineStore"] \
         = "feast_custom_offline_store.file.CustomFileOfflineStore"
-
 ```
 {% endcode %}
 
@@ -98,11 +96,10 @@ This configuration can be specified in the `feature_store.yaml` as follows:
 {% code title="feature\_repo/feature\_store.yaml" %}
 ```yaml
     type: feast_custom_offline_store.file.CustomFileOfflineStore
-
 ```
 {% endcode %}
 
-This configuration information is available to the methods of the OfflineStore, via the`config: RepoConfig` parameter which is passed into the methods of the OfflineStore interface, specifically at the `config.offline_store` field of the `config` parameter. 
+This configuration information is available to the methods of the OfflineStore, via the`config: RepoConfig` parameter which is passed into the methods of the OfflineStore interface, specifically at the `config.offline_store` field of the `config` parameter.
 
 {% code title="feast\_custom\_offline\_store/file.py" %}
 ```python
@@ -117,7 +114,6 @@ This configuration information is available to the methods of the OfflineStore, 
         offline_store_config = config.offline_store
         assert isinstance(offline_store_config, CustomFileOfflineStoreConfig)
         store_type = offline_store_config.type
-
 ```
 {% endcode %}
 
@@ -149,13 +145,12 @@ class CustomFileRetrievalJob(RetrievalJob):
         print("Getting a pandas DataFrame from a File is easy!")
         df = self.evaluation_function()
         return pyarrow.Table.from_pandas(df)
-
 ```
 {% endcode %}
 
-## 4. Using the custom offline store 
+## 4. Using the custom offline store
 
-After implementing these classes, the custom offline store can be used by referencing it in a feature repo's `feature_store.yaml` file, specifically in the `offline_store` field. The value specified should be the fully qualified class name of the OfflineStore. 
+After implementing these classes, the custom offline store can be used by referencing it in a feature repo's `feature_store.yaml` file, specifically in the `offline_store` field. The value specified should be the fully qualified class name of the OfflineStore.
 
 As long as your OfflineStore class is available in your Python environment, it will be imported by Feast dynamically at runtime.
 

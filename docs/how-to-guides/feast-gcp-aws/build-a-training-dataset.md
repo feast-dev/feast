@@ -8,8 +8,6 @@ Feast allows users to build a training dataset from time-series feature data tha
 
 Please ensure that you have created a feature repository and that you have registered \(applied\) your feature views with Feast.
 
-{% page-ref page="deploy-a-feature-store.md" %}
-
 ### 2. Define feature references
 
 Start by defining the feature references \(e.g., `driver_trips:average_daily_rides`\) for the features that you would like to retrieve from the offline store. These features can come from multiple feature tables. The only requirement is that the feature tables that make up the feature references have the same entity \(or composite entity\), and that they aren't located in the same offline store.

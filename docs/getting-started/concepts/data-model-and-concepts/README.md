@@ -10,5 +10,3 @@
 
 {% page-ref page="feature-retrieval.md" %}
 
-
-
