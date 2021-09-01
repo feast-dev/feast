@@ -4,7 +4,7 @@ import unittest
 import pandas as pd
 import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import (
+from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
 from tests.integration.feature_repos.universal.entities import customer, driver

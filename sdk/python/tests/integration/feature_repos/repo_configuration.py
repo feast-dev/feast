@@ -20,7 +20,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 
 @dataclass(frozen=True, repr=True)
-class TestRepoConfig:
+class IntegrationTestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
     """
@@ -41,28 +41,28 @@ def ds_creator_path(cls: str):
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
-FULL_REPO_CONFIGS: List[TestRepoConfig] = [
+FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    TestRepoConfig(),
-    TestRepoConfig(online_store=REDIS_CONFIG),
+    IntegrationTestRepoConfig(),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
     # GCP configurations
-    TestRepoConfig(
+    IntegrationTestRepoConfig(
         provider="gcp",
         offline_store_creator=ds_creator_path("bigquery.BigQueryDataSourceCreator"),
         online_store="datastore",
     ),
-    TestRepoConfig(
+    IntegrationTestRepoConfig(
         provider="gcp",
         offline_store_creator=ds_creator_path("bigquery.BigQueryDataSourceCreator"),
         online_store=REDIS_CONFIG,
     ),
     # AWS configurations
-    TestRepoConfig(
+    IntegrationTestRepoConfig(
         provider="aws",
         offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
         online_store=DYNAMO_CONFIG,
     ),
-    TestRepoConfig(
+    IntegrationTestRepoConfig(
         provider="aws",
         offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
         online_store=REDIS_CONFIG,
@@ -132,7 +132,7 @@ def construct_universal_feature_views(
 @dataclass
 class Environment:
     name: str
-    test_repo_config: TestRepoConfig
+    test_repo_config: IntegrationTestRepoConfig
     feature_store: FeatureStore
     data_source_creator: DataSourceCreator
 
@@ -152,7 +152,9 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
     return None
 
 
-def vary_full_feature_names(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
+def vary_full_feature_names(
+    configs: List[IntegrationTestRepoConfig],
+) -> List[IntegrationTestRepoConfig]:
     new_configs = []
     for c in configs:
         true_c = replace(c, full_feature_names=True)
@@ -162,8 +164,8 @@ def vary_full_feature_names(configs: List[TestRepoConfig]) -> List[TestRepoConfi
 
 
 def vary_infer_event_timestamp_col(
-    configs: List[TestRepoConfig],
-) -> List[TestRepoConfig]:
+    configs: List[IntegrationTestRepoConfig],
+) -> List[IntegrationTestRepoConfig]:
     new_configs = []
     for c in configs:
         true_c = replace(c, infer_event_timestamp_col=True)
@@ -172,7 +174,9 @@ def vary_infer_event_timestamp_col(
     return new_configs
 
 
-def vary_infer_feature(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
+def vary_infer_feature(
+    configs: List[IntegrationTestRepoConfig],
+) -> List[IntegrationTestRepoConfig]:
     new_configs = []
     for c in configs:
         true_c = replace(c, infer_features=True)
@@ -182,8 +186,8 @@ def vary_infer_feature(configs: List[TestRepoConfig]) -> List[TestRepoConfig]:
 
 
 def vary_providers_for_offline_stores(
-    configs: List[TestRepoConfig],
-) -> List[TestRepoConfig]:
+    configs: List[IntegrationTestRepoConfig],
+) -> List[IntegrationTestRepoConfig]:
     new_configs = []
     for c in configs:
         if "FileDataSourceCreator" in c.offline_store_creator:
@@ -199,7 +203,8 @@ def vary_providers_for_offline_stores(
 
 @contextmanager
 def construct_test_environment(
-    test_repo_config: TestRepoConfig, test_suite_name: str = "integration_test"
+    test_repo_config: IntegrationTestRepoConfig,
+    test_suite_name: str = "integration_test",
 ) -> Environment:
     project = f"{test_suite_name}_{str(uuid.uuid4()).replace('-', '')[:8]}"
 

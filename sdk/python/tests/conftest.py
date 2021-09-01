@@ -18,7 +18,7 @@ from sys import platform
 import pandas as pd
 import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import (
+from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     construct_test_environment,
     construct_universal_data_sources,
@@ -113,6 +113,6 @@ def universal_data_sources(environment):
         datasets, environment.data_source_creator
     )
 
-    yield (entities, datasets, datasources)
+    yield entities, datasets, datasources
 
     environment.data_source_creator.teardown()

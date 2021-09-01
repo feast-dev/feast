@@ -1,7 +1,7 @@
 import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import (
-    TestRepoConfig,
+from tests.integration.feature_repos.repo_configuration import (
+    IntegrationTestRepoConfig,
     construct_test_environment,
     construct_universal_feature_views,
 )
@@ -15,7 +15,7 @@ from tests.integration.feature_repos.universal.entities import customer, driver
     reason="No way to run this test today. Credentials conflict with real AWS credentials in CI"
 )
 def test_registration_and_retrieval_from_custom_s3_endpoint(universal_data_sources):
-    config = TestRepoConfig(
+    config = IntegrationTestRepoConfig(
         offline_store_creator="tests.integration.feature_repos.universal.data_sources.file.S3FileDataSourceCreator"
     )
     import os
