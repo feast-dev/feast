@@ -21,26 +21,21 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 @pytest.mark.parametrize(
     "config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v)
 )
-def test_e2e_consistency(
-    config, data_source_cache: DataSourceCache, environment, universal_data_sources
-):
+def test_e2e_consistency(config):
     df = create_dataset()
     test_suite_name = test_e2e_consistency.__name__
     with construct_test_environment(config, test_suite_name) as test_environment:
         fs = test_environment.feature_store
         infer_features = test_environment.test_repo_config.infer_features
-        key = f"{test_suite_name}_{test_environment.test_repo_config.offline_store_creator}"
-        _, _, data_source, _ = data_source_cache.get_or_create(
-            key,
-            lambda: (
-                None,
-                df,
-                test_environment.data_source_creator.create_data_source(
-                    df, fs.project, field_mapping={"ts_1": "ts", "id": "driver_id"}
-                ),
-                test_environment.data_source_creator,
+        _, _, data_source, _ = (
+            None,
+            df,
+            test_environment.data_source_creator.create_data_source(
+                df, fs.project, field_mapping={"ts_1": "ts", "id": "driver_id"}
             ),
+            test_environment.data_source_creator,
         )
+
         fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
 
         entity = driver()
