@@ -73,7 +73,7 @@ class Usage:
             return os.getenv("FEAST_FORCE_USAGE_UUID")
         return self._usage_id
 
-    def log(self, function_name: str):
+    def log(self, function_name: str, module_name: str, execution_time: int):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
             if function_name == "get_online_features":
@@ -83,7 +83,9 @@ class Usage:
                 self._usage_counter["get_online_features"] = 2  # avoid overflow
             json = {
                 "function_name": function_name,
+                "module_name": module_name,
                 "usage_id": self.usage_id,
+                "execution_time": execution_time,
                 "timestamp": datetime.utcnow().isoformat(),
                 "version": get_version(),
                 "os": sys.platform,
@@ -148,8 +150,12 @@ def log_exceptions_and_usage(func):
     @wraps(func)
     def exception_logging_wrapper(*args, **kwargs):
         try:
+            start_time = datetime.now()
             result = func(*args, **kwargs)
-            usage.log(func.__name__)
+            end_time = datetime.now()
+            time_diff = end_time - start_time
+            execution_time = int(time_diff.total_seconds() * 1000)
+            usage.log(func.__name__, func.__module__, execution_time)
         except Exception as e:
             error_type = type(e).__name__
             trace_to_log = []
