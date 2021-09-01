@@ -4,14 +4,23 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import pandas as pd
 
-from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data, importer
+from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data
 from feast.data_source import DataSource
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.bigquery import (
+    BigQueryDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.redshift import (
+    RedshiftDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.feature_views import (
     create_customer_daily_profile_feature_view,
@@ -28,15 +37,11 @@ class IntegrationTestRepoConfig:
     provider: str = "local"
     online_store: Union[str, Dict] = "sqlite"
 
-    offline_store_creator: str = "tests.integration.feature_repos.universal.data_sources.file.FileDataSourceCreator"
+    offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
 
     full_feature_names: bool = True
     infer_event_timestamp_col: bool = True
     infer_features: bool = False
-
-
-def ds_creator_path(cls: str):
-    return f"tests.integration.feature_repos.universal.data_sources.{cls}"
 
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
@@ -48,23 +53,23 @@ FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # GCP configurations
     IntegrationTestRepoConfig(
         provider="gcp",
-        offline_store_creator=ds_creator_path("bigquery.BigQueryDataSourceCreator"),
+        offline_store_creator=BigQueryDataSourceCreator,
         online_store="datastore",
     ),
     IntegrationTestRepoConfig(
         provider="gcp",
-        offline_store_creator=ds_creator_path("bigquery.BigQueryDataSourceCreator"),
+        offline_store_creator=BigQueryDataSourceCreator,
         online_store=REDIS_CONFIG,
     ),
     # AWS configurations
     IntegrationTestRepoConfig(
         provider="aws",
-        offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
+        offline_store_creator=RedshiftDataSourceCreator,
         online_store=DYNAMO_CONFIG,
     ),
     IntegrationTestRepoConfig(
         provider="aws",
-        offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
+        offline_store_creator=RedshiftDataSourceCreator,
         online_store=REDIS_CONFIG,
     ),
 ]
@@ -159,13 +164,7 @@ def construct_test_environment(
 ) -> Environment:
     project = f"{test_suite_name}_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
-    module_name, config_class_name = test_repo_config.offline_store_creator.rsplit(
-        ".", 1
-    )
-
-    offline_creator: DataSourceCreator = importer.get_class_from_type(
-        module_name, config_class_name, "DataSourceCreator"
-    )(project)
+    offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
 
     offline_store_config = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
