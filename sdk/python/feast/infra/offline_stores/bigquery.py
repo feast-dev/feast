@@ -23,6 +23,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 from .bigquery_source import BigQuerySource
 
@@ -53,6 +54,7 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -101,6 +103,7 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -196,6 +199,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         """
         return self.query
 
+    @log_exceptions_and_usage
     def to_bigquery(
         self,
         job_config: bigquery.QueryJobConfig = None,
@@ -305,6 +309,7 @@ def _get_table_reference_for_new_entity(
     return f"{dataset_project}.{dataset_name}.{table_name}"
 
 
+@log_exceptions_and_usage
 def _upload_entity_df_and_get_entity_schema(
     client: Client, table_name: str, entity_df: Union[pd.DataFrame, str],
 ) -> Dict[str, np.dtype]:

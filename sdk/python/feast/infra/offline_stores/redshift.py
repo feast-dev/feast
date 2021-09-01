@@ -18,6 +18,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.utils import aws_utils
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -47,6 +48,7 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
 
 class RedshiftOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -103,6 +105,7 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -248,6 +251,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._drop_columns,
             )
 
+    @log_exceptions_and_usage
     def to_arrow(self) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
@@ -262,6 +266,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._drop_columns,
             )
 
+    @log_exceptions_and_usage
     def to_s3(self) -> str:
         """ Export dataset to S3 in Parquet format and return path """
         with self._query_generator() as query:
@@ -277,6 +282,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
             return self._s3_path
 
+    @log_exceptions_and_usage
     def to_redshift(self, table_name: str) -> None:
         """ Save dataset as a new Redshift table """
         with self._query_generator() as query:
@@ -294,6 +300,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
 
 
+@log_exceptions_and_usage
 def _upload_entity_df_and_get_entity_schema(
     entity_df: Union[pd.DataFrame, str],
     redshift_client,
