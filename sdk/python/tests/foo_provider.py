@@ -13,6 +13,9 @@ from feast.registry import Registry
 
 
 class FooProvider(Provider):
+    def __init__(self, config: RepoConfig):
+        pass
+
     def update_infra(
         self,
         project: str,
@@ -74,7 +77,4 @@ class FooProvider(Provider):
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        pass
-
-    def __init__(self, config, repo_path):
         pass

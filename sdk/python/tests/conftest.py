@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import multiprocessing
+import uuid
 from datetime import datetime, timedelta
 from sys import platform
 
@@ -27,6 +28,7 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_datasets,
     construct_universal_entities,
 )
+from tests.integration.feature_repos.universal.data_sources.bigquery import BigQueryDataSourceCreator
 
 
 def pytest_configure(config):
@@ -126,7 +128,7 @@ def e2e_data_sources(environment: Environment):
     data_source = environment.data_source_creator.create_data_source(
         df,
         environment.feature_store.project,
-        field_mapping={"ts_1": "ts", "id": "driver_id"},
+        field_mapping={"ts_1": "ts"},
     )
 
     yield df, data_source

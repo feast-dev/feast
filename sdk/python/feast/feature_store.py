@@ -291,7 +291,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
-            >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
+            >>> fs = FeatureStore(repo_path="feature_repo")
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
@@ -413,7 +413,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> import pandas as pd
-            >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
+            >>> fs = FeatureStore(repo_path="feature_repo")
             >>> entity_df = pd.DataFrame.from_dict(
             ...     {
             ...         "driver_id": [1001, 1002],
@@ -498,7 +498,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
-            >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
+            >>> fs = FeatureStore(repo_path="feature_repo")
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
             Materializing...
             <BLANKLINE>
@@ -583,7 +583,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
-            >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
+            >>> fs = FeatureStore(repo_path="feature_repo")
             >>> fs.materialize(
             ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             ... )
@@ -675,7 +675,7 @@ class FeatureStore:
             from 3 hours ago to 10 minutes ago, and then retrieve these online features.
 
             >>> from feast import FeatureStore, RepoConfig
-            >>> fs = FeatureStore(config=RepoConfig(registry="feature_repo/data/registry.db", project="feature_repo", provider="local"))
+            >>> fs = FeatureStore(repo_path="feature_repo")
             >>> online_response = fs.get_online_features(
             ...     features=[
             ...         "driver_hourly_stats:conv_rate",

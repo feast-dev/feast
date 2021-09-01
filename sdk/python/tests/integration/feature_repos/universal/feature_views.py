@@ -5,12 +5,15 @@ from feast.data_source import DataSource
 
 
 def driver_feature_view(
-    data_source: DataSource, name="test_correctness", infer_features: bool = False,
+    data_source: DataSource,
+    name="test_correctness",
+    infer_features: bool = False,
+    value_type: ValueType = ValueType.FLOAT,
 ) -> FeatureView:
     return FeatureView(
         name=name,
         entities=["driver"],
-        features=None if infer_features else [Feature("value", ValueType.FLOAT)],
+        features=None if infer_features else [Feature("value", value_type)],
         ttl=timedelta(days=5),
         input=data_source,
     )

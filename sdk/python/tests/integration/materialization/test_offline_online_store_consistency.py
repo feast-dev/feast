@@ -37,7 +37,7 @@ def prep_bq_fs_and_fv(
 ) -> Iterator[Tuple[FeatureStore, FeatureView]]:
     client = bigquery.Client()
     gcp_project = client.project
-    bigquery_dataset = "test_ingestion"
+    bigquery_dataset = f"test_ingestion{time.time_ns()}"
     dataset = bigquery.Dataset(f"{gcp_project}.{bigquery_dataset}")
     client.create_dataset(dataset, exists_ok=True)
     dataset.default_table_expiration_ms = (
@@ -59,7 +59,7 @@ def prep_bq_fs_and_fv(
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         date_partition_column="",
-        field_mapping={"ts_1": "ts", "id": "driver_id"},
+        field_mapping={"ts_1": "ts"},
     )
 
     fv = driver_feature_view(bigquery_source)
@@ -122,7 +122,7 @@ def prep_redshift_fs_and_fv(
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         date_partition_column="",
-        field_mapping={"ts_1": "ts", "id": "driver_id"},
+        field_mapping={"ts_1": "ts"},
     )
 
     fv = driver_feature_view(redshift_source)
@@ -171,7 +171,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             event_timestamp_column="ts",
             created_timestamp_column="created_ts",
             date_partition_column="",
-            field_mapping={"ts_1": "ts", "id": "driver_id"},
+            field_mapping={"ts_1": "ts"},
         )
         fv = driver_feature_view(file_source)
         e = Entity(
@@ -212,7 +212,7 @@ def prep_redis_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             event_timestamp_column="ts",
             created_timestamp_column="created_ts",
             date_partition_column="",
-            field_mapping={"ts_1": "ts", "id": "driver_id"},
+            field_mapping={"ts_1": "ts"},
         )
         fv = driver_feature_view(file_source)
         e = Entity(
@@ -254,7 +254,7 @@ def prep_dynamodb_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             event_timestamp_column="ts",
             created_timestamp_column="created_ts",
             date_partition_column="",
-            field_mapping={"ts_1": "ts", "id": "driver_id"},
+            field_mapping={"ts_1": "ts"},
         )
         fv = driver_feature_view(file_source)
         e = Entity(
@@ -332,7 +332,7 @@ def check_offline_and_online_features(
 def run_offline_online_store_consistency_test(
     fs: FeatureStore, fv: FeatureView, full_feature_names: bool,
 ) -> None:
-    now = datetime.utcnow()
+    now = datetime.now()
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
     start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)

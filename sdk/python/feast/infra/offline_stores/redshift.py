@@ -426,7 +426,7 @@ WITH entity_dataframe AS (
         {{featureview.name}}__entity_row_unique_id,
         MAX(event_timestamp) AS event_timestamp
         {% if featureview.created_timestamp_column %}
-            ,ANY_VALUE(created_timestamp) AS created_timestamp
+            ,MAX(created_timestamp) AS created_timestamp
         {% endif %}
 
     FROM {{ featureview.name }}__base

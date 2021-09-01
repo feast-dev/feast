@@ -30,6 +30,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 try:
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import datastore
+    from google.cloud.datastore.client import Key
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError, FeastProviderLoginError
 
@@ -233,22 +234,32 @@ class DatastoreOnlineStore(OnlineStore):
 
         feast_project = config.project
 
+        keys: List[Key] = []
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
             document_id = compute_entity_id(entity_key)
             key = client.key(
                 "Project", feast_project, "Table", table.name, "Row", document_id
             )
-            value = client.get(key)
-            if value is not None:
+            keys.append(key)
+
+        values = client.get_multi(keys)
+
+        if values is not None:
+            keys_missing_from_response = set(keys) - set([v.key for v in values])
+            values = sorted(values, key=lambda v: keys.index(v.key))
+            for value in values:
                 res = {}
                 for feature_name, value_bin in value["values"].items():
                     val = ValueProto()
                     val.ParseFromString(value_bin)
                     res[feature_name] = val
                 result.append((value["event_ts"], res))
-            else:
-                result.append((None, None))
+            for missing_key_idx in sorted(
+                [keys.index(k) for k in keys_missing_from_response]
+            ):
+                result.insert(missing_key_idx, (None, None))
+
         return result
 
 

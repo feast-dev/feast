@@ -19,6 +19,7 @@
   * [Architecture](getting-started/concepts/architecture-and-components/README.md)
     * [Overview](getting-started/concepts/architecture-and-components/overview.md)
     * [Feature repository](getting-started/concepts/architecture-and-components/feature-repository.md)
+    * [Registry](getting-started/concepts/architecture-and-components/untitled.md)
     * [Offline store](getting-started/concepts/architecture-and-components/offline-store.md)
     * [Online store](getting-started/concepts/architecture-and-components/online-store.md)
     * [Provider](getting-started/concepts/architecture-and-components/provider.md)
@@ -27,8 +28,9 @@
 ## Tutorials
 
 * [Overview](tutorials/tutorials-overview.md)
-* [Driver Ranking](tutorials/driver-ranking-with-feast.md)
-* [Fraud Detection](tutorials/fraud-detection.md)
+* [Driver ranking](tutorials/driver-ranking-with-feast.md)
+* [Fraud detection on GCP](tutorials/fraud-detection.md)
+* [Real-time credit scoring on AWS](tutorials/real-time-credit-scoring-on-aws.md)
 
 ## How-to Guides
 
