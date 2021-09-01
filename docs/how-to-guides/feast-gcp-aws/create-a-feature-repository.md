@@ -1,6 +1,6 @@
 # Create a feature repository
 
-A feature repository is a directory that contains the configuration of the feature store and individual features. This configuration is written as code \(Python/YAML\) and it's highly recommended that teams track it centrally using git. See [Feature Repository](../reference/feature-repository/) for a detailed explanation of feature repositories.
+A feature repository is a directory that contains the configuration of the feature store and individual features. This configuration is written as code \(Python/YAML\) and it's highly recommended that teams track it centrally using git. See [Feature Repository](../../reference/feature-repository/) for a detailed explanation of feature repositories.
 
 The easiest way to create a new feature repository to use `feast init` command:
 
