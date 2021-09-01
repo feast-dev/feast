@@ -5,9 +5,9 @@ from tests.integration.feature_repos.test_repo_configuration import (
     construct_test_environment,
     construct_universal_feature_views,
 )
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 # TODO: Allow integration tests to run using different credentials.
-from tests.integration.feature_repos.universal.entities import customer, driver
 
 
 @pytest.mark.integration
