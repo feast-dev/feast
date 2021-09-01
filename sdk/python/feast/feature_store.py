@@ -787,29 +787,21 @@ class FeatureStore:
             return initial_response
         initial_response_df = initial_response.to_df()
         # Apply on demand transformations
-        # TODO(adchia): Include only the feature values from the specified input FVs in the ODFV.
         for odfv in all_on_demand_feature_views:
             feature_ref = odfv.name
             if feature_ref in feature_refs:
-                # Copy over un-prefixed features even if not requested since transform may need it
-                if full_feature_names:
-                    for input_fv in odfv.inputs.values():
-                        for feature in input_fv.features:
-                            full_feature_ref = f"{input_fv.name}__{feature.name}"
-                            if full_feature_ref in initial_response_df.keys():
-                                initial_response_df[feature.name] = initial_response_df[
-                                    full_feature_ref
-                                ]
-
-                # Compute transformed values and apply to each result row
-                ret_value = odfv.udf.__call__(initial_response_df)
+                transformed_features_df = odfv.get_transformed_features_df(
+                    full_feature_names, initial_response_df
+                )
                 for row_idx in range(len(result_rows)):
                     result_row = result_rows[row_idx]
                     # TODO(adchia): support multiple output features in an ODFV, which requires different naming
                     #  conventions
                     result_row.fields[odfv.name].CopyFrom(
                         python_value_to_proto_value(
-                            ret_value[odfv.features[0].name].values[row_idx]
+                            transformed_features_df[odfv.features[0].name].values[
+                                row_idx
+                            ]
                         )
                     )
                     result_row.statuses[
