@@ -20,6 +20,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 
 class AwsProvider(Provider):
@@ -28,6 +29,7 @@ class AwsProvider(Provider):
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
 
+    @log_exceptions_and_usage
     def update_infra(
         self,
         project: str,
@@ -46,6 +48,7 @@ class AwsProvider(Provider):
             partial=partial,
         )
 
+    @log_exceptions_and_usage
     def teardown_infra(
         self,
         project: str,
@@ -54,6 +57,7 @@ class AwsProvider(Provider):
     ) -> None:
         self.online_store.teardown(self.repo_config, tables, entities)
 
+    @log_exceptions_and_usage
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -65,6 +69,7 @@ class AwsProvider(Provider):
     ) -> None:
         self.online_store.online_write_batch(config, table, data, progress)
 
+    @log_exceptions_and_usage
     def online_read(
         self,
         config: RepoConfig,
@@ -76,6 +81,7 @@ class AwsProvider(Provider):
 
         return result
 
+    @log_exceptions_and_usage
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
@@ -121,6 +127,7 @@ class AwsProvider(Provider):
                 self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
             )
 
+    @log_exceptions_and_usage
     def get_historical_features(
         self,
         config: RepoConfig,
