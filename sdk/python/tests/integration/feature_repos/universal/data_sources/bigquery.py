@@ -23,7 +23,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
 
         self.tables = []
 
-    def get_dataset(self):
+    def create_dataset(self):
         if not self.dataset:
             self.dataset = bigquery.Dataset(self.dataset_id)
             print(f"Creating dataset: {self.dataset_id}")
@@ -32,7 +32,6 @@ class BigQueryDataSourceCreator(DataSourceCreator):
                 1000 * 60 * 60 * 24 * 14
             )  # 2 weeks in milliseconds
             self.client.update_dataset(self.dataset, ["default_table_expiration_ms"])
-        return self.dataset
 
     def teardown(self):
 
@@ -50,30 +49,32 @@ class BigQueryDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: Optional[str] = None,
+        destination_name: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
 
-        destination = self.get_prefixed_table_name(destination)
+        destination_name = self.get_prefixed_table_name(destination_name)
 
-        self.get_dataset()
+        self.create_dataset()
 
         job_config = bigquery.LoadJobConfig()
-        if self.gcp_project not in destination:
-            destination = f"{self.gcp_project}.{self.project_name}.{destination}"
+        if self.gcp_project not in destination_name:
+            destination_name = (
+                f"{self.gcp_project}.{self.project_name}.{destination_name}"
+            )
 
         job = self.client.load_table_from_dataframe(
-            df, destination, job_config=job_config
+            df, destination_name, job_config=job_config
         )
         job.result()
 
-        self.tables.append(destination)
+        self.tables.append(destination_name)
 
         return BigQuerySource(
-            table_ref=destination,
+            table_ref=destination_name,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",

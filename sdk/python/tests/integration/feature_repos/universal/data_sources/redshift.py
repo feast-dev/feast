@@ -34,14 +34,14 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: str,
+        destination_name: str,
         suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        destination = self.get_prefixed_table_name(destination)
+        destination_name = self.get_prefixed_table_name(destination_name)
 
         aws_utils.upload_df_to_redshift(
             self.client,
@@ -49,16 +49,16 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             self.offline_store_config.database,
             self.offline_store_config.user,
             self.s3,
-            f"{self.offline_store_config.s3_staging_location}/copy/{destination}.parquet",
+            f"{self.offline_store_config.s3_staging_location}/copy/{destination_name}.parquet",
             self.offline_store_config.iam_role,
-            destination,
+            destination_name,
             df,
         )
 
-        self.tables.append(destination)
+        self.tables.append(destination_name)
 
         return RedshiftSource(
-            table=destination,
+            table=destination_name,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",

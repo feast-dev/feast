@@ -12,7 +12,7 @@ class DataSourceCreator(ABC):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: str,
+        destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
@@ -22,13 +22,16 @@ class DataSourceCreator(ABC):
         persist the dataframe in offline store, using the destination string as a way to differentiate multiple
         dataframes and data sources.
 
-        :param df: The dataframe to be used to create the data source.
-        :param destination: The destination that this data frame is meant for. This str is used by the implementing
-            classes to isolate the multiple dataframes from each other.
-        :param event_timestamp_column: Pass through for the underlying data source.
-        :param created_timestamp_column: Pass through for the underlying data source.
-        :param field_mapping: Pass through for the underlying data source.
-        :return: A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the
+        Args:
+            df: The dataframe to be used to create the data source.
+            destination_name: This str is used by the implementing classes to
+                isolate the multiple dataframes from each other.
+            event_timestamp_column: Pass through for the underlying data source.
+            created_timestamp_column: Pass through for the underlying data source.
+            field_mapping: Pass through for the underlying data source.
+
+        Returns:
+            A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the
             test.
         """
         ...

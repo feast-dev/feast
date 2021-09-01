@@ -7,41 +7,21 @@ import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.data.data_creator import create_dataset
-from tests.integration.feature_repos.repo_configuration import (
-    FULL_REPO_CONFIGS,
-    construct_test_environment,
-    vary_infer_feature,
-)
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize(
-    "config", vary_infer_feature(FULL_REPO_CONFIGS), ids=lambda v: str(v)
-)
-def test_e2e_consistency(config):
-    df = create_dataset()
-    test_suite_name = test_e2e_consistency.__name__
-    with construct_test_environment(config, test_suite_name) as test_environment:
-        fs = test_environment.feature_store
-        infer_features = test_environment.test_repo_config.infer_features
-        _, _, data_source, _ = (
-            None,
-            df,
-            test_environment.data_source_creator.create_data_source(
-                df, fs.project, field_mapping={"ts_1": "ts", "id": "driver_id"}
-            ),
-            test_environment.data_source_creator,
-        )
+@pytest.mark.parametrize("infer_features", [True, False])
+def test_e2e_consistency(environment, e2e_data_sources, infer_features):
+    fs = environment.feature_store
+    df, data_source = e2e_data_sources
+    fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
 
-        fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
+    entity = driver()
+    fs.apply([fv, entity])
 
-        entity = driver()
-        fs.apply([fv, entity])
-
-        run_offline_online_store_consistency_test(fs, fv)
+    run_offline_online_store_consistency_test(fs, fv)
 
 
 def check_offline_and_online_features(

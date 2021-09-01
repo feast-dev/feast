@@ -18,8 +18,10 @@ from sys import platform
 import pandas as pd
 import pytest
 
+from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
+    Environment,
     construct_test_environment,
     construct_universal_data_sources,
     construct_universal_datasets,
@@ -114,5 +116,19 @@ def universal_data_sources(environment):
     )
 
     yield entities, datasets, datasources
+
+    environment.data_source_creator.teardown()
+
+
+@pytest.fixture(scope="session")
+def e2e_data_sources(environment: Environment):
+    df = create_dataset()
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        environment.feature_store.project,
+        field_mapping={"ts_1": "ts", "id": "driver_id"},
+    )
+
+    yield df, data_source
 
     environment.data_source_creator.teardown()

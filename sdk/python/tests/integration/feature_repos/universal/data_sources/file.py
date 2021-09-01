@@ -26,16 +26,18 @@ class FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: str,
+        destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        destination = self.get_prefixed_table_name(destination)
+        destination_name = self.get_prefixed_table_name(destination_name)
 
         f = tempfile.NamedTemporaryFile(
-            prefix=f"{self.project_name}_{destination}", suffix=".parquet", delete=False
+            prefix=f"{self.project_name}_{destination_name}",
+            suffix=".parquet",
+            delete=False,
         )
         df.to_parquet(f.name)
         self.files.append(f)
@@ -102,13 +104,13 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination: Optional[str] = None,
+        destination_name: Optional[str] = None,
         suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
-        filename = f"{destination}.parquet"
+        filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")
         host = self.minio.get_container_host_ip()
         minio_endpoint = f"{host}:{port}"

@@ -1,7 +1,7 @@
 import tempfile
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -99,19 +99,19 @@ def construct_universal_data_sources(
 ) -> Dict[str, DataSource]:
     customer_ds = data_source_creator.create_data_source(
         datasets["customer"],
-        destination="customer_profile",
+        destination_name="customer_profile",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
     driver_ds = data_source_creator.create_data_source(
         datasets["driver"],
-        destination="driver_hourly",
+        destination_name="driver_hourly",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
     orders_ds = data_source_creator.create_data_source(
         datasets["orders"],
-        destination="orders",
+        destination_name="orders",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
@@ -150,55 +150,6 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
     elif hasattr(ds, "table"):
         return ds.table
     return None
-
-
-def vary_full_feature_names(
-    configs: List[IntegrationTestRepoConfig],
-) -> List[IntegrationTestRepoConfig]:
-    new_configs = []
-    for c in configs:
-        true_c = replace(c, full_feature_names=True)
-        false_c = replace(c, full_feature_names=False)
-        new_configs.extend([true_c, false_c])
-    return new_configs
-
-
-def vary_infer_event_timestamp_col(
-    configs: List[IntegrationTestRepoConfig],
-) -> List[IntegrationTestRepoConfig]:
-    new_configs = []
-    for c in configs:
-        true_c = replace(c, infer_event_timestamp_col=True)
-        false_c = replace(c, infer_event_timestamp_col=False)
-        new_configs.extend([true_c, false_c])
-    return new_configs
-
-
-def vary_infer_feature(
-    configs: List[IntegrationTestRepoConfig],
-) -> List[IntegrationTestRepoConfig]:
-    new_configs = []
-    for c in configs:
-        true_c = replace(c, infer_features=True)
-        false_c = replace(c, infer_features=False)
-        new_configs.extend([true_c, false_c])
-    return new_configs
-
-
-def vary_providers_for_offline_stores(
-    configs: List[IntegrationTestRepoConfig],
-) -> List[IntegrationTestRepoConfig]:
-    new_configs = []
-    for c in configs:
-        if "FileDataSourceCreator" in c.offline_store_creator:
-            new_configs.append(c)
-        elif "RedshiftDataSourceCreator" in c.offline_store_creator:
-            for p in ["local", "aws"]:
-                new_configs.append(replace(c, provider=p))
-        elif "BigQueryDataSourceCreator" in c.offline_store_creator:
-            for p in ["local", "gcp"]:
-                new_configs.append(replace(c, provider=p))
-    return new_configs
 
 
 @contextmanager
