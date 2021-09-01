@@ -83,6 +83,9 @@ class Environment:
     feature_store: FeatureStore
     data_source: DataSource
     data_source_creator: DataSourceCreator
+    entity_type: ValueType
+    feature_dtype: str
+    feature_is_list: bool
     entityless_data_source: Optional[DataSource] = None
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
