@@ -2,15 +2,20 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
-from tests.data.data_creator import get_feature_values_for_dtype, create_dataset
-from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.type_map import python_type_to_feast_value_type
 from feast.value_type import ValueType
-from tests.integration.feature_repos.repo_configuration import IntegrationTestRepoConfig, construct_test_environment
-from tests.integration.feature_repos.universal.data_sources.bigquery import BigQueryDataSourceCreator
+from tests.data.data_creator import create_dataset, get_feature_values_for_dtype
+from tests.integration.feature_repos.repo_configuration import (
+    IntegrationTestRepoConfig,
+    construct_test_environment,
+)
+from tests.integration.feature_repos.universal.data_sources.bigquery import (
+    BigQueryDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.entities import driver
+from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
 def entity_feature_types_ids(entity_type: ValueType, feature_dtype: str):
@@ -50,7 +55,7 @@ def test_entity_inference_types_match(entity_type, feature_dtype, feature_is_lis
         data_source = environment.data_source_creator.create_data_source(
             df,
             destination_name=environment.feature_store.project,
-            field_mapping={"ts_1": "ts"}
+            field_mapping={"ts_1": "ts"},
         )
         fv = create_feature_view(feature_dtype, feature_is_list, data_source)
         fs = environment.feature_store
@@ -88,13 +93,15 @@ def test_entity_inference_types_match(entity_type, feature_dtype, feature_is_lis
 @pytest.mark.parametrize(
     "feature_is_list", [True, False], ids=lambda v: f"feature_is_list:{str(v)}"
 )
-def test_feature_get_historical_features_types_match(entity_type, feature_dtype, feature_is_list):
+def test_feature_get_historical_features_types_match(
+    entity_type, feature_dtype, feature_is_list
+):
     with construct_test_environment(GCP_CONFIG) as environment:
         df = create_dataset(entity_type, feature_dtype, feature_is_list)
         data_source = environment.data_source_creator.create_data_source(
             df,
             destination_name=environment.feature_store.project,
-            field_mapping={"ts_1": "ts"}
+            field_mapping={"ts_1": "ts"},
         )
         fv = create_feature_view(feature_dtype, feature_is_list, data_source)
         fs = environment.feature_store
@@ -104,16 +111,16 @@ def test_feature_get_historical_features_types_match(entity_type, feature_dtype,
 
             features = [f"{fv.name}:value"]
             df = pd.DataFrame()
-            df["driver_id"] = (
-                ["1", "3"] if entity_type == ValueType.STRING else [1, 3]
-            )
+            df["driver_id"] = ["1", "3"] if entity_type == ValueType.STRING else [1, 3]
             now = datetime.utcnow()
             ts = pd.Timestamp(now).round("ms")
             df["ts"] = [
                 ts - timedelta(hours=4),
                 ts - timedelta(hours=2),
             ]
-            historical_features = fs.get_historical_features(entity_df=df, features=features,)
+            historical_features = fs.get_historical_features(
+                entity_df=df, features=features,
+            )
 
             # TODO(adchia): pandas doesn't play well with nan values in ints. BQ will also coerce to floats if there are NaNs
             historical_features_df = historical_features.to_df()
@@ -121,8 +128,12 @@ def test_feature_get_historical_features_types_match(entity_type, feature_dtype,
             if feature_is_list:
                 assert_feature_list_types(feature_dtype, historical_features_df)
             else:
-                assert_expected_historical_feature_types(feature_dtype, historical_features_df)
-            assert_expected_arrow_types(feature_dtype, feature_is_list, historical_features)
+                assert_expected_historical_feature_types(
+                    feature_dtype, historical_features_df
+                )
+            assert_expected_arrow_types(
+                feature_dtype, feature_is_list, historical_features
+            )
         finally:
             environment.data_source_creator.teardown()
 
@@ -139,13 +150,15 @@ def test_feature_get_historical_features_types_match(entity_type, feature_dtype,
 @pytest.mark.parametrize(
     "feature_is_list", [False], ids=lambda v: f"feature_is_list:{str(v)}"
 )
-def test_feature_get_online_features_types_match(entity_type, feature_dtype, feature_is_list):
+def test_feature_get_online_features_types_match(
+    entity_type, feature_dtype, feature_is_list
+):
     with construct_test_environment(GCP_CONFIG) as environment:
         df = create_dataset(entity_type, feature_dtype, feature_is_list)
         data_source = environment.data_source_creator.create_data_source(
             df,
             destination_name=environment.feature_store.project,
-            field_mapping={"ts_1": "ts"}
+            field_mapping={"ts_1": "ts"},
         )
         fv = create_feature_view(feature_dtype, feature_is_list, data_source)
         fs = environment.feature_store
@@ -170,7 +183,9 @@ def test_feature_get_online_features_types_match(entity_type, feature_dtype, fea
             }
             assert (
                 type(online_features["value"][0]).__name__
-                == feature_list_dtype_to_expected_online_response_value_type[feature_dtype]
+                == feature_list_dtype_to_expected_online_response_value_type[
+                    feature_dtype
+                ]
             )
         finally:
             environment.data_source_creator.teardown()

@@ -28,7 +28,9 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_datasets,
     construct_universal_entities,
 )
-from tests.integration.feature_repos.universal.data_sources.bigquery import BigQueryDataSourceCreator
+from tests.integration.feature_repos.universal.data_sources.bigquery import (
+    BigQueryDataSourceCreator,
+)
 
 
 def pytest_configure(config):
@@ -126,9 +128,7 @@ def universal_data_sources(environment):
 def e2e_data_sources(environment: Environment):
     df = create_dataset()
     data_source = environment.data_source_creator.create_data_source(
-        df,
-        environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     yield df, data_source
