@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import pandas as pd
 
@@ -33,12 +33,15 @@ class RedshiftDataSourceCreator(DataSourceCreator):
 
     def create_data_source(
         self,
-        destination: str,
         df: pd.DataFrame,
+        destination_name: str,
+        suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
+
+        destination_name = self.get_prefixed_table_name(destination_name)
 
         aws_utils.upload_df_to_redshift(
             self.client,
@@ -46,16 +49,16 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             self.offline_store_config.database,
             self.offline_store_config.user,
             self.s3,
-            f"{self.offline_store_config.s3_staging_location}/copy/{destination}.parquet",
+            f"{self.offline_store_config.s3_staging_location}/copy/{destination_name}.parquet",
             self.offline_store_config.iam_role,
-            destination,
+            destination_name,
             df,
         )
 
-        self.tables.append(destination)
+        self.tables.append(destination_name)
 
         return RedshiftSource(
-            table=destination,
+            table=destination_name,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
@@ -65,8 +68,8 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config
 
-    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
-        return f"{name}_{suffix}"
+    def get_prefixed_table_name(self, suffix: str) -> str:
+        return f"{self.project_name}_{suffix}"
 
     def teardown(self):
         for table in self.tables:

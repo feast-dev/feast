@@ -18,6 +18,16 @@ from sys import platform
 import pandas as pd
 import pytest
 
+from tests.data.data_creator import create_dataset
+from tests.integration.feature_repos.repo_configuration import (
+    FULL_REPO_CONFIGS,
+    Environment,
+    construct_test_environment,
+    construct_universal_data_sources,
+    construct_universal_datasets,
+    construct_universal_entities,
+)
+
 
 def pytest_configure(config):
     if platform in ["darwin", "windows"]:
@@ -87,3 +97,44 @@ def simple_dataset_2() -> pd.DataFrame:
         ],
     }
     return pd.DataFrame.from_dict(data)
+
+
+@pytest.fixture(
+    params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
+)
+def environment(request):
+    with construct_test_environment(request.param) as e:
+        yield e
+
+
+@pytest.fixture(scope="session")
+def universal_data_sources(environment):
+    entities = construct_universal_entities()
+    datasets = construct_universal_datasets(
+        entities, environment.start_date, environment.end_date
+    )
+    datasources = construct_universal_data_sources(
+        datasets, environment.data_source_creator
+    )
+
+    yield entities, datasets, datasources
+
+    environment.data_source_creator.teardown()
+
+
+@pytest.fixture(scope="session")
+def e2e_data_sources(environment: Environment):
+    df = create_dataset()
+    data_source = environment.data_source_creator.create_data_source(
+        df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
+    )
+
+    yield df, data_source
+
+    environment.data_source_creator.teardown()
+
+
+@pytest.fixture(params=FULL_REPO_CONFIGS, scope="session")
+def type_test_environment(request):
+    with construct_test_environment(request.param) as e:
+        yield e

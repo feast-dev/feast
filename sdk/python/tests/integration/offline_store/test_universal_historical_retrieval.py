@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
@@ -11,10 +12,11 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_offline_retrieval_test,
+from tests.integration.feature_repos.repo_configuration import (
+    construct_universal_feature_views,
+    table_name_from_data_source,
 )
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 np.random.seed(0)
 
@@ -135,24 +137,32 @@ def get_expected_training_df(
     return expected_df
 
 
-@parametrize_offline_retrieval_test
-def test_historical_features(environment: Environment):
+@pytest.mark.integration
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
 
-    customer_df, customer_fv = (
-        environment.customer_df,
-        environment.customer_feature_view(),
+    (entities, datasets, data_sources) = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+
+    customer_df, driver_df, orders_df = (
+        datasets["customer"],
+        datasets["driver"],
+        datasets["orders"],
     )
-    driver_df, driver_fv = (
-        environment.driver_df,
-        environment.driver_stats_feature_view(),
+    customer_fv, driver_fv = (
+        feature_views["customer"],
+        feature_views["driver"],
     )
-    orders_df = environment.orders_df
-    full_feature_names = environment.test_repo_config.full_feature_names
+
+    feast_objects = []
+    feast_objects.extend([customer_fv, driver_fv, driver(), customer()])
+    store.apply(feast_objects)
 
     entity_df_query = None
-    if environment.orders_table():
-        entity_df_query = f"SELECT * FROM {environment.orders_table()}"
+    orders_table = table_name_from_data_source(data_sources["orders"])
+    if orders_table:
+        entity_df_query = f"SELECT * FROM {orders_table}"
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL

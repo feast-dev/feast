@@ -3,23 +3,21 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
+import pytest
 from pytz import utc
 
 from feast import FeatureStore, FeatureView
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_e2e_test,
-)
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
-@parametrize_e2e_test
-def test_e2e_consistency(test_environment: Environment):
-    fs, fv = (
-        test_environment.feature_store,
-        driver_feature_view(test_environment.data_source),
-    )
+@pytest.mark.integration
+@pytest.mark.parametrize("infer_features", [True, False])
+def test_e2e_consistency(environment, e2e_data_sources, infer_features):
+    fs = environment.feature_store
+    df, data_source = e2e_data_sources
+    fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
+
     entity = driver()
     fs.apply([fv, entity])
 

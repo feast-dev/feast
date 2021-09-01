@@ -13,11 +13,13 @@
 # limitations under the License.
 
 import re
+from datetime import datetime
 from typing import Any, Dict, Union
 
 import numpy as np
 import pandas as pd
 from google.protobuf.json_format import MessageToDict
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.protos.feast.types.Value_pb2 import (
     BoolList,
@@ -104,6 +106,8 @@ def python_type_to_feast_value_type(
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
+        "Timestamp": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
@@ -160,7 +164,8 @@ def _type_err(item, dtype):
     raise ValueError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
 
-def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
+# TODO(achals): Simplify this method and remove the noqa.
+def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:  # noqa: C901
     """
     Converts a Python (native, pandas) value to a Feast Proto Value based
     on a provided value type
@@ -281,6 +286,10 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
         elif feast_value_type == ValueType.INT64:
             return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.UNIX_TIMESTAMP:
+            if isinstance(value, datetime):
+                return ProtoValue(int64_val=int(value.timestamp()))
+            elif isinstance(value, Timestamp):
+                return ProtoValue(int64_val=int(value.ToSeconds()))
             return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.FLOAT:
             return ProtoValue(float_val=float(value))

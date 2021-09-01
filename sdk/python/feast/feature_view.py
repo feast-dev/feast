@@ -325,6 +325,28 @@ class FeatureView:
                 self.batch_source.created_timestamp_column,
             } | set(self.entities)
 
+            if (
+                self.batch_source.event_timestamp_column
+                in self.batch_source.field_mapping
+            ):
+                columns_to_exclude.add(
+                    self.batch_source.field_mapping[
+                        self.batch_source.event_timestamp_column
+                    ]
+                )
+            if (
+                self.batch_source.created_timestamp_column
+                in self.batch_source.field_mapping
+            ):
+                columns_to_exclude.add(
+                    self.batch_source.field_mapping[
+                        self.batch_source.created_timestamp_column
+                    ]
+                )
+            for e in self.entities:
+                if e in self.batch_source.field_mapping:
+                    columns_to_exclude.add(self.batch_source.field_mapping[e])
+
             for (
                 col_name,
                 col_datatype,
@@ -335,7 +357,7 @@ class FeatureView:
                 ):
                     feature_name = (
                         self.batch_source.field_mapping[col_name]
-                        if col_name in self.batch_source.field_mapping.keys()
+                        if col_name in self.batch_source.field_mapping
                         else col_name
                     )
                     self.features.append(

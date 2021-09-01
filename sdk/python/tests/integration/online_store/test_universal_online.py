@@ -2,26 +2,36 @@ import random
 import unittest
 
 import pandas as pd
+import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_online_test,
+from tests.integration.feature_repos.repo_configuration import (
+    construct_universal_feature_views,
 )
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 
-@parametrize_online_test
-def test_online_retrieval(environment: Environment):
+@pytest.mark.integration
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_online_retrieval(environment, universal_data_sources, full_feature_names):
+
     fs = environment.feature_store
-    full_feature_names = environment.test_repo_config.full_feature_names
+    entities, datasets, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
 
-    sample_drivers = random.sample(environment.driver_entities, 10)
-    drivers_df = environment.driver_df[
-        environment.driver_df["driver_id"].isin(sample_drivers)
+    feast_objects = []
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer()])
+    fs.apply(feast_objects)
+    fs.materialize(environment.start_date, environment.end_date)
+
+    sample_drivers = random.sample(entities["driver"], 10)
+    drivers_df = datasets["driver"][
+        datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
 
-    sample_customers = random.sample(environment.customer_entities, 10)
-    customers_df = environment.customer_df[
-        environment.customer_df["customer_id"].isin(sample_customers)
+    sample_customers = random.sample(entities["customer"], 10)
+    customers_df = datasets["customer"][
+        datasets["customer"]["customer_id"].isin(sample_customers)
     ]
 
     entity_rows = [

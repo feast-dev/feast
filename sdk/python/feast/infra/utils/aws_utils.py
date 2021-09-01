@@ -82,7 +82,7 @@ class RedshiftStatementNotFinishedError(Exception):
 
 
 @retry(
-    wait=wait_exponential(multiplier=0.1, max=30),
+    wait=wait_exponential(multiplier=1, max=30),
     retry=retry_if_exception_type(RedshiftStatementNotFinishedError),
 )
 def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:

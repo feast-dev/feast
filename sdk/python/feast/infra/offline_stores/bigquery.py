@@ -86,6 +86,7 @@ class BigQueryOfflineStore(OfflineStore):
             )
             WHERE _feast_row = 1
             """
+
         return BigQueryRetrievalJob(query=query, client=client, config=config)
 
     @staticmethod

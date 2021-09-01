@@ -382,18 +382,6 @@ def run_offline_online_store_consistency_test(
     )
 
 
-@pytest.mark.integration
-@pytest.mark.parametrize(
-    "bq_source_type", ["query", "table"],
-)
-@pytest.mark.parametrize("full_feature_names", [True, False])
-def test_bq_offline_online_store_consistency(
-    bq_source_type: str, full_feature_names: bool
-):
-    with prep_bq_fs_and_fv(bq_source_type) as (fs, fv):
-        run_offline_online_store_consistency_test(fs, fv, full_feature_names)
-
-
 @pytest.mark.parametrize("full_feature_names", [True, False])
 @pytest.mark.integration
 def test_redis_offline_online_store_consistency(full_feature_names: bool):
