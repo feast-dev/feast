@@ -20,6 +20,7 @@ import pyarrow
 
 from feast.data_source import DataSource
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
@@ -27,11 +28,34 @@ from feast.repo_config import RepoConfig
 class RetrievalJob(ABC):
     """RetrievalJob is used to manage the execution of a historical feature retrieval"""
 
+    @property
     @abstractmethod
+    def full_feature_names(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+        pass
+
     def to_df(self) -> pd.DataFrame:
+        """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
+        features_df = self.to_df_internal()
+        if self.on_demand_feature_views is None:
+            return features_df
+
+        for odfv in self.on_demand_feature_views:
+            features_df = features_df.join(
+                odfv.get_transformed_features_df(self.full_feature_names, features_df)
+            )
+        return features_df
+
+    @abstractmethod
+    def to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
         pass
 
+    # TODO(adchia): implement ODFV for to_arrow method
     @abstractmethod
     def to_arrow(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""

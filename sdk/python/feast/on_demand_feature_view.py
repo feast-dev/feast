@@ -103,7 +103,7 @@ class OnDemandFeatureView:
 
     def get_transformed_features_df(
         self, full_feature_names: bool, df_with_features: pd.DataFrame
-    ) -> pd.DataFrame:
+    ):
         # Apply on demand transformations
         # TODO(adchia): Include only the feature values from the specified input FVs in the ODFV.
         # Copy over un-prefixed features even if not requested since transform may need it
