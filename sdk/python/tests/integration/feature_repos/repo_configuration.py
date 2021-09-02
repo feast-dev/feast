@@ -28,6 +28,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
     create_global_stats_feature_view,
+    create_order_feature_view,
 )
 
 
@@ -99,12 +100,14 @@ def construct_universal_datasets(
         order_count=20,
     )
     global_df = driver_test_data.create_global_daily_stats_df(start_time, end_time)
+    entity_df = orders_df[["customer_id", "driver_id", "order_id", "event_timestamp"]]
 
     return {
         "customer": customer_df,
         "driver": driver_df,
         "orders": orders_df,
         "global": global_df,
+        "entity": entity_df,
     }
 
 
@@ -127,7 +130,7 @@ def construct_universal_data_sources(
         datasets["orders"],
         destination_name="orders",
         event_timestamp_column="event_timestamp",
-        created_timestamp_column="created",
+        created_timestamp_column=None,
     )
     global_ds = data_source_creator.create_data_source(
         datasets["global"],
@@ -161,6 +164,7 @@ def construct_universal_feature_views(
                 "input_request": create_conv_rate_request_data_source(),
             }
         ),
+        "order": create_order_feature_view(data_sources["orders"]),
     }
 
 
