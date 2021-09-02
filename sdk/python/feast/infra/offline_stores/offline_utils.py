@@ -148,7 +148,7 @@ def build_point_in_time_query(
     entity_df_event_timestamp_col: str,
     query_template: str,
     full_feature_names: bool = False,
-):
+) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
 

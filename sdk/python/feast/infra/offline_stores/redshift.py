@@ -9,7 +9,7 @@ import pyarrow as pa
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
-from feast import RedshiftSource
+from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
 from feast.feature_view import FeatureView
@@ -90,11 +90,14 @@ class RedshiftOfflineStore(OfflineStore):
             )
             WHERE _feast_row = 1
             """
+        # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return RedshiftRetrievalJob(
             query=query,
             redshift_client=redshift_client,
             s3_resource=s3_resource,
             config=config,
+            full_feature_names=False,
+            on_demand_feature_views=None,
         )
 
     @staticmethod
@@ -164,6 +167,10 @@ class RedshiftOfflineStore(OfflineStore):
             redshift_client=redshift_client,
             s3_resource=s3_resource,
             config=config,
+            full_feature_names=full_feature_names,
+            on_demand_feature_views=registry.list_on_demand_feature_views(
+                project=project, allow_cache=True
+            ),
             drop_columns=["entity_timestamp"]
             + [
                 f"{feature_view.name}__entity_row_unique_id"
@@ -179,6 +186,8 @@ class RedshiftRetrievalJob(RetrievalJob):
         redshift_client,
         s3_resource,
         config: RepoConfig,
+        full_feature_names: bool,
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
         drop_columns: Optional[List[str]] = None,
     ):
         """Initialize RedshiftRetrievalJob object.
@@ -188,6 +197,8 @@ class RedshiftRetrievalJob(RetrievalJob):
             redshift_client: boto3 redshift-data client
             s3_resource: boto3 s3 resource object
             config: Feast repo config
+            full_feature_names: Whether to add the feature view prefixes to the feature names
+            on_demand_feature_views: A list of on demand transforms to apply at retrieval time
             drop_columns: Optionally a list of columns to drop before unloading to S3.
                           This is a convenient field, since "SELECT ... EXCEPT col" isn't supported in Redshift.
         """
@@ -209,9 +220,19 @@ class RedshiftRetrievalJob(RetrievalJob):
             + "/unload/"
             + str(uuid.uuid4())
         )
+        self._full_feature_names = full_feature_names
+        self._on_demand_feature_views = on_demand_feature_views
         self._drop_columns = drop_columns
 
-    def to_df(self) -> pd.DataFrame:
+    @property
+    def full_feature_names(self) -> bool:
+        return self._full_feature_names
+
+    @property
+    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+        return self._on_demand_feature_views
+
+    def to_df_internal(self) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
                 self._redshift_client,
@@ -304,7 +325,12 @@ def _upload_entity_df_and_get_entity_schema(
             f"CREATE TABLE {table_name} AS ({entity_df})",
         )
         limited_entity_df = RedshiftRetrievalJob(
-            f"SELECT * FROM {table_name} LIMIT 1", redshift_client, s3_resource, config
+            f"SELECT * FROM {table_name} LIMIT 1",
+            redshift_client,
+            s3_resource,
+            config,
+            full_feature_names=False,
+            on_demand_feature_views=None,
         ).to_df()
         return dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
     else:

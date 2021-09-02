@@ -6,7 +6,7 @@ import pyarrow
 import pytz
 from pydantic.typing import Literal
 
-from feast import FileSource
+from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import FeatureView
@@ -30,13 +30,28 @@ class FileOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class FileRetrievalJob(RetrievalJob):
-    def __init__(self, evaluation_function: Callable):
+    def __init__(
+        self,
+        evaluation_function: Callable,
+        full_feature_names: bool,
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+    ):
         """Initialize a lazy historical retrieval job"""
 
         # The evaluation function executes a stored procedure to compute a historical retrieval.
         self.evaluation_function = evaluation_function
+        self._full_feature_names = full_feature_names
+        self._on_demand_feature_views = on_demand_feature_views
 
-    def to_df(self):
+    @property
+    def full_feature_names(self) -> bool:
+        return self._full_feature_names
+
+    @property
+    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+        return self._on_demand_feature_views
+
+    def to_df_internal(self) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return df
@@ -224,7 +239,13 @@ class FileOfflineStore(OfflineStore):
 
             return entity_df_with_features
 
-        job = FileRetrievalJob(evaluation_function=evaluate_historical_retrieval)
+        job = FileRetrievalJob(
+            evaluation_function=evaluate_historical_retrieval,
+            full_feature_names=full_feature_names,
+            on_demand_feature_views=registry.list_on_demand_feature_views(
+                project, allow_cache=True
+            ),
+        )
         return job
 
     @staticmethod
@@ -284,4 +305,9 @@ class FileOfflineStore(OfflineStore):
             )
             return last_values_df[columns_to_extract]
 
-        return FileRetrievalJob(evaluation_function=evaluate_offline_job)
+        # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
+        return FileRetrievalJob(
+            evaluation_function=evaluate_offline_job,
+            full_feature_names=False,
+            on_demand_feature_views=None,
+        )
