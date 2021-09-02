@@ -18,12 +18,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import pytz
 from pydantic import StrictStr
 from pydantic.schema import Literal
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
+from feast.infra.utils.online_store_untils import _table_id, _to_naive_utc
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -114,7 +114,7 @@ class SqliteOnlineStore(OnlineStore):
 
                     conn.execute(
                         f"""INSERT OR IGNORE INTO {_table_id(project, table)}
-                            (entity_key, feature_name, value, event_ts, created_ts)
+                            (entity_key, feature_name, value, event_ts,created_ts )
                             VALUES (?, ?, ?, ?, ?)""",
                         (
                             entity_key_bin,
@@ -193,14 +193,3 @@ class SqliteOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         os.unlink(self._get_db_path(config))
-
-
-def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
-    return f"{project}_{table.name}"
-
-
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
