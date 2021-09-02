@@ -171,6 +171,16 @@ class FeatureStore:
         return self._registry.list_feature_views(self.project)
 
     @log_exceptions_and_usage
+    def list_on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+        """
+        Retrieves the list of on demand feature views from the registry.
+
+        Returns:
+            A list of on demand feature views.
+        """
+        return self._registry.list_on_demand_feature_views(self.project)
+
+    @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
@@ -217,6 +227,22 @@ class FeatureStore:
             FeatureViewNotFoundException: The feature view could not be found.
         """
         return self._registry.get_feature_view(name, self.project)
+
+    @log_exceptions_and_usage
+    def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
+        """
+        Retrieves a feature view.
+
+        Args:
+            name: Name of feature view.
+
+        Returns:
+            The specified feature view.
+
+        Raises:
+            FeatureViewNotFoundException: The feature view could not be found.
+        """
+        return self._registry.get_on_demand_feature_view(name, self.project)
 
     @log_exceptions_and_usage
     def delete_feature_view(self, name: str):

@@ -28,6 +28,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
+    OnDemandFeatureViewNotFoundException,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
@@ -339,6 +340,53 @@ class Registry:
         if commit:
             self.commit()
 
+    def list_on_demand_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[OnDemandFeatureView]:
+        """
+        Retrieve a list of on demand feature views from the registry
+
+        Args:
+            allow_cache: Whether to allow returning on demand feature views from a cached registry
+            project: Filter on demand feature views based on project name
+
+        Returns:
+            List of on demand feature views
+        """
+
+        registry = self._get_registry_proto(allow_cache=allow_cache)
+        on_demand_feature_views = []
+        for on_demand_feature_view in registry.on_demand_feature_views:
+            if on_demand_feature_view.spec.project == project:
+                on_demand_feature_views.append(
+                    OnDemandFeatureView.from_proto(on_demand_feature_view)
+                )
+        return on_demand_feature_views
+
+    def get_on_demand_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> OnDemandFeatureView:
+        """
+        Retrieves an on demand feature view.
+
+        Args:
+            name: Name of on demand feature view
+            project: Feast project that this on demand feature  belongs to
+
+        Returns:
+            Returns either the specified on demand feature view, or raises an exception if
+            none is found
+        """
+        registry = self._get_registry_proto(allow_cache=allow_cache)
+
+        for on_demand_feature_view in registry.on_demand_feature_views:
+            if (
+                on_demand_feature_view.spec.project == project
+                and on_demand_feature_view.spec.name == name
+            ):
+                return OnDemandFeatureView.from_proto(on_demand_feature_view)
+        raise OnDemandFeatureViewNotFoundException(name, project=project)
+
     def apply_materialization(
         self,
         feature_view: FeatureView,
@@ -419,28 +467,6 @@ class Registry:
             if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
-
-    def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[OnDemandFeatureView]:
-        """
-        Retrieve a list of on demand feature views from the registry
-
-        Args:
-            allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature tables based on project name
-
-        Returns:
-            List of on demand feature views
-        """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
-        on_demand_feature_views = []
-        for on_demand_feature_view_proto in registry_proto.on_demand_feature_views:
-            if on_demand_feature_view_proto.spec.project == project:
-                on_demand_feature_views.append(
-                    OnDemandFeatureView.from_proto(on_demand_feature_view_proto)
-                )
-        return on_demand_feature_views
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:
         """

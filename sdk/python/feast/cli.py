@@ -236,6 +236,58 @@ def feature_view_list(ctx: click.Context):
     print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
+@cli.group(name="on-demand-feature-views")
+def on_demand_feature_views_cmd():
+    """
+    Access feature views
+    """
+    pass
+
+
+@on_demand_feature_views_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def on_demand_feature_view_describe(ctx: click.Context, name: str):
+    """
+    Describe an on demand feature view
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    try:
+        on_demand_feature_view = store.get_on_demand_feature_view(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(on_demand_feature_view)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@on_demand_feature_views_cmd.command(name="list")
+@click.pass_context
+def on_demand_feature_view_list(ctx: click.Context):
+    """
+    List all on demand feature views
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    table = []
+    for on_demand_feature_view in store.list_on_demand_feature_views():
+        table.append([on_demand_feature_view.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
 @cli.command("apply", cls=NoOptionDefaultFormat)
 @click.option(
     "--skip-source-validation",
