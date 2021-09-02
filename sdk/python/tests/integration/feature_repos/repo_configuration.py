@@ -1,4 +1,3 @@
-import os
 import tempfile
 import uuid
 from contextlib import contextmanager
@@ -163,7 +162,6 @@ def construct_test_environment(
     test_repo_config: IntegrationTestRepoConfig,
     test_suite_name: str = "integration_test",
 ) -> Environment:
-    os.environ["IS_TEST"] = "TRUE"
     project = f"{test_suite_name}_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)

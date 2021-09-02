@@ -56,7 +56,7 @@ test-python:
 	FEAST_USAGE=False pytest -n 8 sdk/python/tests
 
 test-python-integration:
-	FEAST_USAGE=False pytest -n 8 --integration sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True pytest -n 8 --integration sdk/python/tests
 
 format-python:
 	# Sort

@@ -224,7 +224,7 @@ def block_until_done(
     """
 
     # For test environments, retry more aggressively
-    is_test = os.getenv("IS_TEST", default=None) == "TRUE"
+    is_test = os.getenv("IS_TEST", default="False") == "True"
     if is_test:
         retry_cadence = 1
 
