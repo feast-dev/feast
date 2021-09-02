@@ -25,12 +25,14 @@ import "feast/core/Entity.proto";
 import "feast/core/FeatureService.proto";
 import "feast/core/FeatureTable.proto";
 import "feast/core/FeatureView.proto";
+import "feast/core/OnDemandFeatureView.proto";
 import "google/protobuf/timestamp.proto";
 
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
     repeated FeatureView feature_views = 6;
+    repeated OnDemandFeatureView on_demand_feature_views = 8;
     repeated FeatureService feature_services = 7;
 
     string registry_schema_version = 3; // to support migrations; incremented when schema is changed

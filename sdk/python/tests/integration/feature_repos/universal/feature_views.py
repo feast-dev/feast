@@ -1,6 +1,9 @@
 from datetime import timedelta
+from typing import Dict
 
-from feast import Feature, FeatureView, ValueType
+import pandas as pd
+
+from feast import Feature, FeatureView, OnDemandFeatureView, ValueType
 from feast.data_source import DataSource
 
 
@@ -16,6 +19,23 @@ def driver_feature_view(
         features=None if infer_features else [Feature("value", value_type)],
         ttl=timedelta(days=5),
         input=data_source,
+    )
+
+
+def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df["conv_rate_plus_100"] = driver_hourly_stats["conv_rate"] + 100
+    return df
+
+
+def conv_rate_plus_100_feature_view(
+    inputs: Dict[str, FeatureView]
+) -> OnDemandFeatureView:
+    return OnDemandFeatureView(
+        name=conv_rate_plus_100.__name__,
+        inputs=inputs,
+        features=[Feature("conv_rate_plus_100", ValueType.FLOAT)],
+        udf=conv_rate_plus_100,
     )
 
 

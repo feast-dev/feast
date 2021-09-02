@@ -37,6 +37,7 @@ from feast.inference import (
     update_entities_with_inferred_types_from_feature_views,
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
@@ -45,6 +46,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
+from feast.type_map import python_value_to_proto_value
 from feast.usage import log_exceptions, log_exceptions_and_usage
 from feast.version import get_version
 
@@ -267,8 +269,9 @@ class FeatureStore:
         objects: Union[
             Entity,
             FeatureView,
+            OnDemandFeatureView,
             FeatureService,
-            List[Union[FeatureView, Entity, FeatureService]],
+            List[Union[FeatureView, OnDemandFeatureView, Entity, FeatureService]],
         ],
         commit: bool = True,
     ):
@@ -314,6 +317,7 @@ class FeatureStore:
         assert isinstance(objects, list)
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         _validate_feature_views(views_to_update)
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
@@ -332,11 +336,15 @@ class FeatureStore:
 
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update
-        ) != len(objects):
+        ) + len(odfvs_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         for view in views_to_update:
             self._registry.apply_feature_view(view, project=self.project, commit=False)
+        for odfv in odfvs_to_update:
+            self._registry.apply_on_demand_feature_view(
+                odfv, project=self.project, commit=False
+            )
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
@@ -717,7 +725,6 @@ class FeatureStore:
         all_feature_views = self._registry.list_feature_views(
             project=self.project, allow_cache=True
         )
-
         _validate_feature_refs(_feature_refs, full_feature_names)
         grouped_refs = _group_feature_refs(_feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
@@ -759,6 +766,47 @@ class FeatureStore:
                                 feature_ref
                             ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
+        initial_response = OnlineResponse(
+            GetOnlineFeaturesResponse(field_values=result_rows)
+        )
+        return self._augment_response_with_on_demand_transforms(
+            _feature_refs, full_feature_names, initial_response, result_rows
+        )
+
+    def _augment_response_with_on_demand_transforms(
+        self,
+        feature_refs: List[str],
+        full_feature_names: bool,
+        initial_response: OnlineResponse,
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+    ) -> OnlineResponse:
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project, allow_cache=True
+        )
+        if len(all_on_demand_feature_views) == 0:
+            return initial_response
+        initial_response_df = initial_response.to_df()
+        # Apply on demand transformations
+        for odfv in all_on_demand_feature_views:
+            feature_ref = odfv.name
+            if feature_ref in feature_refs:
+                transformed_features_df = odfv.get_transformed_features_df(
+                    full_feature_names, initial_response_df
+                )
+                for row_idx in range(len(result_rows)):
+                    result_row = result_rows[row_idx]
+                    # TODO(adchia): support multiple output features in an ODFV, which requires different naming
+                    #  conventions
+                    result_row.fields[odfv.name].CopyFrom(
+                        python_value_to_proto_value(
+                            transformed_features_df[odfv.features[0].name].values[
+                                row_idx
+                            ]
+                        )
+                    )
+                    result_row.statuses[
+                        feature_ref
+                    ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
     @log_exceptions_and_usage
@@ -791,7 +839,9 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
             ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
         ]
     else:
-        feature_names = [ref.split(":")[1] for ref in feature_refs]
+        feature_names = [
+            ref.split(":")[1] if ":" in ref else ref for ref in feature_refs
+        ]
         collided_feature_names = [
             ref
             for ref, occurrences in Counter(feature_names).items()
@@ -820,6 +870,9 @@ def _group_feature_refs(
 
     if isinstance(features, list) and isinstance(features[0], str):
         for ref in features:
+            if ":" not in ref:
+                # This is an on demand feature view ref
+                continue
             view_name, feat_name = ref.split(":")
             if view_name not in view_index:
                 raise FeatureViewNotFoundException(view_name)

@@ -18,11 +18,12 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import List, Optional
+from typing import List, Optional, Set
 from urllib.parse import urlparse
 
 from feast.entity import Entity
 from feast.errors import (
+    ConflictingFeatureViewNames,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureTableNotFoundException,
@@ -33,6 +34,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 
 REGISTRY_SCHEMA_VERSION = "1"
@@ -272,6 +274,9 @@ class Registry:
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
 
+        if feature_view.name in self._get_existing_on_demand_feature_view_names():
+            raise ConflictingFeatureViewNames(feature_view.name)
+
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.feature_views
         ):
@@ -286,6 +291,51 @@ class Registry:
                     break
 
         self.cached_registry_proto.feature_views.append(feature_view_proto)
+        if commit:
+            self.commit()
+
+    def apply_on_demand_feature_view(
+        self,
+        on_demand_feature_view: OnDemandFeatureView,
+        project: str,
+        commit: bool = True,
+    ):
+        """
+        Registers a single on demand feature view with Feast
+
+        Args:
+            on_demand_feature_view: Feature view that will be registered
+            project: Feast project that this feature view belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        on_demand_feature_view_proto = on_demand_feature_view.to_proto()
+        on_demand_feature_view_proto.spec.project = project
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        if on_demand_feature_view.name in self._get_existing_feature_view_names():
+            raise ConflictingFeatureViewNames(on_demand_feature_view.name)
+
+        for idx, existing_feature_view_proto in enumerate(
+            self.cached_registry_proto.on_demand_feature_views
+        ):
+            if (
+                existing_feature_view_proto.spec.name
+                == on_demand_feature_view_proto.spec.name
+                and existing_feature_view_proto.spec.project == project
+            ):
+                if (
+                    OnDemandFeatureView.from_proto(existing_feature_view_proto)
+                    == on_demand_feature_view
+                ):
+                    return
+                else:
+                    del self.cached_registry_proto.on_demand_feature_views[idx]
+                    break
+
+        self.cached_registry_proto.on_demand_feature_views.append(
+            on_demand_feature_view_proto
+        )
         if commit:
             self.commit()
 
@@ -369,6 +419,28 @@ class Registry:
             if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
+
+    def list_on_demand_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[OnDemandFeatureView]:
+        """
+        Retrieve a list of on demand feature views from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature tables based on project name
+
+        Returns:
+            List of on demand feature views
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        on_demand_feature_views = []
+        for on_demand_feature_view_proto in registry_proto.on_demand_feature_views:
+            if on_demand_feature_view_proto.spec.project == project:
+                on_demand_feature_views.append(
+                    OnDemandFeatureView.from_proto(on_demand_feature_view_proto)
+                )
+        return on_demand_feature_views
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:
         """
@@ -545,6 +617,19 @@ class Registry:
         finally:
             self.cache_being_updated = False
         return registry_proto
+
+    def _get_existing_feature_view_names(self) -> Set[str]:
+        assert self.cached_registry_proto
+        return set([fv.spec.name for fv in self.cached_registry_proto.feature_views])
+
+    def _get_existing_on_demand_feature_view_names(self) -> Set[str]:
+        assert self.cached_registry_proto
+        return set(
+            [
+                odfv.spec.name
+                for odfv in self.cached_registry_proto.on_demand_feature_views
+            ]
+        )
 
 
 class RegistryStore(ABC):
