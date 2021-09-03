@@ -23,6 +23,7 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.feature_views import (
+    conv_rate_plus_100_feature_view,
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
 )
@@ -126,11 +127,15 @@ def construct_universal_data_sources(
 def construct_universal_feature_views(
     data_sources: Dict[str, DataSource],
 ) -> Dict[str, FeatureView]:
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(
+        data_sources["driver"]
+    )
     return {
         "customer": create_customer_daily_profile_feature_view(
             data_sources["customer"]
         ),
-        "driver": create_driver_hourly_stats_feature_view(data_sources["driver"]),
+        "driver": driver_hourly_stats,
+        "driver_odfv": conv_rate_plus_100_feature_view({"driver": driver_hourly_stats}),
     }
 
 
