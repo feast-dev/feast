@@ -51,7 +51,7 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
 
 
 @retry(
-    wait=wait_exponential(multiplier=1, max=30),
+    wait=wait_exponential(multiplier=1, max=4),
     retry=retry_if_exception_type(ConnectionClosedError),
 )
 def execute_redshift_statement_async(
