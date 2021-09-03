@@ -179,6 +179,9 @@ def construct_test_environment(
             repo_path=repo_dir_name,
         )
         fs = FeatureStore(config=config)
+        # We need to initialize the registry, because if nothing is applied in the test before tearing down
+        # the feature store, that will cause the teardown method to blow up.
+        fs.registry._initialize_registry()
         environment = Environment(
             name=project,
             test_repo_config=test_repo_config,
