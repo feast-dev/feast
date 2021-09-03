@@ -142,5 +142,4 @@ def get_latest_feature_values_from_dataframes(
     ].to_dict()
     latest_global_row = global_df.loc[global_df["event_timestamp"].idxmax()].to_dict()
 
-    latest_customer_row.update(latest_driver_row)
     return {**latest_customer_row, **latest_driver_row, **latest_global_row}
