@@ -3,9 +3,6 @@ import unittest
 
 import pandas as pd
 import pytest
-from integration.feature_repos.universal.feature_views import (
-    conv_rate_plus_100_feature_view,
-)
 
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -20,10 +17,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
-    odfv = conv_rate_plus_100_feature_view(inputs={"driver": feature_views["driver"]})
     feast_objects = []
     feast_objects.extend(feature_views.values())
-    feast_objects.extend([odfv, driver(), customer()])
+    feast_objects.extend([driver(), customer()])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
 

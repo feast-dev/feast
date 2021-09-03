@@ -15,7 +15,7 @@ from feast.type_map import pa_to_redshift_value_type
 try:
     import boto3
     from botocore.config import Config
-    from botocore.exceptions import ClientError
+    from botocore.exceptions import ClientError, ConnectionClosedError
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -50,6 +50,10 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
     return bucket, key
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, max=4),
+    retry=retry_if_exception_type(ConnectionClosedError),
+)
 def execute_redshift_statement_async(
     redshift_data_client, cluster_id: str, database: str, user: str, query: str
 ) -> dict:
