@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Union
@@ -239,7 +240,7 @@ def block_until_done(
     client: Client,
     bq_job: Union[bigquery.job.query.QueryJob, bigquery.job.load.LoadJob],
     timeout: int = 1800,
-    retry_cadence: int = 10,
+    retry_cadence: float = 1,
 ):
     """
     Waits for bq_job to finish running, up to a maximum amount of time specified by the timeout parameter (defaulting to 30 minutes).
@@ -254,6 +255,11 @@ def block_until_done(
         BigQueryJobStillRunning exception if the function has blocked longer than 30 minutes.
         BigQueryJobCancelled exception to signify when that the job has been cancelled (i.e. from timeout or KeyboardInterrupt).
     """
+
+    # For test environments, retry more aggressively
+    is_test = os.getenv("IS_TEST", default="False") == "True"
+    if is_test:
+        retry_cadence = 0.1
 
     def _wait_until_done(job_id):
         if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
