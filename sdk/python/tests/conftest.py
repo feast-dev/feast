@@ -126,14 +126,16 @@ def universal_data_sources(environment):
 def e2e_data_sources(environment: Environment):
     df = create_dataset()
     data_source = environment.data_source_creator.create_data_source(
-        df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
+        df, destination_name="data_source", field_mapping={"ts_1": "ts"},
     )
     entityless_df = create_entityless_dataset()
-    global_data_source = environment.data_source_creator.create_data_source(
-        entityless_df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
+    entityless_data_source = environment.data_source_creator.create_data_source(
+        entityless_df,
+        destination_name="entityless_data_source",
+        field_mapping={"ts_1": "ts"},
     )
 
-    yield df, data_source, global_data_source
+    yield df, data_source, entityless_data_source
 
     environment.data_source_creator.teardown()
 
