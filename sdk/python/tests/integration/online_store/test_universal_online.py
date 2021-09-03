@@ -110,11 +110,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     ).to_dict()
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
-        tc.assertIsNone(
-            missing_responses_dict[
-                response_feature_name(unprefixed_feature_ref, full_feature_names)
-            ][0]
-        )
+        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length"}:
+            tc.assertIsNone(
+                missing_responses_dict[
+                    response_feature_name(unprefixed_feature_ref, full_feature_names)
+                ][0]
+            )
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:

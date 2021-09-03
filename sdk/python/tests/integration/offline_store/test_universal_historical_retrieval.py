@@ -35,12 +35,14 @@ def find_asof_record(
     ts_key: str,
     ts_start: datetime,
     ts_end: datetime,
-    filter_key: str,
-    filter_value: Any,
+    filter_key: str = "",
+    filter_value: Any = None,
 ) -> Dict[str, Any]:
     found_record = {}
     for record in records:
-        if record[filter_key] == filter_value and ts_start <= record[ts_key] <= ts_end:
+        if (
+            not filter_key or record[filter_key] == filter_value
+        ) and ts_start <= record[ts_key] <= ts_end:
             if not found_record or found_record[ts_key] < record[ts_key]:
                 found_record = record
     return found_record
