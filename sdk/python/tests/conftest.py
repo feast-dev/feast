@@ -18,7 +18,7 @@ from sys import platform
 import pandas as pd
 import pytest
 
-from tests.data.data_creator import create_dataset
+from tests.data.data_creator import create_dataset, create_entityless_dataset
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     Environment,
@@ -128,8 +128,12 @@ def e2e_data_sources(environment: Environment):
     data_source = environment.data_source_creator.create_data_source(
         df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
+    entityless_df = create_entityless_dataset()
+    global_data_source = environment.data_source_creator.create_data_source(
+        entityless_df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
+    )
 
-    yield df, data_source
+    yield df, data_source, global_data_source
 
     environment.data_source_creator.teardown()
 

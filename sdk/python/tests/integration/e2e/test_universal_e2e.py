@@ -14,23 +14,16 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 
-<<<<<<< HEAD
 @pytest.mark.integration
 @pytest.mark.parametrize("infer_features", [True, False])
 def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     fs = environment.feature_store
-    df, data_source = e2e_data_sources
+    df, data_source, entityless_data_source = e2e_data_sources
     fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
-
-=======
-@parametrize_e2e_test
-def test_e2e_consistency(test_environment: Environment):
-    fs, fv, entityless_fv = (
-        test_environment.feature_store,
-        driver_feature_view(test_environment.data_source),
-        global_feature_view(test_environment.entityless_data_source),
+    entityless_fv = global_feature_view(
+        data_source=entityless_data_source, infer_features=infer_features
     )
->>>>>>> 2a3e7d4f... attempt to do entityless view integration test
+
     entity = driver()
     fs.apply([fv, entityless_fv, entity])
 

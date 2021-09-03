@@ -51,6 +51,8 @@ def get_expected_training_df(
     customer_fv: FeatureView,
     driver_df: pd.DataFrame,
     driver_fv: FeatureView,
+    global_df: pd.DataFrame,
+    global_fv: FeatureView,
     orders_df: pd.DataFrame,
     event_timestamp: str,
     full_feature_names: bool = False,
@@ -64,6 +66,9 @@ def get_expected_training_df(
     )
     customer_records = convert_timestamp_records_to_utc(
         customer_df.to_dict("records"), customer_fv.batch_source.event_timestamp_column
+    )
+    global_records = convert_timestamp_records_to_utc(
+        global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
     )
 
     # Manually do point-in-time join of orders to drivers and customers records
@@ -84,6 +89,12 @@ def get_expected_training_df(
             filter_key="customer_id",
             filter_value=order_record["customer_id"],
         )
+        global_record = find_asof_record(
+            global_records,
+            ts_key=global_fv.batch_source.event_timestamp_column,
+            ts_start=order_record[event_timestamp] - global_fv.ttl,
+            ts_end=order_record[event_timestamp],
+        )
 
         order_record.update(
             {
@@ -93,7 +104,6 @@ def get_expected_training_df(
                 for k in ("conv_rate", "avg_daily_trips")
             }
         )
-
         order_record.update(
             {
                 (
@@ -104,6 +114,14 @@ def get_expected_training_df(
                     "avg_passenger_count",
                     "lifetime_trip_count",
                 )
+            }
+        )
+        order_record.update(
+            {
+                (f"global_stats__{k}" if full_feature_names else k): global_record.get(
+                    k, None
+                )
+                for k in ("num_rides", "avg_ride_length",)
             }
         )
 
@@ -122,6 +140,7 @@ def get_expected_training_df(
             "driver_stats__conv_rate": "float32",
             "customer_profile__current_balance": "float32",
             "customer_profile__avg_passenger_count": "float32",
+            "global_stats__avg_ride_length": "float32",
         }
     else:
         expected_column_types = {
@@ -129,6 +148,7 @@ def get_expected_training_df(
             "conv_rate": "float32",
             "current_balance": "float32",
             "avg_passenger_count": "float32",
+            "avg_ride_length": "float32",
         }
 
     for col, typ in expected_column_types.items():
@@ -145,18 +165,20 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    customer_df, driver_df, orders_df = (
+    customer_df, driver_df, orders_df, global_df = (
         datasets["customer"],
         datasets["driver"],
         datasets["orders"],
+        datasets["global"],
     )
-    customer_fv, driver_fv = (
+    customer_fv, driver_fv, global_fv = (
         feature_views["customer"],
         feature_views["driver"],
+        feature_views["global"],
     )
 
     feast_objects = []
-    feast_objects.extend([customer_fv, driver_fv, driver(), customer()])
+    feast_objects.extend([customer_fv, driver_fv, global_fv, driver(), customer()])
     store.apply(feast_objects)
 
     entity_df_query = None
@@ -174,6 +196,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         customer_fv,
         driver_df,
         driver_fv,
+        global_df,
+        global_fv,
         orders_df,
         event_timestamp,
         full_feature_names,
@@ -188,6 +212,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
                 "customer_profile:current_balance",
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
+                "global_stats:num_rides",
+                "global_stats:avg_ride_length",
             ],
             full_feature_names=full_feature_names,
         )
@@ -238,6 +264,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "customer_profile:current_balance",
             "customer_profile:avg_passenger_count",
             "customer_profile:lifetime_trip_count",
+            "global_stats:num_rides",
+            "global_stats:avg_ride_length",
         ],
         full_feature_names=full_feature_names,
     )

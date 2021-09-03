@@ -49,18 +49,6 @@ def generate_entities(date, infer_event_timestamp_col, order_count: int = 1000):
     return customer_entities, driver_entities, end_date, orders_df, start_date
 
 
-def stage_bigquery_source(df, table_id):
-    client = bigquery.Client()
-    job_config = bigquery.LoadJobConfig()
-    df.reset_index(drop=True, inplace=True)
-    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    job.result()
-
-
-def feature_service(name: str, views) -> FeatureService:
-    return FeatureService(name, views)
-
-
 def stage_driver_hourly_stats_parquet_source(directory, df):
     # Write to disk
     driver_stats_path = os.path.join(directory, "driver_stats.parquet")
@@ -70,6 +58,14 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
         event_timestamp_column="event_timestamp",
         created_timestamp_column="",
     )
+
+
+def stage_driver_hourly_stats_bigquery_source(df, table_id):
+    client = bigquery.Client()
+    job_config = bigquery.LoadJobConfig()
+    df.reset_index(drop=True, inplace=True)
+    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job.result()
 
 
 def create_driver_hourly_stats_feature_view(source):
@@ -97,6 +93,18 @@ def stage_customer_daily_profile_parquet_source(directory, df):
     )
 
 
+def feature_service(name: str, views) -> FeatureService:
+    return FeatureService(name, views)
+
+
+def stage_customer_daily_profile_bigquery_source(df, table_id):
+    client = bigquery.Client()
+    job_config = bigquery.LoadJobConfig()
+    df.reset_index(drop=True, inplace=True)
+    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job.result()
+
+
 def create_customer_daily_profile_feature_view(source):
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
@@ -113,30 +121,6 @@ def create_customer_daily_profile_feature_view(source):
     return customer_profile_feature_view
 
 
-def stage_global_daily_stats_parquet_source(directory, df):
-    global_stats_path = os.path.join(directory, "global_stats.parquet")
-    df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
-    return FileSource(
-        path=global_stats_path,
-        event_timestamp_column="event_timestamp",
-        created_timestamp_column="created",
-    )
-
-
-def create_global_daily_stats_feature_view(source):
-    global_stats_feature_view = FeatureView(
-        name="global_stats",
-        entities=[],
-        features=[
-            Feature(name="num_rides", dtype=ValueType.INT32),
-            Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
-        ],
-        batch_source=source,
-        ttl=timedelta(days=2),
-    )
-    return global_stats_feature_view
-
-
 # Converts the given column of the pandas records to UTC timestamps
 def convert_timestamp_records_to_utc(records, column):
     for record in records:
@@ -145,14 +129,10 @@ def convert_timestamp_records_to_utc(records, column):
 
 
 # Find the latest record in the given time range and filter
-def find_asof_record(
-    records, ts_key, ts_start, ts_end, filter_key=None, filter_value=None
-):
+def find_asof_record(records, ts_key, ts_start, ts_end, filter_key, filter_value):
     found_record = {}
     for record in records:
-        if (
-            not filter_key or record[filter_key] == filter_value
-        ) and ts_start <= record[ts_key] <= ts_end:
+        if record[filter_key] == filter_value and ts_start <= record[ts_key] <= ts_end:
             if not found_record or found_record[ts_key] < record[ts_key]:
                 found_record = record
     return found_record
@@ -164,8 +144,6 @@ def get_expected_training_df(
     driver_df: pd.DataFrame,
     driver_fv: FeatureView,
     orders_df: pd.DataFrame,
-    global_df: pd.DataFrame,
-    global_fv: FeatureView,
     event_timestamp: str,
     full_feature_names: bool = False,
 ):
@@ -178,9 +156,6 @@ def get_expected_training_df(
     )
     customer_records = convert_timestamp_records_to_utc(
         customer_df.to_dict("records"), customer_fv.batch_source.event_timestamp_column
-    )
-    global_records = convert_timestamp_records_to_utc(
-        global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
     )
 
     # Manually do point-in-time join of orders to drivers and customers records
@@ -201,12 +176,6 @@ def get_expected_training_df(
             filter_key="customer_id",
             filter_value=order_record["customer_id"],
         )
-        global_record = find_asof_record(
-            global_records,
-            ts_key=global_fv.batch_source.event_timestamp_column,
-            ts_start=order_record[event_timestamp] - global_fv.ttl,
-            ts_end=order_record[event_timestamp],
-        )
 
         order_record.update(
             {
@@ -216,6 +185,7 @@ def get_expected_training_df(
                 for k in ("conv_rate", "avg_daily_trips")
             }
         )
+
         order_record.update(
             {
                 (
@@ -226,14 +196,6 @@ def get_expected_training_df(
                     "avg_passenger_count",
                     "lifetime_trip_count",
                 )
-            }
-        )
-        order_record.update(
-            {
-                (f"global_stats__{k}" if full_feature_names else k): global_record.get(
-                    k, None
-                )
-                for k in ("num_rides", "avg_ride_length",)
             }
         )
 
@@ -252,7 +214,6 @@ def get_expected_training_df(
             "driver_stats__conv_rate": "float32",
             "customer_profile__current_balance": "float32",
             "customer_profile__avg_passenger_count": "float32",
-            "global_stats__avg_ride_length": "float32",
         }
     else:
         expected_column_types = {
@@ -260,7 +221,6 @@ def get_expected_training_df(
             "conv_rate": "float32",
             "current_balance": "float32",
             "avg_passenger_count": "float32",
-            "avg_ride_length": "float32",
         }
 
     for col, typ in expected_column_types.items():
@@ -335,9 +295,6 @@ def test_historical_features_from_parquet_sources(
             temp_dir, customer_df
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
-        global_df = driver_data.create_global_daily_stats_df(start_date, end_date)
-        global_source = stage_global_daily_stats_parquet_source(temp_dir, global_df)
-        global_fv = create_global_daily_stats_feature_view(global_source)
 
         customer_fs = feature_service(
             "customer_feature_service",
@@ -346,7 +303,6 @@ def test_historical_features_from_parquet_sources(
                     ["current_balance", "avg_passenger_count", "lifetime_trip_count"]
                 ],
                 driver_fv[["conv_rate", "avg_daily_trips"]],
-                global_fv[["num_rides", "avg_ride_length"]],
             ],
         )
         print(f"Customer fs features: {customer_fs.features}")
@@ -365,7 +321,7 @@ def test_historical_features_from_parquet_sources(
             )
         )
 
-        store.apply([driver, customer, driver_fv, customer_fv, global_fv, customer_fs])
+        store.apply([driver, customer, driver_fv, customer_fv, customer_fs])
 
         job = store.get_historical_features(
             entity_df=orders_df,
@@ -375,8 +331,6 @@ def test_historical_features_from_parquet_sources(
                 "customer_profile:current_balance",
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
-                "global_stats:num_rides",
-                "global_stats:avg_ride_length",
             ],
             full_feature_names=full_feature_names,
         )
@@ -393,8 +347,6 @@ def test_historical_features_from_parquet_sources(
             driver_df,
             driver_fv,
             orders_df,
-            global_df,
-            global_fv,
             event_timestamp,
             full_feature_names=full_feature_names,
         )
@@ -550,7 +502,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(capsys):
 
         # Driver Feature View
         driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
-        stage_bigquery_source(driver_stats_df, driver_table_id)
+        stage_driver_hourly_stats_bigquery_source(driver_stats_df, driver_table_id)
 
         store = FeatureStore(
             config=RepoConfig(
