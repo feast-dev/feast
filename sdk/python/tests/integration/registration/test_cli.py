@@ -1,47 +1,41 @@
 import tempfile
+import uuid
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PosixPath
 from textwrap import dedent
 
-import assertpy
 import pytest
+import yaml
+from assertpy import assertpy
 
-from feast.feature_store import FeatureStore
+from feast import FeatureStore, RepoConfig
+from tests.integration.feature_repos.repo_configuration import FULL_REPO_CONFIGS
+from tests.integration.feature_repos.universal.data_source_creator import (
+    DataSourceCreator,
+)
 from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration
-def test_workflow() -> None:
-    """
-    Test running apply on a sample repo, and make sure the infra gets created.
-    """
-    runner = CliRunner()
-    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+@pytest.mark.parametrize("test_repo_config", FULL_REPO_CONFIGS)
+def test_universal_cli(test_repo_config) -> None:
+    project = f"test_universal_cli_{str(uuid.uuid4()).replace('-', '')[:8]}"
 
-        # Construct an example repo in a temporary dir
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+        feature_store_yaml = make_feature_store_yaml(
+            project, test_repo_config, repo_dir_name
+        )
         repo_path = Path(repo_dir_name)
-        data_path = Path(data_dir_name)
 
         repo_config = repo_path / "feature_store.yaml"
 
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: foo
-        registry: {data_path / "registry.db"}
-        provider: local
-        online_store:
-            path: {data_path / "online_store.db"}
-        offline_store:
-            type: bigquery
-        """
-            )
-        )
+        repo_config.write_text(dedent(feature_store_yaml))
 
         repo_example = repo_path / "example.py"
         repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
-
         result = runner.run(["apply"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
@@ -65,6 +59,9 @@ def test_workflow() -> None:
         )
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
+        fs = FeatureStore(repo_path=str(repo_path))
+        assertpy.assert_that(fs.list_feature_views()).is_length(3)
+
         # entity & feature view describe commands should fail when objects don't exist
         result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(1)
@@ -76,7 +73,6 @@ def test_workflow() -> None:
         # Doing another apply should be a no op, and should not cause errors
         result = runner.run(["apply"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(0)
-
         basic_rw_test(
             FeatureStore(repo_path=str(repo_path), config=None),
             view_name="driver_locations",
@@ -86,44 +82,29 @@ def test_workflow() -> None:
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
 
-@pytest.mark.integration
-def test_non_local_feature_repo() -> None:
-    """
-    Test running apply on a sample repo, and make sure the infra gets created.
-    """
-    runner = CliRunner()
-    with tempfile.TemporaryDirectory() as repo_dir_name:
+def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath):
+    offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
 
-        # Construct an example repo in a temporary dir
-        repo_path = Path(repo_dir_name)
+    offline_store_config = offline_creator.create_offline_store_config()
+    online_store = test_repo_config.online_store
 
-        repo_config = repo_path / "feature_store.yaml"
+    config = RepoConfig(
+        registry=str(Path(repo_dir_name) / "registry.db"),
+        project=project,
+        provider=test_repo_config.provider,
+        offline_store=offline_store_config,
+        online_store=online_store,
+        repo_path=str(Path(repo_dir_name)),
+    )
+    config_dict = config.dict()
+    if (
+        isinstance(config_dict["online_store"], dict)
+        and "redis_type" in config_dict["online_store"]
+    ):
+        del config_dict["online_store"]["redis_type"]
+    config_dict["repo_path"] = str(config_dict["repo_path"])
 
-        repo_config.write_text(
-            dedent(
-                """
-        project: foo
-        registry: data/registry.db
-        provider: local
-        online_store:
-            path: data/online_store.db
-        offline_store:
-            type: bigquery
-        """
-            )
-        )
-
-        repo_example = repo_path / "example.py"
-        repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
-
-        result = runner.run(["apply"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-
-        fs = FeatureStore(repo_path=str(repo_path))
-        assertpy.assert_that(fs.list_feature_views()).is_length(3)
-
-        result = runner.run(["teardown"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
+    return yaml.safe_dump(config_dict)
 
 
 @contextmanager
