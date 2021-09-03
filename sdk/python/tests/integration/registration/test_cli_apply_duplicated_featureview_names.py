@@ -40,7 +40,8 @@ def test_cli_apply_duplicated_featureview_names() -> None:
 
         assert (
             rc != 0
-            and b"Please ensure that all feature view names are unique" in output
+            and b"Please ensure that all feature view names are case-insensitively unique"
+            in output
         )
 
 
@@ -76,5 +77,6 @@ def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
 
         assert (
             rc != 0
-            and b"Please ensure that all feature view names are unique" in output
+            and b"Please ensure that all feature view names are case-insensitively unique"
+            in output
         )
