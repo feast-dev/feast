@@ -982,12 +982,13 @@ def _print_materialization_log(
 
 
 def _validate_feature_views(feature_views: List[FeatureView]):
-    """ Verify feature views have unique names"""
-    name_to_fv_dict = {}
+    """ Verify feature views have case-insensitively unique names"""
+    fv_names = set()
     for fv in feature_views:
-        if fv.name in name_to_fv_dict:
+        case_insensitive_fv_name = fv.name.lower()
+        if case_insensitive_fv_name in fv_names:
             raise ValueError(
-                f"More than one feature view with name {fv.name} found. Please ensure that all feature view names are unique. It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+                f"More than one feature view with name {case_insensitive_fv_name} found. Please ensure that all feature view names are case-insensitively unique. It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
             )
         else:
-            name_to_fv_dict[fv.name] = fv
+            fv_names.add(case_insensitive_fv_name)
