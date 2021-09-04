@@ -85,7 +85,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
 def _create_cql_table(key_space: str,
                       table_name: str,
                       primary_key: str,
-                      columns: List,
+                      columns: List[str],
                       column_types: List[str]
                       ) -> str:
     """
@@ -130,3 +130,22 @@ def _create_cql_insert_record(key_space: str,
     cql_insert_record = cql_insert_record[:-2]
     cql_insert_record += ");"
     return cql_insert_record
+
+
+def _create_cql_update_query(key_space:str, table_name: str,
+                             set_columns_value_dict:dict,
+                             primary_key_values: dict):
+    """ This function will create an update CQL query"""
+    cql_update = "UPDATE " + key_space + "." + table_name +" SET "
+    for key in set_columns_value_dict:
+        cql_update += key + " = '" + set_columns_value_dict[key] + "', "
+    cql_update = cql_update[:-2] + " WHERE "
+    # Now where conditions of primary key or composite key
+    for key in primary_key_values:
+        if primary_key_values[key]["type"] == "str":
+            cql_update += key + " = '" + primary_key_values[key]["value"] + "', "
+        else:
+            cql_update += key + " = " + primary_key_values[key]["value"] + ", "
+    cql_update = cql_update[:-2]
+    cql_update += ";"
+    return cql_update
