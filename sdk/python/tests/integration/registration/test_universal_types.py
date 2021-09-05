@@ -36,8 +36,7 @@ def populate_test_configs(offline: bool):
                 # For offline tests, don't need to vary for online store
                 if offline and test_repo_config.online_store == REDIS_CONFIG:
                     continue
-                # TODO(adchia): Fix BQ materialization of list features, which fail to_arrow conversion because the
-                #  value is a dict type like {'list': [{'item': 3}, {'item': 3}]}
+                # TODO(https://github.com/feast-dev/feast/issues/1839): Fix BQ materialization of list features
                 if (
                     not offline
                     and test_repo_config.provider == "gcp"
