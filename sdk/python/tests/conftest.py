@@ -132,9 +132,3 @@ def e2e_data_sources(environment: Environment):
     yield df, data_source
 
     environment.data_source_creator.teardown()
-
-
-@pytest.fixture(params=FULL_REPO_CONFIGS, scope="session")
-def type_test_environment(request):
-    with construct_test_environment(request.param) as e:
-        yield e
