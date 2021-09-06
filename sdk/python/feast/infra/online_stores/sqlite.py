@@ -134,7 +134,7 @@ class SqliteOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        pass
+
         conn = self._get_conn(config)
         cur = conn.cursor()
 

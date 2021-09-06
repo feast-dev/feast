@@ -75,11 +75,66 @@ class AstraDBOnlineStore(OnlineStore, ABC):
             if created_ts is not None:
                 created_ts = _to_naive_utc(created_ts)
             for feature_name, val in values.items():
-                table_name = _table_id
+                table_name = _table_id(project, table)
                 keyspace = self.online_config.keyspace
 
-                pass
-        pass
+                # Now create Insert command
+                insert_cql = _create_cql_insert_record(keyspace,
+                                                       table_name, column_names=["entity_key",
+                                                                                 "feature_name",
+                                                                                 "value",
+                                                                                 "event_ts",
+                                                                                 "created_ts"],
+                                                       values=[entity_key_bin,
+                                                               feature_name,
+                                                               val.SerializeToString(),
+                                                               timestamp,
+                                                               created_ts])
+                self.session.execute(insert_cql)
+
+    def online_read(
+            self,
+            config: RepoConfig,
+            table: Union[FeatureTable, FeatureView],
+            entity_keys: List[EntityKeyProto],
+            requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        project = config.project
+        table_name = _table_id(project, table)
+        keyspace = self.online_config.keyspace
+
+        all_rows = []
+        for entity_key in entity_keys:
+            entity_key_bin = serialize_entity_key(entity_key)
+            cql_query = _create_select_cql(keyspace, table_name,
+                                           column_to_select=["feature_name",
+                                                             "value",
+                                                             "event_ts"],
+                                           conditions_eq={"entity_key": entity_key_bin})
+
+            prepared_statement = self.session.prepare(cql_query)
+
+            all_rows += self.session.execute(
+                prepared_statement.bind([entity_key_bin])
+                                 ).all()
+
+        # Now find the result
+        res = {}
+        res_ts = None
+        for row in all_rows:
+            feature_name = row.feature_name
+            value = row.value
+            ts = row.event_ts
+            val = ValueProto()
+            val.ParseFromString(value)
+            res[feature_name] = val
+            res_ts = ts
+            result.append((res_ts, res))
+        if not result:
+            result.append((None, None))
+        return result
 
 
 def _create_cql_table(key_space: str,
@@ -110,10 +165,10 @@ def _create_cql_table(key_space: str,
 
 
 def _create_cql_insert_record(key_space: str,
-                             table_name: str,
-                             column_names: List[str],
-                             values: List[str]
-                             ) -> str:
+                              table_name: str,
+                              column_names: List[str],
+                              values: List[str]
+                              ) -> str:
     """
     This is general function to insert a record in table
     """
@@ -132,11 +187,11 @@ def _create_cql_insert_record(key_space: str,
     return cql_insert_record
 
 
-def _create_cql_update_query(key_space:str, table_name: str,
-                             set_columns_value_dict:dict,
-                             primary_key_values: dict):
+def _create_cql_update_query(key_space: str, table_name: str,
+                             set_columns_value_dict: dict,
+                             primary_key_values: dict) -> str:
     """ This function will create an update CQL query"""
-    cql_update = "UPDATE " + key_space + "." + table_name +" SET "
+    cql_update = "UPDATE " + key_space + "." + table_name + " SET "
     for key in set_columns_value_dict:
         cql_update += key + " = '" + set_columns_value_dict[key] + "', "
     cql_update = cql_update[:-2] + " WHERE "
@@ -149,3 +204,24 @@ def _create_cql_update_query(key_space:str, table_name: str,
     cql_update = cql_update[:-2]
     cql_update += ";"
     return cql_update
+
+
+def _create_select_cql(key_space: str, table_name: str,
+                       column_to_select: List,
+                       conditions_eq: dict) -> str:
+    """
+    This function will create a general level Select query for Cassendera
+    """
+    select_cql = "SELECT "
+    if column_to_select:
+        select_cql += ", ".join(column_to_select)
+    else:
+        select_cql += "* "
+    select_cql += " FROM " + key_space + "." + table_name
+    select_cql += " WHERE "
+    for key in conditions_eq:
+        select_cql += (key + " = ?" + " AND ")
+    select_cql = select_cql[:-4]
+    select_cql += " ALLOW FILTERING;"
+
+    return select_cql
