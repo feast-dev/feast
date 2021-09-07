@@ -184,7 +184,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     )
 
     feast_objects = []
-    feast_objects.extend([customer_fv, driver_fv, driver_odfv, global_fv, driver(), customer()])
+    feast_objects.extend(
+        [customer_fv, driver_fv, driver_odfv, global_fv, driver(), customer()]
+    )
     store.apply(feast_objects)
 
     entity_df_query = None

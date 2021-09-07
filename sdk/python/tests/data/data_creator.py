@@ -34,28 +34,6 @@ def create_dataset(
     return pd.DataFrame.from_dict(data)
 
 
-def create_entityless_dataset() -> pd.DataFrame:
-    now = datetime.utcnow()
-    ts = pd.Timestamp(now).round("ms")
-    data = {
-        "entityless_value": [10, None, 30, 40, 50],
-        "ts_1": [
-            ts - timedelta(hours=4),
-            ts,
-            ts - timedelta(hours=3),
-            # Use different time zones to test tz-naive -> tz-aware conversion
-            (ts - timedelta(hours=4))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("Europe/Berlin")),
-            (ts - timedelta(hours=1))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("US/Pacific")),
-        ],
-        "created_ts": [ts, ts, ts, ts, ts],
-    }
-    return pd.DataFrame.from_dict(data)
-
-
 def get_entities_for_value_type(value_type: ValueType) -> List:
     value_type_map = {
         ValueType.INT32: [1, 2, 1, 3, 3],

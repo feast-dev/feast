@@ -16,7 +16,7 @@ from typing import Any, Dict, List, cast
 
 import pandas as pd
 
-from feast.feature_view import ENTITYLESS_ENTITY_ID
+from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
@@ -58,7 +58,7 @@ class OnlineResponse:
             k
             for row in self.field_values
             for k, _ in row.statuses.items()
-            if k != ENTITYLESS_ENTITY_ID
+            if k != DUMMY_ENTITY_ID
         ]
         features_dict: Dict[str, List[Any]] = {k: list() for k in fields}
 
@@ -75,7 +75,7 @@ class OnlineResponse:
         """
 
         return pd.DataFrame(self.to_dict()).drop(
-            ENTITYLESS_ENTITY_ID, axis=1, errors="ignore"
+            DUMMY_ENTITY_ID, axis=1, errors="ignore"
         )
 
 

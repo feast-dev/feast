@@ -17,7 +17,7 @@ from feast.errors import (
     FeastProviderLoginError,
     InvalidEntityType,
 )
-from feast.feature_view import ENTITYLESS_ENTITY_ID, ENTITYLESS_ENTITY_VAL, FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -81,7 +81,7 @@ class BigQueryOfflineStore(OfflineStore):
         query = f"""
             SELECT
                 {field_string}
-                {f", {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID}" if not join_key_columns else ""}
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
             FROM (
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row

@@ -12,7 +12,7 @@ from pydantic.typing import Literal
 from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
-from feast.feature_view import ENTITYLESS_ENTITY_ID, ENTITYLESS_ENTITY_VAL, FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.utils import aws_utils
@@ -83,7 +83,7 @@ class RedshiftOfflineStore(OfflineStore):
         query = f"""
             SELECT
                 {field_string}
-                {f", {repr(ENTITYLESS_ENTITY_VAL)} AS {ENTITYLESS_ENTITY_ID}" if not join_key_columns else ""}
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
             FROM (
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row

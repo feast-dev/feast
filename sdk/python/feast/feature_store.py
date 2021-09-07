@@ -32,9 +32,9 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import (
-    ENTITYLESS_ENTITY_ID,
-    ENTITYLESS_ENTITY_NAME,
-    ENTITYLESS_ENTITY_VAL,
+    DUMMY_ENTITY_ID,
+    DUMMY_ENTITY_NAME,
+    DUMMY_ENTITY_VAL,
     FeatureView,
 )
 from feast.inference import (
@@ -100,12 +100,12 @@ class FeatureStore:
             repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
-        entityless_entity = Entity(
-            name=ENTITYLESS_ENTITY_NAME,
-            join_key=ENTITYLESS_ENTITY_ID,
+        DUMMY_ENTITY = Entity(
+            name=DUMMY_ENTITY_NAME,
+            join_key=DUMMY_ENTITY_ID,
             value_type=ValueType.INT32,
         )
-        self.apply(entityless_entity)
+        self.apply(DUMMY_ENTITY)
 
     @log_exceptions
     def version(self) -> str:
@@ -163,7 +163,7 @@ class FeatureStore:
         return self._list_entities(allow_cache)
 
     def _list_entities(
-        self, allow_cache: bool = False, hide_entityless: bool = True
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True
     ) -> List[Entity]:
         all_entities = self._registry.list_entities(
             self.project, allow_cache=allow_cache
@@ -171,7 +171,7 @@ class FeatureStore:
         return [
             entity
             for entity in all_entities
-            if entity.name != ENTITYLESS_ENTITY_NAME or not hide_entityless
+            if entity.name != DUMMY_ENTITY_NAME or not hide_dummy_entity
         ]
 
     @log_exceptions_and_usage
@@ -198,13 +198,13 @@ class FeatureStore:
         return self._list_feature_views(allow_cache)
 
     def _list_feature_views(
-        self, allow_cache: bool = False, hide_entityless: bool = True
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True
     ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
         ):
-            if hide_entityless and fv.entities[0] == ENTITYLESS_ENTITY_NAME:
+            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
             feature_views.append(fv)
         return feature_views
@@ -267,9 +267,11 @@ class FeatureStore:
         """
         return self._get_feature_view(name)
 
-    def _get_feature_view(self, name: str, hide_entityless: bool = True) -> FeatureView:
+    def _get_feature_view(
+        self, name: str, hide_dummy_entity: bool = True
+    ) -> FeatureView:
         feature_view = self._registry.get_feature_view(name, self.project)
-        if hide_entityless and feature_view.entities[0] == ENTITYLESS_ENTITY_NAME:
+        if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
             feature_view.entities = []
         return feature_view
 
@@ -586,11 +588,11 @@ class FeatureStore:
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._list_feature_views(
-                hide_entityless=False
+                hide_dummy_entity=False
             )
         else:
             for name in feature_views:
-                feature_view = self._get_feature_view(name, hide_entityless=False)
+                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -678,11 +680,11 @@ class FeatureStore:
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._list_feature_views(
-                hide_entityless=False
+                hide_dummy_entity=False
             )
         else:
             for name in feature_views:
-                feature_view = self._get_feature_view(name, hide_entityless=False)
+                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -767,19 +769,19 @@ class FeatureStore:
         """
         _feature_refs = self._get_features(features, feature_refs)
         all_feature_views = self._list_feature_views(
-            allow_cache=True, hide_entityless=False
+            allow_cache=True, hide_dummy_entity=False
         )
         _validate_feature_refs(_feature_refs, full_feature_names)
         grouped_refs = _group_feature_refs(_feature_refs, all_feature_views)
         feature_views = list(view for view, _ in grouped_refs)
-        entityless_case = ENTITYLESS_ENTITY_NAME in [
+        entityless_case = DUMMY_ENTITY_NAME in [
             entity_name
             for feature_view in feature_views
             for entity_name in feature_view.entities
         ]
 
         provider = self._get_provider()
-        entities = self._list_entities(allow_cache=True, hide_entityless=False)
+        entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
@@ -794,7 +796,7 @@ class FeatureStore:
                     raise EntityNotFoundException(entity_name, self.project)
                 join_key_row[join_key] = entity_value
                 if entityless_case:
-                    join_key_row[ENTITYLESS_ENTITY_ID] = ENTITYLESS_ENTITY_VAL
+                    join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
             join_key_rows.append(join_key_row)
 
         entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
