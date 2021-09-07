@@ -2,26 +2,35 @@ import random
 import unittest
 
 import pandas as pd
+import pytest
 
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_online_test,
+from tests.integration.feature_repos.repo_configuration import (
+    construct_universal_feature_views,
 )
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 
-@parametrize_online_test
-def test_online_retrieval(environment: Environment):
+@pytest.mark.integration
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_online_retrieval(environment, universal_data_sources, full_feature_names):
+
     fs = environment.feature_store
-    full_feature_names = environment.test_repo_config.full_feature_names
+    entities, datasets, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+    feast_objects = []
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer()])
+    fs.apply(feast_objects)
+    fs.materialize(environment.start_date, environment.end_date)
 
-    sample_drivers = random.sample(environment.driver_entities, 10)
-    drivers_df = environment.driver_df[
-        environment.driver_df["driver_id"].isin(sample_drivers)
+    sample_drivers = random.sample(entities["driver"], 10)
+    drivers_df = datasets["driver"][
+        datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
 
-    sample_customers = random.sample(environment.customer_entities, 10)
-    customers_df = environment.customer_df[
-        environment.customer_df["customer_id"].isin(sample_customers)
+    sample_customers = random.sample(entities["customer"], 10)
+    customers_df = datasets["customer"][
+        datasets["customer"]["customer_id"].isin(sample_customers)
     ]
 
     entity_rows = [
@@ -35,8 +44,9 @@ def test_online_retrieval(environment: Environment):
         "customer_profile:current_balance",
         "customer_profile:avg_passenger_count",
         "customer_profile:lifetime_trip_count",
+        "conv_rate_plus_100",
     ]
-    unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs]
+    unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
 
     online_features = fs.get_online_features(
         features=feature_refs,
@@ -50,6 +60,9 @@ def test_online_retrieval(environment: Environment):
         len(keys) == len(feature_refs) + 2
     )  # Add two for the driver id and the customer id entity keys.
     for feature in feature_refs:
+        if ":" in feature:
+            # This is the ODFV
+            continue
         if full_feature_names:
             assert feature.replace(":", "__") in keys
         else:
@@ -65,6 +78,10 @@ def test_online_retrieval(environment: Environment):
 
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
         assert df_features["driver_id"] == online_features_dict["driver_id"][i]
+        assert (
+            online_features_dict["conv_rate_plus_100"][i]
+            == df_features["conv_rate"] + 100
+        )
         for unprefixed_feature_ref in unprefixed_feature_refs:
             tc.assertEqual(
                 df_features[unprefixed_feature_ref],

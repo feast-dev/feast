@@ -22,7 +22,7 @@ Please see our [documentation](https://docs.feast.dev/) for more information abo
 ## Architecture
 <img src="https://i.imgur.com/IYUMF3Q.png" width="700">
 
-The above architecture is the minimal Feast deployment. Want to run the full Feast on Kubernetes? Click [here](https://docs.feast.dev/feast-on-kubernetes/getting-started).
+The above architecture is the minimal Feast deployment. Want to run the full Feast on GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-gcp-aws).
 
 ## Getting Started
 
@@ -126,16 +126,17 @@ pprint(feature_vector)
 ## Important resources
 
 Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
- * [Quickstart](https://docs.feast.dev/quickstart)
+ * [Quickstart](https://docs.feast.dev/getting-started/quickstart)
  * [Roadmap](https://docs.feast.dev/roadmap)
- * [Feast on Kubernetes](https://docs.feast.dev/feast-on-kubernetes/getting-started)
+ * [Tutorials](https://docs.feast.dev/tutorials/tutorials-overview)
+ * [Running Feast with GCP/AWS](https://docs.feast.dev/how-to-guides/feast-gcp-aws)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
  * [Slack (#Feast)](https://slack.feast.dev/)
 
 ## Contributing
 Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
-- [Contribution Process for Feast](https://docs.feast.dev/contributing/contributing)
-- [Development Guide for Feast](https://docs.feast.dev/contributing/development-guide)
+- [Contribution Process for Feast](https://docs.feast.dev/project/contributing)
+- [Development Guide for Feast](https://docs.feast.dev/project/development-guide)
 - [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
 
 ## Contributors ✨

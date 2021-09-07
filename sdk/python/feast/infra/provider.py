@@ -177,6 +177,9 @@ def _get_requested_feature_views_to_features_dict(
     feature_views_to_feature_map: Dict[FeatureView, List[str]] = {}
 
     for ref in feature_refs:
+        if ":" not in ref:
+            # ODFV
+            continue
         ref_parts = ref.split(":")
         feature_view_from_ref = ref_parts[0]
         feature_from_ref = ref_parts[1]
@@ -242,6 +245,12 @@ def _get_column_names(
             reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
             for col in feature_names
         ]
+
+    # We need to exclude join keys and timestamp columns from the list of features, after they are mapped to
+    # their final column names via the `field_mapping` field of the source.
+    _feature_names = set(feature_names) - set(join_keys)
+    _feature_names = _feature_names - {event_timestamp_column, created_timestamp_column}
+    feature_names = list(_feature_names)
     return (
         join_keys,
         feature_names,

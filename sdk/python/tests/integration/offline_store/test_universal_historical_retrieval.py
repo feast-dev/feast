@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 from pytz import utc
 
@@ -11,10 +12,11 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from tests.integration.feature_repos.test_repo_configuration import (
-    Environment,
-    parametrize_offline_retrieval_test,
+from tests.integration.feature_repos.repo_configuration import (
+    construct_universal_feature_views,
+    table_name_from_data_source,
 )
+from tests.integration.feature_repos.universal.entities import customer, driver
 
 np.random.seed(0)
 
@@ -132,27 +134,39 @@ def get_expected_training_df(
     for col, typ in expected_column_types.items():
         expected_df[col] = expected_df[col].astype(typ)
 
+    conv_feature_name = "driver_stats__conv_rate" if full_feature_names else "conv_rate"
+    expected_df["conv_rate_plus_100"] = expected_df[conv_feature_name] + 100
+
     return expected_df
 
 
-@parametrize_offline_retrieval_test
-def test_historical_features(environment: Environment):
+@pytest.mark.integration
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
 
-    customer_df, customer_fv = (
-        environment.customer_df,
-        environment.customer_feature_view(),
+    (entities, datasets, data_sources) = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+
+    customer_df, driver_df, orders_df = (
+        datasets["customer"],
+        datasets["driver"],
+        datasets["orders"],
     )
-    driver_df, driver_fv = (
-        environment.driver_df,
-        environment.driver_stats_feature_view(),
+    customer_fv, driver_fv, driver_odfv = (
+        feature_views["customer"],
+        feature_views["driver"],
+        feature_views["driver_odfv"],
     )
-    orders_df = environment.orders_df
-    full_feature_names = environment.test_repo_config.full_feature_names
+
+    feast_objects = []
+    feast_objects.extend([customer_fv, driver_fv, driver_odfv, driver(), customer()])
+    store.apply(feast_objects)
 
     entity_df_query = None
-    if environment.orders_table():
-        entity_df_query = f"SELECT * FROM {environment.orders_table()}"
+    orders_table = table_name_from_data_source(data_sources["orders"])
+    if orders_table:
+        entity_df_query = f"SELECT * FROM {orders_table}"
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
@@ -178,6 +192,7 @@ def test_historical_features(environment: Environment):
                 "customer_profile:current_balance",
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
+                "conv_rate_plus_100",
             ],
             full_feature_names=full_feature_names,
         )
@@ -211,14 +226,21 @@ def test_historical_features(environment: Environment):
             actual_df_from_sql_entities, expected_df, check_dtype=False,
         )
 
+        expected_df_from_arrow = expected_df.drop(columns=["conv_rate_plus_100"])
         table_from_sql_entities = job_from_sql.to_arrow()
         df_from_sql_entities = (
-            table_from_sql_entities.to_pandas()[expected_df.columns]
+            table_from_sql_entities.to_pandas()[expected_df_from_arrow.columns]
             .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
             .drop_duplicates()
             .reset_index(drop=True)
         )
-        assert_frame_equal(actual_df_from_sql_entities, df_from_sql_entities)
+
+        for col in df_from_sql_entities.columns:
+            expected_df_from_arrow[col] = expected_df_from_arrow[col].astype(
+                df_from_sql_entities[col].dtype
+            )
+
+        assert_frame_equal(expected_df_from_arrow, df_from_sql_entities)
 
     job_from_df = store.get_historical_features(
         entity_df=orders_df,
@@ -228,6 +250,7 @@ def test_historical_features(environment: Environment):
             "customer_profile:current_balance",
             "customer_profile:avg_passenger_count",
             "customer_profile:lifetime_trip_count",
+            "conv_rate_plus_100",
         ],
         full_feature_names=full_feature_names,
     )
@@ -240,7 +263,7 @@ def test_historical_features(environment: Environment):
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
-    expected_df = (
+    expected_df: pd.DataFrame = (
         expected_df.sort_values(
             by=[event_timestamp, "order_id", "driver_id", "customer_id"]
         )
@@ -258,11 +281,20 @@ def test_historical_features(environment: Environment):
         expected_df, actual_df_from_df_entities, check_dtype=False,
     )
 
-    table_from_df_entities = job_from_df.to_arrow().to_pandas()
+    # on demand features is only plumbed through to to_df for now.
+    table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
+    actual_df_from_df_entities_for_table = actual_df_from_df_entities.drop(
+        columns=["conv_rate_plus_100"]
+    )
+    assert "conv_rate_plus_100" not in table_from_df_entities.columns
+
+    columns_expected_in_table = expected_df.columns.tolist()
+    columns_expected_in_table.remove("conv_rate_plus_100")
+
     table_from_df_entities = (
-        table_from_df_entities[expected_df.columns]
+        table_from_df_entities[columns_expected_in_table]
         .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
         .drop_duplicates()
         .reset_index(drop=True)
     )
-    assert_frame_equal(actual_df_from_df_entities, table_from_df_entities)
+    assert_frame_equal(actual_df_from_df_entities_for_table, table_from_df_entities)

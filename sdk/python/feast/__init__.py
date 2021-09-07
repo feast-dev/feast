@@ -13,6 +13,7 @@ from .feature_service import FeatureService
 from .feature_store import FeatureStore
 from .feature_table import FeatureTable
 from .feature_view import FeatureView
+from .on_demand_feature_view import OnDemandFeatureView
 from .repo_config import RepoConfig
 from .value_type import ValueType
 
@@ -37,6 +38,7 @@ __all__ = [
     "FeatureStore",
     "FeatureTable",
     "FeatureView",
+    "OnDemandFeatureView",
     "RepoConfig",
     "SourceType",
     "ValueType",

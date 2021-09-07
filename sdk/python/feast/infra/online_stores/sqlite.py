@@ -192,7 +192,10 @@ class SqliteOnlineStore(OnlineStore):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ):
-        os.unlink(self._get_db_path(config))
+        try:
+            os.unlink(self._get_db_path(config))
+        except FileNotFoundError:
+            pass
 
 
 def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:

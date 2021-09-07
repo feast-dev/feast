@@ -40,6 +40,16 @@ class FeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Feature view {name} does not exist")
 
 
+class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(
+                f"On demand feature view {name} does not exist in project {project}"
+            )
+        else:
+            super().__init__(f"On demand feature view {name} does not exist")
+
+
 class FeatureTableNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:
@@ -199,4 +209,11 @@ class InvalidEntityType(Exception):
         super().__init__(
             f"The entity dataframe you have provided must be a Pandas DataFrame or a SQL query, "
             f"but we found: {entity_type} "
+        )
+
+
+class ConflictingFeatureViewNames(Exception):
+    def __init__(self, feature_view_name: str):
+        super().__init__(
+            f"The feature view name: {feature_view_name} refers to both an on-demand feature view and a feature view"
         )

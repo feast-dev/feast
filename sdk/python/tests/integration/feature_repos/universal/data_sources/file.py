@@ -1,5 +1,5 @@
 import tempfile
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from minio import Minio
@@ -17,38 +17,48 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class FileDataSourceCreator(DataSourceCreator):
-    f: Any
+    files: List[Any]
 
-    def __init__(self, _: str):
-        pass
+    def __init__(self, project_name: str):
+        self.project_name = project_name
+        self.files = []
 
     def create_data_source(
         self,
-        destination: str,
         df: pd.DataFrame,
+        destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
-        self.f = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
-        df.to_parquet(self.f.name)
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        f = tempfile.NamedTemporaryFile(
+            prefix=f"{self.project_name}_{destination_name}",
+            suffix=".parquet",
+            delete=False,
+        )
+        df.to_parquet(f.name)
+        self.files.append(f)
         return FileSource(
             file_format=ParquetFormat(),
-            path=f"file://{self.f.name}",
+            path=f"{f.name}",
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
-    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
-        return f"{name}.{suffix}"
+    def get_prefixed_table_name(self, suffix: str) -> str:
+        return f"{self.project_name}.{suffix}"
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return FileOfflineStoreConfig()
 
     def teardown(self):
-        self.f.close()
+        for f in self.files:
+            f.close()
 
 
 class S3FileDataSourceCreator(DataSourceCreator):
@@ -93,13 +103,14 @@ class S3FileDataSourceCreator(DataSourceCreator):
 
     def create_data_source(
         self,
-        destination: str,
         df: pd.DataFrame,
+        destination_name: Optional[str] = None,
+        suffix: Optional[str] = None,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
-        filename = f"{destination}.parquet"
+        filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")
         host = self.minio.get_container_host_ip()
         minio_endpoint = f"{host}:{port}"
@@ -116,7 +127,7 @@ class S3FileDataSourceCreator(DataSourceCreator):
             s3_endpoint_override=f"http://{host}:{port}",
         )
 
-    def get_prefixed_table_name(self, name: str, suffix: str) -> str:
+    def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{suffix}"
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
