@@ -1,12 +1,12 @@
 from abc import ABC
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
 
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast import FeatureTable, FeatureView
+from feast import Entity, FeatureTable, FeatureView
 from feast.infra.utils.online_store_utils import _table_id, _to_naive_utc
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -53,12 +53,12 @@ class AstraDBOnlineStore(OnlineStore, ABC):
 
     def online_write_batch(
         self,
-        config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
-        progress: Optional[Callable[[int], Any]],
+            config: RepoConfig,
+            table: Union[FeatureTable, FeatureView],
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
         A function that will take features and store in specified data
@@ -80,11 +80,12 @@ class AstraDBOnlineStore(OnlineStore, ABC):
 
                 # Now create Insert command
                 insert_cql = _create_cql_insert_record(keyspace,
-                                                       table_name, column_names=["entity_key",
-                                                                                 "feature_name",
-                                                                                 "value",
-                                                                                 "event_ts",
-                                                                                 "created_ts"],
+                                                       table_name,
+                                                       column_names=["entity_key",
+                                                                     "feature_name",
+                                                                     "value",
+                                                                     "event_ts",
+                                                                     "created_ts"],
                                                        values=[entity_key_bin,
                                                                feature_name,
                                                                val.SerializeToString(),
@@ -121,9 +122,9 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                                  ).all()
 
         # Now find the result
-        res = {}
-        res_ts = None
+
         for row in all_rows:
+            res = {}
             feature_name = row.feature_name
             value = row.value
             ts = row.event_ts
@@ -136,10 +137,53 @@ class AstraDBOnlineStore(OnlineStore, ABC):
             result.append((None, None))
         return result
 
+    def update(
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
+        project = config.project
+        key_space = self.online_config.keyspace
+        for table in tables_to_keep:
+            table_name = _table_id(project, table)
+
+            # Create table if not exist
+            cql_create_table = _create_cql_table(key_space, table_name,
+                                                 primary_key=["entity_key", "feature_name"],
+                                                 columns=[
+                                                     "entity_key",
+                                                     "feature_name",
+                                                     "value",
+                                                     "event_ts",
+                                                     "created_ts"
+                                                 ],
+                                                 column_types=[
+                                                     "BLOB",
+                                                     "TEXT",
+                                                     "BLOB",
+                                                     "timestamp",
+                                                     "timestamp"
+                                                 ]
+                                                 )
+            self.session.execute(cql_create_table)
+
+            # Now create Index
+            cql_index = _create_index_cql(key_space, table_name+"_ek", table_name, "entity_key")
+            self.session.execute(cql_index)
+
+        for table in tables_to_delete:
+            table_name = _table_id(project, table)
+            delete_cql = _create_delete_table_cql(key_space, table_name)
+            self.session.execute(delete_cql)
+
 
 def _create_cql_table(key_space: str,
                       table_name: str,
-                      primary_key: str,
+                      primary_key: List,
                       columns: List[str],
                       column_types: List[str]
                       ) -> str:
@@ -154,12 +198,12 @@ def _create_cql_table(key_space: str,
     cql_create_table = "CREATE TABLE  IF NOT EXISTS " + key_space + "." + table_name
     cql_create_table += " ("
     for col, typ in zip(columns, column_types):
-        if col == primary_key:
+        if col in primary_key:
             cql_create_table += col + " " + typ + ", "
         else:
             cql_create_table += col + " " + typ + " , "
     cql_create_table = cql_create_table[:-2]
-    cql_create_table += ", PRIMARY KEY (" + primary_key + ") "
+    cql_create_table += ", PRIMARY KEY (" + ", ".join(primary_key) + ") "
     cql_create_table += ");"
     return cql_create_table
 
@@ -225,3 +269,19 @@ def _create_select_cql(key_space: str, table_name: str,
     select_cql += " ALLOW FILTERING;"
 
     return select_cql
+
+
+def _create_index_cql(key_space: str,
+                      index_name: str,
+                      table_name: str,
+                      index_on: str
+                      ) -> str:
+    cql_index = "CREATE INDEX " + index_name + " ON "
+    cql_index += key_space + "." + table_name + " ("
+    cql_index += index_on + ");"
+    return cql_index
+
+
+def _create_delete_table_cql(key_space: str, table_name: str) -> str:
+    cql_delete = "DROP TABLE " + key_space + "." + table_name + ";"
+    return cql_delete
