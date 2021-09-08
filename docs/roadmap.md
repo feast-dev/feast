@@ -3,7 +3,7 @@
 The list below contains Feast functionality that contributors are planning to develop
 * Items below may indicate if it is planned for development or whether development is in progress. 
 * We welcome contribution to all items in the roadmap, especially those that are not currently planned or in development.
-* Want to influence our roadmap? Submit your feedback to [this form](https://docs.google.com/forms/d/e/1FAIpQLSfa1nRQ0sKz-JEFnMMCi4Jseag_yDssO_3nV9qMfxfrkil-wA/viewform) in order to influence the prioritization of our roadmap.
+* Want to influence our roadmap and prioritization? Submit your feedback to [this form](https://docs.google.com/forms/d/e/1FAIpQLSfa1nRQ0sKz-JEFnMMCi4Jseag_yDssO_3nV9qMfxfrkil-wA/viewform).
 * Want to speak to a Feast contributor? We are more than happy to jump on a quick call. Please schedule a time using [Calendly](https://calendly.com/d/x2ry-g5bb/meet-with-feast-team).
 
 - **Data Sources**
