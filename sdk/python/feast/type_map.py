@@ -339,6 +339,29 @@ def bq_to_feast_value_type(bq_type_as_str):
     return type_map[bq_type_as_str]
 
 
+def mc_to_feast_value_type(mc_type_as_str):
+    # Type names from https://www.alibabacloud.com/help/doc-detail/159541.htm?spm=a2c63.l28256.b99.156.56307cfcDOy8Y2
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
+       "TINYINT": ValueType.INT64, 
+       "SMALLINT": ValueType.INT64, 
+       "INT": ValueType.INT64, 
+       "BIGINT": ValueType.INT64, 
+       "BINARY": ValueType.BYTES, 
+       "FLOAT": ValueType.DOUBLE, 
+       "DOUBLE": ValueType.DOUBLE, 
+       "DECIMAL": ValueType.DOUBLE, 
+       "VARCHAR": ValueType.STRING, 
+       "CHAR": ValueType.STRING, 
+       "STRING": ValueType.STRING, 
+       "DATE": ValueType.STRING, 
+       "DATETIME": ValueType.STRING, 
+       "TIMESTAMP": ValueType.UNIX_TIMESTAMP, 
+       "BOOLEAN": ValueType.UNIX_TIMESTAMP 
+    }
+
+    return type_map[mc_type_as_str]
+
+
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
     # Type names from https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
     type_map = {

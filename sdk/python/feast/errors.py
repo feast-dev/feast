@@ -197,6 +197,31 @@ class RedshiftQueryError(Exception):
         super().__init__(f"Redshift SQL Query failed to finish. Details: {details}")
 
 
+class MaxcomputeJobStillRunning(Exception):
+    def __init__(self, job_id):
+        super().__init__(f"The Maxcompute job with ID '{job_id}' is still running.")
+
+
+class MaxcomputeCredentialsError(Exception):
+    def __init__(self):
+        super().__init__("Maxcompute API failed due to incorrect credentials")
+
+
+class MaxcomputeJobCancelled(Exception):
+    def __init__(self, job_id):
+        super().__init__(f"The Maxcompute job with ID '{job_id}' was cancelled")
+
+
+class MaxcomputeQueryError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Maxcompute SQL Query failed to finish. Details: {details}")
+
+
+class MaxcomputeUploadError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Maxcompute Upload failed to finish. Details: {details}")
+
+
 class EntityTimestampInferenceException(Exception):
     def __init__(self, expected_column_name: str):
         super().__init__(

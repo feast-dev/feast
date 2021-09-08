@@ -361,6 +361,11 @@ class DataSource(ABC):
 
             data_source_obj = RedshiftSource.from_proto(data_source)
         elif (
+            data_source.maxcompute_options.table_ref or data_source.maxcompute_options.query
+        ):
+            from feast.infra.offline_stores.maxcompute_source import MaxcomputeSource
+            data_source_obj = MaxcomputeSource.from_proto(data_source)
+        elif (
             data_source.kafka_options.bootstrap_servers
             and data_source.kafka_options.topic
             and data_source.kafka_options.message_format
