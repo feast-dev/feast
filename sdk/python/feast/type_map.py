@@ -51,23 +51,28 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     field_value_dict = MessageToDict(field_value_proto)
 
     for k, v in field_value_dict.items():
+        if "List" in k:
+            val = v.get("val", [])
+        else:
+            val = v
+
         if k == "int64Val":
-            return int(v)
+            return int(val)
         if k == "bytesVal":
-            return bytes(v)
+            return bytes(val)
         if (k == "int64ListVal") or (k == "int32ListVal"):
-            return [int(item) for item in v["val"]]
+            return [int(item) for item in val]
         if (k == "floatListVal") or (k == "doubleListVal"):
-            return [float(item) for item in v["val"]]
+            return [float(item) for item in val]
         if k == "stringListVal":
-            return [str(item) for item in v["val"]]
+            return [str(item) for item in val]
         if k == "bytesListVal":
-            return [bytes(item) for item in v["val"]]
+            return [bytes(item) for item in val]
         if k == "boolListVal":
-            return [bool(item) for item in v["val"]]
+            return [bool(item) for item in val]
 
         if k in ["int32Val", "floatVal", "doubleVal", "stringVal", "boolVal"]:
-            return v
+            return val
         else:
             raise TypeError(
                 f"Casting to Python native type for type {k} failed. "
@@ -333,7 +338,7 @@ def python_value_to_proto_value(
 ) -> ProtoValue:
     value_type = (
         python_type_to_feast_value_type("", value)
-        if value is not None
+        if value
         else feature_type
     )
     return _python_value_to_proto_value(value_type, value)
