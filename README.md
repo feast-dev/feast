@@ -125,7 +125,7 @@ pprint(feature_vector)
 }
 ```
 
-## 📦 Functionality and roadmap
+## 📦 Functionality and Roadmap
 
 The list below contains Feast functionality that contributors are planning to develop
 * Items below may indicate if it is planned for development or whether development is in progress. 
@@ -211,7 +211,7 @@ The list below contains Feast functionality that contributors are planning to de
     - [ ]  Feature versioning
     - [ ]  Amundsen integration
 
-## 🎓 Important resources
+## 🎓 Important Resources
 
 Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
  * [Quickstart](https://docs.feast.dev/getting-started/quickstart)
