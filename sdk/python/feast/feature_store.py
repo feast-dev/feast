@@ -360,6 +360,9 @@ class FeatureStore:
         for view in views_to_update:
             view.infer_features_from_batch_source(self.config)
 
+        for odfv in odfvs_to_update:
+            odfv.infer_features_from_batch_source(self.config)
+
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update
         ) + len(odfvs_to_update) != len(objects):

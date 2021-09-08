@@ -1,9 +1,4 @@
 import pytest
-from utils.data_source_utils import (
-    prep_file_source,
-    simple_bq_source_using_query_arg,
-    simple_bq_source_using_table_ref_arg,
-)
 
 from feast import Entity, RepoConfig, ValueType
 from feast.errors import RegistryInferenceFailure
@@ -11,6 +6,11 @@ from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
+)
+from tests.utils.data_source_utils import (
+    prep_file_source,
+    simple_bq_source_using_query_arg,
+    simple_bq_source_using_table_ref_arg,
 )
 
 

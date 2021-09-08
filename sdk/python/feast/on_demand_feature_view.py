@@ -5,6 +5,8 @@ from typing import Dict, List
 import dill
 import pandas as pd
 
+from feast import errors
+from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
@@ -13,6 +15,11 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
+)
+from feast.repo_config import RepoConfig
+from feast.type_map import (
+    feast_value_type_to_pandas_type,
+    python_type_to_feast_value_type,
 )
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
@@ -124,6 +131,51 @@ class OnDemandFeatureView:
         # Cleanup extra columns used for transformation
         df_with_features.drop(columns=columns_to_cleanup, inplace=True)
         return df_with_transformed_features
+
+    def infer_features_from_batch_source(self, config: RepoConfig):
+        """
+        Infers the set of features associated to this feature view from the input source.
+
+        Args:
+            config: Configuration object used to configure the feature store.
+
+        Raises:
+            RegistryInferenceFailure: The set of features could not be inferred.
+        """
+        df = pd.DataFrame()
+        for feature_view in self.inputs.values():
+            for feature in feature_view.features:
+                dtype = feast_value_type_to_pandas_type(feature.dtype)
+                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
+                df[f"{feature.name}"] = pd.Series(dtype=dtype)
+        output_df: pd.DataFrame = self.udf.__call__(df)
+        inferred_features = []
+        for f, dt in zip(output_df.columns, output_df.dtypes):
+            inferred_features.append(
+                Feature(
+                    name=f, dtype=python_type_to_feast_value_type(f, type_name=str(dt))
+                )
+            )
+
+        print(f"self.features: {self.features}, inferred_features: {inferred_features}")
+
+        if self.features:
+            missing_features = []
+            for specified_features in self.features:
+                if specified_features not in inferred_features:
+                    missing_features.append(specified_features)
+            if missing_features:
+                raise errors.SpecifiedFeaturesNotPresentError(
+                    [f.name for f in missing_features], self.name
+                )
+        else:
+            self.features = inferred_features
+
+        if not self.features:
+            raise RegistryInferenceFailure(
+                "OnDemandFeatureView",
+                f"Could not infer Features for the feature view '{self.name}'.",
+            )
 
 
 def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureView]):

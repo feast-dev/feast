@@ -59,7 +59,7 @@ class Feature:
 
     def __repr__(self):
         # return string representation of the reference
-        return self.name
+        return f"{self.name}-{self.dtype}"
 
     def __str__(self):
         # readable string of the reference
