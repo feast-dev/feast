@@ -8,7 +8,7 @@ from tqdm import tqdm
 from feast import FeatureTable
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.helpers import get_offline_store_from_config
+from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import (
     Provider,
@@ -80,6 +80,7 @@ class LocalProvider(Provider):
 
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
@@ -98,18 +99,20 @@ class LocalProvider(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        table = self.offline_store.pull_latest_from_table_or_query(
-            data_source=feature_view.input,
+        offline_job = self.offline_store.pull_latest_from_table_or_query(
+            data_source=feature_view.batch_source,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
+            config=config,
         )
+        table = offline_job.to_arrow()
 
-        if feature_view.input.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.input.field_mapping)
+        if feature_view.batch_source.field_mapping is not None:
+            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
 
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
@@ -127,6 +130,7 @@ class LocalProvider(Provider):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool,
     ) -> RetrievalJob:
         return self.offline_store.get_historical_features(
             config=config,
@@ -135,6 +139,7 @@ class LocalProvider(Provider):
             entity_df=entity_df,
             registry=registry,
             project=project,
+            full_feature_names=full_feature_names,
         )
 
 

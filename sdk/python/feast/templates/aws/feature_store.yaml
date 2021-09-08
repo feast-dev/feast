@@ -1,0 +1,14 @@
+project: my_project
+registry: data/registry.db
+provider: aws
+online_store:
+  type: dynamodb
+  region: %AWS_REGION%
+offline_store:
+  type: redshift
+  cluster_id: %REDSHIFT_CLUSTER_ID%
+  region: %AWS_REGION%
+  database: %REDSHIFT_DATABASE%
+  user: %REDSHIFT_USER%
+  s3_staging_location: %REDSHIFT_S3_STAGING_LOCATION%
+  iam_role: %REDSHIFT_IAM_ROLE%

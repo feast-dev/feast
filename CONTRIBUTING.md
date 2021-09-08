@@ -21,8 +21,9 @@ pre-commit install --hook-type pre-push
 ## Feast Python SDK / CLI
 ### Environment Setup
 Setting up your development environment for Feast Python SDK / CLI:
-1. Ensure that you have `make`, Python (3.7 and above) with `pip`, installed.
-2. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
+1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing.
+2. Ensure that you have `make`, Python (3.7 and above) with `pip`, installed.
+3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
 ```sh
 # create & activate a virtual environment
 python -v venv venv/

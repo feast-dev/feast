@@ -22,7 +22,7 @@ Please see our [documentation](https://docs.feast.dev/) for more information abo
 ## Architecture
 <img src="https://i.imgur.com/IYUMF3Q.png" width="700">
 
-The above architecture is the minimal Feast deployment. Want to run the full Feast on Kubernetes? Click [here](https://docs.feast.dev/feast-on-kubernetes/getting-started).
+The above architecture is the minimal Feast deployment. Want to run the full Feast on GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-gcp-aws).
 
 ## Getting Started
 
@@ -62,7 +62,7 @@ store = FeatureStore(repo_path=".")
 
 training_df = store.get_historical_features(
     entity_df=entity_df, 
-    feature_refs = [
+    features = [
         'driver_hourly_stats:conv_rate',
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
@@ -75,11 +75,11 @@ print(training_df.head())
 # model = ml.fit(training_df)
 ```
 ```commandline
-      event_timestamp  driver_id  driver_hourly_stats__conv_rate  driver_hourly_stats__acc_rate
-  2021-04-12 08:12:10       1002                        0.497279                       0.357702
-  2021-04-12 10:59:42       1001                        0.979747                       0.008166
-  2021-04-12 15:01:12       1004                        0.151432                       0.551748
-  2021-04-12 16:40:26       1003                        0.951506                       0.753572
+            event_timestamp  driver_id  conv_rate  acc_rate  avg_daily_trips
+0 2021-04-12 08:12:10+00:00       1002   0.713465  0.597095              531
+1 2021-04-12 10:59:42+00:00       1001   0.072752  0.044344               11
+2 2021-04-12 15:01:12+00:00       1004   0.658182  0.079150              220
+3 2021-04-12 16:40:26+00:00       1003   0.162092  0.309035              959
 
 ```
 
@@ -101,7 +101,7 @@ from feast import FeatureStore
 store = FeatureStore(repo_path=".")
 
 feature_vector = store.get_online_features(
-    feature_refs=[
+    features=[
         'driver_hourly_stats:conv_rate',
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
@@ -126,16 +126,17 @@ pprint(feature_vector)
 ## Important resources
 
 Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
- * [Quickstart](https://docs.feast.dev/quickstart)
+ * [Quickstart](https://docs.feast.dev/getting-started/quickstart)
  * [Roadmap](https://docs.feast.dev/roadmap)
- * [Feast on Kubernetes](https://docs.feast.dev/feast-on-kubernetes/getting-started)
+ * [Tutorials](https://docs.feast.dev/tutorials/tutorials-overview)
+ * [Running Feast with GCP/AWS](https://docs.feast.dev/how-to-guides/feast-gcp-aws)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
  * [Slack (#Feast)](https://slack.feast.dev/)
 
 ## Contributing
 Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
-- [Contribution Process for Feast](https://docs.feast.dev/contributing/contributing)
-- [Development Guide for Feast](https://docs.feast.dev/contributing/development-guide)
+- [Contribution Process for Feast](https://docs.feast.dev/project/contributing)
+- [Development Guide for Feast](https://docs.feast.dev/project/development-guide)
 - [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
 
 ## Contributors ✨

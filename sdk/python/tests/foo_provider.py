@@ -13,6 +13,9 @@ from feast.registry import Registry
 
 
 class FooProvider(Provider):
+    def __init__(self, config: RepoConfig):
+        pass
+
     def update_infra(
         self,
         project: str,
@@ -45,6 +48,7 @@ class FooProvider(Provider):
 
     def materialize_single_feature_view(
         self,
+        config: RepoConfig,
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
@@ -54,14 +58,15 @@ class FooProvider(Provider):
     ) -> None:
         pass
 
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
         pass
 
@@ -72,7 +77,4 @@ class FooProvider(Provider):
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        pass
-
-    def __init__(self, config, repo_path):
         pass

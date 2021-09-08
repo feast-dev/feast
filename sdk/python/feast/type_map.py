@@ -13,15 +13,13 @@
 # limitations under the License.
 
 import re
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Union
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.timestamp_pb2 import Timestamp
-from pyarrow.lib import TimestampType
 
 from feast.protos.feast.types.Value_pb2 import (
     BoolList,
@@ -33,7 +31,6 @@ from feast.protos.feast.types.Value_pb2 import (
     StringList,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
-from feast.protos.feast.types.Value_pb2 import ValueType as ProtoValueType
 from feast.value_type import ValueType
 
 
@@ -114,6 +111,8 @@ def python_type_to_feast_value_type(
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
+        "Timestamp": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
@@ -133,7 +132,7 @@ def python_type_to_feast_value_type(
             for item in list_items:
                 if isinstance(item, ProtoValue):
                     current_item_value_type = _proto_str_to_value_type(
-                        item.WhichOneof("val")
+                        str(item.WhichOneof("val"))
                     )
                 else:
                     # Get the type from the current item, only one level deep
@@ -166,34 +165,44 @@ def python_type_to_feast_value_type(
     return type_map[value.dtype.__str__()]
 
 
-def _pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
-    """
-    Converts a Pandas datetime to a Timestamp Proto
-
-    Args:
-        dtype: Pandas datatype
-        value: Value of datetime
-
-    Returns:
-        Timestamp protobuf value
-    """
-
-    if type(value) in [np.float64, np.float32, np.int32, np.int64]:
-        return Timestamp(seconds=int(value))
-    if dtype.__str__() == "datetime64[ns]":
-        # If timestamp does not contain timezone, we assume it is of local
-        # timezone and adjust it to UTC
-        local_timezone = datetime.now(timezone.utc).astimezone().tzinfo
-        value = value.tz_localize(local_timezone).tz_convert("UTC").tz_localize(None)
-        return Timestamp(seconds=int(value.timestamp()))
-    if dtype.__str__() == "datetime64[ns, UTC]":
-        return Timestamp(seconds=int(value.timestamp()))
-    else:
-        return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)  # type: ignore
-
-
 def _type_err(item, dtype):
     raise ValueError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
+
+
+PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[Any, Tuple[Any, str, List[Any]]] = {
+    ValueType.FLOAT_LIST: (
+        FloatList,
+        "float_list_val",
+        [np.float32, np.float64, float],
+    ),
+    ValueType.DOUBLE_LIST: (
+        DoubleList,
+        "double_list_val",
+        [np.float64, np.float32, float],
+    ),
+    ValueType.INT32_LIST: (Int32List, "int32_list_val", [np.int32, int]),
+    ValueType.INT64_LIST: (Int64List, "int64_list_val", [np.int64, np.int32, int]),
+    ValueType.UNIX_TIMESTAMP_LIST: (
+        Int64List,
+        "int64_list_val",
+        [np.int64, np.int32, int],
+    ),
+    ValueType.STRING_LIST: (StringList, "string_list_val", [np.str_, str]),
+    ValueType.BOOL_LIST: (BoolList, "bool_list_val", [np.bool_, bool]),
+    ValueType.BYTES_LIST: (BytesList, "bytes_list_val", [np.bytes_, bytes]),
+}
+
+PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
+    Any, Tuple[str, Any, Optional[Set[Any]]]
+] = {
+    ValueType.INT32: ("int32_val", lambda x: int(x), None),
+    ValueType.INT64: ("int64_val", lambda x: int(x), None),
+    ValueType.FLOAT: ("float_val", lambda x: float(x), None),
+    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
+    ValueType.STRING: ("string_val", lambda x: str(x), None),
+    ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
+    ValueType.BOOL: ("bool_val", lambda x: x, {bool}),
+}
 
 
 def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
@@ -211,124 +220,41 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
 
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
-
-        if feast_value_type == ValueType.FLOAT_LIST:
-            return ProtoValue(
-                float_list_val=FloatList(
+        if feast_value_type in PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE:
+            proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
+                feast_value_type
+            ]
+            f = {
+                field_name: proto_type(
                     val=[
                         item
-                        if type(item) in [np.float32, np.float64, float]
-                        else _type_err(item, np.float32)
+                        if type(item) in valid_types
+                        else _type_err(item, valid_types[0])
                         for item in value
                     ]
                 )
-            )
-
-        if feast_value_type == ValueType.DOUBLE_LIST:
-            return ProtoValue(
-                double_list_val=DoubleList(
-                    val=[
-                        item
-                        if type(item) in [np.float64, np.float32, float]
-                        else _type_err(item, np.float64)
-                        for item in value
-                    ]
-                )
-            )
-
-        if feast_value_type == ValueType.INT32_LIST:
-            return ProtoValue(
-                int32_list_val=Int32List(
-                    val=[
-                        item if type(item) in [np.int32, int] else _type_err(item, np.int32)
-                        for item in value
-                    ]
-                )
-            )
-
-        if feast_value_type == ValueType.INT64_LIST:
-            return ProtoValue(
-                int64_list_val=Int64List(
-                    val=[
-                        item
-                        if type(item) in [np.int64, np.int32, int]
-                        else _type_err(item, np.int64)
-                        for item in value
-                    ]
-                )
-            )
-
-        if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
-            return ProtoValue(
-                int64_list_val=Int64List(
-                    val=[
-                        item
-                        if type(item) in [np.int64, np.int32, int]
-                        else _type_err(item, np.int64)
-                        for item in value
-                    ]
-                )
-            )
-
-        if feast_value_type == ValueType.STRING_LIST:
-            return ProtoValue(
-                string_list_val=StringList(
-                    val=[
-                        item
-                        if type(item) in [np.str_, str]
-                        else _type_err(item, np.str_)
-                        for item in value
-                    ]
-                )
-            )
-
-        if feast_value_type == ValueType.BOOL_LIST:
-            return ProtoValue(
-                bool_list_val=BoolList(
-                    val=[
-                        item
-                        if type(item) in [np.bool_, bool]
-                        else _type_err(item, np.bool_)
-                        for item in value
-                    ]
-                )
-            )
-
-        if feast_value_type == ValueType.BYTES_LIST:
-            return ProtoValue(
-                bytes_list_val=BytesList(
-                    val=[
-                        item
-                        if type(item) in [np.bytes_, bytes]
-                        else _type_err(item, np.bytes_)
-                        for item in value
-                    ]
-                )
-            )
-
+            }
+            return ProtoValue(**f)
     # Handle scalar types below
     else:
         if pd.isnull(value):
             return ProtoValue()
-        elif feast_value_type == ValueType.INT32:
-            return ProtoValue(int32_val=int(value))
-        elif feast_value_type == ValueType.INT64:
-            return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.UNIX_TIMESTAMP:
+            if isinstance(value, datetime):
+                return ProtoValue(int64_val=int(value.timestamp()))
+            elif isinstance(value, Timestamp):
+                return ProtoValue(int64_val=int(value.ToSeconds()))
             return ProtoValue(int64_val=int(value))
-        elif feast_value_type == ValueType.FLOAT:
-            return ProtoValue(float_val=float(value))
-        elif feast_value_type == ValueType.DOUBLE:
-            assert type(value) is float or np.float64
-            return ProtoValue(double_val=value)
-        elif feast_value_type == ValueType.STRING:
-            return ProtoValue(string_val=str(value))
-        elif feast_value_type == ValueType.BYTES:
-            assert type(value) is bytes
-            return ProtoValue(bytes_val=value)
-        elif feast_value_type == ValueType.BOOL:
-            assert type(value) is bool
-            return ProtoValue(bool_val=value)
+        elif feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
+            (
+                field_name,
+                func,
+                valid_scalar_types,
+            ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
+            if valid_scalar_types:
+                assert type(value) in valid_scalar_types
+            kwargs = {field_name: func(value)}
+            return ProtoValue(**kwargs)
 
     raise Exception(f"Unsupported data type: ${str(type(value))}")
 
@@ -374,81 +300,8 @@ def _proto_str_to_value_type(proto_str: str) -> ValueType:
     return type_map[proto_str]
 
 
-def pa_to_feast_value_attr(pa_type: object):
-    """
-    Returns the equivalent Feast ValueType string for the given pa.lib type.
-
-    Args:
-        pa_type (object):
-            PyArrow type.
-
-    Returns:
-        str:
-            Feast attribute name in Feast ValueType string-ed representation.
-    """
-    # Mapping of PyArrow type to attribute name in Feast ValueType strings
-    type_map = {
-        "timestamp[ms]": "int64_val",
-        "int32": "int32_val",
-        "int64": "int64_val",
-        "double": "double_val",
-        "float": "float_val",
-        "string": "string_val",
-        "binary": "bytes_val",
-        "bool": "bool_val",
-        "list<item: int32>": "int32_list_val",
-        "list<item: int64>": "int64_list_val",
-        "list<item: double>": "double_list_val",
-        "list<item: float>": "float_list_val",
-        "list<item: string>": "string_list_val",
-        "list<item: binary>": "bytes_list_val",
-        "list<item: bool>": "bool_list_val",
-    }
-
-    return type_map[pa_type.__str__()]
-
-
-def pa_to_value_type(pa_type: object):
-    """
-    Returns the equivalent Feast ValueType for the given pa.lib type.
-
-    Args:
-        pa_type (object):
-            PyArrow type.
-
-    Returns:
-        feast.types.Value_pb2.ValueType:
-            Feast ValueType.
-
-    """
-
-    # Mapping of PyArrow to attribute name in Feast ValueType
-    type_map = {
-        "timestamp[ms]": ProtoValueType.INT64,
-        "int32": ProtoValueType.INT32,
-        "int64": ProtoValueType.INT64,
-        "double": ProtoValueType.DOUBLE,
-        "float": ProtoValueType.FLOAT,
-        "string": ProtoValueType.STRING,
-        "binary": ProtoValueType.BYTES,
-        "bool": ProtoValueType.BOOL,
-        "list<item: int32>": ProtoValueType.INT32_LIST,
-        "list<item: int64>": ProtoValueType.INT64_LIST,
-        "list<item: double>": ProtoValueType.DOUBLE_LIST,
-        "list<item: float>": ProtoValueType.FLOAT_LIST,
-        "list<item: string>": ProtoValueType.STRING_LIST,
-        "list<item: binary>": ProtoValueType.BYTES_LIST,
-        "list<item: bool>": ProtoValueType.BOOL_LIST,
-    }
-    return type_map[pa_type.__str__()]
-
-
-def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
-    value_type = (
-        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
-    )
-
-    if re.match(r"^timestamp", value_type):
+def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
+    if re.match(r"^timestamp", pa_type_as_str):
         return ValueType.INT64
 
     type_map = {
@@ -467,51 +320,7 @@ def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
         "list<item: binary>": ValueType.BYTES_LIST,
         "list<item: bool>": ValueType.BOOL_LIST,
     }
-    return type_map[value_type]
-
-
-def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
-    if not isinstance(column.type, TimestampType):
-        raise Exception("Only TimestampType columns are allowed")
-
-    proto_column = []
-    for val in column:
-        timestamp = Timestamp()
-        timestamp.FromMicroseconds(micros=int(val.as_py().timestamp() * 1_000_000))
-        proto_column.append(timestamp)
-    return proto_column
-
-
-def pa_column_to_proto_column(
-    feast_value_type: ValueType, column: pa.lib.ChunkedArray
-) -> List[ProtoValue]:
-    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
-        ValueType.INT32: "int32_val",
-        ValueType.INT64: "int64_val",
-        ValueType.FLOAT: "float_val",
-        ValueType.DOUBLE: "double_val",
-        ValueType.STRING: "string_val",
-        ValueType.BYTES: "bytes_val",
-        ValueType.BOOL: "bool_val",
-        ValueType.BOOL_LIST: {"bool_list_val": BoolList},
-        ValueType.BYTES_LIST: {"bytes_list_val": BytesList},
-        ValueType.STRING_LIST: {"string_list_val": StringList},
-        ValueType.FLOAT_LIST: {"float_list_val": FloatList},
-        ValueType.DOUBLE_LIST: {"double_list_val": DoubleList},
-        ValueType.INT32_LIST: {"int32_list_val": Int32List},
-        ValueType.INT64_LIST: {"int64_list_val": Int64List},
-    }
-
-    value: Union[str, Dict[str, Any]] = type_map[feast_value_type]
-    # Process list types
-    if isinstance(value, dict):
-        list_param_name = list(value.keys())[0]
-        return [
-            ProtoValue(**{list_param_name: value[list_param_name](val=x.as_py())})
-            for x in column
-        ]
-    else:
-        return [ProtoValue(**{value: x.as_py()}) for x in column]
+    return type_map[pa_type_as_str]
 
 
 def bq_to_feast_value_type(bq_type_as_str):
@@ -533,3 +342,63 @@ def bq_to_feast_value_type(bq_type_as_str):
     }
 
     return type_map[bq_type_as_str]
+
+
+def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
+    # Type names from https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
+    type_map = {
+        "int2": ValueType.INT32,
+        "int4": ValueType.INT32,
+        "int8": ValueType.INT64,
+        "numeric": ValueType.DOUBLE,
+        "float4": ValueType.FLOAT,
+        "float8": ValueType.DOUBLE,
+        "bool": ValueType.BOOL,
+        "character": ValueType.STRING,
+        "varchar": ValueType.STRING,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "timestamptz": ValueType.UNIX_TIMESTAMP,
+        # skip date, geometry, hllsketch, time, timetz
+    }
+
+    return type_map[redshift_type_as_str.lower()]
+
+
+def pa_to_redshift_value_type(pa_type_as_str: str) -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # Redshift type: https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
+    pa_type_as_str = pa_type_as_str.lower()
+    if pa_type_as_str.startswith("timestamp"):
+        if "tz=" in pa_type_as_str:
+            return "timestamptz"
+        else:
+            return "timestamp"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("decimal"):
+        # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "int4",
+        "bool": "bool",
+        "int8": "int4",
+        "int16": "int4",
+        "int32": "int4",
+        "int64": "int8",
+        "uint8": "int4",
+        "uint16": "int4",
+        "uint32": "int8",
+        "uint64": "int8",
+        "float": "float4",
+        "double": "float8",
+        "binary": "varchar",
+        "string": "varchar",
+    }
+
+    return type_map[pa_type_as_str]

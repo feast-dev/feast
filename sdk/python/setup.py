@@ -52,22 +52,29 @@ REQUIRED = [
     "protobuf>=3.10",
     "pyarrow>=2.0.0",
     "pydantic>=1.0.0",
-    "PyYAML==5.3.*",
+    "PyYAML>=5.4.*",
     "tabulate==0.8.*",
+    "tenacity>=7.*",
     "toml==0.10.*",
     "tqdm==4.*",
+    "fastapi>=0.68.0",
+    "uvicorn[standard]>=0.14.0",
 ]
 
 GCP_REQUIRED = [
     "google-cloud-bigquery>=2.0.*",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
-    "google-cloud-storage>=1.20.*",
+    "google-cloud-storage>=1.34.*",
     "google-cloud-core==1.4.*",
 ]
 
 REDIS_REQUIRED = [
     "redis-py-cluster==2.1.2",
+]
+
+AWS_REQUIRED = [
+    "boto3==1.17.*",
 ]
 
 CI_REQUIRED = [
@@ -77,6 +84,7 @@ CI_REQUIRED = [
     "isort>=5",
     "grpcio-tools==1.34.0",
     "grpcio-testing==1.34.0",
+    "minio==7.1.0",
     "mock==2.0.0",
     "moto",
     "mypy==0.790",
@@ -86,13 +94,14 @@ CI_REQUIRED = [
     "urllib3>=1.25.4",
     "pytest==6.0.0",
     "pytest-cov",
+    "pytest-xdist",
     "pytest-lazy-fixture==0.6.3",
     "pytest-timeout==1.4.2",
     "pytest-ordering==0.6.*",
     "pytest-mock==1.10.4",
     "Sphinx!=4.0.0",
     "sphinx-rtd-theme",
-    "tenacity",
+    "testcontainers==3.4.2",
     "adlfs==0.5.9",
     "firebase-admin==4.5.2",
     "pre-commit",
@@ -103,7 +112,10 @@ CI_REQUIRED = [
     "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
+    "boto3==1.17.*",
+    "dill==0.3.0"
 ]
+
 
 # README file from Feast repo root directory
 repo_root = (
@@ -197,6 +209,7 @@ setup(
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
+        "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
     },
     include_package_data=True,
