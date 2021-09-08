@@ -42,6 +42,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             self.dataset_id, delete_contents=True, not_found_ok=True
         )
         print(f"Deleted dataset '{self.dataset_id}'")
+        self.dataset = None
 
     def create_offline_store_config(self):
         return BigQueryOfflineStoreConfig()

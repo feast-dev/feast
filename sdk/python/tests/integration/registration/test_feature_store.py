@@ -482,8 +482,8 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         test_feature_store.teardown()
 
 
-def test_apply_duplicated_featureview_names(feature_store_with_local_registry):
-    """ Test applying feature views with duplicated names"""
+def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
+    """ Test applying feature views with non-case-insensitively unique names"""
 
     driver_stats = FeatureView(
         name="driver_hourly_stats",
@@ -495,7 +495,7 @@ def test_apply_duplicated_featureview_names(feature_store_with_local_registry):
     )
 
     customer_stats = FeatureView(
-        name="driver_hourly_stats",
+        name="DRIVER_HOURLY_STATS",
         entities=["id"],
         ttl=timedelta(seconds=10),
         online=False,
@@ -509,7 +509,8 @@ def test_apply_duplicated_featureview_names(feature_store_with_local_registry):
         error = e
     assert (
         isinstance(error, ValueError)
-        and "Please ensure that all feature view names are unique" in error.args[0]
+        and "Please ensure that all feature view names are case-insensitively unique"
+        in error.args[0]
     )
 
     feature_store_with_local_registry.teardown()
