@@ -261,11 +261,10 @@ def block_until_done(
     if is_test:
         retry_cadence = 0.1
 
-    def _wait_until_done(job_id):
-        if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
-            raise BigQueryJobStillRunning(job_id=job_id)
+    def _wait_until_done(bq_job):
+        if client.get_job(bq_job).state in ["PENDING", "RUNNING"]:
+            raise BigQueryJobStillRunning(job_id=bq_job.job_id)
 
-    job_id = bq_job.job_id
     try:
         retryer = Retrying(
             wait=wait_fixed(retry_cadence),
@@ -273,12 +272,12 @@ def block_until_done(
             retry=retry_if_exception_type(BigQueryJobStillRunning),
             reraise=True,
         )
-        retryer(_wait_until_done, job_id)
+        retryer(_wait_until_done, bq_job)
 
     finally:
-        if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
-            client.cancel_job(job_id)
-            raise BigQueryJobCancelled(job_id=job_id)
+        if client.get_job(bq_job).state in ["PENDING", "RUNNING"]:
+            client.cancel_job(bq_job)
+            raise BigQueryJobCancelled(job_id=bq_job.job_id)
 
         if bq_job.exception():
             raise bq_job.exception()
