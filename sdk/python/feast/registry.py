@@ -27,8 +27,6 @@ from feast.errors import (
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
-    S3RegistryBucketForbiddenAccess,
-    S3RegistryBucketNotExist,
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
