@@ -918,14 +918,9 @@ class FeatureStore:
                         if full_feature_names
                         else transformed_feature
                     )
-                    print(
-                        f"transformed_feature: {transformed_feature}, transformed_feature_name: {transformed_feature_name}"
-                    )
                     proto_value = python_value_to_proto_value(
                         transformed_features_df[transformed_feature].values[row_idx]
                     )
-                    print(f"transformed_feature: {proto_value}, `{type(proto_value)}` ")
-                    print(f"result_row: {result_row.fields[transformed_feature_name]}")
                     result_row.fields[transformed_feature_name].CopyFrom(proto_value)
                     result_row.statuses[
                         transformed_feature_name
