@@ -493,7 +493,10 @@ class FeatureStore:
             project=self.project
         )
 
-        fvs = _group_feature_refs(
+        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
+        # This is a weird interface quirk - we should revisit the `get_historical_features` to
+        # pass in the on demand feature views as well.
+        fvs, _ = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         feature_views = list(view for view, _ in fvs if isinstance(view, FeatureView))
@@ -764,7 +767,7 @@ class FeatureStore:
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs = _group_feature_refs(
+        grouped_refs, _ = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         for table, requested_features in grouped_refs:
@@ -928,7 +931,9 @@ def _group_feature_refs(
     features: Union[List[str], FeatureService],
     all_feature_views: List[FeatureView],
     all_on_demand_feature_views: List[OnDemandFeatureView],
-) -> List[Union[Tuple[FeatureView, List[str]], Tuple[OnDemandFeatureView, List[str]]]]:
+) -> Tuple[
+    List[Tuple[FeatureView, List[str]]], List[Tuple[OnDemandFeatureView, List[str]]]
+]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
@@ -959,14 +964,14 @@ def _group_feature_refs(
                 [f.name for f in projected_features]
             )
 
-    result: List[
-        Union[Tuple[FeatureView, List[str]], Tuple[OnDemandFeatureView, List[str]]]
-    ] = []
+    fvs_result: List[Tuple[FeatureView, List[str]]] = []
+    odfvs_result: List[Tuple[OnDemandFeatureView, List[str]]] = []
+
     for view_name, feature_names in views_features.items():
-        result.append((view_index[view_name], feature_names))
+        fvs_result.append((view_index[view_name], feature_names))
     for view_name, feature_names in on_demand_view_features.items():
-        result.append((on_demand_view_index[view_name], feature_names))
-    return result
+        odfvs_result.append((on_demand_view_index[view_name], feature_names))
+    return fvs_result, odfvs_result
 
 
 def _get_feature_refs_from_feature_services(
