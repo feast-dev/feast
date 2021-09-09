@@ -779,8 +779,8 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self._registry.list_feature_views(
-            project=self.project, allow_cache=True
+        all_feature_views = self._list_feature_views(
+            allow_cache=True, hide_dummy_entity=False
         )
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
