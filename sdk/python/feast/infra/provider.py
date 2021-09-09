@@ -1,5 +1,6 @@
 import abc
 from collections import defaultdict
+from abc import ABCMeta
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -19,6 +20,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.type_map import python_value_to_proto_value
+from feast.usage import log_exceptions_and_usage, usage
 
 
 class Provider(abc.ABC):
@@ -166,6 +168,8 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         module_name, class_name = config.provider.rsplit(".", 1)
 
         cls = importer.get_class_from_type(module_name, class_name, "Provider")
+
+        cls = _add_usage_logging(cls, module_name)
 
         return cls(config)
 
@@ -328,3 +332,28 @@ def _convert_arrow_to_proto(
             (entity_key, feature_dict, event_timestamp, created_timestamp)
         )
     return rows_to_write
+
+
+def _add_usage_logging(provider_class: ABCMeta, module_name: str) -> ABCMeta:
+    provider_methods_to_log = [
+        "update_infra",
+        "teardown_infra",
+        "online_write_batch",
+        "materialize_single_feature_view",
+        "get_historical_features",
+        "online_read",
+    ]
+    provider_method_to_log_frequency = {
+        "online_write_batch": 10000,
+        "materialize_single_feature_view": 10000,
+        "online_read": 10000
+    }
+
+    for method_name in provider_methods_to_log:
+        method = log_exceptions_and_usage(provider_class.__dict__[method_name])
+        setattr(provider_class, method_name, method)
+        if method_name in provider_method_to_log_frequency:
+            log_frequency = provider_method_to_log_frequency[method_name]
+            usage.set_log_frequency_for_method(method_name, module_name, log_frequency)
+
+    return provider_class

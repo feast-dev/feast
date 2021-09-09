@@ -15,8 +15,11 @@ import tempfile
 import uuid
 from datetime import datetime
 
+from assertpy import assertpy
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from tenacity import retry, wait_exponential, stop_after_attempt
+from tests.integration.registration.test_cli import setup_third_party_provider_repo
+from tests.utils.cli_utils import CliRunner, get_example_repo
 
 from google.cloud import bigquery
 import os
@@ -93,6 +96,23 @@ def test_usage_off():
         sleep(30)
         rows = read_bigquery_usage_id(test_usage_id)
         assert rows.total_rows == 0
+
+
+def test_usage_custom_provider():
+    old_environ = dict(os.environ)
+    test_usage_id = str(uuid.uuid4())
+    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
+    os.environ["FEAST_IS_USAGE_TEST"] = "True"
+    os.environ["FEAST_USAGE"] = "True"
+
+    runner = CliRunner()
+    with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:
+        return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
+        assertpy.assert_that(return_code).is_equal_to(0)
+
+        os.environ.clear()
+        os.environ.update(old_environ)
+        ensure_bigquery_usage_id_with_retry(test_usage_id)
 
 
 def test_exception_usage_on():

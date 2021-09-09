@@ -48,6 +48,7 @@ METHOD_TO_LOG_FREQUENCY = {
 class Usage:
     def __init__(self):
         self._usage_enabled: bool = False
+        self.method_to_log_frequency = METHOD_TO_LOG_FREQUENCY
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
@@ -66,7 +67,7 @@ class Usage:
                     usage_filepath = join(feast_home_dir, "usage")
 
                     self._is_test = os.getenv("FEAST_IS_USAGE_TEST", "False") == "True"
-                    self._usage_counter = {k: 0 for k in METHOD_TO_LOG_FREQUENCY}
+                    self._usage_counter = {k: 0 for k in self.method_to_log_frequency}
 
                     if os.path.exists(usage_filepath):
                         with open(usage_filepath, "r") as f:
@@ -89,12 +90,17 @@ class Usage:
             return os.getenv("FEAST_FORCE_USAGE_UUID")
         return self._usage_id
 
+    def set_log_frequency_for_method(
+        self, function_name: str, module_name: str, log_frequency: int
+    ):
+        self.method_to_log_frequency[(function_name, module_name)] = log_frequency
+
     def log(self, function_name: str, module_name: str, execution_time: int):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
             method = (function_name, module_name)
             if method in self._usage_counter:
-                frequency = METHOD_TO_LOG_FREQUENCY[method]
+                frequency = self.method_to_log_frequency[method]
                 self._usage_counter[method] += 1
                 # Begin logging on the second invokation of the method.
                 if self._usage_counter[method] % frequency != 2:
