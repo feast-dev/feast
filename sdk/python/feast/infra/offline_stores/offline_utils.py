@@ -2,7 +2,7 @@ import importlib
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,6 @@ from feast.errors import (
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
