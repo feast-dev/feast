@@ -59,6 +59,7 @@ class Usage:
     def __init__(self):
         self._usage_enabled: bool = False
         self.method_to_log_frequency = METHOD_TO_LOG_FREQUENCY
+        self.current_uid = ""
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
