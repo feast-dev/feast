@@ -4,6 +4,7 @@ import unittest
 import pandas as pd
 import pytest
 
+from feast import FeatureService
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -17,9 +18,15 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
+
+    feature_service = FeatureService(
+        "convrate_plus100",
+        features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
+    )
+
     feast_objects = []
     feast_objects.extend(feature_views.values())
-    feast_objects.extend([driver(), customer()])
+    feast_objects.extend([driver(), customer(), feature_service])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
 
@@ -114,6 +121,16 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
                 ][0]
             )
 
+    assert_feature_service_correctness(
+        fs,
+        feature_service,
+        entity_rows,
+        full_feature_names,
+        drivers_df,
+        customers_df,
+        global_df,
+    )
+
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if (
@@ -147,3 +164,38 @@ def get_latest_feature_values_from_dataframes(
     latest_global_row = global_df.loc[global_df["event_timestamp"].idxmax()].to_dict()
 
     return {**latest_customer_row, **latest_driver_row, **latest_global_row}
+
+
+def assert_feature_service_correctness(
+    fs,
+    feature_service,
+    entity_rows,
+    full_feature_names,
+    drivers_df,
+    customers_df,
+    global_df,
+):
+    feature_service_response = fs.get_online_features(
+        features=feature_service,
+        entity_rows=entity_rows,
+        full_feature_names=full_feature_names,
+    )
+    assert feature_service_response is not None
+
+    feature_service_online_features_dict = feature_service_response.to_dict()
+    feature_service_keys = feature_service_online_features_dict.keys()
+
+    assert (
+        len(feature_service_keys) == len(feature_service.features) + 2
+    )  # Add two for the driver id and the customer id entity keys.
+
+    for i, entity_row in enumerate(entity_rows):
+        df_features = get_latest_feature_values_from_dataframes(
+            drivers_df, customers_df, global_df, entity_row
+        )
+        assert (
+            feature_service_online_features_dict[
+                response_feature_name("conv_rate_plus_100", full_feature_names)
+            ][i]
+            == df_features["conv_rate"] + 100
+        )

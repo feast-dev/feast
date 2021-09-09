@@ -9,6 +9,7 @@ from feast import errors
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view import FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -131,6 +132,16 @@ class OnDemandFeatureView:
         # Cleanup extra columns used for transformation
         df_with_features.drop(columns=columns_to_cleanup, inplace=True)
         return df_with_transformed_features
+
+    def __getitem__(self, item) -> FeatureViewProjection:
+        assert isinstance(item, list)
+
+        referenced_features = []
+        for feature in self.features:
+            if feature.name in item:
+                referenced_features.append(feature)
+
+        return FeatureViewProjection(self.name, referenced_features)
 
     def infer_features_from_batch_source(self, config: RepoConfig):
         """

@@ -8,6 +8,7 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 from feast import utils
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -183,9 +184,22 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         feature_views["global"],
     )
 
+    feature_service = FeatureService(
+        "convrate_plus100",
+        features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
+    )
+
     feast_objects = []
     feast_objects.extend(
-        [customer_fv, driver_fv, driver_odfv, global_fv, driver(), customer()]
+        [
+            customer_fv,
+            driver_fv,
+            driver_odfv,
+            global_fv,
+            driver(),
+            customer(),
+            feature_service,
+        ]
     )
     store.apply(feast_objects)
 
@@ -312,6 +326,14 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     assert_frame_equal(
         expected_df, actual_df_from_df_entities, check_dtype=False,
     )
+    assert_feature_service_correctness(
+        store,
+        feature_service,
+        full_feature_names,
+        orders_df,
+        expected_df,
+        event_timestamp,
+    )
 
     # on demand features is only plumbed through to to_df for now.
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
@@ -330,3 +352,62 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         .reset_index(drop=True)
     )
     assert_frame_equal(actual_df_from_df_entities_for_table, table_from_df_entities)
+
+
+def response_feature_name(feature: str, full_feature_names: bool) -> str:
+    if (
+        feature in {"current_balance", "avg_passenger_count", "lifetime_trip_count"}
+        and full_feature_names
+    ):
+        return f"customer_profile__{feature}"
+
+    if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
+        return f"driver_stats__{feature}"
+
+    if feature in {"conv_rate_plus_100"} and full_feature_names:
+        return f"conv_rate_plus_100__{feature}"
+
+    if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
+        return f"global_stats__{feature}"
+    return feature
+
+
+def assert_feature_service_correctness(
+    store, feature_service, full_feature_names, orders_df, expected_df, event_timestamp
+):
+
+    job_from_df = store.get_historical_features(
+        entity_df=orders_df,
+        features=feature_service,
+        full_feature_names=full_feature_names,
+    )
+
+    actual_df_from_df_entities = job_from_df.to_df()
+
+    expected_df: pd.DataFrame = (
+        expected_df.sort_values(
+            by=[event_timestamp, "order_id", "driver_id", "customer_id"]
+        )
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    expected_df = expected_df[
+        [
+            event_timestamp,
+            "order_id",
+            "driver_id",
+            "customer_id",
+            response_feature_name("conv_rate", full_feature_names),
+            "conv_rate_plus_100",
+        ]
+    ]
+    actual_df_from_df_entities = (
+        actual_df_from_df_entities[expected_df.columns]
+        .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+
+    assert_frame_equal(
+        expected_df, actual_df_from_df_entities, check_dtype=False,
+    )
