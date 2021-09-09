@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Set
@@ -33,6 +32,7 @@ from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
 
 REGISTRY_SCHEMA_VERSION = "1"
@@ -699,39 +699,3 @@ class Registry:
                 for odfv in self.cached_registry_proto.on_demand_feature_views
             ]
         )
-
-
-class RegistryStore(ABC):
-    """
-    RegistryStore: abstract base class implemented by specific backends (local file system, GCS)
-    containing lower level methods used by the Registry class that are backend-specific.
-    """
-
-    @abstractmethod
-    def get_registry_proto(self):
-        """
-        Retrieves the registry proto from the registry path. If there is no file at that path,
-        raises a FileNotFoundError.
-
-        Returns:
-            Returns either the registry proto stored at the registry path, or an empty registry proto.
-        """
-        pass
-
-    @abstractmethod
-    def update_registry_proto(self, registry_proto: RegistryProto):
-        """
-        Overwrites the current registry proto with the proto passed in. This method
-        writes to the registry path.
-
-        Args:
-            registry_proto: the new RegistryProto
-        """
-        pass
-
-    @abstractmethod
-    def teardown(self):
-        """
-        Tear down all resources.
-        """
-        pass

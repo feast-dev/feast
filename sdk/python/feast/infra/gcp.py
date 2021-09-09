@@ -22,7 +22,8 @@ from feast.infra.provider import (
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry, RegistryStore
+from feast.registry import Registry
+from feast.registry_store import RegistryStore
 from feast.repo_config import RepoConfig
 
 
