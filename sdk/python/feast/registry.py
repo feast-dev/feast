@@ -60,10 +60,10 @@ class Registry:
             repo_path: Path to the base of the Feast repository
             or where it will be created if it does not exist yet.
         """
-        registry_store_provider = registry_config.registry_store_provider
+        registry_store_type = registry_config.registry_store_type
         registry_path = registry_config.path
         uri = urlparse(registry_path)
-        if registry_store_provider is None:
+        if registry_store_type is None:
             if uri.scheme == "gs":
                 from feast.infra.gcp import GCSRegistryStore
 
@@ -84,8 +84,8 @@ class Registry:
                     f"Supported schemes are file, s3 and gs."
                 )
         else:
-            registry_store_provider = str(registry_store_provider)
-            if "." not in registry_store_provider:
+            registry_store_type = str(registry_store_type)
+            if "." not in registry_store_type:
                 if uri.scheme == "gs":
                     from feast.infra.gcp import GCSRegistryStore
 
@@ -102,14 +102,14 @@ class Registry:
                     )
                 else:
                     raise Exception(
-                        f"Registry path {registry_path} has unsupported scheme {uri.scheme} or does not match {registry_store_provider}. "
+                        f"Registry path {registry_path} has unsupported scheme {uri.scheme} or does not match {registry_store_type}. "
                         f"Supported schemes are file, s3 and gs."
                     )
             else:
                 # Split provider into module and class names by finding the right-most dot.
                 # For example, provider 'foo.bar.MyRegistryStore' will be parsed into 'foo.bar' and 'MyRegistryStore'
                 module_name, class_name = str(
-                    registry_config.registry_store_provider
+                    registry_config.registry_store_type
                 ).rsplit(".", 1)
 
                 cls = importer.get_class_from_type(

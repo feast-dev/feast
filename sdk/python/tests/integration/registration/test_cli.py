@@ -154,7 +154,7 @@ def setup_third_party_registry_store_repo(registry_store: str):
                 f"""
         project: foo
         registry:
-            registry_store_provider: {registry_store}
+            registry_store_type: {registry_store}
             path: foobar://foo.bar
         provider: local
         online_store:
