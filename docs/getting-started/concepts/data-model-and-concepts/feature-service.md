@@ -25,7 +25,7 @@ Feature services are used during
 Applying a feature service does not result in an actual service being deployed.
 {% endhint %}
 
-Feature services can now be retrieved from the feature store, and referenced when retrieving features from the online store.
+Feature services can be retrieved from the feature store, and referenced when retrieving features from the online store.
 
 ```python
 from feast import FeatureStore
@@ -37,7 +37,7 @@ features = feature_store.get_online_features(
 )
 ```
 
-The feature service can also be used when retrieving historical features from the offline store.
+Feature services can also be used when retrieving historical features from the offline store.
 
 ```python
 from feast import FeatureStore
