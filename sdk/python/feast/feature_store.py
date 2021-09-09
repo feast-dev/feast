@@ -535,7 +535,7 @@ class FeatureStore:
 
         _feature_refs = self._get_features(features, feature_refs)
 
-        all_feature_views = self._registry.list_feature_views(project=self.project)
+        all_feature_views = self.list_feature_views()
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project
         )

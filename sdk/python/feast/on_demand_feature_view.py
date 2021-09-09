@@ -157,8 +157,6 @@ class OnDemandFeatureView:
                 )
             )
 
-        print(f"self.features: {self.features}, inferred_features: {inferred_features}")
-
         if self.features:
             missing_features = []
             for specified_features in self.features:

@@ -49,7 +49,6 @@ def conv_rate_plus_100_feature_view(
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
     _features = features or [Feature("conv_rate_plus_100", ValueType.DOUBLE)]
-    print(f"features: {_features}")
     return OnDemandFeatureView(
         name=conv_rate_plus_100.__name__,
         inputs=inputs,
