@@ -892,10 +892,7 @@ class FeatureStore:
 
         odfv_feature_refs = defaultdict(list)
         for feature_ref in feature_refs:
-            view_name, feature_name = (
-                feature_ref.split(":")[0],
-                feature_ref.split(":")[1],
-            )
+            view_name, feature_name = feature_ref.split(":")
             if view_name in all_odfv_feature_names:
                 odfv_feature_refs[view_name].append(feature_name)
 
