@@ -96,8 +96,8 @@ def get_feature_view_query_context(
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a BigQuery and Redshift point-in-time SQL query"""
 
-    feature_views_to_feature_map = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views
+    feature_views_to_feature_map, on_demand_feature_views_to_features, = _get_requested_feature_views_to_features_dict(
+        feature_refs, feature_views + registry.list_on_demand_feature_views(project)
     )
 
     query_context = []
