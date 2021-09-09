@@ -133,3 +133,6 @@ compile-protos-docs:
 
 build-sphinx: compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
+
+build-templates:
+	python infra/scripts/compile-templates.py

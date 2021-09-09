@@ -40,6 +40,11 @@ from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
 
+# DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
+DUMMY_ENTITY_ID = "__dummy_id"
+DUMMY_ENTITY_NAME = "__dummy"
+DUMMY_ENTITY_VAL = ""
+
 
 class FeatureView:
     """
@@ -117,7 +122,7 @@ class FeatureView:
                 )
 
         self.name = name
-        self.entities = entities
+        self.entities = entities if entities else [DUMMY_ENTITY_NAME]
         self.features = _features
         self.tags = tags if tags is not None else {}
 

@@ -31,7 +31,12 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
-from feast.feature_view import FeatureView
+from feast.feature_view import (
+    DUMMY_ENTITY_ID,
+    DUMMY_ENTITY_NAME,
+    DUMMY_ENTITY_VAL,
+    FeatureView,
+)
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
@@ -48,6 +53,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.type_map import python_value_to_proto_value
 from feast.usage import log_exceptions, log_exceptions_and_usage
+from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -94,6 +100,12 @@ class FeatureStore:
             repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
+        DUMMY_ENTITY = Entity(
+            name=DUMMY_ENTITY_NAME,
+            join_key=DUMMY_ENTITY_ID,
+            value_type=ValueType.INT32,
+        )
+        self.apply(DUMMY_ENTITY)
 
     @log_exceptions
     def version(self) -> str:
@@ -148,7 +160,19 @@ class FeatureStore:
         Returns:
             A list of entities.
         """
-        return self._registry.list_entities(self.project, allow_cache=allow_cache)
+        return self._list_entities(allow_cache)
+
+    def _list_entities(
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True
+    ) -> List[Entity]:
+        all_entities = self._registry.list_entities(
+            self.project, allow_cache=allow_cache
+        )
+        return [
+            entity
+            for entity in all_entities
+            if entity.name != DUMMY_ENTITY_NAME or not hide_dummy_entity
+        ]
 
     @log_exceptions_and_usage
     def list_feature_services(self) -> List[FeatureService]:
@@ -161,14 +185,29 @@ class FeatureStore:
         return self._registry.list_feature_services(self.project)
 
     @log_exceptions_and_usage
-    def list_feature_views(self) -> List[FeatureView]:
+    def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
 
         Returns:
             A list of feature views.
         """
-        return self._registry.list_feature_views(self.project)
+        return self._list_feature_views(allow_cache)
+
+    def _list_feature_views(
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True
+    ) -> List[FeatureView]:
+        feature_views = []
+        for fv in self._registry.list_feature_views(
+            self.project, allow_cache=allow_cache
+        ):
+            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
+                fv.entities = []
+            feature_views.append(fv)
+        return feature_views
 
     @log_exceptions_and_usage
     def list_on_demand_feature_views(self) -> List[OnDemandFeatureView]:
@@ -226,7 +265,15 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._registry.get_feature_view(name, self.project)
+        return self._get_feature_view(name)
+
+    def _get_feature_view(
+        self, name: str, hide_dummy_entity: bool = True
+    ) -> FeatureView:
+        feature_view = self._registry.get_feature_view(name, self.project)
+        if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
+            feature_view.entities = []
+        return feature_view
 
     @log_exceptions_and_usage
     def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
@@ -551,12 +598,12 @@ class FeatureStore:
         """
         feature_views_to_materialize = []
         if feature_views is None:
-            feature_views_to_materialize = self._registry.list_feature_views(
-                self.project
+            feature_views_to_materialize = self._list_feature_views(
+                hide_dummy_entity=False
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(name, self.project)
+                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -643,12 +690,12 @@ class FeatureStore:
 
         feature_views_to_materialize = []
         if feature_views is None:
-            feature_views_to_materialize = self._registry.list_feature_views(
-                self.project
+            feature_views_to_materialize = self._list_feature_views(
+                hide_dummy_entity=False
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(name, self.project)
+                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -732,9 +779,26 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
+        all_feature_views = self._registry.list_feature_views(
+            project=self.project, allow_cache=True
+        )
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project, allow_cache=True
+        )
+
+        _validate_feature_refs(_feature_refs, full_feature_names)
+        grouped_refs, _ = _group_feature_refs(
+            _feature_refs, all_feature_views, all_on_demand_feature_views
+        )
+        feature_views = list(view for view, _ in grouped_refs)
+        entityless_case = DUMMY_ENTITY_NAME in [
+            entity_name
+            for feature_view in feature_views
+            for entity_name in feature_view.entities
+        ]
 
         provider = self._get_provider()
-        entities = self.list_entities(allow_cache=True)
+        entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
@@ -748,6 +812,8 @@ class FeatureStore:
                 except KeyError:
                     raise EntityNotFoundException(entity_name, self.project)
                 join_key_row[join_key] = entity_value
+                if entityless_case:
+                    join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
             join_key_rows.append(join_key_row)
 
         entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
@@ -759,17 +825,6 @@ class FeatureStore:
             union_of_entity_keys.append(_entity_row_to_key(entity_row_proto))
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
-        all_feature_views = self._registry.list_feature_views(
-            project=self.project, allow_cache=True
-        )
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project, allow_cache=True
-        )
-
-        _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs, _ = _group_feature_refs(
-            _feature_refs, all_feature_views, all_on_demand_feature_views
-        )
         for table, requested_features in grouped_refs:
             if not isinstance(table, FeatureView):
                 continue

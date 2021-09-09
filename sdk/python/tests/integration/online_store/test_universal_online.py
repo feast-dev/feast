@@ -33,6 +33,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         datasets["customer"]["customer_id"].isin(sample_customers)
     ]
 
+    global_df = datasets["global"]
+
     entity_rows = [
         {"driver": d, "customer_id": c}
         for (d, c) in zip(sample_drivers, sample_customers)
@@ -45,6 +47,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "customer_profile:avg_passenger_count",
         "customer_profile:lifetime_trip_count",
         "conv_rate_plus_100:conv_rate_plus_100",
+        "global_stats:num_rides",
+        "global_stats:avg_ride_length",
     ]
     unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
     # Remove the on demand feature view, since it's not present in the source dataframe
@@ -67,12 +71,16 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             assert feature.replace(":", "__") in keys
         else:
             assert feature.rsplit(":", 1)[-1] in keys
-            assert "driver_stats" not in keys and "customer_profile" not in keys
+            assert (
+                "driver_stats" not in keys
+                and "customer_profile" not in keys
+                and "global_stats" not in keys
+            )
 
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
         df_features = get_latest_feature_values_from_dataframes(
-            drivers_df, customers_df, entity_row
+            drivers_df, customers_df, global_df, entity_row
         )
 
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
@@ -99,11 +107,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     ).to_dict()
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
-        tc.assertIsNone(
-            missing_responses_dict[
-                response_feature_name(unprefixed_feature_ref, full_feature_names)
-            ][0]
-        )
+        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length"}:
+            tc.assertIsNone(
+                missing_responses_dict[
+                    response_feature_name(unprefixed_feature_ref, full_feature_names)
+                ][0]
+            )
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
@@ -119,10 +128,14 @@ def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if feature in {"conv_rate_plus_100"} and full_feature_names:
         return f"conv_rate_plus_100__{feature}"
 
+    if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
+        return f"global_stats__{feature}"
     return feature
 
 
-def get_latest_feature_values_from_dataframes(driver_df, customer_df, entity_row):
+def get_latest_feature_values_from_dataframes(
+    driver_df, customer_df, global_df, entity_row
+):
     driver_rows = driver_df[driver_df["driver_id"] == entity_row["driver"]]
     latest_driver_row: pd.DataFrame = driver_rows.loc[
         driver_rows["event_timestamp"].idxmax()
@@ -131,6 +144,6 @@ def get_latest_feature_values_from_dataframes(driver_df, customer_df, entity_row
     latest_customer_row = customer_rows.loc[
         customer_rows["event_timestamp"].idxmax()
     ].to_dict()
+    latest_global_row = global_df.loc[global_df["event_timestamp"].idxmax()].to_dict()
 
-    latest_customer_row.update(latest_driver_row)
-    return latest_customer_row
+    return {**latest_customer_row, **latest_driver_row, **latest_global_row}
