@@ -28,7 +28,7 @@ from feast.version import get_version
 USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
 
-# This mapping from (function_name, method_name) to (frequency) determines how often
+# This mapping from (function_name, module_name) to (frequency) determines how often
 # each invokation of the method will be logged. For example, if ("get_online_features",
 # "feast.feature_store") maps to 10000, then 1 of every 10000 calls will be logged.
 # If a method is not in this mapping, every invokation will be logged.
@@ -44,11 +44,128 @@ METHOD_TO_LOG_FREQUENCY = {
     ("online_write_batch", "feast.infra.online_stores.sqlite"): 10000,
 }
 
+online_stores = [
+    "feast.infra.online_stores.datastore",
+    "feast.infra.online_stores.dynamodb",
+    "feast.infra.online_stores.redis",
+    "feast.infra.online_stores.sqlite",
+]
+
+offline_stores = [
+    "feast.infra.offline_stores.redshift",
+    "feast.infra.offline_stores.bigquery",
+    "feast.infra.offline_stores.file",
+]
+
+providers = [
+    "feast.infra.gcp",
+    "feast.infra.aws",
+    "feast.infra.local",
+]
+
+# This is a mapping from methods to upstream methods indicating that their logs should
+# be tied together. For example, FeatureStore.apply calls GcpProvider.update_infra, so
+# ("update_infra", "feast.infra.gcp") is mapped to ("apply", "feast.feature_store").
+METHOD_TO_TOP_LOGGING_METHOD = {}
+
+# Apply
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("update_infra", provider): ("apply", "feast.feature_store")
+        for provider in providers
+    }
+)
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("update", online_store): ("apply", "feast.feature_store")
+        for online_store in online_stores
+    }
+)
+
+# Historical retrieval
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("get_historical_features", provider): (
+            "get_historical_features",
+            "feast.feature_store",
+        )
+        for provider in providers
+    }
+)
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("get_historical_features", offline_store): (
+            "get_historical_features",
+            "feast.feature_store",
+        )
+        for offline_store in offline_stores
+    }
+)
+
+# Online retrieval
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("online_read", provider): ("get_online_features", "feast.feature_store")
+        for provider in providers
+    }
+)
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("online_read", online_store): ("get_online_features", "feast.feature_store")
+        for online_store in online_stores
+    }
+)
+
+# Materialization
+materialization_methods = ["materialize", "materialize_incremental"]
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("materialize_single_feature_view", provider): (method, "feast.feature_store")
+        for provider in providers
+        for method in materialization_methods
+    }
+)
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("pull_latest_from_table_or_query", offline_store): (
+            method,
+            "feast.feature_store",
+        )
+        for offline_store in offline_stores
+        for method in materialization_methods
+    }
+)
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("online_write_batch", provider): (method, "feast.feature_store")
+        for provider in providers
+        for method in materialization_methods
+    }
+)
+METHOD_TO_TOP_LOGGING_METHOD.update(
+    {
+        ("online_write_batch", online_store): (method, "feast.feature_store")
+        for online_store in online_stores
+        for method in materialization_methods
+    }
+)
+
+# This is a list of all top-level methods for which there are downstream methods whose
+# logs should be tied to the logs of these methods.
+TOP_LOGGING_METHODS = [
+    ("apply", "feast.feature_store"),
+    ("get_historical_features", "feast.feature_store"),
+    ("get_online_features", "feast.feature_store"),
+    ("materialize", "feast.feature_store"),
+    ("materialize_incremental", "feast.feature_store"),
+]
+
 
 class Usage:
     def __init__(self):
         self._usage_enabled: bool = False
         self.method_to_log_frequency = METHOD_TO_LOG_FREQUENCY
+        self.method_to_uid = {}
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
@@ -95,6 +212,12 @@ class Usage:
     ):
         self.method_to_log_frequency[(function_name, module_name)] = log_frequency
 
+    def register(self, function_name: str, module_name: str):
+        method = (function_name, module_name)
+        if method in TOP_LOGGING_METHODS:
+            uid = str(uuid.uuid4())
+            self.method_to_uid[method] = uid
+
     def log(self, function_name: str, module_name: str, execution_time: int):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
@@ -116,6 +239,17 @@ class Usage:
                 "os": sys.platform,
                 "is_test": self._is_test,
             }
+
+            # Ensure that downstream methods are tied to upstream methods by logging
+            # the same uid.
+            if method in TOP_LOGGING_METHODS:
+                if method in self.method_to_uid:
+                    json["uid"] = self.method_to_uid[method]
+            if method in METHOD_TO_TOP_LOGGING_METHOD:
+                top_logging_method = METHOD_TO_TOP_LOGGING_METHOD[method]
+                if top_logging_method in self.method_to_uid:
+                    json["uid"] = self.method_to_uid[top_logging_method]
+
             try:
                 requests.post(USAGE_ENDPOINT, json=json)
             except Exception as e:
@@ -176,6 +310,7 @@ def log_exceptions_and_usage(func):
     def exception_logging_wrapper(*args, **kwargs):
         try:
             start_time = datetime.now()
+            usage.register(func.__name__, func.__module__)
             result = func(*args, **kwargs)
             end_time = datetime.now()
             time_diff = end_time - start_time

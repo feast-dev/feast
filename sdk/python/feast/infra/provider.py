@@ -346,7 +346,7 @@ def _add_usage_logging(provider_class: ABCMeta, module_name: str) -> ABCMeta:
     provider_method_to_log_frequency = {
         "online_write_batch": 10000,
         "materialize_single_feature_view": 10000,
-        "online_read": 10000
+        "online_read": 10000,
     }
 
     for method_name in provider_methods_to_log:
