@@ -44,112 +44,6 @@ METHOD_TO_LOG_FREQUENCY = {
     ("online_write_batch", "feast.infra.online_stores.sqlite"): 10000,
 }
 
-online_stores = [
-    "feast.infra.online_stores.datastore",
-    "feast.infra.online_stores.dynamodb",
-    "feast.infra.online_stores.redis",
-    "feast.infra.online_stores.sqlite",
-]
-
-offline_stores = [
-    "feast.infra.offline_stores.redshift",
-    "feast.infra.offline_stores.bigquery",
-    "feast.infra.offline_stores.file",
-]
-
-providers = [
-    "feast.infra.gcp",
-    "feast.infra.aws",
-    "feast.infra.local",
-]
-
-# This is a mapping from methods to upstream methods indicating that their logs should
-# be tied together. For example, FeatureStore.apply calls GcpProvider.update_infra, so
-# ("update_infra", "feast.infra.gcp") is mapped to ("apply", "feast.feature_store").
-METHOD_TO_TOP_LOGGING_METHOD = {}
-
-# Apply
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("update_infra", provider): ("apply", "feast.feature_store")
-        for provider in providers
-    }
-)
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("update", online_store): ("apply", "feast.feature_store")
-        for online_store in online_stores
-    }
-)
-
-# Historical retrieval
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("get_historical_features", provider): (
-            "get_historical_features",
-            "feast.feature_store",
-        )
-        for provider in providers
-    }
-)
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("get_historical_features", offline_store): (
-            "get_historical_features",
-            "feast.feature_store",
-        )
-        for offline_store in offline_stores
-    }
-)
-
-# Online retrieval
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("online_read", provider): ("get_online_features", "feast.feature_store")
-        for provider in providers
-    }
-)
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("online_read", online_store): ("get_online_features", "feast.feature_store")
-        for online_store in online_stores
-    }
-)
-
-# Materialization
-materialization_methods = ["materialize", "materialize_incremental"]
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("materialize_single_feature_view", provider): (method, "feast.feature_store")
-        for provider in providers
-        for method in materialization_methods
-    }
-)
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("pull_latest_from_table_or_query", offline_store): (
-            method,
-            "feast.feature_store",
-        )
-        for offline_store in offline_stores
-        for method in materialization_methods
-    }
-)
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("online_write_batch", provider): (method, "feast.feature_store")
-        for provider in providers
-        for method in materialization_methods
-    }
-)
-METHOD_TO_TOP_LOGGING_METHOD.update(
-    {
-        ("online_write_batch", online_store): (method, "feast.feature_store")
-        for online_store in online_stores
-        for method in materialization_methods
-    }
-)
-
 # This is a list of all top-level methods for which there are downstream methods whose
 # logs should be tied to the logs of these methods.
 TOP_LOGGING_METHODS = [
@@ -165,7 +59,6 @@ class Usage:
     def __init__(self):
         self._usage_enabled: bool = False
         self.method_to_log_frequency = METHOD_TO_LOG_FREQUENCY
-        self.method_to_uid = {}
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
@@ -216,7 +109,7 @@ class Usage:
         method = (function_name, module_name)
         if method in TOP_LOGGING_METHODS:
             uid = str(uuid.uuid4())
-            self.method_to_uid[method] = uid
+            self.current_uid = uid
 
     def log(self, function_name: str, module_name: str, execution_time: int):
         self.check_env_and_configure()
@@ -241,14 +134,10 @@ class Usage:
             }
 
             # Ensure that downstream methods are tied to upstream methods by logging
-            # the same uid.
-            if method in TOP_LOGGING_METHODS:
-                if method in self.method_to_uid:
-                    json["uid"] = self.method_to_uid[method]
-            if method in METHOD_TO_TOP_LOGGING_METHOD:
-                top_logging_method = METHOD_TO_TOP_LOGGING_METHOD[method]
-                if top_logging_method in self.method_to_uid:
-                    json["uid"] = self.method_to_uid[top_logging_method]
+            # the same uid. Since only the top-level methods set the current_uid, all
+            # downstream methods will share the same uid.
+            if self.current_uid:
+                json["uid"] = self.current_uid
 
             try:
                 requests.post(USAGE_ENDPOINT, json=json)
