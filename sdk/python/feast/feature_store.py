@@ -100,12 +100,6 @@ class FeatureStore:
             repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
-        DUMMY_ENTITY = Entity(
-            name=DUMMY_ENTITY_NAME,
-            join_key=DUMMY_ENTITY_ID,
-            value_type=ValueType.INT32,
-        )
-        self.apply(DUMMY_ENTITY)
 
     @log_exceptions
     def version(self) -> str:
@@ -411,6 +405,14 @@ class FeatureStore:
             services_to_update
         ) + len(odfvs_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
+
+        # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
+        DUMMY_ENTITY = Entity(
+            name=DUMMY_ENTITY_NAME,
+            join_key=DUMMY_ENTITY_ID,
+            value_type=ValueType.INT32,
+        )
+        entities_to_update.append(DUMMY_ENTITY)
 
         for view in views_to_update:
             self._registry.apply_feature_view(view, project=self.project, commit=False)
