@@ -401,6 +401,9 @@ class FeatureStore:
         for view in views_to_update:
             view.infer_features_from_batch_source(self.config)
 
+        for odfv in odfvs_to_update:
+            odfv.infer_features_from_batch_source(self.config)
+
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update
         ) + len(odfvs_to_update) != len(objects):
@@ -535,9 +538,17 @@ class FeatureStore:
         _feature_refs = self._get_features(features, feature_refs)
 
         all_feature_views = self.list_feature_views()
-        feature_views = list(
-            view for view, _ in _group_feature_refs(_feature_refs, all_feature_views)
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project
         )
+
+        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
+        # This is a weird interface quirk - we should revisit the `get_historical_features` to
+        # pass in the on demand feature views as well.
+        fvs, _ = _group_feature_refs(
+            _feature_refs, all_feature_views, all_on_demand_feature_views
+        )
+        feature_views = list(view for view, _ in fvs)
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 
@@ -773,8 +784,14 @@ class FeatureStore:
         all_feature_views = self._list_feature_views(
             allow_cache=True, hide_dummy_entity=False
         )
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project, allow_cache=True
+        )
+
         _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs = _group_feature_refs(_feature_refs, all_feature_views)
+        grouped_refs, _ = _group_feature_refs(
+            _feature_refs, all_feature_views, all_on_demand_feature_views
+        )
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [
             entity_name
@@ -863,32 +880,49 @@ class FeatureStore:
         initial_response: OnlineResponse,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
     ) -> OnlineResponse:
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project, allow_cache=True
-        )
+        all_on_demand_feature_views = {
+            view.name: view
+            for view in self._registry.list_on_demand_feature_views(
+                project=self.project, allow_cache=True
+            )
+        }
+        all_odfv_feature_names = all_on_demand_feature_views.keys()
+
         if len(all_on_demand_feature_views) == 0:
             return initial_response
         initial_response_df = initial_response.to_df()
+
+        odfv_feature_refs = defaultdict(list)
+        for feature_ref in feature_refs:
+            view_name, feature_name = feature_ref.split(":")
+            if view_name in all_odfv_feature_names:
+                odfv_feature_refs[view_name].append(feature_name)
+
         # Apply on demand transformations
-        for odfv in all_on_demand_feature_views:
-            feature_ref = odfv.name
-            if feature_ref in feature_refs:
-                transformed_features_df = odfv.get_transformed_features_df(
-                    full_feature_names, initial_response_df
-                )
-                for row_idx in range(len(result_rows)):
-                    result_row = result_rows[row_idx]
-                    # TODO(adchia): support multiple output features in an ODFV, which requires different naming
-                    #  conventions
-                    result_row.fields[odfv.name].CopyFrom(
-                        python_value_to_proto_value(
-                            transformed_features_df[odfv.features[0].name].values[
-                                row_idx
-                            ]
-                        )
+        for odfv_name, _feature_refs in odfv_feature_refs.items():
+            odfv = all_on_demand_feature_views[odfv_name]
+            transformed_features_df = odfv.get_transformed_features_df(
+                full_feature_names, initial_response_df
+            )
+            for row_idx in range(len(result_rows)):
+                result_row = result_rows[row_idx]
+
+                selected_subset = [
+                    f for f in transformed_features_df.columns if f in _feature_refs
+                ]
+
+                for transformed_feature in selected_subset:
+                    transformed_feature_name = (
+                        f"{odfv.name}__{transformed_feature}"
+                        if full_feature_names
+                        else transformed_feature
                     )
+                    proto_value = python_value_to_proto_value(
+                        transformed_features_df[transformed_feature].values[row_idx]
+                    )
+                    result_row.fields[transformed_feature_name].CopyFrom(proto_value)
                     result_row.statuses[
-                        feature_ref
+                        transformed_feature_name
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
@@ -941,25 +975,35 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 
 
 def _group_feature_refs(
-    features: Union[List[str], FeatureService], all_feature_views: List[FeatureView]
-) -> List[Tuple[FeatureView, List[str]]]:
+    features: Union[List[str], FeatureService],
+    all_feature_views: List[FeatureView],
+    all_on_demand_feature_views: List[OnDemandFeatureView],
+) -> Tuple[
+    List[Tuple[FeatureView, List[str]]], List[Tuple[OnDemandFeatureView, List[str]]]
+]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
     view_index = {view.name: view for view in all_feature_views}
 
+    # on demand view to on demand view proto
+    on_demand_view_index = {view.name: view for view in all_on_demand_feature_views}
+
     # view name to feature names
     views_features = defaultdict(list)
 
+    # on demand view name to feature names
+    on_demand_view_features = defaultdict(list)
+
     if isinstance(features, list) and isinstance(features[0], str):
         for ref in features:
-            if ":" not in ref:
-                # This is an on demand feature view ref
-                continue
             view_name, feat_name = ref.split(":")
-            if view_name not in view_index:
+            if view_name in view_index:
+                views_features[view_name].append(feat_name)
+            elif view_name in on_demand_view_index:
+                on_demand_view_features[view_name].append(feat_name)
+            else:
                 raise FeatureViewNotFoundException(view_name)
-            views_features[view_name].append(feat_name)
     elif isinstance(features, FeatureService):
         for feature_projection in features.features:
             projected_features = feature_projection.features
@@ -967,10 +1011,14 @@ def _group_feature_refs(
                 [f.name for f in projected_features]
             )
 
-    result = []
+    fvs_result: List[Tuple[FeatureView, List[str]]] = []
+    odfvs_result: List[Tuple[OnDemandFeatureView, List[str]]] = []
+
     for view_name, feature_names in views_features.items():
-        result.append((view_index[view_name], feature_names))
-    return result
+        fvs_result.append((view_index[view_name], feature_names))
+    for view_name, feature_names in on_demand_view_features.items():
+        odfvs_result.append((on_demand_view_index[view_name], feature_names))
+    return fvs_result, odfvs_result
 
 
 def _get_feature_refs_from_feature_services(

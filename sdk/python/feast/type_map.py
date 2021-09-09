@@ -72,8 +72,27 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
             )
 
 
+def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
+    value_type_to_pandas_type: Dict[ValueType, str] = {
+        ValueType.FLOAT: "float",
+        ValueType.INT32: "int",
+        ValueType.INT64: "int",
+        ValueType.STRING: "str",
+        ValueType.DOUBLE: "float",
+        ValueType.BYTES: "bytes",
+        ValueType.BOOL: "bool",
+        ValueType.UNIX_TIMESTAMP: "datetime",
+    }
+    if value_type in value_type_to_pandas_type:
+        return value_type_to_pandas_type[value_type]
+    raise TypeError(
+        f"Casting to pandas type for type {value_type} failed. "
+        f"Type {value_type} not found"
+    )
+
+
 def python_type_to_feast_value_type(
-    name: str, value, recurse: bool = True
+    name: str, value: Any = None, recurse: bool = True, type_name: Optional[str] = None
 ) -> ValueType:
     """
     Finds the equivalent Feast Value Type for a Python value. Both native
@@ -88,8 +107,7 @@ def python_type_to_feast_value_type(
     Returns:
         Feast Value Type
     """
-
-    type_name = type(value).__name__
+    type_name = type_name or type(value).__name__
 
     type_map = {
         "int": ValueType.INT64,
@@ -151,12 +169,14 @@ def python_type_to_feast_value_type(
                 )
             return ValueType[common_item_value_type.name + "_LIST"]
         else:
+            assert value
             raise ValueError(
                 f"Value type for field {name} is {value.dtype.__str__()} but "
                 f"recursion is not allowed. Array types can only be one level "
                 f"deep."
             )
 
+    assert value
     return type_map[value.dtype.__str__()]
 
 

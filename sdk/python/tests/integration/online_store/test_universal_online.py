@@ -46,11 +46,13 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "customer_profile:current_balance",
         "customer_profile:avg_passenger_count",
         "customer_profile:lifetime_trip_count",
-        "conv_rate_plus_100",
+        "conv_rate_plus_100:conv_rate_plus_100",
         "global_stats:num_rides",
         "global_stats:avg_ride_length",
     ]
     unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
+    # Remove the on demand feature view, since it's not present in the source dataframe
+    unprefixed_feature_refs.remove("conv_rate_plus_100")
 
     online_features = fs.get_online_features(
         features=feature_refs,
@@ -59,14 +61,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     )
     assert online_features is not None
 
-    keys = online_features.to_dict().keys()
+    online_features_dict = online_features.to_dict()
+    keys = online_features_dict.keys()
     assert (
         len(keys) == len(feature_refs) + 2
     )  # Add two for the driver id and the customer id entity keys.
     for feature in feature_refs:
-        if ":" in feature:
-            # This is the ODFV
-            continue
         if full_feature_names:
             assert feature.replace(":", "__") in keys
         else:
@@ -77,7 +77,6 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
                 and "global_stats" not in keys
             )
 
-    online_features_dict = online_features.to_dict()
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
         df_features = get_latest_feature_values_from_dataframes(
@@ -87,7 +86,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
         assert df_features["driver_id"] == online_features_dict["driver_id"][i]
         assert (
-            online_features_dict["conv_rate_plus_100"][i]
+            online_features_dict[
+                response_feature_name("conv_rate_plus_100", full_feature_names)
+            ][i]
             == df_features["conv_rate"] + 100
         )
         for unprefixed_feature_ref in unprefixed_feature_refs:
@@ -123,6 +124,9 @@ def response_feature_name(feature: str, full_feature_names: bool) -> str:
 
     if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
         return f"driver_stats__{feature}"
+
+    if feature in {"conv_rate_plus_100"} and full_feature_names:
+        return f"conv_rate_plus_100__{feature}"
 
     if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
         return f"global_stats__{feature}"

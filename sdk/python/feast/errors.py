@@ -129,6 +129,14 @@ class FeatureNameCollisionError(Exception):
         )
 
 
+class SpecifiedFeaturesNotPresentError(Exception):
+    def __init__(self, specified_features: List[str], feature_view_name: str):
+        features = ", ".join(specified_features)
+        super().__init__(
+            f"Explicitly specified features {features} not found in inferred list of features for '{feature_view_name}'"
+        )
+
+
 class FeastOnlineStoreInvalidName(Exception):
     def __init__(self, online_store_class_name: str):
         super().__init__(

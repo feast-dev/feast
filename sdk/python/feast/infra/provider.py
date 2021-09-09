@@ -1,4 +1,5 @@
 import abc
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -12,6 +13,7 @@ from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
@@ -169,17 +171,19 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 
 def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str], feature_views: List[FeatureView]
-) -> Dict[FeatureView, List[str]]:
+    feature_refs: List[str],
+    feature_views: List[FeatureView],
+    on_demand_feature_views: List[OnDemandFeatureView],
+) -> Tuple[Dict[FeatureView, List[str]], Dict[OnDemandFeatureView, List[str]]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
 
-    feature_views_to_feature_map: Dict[FeatureView, List[str]] = {}
+    feature_views_to_feature_map: Dict[FeatureView, List[str]] = defaultdict(list)
+    on_demand_feature_views_to_feature_map: Dict[
+        OnDemandFeatureView, List[str]
+    ] = defaultdict(list)
 
     for ref in feature_refs:
-        if ":" not in ref:
-            # ODFV
-            continue
         ref_parts = ref.split(":")
         feature_view_from_ref = ref_parts[0]
         feature_from_ref = ref_parts[1]
@@ -188,19 +192,20 @@ def _get_requested_feature_views_to_features_dict(
         for feature_view_from_registry in feature_views:
             if feature_view_from_registry.name == feature_view_from_ref:
                 found = True
-                if feature_view_from_registry in feature_views_to_feature_map:
-                    feature_views_to_feature_map[feature_view_from_registry].append(
-                        feature_from_ref
-                    )
-                else:
-                    feature_views_to_feature_map[feature_view_from_registry] = [
-                        feature_from_ref
-                    ]
+                feature_views_to_feature_map[feature_view_from_registry].append(
+                    feature_from_ref
+                )
+        for odfv_from_registry in on_demand_feature_views:
+            if odfv_from_registry.name == feature_view_from_ref:
+                found = True
+                on_demand_feature_views_to_feature_map[odfv_from_registry].append(
+                    feature_from_ref
+                )
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
 
-    return feature_views_to_feature_map
+    return feature_views_to_feature_map, on_demand_feature_views_to_feature_map
 
 
 def _get_column_names(

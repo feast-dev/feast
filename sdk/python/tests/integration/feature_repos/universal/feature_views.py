@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Dict
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -44,12 +44,15 @@ def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
 
 
 def conv_rate_plus_100_feature_view(
-    inputs: Dict[str, FeatureView]
+    inputs: Dict[str, FeatureView],
+    infer_features: bool = False,
+    features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
+    _features = features or [Feature("conv_rate_plus_100", ValueType.DOUBLE)]
     return OnDemandFeatureView(
         name=conv_rate_plus_100.__name__,
         inputs=inputs,
-        features=[Feature("conv_rate_plus_100", ValueType.FLOAT)],
+        features=[] if infer_features else _features,
         udf=conv_rate_plus_100,
     )
 
