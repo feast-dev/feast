@@ -10,7 +10,7 @@ from tqdm import tqdm
 from feast import errors, importer
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -221,7 +221,9 @@ def _get_column_names(
     event_timestamp_column = feature_view.batch_source.event_timestamp_column
     feature_names = [feature.name for feature in feature_view.features]
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
-    join_keys = [entity.join_key for entity in entities]
+    join_keys = [
+        entity.join_key for entity in entities if entity.join_key != DUMMY_ENTITY_ID
+    ]
     if feature_view.batch_source.field_mapping is not None:
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()

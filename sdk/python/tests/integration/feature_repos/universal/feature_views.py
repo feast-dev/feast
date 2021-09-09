@@ -22,6 +22,21 @@ def driver_feature_view(
     )
 
 
+def global_feature_view(
+    data_source: DataSource,
+    name="test_entityless",
+    infer_features: bool = False,
+    value_type: ValueType = ValueType.INT32,
+) -> FeatureView:
+    return FeatureView(
+        name=name,
+        entities=[],
+        features=None if infer_features else [Feature("entityless_value", value_type)],
+        ttl=timedelta(days=5),
+        input=data_source,
+    )
+
+
 def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["conv_rate_plus_100"] = driver_hourly_stats["conv_rate"] + 100
@@ -71,3 +86,19 @@ def create_customer_daily_profile_feature_view(source, infer_features: bool = Fa
         ttl=timedelta(days=2),
     )
     return customer_profile_feature_view
+
+
+def create_global_stats_feature_view(source, infer_features: bool = False):
+    global_stats_feature_view = FeatureView(
+        name="global_stats",
+        entities=[],
+        features=None
+        if infer_features
+        else [
+            Feature(name="num_rides", dtype=ValueType.INT32),
+            Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
+        ],
+        batch_source=source,
+        ttl=timedelta(days=2),
+    )
+    return global_stats_feature_view
