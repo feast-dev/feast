@@ -959,11 +959,13 @@ def _group_feature_refs(
                 [f.name for f in projected_features]
             )
 
-    result = []
+    result: List[
+        Union[Tuple[FeatureView, List[str]], Tuple[OnDemandFeatureView, List[str]]]
+    ] = []
     for view_name, feature_names in views_features.items():
         result.append((view_index[view_name], feature_names))
     for view_name, feature_names in on_demand_view_features.items():
-        result.append((on_demand_view_features[view_name], feature_names))
+        result.append((on_demand_view_index[view_name], feature_names))
     return result
 
 

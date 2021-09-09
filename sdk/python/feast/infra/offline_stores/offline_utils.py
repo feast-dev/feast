@@ -2,7 +2,7 @@ import importlib
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -16,8 +16,10 @@ from feast.errors import (
     FeastEntityDFMissingColumnsError,
     FeastModuleImportError,
 )
+from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
@@ -90,7 +92,7 @@ class FeatureViewQueryContext:
 
 def get_feature_view_query_context(
     feature_refs: List[str],
-    feature_views: List["feast.FeatureView"],
+    feature_views: List[FeatureView],
     registry: Registry,
     project: str,
 ) -> List[FeatureViewQueryContext]:
@@ -100,7 +102,7 @@ def get_feature_view_query_context(
         feature_views_to_feature_map,
         on_demand_feature_views_to_features,
     ) = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views + registry.list_on_demand_feature_views(project)
+        feature_refs, feature_views, registry.list_on_demand_feature_views(project)
     )
 
     query_context = []

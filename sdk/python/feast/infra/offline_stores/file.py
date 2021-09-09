@@ -96,7 +96,8 @@ class FileOfflineStore(OfflineStore):
             on_demand_feature_views_to_features,
         ) = _get_requested_feature_views_to_features_dict(
             feature_refs,
-            feature_views + registry.list_on_demand_feature_views(config.project),
+            feature_views,
+            registry.list_on_demand_feature_views(config.project),
         )
 
         # Create lazy function that is only called from the RetrievalJob object

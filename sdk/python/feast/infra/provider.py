@@ -1,4 +1,5 @@
 import abc
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -171,13 +172,16 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 def _get_requested_feature_views_to_features_dict(
     feature_refs: List[str],
-    feature_views: List[Union[FeatureView, OnDemandFeatureView]],
+    feature_views: List[FeatureView],
+    on_demand_feature_views: List[OnDemandFeatureView],
 ) -> Tuple[Dict[FeatureView, List[str]], Dict[OnDemandFeatureView, List[str]]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
 
-    feature_views_to_feature_map: Dict[FeatureView, List[str]] = {}
-    on_demand_feature_views_to_feature_map: Dict[OnDemandFeatureView, List[str]] = {}
+    feature_views_to_feature_map: Dict[FeatureView, List[str]] = defaultdict(list)
+    on_demand_feature_views_to_feature_map: Dict[
+        OnDemandFeatureView, List[str]
+    ] = defaultdict(list)
 
     for ref in feature_refs:
         ref_parts = ref.split(":")
@@ -188,25 +192,15 @@ def _get_requested_feature_views_to_features_dict(
         for feature_view_from_registry in feature_views:
             if feature_view_from_registry.name == feature_view_from_ref:
                 found = True
-                if feature_view_from_registry in feature_views_to_feature_map:
-                    feature_views_to_feature_map[feature_view_from_registry].append(
-                        feature_from_ref
-                    )
-                elif (
-                    feature_view_from_registry in on_demand_feature_views_to_feature_map
-                ):
-                    on_demand_feature_views_to_feature_map[
-                        feature_view_from_registry
-                    ].append(feature_from_ref)
-                else:
-                    if isinstance(feature_view_from_registry, OnDemandFeatureView):
-                        on_demand_feature_views_to_feature_map[
-                            feature_view_from_registry
-                        ] = [feature_from_ref]
-                    else:
-                        feature_views_to_feature_map[feature_view_from_registry] = [
-                            feature_from_ref
-                        ]
+                feature_views_to_feature_map[feature_view_from_registry].append(
+                    feature_from_ref
+                )
+        for odfv_from_registry in on_demand_feature_views:
+            if odfv_from_registry.name == feature_view_from_ref:
+                found = True
+                on_demand_feature_views_to_feature_map[odfv_from_registry].append(
+                    feature_from_ref
+                )
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
