@@ -546,7 +546,7 @@ class FeatureStore:
         fvs, _ = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
-        feature_views = list(view for view, _ in fvs if isinstance(view, FeatureView))
+        feature_views = list(view for view, _ in fvs)
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 
@@ -826,8 +826,6 @@ class FeatureStore:
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
         for table, requested_features in grouped_refs:
-            if not isinstance(table, FeatureView):
-                continue
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
             )
