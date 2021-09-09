@@ -78,7 +78,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
         assert df_features["driver_id"] == online_features_dict["driver_id"][i]
         assert (
-            online_features_dict[response_feature_name("conv_rate_plus_100", full_feature_names)][i]
+            online_features_dict[
+                response_feature_name("conv_rate_plus_100", full_feature_names)
+            ][i]
             == df_features["conv_rate"] + 100
         )
         for unprefixed_feature_ref in unprefixed_feature_refs:

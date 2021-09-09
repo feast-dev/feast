@@ -91,8 +91,12 @@ class FileOfflineStore(OfflineStore):
                 raise ValueError(
                     f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
-        feature_views_to_features, on_demand_feature_views_to_features = _get_requested_feature_views_to_features_dict(
-            feature_refs, feature_views + registry.list_on_demand_feature_views(config.project)
+        (
+            feature_views_to_features,
+            on_demand_feature_views_to_features,
+        ) = _get_requested_feature_views_to_features_dict(
+            feature_refs,
+            feature_views + registry.list_on_demand_feature_views(config.project),
         )
 
         # Create lazy function that is only called from the RetrievalJob object

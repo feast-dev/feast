@@ -11,8 +11,8 @@ from feast import errors, importer
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
@@ -170,7 +170,8 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 
 def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str], feature_views: List[Union[FeatureView, OnDemandFeatureView]]
+    feature_refs: List[str],
+    feature_views: List[Union[FeatureView, OnDemandFeatureView]],
 ) -> Tuple[Dict[FeatureView, List[str]], Dict[OnDemandFeatureView, List[str]]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
@@ -191,15 +192,17 @@ def _get_requested_feature_views_to_features_dict(
                     feature_views_to_feature_map[feature_view_from_registry].append(
                         feature_from_ref
                     )
-                elif feature_view_from_registry in on_demand_feature_views_to_feature_map:
-                    on_demand_feature_views_to_feature_map[feature_view_from_registry].append(
-                        feature_from_ref
-                    )
+                elif (
+                    feature_view_from_registry in on_demand_feature_views_to_feature_map
+                ):
+                    on_demand_feature_views_to_feature_map[
+                        feature_view_from_registry
+                    ].append(feature_from_ref)
                 else:
                     if isinstance(feature_view_from_registry, OnDemandFeatureView):
-                        on_demand_feature_views_to_feature_map[feature_view_from_registry] = [
-                            feature_from_ref
-                        ]
+                        on_demand_feature_views_to_feature_map[
+                            feature_view_from_registry
+                        ] = [feature_from_ref]
                     else:
                         feature_views_to_feature_map[feature_view_from_registry] = [
                             feature_from_ref

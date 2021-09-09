@@ -489,12 +489,14 @@ class FeatureStore:
         _feature_refs = self._get_features(features, feature_refs)
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(project=self.project)
-
-        fvs = _group_feature_refs(_feature_refs, all_feature_views, all_on_demand_feature_views)
-        feature_views = list(
-            view for view, _ in fvs if isinstance(view, FeatureView)
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project
         )
+
+        fvs = _group_feature_refs(
+            _feature_refs, all_feature_views, all_on_demand_feature_views
+        )
+        feature_views = list(view for view, _ in fvs if isinstance(view, FeatureView))
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 
@@ -762,7 +764,9 @@ class FeatureStore:
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs = _group_feature_refs(_feature_refs, all_feature_views, all_on_demand_feature_views)
+        grouped_refs = _group_feature_refs(
+            _feature_refs, all_feature_views, all_on_demand_feature_views
+        )
         for table, requested_features in grouped_refs:
             if not isinstance(table, FeatureView):
                 continue
@@ -819,7 +823,8 @@ class FeatureStore:
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
     ) -> OnlineResponse:
         all_on_demand_feature_views = {
-            view.name: view for view in self._registry.list_on_demand_feature_views(
+            view.name: view
+            for view in self._registry.list_on_demand_feature_views(
                 project=self.project, allow_cache=True
             )
         }
@@ -831,7 +836,10 @@ class FeatureStore:
 
         odfv_feature_refs = defaultdict(list)
         for feature_ref in feature_refs:
-            view_name, feature_name = feature_ref.split(":")[0], feature_ref.split(":")[1]
+            view_name, feature_name = (
+                feature_ref.split(":")[0],
+                feature_ref.split(":")[1],
+            )
             if view_name in all_odfv_feature_names:
                 odfv_feature_refs[view_name].append(feature_name)
 
@@ -844,12 +852,22 @@ class FeatureStore:
             for row_idx in range(len(result_rows)):
                 result_row = result_rows[row_idx]
 
-                selected_subset = [f for f in transformed_features_df.columns if f in _feature_refs]
+                selected_subset = [
+                    f for f in transformed_features_df.columns if f in _feature_refs
+                ]
 
                 for transformed_feature in selected_subset:
-                    transformed_feature_name = f"{odfv.name}__{transformed_feature}" if full_feature_names else transformed_feature
-                    print(f"transformed_feature: {transformed_feature}, transformed_feature_name: {transformed_feature_name}")
-                    proto_value = python_value_to_proto_value(transformed_features_df[transformed_feature].values[row_idx])
+                    transformed_feature_name = (
+                        f"{odfv.name}__{transformed_feature}"
+                        if full_feature_names
+                        else transformed_feature
+                    )
+                    print(
+                        f"transformed_feature: {transformed_feature}, transformed_feature_name: {transformed_feature_name}"
+                    )
+                    proto_value = python_value_to_proto_value(
+                        transformed_features_df[transformed_feature].values[row_idx]
+                    )
                     print(f"transformed_feature: {proto_value}, `{type(proto_value)}` ")
                     print(f"result_row: {result_row.fields[transformed_feature_name]}")
                     result_row.fields[transformed_feature_name].CopyFrom(proto_value)
@@ -909,7 +927,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 def _group_feature_refs(
     features: Union[List[str], FeatureService],
     all_feature_views: List[FeatureView],
-    all_on_demand_feature_views: List[OnDemandFeatureView]
+    all_on_demand_feature_views: List[OnDemandFeatureView],
 ) -> List[Union[Tuple[FeatureView, List[str]], Tuple[OnDemandFeatureView, List[str]]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
