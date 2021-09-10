@@ -1,11 +1,12 @@
 import functools
 from types import MethodType
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import dill
 import pandas as pd
 
 from feast import errors
+from feast.data_source import RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view import FeatureView
@@ -39,7 +40,7 @@ class OnDemandFeatureView:
 
     name: str
     features: List[Feature]
-    inputs: Dict[str, FeatureView]
+    inputs: Dict[str, Union[FeatureView, RequestDataSource]]
     udf: MethodType
 
     @log_exceptions
@@ -47,7 +48,7 @@ class OnDemandFeatureView:
         self,
         name: str,
         features: List[Feature],
-        inputs: Dict[str, FeatureView],
+        inputs: Dict[str, Union[FeatureView, RequestDataSource]],
         udf: MethodType,
     ):
         """

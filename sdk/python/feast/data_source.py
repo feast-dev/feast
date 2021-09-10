@@ -512,6 +512,77 @@ class KafkaSource(DataSource):
         return type_map.redshift_to_feast_value_type
 
 
+class RequestDataSource(DataSource):
+    """
+    RequestDataSource that can be used to provide input features for on demand transforms
+
+    Args:
+        name: Name of the request data source
+        schema: Schema mapping from the input feature name to a ValueType
+    """
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        pass
+
+    def get_table_query_string(self) -> str:
+        pass
+
+    _name: str
+    _schema: Dict[str, ValueType]
+
+    def __init__(
+        self, name: str, schema: Dict[str, ValueType],
+    ):
+        """Creates a RequestDataSource object."""
+        super().__init__()
+        self._name = name
+        self._schema = schema
+
+    @property
+    def name(self) -> str:
+        """
+        Returns the name of this data source
+        """
+        return self._name
+
+    @property
+    def schema(self) -> Dict[str, ValueType]:
+        """
+        Returns the schema for this request data source
+        """
+        return self._schema
+
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        schema_pb = data_source.request_data_options.schema
+        schema = {}
+        for key in schema_pb.keys():
+            schema[key] = ValueType(schema_pb.get(key))
+        return RequestDataSource(
+            name=data_source.request_data_options.name, schema=schema
+        )
+
+    def to_proto(self) -> DataSourceProto:
+        schema_pb = {}
+        for key in self._schema.keys():
+            schema_pb[key] = self._schema.get(key).value
+        options = DataSourceProto.RequestDataOptions(name=self._name, schema=schema_pb)
+        data_source_proto = DataSourceProto(
+            type=DataSourceProto.REQUEST_SOURCE, request_data_options=options
+        )
+
+        return data_source_proto
+
+
 class KinesisSource(DataSource):
     def validate(self, config: RepoConfig):
         pass

@@ -24,6 +24,7 @@ option java_package = "feast.proto.core";
 
 import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";
+import "feast/core/DataSource.proto";
 
 message OnDemandFeatureView {
     // User-specified specifications of this feature view.
@@ -41,10 +42,16 @@ message OnDemandFeatureViewSpec {
     repeated FeatureSpecV2 features = 3;
 
     // List of features specifications for each feature defined with this feature view.
-    // TODO(adchia): add support for request data
-    map<string, FeatureView> inputs = 4;
+    map<string, OnDemandInput> inputs = 4;
 
     UserDefinedFunction user_defined_function = 5;
+}
+
+message OnDemandInput {
+    oneof input {
+        FeatureView feature_view = 1;
+        DataSource request_data_source = 2;
+    }
 }
 
 // Serialized representation of python function.

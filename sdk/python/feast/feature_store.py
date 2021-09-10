@@ -23,11 +23,14 @@ from colorama import Fore, Style
 from tqdm import tqdm
 
 from feast import feature_server, utils
+from feast.data_source import RequestDataSource
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    RequestDataNotFoundInEntityDfException,
+    RequestDataNotFoundInEntityRowsException,
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
@@ -37,10 +40,7 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
-from feast.inference import (
-    update_data_sources_with_inferred_event_timestamp_col,
-    update_entities_with_inferred_types_from_feature_views,
-)
+from feast.inference import update_entities_with_inferred_types_from_feature_views
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -541,6 +541,18 @@ class FeatureStore:
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project
         )
+        referenced_odfvs = [
+            x for x in all_on_demand_feature_views if x.name in _feature_refs
+        ]
+        for odfv in referenced_odfvs:
+            odfv_inputs = odfv.inputs.values()
+            for odfv_input in odfv_inputs:
+                if type(odfv_input) == RequestDataSource:
+                    for feature_name in odfv_input.schema.keys():
+                        if feature_name not in entity_df.columns:
+                            raise RequestDataNotFoundInEntityDfException(
+                                feature_name=feature_name, feature_view_name=odfv.name
+                            )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
@@ -805,10 +817,31 @@ class FeatureStore:
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
 
+        on_demand_feature_views = self.list_on_demand_feature_views(
+            project=self.project
+        )
+        referenced_odfvs = [
+            x for x in on_demand_feature_views if x.name in _feature_refs
+        ]
+        needed_request_data_features = set()
+        for odfv in referenced_odfvs:
+            odfv_inputs = odfv.inputs.values()
+            for odfv_input in odfv_inputs:
+                if type(odfv_input) == RequestDataSource:
+                    for feature_name in odfv_input.schema.keys():
+                        needed_request_data_features.add(
+                            f"{odfv.name}__{feature_name}"
+                            if full_feature_names
+                            else feature_name
+                        )
+
         join_key_rows = []
         for row in entity_rows:
             join_key_row = {}
             for entity_name, entity_value in row.items():
+                if entity_name in needed_request_data_features:
+                    needed_request_data_features.remove(entity_name)
+                    continue
                 try:
                     join_key = entity_name_to_join_key_map[entity_name]
                 except KeyError:
@@ -817,6 +850,11 @@ class FeatureStore:
                 if entityless_case:
                     join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
             join_key_rows.append(join_key_row)
+
+        if len(needed_request_data_features) > 0:
+            raise RequestDataNotFoundInEntityRowsException(
+                feature_names=needed_request_data_features
+            )
 
         entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
 
