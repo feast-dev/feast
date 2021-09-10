@@ -339,7 +339,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         store,
         feature_service,
         full_feature_names,
-        orders_df,
+        orders_df_with_request_data,
         expected_df,
         event_timestamp,
     )
