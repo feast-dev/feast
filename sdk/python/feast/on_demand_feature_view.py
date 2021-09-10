@@ -14,7 +14,10 @@ from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureViewSpec,
+    OnDemandInput,
+)
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
@@ -67,10 +70,19 @@ class OnDemandFeatureView:
         Returns:
             A OnDemandFeatureViewProto protobuf.
         """
+        inputs = {}
+        for feature_ref, input in self.inputs.items():
+            if type(input) == FeatureView:
+                inputs[feature_ref] = OnDemandInput(feature_view=input.to_proto())
+            else:
+                inputs[feature_ref] = OnDemandInput(
+                    request_data_source=input.to_proto()
+                )
+
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
-            inputs={k: fv.to_proto() for k, fv in self.inputs.items()},
+            inputs=inputs,
             user_defined_function=UserDefinedFunctionProto(
                 name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
             ),
@@ -89,6 +101,19 @@ class OnDemandFeatureView:
         Returns:
             A OnDemandFeatureView object based on the on-demand feature view protobuf.
         """
+        inputs = {}
+        for (
+            input_name,
+            on_demand_input,
+        ) in on_demand_feature_view_proto.spec.inputs.items():
+            if on_demand_input.WhichOneof("input") == "feature_view":
+                inputs[input_name] = FeatureView.from_proto(
+                    on_demand_input.feature_view
+                )
+            else:
+                inputs[input_name] = RequestDataSource.from_proto(
+                    on_demand_input.request_data_source
+                )
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             features=[
@@ -99,10 +124,7 @@ class OnDemandFeatureView:
                 )
                 for feature in on_demand_feature_view_proto.spec.features
             ],
-            inputs={
-                feature_view_name: FeatureView.from_proto(feature_view_proto)
-                for feature_view_name, feature_view_proto in on_demand_feature_view_proto.spec.inputs.items()
-            },
+            inputs=inputs,
             udf=dill.loads(
                 on_demand_feature_view_proto.spec.user_defined_function.body
             ),
@@ -155,11 +177,18 @@ class OnDemandFeatureView:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
         df = pd.DataFrame()
-        for feature_view in self.inputs.values():
-            for feature in feature_view.features:
-                dtype = feast_value_type_to_pandas_type(feature.dtype)
-                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
-                df[f"{feature.name}"] = pd.Series(dtype=dtype)
+        for input in self.inputs.values():
+            if type(input) == FeatureView:
+                feature_view = input
+                for feature in feature_view.features:
+                    dtype = feast_value_type_to_pandas_type(feature.dtype)
+                    df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
+                    df[f"{feature.name}"] = pd.Series(dtype=dtype)
+            else:
+                request_data = input
+                for feature_name, feature_type in request_data.schema.items():
+                    dtype = feast_value_type_to_pandas_type(feature_type)
+                    df[f"{feature_name}"] = pd.Series(dtype=dtype)
         output_df: pd.DataFrame = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
