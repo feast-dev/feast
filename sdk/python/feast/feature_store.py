@@ -16,7 +16,7 @@ import warnings
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
 from colorama import Fore, Style
@@ -405,7 +405,7 @@ class FeatureStore:
             view.infer_features_from_batch_source(self.config)
 
         for odfv in odfvs_to_update:
-            odfv.infer_features_from_batch_source(self.config)
+            odfv.infer_features()
 
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update
@@ -547,15 +547,20 @@ class FeatureStore:
         referenced_odfvs = [
             x for x in all_on_demand_feature_views if x.name in _feature_refs
         ]
-        for odfv in referenced_odfvs:
-            odfv_inputs = odfv.inputs.values()
-            for odfv_input in odfv_inputs:
-                if type(odfv_input) == RequestDataSource:
-                    for feature_name in odfv_input.schema.keys():
-                        if feature_name not in entity_df.columns:
-                            raise RequestDataNotFoundInEntityDfException(
-                                feature_name=feature_name, feature_view_name=odfv.name
-                            )
+        # Support validation of SQL
+        if type(entity_df) == pd.DataFrame:
+            entity_pd_df = cast(pd.DataFrame, entity_df)
+            for odfv in referenced_odfvs:
+                odfv_inputs = odfv.inputs.values()
+                for odfv_input in odfv_inputs:
+                    if type(odfv_input) == RequestDataSource:
+                        request_data_source = cast(RequestDataSource, odfv_input)
+                        for feature_name in request_data_source.schema.keys():
+                            if feature_name not in entity_pd_df.columns:
+                                raise RequestDataNotFoundInEntityDfException(
+                                    feature_name=feature_name,
+                                    feature_view_name=odfv.name,
+                                )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
@@ -820,21 +825,12 @@ class FeatureStore:
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
 
-        needed_request_data_features = set()
-        for odfv_to_feature_names in grouped_odfv_refs:
-            odfv, requested_feature_names = odfv_to_feature_names
-            odfv_inputs = odfv.inputs.values()
-            for odfv_input in odfv_inputs:
-                if type(odfv_input) == RequestDataSource:
-                    for feature_name in odfv_input.schema.keys():
-                        needed_request_data_features.add(
-                            f"{odfv.name}__{feature_name}"
-                            if full_feature_names
-                            else feature_name
-                        )
+        needed_request_data_features = self._get_needed_request_data_features(
+            full_feature_names, grouped_odfv_refs
+        )
 
         join_key_rows = []
-        request_data_features = {}
+        request_data_features: Dict[str, List[Any]] = {}
         # Entity rows may be either entities or request data.
         for row in entity_rows:
             join_key_row = {}
@@ -930,6 +926,24 @@ class FeatureStore:
         return self._augment_response_with_on_demand_transforms(
             _feature_refs, full_feature_names, initial_response, result_rows
         )
+
+    def _get_needed_request_data_features(
+        self, full_feature_names, grouped_odfv_refs
+    ) -> Set[str]:
+        needed_request_data_features = set()
+        for odfv_to_feature_names in grouped_odfv_refs:
+            odfv, requested_feature_names = odfv_to_feature_names
+            odfv_inputs = odfv.inputs.values()
+            for odfv_input in odfv_inputs:
+                if type(odfv_input) == RequestDataSource:
+                    request_data_source = cast(RequestDataSource, odfv_input)
+                    for feature_name in request_data_source.schema.keys():
+                        needed_request_data_features.add(
+                            f"{odfv.name}__{feature_name}"
+                            if full_feature_names
+                            else feature_name
+                        )
+        return needed_request_data_features
 
     def _augment_response_with_on_demand_transforms(
         self,

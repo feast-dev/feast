@@ -1,6 +1,6 @@
 import functools
 from types import MethodType
-from typing import Dict, List, Union
+from typing import Dict, List, Union, cast
 
 import dill
 import pandas as pd
@@ -21,7 +21,6 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
-from feast.repo_config import RepoConfig
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -140,7 +139,10 @@ class OnDemandFeatureView:
         # Copy over un-prefixed features even if not requested since transform may need it
         columns_to_cleanup = []
         if full_feature_names:
-            for input_fv in self.inputs.values():
+            for input in self.inputs.values():
+                if type(input) == FeatureView:
+                    continue
+                input_fv = cast(FeatureView, input)
                 for feature in input_fv.features:
                     full_feature_ref = f"{input_fv.name}__{feature.name}"
                     if full_feature_ref in df_with_features.keys():
@@ -166,7 +168,7 @@ class OnDemandFeatureView:
 
         return FeatureViewProjection(self.name, referenced_features)
 
-    def infer_features_from_batch_source(self, config: RepoConfig):
+    def infer_features(self):
         """
         Infers the set of features associated to this feature view from the input source.
 
@@ -179,13 +181,13 @@ class OnDemandFeatureView:
         df = pd.DataFrame()
         for input in self.inputs.values():
             if type(input) == FeatureView:
-                feature_view = input
+                feature_view = cast(FeatureView, input)
                 for feature in feature_view.features:
                     dtype = feast_value_type_to_pandas_type(feature.dtype)
                     df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
                     df[f"{feature.name}"] = pd.Series(dtype=dtype)
             else:
-                request_data = input
+                request_data = cast(RequestDataSource, input)
                 for feature_name, feature_type in request_data.schema.items():
                     dtype = feast_value_type_to_pandas_type(feature_type)
                     df[f"{feature_name}"] = pd.Series(dtype=dtype)
