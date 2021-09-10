@@ -12,6 +12,10 @@ The [quickstart](quickstart.md) is the easiest way to learn about Feast. For mor
 
 Feature tables from Feast 0.9 have been renamed to feature views in Feast 0.10+. For more details, please see the discussion [here](https://github.com/feast-dev/feast/issues/1583).
 
+### Do feature views have to include entities?
+
+No, there are [feature views without entities](concepts/data-model-and-concepts/feature-view.md#feature-views-without-entities).
+
 ## Functionality
 
 ### Does Feast provide security or access control?

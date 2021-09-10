@@ -1,8 +1,8 @@
 # Feature view
 
-## Feature View
+## Feature views
 
-A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Feature views consist of zero or more [entities](entity.md), one or more [features](feature-view.md#feature), and a [data source](data-source.md). Feature views allow Feast to model your existing feature data in a consistent way in both an offline \(training\) and online \(serving\) environment. If a feature view contains features that are properties of a specific object, that object is typically defined as an entity and included in the feature view. If a feature view contains features that are not related to a specific entity, for example global features, the feature view can be defined without entities.
+A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Feature views consist of zero or more [entities](entity.md), one or more [features](feature-view.md#feature), and a [data source](data-source.md). Feature views allow Feast to model your existing feature data in a consistent way in both an offline \(training\) and online \(serving\) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view. If the features are not related to a specific object, the feature view might not have entities; see [feature views without entities](feature-view.md#feature-views-without-entities) below.
 
 {% tabs %}
 {% tab title="driver\_trips\_feature\_view.py" %}
@@ -20,21 +20,6 @@ driver_stats_fv = FeatureView(
 )
 ```
 {% endtab %}
-
-{% tab title="global\_feature\_view.py" %}
-```python
-global_stats_fv = FeatureView(
-    name="global_stats",
-    entities=[],
-    features=[
-        Feature(name="total_trips_today", dtype=ValueType.INT64),
-    ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.global_stats"
-    )
-)
-```
-{% endtab %}
 {% endtabs %}
 
 Feature views are used during
@@ -46,6 +31,27 @@ Feature views are used during
 {% hint style="info" %}
 Feast does not generate feature values. It acts as the ingestion and serving system. The data sources described within feature views should reference feature values in their already computed form.
 {% endhint %}
+
+## Feature views without entities
+
+If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities.
+
+{% tabs %}
+{% tab title="global\_stats.py" %}
+```python
+global_stats_fv = FeatureView(
+    name="global_stats",
+    entities=[],
+    features=[
+        Feature(name="total_trips_today_by_all_drivers", dtype=ValueType.INT64),
+    ],
+    batch_source=BigQuerySource(
+        table_ref="feast-oss.demo_data.global_stats"
+    )
+)
+```
+{% endtab %}
+{% endtabs %}
 
 ## Feature
 
