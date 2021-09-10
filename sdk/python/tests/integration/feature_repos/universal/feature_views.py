@@ -57,7 +57,7 @@ def conv_rate_plus_100_feature_view(
     )
 
 
-def create_driver_hourly_stats_feature_view(source, infer_features: bool = True):
+def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
         entities=["driver"],
