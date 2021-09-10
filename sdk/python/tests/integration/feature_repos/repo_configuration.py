@@ -95,8 +95,8 @@ def construct_universal_datasets(
     orders_df = driver_test_data.create_orders_df(
         customers=entities["customer"],
         drivers=entities["driver"],
-        start_date=end_time - timedelta(days=3),
-        end_date=end_time + timedelta(days=3),
+        start_date=start_time,
+        end_date=end_time,
         order_count=20,
     )
     global_df = driver_test_data.create_global_daily_stats_df(start_time, end_time)
