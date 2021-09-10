@@ -1,5 +1,5 @@
-import uvicorn
 import click
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.logger import logger
 from google.protobuf.json_format import MessageToDict, Parse
@@ -57,5 +57,9 @@ def get_app(store: "feast.FeatureStore"):
 
 def start_server(store: "feast.FeatureStore", port: int):
     app = get_app(store)
-    click.echo("This is an " + click.style("experimental", fg="yellow", bold=True, underline=True) + " feature. It's intended for early testing and feedback, and could change without warnings in future releases.")
+    click.echo(
+        "This is an "
+        + click.style("experimental", fg="yellow", bold=True, underline=True)
+        + " feature. It's intended for early testing and feedback, and could change without warnings in future releases."
+    )
     uvicorn.run(app, host="127.0.0.1", port=port)
