@@ -355,20 +355,12 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
-    if (
-        feature in {"current_balance", "avg_passenger_count", "lifetime_trip_count"}
-        and full_feature_names
-    ):
-        return f"customer_profile__{feature}"
-
     if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
         return f"driver_stats__{feature}"
 
     if feature in {"conv_rate_plus_100"} and full_feature_names:
         return f"conv_rate_plus_100__{feature}"
 
-    if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
-        return f"global_stats__{feature}"
     return feature
 
 
