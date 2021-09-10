@@ -180,6 +180,20 @@ class AstraDBOnlineStore(OnlineStore, ABC):
             delete_cql = _create_delete_table_cql(key_space, table_name)
             self.session.execute(delete_cql)
 
+    def teardown(
+        self,
+        config: RepoConfig,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
+    ):
+        online_config = config.online_store
+        assert isinstance(online_config, AstraConfig)
+        key_space = online_config.keyspace
+        for table in tables:
+            table_name = _table_id(config.project, table)
+            cql_delete = _create_delete_table_cql(key_space, table_name)
+            self.session.execute(cql_delete)
+
 
 def _create_cql_table(key_space: str,
                       table_name: str,
