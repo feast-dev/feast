@@ -826,7 +826,7 @@ class FeatureStore:
             entity_name_to_join_key_map[entity.name] = entity.join_key
 
         needed_request_data_features = self._get_needed_request_data_features(
-            full_feature_names, grouped_odfv_refs
+            grouped_odfv_refs
         )
 
         join_key_rows = []
@@ -927,9 +927,7 @@ class FeatureStore:
             _feature_refs, full_feature_names, initial_response, result_rows
         )
 
-    def _get_needed_request_data_features(
-        self, full_feature_names, grouped_odfv_refs
-    ) -> Set[str]:
+    def _get_needed_request_data_features(self, grouped_odfv_refs) -> Set[str]:
         needed_request_data_features = set()
         for odfv_to_feature_names in grouped_odfv_refs:
             odfv, requested_feature_names = odfv_to_feature_names
@@ -938,11 +936,7 @@ class FeatureStore:
                 if type(odfv_input) == RequestDataSource:
                     request_data_source = cast(RequestDataSource, odfv_input)
                     for feature_name in request_data_source.schema.keys():
-                        needed_request_data_features.add(
-                            f"{odfv.name}__{feature_name}"
-                            if full_feature_names
-                            else feature_name
-                        )
+                        needed_request_data_features.add(feature_name)
         return needed_request_data_features
 
     def _augment_response_with_on_demand_transforms(

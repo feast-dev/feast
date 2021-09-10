@@ -140,7 +140,7 @@ class OnDemandFeatureView:
         columns_to_cleanup = []
         if full_feature_names:
             for input in self.inputs.values():
-                if type(input) == FeatureView:
+                if type(input) != FeatureView:
                     continue
                 input_fv = cast(FeatureView, input)
                 for feature in input_fv.features:

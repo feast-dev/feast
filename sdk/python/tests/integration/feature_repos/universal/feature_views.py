@@ -1,10 +1,10 @@
 from datetime import timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
 from feast import Feature, FeatureView, OnDemandFeatureView, ValueType
-from feast.data_source import DataSource
+from feast.data_source import DataSource, RequestDataSource
 
 
 def driver_feature_view(
@@ -37,23 +37,35 @@ def global_feature_view(
     )
 
 
-def conv_rate_plus_100(driver_hourly_stats: pd.DataFrame) -> pd.DataFrame:
+def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
-    df["conv_rate_plus_100"] = driver_hourly_stats["conv_rate"] + 100
+    df["conv_rate_plus_100"] = features_df["conv_rate"] + 100
+    df["conv_rate_plus_val_to_add"] = (
+        features_df["conv_rate"] + features_df["val_to_add"]
+    )
     return df
 
 
 def conv_rate_plus_100_feature_view(
-    inputs: Dict[str, FeatureView],
+    inputs: Dict[str, Union[RequestDataSource, FeatureView]],
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
-    _features = features or [Feature("conv_rate_plus_100", ValueType.DOUBLE)]
+    _features = features or [
+        Feature("conv_rate_plus_100", ValueType.DOUBLE),
+        Feature("conv_rate_plus_val_to_add", ValueType.DOUBLE),
+    ]
     return OnDemandFeatureView(
         name=conv_rate_plus_100.__name__,
         inputs=inputs,
         features=[] if infer_features else _features,
         udf=conv_rate_plus_100,
+    )
+
+
+def create_conv_rate_request_data_source():
+    return RequestDataSource(
+        name="conv_rate_input", schema={"val_to_add": ValueType.INT32}
     )
 
 

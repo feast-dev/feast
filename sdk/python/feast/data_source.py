@@ -574,7 +574,7 @@ class RequestDataSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
         for key, value in self._schema.items():
-            schema_pb[key] = value
+            schema_pb[key] = value.value
         options = DataSourceProto.RequestDataOptions(name=self._name, schema=schema_pb)
         data_source_proto = DataSourceProto(
             type=DataSourceProto.REQUEST_SOURCE, request_data_options=options

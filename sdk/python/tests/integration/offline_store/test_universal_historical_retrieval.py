@@ -159,6 +159,9 @@ def get_expected_training_df(
 
     conv_feature_name = "driver_stats__conv_rate" if full_feature_names else "conv_rate"
     expected_df["conv_rate_plus_100"] = expected_df[conv_feature_name] + 100
+    expected_df["conv_rate_plus_val_to_add"] = (
+        expected_df[conv_feature_name] + expected_df["val_to_add"]
+    )
 
     return expected_df
 
@@ -177,6 +180,10 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         datasets["orders"],
         datasets["global"],
     )
+    orders_df_with_request_data = orders_df.copy(deep=True)
+    orders_df_with_request_data["val_to_add"] = [
+        i for i in range(len(orders_df_with_request_data))
+    ]
     customer_fv, driver_fv, driver_odfv, global_fv = (
         feature_views["customer"],
         feature_views["driver"],
@@ -220,7 +227,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         driver_fv,
         global_df,
         global_fv,
-        orders_df,
+        orders_df_with_request_data,
         event_timestamp,
         full_feature_names,
     )
@@ -287,7 +294,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         assert_frame_equal(expected_df_from_arrow, df_from_sql_entities)
 
     job_from_df = store.get_historical_features(
-        entity_df=orders_df,
+        entity_df=orders_df_with_request_data,
         features=[
             "driver_stats:conv_rate",
             "driver_stats:avg_daily_trips",
@@ -295,6 +302,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "customer_profile:avg_passenger_count",
             "customer_profile:lifetime_trip_count",
             "conv_rate_plus_100:conv_rate_plus_100",
+            "conv_rate_plus_100:conv_rate_plus_val_to_add",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
         ],
@@ -338,12 +346,14 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     # on demand features is only plumbed through to to_df for now.
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
     actual_df_from_df_entities_for_table = actual_df_from_df_entities.drop(
-        columns=["conv_rate_plus_100"]
+        columns=["conv_rate_plus_100", "conv_rate_plus_val_to_add"]
     )
     assert "conv_rate_plus_100" not in table_from_df_entities.columns
+    assert "conv_rate_plus_val_to_add" not in table_from_df_entities.columns
 
     columns_expected_in_table = expected_df.columns.tolist()
     columns_expected_in_table.remove("conv_rate_plus_100")
+    columns_expected_in_table.remove("conv_rate_plus_val_to_add")
 
     table_from_df_entities = (
         table_from_df_entities[columns_expected_in_table]
