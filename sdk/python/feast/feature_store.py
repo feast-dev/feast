@@ -544,13 +544,20 @@ class FeatureStore:
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project
         )
-        referenced_odfvs = [
-            x for x in all_on_demand_feature_views if x.name in _feature_refs
-        ]
-        # Support validation of SQL
+
+        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
+        # This is a weird interface quirk - we should revisit the `get_historical_features` to
+        # pass in the on demand feature views as well.
+        fvs, odfvs = _group_feature_refs(
+            _feature_refs, all_feature_views, all_on_demand_feature_views
+        )
+        feature_views = list(view for view, _ in fvs)
+        on_demand_feature_views = list(view for view, _ in odfvs)
+
+        # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
             entity_pd_df = cast(pd.DataFrame, entity_df)
-            for odfv in referenced_odfvs:
+            for odfv in on_demand_feature_views:
                 odfv_inputs = odfv.inputs.values()
                 for odfv_input in odfv_inputs:
                     if type(odfv_input) == RequestDataSource:
@@ -561,14 +568,6 @@ class FeatureStore:
                                     feature_name=feature_name,
                                     feature_view_name=odfv.name,
                                 )
-
-        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
-        # This is a weird interface quirk - we should revisit the `get_historical_features` to
-        # pass in the on demand feature views as well.
-        fvs, _ = _group_feature_refs(
-            _feature_refs, all_feature_views, all_on_demand_feature_views
-        )
-        feature_views = list(view for view, _ in fvs)
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 

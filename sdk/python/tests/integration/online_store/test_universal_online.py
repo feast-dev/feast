@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from feast import FeatureService
+from feast.errors import RequestDataNotFoundInEntityRowsException
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -128,6 +129,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
                     response_feature_name(unprefixed_feature_ref, full_feature_names)
                 ][0]
             )
+
+    # Check what happens for missing request data
+    with pytest.raises(RequestDataNotFoundInEntityRowsException):
+        fs.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"driver": 0, "customer_id": 0}],
+            full_feature_names=full_feature_names,
+        ).to_dict()
 
     assert_feature_service_correctness(
         fs,

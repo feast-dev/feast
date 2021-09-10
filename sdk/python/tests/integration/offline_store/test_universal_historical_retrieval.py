@@ -8,6 +8,7 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 from feast import utils
+from feast.errors import RequestDataNotFoundInEntityDfException
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
@@ -362,6 +363,24 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         .reset_index(drop=True)
     )
     assert_frame_equal(actual_df_from_df_entities_for_table, table_from_df_entities)
+
+    # If request data is missing that's needed for on demand transform, throw an error
+    with pytest.raises(RequestDataNotFoundInEntityDfException):
+        store.get_historical_features(
+            entity_df=orders_df,
+            features=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+                "conv_rate_plus_100:conv_rate_plus_100",
+                "conv_rate_plus_100:conv_rate_plus_val_to_add",
+                "global_stats:num_rides",
+                "global_stats:avg_ride_length",
+            ],
+            full_feature_names=full_feature_names,
+        )
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:

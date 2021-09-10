@@ -523,10 +523,7 @@ class RequestDataSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        pass
-
-    def get_table_query_string(self) -> str:
-        pass
+        raise NotImplementedError
 
     _name: str
     _schema: Dict[str, ValueType]
