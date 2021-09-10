@@ -69,6 +69,7 @@
 * [Feature repository](reference/feature-repository/README.md)
   * [feature\_store.yaml](reference/feature-repository/feature-store-yaml.md)
   * [.feastignore](reference/feature-repository/feast-ignore.md)
+* [Feature Server](reference/feature-server.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev/)
 * [Usage](reference/usage.md)
