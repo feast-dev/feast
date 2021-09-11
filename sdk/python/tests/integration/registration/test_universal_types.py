@@ -288,10 +288,12 @@ def assert_expected_arrow_types(
     ]
     if feature_is_list:
         if provider == "gcp":
-            assert (
-                str(historical_features_arrow.schema.field_by_name("value").type)
-                == f"struct<list: list<item: struct<item: {arrow_type}>> not null>"
-            )
+            assert str(
+                historical_features_arrow.schema.field_by_name("value").type
+            ) in [
+                f"struct<list: list<item: struct<item: {arrow_type}>> not null>",
+                f"struct<list: list<item: struct<item: {arrow_type}>>>",
+            ]
         else:
             assert (
                 str(historical_features_arrow.schema.field_by_name("value").type)
