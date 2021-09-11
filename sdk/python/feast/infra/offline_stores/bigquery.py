@@ -221,6 +221,17 @@ class BigQueryRetrievalJob(RetrievalJob):
             path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
             job_config = bigquery.QueryJobConfig(destination=path)
 
+        if not job_config.dry_run and self.on_demand_feature_views is not None:
+            transformed_df = self.to_df()
+            job = self.client.load_table_from_dataframe(
+                transformed_df,
+                job_config.destination,
+                job_config=bigquery.LoadJobConfig(),
+            )
+            job.result()
+            print(f"Done writing to '{job_config.destination}'.")
+            return str(job_config.destination)
+
         bq_job = self.client.query(self.query, job_config=job_config)
 
         if job_config.dry_run:
