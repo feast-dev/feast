@@ -51,12 +51,12 @@ class FileRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return df
 
-    def to_arrow(self):
+    def _to_arrow_internal(self):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return pyarrow.Table.from_pandas(df)
