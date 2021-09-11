@@ -244,7 +244,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_delete.extend(views_to_delete)
     all_to_keep: List[Union[FeatureTable, FeatureView]] = []
     all_to_keep.extend(tables_to_keep)
-    all_to_keep.extend(views_to_delete)
+    all_to_keep.extend(views_to_keep)
     infra_provider.update_infra(
         project,
         tables_to_delete=all_to_delete,

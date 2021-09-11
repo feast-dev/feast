@@ -41,6 +41,7 @@ message DataSource {
     BATCH_REDSHIFT = 5;
     CUSTOM_SOURCE = 6;
     REQUEST_SOURCE = 7;
+    BATCH_MAXCOMPUTE = 8;
   }
   SourceType type = 1;
 
@@ -128,6 +129,16 @@ message DataSource {
     string schema = 3;
   }
 
+  // Defines options for DataSource that sources features from a Aliyun Maxcompute Query
+  message MaxcomputeOptions {
+    // Full table reference in the form of [project:table]
+    string table_ref = 1;
+
+    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
+    // entity columns
+    string query = 2;
+  }
+
   // Defines configuration for custom third-party data sources.
   message CustomSourceOptions {
     // Serialized configuration information for the data source. The implementer of the custom data source is
@@ -153,5 +164,6 @@ message DataSource {
     RedshiftOptions redshift_options = 15;
     RequestDataOptions request_data_options = 18;
     CustomSourceOptions custom_options = 16;
+    MaxcomputeOptions maxcompute_options = 19;
   }
 }

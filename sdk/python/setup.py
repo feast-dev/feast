@@ -59,6 +59,7 @@ REQUIRED = [
     "tqdm==4.*",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
+
 ]
 
 GCP_REQUIRED = [
@@ -75,6 +76,11 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = [
     "boto3==1.17.*",
+]
+
+ALIYUN_REQUIRED = [
+    "pyodps>=0.10.7",
+    "psycopg2-binary>=2.9.1",
 ]
 
 CI_REQUIRED = [
@@ -211,6 +217,7 @@ setup(
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
+        "aliyun": ALIYUN_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

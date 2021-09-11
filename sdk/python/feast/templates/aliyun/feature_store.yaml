@@ -1,0 +1,17 @@
+project: fond_tomcat
+registry: data/registry.db
+provider: aliyun
+offline_store:
+    type: maxcompute
+    access_key: %ALIYUN_ACCESS_KEY% 
+    secret_access_key: %ALIYUN_SECRET_KEY%
+    end_point: %MAXCOMPUTE_ENDPOINT%
+    region: %ALIYUN_REGION%
+    project: %MAXCOMPUTE_PROJECT%
+online_store:
+    type: hologres
+    host: %HOLOGRES_HOST%
+    port: %HOLOGRES_PORT%
+    dbname: %HOLOGRES_DB% 
+    user: %ALIYUN_ACCESS_KEY%
+    password: %ALIYUN_SECRET_KEY%

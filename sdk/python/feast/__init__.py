@@ -4,6 +4,7 @@ from pkg_resources import DistributionNotFound, get_distribution
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.maxcompute_source import MaxcomputeSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 
 from .data_source import KafkaSource, KinesisSource, SourceType
@@ -45,4 +46,5 @@ __all__ = [
     "BigQuerySource",
     "FileSource",
     "RedshiftSource",
+    "MaxcomputeSource",
 ]

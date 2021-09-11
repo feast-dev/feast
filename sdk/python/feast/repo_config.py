@@ -24,12 +24,14 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
+    "hologres": "feast.infra.online_stores.hologres.HologresOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
     "file": "feast.infra.offline_stores.file.FileOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
+    "maxcompute": "feast.infra.offline_stores.maxcompute.MaxcomputeOfflineStore",
 }
 
 
@@ -141,6 +143,8 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "datastore"
             elif values["provider"] == "aws":
                 values["online_store"]["type"] = "dynamodb"
+            elif values["provider"] == "aliyun":
+                values["online_store"]["type"] = "hologres"
 
         online_store_type = values["online_store"]["type"]
 
@@ -176,6 +180,8 @@ class RepoConfig(FeastBaseModel):
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
                 values["offline_store"]["type"] = "redshift"
+            elif values["provider"] == "aliyun":
+                values["offline_store"]["type"] = "maxcompute"
 
         offline_store_type = values["offline_store"]["type"]
 
