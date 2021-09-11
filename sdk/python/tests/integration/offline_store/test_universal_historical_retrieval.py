@@ -242,7 +242,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
                 "customer_profile:current_balance",
                 "customer_profile:avg_passenger_count",
                 "customer_profile:lifetime_trip_count",
-                "conv_rate_plus_100:conv_rate_plus_100",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
             ],
