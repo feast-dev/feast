@@ -51,8 +51,8 @@ DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+    # IntegrationTestRepoConfig(),
+    # IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
     # GCP configurations
     IntegrationTestRepoConfig(
         provider="gcp",

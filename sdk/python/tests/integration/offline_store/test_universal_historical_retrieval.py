@@ -255,18 +255,22 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             str(f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'")
         )
 
-        assert sorted(expected_df.columns) == sorted(
+        # Not requesting the on demand transform with an entity_df query (can't add request data in them)
+        expected_df_query = expected_df.drop(
+            columns=["conv_rate_plus_100", "val_to_add", "conv_rate_plus_val_to_add"]
+        )
+        assert sorted(expected_df_query.columns) == sorted(
             actual_df_from_sql_entities.columns
         )
 
         actual_df_from_sql_entities = (
-            actual_df_from_sql_entities[expected_df.columns]
+            actual_df_from_sql_entities[expected_df_query.columns]
             .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
             .drop_duplicates()
             .reset_index(drop=True)
         )
-        expected_df = (
-            expected_df.sort_values(
+        expected_df_query = (
+            expected_df_query.sort_values(
                 by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             )
             .drop_duplicates()
@@ -274,24 +278,23 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         )
 
         assert_frame_equal(
-            actual_df_from_sql_entities, expected_df, check_dtype=False,
+            actual_df_from_sql_entities, expected_df_query, check_dtype=False,
         )
 
-        expected_df_from_arrow = expected_df.drop(columns=["conv_rate_plus_100"])
         table_from_sql_entities = job_from_sql.to_arrow()
         df_from_sql_entities = (
-            table_from_sql_entities.to_pandas()[expected_df_from_arrow.columns]
+            table_from_sql_entities.to_pandas()[expected_df_query.columns]
             .sort_values(by=[event_timestamp, "order_id", "driver_id", "customer_id"])
             .drop_duplicates()
             .reset_index(drop=True)
         )
 
         for col in df_from_sql_entities.columns:
-            expected_df_from_arrow[col] = expected_df_from_arrow[col].astype(
+            expected_df_query[col] = expected_df_query[col].astype(
                 df_from_sql_entities[col].dtype
             )
 
-        assert_frame_equal(expected_df_from_arrow, df_from_sql_entities)
+        assert_frame_equal(expected_df_query, df_from_sql_entities)
 
     job_from_df = store.get_historical_features(
         entity_df=orders_df_with_request_data,

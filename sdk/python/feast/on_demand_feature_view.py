@@ -218,6 +218,19 @@ class OnDemandFeatureView:
                 f"Could not infer Features for the feature view '{self.name}'.",
             )
 
+    @staticmethod
+    def get_requested_odfvs(feature_refs, project, registry):
+        all_on_demand_feature_views = registry.list_on_demand_feature_views(
+            project, allow_cache=True
+        )
+        requested_on_demand_feature_views: List[OnDemandFeatureView] = []
+        for odfv in all_on_demand_feature_views:
+            for feature in odfv.features:
+                if f"{odfv.name}:{feature.name}" in feature_refs:
+                    requested_on_demand_feature_views.append(odfv)
+                    break
+        return requested_on_demand_feature_views
+
 
 def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureView]):
     """
