@@ -9,7 +9,7 @@ class RegistryStore(ABC):
     """
 
     @abstractmethod
-    def get_registry_proto(self )->RegistryProto:
+    def get_registry_proto(self) -> RegistryProto:
         """
         Retrieves the registry proto from the registry path. If there is no file at that path,
         raises a FileNotFoundError.

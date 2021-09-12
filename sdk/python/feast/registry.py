@@ -32,10 +32,47 @@ from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
 
 REGISTRY_SCHEMA_VERSION = "1"
+
+
+REGISTRY_STORE_CLASS_FOR_TYPE = {
+    "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
+    "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
+    "LocalRegistryStore": "feast.infra.local.LocalRegistryStore",
+}
+
+REGISTRY_STORE_CLASS_FOR_SCHEME = {
+    "gs": "GCSRegistryStore",
+    "s3": "S3RegistryStore",
+    "file": "LocalRegistryStore",
+    "": "LocalRegistryStore",
+}
+
+
+def get_registry_store_class_from_type(registry_store_type: str):
+    if not registry_store_type.endswith("RegistryStore"):
+        raise Exception('Registry store class name should end with "RegistryStore"')
+    if registry_store_type in REGISTRY_STORE_CLASS_FOR_TYPE:
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_TYPE[registry_store_type]
+    module_name, registry_store_class_name = registry_store_type.rsplit(".", 1)
+
+    return importer.get_class_from_type(
+        module_name, registry_store_class_name, "RegistryStore"
+    )
+
+
+def get_registry_store_class_from_scheme(registry_path: str):
+    uri = urlparse(registry_path)
+    if uri.scheme not in REGISTRY_STORE_CLASS_FOR_SCHEME:
+        raise Exception(
+            f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
+            f"Supported schemes are file, s3 and gs."
+        )
+    else:
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME[uri.scheme]
+        return get_registry_store_class_from_type(registry_store_type)
 
 
 class Registry:
@@ -62,61 +99,12 @@ class Registry:
         """
         registry_store_type = registry_config.registry_store_type
         registry_path = registry_config.path
-        uri = urlparse(registry_path)
         if registry_store_type is None:
-            if uri.scheme == "gs":
-                from feast.infra.gcp import GCSRegistryStore
-
-                self._registry_store: RegistryStore = GCSRegistryStore(registry_path)
-            elif uri.scheme == "s3":
-                from feast.infra.aws import S3RegistryStore
-
-                self._registry_store = S3RegistryStore(registry_path)
-            elif uri.scheme == "file" or uri.scheme == "":
-                from feast.infra.local import LocalRegistryStore
-
-                self._registry_store = LocalRegistryStore(
-                    repo_path=repo_path, registry_path_string=registry_path
-                )
-            else:
-                raise Exception(
-                    f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
-                    f"Supported schemes are file, s3 and gs."
-                )
+            cls = get_registry_store_class_from_scheme(registry_path)
         else:
-            registry_store_type = str(registry_store_type)
-            if "." not in registry_store_type:
-                if uri.scheme == "gs":
-                    from feast.infra.gcp import GCSRegistryStore
+            cls = get_registry_store_class_from_type(str(registry_store_type))
 
-                    self._registry_store = GCSRegistryStore(registry_path)
-                elif uri.scheme == "s3":
-                    from feast.infra.aws import S3RegistryStore
-
-                    self._registry_store = S3RegistryStore(registry_path)
-                elif uri.scheme == "file" or uri.scheme == "":
-                    from feast.infra.local import LocalRegistryStore
-
-                    self._registry_store = LocalRegistryStore(
-                        repo_path=repo_path, registry_path_string=registry_path
-                    )
-                else:
-                    raise Exception(
-                        f"Registry path {registry_path} has unsupported scheme {uri.scheme} or does not match {registry_store_type}. "
-                        f"Supported schemes are file, s3 and gs."
-                    )
-            else:
-                # Split provider into module and class names by finding the right-most dot.
-                # For example, provider 'foo.bar.MyRegistryStore' will be parsed into 'foo.bar' and 'MyRegistryStore'
-                module_name, class_name = str(
-                    registry_config.registry_store_type
-                ).rsplit(".", 1)
-
-                cls = importer.get_class_from_type(
-                    module_name, class_name, "RegistryStore"
-                )
-
-                self._registry_store = cls(registry_config, repo_path)
+        self._registry_store = cls(registry_config, repo_path)
         self.cached_registry_proto_ttl = timedelta(
             seconds=registry_config.cache_ttl_seconds
             if registry_config.cache_ttl_seconds is not None

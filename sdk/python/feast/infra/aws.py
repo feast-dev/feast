@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import datetime
+from pathlib import Path
 from tempfile import TemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
@@ -26,7 +27,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.registry_store import RegistryStore
-from feast.repo_config import RepoConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 
 
 class AwsProvider(Provider):
@@ -151,7 +152,8 @@ class AwsProvider(Provider):
 
 
 class S3RegistryStore(RegistryStore):
-    def __init__(self, uri: str):
+    def __init__(self, registry_config: RegistryConfig, repo_path: Path):
+        uri = registry_config.path
         try:
             import boto3
         except ImportError as e:

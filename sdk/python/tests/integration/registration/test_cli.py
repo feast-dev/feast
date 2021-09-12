@@ -215,7 +215,7 @@ def test_3rd_party_registry_store() -> None:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Registry path foobar://foo.bar has unsupported scheme foobar or does not match feast123. Supported schemes are file, s3 and gs"
+            b'Registry store class name should end with "RegistryStore"'
         )
     # Check with incorrect third-party registry store name (with dots)
     with setup_third_party_registry_store_repo("feast_foo.RegistryStore") as repo_path:

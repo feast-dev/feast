@@ -24,7 +24,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.registry_store import RegistryStore
-from feast.repo_config import RepoConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 
 
 class LocalProvider(Provider):
@@ -159,8 +159,8 @@ def _to_naive_utc(ts: datetime):
 
 
 class LocalRegistryStore(RegistryStore):
-    def __init__(self, repo_path: Path, registry_path_string: str):
-        registry_path = Path(registry_path_string)
+    def __init__(self, registry_config: RegistryConfig, repo_path: Path):
+        registry_path = Path(registry_config.path)
         if registry_path.is_absolute():
             self._filepath = registry_path
         else:
