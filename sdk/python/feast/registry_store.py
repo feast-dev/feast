@@ -5,12 +5,11 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 
 class RegistryStore(ABC):
     """
-    RegistryStore: abstract base class implemented by specific backends (local file system, GCS)
-    containing lower level methods used by the Registry class that are backend-specific.
+    A registry store is a storage backend for the Feast registry.
     """
 
     @abstractmethod
-    def get_registry_proto(self):
+    def get_registry_proto(self )->RegistryProto:
         """
         Retrieves the registry proto from the registry path. If there is no file at that path,
         raises a FileNotFoundError.
@@ -34,6 +33,6 @@ class RegistryStore(ABC):
     @abstractmethod
     def teardown(self):
         """
-        Tear down all resources.
+        Tear down the registry.
         """
         pass
