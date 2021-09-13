@@ -346,17 +346,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         event_timestamp,
     )
 
-    # on demand features is only plumbed through to to_df for now.
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
-    actual_df_from_df_entities_for_table = actual_df_from_df_entities.drop(
-        columns=["conv_rate_plus_100", "conv_rate_plus_val_to_add"]
-    )
-    assert "conv_rate_plus_100" not in table_from_df_entities.columns
-    assert "conv_rate_plus_val_to_add" not in table_from_df_entities.columns
 
     columns_expected_in_table = expected_df.columns.tolist()
-    columns_expected_in_table.remove("conv_rate_plus_100")
-    columns_expected_in_table.remove("conv_rate_plus_val_to_add")
 
     table_from_df_entities = (
         table_from_df_entities[columns_expected_in_table]
@@ -364,7 +356,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         .drop_duplicates()
         .reset_index(drop=True)
     )
-    assert_frame_equal(actual_df_from_df_entities_for_table, table_from_df_entities)
+    assert_frame_equal(actual_df_from_df_entities, table_from_df_entities)
 
     # If request data is missing that's needed for on demand transform, throw an error
     with pytest.raises(RequestDataNotFoundInEntityDfException):

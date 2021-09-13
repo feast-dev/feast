@@ -234,7 +234,7 @@ class RedshiftRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
                 self._redshift_client,
@@ -248,7 +248,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._drop_columns,
             )
 
-    def to_arrow(self) -> pa.Table:
+    def _to_arrow_internal(self) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
                 self._redshift_client,

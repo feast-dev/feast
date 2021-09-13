@@ -40,7 +40,7 @@ class RetrievalJob(ABC):
 
     def to_df(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
-        features_df = self.to_df_internal()
+        features_df = self._to_df_internal()
         if self.on_demand_feature_views is None:
             return features_df
 
@@ -51,15 +51,26 @@ class RetrievalJob(ABC):
         return features_df
 
     @abstractmethod
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
         pass
 
-    # TODO(adchia): implement ODFV for to_arrow method
     @abstractmethod
-    def to_arrow(self) -> pyarrow.Table:
+    def _to_arrow_internal(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
         pass
+
+    def to_arrow(self) -> pyarrow.Table:
+        """Return dataset as pyarrow Table synchronously"""
+        if self.on_demand_feature_views is None:
+            return self._to_arrow_internal()
+
+        features_df = self._to_df_internal()
+        for odfv in self.on_demand_feature_views:
+            features_df = features_df.join(
+                odfv.get_transformed_features_df(self.full_feature_names, features_df)
+            )
+        return pyarrow.Table.from_pandas(features_df)
 
 
 class OfflineStore(ABC):

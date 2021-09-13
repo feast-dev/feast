@@ -185,7 +185,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
@@ -234,7 +234,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         print(f"Done writing to '{job_config.destination}'.")
         return str(job_config.destination)
 
-    def to_arrow(self) -> pyarrow.Table:
+    def _to_arrow_internal(self) -> pyarrow.Table:
         return self.client.query(self.query).to_arrow()
 
 
