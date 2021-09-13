@@ -72,10 +72,12 @@ class OnDemandFeatureView:
         inputs = {}
         for feature_ref, input in self.inputs.items():
             if type(input) == FeatureView:
-                inputs[feature_ref] = OnDemandInput(feature_view=input.to_proto())
+                fv = cast(FeatureView, input)
+                inputs[feature_ref] = OnDemandInput(feature_view=fv.to_proto())
             else:
+                request_data_source = cast(RequestDataSource, input)
                 inputs[feature_ref] = OnDemandInput(
-                    request_data_source=input.to_proto()
+                    request_data_source=request_data_source.to_proto()
                 )
 
         spec = OnDemandFeatureViewSpec(
