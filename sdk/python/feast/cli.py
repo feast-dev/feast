@@ -415,7 +415,7 @@ def init_command(project_directory, minimal: bool, template: str):
 )
 @click.pass_context
 def serve_command(ctx: click.Context, port: int):
-    """Start a the feature consumption server locally on a given port."""
+    """[Experimental] Start a the feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))

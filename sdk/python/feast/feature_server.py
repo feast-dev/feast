@@ -1,3 +1,4 @@
+import click
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.logger import logger
@@ -13,7 +14,7 @@ def get_app(store: "feast.FeatureStore"):
 
     app = FastAPI()
 
-    @app.get("/get-online-features/")
+    @app.post("/get-online-features")
     async def get_online_features(request: Request):
         try:
             # Validate and parse the request data into GetOnlineFeaturesRequest Protobuf object
@@ -56,4 +57,9 @@ def get_app(store: "feast.FeatureStore"):
 
 def start_server(store: "feast.FeatureStore", port: int):
     app = get_app(store)
+    click.echo(
+        "This is an "
+        + click.style("experimental", fg="yellow", bold=True, underline=True)
+        + " feature. It's intended for early testing and feedback, and could change without warnings in future releases."
+    )
     uvicorn.run(app, host="127.0.0.1", port=port)
