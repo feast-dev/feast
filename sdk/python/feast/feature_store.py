@@ -16,18 +16,21 @@ import warnings
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
 from colorama import Fore, Style
 from tqdm import tqdm
 
 from feast import feature_server, utils
+from feast.data_source import RequestDataSource
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    RequestDataNotFoundInEntityDfException,
+    RequestDataNotFoundInEntityRowsException,
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
@@ -402,7 +405,7 @@ class FeatureStore:
             view.infer_features_from_batch_source(self.config)
 
         for odfv in odfvs_to_update:
-            odfv.infer_features_from_batch_source(self.config)
+            odfv.infer_features()
 
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update
@@ -545,10 +548,26 @@ class FeatureStore:
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
-        fvs, _ = _group_feature_refs(
+        fvs, odfvs = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         feature_views = list(view for view, _ in fvs)
+        on_demand_feature_views = list(view for view, _ in odfvs)
+
+        # Check that the right request data is present in the entity_df
+        if type(entity_df) == pd.DataFrame:
+            entity_pd_df = cast(pd.DataFrame, entity_df)
+            for odfv in on_demand_feature_views:
+                odfv_inputs = odfv.inputs.values()
+                for odfv_input in odfv_inputs:
+                    if type(odfv_input) == RequestDataSource:
+                        request_data_source = cast(RequestDataSource, odfv_input)
+                        for feature_name in request_data_source.schema.keys():
+                            if feature_name not in entity_pd_df.columns:
+                                raise RequestDataNotFoundInEntityDfException(
+                                    feature_name=feature_name,
+                                    feature_view_name=odfv.name,
+                                )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
 
@@ -789,7 +808,7 @@ class FeatureStore:
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs, _ = _group_feature_refs(
+        grouped_refs, grouped_odfv_refs = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         feature_views = list(view for view, _ in grouped_refs)
@@ -805,10 +824,22 @@ class FeatureStore:
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
 
+        needed_request_data_features = self._get_needed_request_data_features(
+            grouped_odfv_refs
+        )
+
         join_key_rows = []
+        request_data_features: Dict[str, List[Any]] = {}
+        # Entity rows may be either entities or request data.
         for row in entity_rows:
             join_key_row = {}
             for entity_name, entity_value in row.items():
+                # Found request data
+                if entity_name in needed_request_data_features:
+                    if entity_name not in request_data_features:
+                        request_data_features[entity_name] = []
+                    request_data_features[entity_name].append(entity_value)
+                    continue
                 try:
                     join_key = entity_name_to_join_key_map[entity_name]
                 except KeyError:
@@ -816,17 +847,38 @@ class FeatureStore:
                 join_key_row[join_key] = entity_value
                 if entityless_case:
                     join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
-            join_key_rows.append(join_key_row)
+            if len(join_key_row) > 0:
+                # May be empty if this entity row was request data
+                join_key_rows.append(join_key_row)
+
+        if len(needed_request_data_features) != len(request_data_features.keys()):
+            raise RequestDataNotFoundInEntityRowsException(
+                feature_names=needed_request_data_features
+            )
 
         entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
 
-        union_of_entity_keys = []
+        union_of_entity_keys: List[EntityKeyProto] = []
         result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
 
         for entity_row_proto in entity_row_proto_list:
+            # Create a list of entity keys to filter down for each feature view at lookup time.
             union_of_entity_keys.append(_entity_row_to_key(entity_row_proto))
+            # Also create entity values to append to the result
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
+        # Add more feature values to the existing result rows for the request data features
+        for feature_name, feature_values in request_data_features.items():
+            for row_idx, feature_value in enumerate(feature_values):
+                result_row = result_rows[row_idx]
+                result_row.fields[feature_name].CopyFrom(
+                    python_value_to_proto_value(feature_value)
+                )
+                result_row.statuses[
+                    feature_name
+                ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+
+        # Note: each "table" is a feature view
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -837,6 +889,7 @@ class FeatureStore:
                 entity_keys=entity_keys,
                 requested_features=requested_features,
             )
+            # Each row is a set of features for a given entity key
             for row_idx, read_row in enumerate(read_rows):
                 row_ts, feature_data = read_row
                 result_row = result_rows[row_idx]
@@ -872,6 +925,18 @@ class FeatureStore:
         return self._augment_response_with_on_demand_transforms(
             _feature_refs, full_feature_names, initial_response, result_rows
         )
+
+    def _get_needed_request_data_features(self, grouped_odfv_refs) -> Set[str]:
+        needed_request_data_features = set()
+        for odfv_to_feature_names in grouped_odfv_refs:
+            odfv, requested_feature_names = odfv_to_feature_names
+            odfv_inputs = odfv.inputs.values()
+            for odfv_input in odfv_inputs:
+                if type(odfv_input) == RequestDataSource:
+                    request_data_source = cast(RequestDataSource, odfv_input)
+                    for feature_name in request_data_source.schema.keys():
+                        needed_request_data_features.add(feature_name)
+        return needed_request_data_features
 
     def _augment_response_with_on_demand_transforms(
         self,

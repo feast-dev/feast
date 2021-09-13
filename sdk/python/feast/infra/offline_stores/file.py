@@ -247,8 +247,8 @@ class FileOfflineStore(OfflineStore):
         job = FileRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
             full_feature_names=full_feature_names,
-            on_demand_feature_views=registry.list_on_demand_feature_views(
-                project, allow_cache=True
+            on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+                feature_refs, project, registry
             ),
         )
         return job

@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from feast import FeatureService
+from feast.errors import RequestDataNotFoundInEntityRowsException
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -43,7 +44,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     global_df = datasets["global"]
 
     entity_rows = [
-        {"driver": d, "customer_id": c}
+        {"driver": d, "customer_id": c, "val_to_add": 50}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -54,12 +55,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "customer_profile:avg_passenger_count",
         "customer_profile:lifetime_trip_count",
         "conv_rate_plus_100:conv_rate_plus_100",
+        "conv_rate_plus_100:conv_rate_plus_val_to_add",
         "global_stats:num_rides",
         "global_stats:avg_ride_length",
     ]
     unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
-    # Remove the on demand feature view, since it's not present in the source dataframe
+    # Remove the on demand feature view output features, since they're not present in the source dataframe
     unprefixed_feature_refs.remove("conv_rate_plus_100")
+    unprefixed_feature_refs.remove("conv_rate_plus_val_to_add")
 
     online_features = fs.get_online_features(
         features=feature_refs,
@@ -71,8 +74,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     online_features_dict = online_features.to_dict()
     keys = online_features_dict.keys()
     assert (
-        len(keys) == len(feature_refs) + 2
-    )  # Add two for the driver id and the customer id entity keys.
+        len(keys) == len(feature_refs) + 3
+    )  # Add three for the driver id and the customer id entity keys + val_to_add request data.
     for feature in feature_refs:
         if full_feature_names:
             assert feature.replace(":", "__") in keys
@@ -98,6 +101,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             ][i]
             == df_features["conv_rate"] + 100
         )
+        assert (
+            online_features_dict[
+                response_feature_name("conv_rate_plus_val_to_add", full_feature_names)
+            ][i]
+            == df_features["conv_rate"] + df_features["val_to_add"]
+        )
         for unprefixed_feature_ref in unprefixed_feature_refs:
             tc.assertEqual(
                 df_features[unprefixed_feature_ref],
@@ -109,7 +118,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     # Check what happens for missing values
     missing_responses_dict = fs.get_online_features(
         features=feature_refs,
-        entity_rows=[{"driver": 0, "customer_id": 0}],
+        entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 100}],
         full_feature_names=full_feature_names,
     ).to_dict()
     assert missing_responses_dict is not None
@@ -120,6 +129,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
                     response_feature_name(unprefixed_feature_ref, full_feature_names)
                 ][0]
             )
+
+    # Check what happens for missing request data
+    with pytest.raises(RequestDataNotFoundInEntityRowsException):
+        fs.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"driver": 0, "customer_id": 0}],
+            full_feature_names=full_feature_names,
+        ).to_dict()
 
     assert_feature_service_correctness(
         fs,
@@ -142,7 +159,10 @@ def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
         return f"driver_stats__{feature}"
 
-    if feature in {"conv_rate_plus_100"} and full_feature_names:
+    if (
+        feature in {"conv_rate_plus_100", "conv_rate_plus_val_to_add"}
+        and full_feature_names
+    ):
         return f"conv_rate_plus_100__{feature}"
 
     if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
@@ -162,8 +182,15 @@ def get_latest_feature_values_from_dataframes(
         customer_rows["event_timestamp"].idxmax()
     ].to_dict()
     latest_global_row = global_df.loc[global_df["event_timestamp"].idxmax()].to_dict()
-
-    return {**latest_customer_row, **latest_driver_row, **latest_global_row}
+    request_data_features = entity_row.copy()
+    request_data_features.pop("driver")
+    request_data_features.pop("customer_id")
+    return {
+        **latest_customer_row,
+        **latest_driver_row,
+        **latest_global_row,
+        **request_data_features,
+    }
 
 
 def assert_feature_service_correctness(
@@ -186,8 +213,10 @@ def assert_feature_service_correctness(
     feature_service_keys = feature_service_online_features_dict.keys()
 
     assert (
-        len(feature_service_keys) == len(feature_service.features) + 2
-    )  # Add two for the driver id and the customer id entity keys.
+        len(feature_service_keys)
+        == sum([len(projection.features) for projection in feature_service.features])
+        + 3
+    )  # Add two for the driver id and the customer id entity keys and val_to_add request data
 
     for i, entity_row in enumerate(entity_rows):
         df_features = get_latest_feature_values_from_dataframes(

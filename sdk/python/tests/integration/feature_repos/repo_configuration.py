@@ -24,6 +24,7 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 )
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
+    create_conv_rate_request_data_source,
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
     create_global_stats_feature_view,
@@ -154,7 +155,12 @@ def construct_universal_feature_views(
         ),
         "global": create_global_stats_feature_view(data_sources["global"]),
         "driver": driver_hourly_stats,
-        "driver_odfv": conv_rate_plus_100_feature_view({"driver": driver_hourly_stats}),
+        "driver_odfv": conv_rate_plus_100_feature_view(
+            {
+                "driver": driver_hourly_stats,
+                "input_request": create_conv_rate_request_data_source(),
+            }
+        ),
     }
 
 
