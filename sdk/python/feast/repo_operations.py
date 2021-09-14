@@ -330,11 +330,13 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
-    feature_store = FeatureStore(repo_path=repo_path, config=None)
+    registry_config = repo_config.get_registry_config()
+    project = repo_config.project
+    registry = Registry(registry_config=registry_config, repo_path=repo_path)
 
-    for entity in feature_store.list_entities():
+    for entity in registry.list_entities(project=project):
         print(entity)
-    for feature_view in feature_store.list_feature_views():
+    for feature_view in registry.list_feature_views(project=project):
         print(feature_view)
 
 

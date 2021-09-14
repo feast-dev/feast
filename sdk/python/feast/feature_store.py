@@ -14,7 +14,7 @@
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
@@ -98,11 +98,7 @@ class FeatureStore:
             raise ValueError("Please specify one of repo_path or config.")
 
         registry_config = self.config.get_registry_config()
-        self._registry = Registry(
-            registry_path=registry_config.path,
-            repo_path=self.repo_path,
-            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
-        )
+        self._registry = Registry(registry_config, repo_path=self.repo_path)
 
     @log_exceptions
     def version(self) -> str:
@@ -139,11 +135,7 @@ class FeatureStore:
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
         registry_config = self.config.get_registry_config()
-        self._registry = Registry(
-            registry_path=registry_config.path,
-            repo_path=self.repo_path,
-            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
-        )
+        self._registry = Registry(registry_config, repo_path=self.repo_path)
         self._registry.refresh()
 
     @log_exceptions_and_usage
