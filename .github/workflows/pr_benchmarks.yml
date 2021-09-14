@@ -1,9 +1,11 @@
-name: benchmarks
+name: pr-benchmarks
 
 on:
-  push:
-    branches:
-      - master
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - labeled
 
 jobs:
   benchmark-python:
