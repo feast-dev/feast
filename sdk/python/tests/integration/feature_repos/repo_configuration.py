@@ -31,7 +31,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 
-@dataclass(frozen=True, repr=True)
+@dataclass(frozen=True)
 class IntegrationTestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
@@ -45,6 +45,17 @@ class IntegrationTestRepoConfig:
     full_feature_names: bool = True
     infer_event_timestamp_col: bool = True
     infer_features: bool = False
+
+    def __repr__(self) -> str:
+        return "-".join(
+            [
+                f"Provider: {self.provider}",
+                f"{self.offline_store_creator.__name__.split('.')[-1].rstrip('DataSourceCreator')}",
+                self.online_store
+                if isinstance(self.online_store, str)
+                else self.online_store["type"],
+            ]
+        )
 
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
