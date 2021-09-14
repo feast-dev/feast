@@ -264,6 +264,11 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_s3(self) -> str:
         """ Export dataset to S3 in Parquet format and return path """
+        if self.on_demand_feature_views is not None:
+            transformed_df = self.to_df()
+            aws_utils.upload_df_to_s3(self._s3_resource, self._s3_path, transformed_df)
+            return self._s3_path
+
         with self._query_generator() as query:
             aws_utils.execute_redshift_query_and_unload_to_s3(
                 self._redshift_client,
@@ -279,6 +284,21 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_redshift(self, table_name: str) -> None:
         """ Save dataset as a new Redshift table """
+        if self.on_demand_feature_views is not None:
+            transformed_df = self.to_df()
+            aws_utils.upload_df_to_redshift(
+                self._redshift_client,
+                self._config.offline_store.cluster_id,
+                self._config.offline_store.database,
+                self._config.offline_store.user,
+                self._s3_resource,
+                f"{self._config.offline_store.s3_staging_location}/features_df/{table_name}.parquet",
+                self._config.offline_store.iam_role,
+                table_name,
+                transformed_df,
+            )
+            return
+
         with self._query_generator() as query:
             query = f'CREATE TABLE "{table_name}" AS ({query});\n'
             if self._drop_columns is not None:
