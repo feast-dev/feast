@@ -14,9 +14,9 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
+    _run_field_mapping,
     _convert_arrow_to_proto,
     _get_column_names,
-    _run_field_mapping,
 )
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
@@ -27,6 +27,7 @@ class AstraProvider(Provider):
     def __init__(self, config: RepoConfig):
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
+        print("config.online_store: ", config.online_store)
         self.online_store = get_online_store_from_config(config.online_store)
 
     def update_infra(
