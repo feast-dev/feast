@@ -1,4 +1,4 @@
-# Feature Server (Experimental)
+# Feature Server
 
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
@@ -44,6 +44,7 @@ INFO:     Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
 ```
 
 After the server starts, we can execute cURL commands from another terminal tab:
+
 ```bash
 $  curl -X POST \
   "http://localhost:6566/get-online-features" \
@@ -106,7 +107,8 @@ $  curl -X POST \
 ```
 
 It's also possible to specify a feature service name instead of the list of features:
-```
+
+```text
 curl -X POST \
   "http://localhost:6566/get-online-features" \
   -d '{
@@ -116,3 +118,4 @@ curl -X POST \
     }
   }' | jq
 ```
+
