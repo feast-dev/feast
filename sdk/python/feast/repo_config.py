@@ -13,6 +13,11 @@ from pydantic import (
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
+from feast.errors import (
+    FeastFeatureServerTypeInvalidError,
+    FeastFeatureServerTypeSetError,
+    FeastProviderNotSetError,
+)
 from feast.importer import get_class_from_type
 from feast.usage import log_exceptions
 
@@ -201,10 +206,12 @@ class RepoConfig(FeastBaseModel):
             return values
 
         # Make sure that the provider configuration is set. We need it to set the defaults
-        assert "provider" in values
+        if "provider" not in values:
+            raise FeastProviderNotSetError()
 
         # Make sure that the type is not set, since we will set it based on the provider.
-        assert "type" not in values
+        if "type" in values["feature_server"]:
+            raise FeastFeatureServerTypeSetError(values["feature_server"]["type"])
 
         # Set the default type. We only support AWS Lambda for now.
         if values["provider"] == "aws":
@@ -281,7 +288,8 @@ def get_offline_config_from_type(offline_store_type: str):
 
 def get_feature_server_config_from_type(feature_server_type: str):
     # We do not support custom feature servers right now.
-    assert feature_server_type in FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE
+    if feature_server_type not in FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE:
+        raise FeastFeatureServerTypeInvalidError(feature_server_type)
 
     feature_server_type = FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE[feature_server_type]
     module_name, config_class_name = feature_server_type.rsplit(".", 1)
