@@ -62,7 +62,6 @@ Our goal is to make ML practitioners immediately productive in operationalizing 
       <td style="text-align:left">Inability to benefit from cloud-native technologies because of focus on
         reusable technologies like Kubernetes and Spark</td>
       <td style="text-align:left">
-        <p>&lt;b&gt;&lt;/b&gt;</p>
         <ul>
           <li>Leverages best-in-class cloud technologies so users can enjoy scalable
             + powerful tech stacks without managing open source stacks themselves</li>
