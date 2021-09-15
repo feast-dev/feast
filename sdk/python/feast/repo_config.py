@@ -102,7 +102,6 @@ class RepoConfig(FeastBaseModel):
     flags: Any
     """ Flags: Feature flags for experimental features (optional) """
 
-
     repo_path: Optional[Path] = None
 
     def __init__(self, **data: Any):
@@ -286,6 +285,7 @@ class RepoConfig(FeastBaseModel):
                     )
                 ),
                 f,
+                sort_keys=False,
             )
 
 
