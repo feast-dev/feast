@@ -24,6 +24,7 @@ from time import sleep
 
 from feast import Entity, ValueType, FeatureStore, RepoConfig
 
+
 USAGE_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
 )
