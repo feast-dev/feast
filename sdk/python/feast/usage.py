@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import logging
 import os
 import sys
@@ -19,7 +20,7 @@ from datetime import datetime
 from functools import wraps
 from os.path import expanduser, join
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import requests
 
@@ -73,7 +74,21 @@ class Usage:
             return os.getenv("FEAST_FORCE_USAGE_UUID")
         return self._usage_id
 
-    def log(self, function_name: str):
+    async def _send_request(self, json: Dict):
+        requests.post(USAGE_ENDPOINT, json=json)
+
+    async def _send_usage_request(self, json):
+        try:
+            task = asyncio.ensure_future(self._send_request(json))
+            if self._is_test:
+                await task
+        except Exception as e:
+            if self._is_test:
+                raise e
+            else:
+                pass
+
+    def log_function(self, function_name: str):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
             if function_name == "get_online_features":
@@ -89,13 +104,21 @@ class Usage:
                 "os": sys.platform,
                 "is_test": self._is_test,
             }
-            try:
-                requests.post(USAGE_ENDPOINT, json=json)
-            except Exception as e:
-                if self._is_test:
-                    raise e
-                else:
-                    pass
+            asyncio.run(self._send_usage_request(json))
+            return
+
+    def log_event(self, function_name: str):
+        self.check_env_and_configure()
+        if self._usage_enabled and self.usage_id:
+            json = {
+                "event_name": function_name,
+                "usage_id": self.usage_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "version": get_version(),
+                "os": sys.platform,
+                "is_test": self._is_test,
+            }
+            asyncio.run(self._send_usage_request(json))
             return
 
     def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
@@ -149,7 +172,7 @@ def log_exceptions_and_usage(func):
     def exception_logging_wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
-            usage.log(func.__name__)
+            usage.log_function(func.__name__)
         except Exception as e:
             error_type = type(e).__name__
             trace_to_log = []
@@ -168,6 +191,10 @@ def log_exceptions_and_usage(func):
         return result
 
     return exception_logging_wrapper
+
+
+def log_event(event_name: str):
+    usage.log_event(event_name)
 
 
 def _trim_filename(filename: str) -> str:

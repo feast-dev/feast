@@ -56,11 +56,12 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.type_map import python_value_to_proto_value
-from feast.usage import log_exceptions, log_exceptions_and_usage
+from feast.usage import log_event, log_exceptions, log_exceptions_and_usage
 from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
+EVENT_APPLY_WITH_ODFV = "apply_with_on_demand_feature_views"
 
 
 class FeatureStore:
@@ -386,6 +387,9 @@ class FeatureStore:
             and len(odfvs_to_update) > 0
         ):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        if len(odfvs_to_update) > 0:
+            log_event(EVENT_APPLY_WITH_ODFV)
 
         _validate_feature_views(views_to_update)
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
