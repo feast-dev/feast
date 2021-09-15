@@ -551,8 +551,12 @@ class FeatureStore:
             )
 
         _feature_refs = self._get_features(features, feature_refs)
+
         all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features
+        )
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project
         )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
@@ -812,8 +816,16 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
+
         all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
+        )
+        all_feature_views = _use_time_feature_views(
+            self._list_feature_views(allow_cache=True, hide_dummy_entity=False),
+            features,
+        )
+        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
+            project=self.project, allow_cache=True
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -891,8 +903,14 @@ class FeatureStore:
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         for table, requested_features in grouped_refs:
+            table_join_keys = [
+                table.join_key_map[entity_name_to_join_key_map[entity_name]]
+                if table.join_key_map and entity.join_key in table.join_key_map
+                else entity_name_to_join_key_map[entity_name]
+                for entity_name in table.entities
+            ]
             self._populate_result_rows_from_feature_view(
-                entity_name_to_join_key_map,
+                table_join_keys,
                 full_feature_names,
                 provider,
                 requested_features,
@@ -914,7 +932,7 @@ class FeatureStore:
 
     def _populate_result_rows_from_feature_view(
         self,
-        entity_name_to_join_key_map: Dict[str, str],
+        table_join_keys: List[str],
         full_feature_names: bool,
         provider: Provider,
         requested_features: List[str],
@@ -1084,6 +1102,23 @@ def _entity_row_to_field_values(
     return result
 
 
+def _use_time_feature_views(all_feature_views, features):
+    """Look for use-time FeatureView.join_key_maps and update all_feature_views"""
+    if isinstance(features, FeatureService):
+        feature_view_replacements = {
+            feature.name: feature
+            for feature in features
+            if isinstance(feature, FeatureView) and feature.join_key_map
+        }
+        all_feature_views = [
+            feature_view_replacements[fv.name]
+            if fv.name in feature_view_replacements
+            else fv
+            for fv in all_feature_views
+        ]
+    return all_feature_views
+
+
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     collided_feature_refs = []
 
@@ -1151,9 +1186,8 @@ def _group_feature_refs(
 
 
 def _get_table_entity_keys(
-    table: FeatureView, entity_keys: List[EntityKeyProto], join_key_map: Dict[str, str],
+    table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
 ) -> List[EntityKeyProto]:
-    table_join_keys = [join_key_map[entity_name] for entity_name in table.entities]
     required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
     entity_key_protos = []
     for entity_key in entity_keys:

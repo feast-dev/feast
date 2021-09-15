@@ -505,7 +505,7 @@ WITH entity_dataframe AS (
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
         {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
-            {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
+            {{ feature }} AS {% if full_feature_names %}{{ featureview.name }}__{% if featureview.join_key_map %}{{ featureview.entities | join('_')}}__{% else %}{% endif %}{{feature}}{% else %}{% if featureview.join_key_map %}{{ featureview.entities | join('_')}}__{% else %}{% endif %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
     WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
@@ -603,7 +603,7 @@ LEFT JOIN (
     SELECT
         {{featureview.name}}__entity_row_unique_id
         {% for feature in featureview.features %}
-            ,{% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}
+            ,{% if full_feature_names %}{{ featureview.name }}__{% if featureview.join_key_map %}{{ featureview.entities | join('_')}}__{% else %}{% endif %}{{feature}}{% else %}{% if featureview.join_key_map %}{{ featureview.entities | join('_')}}__{% else %}{% endif %}{{ feature }}{% endif %}
         {% endfor %}
     FROM {{ featureview.name }}__cleaned
 ) USING ({{featureview.name}}__entity_row_unique_id)

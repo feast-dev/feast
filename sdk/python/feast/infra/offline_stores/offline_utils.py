@@ -64,7 +64,13 @@ def get_expected_join_keys(
         entities = feature_view.entities
         for entity_name in entities:
             entity = registry.get_entity(entity_name, project)
-            join_keys.add(entity.join_key)
+            join_key = (
+                feature_view.join_key_map[entity.join_key]
+                if feature_view.join_key_map
+                and entity.join_key in feature_view.join_key_map
+                else entity.join_key
+            )
+            join_keys.add(join_key)
     return join_keys
 
 
@@ -87,6 +93,7 @@ class FeatureViewQueryContext:
     created_timestamp_column: Optional[str]
     table_subquery: str
     entity_selections: List[str]
+    join_key_map: Optional[Dict]
 
 
 def get_feature_view_query_context(
@@ -113,11 +120,14 @@ def get_feature_view_query_context(
         }
         for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
-            join_keys.append(entity.join_key)
-            join_key_column = reverse_field_mapping.get(
-                entity.join_key, entity.join_key
+            join_key = (
+                feature_view.join_key_map[entity.join_key]
+                if feature_view.join_key_map
+                and entity.join_key in feature_view.join_key_map
+                else entity.join_key
             )
-            entity_selections.append(f"{join_key_column} AS {entity.join_key}")
+            join_keys.append(join_key)
+            entity_selections.append(f"{entity.join_key} AS {join_key}")
 
         if isinstance(feature_view.ttl, timedelta):
             ttl_seconds = int(feature_view.ttl.total_seconds())
@@ -141,6 +151,7 @@ def get_feature_view_query_context(
             # TODO: Make created column optional and not hardcoded
             table_subquery=feature_view.input.get_table_query_string(),
             entity_selections=entity_selections,
+            join_key_map=feature_view.join_key_map,
         )
         query_context.append(context)
     return query_context
