@@ -100,7 +100,7 @@ class RepoConfig(FeastBaseModel):
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
 
     flags: Any
-    """ Flags: feature flags for experimental features (optional depending on provider) """
+    """ Flags: Feature flags for experimental features (optional) """
 
 
     repo_path: Optional[Path] = None
