@@ -1,13 +1,12 @@
 import importlib
 import struct
-from typing import Any
+from typing import Any, List
 
 import mmh3
 
 from feast import errors
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
@@ -37,13 +36,9 @@ def get_online_store_from_config(online_store_config: Any,) -> OnlineStore:
     return online_store_class()
 
 
-def _redis_key(project: str, entity_key: EntityKeyProto):
-    redis_key = RedisKeyProto(
-        project=project,
-        entity_names=entity_key.join_keys,
-        entity_values=entity_key.entity_values,
-    )
-    return redis_key.SerializeToString()
+def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:
+    key: List[bytes] = [serialize_entity_key(entity_key), project.encode("utf-8")]
+    return b"".join(key)
 
 
 def _mmh3(key: str):

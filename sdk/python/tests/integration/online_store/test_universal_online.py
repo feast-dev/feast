@@ -1,5 +1,5 @@
-import random
 import unittest
+from datetime import timedelta
 
 import pandas as pd
 import pytest
@@ -29,14 +29,27 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     feast_objects.extend(feature_views.values())
     feast_objects.extend([driver(), customer(), feature_service])
     fs.apply(feast_objects)
-    fs.materialize(environment.start_date, environment.end_date)
+    fs.materialize(
+        environment.start_date - timedelta(days=1),
+        environment.end_date + timedelta(days=1),
+    )
 
-    sample_drivers = random.sample(entities["driver"], 10)
+    entity_sample = datasets["orders"].sample(10)[
+        ["customer_id", "driver_id", "order_id", "event_timestamp"]
+    ]
+    orders_df = datasets["orders"][
+        (
+            datasets["orders"]["customer_id"].isin(entity_sample["customer_id"])
+            & datasets["orders"]["driver_id"].isin(entity_sample["driver_id"])
+        )
+    ]
+
+    sample_drivers = entity_sample["driver_id"]
     drivers_df = datasets["driver"][
         datasets["driver"]["driver_id"].isin(sample_drivers)
     ]
 
-    sample_customers = random.sample(entities["customer"], 10)
+    sample_customers = entity_sample["customer_id"]
     customers_df = datasets["customer"][
         datasets["customer"]["customer_id"].isin(sample_customers)
     ]
@@ -56,6 +69,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "customer_profile:lifetime_trip_count",
         "conv_rate_plus_100:conv_rate_plus_100",
         "conv_rate_plus_100:conv_rate_plus_val_to_add",
+        "order:order_is_success",
         "global_stats:num_rides",
         "global_stats:avg_ride_length",
     ]
@@ -84,13 +98,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             assert (
                 "driver_stats" not in keys
                 and "customer_profile" not in keys
+                and "order" not in keys
                 and "global_stats" not in keys
             )
 
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
         df_features = get_latest_feature_values_from_dataframes(
-            drivers_df, customers_df, global_df, entity_row
+            drivers_df, customers_df, orders_df, global_df, entity_row
         )
 
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
@@ -145,6 +160,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         full_feature_names,
         drivers_df,
         customers_df,
+        orders_df,
         global_df,
     )
 
@@ -165,13 +181,17 @@ def response_feature_name(feature: str, full_feature_names: bool) -> str:
     ):
         return f"conv_rate_plus_100__{feature}"
 
+    if feature in {"order_is_success"} and full_feature_names:
+        return f"order__{feature}"
+
     if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
         return f"global_stats__{feature}"
+
     return feature
 
 
 def get_latest_feature_values_from_dataframes(
-    driver_df, customer_df, global_df, entity_row
+    driver_df, customer_df, orders_df, global_df, entity_row
 ):
     driver_rows = driver_df[driver_df["driver_id"] == entity_row["driver"]]
     latest_driver_row: pd.DataFrame = driver_rows.loc[
@@ -181,6 +201,20 @@ def get_latest_feature_values_from_dataframes(
     latest_customer_row = customer_rows.loc[
         customer_rows["event_timestamp"].idxmax()
     ].to_dict()
+
+    # Since the event timestamp columns may contain timestamps of different timezones,
+    # we must first convert the timestamps to UTC before we can compare them.
+    order_rows = orders_df[
+        (orders_df["driver_id"] == entity_row["driver"])
+        & (orders_df["customer_id"] == entity_row["customer_id"])
+    ]
+    timestamps = order_rows[["event_timestamp"]]
+    timestamps["event_timestamp"] = pd.to_datetime(
+        timestamps["event_timestamp"], utc=True
+    )
+    max_index = timestamps["event_timestamp"].idxmax()
+    latest_orders_row = order_rows.loc[max_index]
+
     latest_global_row = global_df.loc[global_df["event_timestamp"].idxmax()].to_dict()
     request_data_features = entity_row.copy()
     request_data_features.pop("driver")
@@ -189,6 +223,7 @@ def get_latest_feature_values_from_dataframes(
         **latest_customer_row,
         **latest_driver_row,
         **latest_global_row,
+        **latest_orders_row,
         **request_data_features,
     }
 
@@ -200,6 +235,7 @@ def assert_feature_service_correctness(
     full_feature_names,
     drivers_df,
     customers_df,
+    orders_df,
     global_df,
 ):
     feature_service_response = fs.get_online_features(
@@ -220,7 +256,7 @@ def assert_feature_service_correctness(
 
     for i, entity_row in enumerate(entity_rows):
         df_features = get_latest_feature_values_from_dataframes(
-            drivers_df, customers_df, global_df, entity_row
+            drivers_df, customers_df, orders_df, global_df, entity_row
         )
         assert (
             feature_service_online_features_dict[
