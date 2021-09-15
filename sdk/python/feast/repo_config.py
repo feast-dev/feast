@@ -95,7 +95,7 @@ class RepoConfig(FeastBaseModel):
     offline_store: Any
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
-    feature_server: Any
+    feature_server: Optional[Any]
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
 
     repo_path: Optional[Path] = None
@@ -211,7 +211,6 @@ class RepoConfig(FeastBaseModel):
     def _validate_feature_server_config(cls, values):
         # Having no feature server is the default.
         if "feature_server" not in values:
-            values["feature_server"] = dict()
             return values
 
         # Make sure that the provider configuration is set. We need it to set the defaults
