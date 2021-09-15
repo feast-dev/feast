@@ -62,6 +62,7 @@ from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
 EVENT_APPLY_WITH_ODFV = "apply_with_on_demand_feature_views"
+EVENT_GET_HISTORICAL_FEATURES_WITH_ODFV = "get_historical_features_with_on_demand_feature_views"
 
 
 class FeatureStore:
@@ -556,6 +557,8 @@ class FeatureStore:
         )
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
+        if len(on_demand_feature_views) > 0:
+            log_event(EVENT_GET_HISTORICAL_FEATURES_WITH_ODFV)
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
