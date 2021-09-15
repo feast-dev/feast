@@ -213,6 +213,10 @@ class RepoConfig(FeastBaseModel):
         if "feature_server" not in values:
             return values
 
+        # Skip if we aren't creating the configuration from a dict
+        if not isinstance(values["feature_server"], Dict):
+            return values
+
         # Make sure that the provider configuration is set. We need it to set the defaults
         if "provider" not in values:
             raise FeastProviderNotSetError()
