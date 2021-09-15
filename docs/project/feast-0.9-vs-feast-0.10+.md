@@ -6,7 +6,7 @@ Feast 0.10 brought about major changes to the way Feast is architected and how t
 Please see [Upgrading from Feast 0.9](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit#) for a guide on how to upgrade to the latest Feast version.
 {% endhint %}
 
-## Changes introduced in Feast 0.10
+### Changes introduced in Feast 0.10
 
 Feast contributors identified various [design challenges](https://feast.dev/blog/a-state-of-feast/) in Feast 0.9 that made deploying, operating, extending, and maintaining it challenging. These challenges applied both to users and contributors.
 
@@ -71,7 +71,7 @@ Our goal is to make ML practitioners immediately productive in operationalizing 
   </tbody>
 </table>
 
-## Changes in more detail
+### Changes in more detail
 
 Where Feast 0.9 was a large stack of components that needed to be deployed to Kubernetes, Feast 0.10 is simply a lightweight SDK and CLI. It doesn’t need any long-running processes to operate. This SDK/CLI can deploy and configure your feature store to your infrastructure, and execute workflows like building training datasets or reading features from an online feature store.
 
@@ -83,7 +83,7 @@ Where Feast 0.9 was a large stack of components that needed to be deployed to Ku
 * **Temporary loss of streaming support:** Unfortunately, Feast 0.10, 0.11, and 0.12 do not support streaming feature ingestion out of the box. It is entirely possible to launch streaming ingestion jobs using these Feast versions, but it requires the use of a Feast extension point to launch these ingestion jobs. It is still a core design goal for Feast to support streaming ingestion, so this change is in the development backlog for the Feast project.
 * **Addition of extension points:** Feast 0.10+ introduces various extension points. Teams can override all feature store behavior by writing \(or extending\) a provider. It is also possible for teams to add their own data storage connectors for both an offline and online store using a plugin interface that Feast provides.
 
-## Comparison of architectures
+### Comparison of architectures
 
 ### Feast 0.9
 
@@ -97,7 +97,7 @@ Where Feast 0.9 was a large stack of components that needed to be deployed to Ku
 
 ![](../.gitbook/assets/image%20%2821%29.png)
 
-## Comparison of components
+### Comparison of components
 
 <table>
   <thead>
@@ -195,7 +195,7 @@ Where Feast 0.9 was a large stack of components that needed to be deployed to Ku
   </tbody>
 </table>
 
-## Upgrading from Feast 0.9 to the latest Feast
+### Upgrading from Feast 0.9 to the latest Feast
 
 Please see the [Feast 0.9 Upgrade Guide](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit#).
 
