@@ -10,13 +10,13 @@ class AwsLambdaFeatureServerConfig(FeastConfigBaseModel):
     type: Literal["aws_lambda"] = "aws_lambda"
     """Feature server type selector."""
 
-    enabled: StrictBool
+    enabled: StrictBool = False
     """Whether the feature server should be launched."""
 
-    public: StrictBool
+    public: StrictBool = True
     """Whether the endpoint should be publicly accessible."""
 
-    auth: StrictStr
+    auth: Literal["none", "api-key"] = "none"
     """Authentication method for the endpoint."""
 
     execution_role_name: StrictStr

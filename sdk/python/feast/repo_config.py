@@ -33,7 +33,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
-    "aws_lambda": "feast.infra.feature_servers.aws_lambda.app.AwsLambdaFeatureServerConfig",
+    "aws_lambda": "feast.infra.feature_servers.aws_lambda.config.AwsLambdaFeatureServerConfig",
 }
 
 
