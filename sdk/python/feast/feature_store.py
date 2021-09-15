@@ -1107,7 +1107,7 @@ def _use_time_feature_views(all_feature_views, features):
     if isinstance(features, FeatureService):
         feature_view_replacements = {
             feature.name: feature
-            for feature in features
+            for feature in features.features
             if isinstance(feature, FeatureView) and feature.join_key_map
         }
         all_feature_views = [
