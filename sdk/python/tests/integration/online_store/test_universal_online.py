@@ -29,11 +29,19 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     feast_objects.extend(feature_views.values())
     feast_objects.extend([driver(), customer(), feature_service])
     fs.apply(feast_objects)
-    fs.materialize(environment.start_date, environment.end_date + timedelta(days=1))
+    fs.materialize(
+        environment.start_date - timedelta(days=1),
+        environment.end_date + timedelta(days=1),
+    )
 
-    orders_df = datasets["orders"].sample(10)
-    entity_sample = orders_df[
+    entity_sample = datasets["orders"].sample(10)[
         ["customer_id", "driver_id", "order_id", "event_timestamp"]
+    ]
+    orders_df = datasets["orders"][
+        (
+            datasets["orders"]["customer_id"].isin(entity_sample["customer_id"])
+            & datasets["orders"]["driver_id"].isin(entity_sample["driver_id"])
+        )
     ]
 
     sample_drivers = entity_sample["driver_id"]
