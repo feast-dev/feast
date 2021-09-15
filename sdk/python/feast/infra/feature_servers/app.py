@@ -1,5 +1,6 @@
-import feast
 from mangum import Mangum
+
+import feast
 from feast.feature_server import get_app
 
 # TODO: replace this with an actual feature repo config deserialized from the env variables
