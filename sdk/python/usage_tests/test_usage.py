@@ -22,7 +22,7 @@ from google.cloud import bigquery
 import os
 from time import sleep
 
-from feast import Entity, ValueType, FeatureStore, RepoConfig, flags
+from feast import Entity, ValueType, FeatureStore, RepoConfig
 
 USAGE_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
@@ -34,7 +34,7 @@ def test_usage_on():
     test_usage_id = str(uuid.uuid4())
     os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
     os.environ["FEAST_IS_USAGE_TEST"] = "True"
-    os.environ[flags.FLAG_ENABLE_USAGE] = "True"
+    os.environ["FEAST_USAGE"] = "True"
 
     with tempfile.TemporaryDirectory() as temp_dir:
         test_feature_store = FeatureStore(
@@ -65,7 +65,7 @@ def test_usage_off():
     old_environ = dict(os.environ)
     test_usage_id = str(uuid.uuid4())
     os.environ["FEAST_IS_USAGE_TEST"] = "True"
-    os.environ[flags.FLAG_ENABLE_USAGE] = "False"
+    os.environ["FEAST_USAGE"] = "False"
     os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -99,7 +99,7 @@ def test_exception_usage_on():
     test_usage_id = str(uuid.uuid4())
     os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
     os.environ["FEAST_IS_USAGE_TEST"] = "True"
-    os.environ[flags.FLAG_ENABLE_USAGE] = "True"
+    os.environ["FEAST_USAGE"] = "True"
 
     try:
         test_feature_store = FeatureStore("/tmp/non_existent_directory")
@@ -115,7 +115,7 @@ def test_exception_usage_off():
     old_environ = dict(os.environ)
     test_usage_id = str(uuid.uuid4())
     os.environ["FEAST_IS_USAGE_TEST"] = "True"
-    os.environ[flags.FLAG_ENABLE_USAGE] = "False"
+    os.environ["FEAST_USAGE"] = "False"
     os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
 
     try:
