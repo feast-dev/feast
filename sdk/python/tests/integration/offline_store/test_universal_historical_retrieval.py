@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -37,9 +37,11 @@ def find_asof_record(
     ts_key: str,
     ts_start: datetime,
     ts_end: datetime,
-    filter_keys: List[str] = [],
-    filter_values: List[Any] = [],
+    filter_keys: Optional[List[str]] = None,
+    filter_values: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
+    filter_keys = filter_keys or []
+    filter_values = filter_values or []
     assert len(filter_keys) == len(filter_values)
     found_record = {}
     for record in records:

@@ -120,7 +120,7 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
 
 
 def create_order_feature_view(source, infer_features: bool = False):
-    order_feature_view = FeatureView(
+    return FeatureView(
         name="order",
         entities=["driver", "customer_id"],
         features=None
@@ -129,4 +129,3 @@ def create_order_feature_view(source, infer_features: bool = False):
         batch_source=source,
         ttl=timedelta(days=2),
     )
-    return order_feature_view
