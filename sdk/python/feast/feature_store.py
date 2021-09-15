@@ -22,7 +22,7 @@ import pandas as pd
 from colorama import Fore, Style
 from tqdm import tqdm
 
-from feast import feature_server, flags, utils
+from feast import feature_server, flags, flags_helper, utils
 from feast.data_source import RequestDataSource
 from feast.entity import Entity
 from feast.errors import (
@@ -381,7 +381,10 @@ class FeatureStore:
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
-        if not flags.enable_on_demand_feature_views() and len(odfvs_to_update) > 0:
+        if (
+            not flags_helper.enable_on_demand_feature_views(self.config)
+            and len(odfvs_to_update) > 0
+        ):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
         _validate_feature_views(views_to_update)
@@ -990,7 +993,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
         """Start the feature consumption server locally on a given port."""
-        if not flags.enable_python_feature_server():
+        if not flags_helper.enable_python_feature_server(self.config):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
 
         feature_server.start_server(self, port)

@@ -22,11 +22,7 @@ import pkg_resources
 import yaml
 
 from feast import flags, utils
-from feast.errors import (
-    ExperimentalFeatureNotEnabled,
-    FeastObjectNotFoundException,
-    FeastProviderLoginError,
-)
+from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -420,14 +416,65 @@ def init_command(project_directory, minimal: bool, template: str):
 @click.pass_context
 def serve_command(ctx: click.Context, port: int):
     """[Experimental] Start a the feature consumption server locally on a given port."""
-    if not flags.enable_python_feature_server():
-        raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
-
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
 
     store.serve(port)
+
+
+@cli.command("enable-alpha-feature")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def enable_alpha_feature(ctx: click.Context, name: str):
+    """
+    Enables an alpha feature
+    """
+    if name not in flags.FLAG_NAMES:
+        raise ValueError(f"Flag name, {name}, not valid.")
+
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    store.config.flags[flags.FLAG_ALPHA_FEATURES_NAME] = True
+    store.config.flags[name] = True
+    store.config.write_to_path(Path(repo_path))
+
+
+@cli.command("disable-alpha-feature")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def disable_alpha_feature(ctx: click.Context, name: str):
+    """
+    Disables an alpha feature
+    """
+    if name not in flags.FLAG_NAMES:
+        raise ValueError(f"Flag name, {name}, not valid.")
+
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    store.config.flags[name] = False
+    store.config.write_to_path(Path(repo_path))
+
+
+@cli.command("disable-alpha-features")
+@click.pass_context
+def disable_alpha_features(ctx: click.Context):
+    """
+    Disables all alpha features
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    store.config.flags = None
+    store.config.write_to_path(Path(repo_path))
 
 
 if __name__ == "__main__":

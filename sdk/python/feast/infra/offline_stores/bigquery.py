@@ -9,6 +9,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -23,7 +24,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
-from ... import flags
 from .bigquery_source import BigQuerySource
 
 try:
@@ -270,7 +270,7 @@ def block_until_done(
     """
 
     # For test environments, retry more aggressively
-    if flags.is_test():
+    if flags_helper.is_test():
         retry_cadence = 0.1
 
     def _wait_until_done(bq_job):

@@ -13,6 +13,7 @@ from pydantic import (
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
+from feast import flags
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
     FeastFeatureServerTypeSetError,
@@ -97,6 +98,10 @@ class RepoConfig(FeastBaseModel):
 
     feature_server: Optional[Any]
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    flags: Any
+    """ Flags: feature flags for experimental features (optional depending on provider) """
+
 
     repo_path: Optional[Path] = None
 
@@ -254,6 +259,24 @@ class RepoConfig(FeastBaseModel):
                 f"alphanumerical values and underscores but not start with an underscore."
             )
         return v
+
+    @validator("flags")
+    def _validate_flags(cls, v):
+        if not isinstance(v, Dict):
+            return
+
+        for flag_name, val in v.items():
+            if flag_name not in flags.FLAG_NAMES:
+                raise ValueError(f"Flag name, {flag_name}, not valid.")
+            if type(val) is not bool:
+                raise ValueError(f"Flag value, {val}, not valid.")
+
+        return v
+
+    def write_to_path(self, repo_path: Path):
+        config_path = repo_path / "feature_store.yaml"
+        with open(config_path, mode="w") as f:
+            yaml.dump(yaml.safe_load(self.json()), f)
 
 
 class FeastConfigError(Exception):
