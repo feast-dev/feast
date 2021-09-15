@@ -265,5 +265,5 @@ class ConflictingFeatureViewNames(Exception):
 class ExperimentalFeatureNotEnabled(Exception):
     def __init__(self, feature_flag_name: str):
         super().__init__(
-            f"Trying to use experimental feature. Please ensure to set environment variables {FLAG_ALPHA_FEATURES_NAME} and {feature_flag_name} to true"
+            f"You are attempting to use an experimental feature. Please set the environment variables {FLAG_ALPHA_FEATURES_NAME} and {feature_flag_name} to true"
         )
