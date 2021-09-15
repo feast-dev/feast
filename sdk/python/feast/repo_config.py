@@ -32,6 +32,10 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
 }
 
+FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
+    "aws_lambda": "feast.infra.feature_servers.aws_lambda.app.AwsLambdaFeatureServerConfig",
+}
+
 
 class FeastBaseModel(BaseModel):
     """ Feast Pydantic Configuration Class """
@@ -190,6 +194,37 @@ class RepoConfig(FeastBaseModel):
 
         return values
 
+    @root_validator(pre=True)
+    def _validate_feature_server_config(cls, values):
+        # Having no feature server is the default.
+        if "feature_server" not in values:
+            return values
+
+        # Make sure that the provider configuration is set. We need it to set the defaults
+        assert "provider" in values
+
+        # Make sure that the type is not set, since we will set it based on the provider.
+        assert "type" not in values
+
+        # Set the default type. We only support AWS Lambda for now.
+        if values["provider"] == "aws":
+            values["feature_server"]["type"] = "aws_lambda"
+
+        feature_server_type = values["feature_server"]["type"]
+
+        # Validate the dict to ensure one of the union types match
+        try:
+            feature_server_config_class = get_feature_server_config_from_type(
+                feature_server_type
+            )
+            feature_server_config_class(**values["feature_server"])
+        except ValidationError as e:
+            raise ValidationError(
+                [ErrorWrapper(e, loc="feature_server")], model=RepoConfig,
+            )
+
+        return values
+
     @validator("project")
     def _validate_project_name(cls, v):
         from feast.repo_operations import is_valid_name
@@ -241,6 +276,15 @@ def get_offline_config_from_type(offline_store_type: str):
     module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
     config_class_name = f"{offline_store_class_type}Config"
 
+    return get_class_from_type(module_name, config_class_name, config_class_name)
+
+
+def get_feature_server_config_from_type(feature_server_type: str):
+    # We do not support custom feature servers right now.
+    assert feature_server_type in FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE
+
+    feature_server_type = FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE[feature_server_type]
+    module_name, config_class_name = feature_server_type.rsplit(".", 1)
     return get_class_from_type(module_name, config_class_name, config_class_name)
 
 
