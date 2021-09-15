@@ -14,7 +14,9 @@
 import glob
 import os
 import re
+import shutil
 import subprocess
+import pathlib
 
 from distutils.cmd import Command
 from setuptools import find_packages
@@ -116,14 +118,10 @@ CI_REQUIRED = [
     "dill==0.3.0"
 ]
 
+# Get git repo root directory
+repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
 
 # README file from Feast repo root directory
-repo_root = (
-    subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
-        .communicate()[0]
-        .rstrip()
-        .decode("utf-8")
-)
 README_FILE = os.path.join(repo_root, "README.md")
 with open(README_FILE, "r") as f:
     LONG_DESCRIPTION = f.read()
@@ -134,6 +132,12 @@ with open(README_FILE, "r") as f:
 TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
+
+# Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
+if shutil.which("git"):
+    use_scm_version = {"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX}
+else:
+    use_scm_version = None
 
 
 class BuildProtoCommand(Command):
@@ -223,7 +227,7 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
+    use_scm_version=use_scm_version,
     setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf", "sphinx!=4.0.0"],
     package_data={
         "": [
