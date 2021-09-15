@@ -93,6 +93,25 @@ class FeastProviderNotImplementedError(Exception):
         super().__init__(f"Provider '{provider_name}' is not implemented")
 
 
+class FeastProviderNotSetError(Exception):
+    def __init__(self):
+        super().__init__("Provider is not set, but is required")
+
+
+class FeastFeatureServerTypeSetError(Exception):
+    def __init__(self, feature_server_type: str):
+        super().__init__(
+            f"Feature server type was set to {feature_server_type}, but the type should be determined by the provider"
+        )
+
+
+class FeastFeatureServerTypeInvalidError(Exception):
+    def __init__(self, feature_server_type: str):
+        super().__init__(
+            f"Feature server type was set to {feature_server_type}, but this type is invalid"
+        )
+
+
 class FeastModuleImportError(Exception):
     def __init__(self, module_name: str, module_type: str):
         super().__init__(f"Could not import {module_type} module '{module_name}'")
