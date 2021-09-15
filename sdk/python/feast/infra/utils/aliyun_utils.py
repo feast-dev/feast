@@ -17,7 +17,7 @@ except ImportError as e:
 
 
 def get_maxcompute_client(
-    ak: str, sk: str, project: str, region: str, endpoint: Optional[str] = ""
+    ak: str, sk: str, project: str, region: Optional[str] = None, endpoint: Optional[str] = None
 ):
     try:
         o = odps.ODPS(

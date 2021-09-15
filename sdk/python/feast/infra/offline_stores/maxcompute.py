@@ -214,7 +214,7 @@ class MaxcomputeRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         df = self._to_df()
         return df
@@ -260,6 +260,8 @@ class MaxcomputeRetrievalJob(RetrievalJob):
         df = self._to_df()
         return pyarrow.Table.from_pandas(df)
 
+    def _to_arrow_internal(self) -> pyarrow.Table:
+        pass
 
 def _get_table_reference_for_new_entity(client: ODPS, dataset_project: str) -> str:
     """Gets the table_id for the new entity to be uploaded."""

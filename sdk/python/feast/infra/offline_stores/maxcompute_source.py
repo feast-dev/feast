@@ -7,7 +7,7 @@ from feast.infra.utils import aliyun_utils
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
-
+import odps
 
 class MaxcomputeSource(DataSource):
     def __init__(
@@ -137,7 +137,7 @@ class MaxcomputeSource(DataSource):
             ):
                 raise TypeError("Could not parse Maxcompute table schema.")
 
-            name_type_pairs = [(field.name, field.type) for field in schema]
+            name_type_pairs = [(field.name, field.type) for field in table_schema]
         else:
             mc_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
             queryRes = client.execute_sql(mc_columns_query)

@@ -36,22 +36,22 @@ class HologresOnlineStoreConfig(FeastConfigBaseModel):
 
     type: Literal[
         "hologres", "feast.infra.online_stores.hologres.HologresOnlineStore"
-    ] = "sqlite"
+    ] = "hologres"
     """ Online store type selector"""
 
-    host: StrictStr = None
+    host: StrictStr = ""
     """ host to hologres db """
 
     port: PositiveInt = 1
     """ port to hologres db"""
 
-    dbname: StrictStr = None
+    dbname: StrictStr = ""
     """ db name to hologres db"""
 
-    user: StrictStr = None
+    user: StrictStr = ""
     """ user name to hologres db"""
 
-    password: StrictStr = None
+    password: StrictStr = ""
     """ passwrod to hologres db"""
 
 
@@ -64,7 +64,7 @@ class HologresOnlineStore(OnlineStore):
     _conn: Optional[psycopg2.extensions.connection] = None
 
     @staticmethod
-    def _get_db_connect_param(config: RepoConfig) -> str:
+    def _get_db_connect_param(config: RepoConfig) -> Tuple[Any, Any, Any, Any, Any]:
         assert (
             config.online_store.type == "hologres"
             or config.online_store.type.endswith("HologresOnlineStore")
