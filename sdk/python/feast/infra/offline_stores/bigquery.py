@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Union
@@ -24,6 +23,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
+from ... import flags
 from .bigquery_source import BigQuerySource
 
 try:
@@ -270,8 +270,7 @@ def block_until_done(
     """
 
     # For test environments, retry more aggressively
-    is_test = os.getenv("IS_TEST", default="False") == "True"
-    if is_test:
+    if flags.is_test():
         retry_cadence = 0.1
 
     def _wait_until_done(bq_job):

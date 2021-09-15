@@ -23,6 +23,7 @@ from typing import List, Optional, Tuple
 
 import requests
 
+from feast import flags
 from feast.version import get_version
 
 USAGE_ENDPOINT = "https://usage.feast.dev"
@@ -35,9 +36,7 @@ class Usage:
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
-        usage_enabled = (
-            os.getenv("FEAST_USAGE", default="True") == "True"
-        )  # written this way to turn the env var string into a boolean
+        usage_enabled = flags.enable_usage()
 
         # Check if it changed
         if usage_enabled != self._usage_enabled:

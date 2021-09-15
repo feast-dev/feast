@@ -2,6 +2,8 @@ from typing import List, Set
 
 from colorama import Fore, Style
 
+from feast.flags import FLAG_ALPHA_FEATURES_NAME
+
 
 class DataSourceNotFoundException(Exception):
     def __init__(self, path):
@@ -257,4 +259,11 @@ class ConflictingFeatureViewNames(Exception):
     def __init__(self, feature_view_name: str):
         super().__init__(
             f"The feature view name: {feature_view_name} refers to both an on-demand feature view and a feature view"
+        )
+
+
+class ExperimentalFeatureNotEnabled(Exception):
+    def __init__(self, feature_flag_name: str):
+        super().__init__(
+            f"Trying to use experimental feature. Please ensure to set environment variables {FLAG_ALPHA_FEATURES_NAME} and {feature_flag_name} to true"
         )

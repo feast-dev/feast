@@ -21,8 +21,12 @@ import click
 import pkg_resources
 import yaml
 
-from feast import utils
-from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
+from feast import flags, utils
+from feast.errors import (
+    ExperimentalFeatureNotEnabled,
+    FeastObjectNotFoundException,
+    FeastProviderLoginError,
+)
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -416,6 +420,9 @@ def init_command(project_directory, minimal: bool, template: str):
 @click.pass_context
 def serve_command(ctx: click.Context, port: int):
     """[Experimental] Start a the feature consumption server locally on a given port."""
+    if not flags.enable_python_feature_server():
+        raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
+
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
