@@ -37,8 +37,7 @@ def get_online_store_from_config(online_store_config: Any,) -> OnlineStore:
 
 
 def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:
-    key: List[bytes] = [serialize_entity_key(entity_key)]
-    key.append(project.encode("utf-8"))
+    key: List[bytes] = [serialize_entity_key(entity_key), project.encode("utf-8")]
     return b"".join(key)
 
 
