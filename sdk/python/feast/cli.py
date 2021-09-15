@@ -423,7 +423,44 @@ def serve_command(ctx: click.Context, port: int):
     store.serve(port)
 
 
-@cli.command("enable-alpha-feature")
+@cli.group(name="alpha")
+def alpha_cmd():
+    """
+    Access alpha features
+    """
+    pass
+
+
+@alpha_cmd.command("list")
+def list_alpha_features():
+    """
+    Lists all alpha features
+    """
+    flags_to_show = flags.FLAG_NAMES.copy()
+    flags_to_show.remove(flags.FLAG_ALPHA_FEATURES_NAME)
+    print("Alpha features:")
+    print(*flags_to_show, sep="\n")
+
+
+@alpha_cmd.command("enable-all")
+@click.pass_context
+def enable_alpha_features(ctx: click.Context):
+    """
+    Enables all alpha features
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    if store.config.flags is None:
+        store.config.flags = {}
+    for flag_name in flags.FLAG_NAMES:
+        store.config.flags[flag_name] = True
+    store.config.write_to_path(Path(repo_path))
+
+
+@alpha_cmd.command("enable")
 @click.argument("name", type=click.STRING)
 @click.pass_context
 def enable_alpha_feature(ctx: click.Context, name: str):
@@ -438,12 +475,14 @@ def enable_alpha_feature(ctx: click.Context, name: str):
     repo_path = str(repo)
     store = FeatureStore(repo_path=repo_path)
 
+    if store.config.flags is None:
+        store.config.flags = {}
     store.config.flags[flags.FLAG_ALPHA_FEATURES_NAME] = True
     store.config.flags[name] = True
     store.config.write_to_path(Path(repo_path))
 
 
-@cli.command("disable-alpha-feature")
+@alpha_cmd.command("disable")
 @click.argument("name", type=click.STRING)
 @click.pass_context
 def disable_alpha_feature(ctx: click.Context, name: str):
@@ -458,11 +497,13 @@ def disable_alpha_feature(ctx: click.Context, name: str):
     repo_path = str(repo)
     store = FeatureStore(repo_path=repo_path)
 
+    if store.config.flags is None or name not in store.config.flags:
+        return
     store.config.flags[name] = False
     store.config.write_to_path(Path(repo_path))
 
 
-@cli.command("disable-alpha-features")
+@alpha_cmd.command("disable-all")
 @click.pass_context
 def disable_alpha_features(ctx: click.Context):
     """

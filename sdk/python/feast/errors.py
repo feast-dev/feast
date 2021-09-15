@@ -2,8 +2,6 @@ from typing import List, Set
 
 from colorama import Fore, Style
 
-from feast.flags import FLAG_ALPHA_FEATURES_NAME
-
 
 class DataSourceNotFoundException(Exception):
     def __init__(self, path):
@@ -265,5 +263,5 @@ class ConflictingFeatureViewNames(Exception):
 class ExperimentalFeatureNotEnabled(Exception):
     def __init__(self, feature_flag_name: str):
         super().__init__(
-            f"You are attempting to use an experimental feature. Please enable the environment variables {FLAG_ALPHA_FEATURES_NAME} and {feature_flag_name} to true"
+            f"You are attempting to use an experimental feature. Please run `feast alpha enable {feature_flag_name}`"
         )
