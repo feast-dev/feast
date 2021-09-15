@@ -35,7 +35,9 @@ class Usage:
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
-        usage_enabled = os.getenv("FEAST_USAGE", default="True") == "True"
+        usage_enabled = (
+            os.getenv("FEAST_USAGE", default="True") == "True"
+        )  # written this way to turn the env var string into a boolean
 
         # Check if it changed
         if usage_enabled != self._usage_enabled:
