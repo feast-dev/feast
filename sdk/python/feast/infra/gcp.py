@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
 
-from feast.infra.provider import PassthroughProvider
+from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
