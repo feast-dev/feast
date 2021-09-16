@@ -14,12 +14,8 @@
 
 from datetime import timedelta
 
-from feast import (
-	  BigQuerySource,
-    Entity,
-    FeatureView,
-    ValueType
-)
+from feast import BigQuerySource, Entity, FeatureView, ValueType
+
 
 def test_with_name_method():
     entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
