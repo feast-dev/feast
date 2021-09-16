@@ -160,7 +160,7 @@ class HologresOnlineStore(OnlineStore):
             entity_key_bin = serialize_entity_key(entity_key)
 
             cur.execute(
-                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %%s",
+                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s",
                 (entity_key_bin,),
             )
 
