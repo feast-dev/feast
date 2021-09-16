@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Union
@@ -10,6 +9,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -270,8 +270,7 @@ def block_until_done(
     """
 
     # For test environments, retry more aggressively
-    is_test = os.getenv("IS_TEST", default="False") == "True"
-    if is_test:
+    if flags_helper.is_test():
         retry_cadence = 0.1
 
     def _wait_until_done(bq_job):
