@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import enum
 import logging
 import os
 import sys
@@ -28,6 +29,21 @@ from feast.version import get_version
 
 USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
+
+
+@enum.unique
+class UsageEvent(enum.Enum):
+    """
+    An event meant to be logged
+    """
+
+    UNKNOWN = 0
+    APPLY_WITH_ODFV = 1
+    GET_HISTORICAL_FEATURES_WITH_ODFV = 2
+    GET_ONLINE_FEATURES_WITH_ODFV = 3
+
+    def __str__(self):
+        return self.name.lower()
 
 
 class Usage:
@@ -51,7 +67,7 @@ class Usage:
                     usage_filepath = join(feast_home_dir, "usage")
 
                     self._is_test = os.getenv("FEAST_IS_USAGE_TEST", "False") == "True"
-                    self._usage_counter = {"get_online_features": 0}
+                    self._usage_counter = {}
 
                     if os.path.exists(usage_filepath):
                         with open(usage_filepath, "r") as f:
@@ -91,11 +107,11 @@ class Usage:
     def log_function(self, function_name: str):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
-            if function_name == "get_online_features":
-                self._usage_counter["get_online_features"] += 1
-                if self._usage_counter["get_online_features"] % 10000 != 2:
-                    return
-                self._usage_counter["get_online_features"] = 2  # avoid overflow
+            if (
+                function_name == "get_online_features"
+                and not self.should_log_for_get_online_features_event(function_name)
+            ):
+                return
             json = {
                 "function_name": function_name,
                 "usage_id": self.usage_id,
@@ -105,13 +121,25 @@ class Usage:
                 "is_test": self._is_test,
             }
             asyncio.run(self._send_usage_request(json))
-            return
 
-    def log_event(self, function_name: str):
+    def should_log_for_get_online_features_event(self, event_name: str):
+        if event_name not in self._usage_counter:
+            self._usage_counter[event_name] = 0
+        self._usage_counter[event_name] += 1
+        if self._usage_counter[event_name] % 10000 != 2:
+            return False
+        self._usage_counter[event_name] = 2  # avoid overflow
+        return True
+
+    def log_event(self, event: UsageEvent):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
+            event_name = str(event)
+            if event == UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV:
+                if not self.should_log_for_get_online_features_event(event_name):
+                    return
             json = {
-                "event_name": function_name,
+                "event_name": event_name,
                 "usage_id": self.usage_id,
                 "timestamp": datetime.utcnow().isoformat(),
                 "version": get_version(),
@@ -119,7 +147,6 @@ class Usage:
                 "is_test": self._is_test,
             }
             asyncio.run(self._send_usage_request(json))
-            return
 
     def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
         self.check_env_and_configure()
@@ -193,8 +220,8 @@ def log_exceptions_and_usage(func):
     return exception_logging_wrapper
 
 
-def log_event(event_name: str):
-    usage.log_event(event_name)
+def log_event(event: UsageEvent):
+    usage.log_event(event)
 
 
 def _trim_filename(filename: str) -> str:

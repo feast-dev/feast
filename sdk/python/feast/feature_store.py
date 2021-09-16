@@ -56,13 +56,11 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.type_map import python_value_to_proto_value
-from feast.usage import log_event, log_exceptions, log_exceptions_and_usage
+from feast.usage import UsageEvent, log_event, log_exceptions, log_exceptions_and_usage
 from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
-EVENT_APPLY_WITH_ODFV = "apply_with_on_demand_feature_views"
-EVENT_GET_HISTORICAL_FEATURES_WITH_ODFV = "get_historical_features_with_on_demand_feature_views"
 
 
 class FeatureStore:
@@ -390,7 +388,7 @@ class FeatureStore:
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
         if len(odfvs_to_update) > 0:
-            log_event(EVENT_APPLY_WITH_ODFV)
+            log_event(UsageEvent.APPLY_WITH_ODFV)
 
         _validate_feature_views(views_to_update)
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
@@ -558,7 +556,7 @@ class FeatureStore:
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
         if len(on_demand_feature_views) > 0:
-            log_event(EVENT_GET_HISTORICAL_FEATURES_WITH_ODFV)
+            log_event(UsageEvent.GET_HISTORICAL_FEATURES_WITH_ODFV)
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
@@ -817,6 +815,9 @@ class FeatureStore:
         grouped_refs, grouped_odfv_refs = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
+        if len(grouped_odfv_refs) > 0:
+            log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV)
+
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [
             entity_name
