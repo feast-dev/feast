@@ -93,11 +93,11 @@ class Usage:
     async def _send_request(self, json: Dict):
         requests.post(USAGE_ENDPOINT, json=json)
 
-    async def _send_usage_request(self, json):
+    def _send_usage_request(self, json):
         try:
             task = asyncio.ensure_future(self._send_request(json))
             if self._is_test:
-                await task
+                asyncio.wait(task)
         except Exception as e:
             if self._is_test:
                 raise e
@@ -120,7 +120,7 @@ class Usage:
                 "os": sys.platform,
                 "is_test": self._is_test,
             }
-            asyncio.run(self._send_usage_request(json))
+            self._send_usage_request(json)
 
     def should_log_for_get_online_features_event(self, event_name: str):
         if event_name not in self._usage_counter:
@@ -135,9 +135,11 @@ class Usage:
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
             event_name = str(event)
-            if event == UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV:
-                if not self.should_log_for_get_online_features_event(event_name):
-                    return
+            if (
+                event == UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV
+                and not self.should_log_for_get_online_features_event(event_name)
+            ):
+                return
             json = {
                 "event_name": event_name,
                 "usage_id": self.usage_id,
@@ -146,7 +148,7 @@ class Usage:
                 "os": sys.platform,
                 "is_test": self._is_test,
             }
-            asyncio.run(self._send_usage_request(json))
+            self._send_usage_request(json)
 
     def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
         self.check_env_and_configure()
