@@ -4,7 +4,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import pandas
 from tqdm import tqdm
 
-from feast import Entity, FeatureTable, FeatureView, RepoConfig
+from feast.entity import Entity
+from feast.feature_table import FeatureTable
+from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -17,6 +19,7 @@ from feast.infra.provider import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
+from feast.repo_config import RepoConfig
 
 
 class PassthroughProvider(Provider):
