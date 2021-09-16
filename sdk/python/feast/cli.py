@@ -21,7 +21,7 @@ import click
 import pkg_resources
 import yaml
 
-from feast import flags, utils
+from feast import flags, flags_helper, utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
@@ -432,14 +432,26 @@ def alpha_cmd():
 
 
 @alpha_cmd.command("list")
-def list_alpha_features():
+@click.pass_context
+def list_alpha_features(ctx: click.Context):
     """
     Lists all alpha features
     """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
     flags_to_show = flags.FLAG_NAMES.copy()
     flags_to_show.remove(flags.FLAG_ALPHA_FEATURES_NAME)
     print("Alpha features:")
-    print(*flags_to_show, sep="\n")
+    for flag in flags_to_show:
+        enabled_string = (
+            "enabled"
+            if flags_helper.feature_flag_enabled(store.config, flag)
+            else "disabled"
+        )
+        print(f"{flag}: {enabled_string}")
 
 
 @alpha_cmd.command("enable-all")

@@ -8,9 +8,12 @@ def _env_flag_enabled(name: str) -> bool:
     return os.getenv(name, default="False") == "True"
 
 
-def _feature_flag_enabled(repo_config: RepoConfig, flag_name: str) -> bool:
+def feature_flag_enabled(repo_config: RepoConfig, flag_name: str) -> bool:
+    if is_test():
+        return True
     return (
-        repo_config.flags is not None
+        _alpha_feature_flag_enabled(repo_config)
+        and repo_config.flags is not None
         and flag_name in repo_config.flags
         and repo_config.flags[flag_name]
     )
@@ -29,16 +32,8 @@ def is_test() -> bool:
 
 
 def enable_on_demand_feature_views(repo_config: RepoConfig) -> bool:
-    if is_test():
-        return True
-    return _alpha_feature_flag_enabled(repo_config) and _feature_flag_enabled(
-        repo_config, flags.FLAG_ON_DEMAND_TRANSFORM_NAME
-    )
+    return feature_flag_enabled(repo_config, flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
 
 def enable_python_feature_server(repo_config: RepoConfig) -> bool:
-    if is_test():
-        return True
-    return _alpha_feature_flag_enabled(repo_config) and _feature_flag_enabled(
-        repo_config, flags.FLAG_PYTHON_FEATURE_SERVER_NAME
-    )
+    return feature_flag_enabled(repo_config, flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
