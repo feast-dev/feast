@@ -14,19 +14,15 @@
 
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, FeatureView, ValueType
+from feast import FeatureView, FileSource
 
 
 def test_with_name_method():
-    entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
-
     test_fv = FeatureView(
-	    name="test_fv",
-	    entities=["entity"],
-	    ttl=timedelta(days=1),
-	    batch_source=BigQuerySource(
-    		table_ref="feast-oss.public.customers", event_timestamp_column="event_timestamp",
-			)
+        name="test_fv",
+        entities=["entity"],
+        ttl=timedelta(days=1),
+        batch_source=FileSource(path="non_existent"),
     )
 
     test_fv_2 = test_fv.with_name("test_fv_2")

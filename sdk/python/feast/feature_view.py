@@ -215,7 +215,7 @@ class FeatureView:
             stream_source=self.stream_source,
             features=self.features,
             tags=self.tags,
-            online=self.online
+            online=self.online,
         )
 
     def to_proto(self) -> FeatureViewProto:
