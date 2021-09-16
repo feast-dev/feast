@@ -139,6 +139,8 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "datastore"
             elif values["provider"] == "aws":
                 values["online_store"]["type"] = "dynamodb"
+            elif values["provider"] == "astra":
+                values["online_store"]["type"] = "astra"
 
         online_store_type = values["online_store"]["type"]
 
