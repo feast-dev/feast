@@ -199,6 +199,25 @@ class FeatureView:
         if not self.entities:
             raise ValueError("Feature view has no entities.")
 
+    def with_name(self, name: str):
+        """
+        Produces a copy of this FeatureView with the passed name.
+
+        Returns:
+            A copy of this FeatureView with the name replaced with the 'name' input.
+        """
+        return FeatureView(
+            name=name,
+            entities=self.entities,
+            ttl=self.ttl,
+            input=self.input,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            features=self.features,
+            tags=self.tags,
+            online=self.online
+        )
+
     def to_proto(self) -> FeatureViewProto:
         """
         Converts a feature view object to its protobuf representation.
