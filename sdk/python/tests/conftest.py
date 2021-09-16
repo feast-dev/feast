@@ -58,7 +58,7 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
 
-    integration_tests = {t for t in items if "integration" in t.keywords}
+    integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
         for t in integration_tests:
             items.remove(t)
@@ -67,7 +67,7 @@ def pytest_collection_modifyitems(config, items: List[Item]):
         for t in integration_tests:
             items.append(t)
 
-    benchmark_tests = {t for t in items if "benchmark" in t.keywords}
+    benchmark_tests = [t for t in items if "benchmark" in t.keywords]
     if not should_run_benchmark:
         for t in benchmark_tests:
             items.remove(t)
