@@ -37,6 +37,7 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: mark test that has external dependencies"
     )
+    config.addinivalue_line("markers", "benchmark: mark benchmarking tests")
 
 
 def pytest_addoption(parser):
@@ -46,17 +47,23 @@ def pytest_addoption(parser):
         default=False,
         help="Run tests with external dependencies",
     )
+    parser.addoption(
+        "--benchmark", action="store_true", default=False, help="Run benchmark tests",
+    )
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--integration"):
-        return
+    should_run_integration = config.getoption("--integration") is True
+    should_run_benchmark = config.getoption("--benchmark") is True
     skip_integration = pytest.mark.skip(
         reason="not running tests with external dependencies"
     )
+    skip_benchmark = pytest.mark.skip(reason="not running benchmarks")
     for item in items:
-        if "integration" in item.keywords:
+        if "integration" in item.keywords and not should_run_integration:
             item.add_marker(skip_integration)
+        if "benchmark" in item.keywords and not should_run_benchmark:
+            item.add_marker(skip_benchmark)
 
 
 @pytest.fixture

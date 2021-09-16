@@ -52,6 +52,9 @@ compile-protos-python:
 install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
+benchmark-python:
+	FEAST_USAGE=False IS_TEST=True pytest --integration --benchmark sdk/python/tests
+
 test-python:
 	FEAST_USAGE=False pytest -n 8 sdk/python/tests
 
