@@ -13,8 +13,6 @@ from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -153,6 +151,11 @@ class PassthroughProvider(Provider):
 
     def __init__(self, config: RepoConfig):
         super().__init__(config)
+        from feast.infra.offline_stores.offline_utils import (
+            get_offline_store_from_config,
+        )
+        from feast.infra.online_stores.helpers import get_online_store_from_config
+
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = get_online_store_from_config(config.online_store)
