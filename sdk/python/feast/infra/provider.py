@@ -13,7 +13,6 @@ from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.infra.passthrough_provider import PassthroughProvider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -148,6 +147,7 @@ class Provider(abc.ABC):
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
         if config.provider in {"gcp", "aws", "local"}:
+            from feast.infra.passthrough_provider import PassthroughProvider
             return PassthroughProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
