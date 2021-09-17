@@ -14,7 +14,7 @@ Entities should be reused across feature views.
 
 A related concept is an entity key. These are one or more entity values that uniquely describe a feature view record. In the case of an entity \(like a `driver`\) that only has a single entity field, the entity _is_ an entity key. However, it is also possible for an entity key to consist of multiple entity values. For example, a feature view with the composite entity of \(customer, country\) might have an entity key of \(1001, 5\).
 
-![](../../../.gitbook/assets/image%20%2815%29.png)
+![](../../.gitbook/assets/image%20%2815%29.png)
 
 Entity keys act as primary keys. They are used during the lookup of features from the online store, and they are also used to match feature rows across feature views during point-in-time joins.
 

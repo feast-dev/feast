@@ -14,7 +14,7 @@ Feature tables from Feast 0.9 have been renamed to feature views in Feast 0.10+.
 
 ### Do feature views have to include entities?
 
-No, there are [feature views without entities](concepts/data-model-and-concepts/feature-view.md#feature-views-without-entities).
+No, there are [feature views without entities](concepts/feature-view.md#feature-views-without-entities).
 
 ## Functionality
 

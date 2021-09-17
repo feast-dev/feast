@@ -1,6 +1,6 @@
 # Overview
 
-![Feast Architecture Diagram](../../../.gitbook/assets/image%20%284%29.png)
+![Feast Architecture Diagram](../../.gitbook/assets/image%20%284%29.png)
 
 ## Functionality
 
