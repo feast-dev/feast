@@ -9,6 +9,7 @@
 
 * [Quickstart](getting-started/quickstart.md)
 * [Concepts](getting-started/concepts/README.md)
+  * [Overview](getting-started/concepts/overview.md)
   * [Data source](getting-started/concepts/data-source.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
