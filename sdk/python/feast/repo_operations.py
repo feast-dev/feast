@@ -257,6 +257,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     # Commit the update to the registry only after successful infra update
     registry.commit()
 
+    repo_config = store.config
+    if repo_config.feature_server and repo_config.feature_server.enabled:
+        store.upload_docker_image()
+
 
 def _tag_registry_entities_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
