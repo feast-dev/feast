@@ -148,6 +148,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
         if config.provider in {"gcp", "aws", "local"}:
             from feast.infra.passthrough_provider import PassthroughProvider
+
             return PassthroughProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
