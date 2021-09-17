@@ -6,5 +6,5 @@ Feast uses a time-series data model to represent data. This data model is used t
 
 Below is an example data source with a single entity \(`driver`\) and two features \(`trips_today`, and `rating`\).
 
-![Ride-hailing data source](../../../.gitbook/assets/image%20%2816%29.png)
+![Ride-hailing data source](../../.gitbook/assets/image%20%2816%29.png)
 

@@ -49,7 +49,8 @@ The best way to learn Feast is to use it. Head over to our [Quickstart](getting-
 Explore the following resources to get started with Feast:
 
 * [Quickstart](getting-started/quickstart.md) is the fastest way to get started with Feast
-* [Concepts](getting-started/concepts/) describes all important Feast API concepts and Feast's overall architecture.
+* [Concepts](getting-started/concepts/) describes all important Feast API concepts 
+* [Architecture](getting-started/architecture-and-components/) describes Feast's overall architecture.
 * [Tutorials](tutorials/tutorials-overview.md) shows full examples of using Feast in machine learning applications.
 * [Running Feast with GCP/AWS](how-to-guides/feast-gcp-aws/) provides a more in-depth guide to using Feast.
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
