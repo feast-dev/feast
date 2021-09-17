@@ -74,9 +74,6 @@ jobs:
           fail_ci_if_error: true
           verbose: true
       - name: Benchmark python
-        run: FEAST_USAGE=False IS_TEST=True pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-json=./benchmarks.json
-      - name: Upload Benchmark Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: benchmarks.json
-          path: benchmarks.json
+        run: FEAST_USAGE=False IS_TEST=True pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data
+      - name: Upload Benchmark Artifact to S3
+        run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmarks
