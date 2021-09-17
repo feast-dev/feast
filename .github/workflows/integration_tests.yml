@@ -63,7 +63,7 @@ jobs:
           fail_ci_if_error: true
           verbose: true
       - name: Benchmark python
-        run: FEAST_USAGE=False IS_TEST=True pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-json=./benchmarks.json
+        run: FEAST_USAGE=False IS_TEST=True pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data
       - name: Upload Benchmark Artifact
         uses: actions/upload-artifact@v2
         with:
