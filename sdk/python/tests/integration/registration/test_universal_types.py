@@ -43,14 +43,19 @@ def populate_test_configs(offline: bool):
                     and feature_is_list is True
                 ):
                     continue
-                configs.append(
-                    TypeTestConfig(
-                        entity_type=entity_type,
-                        feature_dtype=feature_dtype,
-                        feature_is_list=feature_is_list,
-                        test_repo_config=test_repo_config,
+                for list_is_empty in [True, False]:
+                    configs.append(
+                        TypeTestConfig(
+                            entity_type=entity_type,
+                            feature_dtype=feature_dtype,
+                            feature_is_list=feature_is_list,
+                            list_is_empty=list_is_empty,
+                            test_repo_config=test_repo_config,
+                        )
                     )
-                )
+                    # For non list features `list_is_empty` does nothing
+                    if feature_is_list is False:
+                        continue
     return configs
 
 
@@ -59,6 +64,7 @@ class TypeTestConfig:
     entity_type: ValueType
     feature_dtype: str
     feature_is_list: bool
+    list_is_empty: bool
     test_repo_config: IntegrationTestRepoConfig
 
 
@@ -96,7 +102,10 @@ def get_fixtures(request):
     ) as type_test_environment:
         config = request.param
         df = create_dataset(
-            config.entity_type, config.feature_dtype, config.feature_is_list
+            config.entity_type,
+            config.feature_dtype,
+            config.feature_is_list,
+            config.list_is_empty,
         )
         data_source = type_test_environment.data_source_creator.create_data_source(
             df,
@@ -104,7 +113,10 @@ def get_fixtures(request):
             field_mapping={"ts_1": "ts"},
         )
         fv = create_feature_view(
-            config.feature_dtype, config.feature_is_list, data_source
+            config.feature_dtype,
+            config.feature_is_list,
+            config.list_is_empty,
+            data_source,
         )
         yield type_test_environment, config, data_source, fv
         type_test_environment.data_source_creator.teardown()
@@ -137,7 +149,9 @@ def test_entity_inference_types_match(offline_types_test_fixtures):
 def test_feature_get_historical_features_types_match(offline_types_test_fixtures):
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
-    fv = create_feature_view(config.feature_dtype, config.feature_is_list, data_source)
+    fv = create_feature_view(
+        config.feature_dtype, config.feature_is_list, config.list_is_empty, data_source
+    )
     entity = driver()
     fs.apply([fv, entity])
 
@@ -180,7 +194,9 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
 @pytest.mark.integration
 def test_feature_get_online_features_types_match(online_types_test_fixtures):
     environment, config, data_source, fv = online_types_test_fixtures
-    fv = create_feature_view(config.feature_dtype, config.feature_is_list, data_source)
+    fv = create_feature_view(
+        config.feature_dtype, config.feature_is_list, config.list_is_empty, data_source
+    )
     fs = environment.feature_store
     features = [fv.name + ":value"]
     entity = driver(value_type=ValueType.UNKNOWN)
@@ -216,12 +232,14 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
         )
 
 
-def create_feature_view(feature_dtype, feature_is_list, data_source):
+def create_feature_view(feature_dtype, feature_is_list, list_is_empty, data_source):
     return driver_feature_view(
         data_source,
         value_type=python_type_to_feast_value_type(
             feature_dtype,
-            value=get_feature_values_for_dtype(feature_dtype, feature_is_list)[0],
+            value=get_feature_values_for_dtype(
+                feature_dtype, feature_is_list, list_is_empty
+            )[0],
         ),
     )
 

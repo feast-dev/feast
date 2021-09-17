@@ -11,12 +11,15 @@ def create_dataset(
     entity_type: ValueType = ValueType.INT32,
     feature_dtype: str = None,
     feature_is_list: bool = False,
+    list_is_empty: bool = False,
 ) -> pd.DataFrame:
     now = datetime.now().replace(microsecond=0, second=0, minute=0)
     ts = pd.Timestamp(now).round("ms")
     data = {
         "driver_id": get_entities_for_value_type(entity_type),
-        "value": get_feature_values_for_dtype(feature_dtype, feature_is_list),
+        "value": get_feature_values_for_dtype(
+            feature_dtype, feature_is_list, list_is_empty
+        ),
         "ts_1": [
             ts - timedelta(hours=4),
             ts,
@@ -44,7 +47,7 @@ def get_entities_for_value_type(value_type: ValueType) -> List:
     return value_type_map[value_type]
 
 
-def get_feature_values_for_dtype(dtype: str, is_list: bool) -> List:
+def get_feature_values_for_dtype(dtype: str, is_list: bool, is_empty: bool) -> List:
     if dtype is None:
         return [0.1, None, 0.3, 4, 5]
     # TODO(adchia): for int columns, consider having a better error when dealing with None values (pandas int dfs can't
@@ -57,8 +60,9 @@ def get_feature_values_for_dtype(dtype: str, is_list: bool) -> List:
         "bool": [True, None, False, True, False],
     }
     non_list_val = dtype_map[dtype]
-    # Duplicate the value once if this is a list
     if is_list:
+        if is_empty:
+            return [[] for n in non_list_val]
         return [[n, n] if n is not None else None for n in non_list_val]
     else:
         return non_list_val
