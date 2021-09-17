@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import asyncio
+import concurrent.futures
 import enum
 import logging
 import os
@@ -21,7 +21,7 @@ from datetime import datetime
 from functools import wraps
 from os.path import expanduser, join
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import requests
 
@@ -29,6 +29,8 @@ from feast.version import get_version
 
 USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
+
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
 @enum.unique
@@ -90,14 +92,11 @@ class Usage:
             return os.getenv("FEAST_FORCE_USAGE_UUID")
         return self._usage_id
 
-    async def _send_request(self, json: Dict):
-        requests.post(USAGE_ENDPOINT, json=json)
-
     def _send_usage_request(self, json):
         try:
-            task = asyncio.ensure_future(self._send_request(json))
+            future = executor.submit(requests.post, USAGE_ENDPOINT, json=json)
             if self._is_test:
-                asyncio.wait(task)
+                concurrent.futures.wait([future])
         except Exception as e:
             if self._is_test:
                 raise e
