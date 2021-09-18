@@ -7,9 +7,8 @@ import pandas as pd
 import pytest
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.type_map import python_type_to_feast_value_type
 from feast.value_type import ValueType
-from tests.data.data_creator import create_dataset, get_feature_values_for_dtype
+from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     REDIS_CONFIG,
@@ -230,15 +229,25 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
 
 
 def create_feature_view(feature_dtype, feature_is_list, list_is_empty, data_source):
-    return driver_feature_view(
-        data_source,
-        value_type=python_type_to_feast_value_type(
-            feature_dtype,
-            value=get_feature_values_for_dtype(
-                feature_dtype, feature_is_list, list_is_empty
-            )[0],
-        ),
-    )
+    if feature_is_list is True:
+        if feature_dtype == "int32":
+            value_type = ValueType.INT32_LIST
+        elif feature_dtype == "int64":
+            value_type = ValueType.INT64_LIST
+        elif feature_dtype == "float":
+            value_type = ValueType.FLOAT_LIST
+        elif feature_dtype == "bool":
+            value_type = ValueType.BOOL_LIST
+    else:
+        if feature_dtype == "int32":
+            value_type = ValueType.INT32
+        elif feature_dtype == "int64":
+            value_type = ValueType.INT64
+        elif feature_dtype == "float":
+            value_type = ValueType.FLOAT
+        elif feature_dtype == "bool":
+            value_type = ValueType.BOOL
+    return driver_feature_view(data_source, value_type=value_type,)
 
 
 def assert_expected_historical_feature_types(
