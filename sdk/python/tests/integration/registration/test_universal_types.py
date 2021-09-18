@@ -220,10 +220,13 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
         config.feature_dtype
     ]
     if config.feature_is_list:
-        assert isinstance(online_features["value"][0], list)
-        assert isinstance(online_features["value"][0][0], expected_dtype)
+        for feature in online_features["value"]:
+            assert isinstance(feature, list)
+            for element in feature:
+                assert isinstance(element, expected_dtype)
     else:
-        assert isinstance(online_features["value"][0], expected_dtype)
+        for feature in online_features["value"]:
+            assert isinstance(feature, expected_dtype)
 
 
 def create_feature_view(feature_dtype, feature_is_list, list_is_empty, data_source):
@@ -280,11 +283,15 @@ def assert_feature_list_types(
     ]
     assert pd.api.types.is_object_dtype(historical_features_df.dtypes["value"])
     if provider == "gcp":
-        assert isinstance(historical_features_df.value[0]["list"], (np.ndarray, list))
-        assert isinstance(historical_features_df.value[0]["list"][0]["item"], expected_dtype)
+        for feature in historical_features_df.value:
+            assert isinstance(feature["list"], (np.ndarray, list))
+            for element in feature["list"]:
+                assert isinstance(element["item"], expected_dtype)
     else:
-        assert isinstance(historical_features_df.value[0], (np.ndarray, list))
-        assert isinstance(historical_features_df.value[0][0], expected_dtype)
+        for feature in historical_features_df.value:
+            assert isinstance(feature, (np.ndarray, list))
+            for element in feature:
+                assert isinstance(element, expected_dtype)
 
 
 def assert_expected_arrow_types(
