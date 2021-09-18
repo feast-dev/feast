@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from typing import Any, Dict, List, cast
 
 import pandas as pd
@@ -25,7 +26,7 @@ from feast.protos.feast.types.Value_pb2 import Value as Value
 from feast.type_map import (
     _python_value_to_proto_value,
     feast_value_type_to_python_type,
-    python_type_to_feast_value_type,
+    python_values_to_feast_value_type,
 )
 
 
@@ -94,25 +95,30 @@ def _infer_online_entity_rows(
     entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
     entity_row_list = []
     entity_type_map = dict()
+    entity_value_map = defaultdict(list)
+
+    # Flatten keys-value dicts into lists for type inference
+    for entity in entity_rows_dicts:
+        for key, value in entity.items():
+            if not isinstance(value, Value):
+                entity_value_map[key].append(value)
+
+    # Loop over all entities to infer dtype first in case of empty lists or nulls
+    for key, values in entity_value_map.items():
+        entity_type_map[key] = python_values_to_feast_value_type(key, values)
 
     for entity in entity_rows_dicts:
         fields = {}
         for key, value in entity.items():
-            # Allow for feast.types.Value
+            if key not in entity_type_map:
+                raise ValueError(
+                    f"field {key} cannot have all null values for type inference."
+                )
+
             if isinstance(value, Value):
                 proto_value = value
             else:
-                # Infer the specific type for this row
-                current_dtype = python_type_to_feast_value_type(name=key, value=value)
-
-                if key not in entity_type_map:
-                    entity_type_map[key] = current_dtype
-                else:
-                    if current_dtype != entity_type_map[key]:
-                        raise TypeError(
-                            f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
-                        )
-                proto_value = _python_value_to_proto_value(current_dtype, value)
+                proto_value = _python_value_to_proto_value(entity_type_map[key], value)
             fields[key] = proto_value
         entity_row_list.append(GetOnlineFeaturesRequestV2.EntityRow(fields=fields))
     return entity_row_list

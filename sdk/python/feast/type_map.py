@@ -98,7 +98,7 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
 
 def python_type_to_feast_value_type(
     name: str, value: Any = None, recurse: bool = True, type_name: Optional[str] = None
-) -> ValueType:
+) -> Optional[ValueType]:
     """
     Finds the equivalent Feast Value Type for a Python value. Both native
     and Pandas types are supported. This function will recursively look
@@ -149,9 +149,9 @@ def python_type_to_feast_value_type(
             common_item_value_type = None
             for item in list_items:
                 if isinstance(item, ProtoValue):
-                    current_item_value_type = _proto_str_to_value_type(
-                        str(item.WhichOneof("val"))
-                    )
+                    current_item_value_type: Optional[
+                        ValueType
+                    ] = _proto_str_to_value_type(str(item.WhichOneof("val")))
                 else:
                     # Get the type from the current item, only one level deep
                     current_item_value_type = python_type_to_feast_value_type(
@@ -169,9 +169,7 @@ def python_type_to_feast_value_type(
                     )
                 common_item_value_type = current_item_value_type
             if common_item_value_type is None:
-                raise ValueError(
-                    f"field {name} cannot have null values for type inference."
-                )
+                return None
             return ValueType[common_item_value_type.name + "_LIST"]
         else:
             assert value
@@ -183,6 +181,29 @@ def python_type_to_feast_value_type(
 
     assert value
     return type_map[value.dtype.__str__()]
+
+
+def python_values_to_feast_value_type(name: str, values: Any, recurse: bool = True):
+    inferred_dtype = None
+    for row in values:
+        current_dtype = python_type_to_feast_value_type(
+            name, value=row, recurse=recurse
+        )
+
+        if current_dtype is not None:
+            if inferred_dtype is None:
+                inferred_dtype = current_dtype
+            else:
+                if current_dtype != inferred_dtype:
+                    raise TypeError(
+                        f"Input entity {name} has mixed types, {current_dtype} and {inferred_dtype}. That is not allowed. "
+                    )
+    if inferred_dtype is None:
+        raise ValueError(
+            f"field {name} cannot have all null values for type inference."
+        )
+
+    return inferred_dtype
 
 
 def _type_err(item, dtype):
