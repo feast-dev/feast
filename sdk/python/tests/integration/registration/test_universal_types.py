@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -209,27 +210,20 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
     ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
-        "int32": "int",
-        "int64": "int",
-        "float": "float",
-        "string": "str",
-        "bool": "bool",
+        "int32": int,
+        "int64": int,
+        "float": float,
+        "string": str,
+        "bool": bool,
     }
+    expected_dtype = feature_list_dtype_to_expected_online_response_value_type[
+        config.feature_dtype
+    ]
     if config.feature_is_list:
-        assert type(online_features["value"][0]).__name__ == "list"
-        assert (
-            type(online_features["value"][0][0]).__name__
-            == feature_list_dtype_to_expected_online_response_value_type[
-                config.feature_dtype
-            ]
-        )
+        assert isinstance(online_features["value"][0], list)
+        assert isinstance(online_features["value"][0][0], expected_dtype)
     else:
-        assert (
-            type(online_features["value"][0]).__name__
-            == feature_list_dtype_to_expected_online_response_value_type[
-                config.feature_dtype
-            ]
-        )
+        assert isinstance(online_features["value"][0], expected_dtype)
 
 
 def create_feature_view(feature_dtype, feature_is_list, list_is_empty, data_source):
@@ -249,15 +243,15 @@ def assert_expected_historical_feature_types(
 ):
     print("Asserting historical feature types")
     feature_dtype_to_expected_historical_feature_dtype = {
-        "int32": "int64",
-        "int64": "int64",
-        "float": "float64",
-        "string": {"string", "object"},
-        "bool": {"bool", "object"},
+        "int32": (pd.api.types.is_integer_dtype,),
+        "int64": (pd.api.types.is_int64_dtype,),
+        "float": (pd.api.types.is_float_dtype,),
+        "string": (pd.api.types.is_string_dtype,),
+        "bool": (pd.api.types.is_bool_dtype, pd.api.types.is_object_dtype),
     }
-    assert (
-        str(historical_features_df.dtypes["value"])
-        in feature_dtype_to_expected_historical_feature_dtype[feature_dtype]
+    dtype_checkers = feature_dtype_to_expected_historical_feature_dtype[feature_dtype]
+    assert any(
+        check(historical_features_df.dtypes["value"]) for check in dtype_checkers
     )
 
 
@@ -266,23 +260,31 @@ def assert_feature_list_types(
 ):
     print("Asserting historical feature list types")
     feature_list_dtype_to_expected_historical_feature_list_dtype = {
-        "int32": "int",
-        "int64": "int",
-        "float": "float",
-        "string": "str",
-        "bool": "bool",
+        "int32": (
+            int,
+            np.int64,
+        ),  # Can be `np.int64` if from `np.array` rather that `list`
+        "int64": (
+            int,
+            np.int64,
+        ),  # Can be `np.int64` if from `np.array` rather that `list`
+        "float": float,
+        "string": str,
+        "bool": (
+            bool,
+            np.bool_,
+        ),  # Can be `np.bool_` if from `np.array` rather that `list`
     }
-    assert str(historical_features_df.dtypes["value"]) == "object"
+    expected_dtype = feature_list_dtype_to_expected_historical_feature_list_dtype[
+        feature_dtype
+    ]
+    assert pd.api.types.is_object_dtype(historical_features_df.dtypes["value"])
     if provider == "gcp":
-        assert (
-            feature_list_dtype_to_expected_historical_feature_list_dtype[feature_dtype]
-            in type(historical_features_df.value[0]["list"][0]["item"]).__name__
-        )
+        assert isinstance(historical_features_df.value[0]["list"], (np.ndarray, list))
+        assert isinstance(historical_features_df.value[0]["list"][0]["item"], expected_dtype)
     else:
-        assert (
-            feature_list_dtype_to_expected_historical_feature_list_dtype[feature_dtype]
-            in type(historical_features_df.value[0][0]).__name__
-        )
+        assert isinstance(historical_features_df.value[0], (np.ndarray, list))
+        assert isinstance(historical_features_df.value[0][0], expected_dtype)
 
 
 def assert_expected_arrow_types(
