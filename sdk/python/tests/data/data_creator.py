@@ -62,7 +62,8 @@ def get_feature_values_for_dtype(dtype: str, is_list: bool, is_empty: bool) -> L
     non_list_val = dtype_map[dtype]
     if is_list:
         if is_empty:
-            return [[] for n in non_list_val]
+            # Need at least one non-empty element for type inference
+            return [[] for n in non_list_val[:-1]] + [non_list_val[-1:]]
         return [[n, n] if n is not None else None for n in non_list_val]
     else:
         return non_list_val
