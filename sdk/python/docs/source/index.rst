@@ -39,6 +39,12 @@ Feature View
 .. automodule:: feast.feature_view
     :members:
 
+On Demand Feature View
+==================
+
+.. automodule:: feast.on_demand_feature_view
+    :members:
+
 Feature
 ==================
 
