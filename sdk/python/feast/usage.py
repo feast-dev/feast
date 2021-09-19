@@ -54,6 +54,8 @@ class UsageEvent(enum.Enum):
 class Usage:
     def __init__(self):
         self._usage_enabled: bool = False
+        self._is_test = os.getenv("FEAST_IS_USAGE_TEST", "False") == "True"
+        self._usage_counter = defaultdict(lambda: 0)
         self.check_env_and_configure()
 
     def check_env_and_configure(self):
@@ -70,9 +72,6 @@ class Usage:
                     feast_home_dir = join(expanduser("~"), ".feast")
                     Path(feast_home_dir).mkdir(exist_ok=True)
                     usage_filepath = join(feast_home_dir, "usage")
-
-                    self._is_test = os.getenv("FEAST_IS_USAGE_TEST", "False") == "True"
-                    self._usage_counter = defaultdict(lambda: 0)
 
                     if os.path.exists(usage_filepath):
                         with open(usage_filepath, "r") as f:
