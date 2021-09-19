@@ -108,9 +108,7 @@ class Usage:
     def log_function(self, function_name: str):
         self.check_env_and_configure()
         if self._usage_enabled and self.usage_id:
-            if "get_online_features" in call_stack.get(
-                []
-            ) and not self.should_log_for_get_online_features_event(
+            if "get_online_features" in call_stack.get() and not self.should_log_for_get_online_features_event(
                 "get_online_features"
             ):
                 return
@@ -195,8 +193,8 @@ def log_exceptions(func):
             usage.log_exception(error_type, trace_to_log)
             raise
         finally:
-            if len(call_stack.get([])) > 0:
-                call_stack.set(call_stack.get([])[:-1])
+            if len(call_stack.get()) > 0:
+                call_stack.set(call_stack.get()[:-1])
         return result
 
     return exception_logging_wrapper
@@ -226,8 +224,8 @@ def log_exceptions_and_usage(func):
             usage.log_exception(error_type, trace_to_log)
             raise
         finally:
-            if len(call_stack.get([])) > 0:
-                call_stack.set(call_stack.get([])[:-1])
+            if len(call_stack.get()) > 0:
+                call_stack.set(call_stack.get()[:-1])
         return result
 
     return exception_logging_wrapper
