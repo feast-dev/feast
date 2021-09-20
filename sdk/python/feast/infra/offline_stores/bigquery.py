@@ -222,15 +222,23 @@ class BigQueryRetrievalJob(RetrievalJob):
             job_config = bigquery.QueryJobConfig(destination=path)
 
         if not job_config.dry_run and self.on_demand_feature_views is not None:
-            transformed_df = self.to_df()
+            # It is complicated to get BQ to understand that we want an ARRAY<value_type>
             # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
             # https://github.com/googleapis/python-bigquery/issues/19
+            writer = pyarrow.BufferOutputStream()
+            pyarrow.parquet.write_table(
+                self.to_arrow(), writer, use_compliant_nested_type=True
+            )
+            reader = pyarrow.BufferReader(writer.getvalue())
+
             parquet_options = bigquery.format_options.ParquetOptions()
             parquet_options.enable_list_inference = True
             job_config = bigquery.LoadJobConfig()
+            job_config.source_format = bigquery.SourceFormat.PARQUET
             job_config.parquet_options = parquet_options
-            job = self.client.load_table_from_dataframe(
-                transformed_df, job_config.destination, job_config=job_config,
+
+            job = self.client.load_table_from_file(
+                reader, job_config.destination, job_config=job_config,
             )
             job.result()
             print(f"Done writing to '{job_config.destination}'.")
@@ -337,15 +345,21 @@ def _upload_entity_df_and_get_entity_schema(
         entity_df.reset_index(drop=True, inplace=True)
 
         # Upload the dataframe into BigQuery, creating a temporary table
+        # It is complicated to get BQ to understand that we want an ARRAY<value_type>
         # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
         # https://github.com/googleapis/python-bigquery/issues/19
+        writer = pyarrow.BufferOutputStream()
+        pyarrow.parquet.write_table(
+            pyarrow.Table.from_pandas(entity_df), writer, use_compliant_nested_type=True
+        )
+        reader = pyarrow.BufferReader(writer.getvalue())
+
         parquet_options = bigquery.format_options.ParquetOptions()
         parquet_options.enable_list_inference = True
         job_config = bigquery.LoadJobConfig()
+        job_config.source_format = bigquery.SourceFormat.PARQUET
         job_config.parquet_options = parquet_options
-        job = client.load_table_from_dataframe(
-            entity_df, table_name, job_config=job_config
-        )
+        job = client.load_table_from_file(reader, table_name, job_config=job_config)
         block_until_done(client, job)
 
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
