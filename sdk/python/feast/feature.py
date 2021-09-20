@@ -39,6 +39,8 @@ class Feature:
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
+        if dtype is ValueType.UNKNOWN:
+            raise ValueError(f"dtype cannont be {dtype}")
         self._dtype = dtype
         if labels is None:
             self._labels = dict()
