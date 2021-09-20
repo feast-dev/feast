@@ -36,13 +36,6 @@ def populate_test_configs(offline: bool):
                 # For offline tests, don't need to vary for online store
                 if offline and test_repo_config.online_store == REDIS_CONFIG:
                     continue
-                # TODO(https://github.com/feast-dev/feast/issues/1839): Fix BQ materialization of list features
-                if (
-                    not offline
-                    and test_repo_config.provider == "gcp"
-                    and feature_is_list is True
-                ):
-                    continue
                 configs.append(
                     TypeTestConfig(
                         entity_type=entity_type,
