@@ -193,7 +193,7 @@ def python_values_to_feast_value_type(name: str, values: Any, recurse: bool = Tr
         if inferred_dtype is ValueType.UNKNOWN:
             inferred_dtype = current_dtype
         else:
-            if current_dtype != inferred_dtype:
+            if current_dtype != inferred_dtype and current_dtype != ValueType.UNKNOWN:
                 raise TypeError(
                     f"Input entity {name} has mixed types, {current_dtype} and {inferred_dtype}. That is not allowed. "
                 )
