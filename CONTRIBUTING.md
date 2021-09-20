@@ -8,6 +8,8 @@ the main Feast repository:
 - [Feast Go Client](#feast-go-client)
 - [Feast Terraform](#feast-terraform)
 
+## Making a pull request
+
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
 1. Ensure that you have Python (3.7 and above) with `pip`, installed.
@@ -17,6 +19,21 @@ pip install pre-commit
 pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
+
+### Signing commits
+Use git signing to sign your commits. See 
+https://docs.github.com/en/github/authenticating-to-github/managing-commit-signature-verification for details
+
+Then, you can sign commits with the `-s` flag:
+```
+git commit -s -m "My first commit"
+```
+
+### Incorporating upstream changes from master
+Our preference is the use of `git rebase [master]` instead of `git merge` : `git pull -r`.
+
+Note that this means if you are midway through working through a PR and rebase, you'll have to force push:
+`git push --force-with-lease origin [branch name]`
 
 ## Feast Python SDK / CLI
 ### Environment Setup
@@ -71,13 +88,35 @@ make test-python
 > and [no AWS credentials can be accessed](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials) by `boto3`
 > - Ensure Feast Python SDK / CLI is not configured with configuration overrides (ie `~/.feast/config` should be empty).
 
+### Integration Tests
+To get tests running, you'll need to have GCP / AWS / Redis setup:
+
+Redis
+1. Install Redis: [Quickstart](https://redis.io/topics/quickstart) 
+2. Run `redis-server` 
+
+GCP
+1. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
+2. Then run login to gcloud:
+  ```
+  gcloud auth login
+  gcloud auth application-default login
+  ```
+3. Export `GCLOUD_PROJECT=[your project]` to your .zshrc
+
+AWS
+1. TODO(adchia): flesh out setting up AWS login (or create helper script)
+2. Modify `RedshiftDataSourceCreator` to use your credentials
+
+Then run `make test-python-integration`. Note that for GCP / AWS, this will create new temporary tables / datasets.
+
 ## Feast Go Client
 :warning: Feast Go Client will move to its own standalone repository in the future.
 
 ### Environment Setup
 Setting up your development environment for Feast Go SDK:
-1. Ensure the following development tools are installed:
-- Golang, [`protoc` with the Golang &amp; grpc plugins](https://developers.google.com/protocol-buffers/docs/gotutorial#compiling-your-protocol-buffers)
+
+- Install Golang, [`protoc` with the Golang &amp; grpc plugins](https://developers.google.com/protocol-buffers/docs/gotutorial#compiling-your-protocol-buffers)
 
 ### Building
 Build the Feast Go Client with the `go` toolchain:
