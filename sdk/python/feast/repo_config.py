@@ -41,6 +41,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "aws_lambda": "feast.infra.feature_servers.aws_lambda.config.AwsLambdaFeatureServerConfig",
+    "gcp_cloudrun": "feast.infra.feature_servers.gcp_cloudrun.config.GcpCloudRunFeatureServerConfig",
 }
 
 
