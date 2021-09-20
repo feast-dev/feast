@@ -223,10 +223,14 @@ class BigQueryRetrievalJob(RetrievalJob):
 
         if not job_config.dry_run and self.on_demand_feature_views is not None:
             transformed_df = self.to_df()
+            # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
+            # https://github.com/googleapis/python-bigquery/issues/19
+            parquet_options = bigquery.format_options.ParquetOptions()
+            parquet_options.enable_list_inference = True
+            job_config = bigquery.LoadJobConfig()
+            job_config.parquet_options = parquet_options
             job = self.client.load_table_from_dataframe(
-                transformed_df,
-                job_config.destination,
-                job_config=bigquery.LoadJobConfig(),
+                transformed_df, job_config.destination, job_config=job_config,
             )
             job.result()
             print(f"Done writing to '{job_config.destination}'.")
@@ -333,7 +337,12 @@ def _upload_entity_df_and_get_entity_schema(
         entity_df.reset_index(drop=True, inplace=True)
 
         # Upload the dataframe into BigQuery, creating a temporary table
+        # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
+        # https://github.com/googleapis/python-bigquery/issues/19
+        parquet_options = bigquery.format_options.ParquetOptions()
+        parquet_options.enable_list_inference = True
         job_config = bigquery.LoadJobConfig()
+        job_config.parquet_options = parquet_options
         job = client.load_table_from_dataframe(
             entity_df, table_name, job_config=job_config
         )
