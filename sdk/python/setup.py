@@ -42,7 +42,7 @@ REQUIRES_PYTHON = ">=3.7.0"
 REQUIRED = [
     "Click==7.*",
     "colorama>=0.3.9",
-    "dill==0.3.0",
+    "dill==0.3.*",
     "fastavro>=1.1.0",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
