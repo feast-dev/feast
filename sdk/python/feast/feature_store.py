@@ -1028,9 +1028,9 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def upload_docker_image(self) -> None:
-        """Upload the docker image for the feature consumption server to the cloud."""
+        """Upload the docker image for the feature server to the cloud."""
 
-        # TODO: add error checking and avoid hardcoding the region
+        # TODO(felixwang9817): add error checking, logging, and avoid hardcoding the region
         repository_name = "feast-python-server-test"
         feature_server_type = (
             self.config.feature_server.type if self.config.feature_server else None
@@ -1038,9 +1038,20 @@ class FeatureStore:
         if feature_server_type == "aws_lambda":
             import base64
 
-            import boto3
-            import docker
-            from botocore.exceptions import ClientError
+            try:
+                import boto3
+                from botocore.exceptions import ClientError
+            except ImportError as e:
+                from feast.errors import FeastExtrasDependencyImportError
+
+                raise FeastExtrasDependencyImportError("aws", str(e))
+
+            try:
+                import docker
+            except ImportError as e:
+                from feast.errors import FeastExtrasDependencyImportError
+
+                raise FeastExtrasDependencyImportError("docker", str(e))
 
             docker_client = docker.from_env()
             image_name = FEATURE_SERVER_IMAGE_FOR_TYPE[feature_server_type]

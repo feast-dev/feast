@@ -1,1 +1,1 @@
-FEATURE_SERVER_IMAGE_FOR_TYPE = {"aws_lambda": "feastdockerbot/feast-python-server"}
+FEATURE_SERVER_IMAGE_FOR_TYPE = {"aws_lambda": "feastdev/feature-server"}
