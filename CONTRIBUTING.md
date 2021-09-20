@@ -10,6 +10,11 @@ the main Feast repository:
 
 ## Making a pull request
 
+### Forking the repo
+Fork the Feast Github repo and clone your fork locally. Then make changes to a local branch to the fork. 
+
+See [Creating a pull request from a fork](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork)
+
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
 1. Ensure that you have Python (3.7 and above) with `pip`, installed.
