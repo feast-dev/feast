@@ -24,6 +24,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import Value as Value
 from feast.type_map import (
+    _proto_str_to_value_type,
     _python_value_to_proto_value,
     feast_value_type_to_python_type,
     python_values_to_feast_value_type,
@@ -100,12 +101,24 @@ def _infer_online_entity_rows(
     # Flatten keys-value dicts into lists for type inference
     for entity in entity_rows_dicts:
         for key, value in entity.items():
-            if not isinstance(value, Value):
+            if isinstance(value, Value):
+                entity_type_map[key] = _proto_str_to_value_type(
+                    str(value.WhichOneof("val"))
+                )
+            else:
                 entity_value_map[key].append(value)
 
     # Loop over all entities to infer dtype first in case of empty lists or nulls
     for key, values in entity_value_map.items():
-        entity_type_map[key] = python_values_to_feast_value_type(key, values)
+        inferred_type = python_values_to_feast_value_type(key, values)
+
+        # If any ProtoValues were present their types must match the inferred type
+        if key in entity_type_map and entity_type_map.get(key) != inferred_type:
+            raise TypeError(
+                f"Input entity {key} has mixed types, {entity_type_map.get(key)} and {inferred_type}. That is not allowed."
+            )
+
+        entity_type_map[key] = inferred_type
 
     for entity in entity_rows_dicts:
         fields = {}
