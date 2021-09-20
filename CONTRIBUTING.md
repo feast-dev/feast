@@ -1,5 +1,5 @@
 # Development Guide: Main Feast Repository
-> Please see [Development Guide](https://docs.feast.dev/contributing/development-guide) for project level development instructions.
+> Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
 ### Overview
 This guide is targeted at developers looking to contribute to Feast components in
