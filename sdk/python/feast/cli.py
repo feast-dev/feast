@@ -239,7 +239,7 @@ def feature_view_list(ctx: click.Context):
 @cli.group(name="on-demand-feature-views")
 def on_demand_feature_views_cmd():
     """
-    Access feature views
+    [Experimental] Access on demand feature views
     """
     pass
 
