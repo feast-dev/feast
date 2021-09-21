@@ -63,6 +63,7 @@ def get_feature_values_for_dtype(
     }
     non_list_val = dtype_map[dtype]
     if is_list:
+        # TODO: Add test where all lists are empty and type inference is expected to fail.
         if has_empty_list:
             # Need at least one non-empty element for type inference
             return [[] for n in non_list_val[:-1]] + [non_list_val[-1:]]
