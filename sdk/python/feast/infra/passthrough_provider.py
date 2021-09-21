@@ -152,4 +152,5 @@ class PassthroughProvider(Provider):
         return job
 
     def _upload_docker_image(self) -> None:
+        """Upload the docker image for the feature server to the cloud."""
         pass

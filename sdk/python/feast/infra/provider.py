@@ -143,11 +143,6 @@ class Provider(abc.ABC):
         """
         ...
 
-    @abc.abstractmethod
-    def _upload_docker_image(self) -> None:
-        """Upload the docker image for the feature server to the cloud."""
-        pass
-
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
