@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List, Optional, cast
 
 import pandas as pd
 
@@ -29,6 +29,7 @@ from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_feast_value_type,
 )
+from feast.value_type import ValueType
 
 
 class OnlineResponse:
@@ -95,21 +96,25 @@ def _infer_online_entity_rows(
 
     entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
     entity_row_list = []
-    entity_type_map = dict()
-    entity_value_map = defaultdict(list)
+    entity_type_map: Dict[str, Optional[ValueType]] = dict()
+    entity_python_values_map = defaultdict(list)
 
     # Flatten keys-value dicts into lists for type inference
     for entity in entity_rows_dicts:
         for key, value in entity.items():
             if isinstance(value, Value):
-                entity_type_map[key] = _proto_str_to_value_type(
-                    str(value.WhichOneof("val"))
-                )
+                inferred_type = _proto_str_to_value_type(str(value.WhichOneof("val")))
+                # If any ProtoValues were present their types must all be the same
+                if key in entity_type_map and entity_type_map.get(key) != inferred_type:
+                    raise TypeError(
+                        f"Input entity {key} has mixed types, {entity_type_map.get(key)} and {inferred_type}. That is not allowed."
+                    )
+                entity_type_map[key] = inferred_type
             else:
-                entity_value_map[key].append(value)
+                entity_python_values_map[key].append(value)
 
     # Loop over all entities to infer dtype first in case of empty lists or nulls
-    for key, values in entity_value_map.items():
+    for key, values in entity_python_values_map.items():
         inferred_type = python_values_to_feast_value_type(key, values)
 
         # If any ProtoValues were present their types must match the inferred type
