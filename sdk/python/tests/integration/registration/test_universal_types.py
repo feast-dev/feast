@@ -44,6 +44,9 @@ def populate_test_configs(offline: bool):
                 ):
                     continue
                 for list_is_empty in [True, False]:
+                    # For non list features `list_is_empty` does nothing
+                    if feature_is_list is False and list_is_empty is True:
+                        continue
                     configs.append(
                         TypeTestConfig(
                             entity_type=entity_type,
@@ -53,9 +56,6 @@ def populate_test_configs(offline: bool):
                             test_repo_config=test_repo_config,
                         )
                     )
-                    # For non list features `list_is_empty` does nothing
-                    if feature_is_list is False:
-                        continue
     return configs
 
 
