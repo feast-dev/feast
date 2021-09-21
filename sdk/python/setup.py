@@ -78,6 +78,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = [
     "boto3==1.17.*",
+    "docker>=5.0.2",
 ]
 
 CI_REQUIRED = [

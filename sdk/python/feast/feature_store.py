@@ -45,7 +45,6 @@ from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
 )
-from feast.infra.feature_servers.feature_server import FEATURE_SERVER_IMAGE_FOR_TYPE
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -1025,59 +1024,6 @@ class FeatureStore:
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
 
         feature_server.start_server(self, port)
-
-    @log_exceptions_and_usage
-    def upload_docker_image(self) -> None:
-        """Upload the docker image for the feature server to the cloud."""
-
-        # TODO(felixwang9817): add error checking, logging, and avoid hardcoding the region
-        repository_name = "feast-python-server-test"
-        feature_server_type = (
-            self.config.feature_server.type if self.config.feature_server else None
-        )
-        if feature_server_type == "aws_lambda":
-            import base64
-
-            try:
-                import boto3
-                from botocore.exceptions import ClientError
-            except ImportError as e:
-                from feast.errors import FeastExtrasDependencyImportError
-
-                raise FeastExtrasDependencyImportError("aws", str(e))
-
-            try:
-                import docker
-            except ImportError as e:
-                from feast.errors import FeastExtrasDependencyImportError
-
-                raise FeastExtrasDependencyImportError("docker", str(e))
-
-            docker_client = docker.from_env()
-            image_name = FEATURE_SERVER_IMAGE_FOR_TYPE[feature_server_type]
-            docker_client.images.pull(image_name)
-
-            ecr_client = boto3.client("ecr", region_name="us-west-2")
-            try:
-                ecr_client.create_repository(repositoryName=repository_name)
-            except ClientError:
-                pass
-            auth_token = ecr_client.get_authorization_token()["authorizationData"][0][
-                "authorizationToken"
-            ]
-            username, password = base64.b64decode(auth_token).decode("utf-8").split(":")
-
-            sts_client = boto3.client("sts")
-            aws_account = sts_client.get_caller_identity()["Account"]
-            ecr_address = f"{aws_account}.dkr.ecr.us-west-2.amazonaws.com"
-            docker_client.login(
-                username=username, password=password, registry=ecr_address
-            )
-
-            # Pushing will likely take several minutes.
-            image = docker_client.images.get(image_name)
-            image.tag(f"{ecr_address}/{repository_name}:latest")
-            docker_client.api.push(f"{ecr_address}/{repository_name}:latest")
 
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:

@@ -143,10 +143,20 @@ class Provider(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
+    def _upload_docker_image(self) -> None:
+        """Upload the docker image for the feature server to the cloud."""
+        pass
+
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
         if config.provider in {"gcp", "aws", "local"}:
+            if config.provider == "aws":
+                from feast.infra.aws import AwsProvider
+
+                return AwsProvider(config)
+
             from feast.infra.passthrough_provider import PassthroughProvider
 
             return PassthroughProvider(config)
