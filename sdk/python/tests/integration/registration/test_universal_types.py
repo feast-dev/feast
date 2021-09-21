@@ -329,7 +329,7 @@ def assert_expected_arrow_types(
             ) in [
                 f"struct<list: list<item: struct<item: {arrow_type}>> not null>",
                 f"struct<list: list<item: struct<item: {arrow_type}>>>",
-                "struct<list: list<item: null>>",
+                "struct<list: list<item: null>>",  # TODO: Remove this after #1889 is merged
             ]
         else:
             assert (
