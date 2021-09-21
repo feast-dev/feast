@@ -172,39 +172,16 @@ class FileOfflineStore(OfflineStore):
                 # Sort dataframe by the event timestamp column
                 df_to_join = df_to_join.sort_values(event_timestamp_column)
 
-                # Build a list of entity columns to join on (from the right table)
-                join_keys = []
-                for entity_name in feature_view.entities:
-                    entity = registry.get_entity(entity_name, project)
-                    join_key = (
-                        feature_view.join_key_map[entity.join_key]
-                        if feature_view.join_key_map
-                        and entity.join_key in feature_view.join_key_map
-                        else entity.join_key
-                    )
-                    join_keys.append(join_key)
-                right_entity_columns = join_keys
-                right_entity_key_columns = [
-                    event_timestamp_column
-                ] + right_entity_columns
-
                 # Build a list of all the features we should select from this source
                 feature_names = []
                 for feature in features:
                     # Modify the separator for feature refs in column names to double underscore. We are using
                     # double underscore as separator for consistency with other databases like BigQuery,
                     # where there are very few characters available for use as separators
-
-                    fv_name_prefix = (
-                        f"{feature_view.name}__" if full_feature_names else ""
-                    )
-                    join_keys_prefix = (
-                        f"{'_'.join(join_keys)}__" if feature_view.join_key_map else ""
-                    )
-                    formatted_feature_name = (
-                        f"{fv_name_prefix}{join_keys_prefix}{feature}"
-                    )
-
+                    if full_feature_names:
+                        formatted_feature_name = f"{feature_view.name}__{feature}"
+                    else:
+                        formatted_feature_name = feature
                     # Add the feature name to the list of columns
                     feature_names.append(formatted_feature_name)
 
@@ -212,6 +189,16 @@ class FileOfflineStore(OfflineStore):
                     df_to_join.rename(
                         columns={feature: formatted_feature_name}, inplace=True,
                     )
+
+                # Build a list of entity columns to join on (from the right table)
+                join_keys = []
+                for entity_name in feature_view.entities:
+                    entity = registry.get_entity(entity_name, project)
+                    join_keys.append(entity.join_key)
+                right_entity_columns = join_keys
+                right_entity_key_columns = [
+                    event_timestamp_column
+                ] + right_entity_columns
 
                 # Remove all duplicate entity keys (using created timestamp)
                 right_entity_key_sort_columns = right_entity_key_columns

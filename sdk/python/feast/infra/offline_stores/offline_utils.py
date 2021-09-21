@@ -93,7 +93,6 @@ class FeatureViewQueryContext:
     created_timestamp_column: Optional[str]
     table_subquery: str
     entity_selections: List[str]
-    join_key_map: Optional[Dict]
 
 
 def get_feature_view_query_context(
@@ -151,7 +150,6 @@ def get_feature_view_query_context(
             # TODO: Make created column optional and not hardcoded
             table_subquery=feature_view.input.get_table_query_string(),
             entity_selections=entity_selections,
-            join_key_map=feature_view.join_key_map,
         )
         query_context.append(context)
     return query_context

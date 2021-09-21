@@ -555,6 +555,9 @@ class FeatureStore:
         all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features
         )
+        all_feature_views = _query_time_feature_views(
+            self.list_feature_views(), features
+        )
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project
         )
@@ -820,7 +823,8 @@ class FeatureStore:
         all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
-        all_feature_views = _use_time_feature_views(
+
+        all_feature_views = _query_time_feature_views(
             self._list_feature_views(allow_cache=True, hide_dummy_entity=False),
             features,
         )
@@ -1102,9 +1106,12 @@ def _entity_row_to_field_values(
     return result
 
 
-def _use_time_feature_views(all_feature_views, features):
+def _query_time_feature_views(
+    all_feature_views: List[FeatureView],
+    features: Optional[Union[List[str], FeatureService]],
+) -> List[FeatureView]:
     """Look for use-time FeatureView.join_key_maps and update all_feature_views"""
-    if isinstance(features, FeatureService):
+    if features and isinstance(features, FeatureService):
         feature_view_replacements = {
             feature.name: feature
             for feature in features.features
