@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, cast
 
 import pandas as pd
 
@@ -24,7 +24,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import Value as Value
 from feast.type_map import (
-    _proto_str_to_value_type,
+    _proto_value_to_value_type,
     _python_value_to_proto_value,
     feast_value_type_to_python_type,
     python_values_to_feast_value_type,
@@ -96,14 +96,14 @@ def _infer_online_entity_rows(
 
     entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
     entity_row_list = []
-    entity_type_map: Dict[str, Optional[ValueType]] = dict()
+    entity_type_map: Dict[str, ValueType] = dict()
     entity_python_values_map = defaultdict(list)
 
     # Flatten keys-value dicts into lists for type inference
     for entity in entity_rows_dicts:
         for key, value in entity.items():
             if isinstance(value, Value):
-                inferred_type = _proto_str_to_value_type(str(value.WhichOneof("val")))
+                inferred_type = _proto_value_to_value_type(value)
                 # If any ProtoValues were present their types must all be the same
                 if key in entity_type_map and entity_type_map.get(key) != inferred_type:
                     raise TypeError(
