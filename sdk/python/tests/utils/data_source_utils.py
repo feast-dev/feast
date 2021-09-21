@@ -7,6 +7,7 @@ from google.cloud import bigquery
 
 from feast import BigQuerySource, FileSource
 from feast.data_format import ParquetFormat
+from feast.infra.offline_stores.bigquery import _write_df_to_bq
 
 
 @contextlib.contextmanager
@@ -38,9 +39,7 @@ def simple_bq_source_using_table_ref_arg(
     client.update_dataset(dataset, ["default_table_expiration_ms"])
     table_ref = f"{gcp_project}.{bigquery_dataset}.table_{random.randrange(100, 999)}"
 
-    job = client.load_table_from_dataframe(
-        df, table_ref, job_config=bigquery.LoadJobConfig()
-    )
+    job = _write_df_to_bq(client, df, table_ref)
     job.result()
 
     return BigQuerySource(

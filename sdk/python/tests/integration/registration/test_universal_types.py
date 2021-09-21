@@ -36,13 +36,6 @@ def populate_test_configs(offline: bool):
                 # For offline tests, don't need to vary for online store
                 if offline and test_repo_config.online_store == REDIS_CONFIG:
                     continue
-                # TODO(https://github.com/feast-dev/feast/issues/1839): Fix BQ materialization of list features
-                if (
-                    not offline
-                    and test_repo_config.provider == "gcp"
-                    and feature_is_list is True
-                ):
-                    continue
                 configs.append(
                     TypeTestConfig(
                         entity_type=entity_type,
@@ -255,16 +248,10 @@ def assert_feature_list_types(
         "bool": "bool",
     }
     assert str(historical_features_df.dtypes["value"]) == "object"
-    if provider == "gcp":
-        assert (
-            feature_list_dtype_to_expected_historical_feature_list_dtype[feature_dtype]
-            in type(historical_features_df.value[0]["list"][0]["item"]).__name__
-        )
-    else:
-        assert (
-            feature_list_dtype_to_expected_historical_feature_list_dtype[feature_dtype]
-            in type(historical_features_df.value[0][0]).__name__
-        )
+    assert (
+        feature_list_dtype_to_expected_historical_feature_list_dtype[feature_dtype]
+        in type(historical_features_df.value[0][0]).__name__
+    )
 
 
 def assert_expected_arrow_types(
@@ -287,18 +274,10 @@ def assert_expected_arrow_types(
         feature_dtype
     ]
     if feature_is_list:
-        if provider == "gcp":
-            assert str(
-                historical_features_arrow.schema.field_by_name("value").type
-            ) in [
-                f"struct<list: list<item: struct<item: {arrow_type}>> not null>",
-                f"struct<list: list<item: struct<item: {arrow_type}>>>",
-            ]
-        else:
-            assert (
-                str(historical_features_arrow.schema.field_by_name("value").type)
-                == f"list<item: {arrow_type}>"
-            )
+        assert (
+            str(historical_features_arrow.schema.field_by_name("value").type)
+            == f"list<item: {arrow_type}>"
+        )
     else:
         assert (
             str(historical_features_arrow.schema.field_by_name("value").type)

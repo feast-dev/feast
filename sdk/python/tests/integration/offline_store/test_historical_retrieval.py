@@ -19,7 +19,10 @@ from feast.errors import FeatureNameCollisionError
 from feast.feature import Feature
 from feast.feature_store import FeatureStore, _validate_feature_refs
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.bigquery import (
+    BigQueryOfflineStoreConfig,
+    _write_df_to_bq,
+)
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
@@ -62,9 +65,8 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
 
 def stage_driver_hourly_stats_bigquery_source(df, table_id):
     client = bigquery.Client()
-    job_config = bigquery.LoadJobConfig()
     df.reset_index(drop=True, inplace=True)
-    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job = _write_df_to_bq(client, df, table_id)
     job.result()
 
 
@@ -99,9 +101,8 @@ def feature_service(name: str, views) -> FeatureService:
 
 def stage_customer_daily_profile_bigquery_source(df, table_id):
     client = bigquery.Client()
-    job_config = bigquery.LoadJobConfig()
     df.reset_index(drop=True, inplace=True)
-    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job = _write_df_to_bq(client, df, table_id)
     job.result()
 
 
@@ -231,9 +232,8 @@ def get_expected_training_df(
 
 def stage_orders_bigquery(df, table_id):
     client = bigquery.Client()
-    job_config = bigquery.LoadJobConfig()
     df.reset_index(drop=True, inplace=True)
-    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job = _write_df_to_bq(client, df, table_id)
     job.result()
 
 
