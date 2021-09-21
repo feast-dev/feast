@@ -29,3 +29,4 @@ def test_with_name_method():
 
     assert test_fv.name == "test_fv"
     assert test_fv_2.name == "test_fv_2"
+    assert test_fv_2.base_name == "test_fv"

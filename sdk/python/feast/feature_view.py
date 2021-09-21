@@ -122,6 +122,7 @@ class FeatureView:
                 )
 
         self.name = name
+        self.base_name = name
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
         self.features = _features
         self.tags = tags if tags is not None else {}
@@ -203,10 +204,13 @@ class FeatureView:
         """
         Produces a copy of this FeatureView with the passed name.
 
+        Args:
+            name: Name to assign to the FeatureView copy.
+
         Returns:
             A copy of this FeatureView with the name replaced with the 'name' input.
         """
-        return FeatureView(
+        fv = FeatureView(
             name=name,
             entities=self.entities,
             ttl=self.ttl,
@@ -217,6 +221,9 @@ class FeatureView:
             tags=self.tags,
             online=self.online,
         )
+        fv.base_name = self.base_name
+
+        return fv
 
     def to_proto(self) -> FeatureViewProto:
         """
