@@ -239,7 +239,7 @@ def feature_view_list(ctx: click.Context):
 @cli.group(name="on-demand-feature-views")
 def on_demand_feature_views_cmd():
     """
-    Access feature views
+    [Experimental] Access on demand feature views
     """
     pass
 
@@ -249,7 +249,7 @@ def on_demand_feature_views_cmd():
 @click.pass_context
 def on_demand_feature_view_describe(ctx: click.Context, name: str):
     """
-    Describe an on demand feature view
+    [Experimental] Describe an on demand feature view
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
@@ -274,7 +274,7 @@ def on_demand_feature_view_describe(ctx: click.Context, name: str):
 @click.pass_context
 def on_demand_feature_view_list(ctx: click.Context):
     """
-    List all on demand feature views
+    [Experimental] List all on demand feature views
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)

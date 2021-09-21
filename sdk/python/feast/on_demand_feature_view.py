@@ -31,7 +31,8 @@ from feast.value_type import ValueType
 
 class OnDemandFeatureView:
     """
-    An OnDemandFeatureView defines on demand transformations on existing feature view values and request data.
+    [Experimental] An OnDemandFeatureView defines on demand transformations on existing feature view values and request
+    data.
 
     Args:
         name: Name of the group of features.

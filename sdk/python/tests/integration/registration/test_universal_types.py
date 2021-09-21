@@ -36,13 +36,6 @@ def populate_test_configs(offline: bool):
                 # For offline tests, don't need to vary for online store
                 if offline and test_repo_config.online_store == REDIS_CONFIG:
                     continue
-                # TODO(https://github.com/feast-dev/feast/issues/1839): Fix BQ materialization of list features
-                if (
-                    not offline
-                    and test_repo_config.provider == "gcp"
-                    and feature_is_list is True
-                ):
-                    continue
                 for has_empty_list in [True, False]:
                     # For non list features `has_empty_list` does nothing
                     if feature_is_list is False and has_empty_list is True:
@@ -291,16 +284,10 @@ def assert_feature_list_types(
         feature_dtype
     ]
     assert pd.api.types.is_object_dtype(historical_features_df.dtypes["value"])
-    if provider == "gcp":
-        for feature in historical_features_df.value:
-            assert isinstance(feature["list"], (np.ndarray, list))
-            for element in feature["list"]:
-                assert isinstance(element["item"], expected_dtype)
-    else:
-        for feature in historical_features_df.value:
-            assert isinstance(feature, (np.ndarray, list))
-            for element in feature:
-                assert isinstance(element, expected_dtype)
+    for feature in historical_features_df.value:
+        assert isinstance(feature, (np.ndarray, list))
+        for element in feature:
+            assert isinstance(element, expected_dtype)
 
 
 def assert_expected_arrow_types(
@@ -323,19 +310,10 @@ def assert_expected_arrow_types(
         feature_dtype
     ]
     if feature_is_list:
-        if provider == "gcp":
-            assert str(
-                historical_features_arrow.schema.field_by_name("value").type
-            ) in [
-                f"struct<list: list<item: struct<item: {arrow_type}>> not null>",
-                f"struct<list: list<item: struct<item: {arrow_type}>>>",
-                "struct<list: list<item: null>>",  # TODO: Remove this after #1889 is merged
-            ]
-        else:
-            assert (
-                str(historical_features_arrow.schema.field_by_name("value").type)
-                == f"list<item: {arrow_type}>"
-            )
+        assert (
+            str(historical_features_arrow.schema.field_by_name("value").type)
+            == f"list<item: {arrow_type}>"
+        )
     else:
         assert (
             str(historical_features_arrow.schema.field_by_name("value").type)
