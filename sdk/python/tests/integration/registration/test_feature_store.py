@@ -480,37 +480,3 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         assert len(fv_stored.materialization_intervals) == 0
 
         test_feature_store.teardown()
-
-
-def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
-    """ Test applying feature views with non-case-insensitively unique names"""
-
-    driver_stats = FeatureView(
-        name="driver_hourly_stats",
-        entities=["driver_id"],
-        ttl=timedelta(seconds=10),
-        online=False,
-        batch_source=FileSource(path="driver_stats.parquet"),
-        tags={},
-    )
-
-    customer_stats = FeatureView(
-        name="DRIVER_HOURLY_STATS",
-        entities=["id"],
-        ttl=timedelta(seconds=10),
-        online=False,
-        batch_source=FileSource(path="customer_stats.parquet"),
-        tags={},
-    )
-    try:
-        feature_store_with_local_registry.apply([driver_stats, customer_stats])
-        error = None
-    except ValueError as e:
-        error = e
-    assert (
-        isinstance(error, ValueError)
-        and "Please ensure that all feature view names are case-insensitively unique"
-        in error.args[0]
-    )
-
-    feature_store_with_local_registry.teardown()

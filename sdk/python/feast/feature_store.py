@@ -1186,7 +1186,7 @@ def _validate_feature_views(feature_views: List[FeatureView]):
     for fv in feature_views:
         case_insensitive_fv_name = fv.name.lower()
         if case_insensitive_fv_name in fv_names:
-            raise ValueError(
+            print(
                 f"More than one feature view with name {case_insensitive_fv_name} found. Please ensure that all feature view names are case-insensitively unique. It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
             )
         else:
