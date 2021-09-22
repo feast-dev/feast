@@ -1,23 +1,163 @@
+import base64
 import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
+from typing import Sequence, Union
 from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
 import feast
-from feast.constants import AWS_LAMBDA_FEATURE_SERVER_IMAGE
+from feast import FeatureTable, __version__
+from feast.constants import (
+    AWS_LAMBDA_FEATURE_SERVER_IMAGE,
+    SERVER_CONFIG_BASE64_ENV_NAME,
+)
+from feast.entity import Entity
 from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExist
+from feast.feature_view import FeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
+from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
 
+try:
+    import boto3
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("aws", str(e))
+
 
 class AwsProvider(PassthroughProvider):
-    def _upload_docker_image(self) -> None:
+    def _get_lambda_name(self):
+        return f"feast-python-server-{__version__.replace('+', '_').replace('.', '_')}"
+
+    def update_infra(
+        self,
+        project: str,
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
+        self.online_store.update(
+            config=self.repo_config,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_keep=entities_to_keep,
+            entities_to_delete=entities_to_delete,
+            partial=partial,
+        )
+
+        if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
+            image_uri = self._upload_docker_image()
+            print("Deploying feature server...")
+
+            assert self.repo_config.repo_path
+            with open(self.repo_config.repo_path / "feature_store.yaml", "rb") as f:
+                config_bytes = f.read()
+                config_base64 = base64.b64encode(config_bytes).decode()
+
+            resource_name = self._get_lambda_name()
+            lambda_client = boto3.client("lambda")
+            api_gateway_client = boto3.client("apigatewayv2")
+            function = aws_utils.get_lambda_function(lambda_client, resource_name)
+
+            if function is None:
+                # If the Lambda function does not exist, create it.
+                print("  Creating AWS Lambda...")
+                lambda_client.create_function(
+                    FunctionName=resource_name,
+                    Role=self.repo_config.feature_server.execution_role_name,
+                    Code={"ImageUri": image_uri},
+                    PackageType="Image",
+                    MemorySize=1769,
+                    Environment={
+                        "Variables": {SERVER_CONFIG_BASE64_ENV_NAME: config_base64}
+                    },
+                )
+                function = aws_utils.get_lambda_function(lambda_client, resource_name)
+                assert function
+            else:
+                # If the feature_store.yaml has changed, need to update the environment variable.
+                env = function.get("Environment", {}).get("Variables", {})
+                if env.get(SERVER_CONFIG_BASE64_ENV_NAME) != config_base64:
+                    # Note, that this does not update Lambda gracefully (e.g. no rolling deployment).
+                    # It's expected that feature_store.yaml is not regularly updated while the lambda
+                    # is serving production traffic. However, the update in registry (e.g. modifying
+                    # feature views, feature services, and other definitions does not update lambda).
+                    print("  Updating AWS Lambda...")
+
+                    lambda_client.update_function_configuration(
+                        FunctionName=resource_name,
+                        Environment={
+                            "Variables": {SERVER_CONFIG_BASE64_ENV_NAME: config_base64}
+                        },
+                    )
+
+            api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
+            if not api:
+                # If the API Gateway doesn't exist, create it
+                print("  Creating AWS API Gateway...")
+                api = api_gateway_client.create_api(
+                    Name=resource_name,
+                    ProtocolType="HTTP",
+                    Target=function["FunctionArn"],
+                    RouteKey="POST /get-online-features",
+                )
+                assert api
+                # Make sure to give AWS Lambda a permission to be invoked by the newly created API Gateway
+                api_id = api["ApiId"]
+                region = lambda_client.meta.region_name
+                account_id = aws_utils.get_account_id()
+                lambda_client.add_permission(
+                    FunctionName=function["FunctionArn"],
+                    StatementId=str(uuid.uuid4()),
+                    Action="lambda:InvokeFunction",
+                    Principal="apigateway.amazonaws.com",
+                    SourceArn=f"arn:aws:execute-api:{region}:{account_id}:{api_id}/*/*/get-online-features",
+                )
+
+    def teardown_infra(
+        self,
+        project: str,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
+    ) -> None:
+        self.online_store.teardown(self.repo_config, tables, entities)
+
+        if (
+            self.repo_config.feature_server is not None
+            and self.repo_config.feature_server.enabled
+        ):
+            print("Tearing down feature server...")
+            resource_name = self._get_lambda_name()
+            lambda_client = boto3.client("lambda")
+            api_gateway_client = boto3.client("apigatewayv2")
+
+            function = aws_utils.get_lambda_function(lambda_client, resource_name)
+
+            if function is not None:
+                print("  Tearing down AWS Lambda...")
+                aws_utils.delete_lambda_function(lambda_client, resource_name)
+
+            api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
+            if api is not None:
+                print("  Tearing down AWS API Gateway...")
+                aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
+
+    def _upload_docker_image(self) -> str:
+        """
+        Pulls the AWS Lambda docker image from Dockerhub and uploads it to AWS ECR.
+
+        Returns:
+            The URI of the uploaded docker image.
+        """
         import base64
 
         try:
@@ -77,17 +217,12 @@ class AwsProvider(PassthroughProvider):
         )
         image.tag(image_remote_name)
         docker_client.api.push(repository_uri, tag=version)
+        return image_remote_name
 
 
 class S3RegistryStore(RegistryStore):
     def __init__(self, registry_config: RegistryConfig, repo_path: Path):
         uri = registry_config.path
-        try:
-            import boto3
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("aws", str(e))
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._key = self._uri.path.lstrip("/")

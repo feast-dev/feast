@@ -2,7 +2,7 @@ import contextlib
 import os
 import tempfile
 import uuid
-from typing import Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -406,3 +406,89 @@ def unload_redshift_query_to_df(
         drop_columns,
     )
     return table.to_pandas()
+
+
+def get_lambda_function(lambda_client, function_name: str) -> Optional[Dict]:
+    """
+    Get the AWS Lambda function by name or return None if it doesn't exist.
+    Args:
+        lambda_client: AWS Lambda client.
+        function_name: Name of the AWS Lambda function.
+
+    Returns: Either a dictionary containing the get_function API response, or None if it doesn't exist.
+
+    """
+    try:
+        return lambda_client.get_function(FunctionName=function_name)["Configuration"]
+    except ClientError as ce:
+        # If the resource could not be found, return False.
+        # Otherwise bubble up the exception (most likely permission errors)
+        if ce.response["Error"]["Code"] == "ResourceNotFoundException":
+            return None
+        else:
+            raise
+
+
+def delete_lambda_function(lambda_client, function_name: str) -> Dict:
+    """
+    Delete the AWS Lambda function by name.
+    Args:
+        lambda_client: AWS Lambda client.
+        function_name: Name of the AWS Lambda function.
+
+    Returns: The delete_function API response dict
+
+    """
+    return lambda_client.delete_function(FunctionName=function_name)
+
+
+def get_first_api_gateway(api_gateway_client, api_gateway_name: str) -> Optional[Dict]:
+    """
+    Get the first API Gateway with the given name. Note, that API Gateways can have the same name.
+    They are identified by AWS-generated ID, which is unique. Therefore this method lists all API
+    Gateways and returns the first one with matching name. If no matching name is found, None is returned.
+    Args:
+        api_gateway_client: API Gateway V2 Client.
+        api_gateway_name: Name of the API Gateway function.
+
+    Returns: Either a dictionary containing the get_api response, or None if it doesn't exist
+
+    """
+    response = api_gateway_client.get_apis()
+    apis = response.get("Items", [])
+
+    while True:
+        # Try finding the match before getting the next batch of api gateways from AWS
+        for api in apis:
+            if api.get("Name") == api_gateway_name:
+                return api
+
+        # Break out of the loop if there's no next batch of api gateways
+        next_token = response.get("NextToken")
+        if not next_token:
+            break
+
+        # Get the next batch of api gateways using next_token
+        response = api_gateway_client.get_apis(NextToken=next_token)
+        apis = response.get("Items", [])
+
+    # Return None if API Gateway with such name was not found
+    return None
+
+
+def delete_api_gateway(api_gateway_client, api_gateway_id: str) -> Dict:
+    """
+    Delete the API Gateway given ID.
+    Args:
+        api_gateway_client: API Gateway V2 Client.
+        api_gateway_id: API Gateway ID to delete.
+
+    Returns: The delete_api API response dict.
+
+    """
+    return api_gateway_client.delete_api(ApiId=api_gateway_id)
+
+
+def get_account_id() -> str:
+    """Get AWS Account ID"""
+    return boto3.client("sts").get_caller_identity().get("Account")
