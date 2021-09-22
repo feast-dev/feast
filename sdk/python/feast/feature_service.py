@@ -5,7 +5,6 @@ from google.protobuf.json_format import MessageToJson
 
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
-from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -30,7 +29,10 @@ class FeatureService:
     """
 
     name: str
-    features: List[FeatureViewProjection]
+    features: List[str]
+    feature_tables: List[FeatureTable]
+    feature_views: List[FeatureView]
+    on_demand_feature_views: List[OnDemandFeatureView]
     tags: Dict[str, str]
     description: Optional[str] = None
     created_timestamp: Optional[datetime] = None
@@ -40,7 +42,7 @@ class FeatureService:
         self,
         name: str,
         features: List[
-            Union[FeatureTable, FeatureView, OnDemandFeatureView, FeatureViewProjection]
+            Union[FeatureTable, FeatureView, OnDemandFeatureView]
         ],
         tags: Optional[Dict[str, str]] = None,
         description: Optional[str] = None,
@@ -52,18 +54,23 @@ class FeatureService:
             ValueError: If one of the specified features is not a valid type.
         """
         self.name = name
-        self.features = []
-        for feature in features:
-            if (
-                isinstance(feature, FeatureTable)
-                or isinstance(feature, FeatureView)
-                or isinstance(feature, OnDemandFeatureView)
-            ):
-                self.features.append(FeatureViewProjection.from_definition(feature))
-            elif isinstance(feature, FeatureViewProjection):
-                self.features.append(feature)
+        self.features = [] 
+        self.feature_tables, self.feature_views, self.on_demand_feature_views = [], [], []
+
+        for feature_grouping in features:
+            if (isinstance(feature_grouping, FeatureTable)):
+                self.feature_tables.append(feature_grouping)
+            elif (isinstance(feature_grouping, FeatureView)):
+                self.feature_views.append(feature_grouping)
+            elif (isinstance(feature_grouping, OnDemandFeatureView)):
+                self.on_demand_feature_views.append(feature_grouping)
             else:
                 raise ValueError(f"Unexpected type: {type(feature)}")
+
+            self.features.extend([
+                f"{feature_grouping.name}:{f.name}" for f in feature_grouping.features]
+            )
+
         self.tags = tags or {}
         self.description = description
         self.created_timestamp = None
@@ -102,10 +109,7 @@ class FeatureService:
         """
         fs = FeatureService(
             name=feature_service_proto.spec.name,
-            features=[
-                FeatureViewProjection.from_proto(fp)
-                for fp in feature_service_proto.spec.features
-            ],
+            features=[],
             tags=dict(feature_service_proto.spec.tags),
             description=(
                 feature_service_proto.spec.description
@@ -113,6 +117,20 @@ class FeatureService:
                 else None
             ),
         )
+
+        fs.features = feature_service_proto.spec.features
+        fs.feature_tables = [
+            FeatureTable.from_proto(table)
+            for table in feature_service_proto.spec.feature_tables
+        ]
+        fs.feature_views = [
+            FeatureView.from_proto(view)
+            for view in feature_service_proto.spec.feature_views
+        ]
+        fs.on_demand_feature_views = [
+            OnDemandFeatureView.from_proto(view)
+            for view in feature_service_proto.spec.on_demand_feature_views
+        ]
 
         if feature_service_proto.meta.HasField("created_timestamp"):
             fs.created_timestamp = (
@@ -138,17 +156,10 @@ class FeatureService:
 
         spec = FeatureServiceSpec()
         spec.name = self.name
-        for definition in self.features:
-            if isinstance(definition, FeatureTable) or isinstance(
-                definition, FeatureView
-            ):
-                feature_ref = FeatureViewProjection(
-                    definition.name, definition.features
-                )
-            else:
-                feature_ref = definition
-
-            spec.features.append(feature_ref.to_proto())
+        spec.features = self.features
+        spec.feature_tables = [table.to_proto for table in self.feature_tables]
+        spec.feature_views = [view.to_proto for view in self.feature_views]
+        spec.on_demand_feature_views = [view.to_proto for view in self.on_demand_feature_views]
 
         if self.tags:
             spec.tags.update(self.tags)
