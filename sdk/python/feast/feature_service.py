@@ -67,8 +67,8 @@ class FeatureService:
             else:
                 raise ValueError(f"Unexpected type: {type(feature_grouping)}")
 
-            self.features.extend([
-                f"{feature_grouping.name}:{f.name}" for f in feature_grouping.features]
+            self.features.extend(
+                [f"{feature_grouping.name}:{f.name}" for f in feature_grouping.features]
             )
 
         self.tags = tags or {}
@@ -118,7 +118,7 @@ class FeatureService:
             ),
         )
 
-        fs.features = feature_service_proto.spec.features
+        fs.features = [feature for feature in feature_service_proto.spec.features]
         fs.feature_tables = [
             FeatureTable.from_proto(table)
             for table in feature_service_proto.spec.feature_tables

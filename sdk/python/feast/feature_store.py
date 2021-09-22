@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import itertools
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
@@ -319,8 +318,7 @@ class FeatureStore:
 
         _feature_refs: List[str]
         if isinstance(_features, FeatureService):
-            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _feature_refs = _get_feature_refs_from_feature_services(FeatureService)
+            _feature_refs = _features.features
         else:
             _feature_refs = _features
         return _feature_refs
@@ -540,19 +538,7 @@ class FeatureStore:
             )
 
         _feature_refs = self._get_features(features, feature_refs)
-
-        passed_in_feature_views = {view.name: view for view in
-            itertools.chain([
-                grouping.feature_views for grouping in features
-                if isinstance(grouping, FeatureService)
-            ])
-        }
-
-        all_feature_views = [*filter(
-            lambda view: view.name not in [*passed_in_feature_views.keys()],
-            self.list_feature_views()
-        )] + [*passed_in_feature_views.values()]
-
+        all_feature_views = self._get_feature_views_to_use(features)
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project
         )
@@ -814,19 +800,7 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-
-        passed_in_feature_views = {view.name: view for view in
-            itertools.chain([
-                grouping.feature_views for grouping in features
-                if isinstance(grouping, FeatureService)
-            ])
-        }
-
-        all_feature_views = [*filter(
-            lambda view: view.name not in [*passed_in_feature_views.keys()],
-            self.list_feature_views()
-        )] + [*passed_in_feature_views.values()]
-
+        all_feature_views = self._get_feature_views_to_use(features)
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
         )
@@ -1037,6 +1011,25 @@ class FeatureStore:
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
+
+    def _get_feature_views_to_use(
+        self,
+        features: Union[List[str], FeatureService],
+    ) -> List[FeatureView]:
+
+        passed_in_feature_views = ({view.name: view for view in features.feature_views}
+            if isinstance(features, FeatureService)
+            else {}
+        )
+
+        all_feature_views = [*filter(
+            lambda view: view.name not in [*passed_in_feature_views.keys()],
+            self.list_feature_views()
+        )] + [*passed_in_feature_views.values()]
+
+        return all_feature_views
+
+
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
         """Start the feature consumption server locally on a given port."""
@@ -1133,17 +1126,6 @@ def _group_feature_refs(
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], feature_names))
     return fvs_result, odfvs_result
-
-
-def _get_feature_refs_from_feature_services(
-    feature_service: FeatureService,
-) -> List[str]:
-    feature_refs = []
-    for projection in feature_service.features:
-        feature_refs.extend(
-            [f"{projection.name}:{f.name}" for f in projection.features]
-        )
-    return feature_refs
 
 
 def _get_table_entity_keys(
