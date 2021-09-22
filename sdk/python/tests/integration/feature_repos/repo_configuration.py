@@ -28,6 +28,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
     create_global_stats_feature_view,
+    create_location_stats_feature_view,
     create_order_feature_view,
 )
 
@@ -90,7 +91,11 @@ FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
 
 
 def construct_universal_entities() -> Dict[str, List[Any]]:
-    return {"customer": list(range(1001, 1020)), "driver": list(range(5001, 5020))}
+    return {
+        "customer": list(range(1001, 1020)),
+        "driver": list(range(5001, 5020)),
+        "location": list(range(1, 50)),
+    }
 
 
 def construct_universal_datasets(
@@ -102,9 +107,13 @@ def construct_universal_datasets(
     driver_df = driver_test_data.create_driver_hourly_stats_df(
         entities["driver"], start_time, end_time
     )
+    location_df = driver_test_data.create_location_stats_df(
+        entities["location"], start_time, end_time
+    )
     orders_df = driver_test_data.create_orders_df(
         customers=entities["customer"],
         drivers=entities["driver"],
+        locations=entities["location"],
         start_date=start_time,
         end_date=end_time,
         order_count=20,
@@ -115,6 +124,7 @@ def construct_universal_datasets(
     return {
         "customer": customer_df,
         "driver": driver_df,
+        "location": location_df,
         "orders": orders_df,
         "global": global_df,
         "entity": entity_df,
@@ -136,6 +146,12 @@ def construct_universal_data_sources(
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
+    location_ds = data_source_creator.create_data_source(
+        datasets["location"],
+        destination_name="location_hourly",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
     orders_ds = data_source_creator.create_data_source(
         datasets["orders"],
         destination_name="orders",
@@ -151,6 +167,7 @@ def construct_universal_data_sources(
     return {
         "customer": customer_ds,
         "driver": driver_ds,
+        "location": location_ds,
         "orders": orders_ds,
         "global": global_ds,
     }
@@ -175,6 +192,7 @@ def construct_universal_feature_views(
             }
         ),
         "order": create_order_feature_view(data_sources["orders"]),
+        "location": create_location_stats_feature_view(data_sources["location"]),
     }
 
 

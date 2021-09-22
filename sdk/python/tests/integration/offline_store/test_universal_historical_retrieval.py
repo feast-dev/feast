@@ -8,7 +8,10 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 from feast import utils
-from feast.errors import RequestDataNotFoundInEntityDfException
+from feast.errors import (
+    FeatureNameCollisionError,
+    RequestDataNotFoundInEntityDfException,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
@@ -18,7 +21,11 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
-from tests.integration.feature_repos.universal.entities import customer, driver
+from tests.integration.feature_repos.universal.entities import (
+    customer,
+    driver,
+    location,
+)
 
 np.random.seed(0)
 
@@ -66,6 +73,8 @@ def get_expected_training_df(
     driver_fv: FeatureView,
     orders_df: pd.DataFrame,
     order_fv: FeatureView,
+    location_df: pd.DataFrame,
+    location_fv: FeatureView,
     global_df: pd.DataFrame,
     global_fv: FeatureView,
     entity_df: pd.DataFrame,
@@ -81,6 +90,9 @@ def get_expected_training_df(
     )
     order_records = convert_timestamp_records_to_utc(
         orders_df.to_dict("records"), event_timestamp
+    )
+    location_records = convert_timestamp_records_to_utc(
+        location_df.to_dict("records"), location_fv.batch_source.event_timestamp_column
     )
     global_records = convert_timestamp_records_to_utc(
         global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
@@ -116,6 +128,22 @@ def get_expected_training_df(
             filter_keys=["customer_id", "driver_id"],
             filter_values=[entity_row["customer_id"], entity_row["driver_id"]],
         )
+        origin_record = find_asof_record(
+            location_records,
+            ts_key=location_fv.batch_source.event_timestamp_column,
+            ts_start=order_record[event_timestamp] - location_fv.ttl,
+            ts_end=order_record[event_timestamp],
+            filter_key="location_id",
+            filter_value=order_record["origin_id"],
+        )
+        destination_record = find_asof_record(
+            location_records,
+            ts_key=location_fv.batch_source.event_timestamp_column,
+            ts_start=order_record[event_timestamp] - location_fv.ttl,
+            ts_end=order_record[event_timestamp],
+            filter_key="location_id",
+            filter_value=order_record["destination_id"],
+        )
         global_record = find_asof_record(
             global_records,
             ts_key=global_fv.batch_source.event_timestamp_column,
@@ -150,6 +178,12 @@ def get_expected_training_df(
             }
         )
         entity_row.update(
+            {
+                "origin__temperature": origin_record.get("temperature", None),
+                "destination__temperature": destination_record.get("temperature", None),
+            }
+        )
+        order_record.update(
             {
                 (f"global_stats__{k}" if full_feature_names else k): global_record.get(
                     k, None
@@ -204,9 +238,10 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    customer_df, driver_df, orders_df, global_df, entity_df = (
+    customer_df, driver_df, location_df, orders_df, global_df, entity_df = (
         datasets["customer"],
         datasets["driver"],
+        datasets["location"],
         datasets["orders"],
         datasets["global"],
         datasets["entity"],
@@ -216,17 +251,29 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         i for i in range(len(entity_df_with_request_data))
     ]
 
-    customer_fv, driver_fv, driver_odfv, order_fv, global_fv = (
+    customer_fv, driver_fv, driver_odfv, location_fv, order_fv, global_fv = (
         feature_views["customer"],
         feature_views["driver"],
         feature_views["driver_odfv"],
+        feature_views["location"],
         feature_views["order"],
         feature_views["global"],
     )
 
     feature_service = FeatureService(
-        "convrate_plus100",
+        name="convrate_plus100",
         features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
+    )
+    feature_service_shadow_entities = FeatureService(
+        name="shadow_entities",
+        features=[
+            location_fv.with_name("origin").with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+            location_fv.with_name("destination").with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
+        ],
     )
 
     feast_objects = []
@@ -239,7 +286,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             global_fv,
             driver(),
             customer(),
+            location(),
             feature_service,
+            feature_service_shadow_entities,
         ]
     )
     store.apply(feast_objects)
@@ -254,18 +303,25 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
         else "e_ts"
     )
-    expected_df = get_expected_training_df(
+    full_expected_df = get_expected_training_df(
         customer_df,
         customer_fv,
         driver_df,
         driver_fv,
         orders_df,
         order_fv,
+        location_df,
+        location_fv,
         global_df,
         global_fv,
         entity_df_with_request_data,
         event_timestamp,
         full_feature_names,
+    )
+
+    # Only need the shadow entities features in the FeatureService test
+    expected_df = full_expected_df.drop(
+        columns=["origin__temperature", "destination__temperature"],
     )
 
     if entity_df_query:
@@ -292,7 +348,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         )
 
         # Not requesting the on demand transform with an entity_df query (can't add request data in them)
-        expected_df_query = expected_df.drop(
+        expected_df_query = full_expected_df.drop(
             columns=["conv_rate_plus_100", "val_to_add", "conv_rate_plus_val_to_add"]
         )
         assert sorted(expected_df_query.columns) == sorted(
@@ -382,6 +438,14 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         expected_df,
         event_timestamp,
     )
+    assert_feature_service_shadow_entities_correctness(
+        store,
+        feature_service_shadow_entities,
+        full_feature_names,
+        entity_df_with_request_data,
+        full_expected_df,
+        event_timestamp,
+    )
 
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
 
@@ -463,3 +527,69 @@ def assert_feature_service_correctness(
     assert_frame_equal(
         expected_df, actual_df_from_df_entities, check_dtype=False,
     )
+
+
+def assert_feature_service_shadow_entities_correctness(
+    store, feature_service, full_feature_names, entity_df, expected_df, event_timestamp
+):
+    if full_feature_names:
+        job_from_df = store.get_historical_features(
+            entity_df=entity_df,
+            features=feature_service,
+            full_feature_names=full_feature_names,
+        )
+        actual_df_from_df_entities = job_from_df.to_df()
+
+        expected_df: pd.DataFrame = (
+            expected_df.sort_values(
+                by=[
+                    event_timestamp,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                    "origin_id",
+                    "destination_id",
+                ]
+            )
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+        expected_df = expected_df[
+            [
+                event_timestamp,
+                "order_id",
+                "driver_id",
+                "customer_id",
+                "origin_id",
+                "destination_id",
+                "origin__temperature",
+                "destination__temperature",
+            ]
+        ]
+        actual_df_from_df_entities = (
+            actual_df_from_df_entities[expected_df.columns]
+            .sort_values(
+                by=[
+                    event_timestamp,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                    "origin_id",
+                    "destination_id",
+                ]
+            )
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+
+        assert_frame_equal(
+            expected_df, actual_df_from_df_entities, check_dtype=False,
+        )
+    else:
+        # using 2 of the same FeatureView without full_feature_names=True will result in collision
+        with pytest.raises(FeatureNameCollisionError):
+            job_from_df = store.get_historical_features(
+                entity_df=entity_df,
+                features=feature_service,
+                full_feature_names=full_feature_names,
+            )

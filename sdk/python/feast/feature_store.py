@@ -945,7 +945,7 @@ class FeatureStore:
         union_of_entity_keys: List[EntityKeyProto],
     ):
         entity_keys = _get_table_entity_keys(
-            table, union_of_entity_keys, entity_name_to_join_key_map
+            table, union_of_entity_keys, table_join_keys
         )
         read_rows = provider.online_read(
             config=self.config,

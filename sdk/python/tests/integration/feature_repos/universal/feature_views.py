@@ -129,3 +129,16 @@ def create_order_feature_view(source, infer_features: bool = False):
         batch_source=source,
         ttl=timedelta(days=2),
     )
+
+
+def create_location_stats_feature_view(source, infer_features: bool = False):
+    location_stats_feature_view = FeatureView(
+        name="location_stats",
+        entities=["location_id"],
+        features=None
+        if infer_features
+        else [Feature(name="temperature", dtype=ValueType.INT32)],
+        batch_source=source,
+        ttl=timedelta(days=2),
+    )
+    return location_stats_feature_view
