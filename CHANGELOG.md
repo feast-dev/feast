@@ -54,22 +54,6 @@
 - Add a description field the Feature Service class and proto [\#1771](https://github.com/feast-dev/feast/pull/1771) ([achals](https://github.com/achals))
 - Validate project name upon feast.apply [\#1766](https://github.com/feast-dev/feast/pull/1766) ([tedhtchang](https://github.com/tedhtchang))
 
-**Closed issues:**
-
-- Do not consider duplicates objects that are imported [\#1894](https://github.com/feast-dev/feast/issues/1894)
-- Are the integration tests actually running? [\#1879](https://github.com/feast-dev/feast/issues/1879)
-- Organize test datasets or common functions to be fixtures, and to release as a package [\#1859](https://github.com/feast-dev/feast/issues/1859)
-- redshift and dynamodb env vars [\#1854](https://github.com/feast-dev/feast/issues/1854)
-- Bigquery job id is not found in locations outside of US [\#1842](https://github.com/feast-dev/feast/issues/1842)
-- Improve feature inferencing exception [\#1838](https://github.com/feast-dev/feast/issues/1838)
-- Flaky usage tests [\#1823](https://github.com/feast-dev/feast/issues/1823)
-- Redshift does not support multiple entities [\#1816](https://github.com/feast-dev/feast/issues/1816)
-- Feature inferencing tests fail [\#1797](https://github.com/feast-dev/feast/issues/1797)
-- Azure AKS Terraform installation fails with feast charts not found [\#1792](https://github.com/feast-dev/feast/issues/1792)
-- Add schema parameter to RedshiftSource to distinguish between database schemas [\#1767](https://github.com/feast-dev/feast/issues/1767)
-- Fix BigQuery related integration tests to make unique BQ datasets and tables [\#1760](https://github.com/feast-dev/feast/issues/1760)
-- Datastore online request makes a call once for each entity [\#1759](https://github.com/feast-dev/feast/issues/1759)
-
 **Merged pull requests:**
 
 - Add `ValueType.NULL` [\#1893](https://github.com/feast-dev/feast/pull/1893) ([judahrand](https://github.com/judahrand))
