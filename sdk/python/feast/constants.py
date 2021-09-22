@@ -16,3 +16,5 @@
 
 # Maximum interval(secs) to wait between retries for retry function
 MAX_WAIT_INTERVAL: str = "60"
+
+AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server"
