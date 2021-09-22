@@ -47,7 +47,8 @@ class AwsProvider(PassthroughProvider):
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-        repository_name = "feast-python-server-test"
+        version = ".".join(feast.__version__.split(".")[:3])
+        repository_name = f"feast-python-server-{version}"
         ecr_client = boto3.client("ecr")
         try:
             print(
@@ -70,7 +71,6 @@ class AwsProvider(PassthroughProvider):
         docker_client.login(username=username, password=password, registry=ecr_address)
 
         image = docker_client.images.get(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
-        version = ".".join(feast.__version__.split(".")[:3])
         image_remote_name = f"{repository_uri}:{version}"
         print(
             f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}:"
