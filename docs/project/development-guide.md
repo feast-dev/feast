@@ -9,7 +9,7 @@ This guide is targeted at developers looking to contribute to Feast:
 * [Feast Data Storage Format](development-guide.md#feast-data-storage-format)
 * [Feast Protobuf API](development-guide.md#feast-protobuf-api)
 
-> Learn How the Feast [Contributing Process](https://docs.feast.dev/contributing/contributing) works.
+> Learn How the Feast [Contributing Process](contributing.md) works.
 
 ## Project Structure
 
