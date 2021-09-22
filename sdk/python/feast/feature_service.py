@@ -65,7 +65,7 @@ class FeatureService:
             elif (isinstance(feature_grouping, OnDemandFeatureView)):
                 self.on_demand_feature_views.append(feature_grouping)
             else:
-                raise ValueError(f"Unexpected type: {type(feature)}")
+                raise ValueError(f"Unexpected type: {type(feature_grouping)}")
 
             self.features.extend([
                 f"{feature_grouping.name}:{f.name}" for f in feature_grouping.features]
@@ -154,13 +154,13 @@ class FeatureService:
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
 
-        spec = FeatureServiceSpec()
-        spec.name = self.name
-        spec.features = self.features
-        spec.feature_tables = [table.to_proto for table in self.feature_tables]
-        spec.feature_views = [view.to_proto for view in self.feature_views]
-        spec.on_demand_feature_views = [view.to_proto for view in self.on_demand_feature_views]
-
+        spec = FeatureServiceSpec(
+            name=self.name,
+            features=self.features,
+            feature_tables=[table.to_proto() for table in self.feature_tables],
+            feature_views=[view.to_proto() for view in self.feature_views],
+            on_demand_feature_views=[view.to_proto() for view in self.on_demand_feature_views]
+        )
         if self.tags:
             spec.tags.update(self.tags)
         if self.description:

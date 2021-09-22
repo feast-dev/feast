@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import itertools
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
@@ -319,9 +320,7 @@ class FeatureStore:
         _feature_refs: List[str]
         if isinstance(_features, FeatureService):
             # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _feature_refs = _get_feature_refs_from_feature_services(
-                self.get_feature_service(_features.name)
-            )
+            _feature_refs = _get_feature_refs_from_feature_services(FeatureService)
         else:
             _feature_refs = _features
         return _feature_refs
@@ -542,7 +541,18 @@ class FeatureStore:
 
         _feature_refs = self._get_features(features, feature_refs)
 
-        all_feature_views = self.list_feature_views()
+        passed_in_feature_views = {view.name: view for view in
+            itertools.chain([
+                grouping.feature_views for grouping in features
+                if isinstance(grouping, FeatureService)
+            ])
+        }
+
+        all_feature_views = [*filter(
+            lambda view: view.name not in [*passed_in_feature_views.keys()],
+            self.list_feature_views()
+        )] + [*passed_in_feature_views.values()]
+
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project
         )
@@ -804,9 +814,19 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self._list_feature_views(
-            allow_cache=True, hide_dummy_entity=False
-        )
+
+        passed_in_feature_views = {view.name: view for view in
+            itertools.chain([
+                grouping.feature_views for grouping in features
+                if isinstance(grouping, FeatureService)
+            ])
+        }
+
+        all_feature_views = [*filter(
+            lambda view: view.name not in [*passed_in_feature_views.keys()],
+            self.list_feature_views()
+        )] + [*passed_in_feature_views.values()]
+
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
         )
