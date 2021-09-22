@@ -104,7 +104,11 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file, repo_root)
         module = importlib.import_module(module_path)
-        for attr_name in dir(module):
+        non_imported_attr = [
+            attr_name for attr_name in dir(module) if attr_name not in sys.modules
+        ]
+
+        for attr_name in non_imported_attr:
             obj = getattr(module, attr_name)
             if isinstance(obj, FeatureTable):
                 res.feature_tables.append(obj)
