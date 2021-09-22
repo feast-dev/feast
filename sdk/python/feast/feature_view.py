@@ -130,7 +130,7 @@ class FeatureView:
         self.name = name
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
         self.features = _features
-        self.tags = tags if tags is not None else {}
+        self.tags = tags if tags else {}
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
@@ -148,7 +148,7 @@ class FeatureView:
         self.last_updated_timestamp: Optional[datetime] = None
 
         self.projection = FeatureViewProjection.from_definition(self)
-        self.join_key_map = join_key_map
+        self.join_key_map = join_key_map if join_key_map else {}
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -277,6 +277,7 @@ class FeatureView:
             online=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
+            join_key_map=self.join_key_map,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -319,6 +320,7 @@ class FeatureView:
             ),
             batch_source=batch_source,
             stream_source=stream_source,
+            join_key_map=dict(feature_view_proto.spec.join_key_map),
         )
 
         # FeatureViewProjections are not saved in the FeatureView proto.
