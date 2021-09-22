@@ -26,6 +26,10 @@ online_features = fs.get_online_features(
 
 It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, It is not possible to reference \(or retrieve\) features from multiple projects at the same time.
 
+{% hint style="info" %}
+Note, if you're using [Feature views without entities](feature-view.md#feature-views-without-entities), then those features can be added here without additional entity values in the `entity_rows`
+{% endhint %}
+
 ## Event timestamp
 
 The timestamp on which an event occurred, as found in a feature view's data source. The entity timestamp describes the event time at which a feature was observed or generated.
