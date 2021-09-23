@@ -34,7 +34,7 @@ np.random.seed(0)
 PROJECT_NAME = "default"
 
 
-def generate_entities(date, infer_event_timestamp_col, order_count: int = 1000):
+def generate_entities(date, order_count: int = 1000):
     end_date = date
     before_start_date = end_date - timedelta(days=365)
     start_date = end_date - timedelta(days=7)
@@ -47,7 +47,6 @@ def generate_entities(date, infer_event_timestamp_col, order_count: int = 1000):
         start_date=before_start_date,
         end_date=after_end_date,
         order_count=order_count,
-        infer_event_timestamp_col=infer_event_timestamp_col,
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
 
@@ -264,15 +263,8 @@ class BigQueryDataSet:
             )
 
 
-@pytest.mark.parametrize(
-    "infer_event_timestamp_col", [False, True],
-)
-@pytest.mark.parametrize(
-    "full_feature_names", [False, True],
-)
-def test_historical_features_from_parquet_sources(
-    infer_event_timestamp_col, full_feature_names
-):
+@pytest.mark.parametrize("full_feature_names", [False, True])
+def test_historical_features_from_parquet_sources(full_feature_names):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -280,7 +272,7 @@ def test_historical_features_from_parquet_sources(
         end_date,
         orders_df,
         start_date,
-    ) = generate_entities(start_date, infer_event_timestamp_col)
+    ) = generate_entities(start_date)
 
     with TemporaryDirectory() as temp_dir:
         driver_df = driver_data.create_driver_hourly_stats_df(
