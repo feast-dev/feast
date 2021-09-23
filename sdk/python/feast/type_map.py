@@ -325,7 +325,11 @@ def python_value_to_proto_value(
                 else python_type_to_feast_value_type("", value)
             )
         else:
-            value_type = python_type_to_feast_value_type("", value)
+            value_type = (
+                feature_type
+                if feature_type is ValueType.FLOAT
+                else python_type_to_feast_value_type("", value)
+            )
     return _python_value_to_proto_value(value_type, value)
 
 
