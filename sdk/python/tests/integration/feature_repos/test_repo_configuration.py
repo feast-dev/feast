@@ -42,6 +42,9 @@ def ds_creator_path(cls: str):
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+ASTRA_CONFIG = {"type": "astra", "secure_connect_bundle": "./secure-connect-sample-ml-data.zip",
+                "client_id": "client_id_place_holder", "secret_key": "secret_key_place_holder",
+                "keyspace": "keyspace_place_holder"}
 FULL_REPO_CONFIGS: List[TestRepoConfig] = [
     # Local configurations
     TestRepoConfig(),
@@ -68,6 +71,11 @@ FULL_REPO_CONFIGS: List[TestRepoConfig] = [
         offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
         online_store=REDIS_CONFIG,
     ),
+    TestRepoConfig(
+        provider="astra",
+        offline_store_creator=ds_creator_path("redshift.RedshiftDataSourceCreator"),
+        online_store=ASTRA_CONFIG
+    )
 ]
 
 

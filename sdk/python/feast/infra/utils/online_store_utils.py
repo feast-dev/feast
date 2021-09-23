@@ -12,7 +12,4 @@ def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
 
 
 def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
+    return ts.astimezone(pytz.utc).replace(tzinfo=None)

@@ -33,23 +33,18 @@ class AstraDBOnlineStore(OnlineStore, ABC):
     """
     Online feature store for Astra Cassandra Database
     """
+    _session = None
 
-    def __init__(self, config: RepoConfig):
-        self.config = config
-        self.online_config = config.online_store
-        """Verify if the online store is the instance of AstraConfig Class"""
-        assert isinstance(self.online_config, AstraConfig)
-        self.session = self._initialize_astra_session(self.online_config)
-
-    @staticmethod
-    def _initialize_astra_session(config: AstraConfig):
+    def _initialize_astra_session(self, config: AstraConfig):
+        if self._session:
+            return self._session
         cloud_config = {
                 'secure_connect_bundle': config.secure_connect_bundle
         }
         auth_provider = PlainTextAuthProvider(config.client_id, config.secret_key)
         cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
-        session = cluster.connect()
-        return session
+        self._session = cluster.connect()
+        return self._session
 
     def online_write_batch(
         self,
@@ -76,7 +71,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                 created_ts = _to_naive_utc(created_ts)
             for feature_name, val in values.items():
                 table_name = _table_id(project, table)
-                keyspace = self.online_config.keyspace
+                keyspace = config.online_store.keyspace
 
                 # Now create Insert command
                 insert_cql = _create_cql_insert_record(keyspace,
@@ -91,7 +86,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                                                                val.SerializeToString(),
                                                                timestamp,
                                                                created_ts])
-                self.session.execute(insert_cql)
+                self._initialize_astra_session(config.online_store).execute(insert_cql)
 
     def online_read(
             self,
@@ -104,7 +99,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         project = config.project
         table_name = _table_id(project, table)
-        keyspace = self.online_config.keyspace
+        keyspace = config.online_store.keyspace
 
         all_rows = []
         for entity_key in entity_keys:
@@ -114,10 +109,10 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                                                              "value",
                                                              "event_ts"],
                                            conditions_eq={"entity_key": entity_key_bin})
+            self._session = self._initialize_astra_session(config.online_store)
+            prepared_statement = self._session.prepare(cql_query)
 
-            prepared_statement = self.session.prepare(cql_query)
-
-            all_rows += self.session.execute(
+            all_rows += self._session.execute(
                 prepared_statement.bind([entity_key_bin])
                                  ).all()
 
@@ -147,7 +142,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
         partial: bool,
     ):
         project = config.project
-        key_space = self.online_config.keyspace
+        key_space = config.online_store.keyspace
         for table in tables_to_keep:
             table_name = _table_id(project, table)
 
@@ -169,16 +164,17 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                                                      "timestamp"
                                                  ]
                                                  )
-            self.session.execute(cql_create_table)
+            self._session = self._initialize_astra_session(config.online_store)
+            self._session.execute(cql_create_table)
 
             # Now create Index
             cql_index = _create_index_cql(key_space, table_name+"_ek", table_name, "entity_key")
-            self.session.execute(cql_index)
+            self._session.execute(cql_index)
 
         for table in tables_to_delete:
             table_name = _table_id(project, table)
             delete_cql = _create_delete_table_cql(key_space, table_name)
-            self.session.execute(delete_cql)
+            self._session.execute(delete_cql)
 
     def teardown(
         self,
@@ -192,7 +188,8 @@ class AstraDBOnlineStore(OnlineStore, ABC):
         for table in tables:
             table_name = _table_id(config.project, table)
             cql_delete = _create_delete_table_cql(key_space, table_name)
-            self.session.execute(cql_delete)
+            self._session = self._initialize_astra_session(config.online_store)
+            self._session.execute(cql_delete)
 
 
 def _create_cql_table(key_space: str,
