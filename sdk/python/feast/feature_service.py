@@ -41,9 +41,7 @@ class FeatureService:
     def __init__(
         self,
         name: str,
-        features: List[
-            Union[FeatureTable, FeatureView, OnDemandFeatureView]
-        ],
+        features: List[Union[FeatureTable, FeatureView, OnDemandFeatureView]],
         tags: Optional[Dict[str, str]] = None,
         description: Optional[str] = None,
     ):
@@ -54,15 +52,19 @@ class FeatureService:
             ValueError: If one of the specified features is not a valid type.
         """
         self.name = name
-        self.features = [] 
-        self.feature_tables, self.feature_views, self.on_demand_feature_views = [], [], []
+        self.features = []
+        self.feature_tables, self.feature_views, self.on_demand_feature_views = (
+            [],
+            [],
+            [],
+        )
 
         for feature_grouping in features:
-            if (isinstance(feature_grouping, FeatureTable)):
+            if isinstance(feature_grouping, FeatureTable):
                 self.feature_tables.append(feature_grouping)
-            elif (isinstance(feature_grouping, FeatureView)):
+            elif isinstance(feature_grouping, FeatureView):
                 self.feature_views.append(feature_grouping)
-            elif (isinstance(feature_grouping, OnDemandFeatureView)):
+            elif isinstance(feature_grouping, OnDemandFeatureView):
                 self.on_demand_feature_views.append(feature_grouping)
             else:
                 raise ValueError(f"Unexpected type: {type(feature_grouping)}")
@@ -159,7 +161,9 @@ class FeatureService:
             features=self.features,
             feature_tables=[table.to_proto() for table in self.feature_tables],
             feature_views=[view.to_proto() for view in self.feature_views],
-            on_demand_feature_views=[view.to_proto() for view in self.on_demand_feature_views]
+            on_demand_feature_views=[
+                view.to_proto() for view in self.on_demand_feature_views
+            ],
         )
         if self.tags:
             spec.tags.update(self.tags)

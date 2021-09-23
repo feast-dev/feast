@@ -800,7 +800,9 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self._get_feature_views_to_use(features)
+        all_feature_views = self._get_feature_views_to_use(
+            features=features, allow_cache=True, hide_dummy_entity=False
+        )
         all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
             project=self.project, allow_cache=True
         )
@@ -1011,24 +1013,29 @@ class FeatureStore:
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
-
     def _get_feature_views_to_use(
         self,
-        features: Union[List[str], FeatureService],
+        features: Optional[Union[List[str], FeatureService]],
+        allow_cache=False,
+        hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
 
-        passed_in_feature_views = ({view.name: view for view in features.feature_views}
+        passed_in_feature_views = (
+            {view.name: view for view in features.feature_views}
             if isinstance(features, FeatureService)
             else {}
         )
 
-        all_feature_views = [*filter(
-            lambda view: view.name not in [*passed_in_feature_views.keys()],
-            self.list_feature_views()
-        )] + [*passed_in_feature_views.values()]
+        all_feature_views = [
+            *filter(
+                lambda view: view.name not in [*passed_in_feature_views.keys()],
+                self._list_feature_views(
+                    allow_cache=allow_cache, hide_dummy_entity=hide_dummy_entity
+                ),
+            )
+        ] + [*passed_in_feature_views.values()]
 
         return all_feature_views
-
 
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:

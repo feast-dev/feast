@@ -103,6 +103,7 @@ def test_e2e_local() -> None:
 
             assert r.returncode == 0
 
+            print("START LOOKING AT LOGS HERE")
             _assert_online_features(store, driver_df, end_date - timedelta(days=7))
 
             # feast materialize-incremental
