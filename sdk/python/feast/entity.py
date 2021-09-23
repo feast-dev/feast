@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import inspect
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -49,6 +49,8 @@ class Entity:
     _created_timestamp: Optional[datetime]
     _last_updated_timestamp: Optional[datetime]
 
+    defined_in: str
+
     @log_exceptions
     def __init__(
         self,
@@ -74,6 +76,11 @@ class Entity:
 
         self._created_timestamp: Optional[datetime] = None
         self._last_updated_timestamp: Optional[datetime] = None
+
+        stack = inspect.stack()
+        # Get two levels up from current, to ignore usage.py
+        previous_stack_frame = stack[2]
+        self.defined_in = previous_stack_frame.filename
 
     def __eq__(self, other):
         if not isinstance(other, Entity):

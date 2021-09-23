@@ -188,6 +188,7 @@ class RedisOnlineStore(OnlineStore):
 
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
+            print(redis_key_bin)
             hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
             ts_key = f"_ts:{feature_view}"
             hset_keys.append(ts_key)

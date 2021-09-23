@@ -1,3 +1,4 @@
+import inspect
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -14,6 +15,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceMeta,
     FeatureServiceSpec,
 )
+from feast.usage import log_exceptions
 
 
 class FeatureService:
@@ -36,6 +38,9 @@ class FeatureService:
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
 
+    defined_in: str
+
+    @log_exceptions
     def __init__(
         self,
         name: str,
@@ -68,6 +73,11 @@ class FeatureService:
         self.description = description
         self.created_timestamp = None
         self.last_updated_timestamp = None
+
+        stack = inspect.stack()
+        # Get two levels up from current, to ignore usage.py
+        previous_stack_frame = stack[2]
+        self.defined_in = previous_stack_frame.filename
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())

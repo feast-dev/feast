@@ -1,4 +1,5 @@
 import functools
+import inspect
 from types import MethodType
 from typing import Dict, List, Union, cast
 
@@ -45,6 +46,8 @@ class OnDemandFeatureView:
     inputs: Dict[str, Union[FeatureView, RequestDataSource]]
     udf: MethodType
 
+    defined_in: str
+
     @log_exceptions
     def __init__(
         self,
@@ -61,6 +64,11 @@ class OnDemandFeatureView:
         self.features = features
         self.inputs = inputs
         self.udf = udf
+
+        stack = inspect.stack()
+        # Get two levels up from current, to ignore usage.py
+        previous_stack_frame = stack[2]
+        self.defined_in = previous_stack_frame.filename
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """

@@ -107,15 +107,20 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
             if isinstance(obj, FeatureTable):
-                res.feature_tables.append(obj)
+                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                    res.feature_tables.append(obj)
             if isinstance(obj, FeatureView):
-                res.feature_views.append(obj)
+                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                    res.feature_views.append(obj)
             elif isinstance(obj, Entity):
-                res.entities.append(obj)
+                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                    res.entities.append(obj)
             elif isinstance(obj, FeatureService):
-                res.feature_services.append(obj)
+                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                    res.feature_services.append(obj)
             elif isinstance(obj, OnDemandFeatureView):
-                res.on_demand_feature_views.append(obj)
+                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                    res.on_demand_feature_views.append(obj)
     return res
 
 

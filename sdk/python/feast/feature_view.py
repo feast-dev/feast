@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import inspect
 import re
 import warnings
 from datetime import datetime, timedelta
@@ -79,6 +80,8 @@ class FeatureView:
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
 
+    defined_in: str
+
     @log_exceptions
     def __init__(
         self,
@@ -140,6 +143,11 @@ class FeatureView:
 
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
+
+        stack = inspect.stack()
+        # Get two levels up from current, to ignore usage.py
+        previous_stack_frame = stack[2]
+        self.defined_in = previous_stack_frame.filename
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())

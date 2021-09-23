@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import inspect
 from typing import Dict, List, MutableMapping, Optional, Union
 
 import yaml
@@ -30,6 +30,7 @@ from feast.protos.feast.core.FeatureTable_pb2 import (
 from feast.protos.feast.core.FeatureTable_pb2 import (
     FeatureTableSpec as FeatureTableSpecProto,
 )
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -38,6 +39,7 @@ class FeatureTable:
     Represents a collection of features and associated metadata.
     """
 
+    @log_exceptions
     def __init__(
         self,
         name: str,
@@ -63,6 +65,11 @@ class FeatureTable:
         self._max_age = max_age
         self._created_timestamp: Optional[Timestamp] = None
         self._last_updated_timestamp: Optional[Timestamp] = None
+
+        stack = inspect.stack()
+        # Get two levels up from current, to ignore usage.py
+        previous_stack_frame = stack[2]
+        self.defined_in = previous_stack_frame.filename
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))

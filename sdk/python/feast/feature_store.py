@@ -323,6 +323,7 @@ class FeatureStore:
                 self.get_feature_service(_features.name)
             )
         else:
+            assert isinstance(_features, list)
             _feature_refs = _features
         return _feature_refs
 
