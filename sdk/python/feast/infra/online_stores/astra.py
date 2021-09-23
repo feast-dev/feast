@@ -80,13 +80,16 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                                                                      "feature_name",
                                                                      "value",
                                                                      "event_ts",
-                                                                     "created_ts"],
-                                                       values=[entity_key_bin,
-                                                               feature_name,
-                                                               val.SerializeToString(),
-                                                               timestamp,
-                                                               created_ts])
-                self._initialize_astra_session(config.online_store).execute(insert_cql)
+                                                                     "created_ts"])
+                values = [entity_key_bin,
+                          feature_name,
+                          val.SerializeToString(),
+                          timestamp,
+                          created_ts]
+                self._session = self._initialize_astra_session(config.online_store)
+                prepared = self._session.prepare(insert_cql)
+                self._session.execute(
+                    prepared.bind(values))
 
     def online_read(
             self,
@@ -221,24 +224,20 @@ def _create_cql_table(key_space: str,
 
 def _create_cql_insert_record(key_space: str,
                               table_name: str,
-                              column_names: List[str],
-                              values: List[str]
+                              column_names: List[str]
                               ) -> str:
     """
     This is general function to insert a record in table
     """
     assert len(column_names) > 0, "Columns are empty."
 
-    assert len(column_names) == len(values), " Values size and column names size are not equal."
-
     cql_insert_record = "INSERT INTO " + key_space + "." + table_name + " ("
     cql_insert_record += ", ".join(column_names) + ") VALUES ("
-    for value in values:
-        if type(value) == str and value != "now()":
-            value = "'" + value + "'"
-        cql_insert_record += str(value) + " , "
+    for col in column_names:
+        cql_insert_record += "?, "
     cql_insert_record = cql_insert_record[:-2]
     cql_insert_record += ");"
+
     return cql_insert_record
 
 
