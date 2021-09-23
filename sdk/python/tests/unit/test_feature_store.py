@@ -1,38 +1,10 @@
-import os
-import random
-import string
-import time
-from datetime import datetime, timedelta
-from tempfile import TemporaryDirectory
-
-import numpy as np
-import pandas as pd
 import pytest
-from google.cloud import bigquery
-from pandas.testing import assert_frame_equal
-from pytz import utc
 
-import feast.driver_test_data as driver_data
-from feast import BigQuerySource, FeatureService, FileSource, RepoConfig, utils
-from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
-from feast.feature import Feature
-from feast.feature_store import FeatureStore, _validate_feature_refs
-from feast.feature_view import FeatureView
-from feast.infra.offline_stores.bigquery import (
-    BigQueryOfflineStoreConfig,
-    _write_df_to_bq,
-)
-from feast.infra.offline_stores.offline_utils import (
-    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-)
-from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.value_type import ValueType
+from feast.feature_store import _validate_feature_refs
 
-np.random.seed(0)
 
 def test_feature_name_collision_on_historical_retrieval():
-
     # _validate_feature_refs is the function that checks for colliding feature names
     # check when feature names collide and 'full_feature_names=False'
     with pytest.raises(FeatureNameCollisionError) as error:
