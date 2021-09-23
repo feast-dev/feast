@@ -44,7 +44,6 @@ class IntegrationTestRepoConfig:
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
 
     full_feature_names: bool = True
-    infer_event_timestamp_col: bool = True
     infer_features: bool = False
 
     def __repr__(self) -> str:
