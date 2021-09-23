@@ -27,7 +27,7 @@ def _assert_online_features(
 ):
     """Assert that features in online store are up to date with `max_date` date."""
     # Read features back
-    result = store.get_online_features(
+    response = store.get_online_features(
         features=[
             "driver_hourly_stats:conv_rate",
             "driver_hourly_stats:avg_daily_trips",
@@ -36,8 +36,14 @@ def _assert_online_features(
         ],
         entity_rows=[{"driver_id": 1001}],
         full_feature_names=True,
-    ).to_dict()
+    )
 
+    # Float features should still be floats from the online store...
+    assert (
+        response.field_values[0].fields["driver_hourly_stats__conv_rate"].float_val > 0
+    )
+
+    result = response.to_dict()
     assert len(result) == 5
     assert "driver_hourly_stats__avg_daily_trips" in result
     assert "driver_hourly_stats__conv_rate" in result
