@@ -42,7 +42,7 @@ message FeatureViewSpec {
 
     // Name of the base feature view if this is a derived Feature View.
     // E.g. If the name had been changed with '.with_name'.
-    string base_name = 2
+    string base_name = 2;
 
     // Name of Feast project that this feature view belongs to.
     string project = 3;

@@ -67,6 +67,7 @@ class FeatureView:
     """
 
     name: str
+    base_name: str
     entities: List[str]
     features: List[Feature]
     tags: Optional[Dict[str, str]]
@@ -258,6 +259,7 @@ class FeatureView:
 
         spec = FeatureViewSpecProto(
             name=self.name,
+            base_name=self.base_name,
             entities=self.entities,
             features=[feature.to_proto() for feature in self.features],
             tags=self.tags,
@@ -309,6 +311,7 @@ class FeatureView:
             stream_source=stream_source,
         )
 
+        feature_view.base_name = feature_view_proto.spec.base_name
         if feature_view_proto.meta.HasField("created_timestamp"):
             feature_view.created_timestamp = (
                 feature_view_proto.meta.created_timestamp.ToDatetime()
