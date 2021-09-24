@@ -38,6 +38,7 @@ class ValueType(enum.Enum):
     FLOAT_LIST = 16
     BOOL_LIST = 17
     UNIX_TIMESTAMP_LIST = 18
+    NULL = 19
 
     def to_tfx_schema_feature_type(self):
         if self.value in [

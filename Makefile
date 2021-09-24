@@ -53,10 +53,10 @@ install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 benchmark-python:
-	FEAST_USAGE=False IS_TEST=True pytest --integration --benchmark sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python:
-	FEAST_USAGE=False pytest -n 8 sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True pytest -n 8 sdk/python/tests
 
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True pytest -n 8 --integration sdk/python/tests

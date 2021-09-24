@@ -188,3 +188,6 @@ dmypy.json
 sdk/python/docs/html
 sdk/python/feast/protos/
 sdk/go/protos/
+
+#benchmarks
+.benchmarks

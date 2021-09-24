@@ -42,6 +42,7 @@ REQUIRES_PYTHON = ">=3.7.0"
 REQUIRED = [
     "Click==7.*",
     "colorama>=0.3.9",
+    "dill==0.3.*",
     "fastavro>=1.1.0",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
@@ -77,6 +78,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = [
     "boto3==1.17.*",
+    "docker>=5.0.2",
 ]
 
 CI_REQUIRED = [
@@ -116,7 +118,6 @@ CI_REQUIRED = [
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
     "boto3==1.17.*",
-    "dill==0.3.0"
 ]
 
 # Get git repo root directory

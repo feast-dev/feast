@@ -146,18 +146,15 @@ class Provider(abc.ABC):
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
-        if config.provider == "gcp":
-            from feast.infra.gcp import GcpProvider
+        if config.provider in {"gcp", "aws", "local"}:
+            if config.provider == "aws":
+                from feast.infra.aws import AwsProvider
 
-            return GcpProvider(config)
-        elif config.provider == "aws":
-            from feast.infra.aws import AwsProvider
+                return AwsProvider(config)
 
-            return AwsProvider(config)
-        elif config.provider == "local":
-            from feast.infra.local import LocalProvider
+            from feast.infra.passthrough_provider import PassthroughProvider
 
-            return LocalProvider(config)
+            return PassthroughProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
     else:

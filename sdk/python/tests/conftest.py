@@ -14,9 +14,11 @@
 import multiprocessing
 from datetime import datetime, timedelta
 from sys import platform
+from typing import List
 
 import pandas as pd
 import pytest
+from _pytest.nodes import Item
 
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.repo_configuration import (
@@ -52,18 +54,27 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
-    skip_integration = pytest.mark.skip(
-        reason="not running tests with external dependencies"
-    )
-    skip_benchmark = pytest.mark.skip(reason="not running benchmarks")
-    for item in items:
-        if "integration" in item.keywords and not should_run_integration:
-            item.add_marker(skip_integration)
-        if "benchmark" in item.keywords and not should_run_benchmark:
-            item.add_marker(skip_benchmark)
+
+    integration_tests = [t for t in items if "integration" in t.keywords]
+    if not should_run_integration:
+        for t in integration_tests:
+            items.remove(t)
+    else:
+        items.clear()
+        for t in integration_tests:
+            items.append(t)
+
+    benchmark_tests = [t for t in items if "benchmark" in t.keywords]
+    if not should_run_benchmark:
+        for t in benchmark_tests:
+            items.remove(t)
+    else:
+        items.clear()
+        for t in benchmark_tests:
+            items.append(t)
 
 
 @pytest.fixture

@@ -23,5 +23,5 @@ $ tree -a
 1 directory, 4 files
 ```
 
-For more details, see the [Feature repository](../../../reference/feature-repository/) reference.
+For more details, see the [Feature repository](../../reference/feature-repository/) reference.
 

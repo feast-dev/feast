@@ -211,6 +211,14 @@ class FeastJoinKeysDuringMaterialization(Exception):
         )
 
 
+class DockerDaemonNotRunning(Exception):
+    def __init__(self):
+        super().__init__(
+            "The Docker Python sdk cannot connect to the Docker daemon. Please make sure you have"
+            "the docker daemon installed, and that it is running."
+        )
+
+
 class RegistryInferenceFailure(Exception):
     def __init__(self, repo_obj_type: str, specific_issue: str):
         super().__init__(
@@ -258,4 +266,12 @@ class ConflictingFeatureViewNames(Exception):
     def __init__(self, feature_view_name: str):
         super().__init__(
             f"The feature view name: {feature_view_name} refers to both an on-demand feature view and a feature view"
+        )
+
+
+class ExperimentalFeatureNotEnabled(Exception):
+    def __init__(self, feature_flag_name: str):
+        super().__init__(
+            f"You are attempting to use an experimental feature that is not enabled. Please run "
+            f"`feast alpha enable {feature_flag_name}` "
         )

@@ -22,11 +22,12 @@ import pandas as pd
 from colorama import Fore, Style
 from tqdm import tqdm
 
-from feast import feature_server, utils
+from feast import feature_server, flags, flags_helper, utils
 from feast.data_source import RequestDataSource
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
+    ExperimentalFeatureNotEnabled,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityDfException,
@@ -55,7 +56,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.type_map import python_value_to_proto_value
-from feast.usage import log_exceptions, log_exceptions_and_usage
+from feast.usage import UsageEvent, log_event, log_exceptions, log_exceptions_and_usage
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -380,6 +381,15 @@ class FeatureStore:
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
+        if (
+            not flags_helper.enable_on_demand_feature_views(self.config)
+            and len(odfvs_to_update) > 0
+        ):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        if len(odfvs_to_update) > 0:
+            log_event(UsageEvent.APPLY_WITH_ODFV)
+
         _validate_feature_views(views_to_update)
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
@@ -545,6 +555,8 @@ class FeatureStore:
         )
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
+        if len(on_demand_feature_views) > 0:
+            log_event(UsageEvent.GET_HISTORICAL_FEATURES_WITH_ODFV)
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
@@ -803,6 +815,9 @@ class FeatureStore:
         grouped_refs, grouped_odfv_refs = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
+        if len(grouped_odfv_refs) > 0:
+            log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV)
+
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [
             entity_name
@@ -870,46 +885,16 @@ class FeatureStore:
                     feature_name
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
-        # Note: each "table" is a feature view
         for table, requested_features in grouped_refs:
-            entity_keys = _get_table_entity_keys(
-                table, union_of_entity_keys, entity_name_to_join_key_map
+            self._populate_result_rows_from_feature_view(
+                entity_name_to_join_key_map,
+                full_feature_names,
+                provider,
+                requested_features,
+                result_rows,
+                table,
+                union_of_entity_keys,
             )
-            read_rows = provider.online_read(
-                config=self.config,
-                table=table,
-                entity_keys=entity_keys,
-                requested_features=requested_features,
-            )
-            # Each row is a set of features for a given entity key
-            for row_idx, read_row in enumerate(read_rows):
-                row_ts, feature_data = read_row
-                result_row = result_rows[row_idx]
-
-                if feature_data is None:
-                    for feature_name in requested_features:
-                        feature_ref = (
-                            f"{table.name}__{feature_name}"
-                            if full_feature_names
-                            else feature_name
-                        )
-                        result_row.statuses[
-                            feature_ref
-                        ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
-                else:
-                    for feature_name in feature_data:
-                        feature_ref = (
-                            f"{table.name}__{feature_name}"
-                            if full_feature_names
-                            else feature_name
-                        )
-                        if feature_name in requested_features:
-                            result_row.fields[feature_ref].CopyFrom(
-                                feature_data[feature_name]
-                            )
-                            result_row.statuses[
-                                feature_ref
-                            ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         initial_response = OnlineResponse(
             GetOnlineFeaturesResponse(field_values=result_rows)
@@ -917,6 +902,55 @@ class FeatureStore:
         return self._augment_response_with_on_demand_transforms(
             _feature_refs, full_feature_names, initial_response, result_rows
         )
+
+    def _populate_result_rows_from_feature_view(
+        self,
+        entity_name_to_join_key_map: Dict[str, str],
+        full_feature_names: bool,
+        provider: Provider,
+        requested_features: List[str],
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+        table: FeatureView,
+        union_of_entity_keys: List[EntityKeyProto],
+    ):
+        entity_keys = _get_table_entity_keys(
+            table, union_of_entity_keys, entity_name_to_join_key_map
+        )
+        read_rows = provider.online_read(
+            config=self.config,
+            table=table,
+            entity_keys=entity_keys,
+            requested_features=requested_features,
+        )
+        # Each row is a set of features for a given entity key
+        for row_idx, read_row in enumerate(read_rows):
+            row_ts, feature_data = read_row
+            result_row = result_rows[row_idx]
+
+            if feature_data is None:
+                for feature_name in requested_features:
+                    feature_ref = (
+                        f"{table.name}__{feature_name}"
+                        if full_feature_names
+                        else feature_name
+                    )
+                    result_row.statuses[
+                        feature_ref
+                    ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
+            else:
+                for feature_name in feature_data:
+                    feature_ref = (
+                        f"{table.name}__{feature_name}"
+                        if full_feature_names
+                        else feature_name
+                    )
+                    if feature_name in requested_features:
+                        result_row.fields[feature_ref].CopyFrom(
+                            feature_data[feature_name]
+                        )
+                        result_row.statuses[
+                            feature_ref
+                        ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
     def _get_needed_request_data_features(self, grouped_odfv_refs) -> Set[str]:
         needed_request_data_features = set()
@@ -986,6 +1020,9 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
         """Start the feature consumption server locally on a given port."""
+        if not flags_helper.enable_python_feature_server(self.config):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
+
         feature_server.start_server(self, port)
 
 

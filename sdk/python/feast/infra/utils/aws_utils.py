@@ -216,7 +216,7 @@ def upload_df_to_redshift(
     column_names, column_types = [], []
     for field in table.schema:
         column_names.append(field.name)
-        column_types.append(pa_to_redshift_value_type(str(field.type)))
+        column_types.append(pa_to_redshift_value_type(field.type))
     column_query_list = ", ".join(
         [
             f"{column_name} {column_type}"

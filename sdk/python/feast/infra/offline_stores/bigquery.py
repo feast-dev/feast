@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Union
@@ -6,10 +5,12 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import pyarrow
+import pyarrow.parquet
 from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -222,11 +223,8 @@ class BigQueryRetrievalJob(RetrievalJob):
             job_config = bigquery.QueryJobConfig(destination=path)
 
         if not job_config.dry_run and self.on_demand_feature_views is not None:
-            transformed_df = self.to_df()
-            job = self.client.load_table_from_dataframe(
-                transformed_df,
-                job_config.destination,
-                job_config=bigquery.LoadJobConfig(),
+            job = _write_pyarrow_table_to_bq(
+                self.client, self.to_arrow(), job_config.destination
             )
             job.result()
             print(f"Done writing to '{job_config.destination}'.")
@@ -270,8 +268,7 @@ def block_until_done(
     """
 
     # For test environments, retry more aggressively
-    is_test = os.getenv("IS_TEST", default="False") == "True"
-    if is_test:
+    if flags_helper.is_test():
         retry_cadence = 0.1
 
     def _wait_until_done(bq_job):
@@ -332,12 +329,7 @@ def _upload_entity_df_and_get_entity_schema(
     elif isinstance(entity_df, pd.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
-
-        # Upload the dataframe into BigQuery, creating a temporary table
-        job_config = bigquery.LoadJobConfig()
-        job = client.load_table_from_dataframe(
-            entity_df, table_name, job_config=job_config
-        )
+        job = _write_df_to_bq(client, entity_df, table_name)
         block_until_done(client, job)
 
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
@@ -370,6 +362,44 @@ def _get_bigquery_client(project: Optional[str] = None):
         )
 
     return client
+
+
+def _write_df_to_bq(
+    client: bigquery.Client, df: pd.DataFrame, table_name: str
+) -> bigquery.LoadJob:
+    # It is complicated to get BQ to understand that we want an ARRAY<value_type>
+    # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
+    # https://github.com/googleapis/python-bigquery/issues/19
+    writer = pyarrow.BufferOutputStream()
+    pyarrow.parquet.write_table(
+        pyarrow.Table.from_pandas(df), writer, use_compliant_nested_type=True
+    )
+    return _write_pyarrow_buffer_to_bq(client, writer.getvalue(), table_name,)
+
+
+def _write_pyarrow_table_to_bq(
+    client: bigquery.Client, table: pyarrow.Table, table_name: str
+) -> bigquery.LoadJob:
+    # It is complicated to get BQ to understand that we want an ARRAY<value_type>
+    # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
+    # https://github.com/googleapis/python-bigquery/issues/19
+    writer = pyarrow.BufferOutputStream()
+    pyarrow.parquet.write_table(table, writer, use_compliant_nested_type=True)
+    return _write_pyarrow_buffer_to_bq(client, writer.getvalue(), table_name,)
+
+
+def _write_pyarrow_buffer_to_bq(
+    client: bigquery.Client, buf: pyarrow.Buffer, table_name: str
+) -> bigquery.LoadJob:
+    reader = pyarrow.BufferReader(buf)
+
+    parquet_options = bigquery.format_options.ParquetOptions()
+    parquet_options.enable_list_inference = True
+    job_config = bigquery.LoadJobConfig()
+    job_config.source_format = bigquery.SourceFormat.PARQUET
+    job_config.parquet_options = parquet_options
+
+    return client.load_table_from_file(reader, table_name, job_config=job_config,)
 
 
 # TODO: Optimizations
