@@ -1089,7 +1089,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 
 
 def _group_feature_refs(
-    features: Union[List[str], FeatureService],
+    features: List[str],
     all_feature_views: List[FeatureView],
     all_on_demand_feature_views: List[OnDemandFeatureView],
 ) -> Tuple[
@@ -1109,21 +1109,14 @@ def _group_feature_refs(
     # on demand view name to feature names
     on_demand_view_features = defaultdict(list)
 
-    if isinstance(features, list) and isinstance(features[0], str):
-        for ref in features:
-            view_name, feat_name = ref.split(":")
-            if view_name in view_index:
-                views_features[view_name].append(feat_name)
-            elif view_name in on_demand_view_index:
-                on_demand_view_features[view_name].append(feat_name)
-            else:
-                raise FeatureViewNotFoundException(view_name)
-    elif isinstance(features, FeatureService):
-        for feature_projection in features.features:
-            projected_features = feature_projection.features
-            views_features[feature_projection.name].extend(
-                [f.name for f in projected_features]
-            )
+    for ref in features:
+        view_name, feat_name = ref.split(":")
+        if view_name in view_index:
+            views_features[view_name].append(feat_name)
+        elif view_name in on_demand_view_index:
+            on_demand_view_features[view_name].append(feat_name)
+        else:
+            raise FeatureViewNotFoundException(view_name)
 
     fvs_result: List[Tuple[FeatureView, List[str]]] = []
     odfvs_result: List[Tuple[OnDemandFeatureView, List[str]]] = []
