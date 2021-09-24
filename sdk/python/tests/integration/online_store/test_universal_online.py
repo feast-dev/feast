@@ -249,9 +249,7 @@ def assert_feature_service_correctness(
     feature_service_keys = feature_service_online_features_dict.keys()
 
     assert (
-        len(feature_service_keys)
-        == sum([len(projection.features) for projection in feature_service.features])
-        + 3
+        len(feature_service_keys) == len(feature_service.features) + 3
     )  # Add two for the driver id and the customer id entity keys and val_to_add request data
 
     for i, entity_row in enumerate(entity_rows):

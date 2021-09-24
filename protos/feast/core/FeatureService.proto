@@ -19,6 +19,9 @@ message FeatureService {
 }
 
 message FeatureServiceSpec {
+  // was previously used with 'repeated FeatureViewProjection features'
+  reserved 3;
+
   // Name of the Feature Service. Must be unique. Not updated.
   string name = 1;
 
@@ -27,19 +30,19 @@ message FeatureServiceSpec {
 
   // List of features that this feature service encapsulates.
   // Stored as a list of references to other features views and the features from those views.
-  repeated string features = 3;
+  repeated string features = 6;
 
-  repeated FeatureTable feature_tables = 4;
+  repeated FeatureTable feature_tables = 7;
 
-  repeated FeatureView feature_views = 5;
+  repeated FeatureView feature_views = 8;
 
-  repeated OnDemandFeatureView on_demand_feature_views = 6;
+  repeated OnDemandFeatureView on_demand_feature_views = 9;
 
   // User defined metadata
-  map<string,string> tags = 7;
+  map<string,string> tags = 4;
 
   // Description of the feature service.
-  string description = 8;
+  string description = 5;
 }
 
 
