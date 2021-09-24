@@ -146,8 +146,9 @@ class FeatureNameCollisionError(Exception):
         if full_feature_names:
             collisions = [ref.replace(":", "__") for ref in feature_refs_collisions]
             error_message = (
-                "To resolve this collision, please ensure that the features in question "
-                "have different names."
+                "To resolve this collision, please ensure that the feature views or their own features "
+                "have different names. If you're intentionally joining the same feature view twice on "
+                "different sets of entities, please rename one of the feature views with '.with_name'."
             )
         else:
             collisions = [ref.split(":")[1] for ref in feature_refs_collisions]
