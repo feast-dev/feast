@@ -25,3 +25,25 @@ Feature services are used during
 Applying a feature service does not result in an actual service being deployed.
 {% endhint %}
 
+Feature services can be retrieved from the feature store, and referenced when retrieving features from the online store.
+
+```python
+from feast import FeatureStore
+feature_store = FeatureStore('.')  # Initialize the feature store
+
+feature_service = feature_store.get_feature_service("driver_activity")
+features = feature_store.get_online_features(
+    features=feature_service, entity_rows=[entity_dict]
+)
+```
+
+Feature services can also be used when retrieving historical features from the offline store.
+
+```python
+from feast import FeatureStore
+feature_store = FeatureStore('.')  # Initialize the feature store
+
+feature_service = feature_store.get_feature_service("driver_activity")
+feature_store.get_historical_features(features=feature_service, entity_df=entity_df)
+```
+

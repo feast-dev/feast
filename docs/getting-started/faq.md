@@ -12,11 +12,19 @@ The [quickstart](quickstart.md) is the easiest way to learn about Feast. For mor
 
 Feature tables from Feast 0.9 have been renamed to feature views in Feast 0.10+. For more details, please see the discussion [here](https://github.com/feast-dev/feast/issues/1583).
 
+### Do feature views have to include entities?
+
+No, there are [feature views without entities](concepts/feature-view.md#feature-views-without-entities).
+
 ## Functionality
 
 ### Does Feast provide security or access control?
 
 Feast currently does not support any access control other than the access control required for the Provider's environment \(for example, GCP and AWS permissions\).
+
+### Does Feast support streaming sources?
+
+Feast is actively working on this right now. Please reach out to the Feast team if you're interested in giving feedback! 
 
 ### Does Feast support composite keys?
 
@@ -25,6 +33,21 @@ A feature view can be defined with multiple entities. Since each entity has a un
 ### How does Feast compare with Tecton?
 
 Please see a detailed comparison of Feast vs. Tecton [here](https://www.tecton.ai/feast/). For another comparison, please see [here](https://mlops.community/learn/feature-store/).
+
+### What are the performance/latency characteristics of Feast?
+
+Feast is designed to work at scale and support low latency online serving. Benchmarks to be released soon, and active work is underway to support very latency sensitive use cases.
+
+### Does Feast support embeddings and list features?
+
+Yes. Specifically:
+
+* Simple lists / dense embeddings: 
+  * BigQuery supports list types natively 
+  * Redshift does not support list types, so you'll need to serialize these features into strings \(e.g. json or protocol buffers\)
+  * Feast's implementation of online stores serializes features into Feast protocol buffers and supports list types \(see [reference](https://github.com/feast-dev/feast/blob/master/docs/specs/online_store_format.md#appendix-a-value-proto-format)\)
+* Sparse embeddings \(e.g. one hot encodings\)
+  * One way to do this efficiently is to have a protobuf or string representation of [https://www.tensorflow.org/guide/sparse\_tensor](https://www.tensorflow.org/guide/sparse_tensor)
 
 ### Does Feast support X storage engine?
 

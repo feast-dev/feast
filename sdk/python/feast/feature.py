@@ -39,6 +39,8 @@ class Feature:
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
+        if dtype is ValueType.UNKNOWN:
+            raise ValueError(f"dtype cannot be {dtype}")
         self._dtype = dtype
         if labels is None:
             self._labels = dict()
@@ -59,7 +61,7 @@ class Feature:
 
     def __repr__(self):
         # return string representation of the reference
-        return self.name
+        return f"{self.name}-{self.dtype}"
 
     def __str__(self):
         # readable string of the reference

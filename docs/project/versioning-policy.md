@@ -38,7 +38,7 @@ Application status indicators for Feast:
 | [Feast Go Client](https://github.com/feast-dev/feast) | Beta |  |
 | [Feast Spark Python SDK](https://github.com/feast-dev/feast-spark) | Alpha |  |
 | [Feast Spark Launchers](https://github.com/feast-dev/feast-spark) | Alpha |  |
-| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | At risk of deprecation |
+| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | Scheduled for deprecation |
 | [Feast Helm Chart](https://github.com/feast-dev/feast-helm-charts) | Beta |  |
 |  |  |  |
 

@@ -24,12 +24,15 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 )
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
+    create_conv_rate_request_data_source,
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
+    create_global_stats_feature_view,
+    create_order_feature_view,
 )
 
 
-@dataclass(frozen=True, repr=True)
+@dataclass(frozen=True)
 class IntegrationTestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
@@ -41,8 +44,18 @@ class IntegrationTestRepoConfig:
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
 
     full_feature_names: bool = True
-    infer_event_timestamp_col: bool = True
     infer_features: bool = False
+
+    def __repr__(self) -> str:
+        return "-".join(
+            [
+                f"Provider: {self.provider}",
+                f"{self.offline_store_creator.__name__.split('.')[-1].rstrip('DataSourceCreator')}",
+                self.online_store
+                if isinstance(self.online_store, str)
+                else self.online_store["type"],
+            ]
+        )
 
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
@@ -92,12 +105,20 @@ def construct_universal_datasets(
     orders_df = driver_test_data.create_orders_df(
         customers=entities["customer"],
         drivers=entities["driver"],
-        start_date=end_time - timedelta(days=3),
-        end_date=end_time + timedelta(days=3),
+        start_date=start_time,
+        end_date=end_time,
         order_count=20,
     )
+    global_df = driver_test_data.create_global_daily_stats_df(start_time, end_time)
+    entity_df = orders_df[["customer_id", "driver_id", "order_id", "event_timestamp"]]
 
-    return {"customer": customer_df, "driver": driver_df, "orders": orders_df}
+    return {
+        "customer": customer_df,
+        "driver": driver_df,
+        "orders": orders_df,
+        "global": global_df,
+        "entity": entity_df,
+    }
 
 
 def construct_universal_data_sources(
@@ -119,9 +140,20 @@ def construct_universal_data_sources(
         datasets["orders"],
         destination_name="orders",
         event_timestamp_column="event_timestamp",
+        created_timestamp_column=None,
+    )
+    global_ds = data_source_creator.create_data_source(
+        datasets["global"],
+        destination_name="global",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
     )
-    return {"customer": customer_ds, "driver": driver_ds, "orders": orders_ds}
+    return {
+        "customer": customer_ds,
+        "driver": driver_ds,
+        "orders": orders_ds,
+        "global": global_ds,
+    }
 
 
 def construct_universal_feature_views(
@@ -134,8 +166,15 @@ def construct_universal_feature_views(
         "customer": create_customer_daily_profile_feature_view(
             data_sources["customer"]
         ),
+        "global": create_global_stats_feature_view(data_sources["global"]),
         "driver": driver_hourly_stats,
-        "driver_odfv": conv_rate_plus_100_feature_view({"driver": driver_hourly_stats}),
+        "driver_odfv": conv_rate_plus_100_feature_view(
+            {
+                "driver": driver_hourly_stats,
+                "input_request": create_conv_rate_request_data_source(),
+            }
+        ),
+        "order": create_order_feature_view(data_sources["orders"]),
     }
 
 

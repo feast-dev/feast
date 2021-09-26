@@ -12,7 +12,7 @@ from pydantic.typing import Literal
 from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.utils import aws_utils
@@ -81,7 +81,9 @@ class RedshiftOfflineStore(OfflineStore):
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         query = f"""
-            SELECT {field_string}
+            SELECT
+                {field_string}
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
             FROM (
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
@@ -168,8 +170,8 @@ class RedshiftOfflineStore(OfflineStore):
             s3_resource=s3_resource,
             config=config,
             full_feature_names=full_feature_names,
-            on_demand_feature_views=registry.list_on_demand_feature_views(
-                project=project, allow_cache=True
+            on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+                feature_refs, project, registry
             ),
             drop_columns=["entity_timestamp"]
             + [
@@ -232,7 +234,7 @@ class RedshiftRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
                 self._redshift_client,
@@ -246,7 +248,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._drop_columns,
             )
 
-    def to_arrow(self) -> pa.Table:
+    def _to_arrow_internal(self) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
                 self._redshift_client,
@@ -262,6 +264,11 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_s3(self) -> str:
         """ Export dataset to S3 in Parquet format and return path """
+        if self.on_demand_feature_views is not None:
+            transformed_df = self.to_df()
+            aws_utils.upload_df_to_s3(self._s3_resource, self._s3_path, transformed_df)
+            return self._s3_path
+
         with self._query_generator() as query:
             aws_utils.execute_redshift_query_and_unload_to_s3(
                 self._redshift_client,
@@ -277,6 +284,21 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_redshift(self, table_name: str) -> None:
         """ Save dataset as a new Redshift table """
+        if self.on_demand_feature_views is not None:
+            transformed_df = self.to_df()
+            aws_utils.upload_df_to_redshift(
+                self._redshift_client,
+                self._config.offline_store.cluster_id,
+                self._config.offline_store.database,
+                self._config.offline_store.user,
+                self._s3_resource,
+                f"{self._config.offline_store.s3_staging_location}/features_df/{table_name}.parquet",
+                self._config.offline_store.iam_role,
+                table_name,
+                transformed_df,
+            )
+            return
+
         with self._query_generator() as query:
             query = f'CREATE TABLE "{table_name}" AS ({query});\n'
             if self._drop_columns is not None:
@@ -354,12 +376,16 @@ WITH entity_dataframe AS (
     SELECT *,
         {{entity_df_event_timestamp_col}} AS entity_timestamp
         {% for featureview in featureviews %}
-            ,CONCAT(
+            {% if featureview.entities %}
+            ,(
                 {% for entity in featureview.entities %}
-                    CAST({{entity}} AS VARCHAR),
+                    CAST({{entity}} as VARCHAR) ||
                 {% endfor %}
                 CAST({{entity_df_event_timestamp_col}} AS VARCHAR)
             ) AS {{featureview.name}}__entity_row_unique_id
+            {% else %}
+            ,CAST({{entity_df_event_timestamp_col}} AS VARCHAR) AS {{featureview.name}}__entity_row_unique_id
+            {% endif %}
         {% endfor %}
     FROM {{ left_table_query_string }}
 ),
@@ -368,11 +394,14 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__entity_dataframe AS (
     SELECT
-        {{ featureview.entities | join(', ')}},
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
         entity_timestamp,
         {{featureview.name}}__entity_row_unique_id
     FROM entity_dataframe
-    GROUP BY {{ featureview.entities | join(', ')}}, entity_timestamp, {{featureview.name}}__entity_row_unique_id
+    GROUP BY
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+        entity_timestamp,
+        {{featureview.name}}__entity_row_unique_id
 ),
 
 /*
@@ -396,7 +425,7 @@ WITH entity_dataframe AS (
     SELECT
         {{ featureview.event_timestamp_column }} as event_timestamp,
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
-        {{ featureview.entity_selections | join(', ')}},
+        {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}

@@ -21,7 +21,7 @@ import click
 import pkg_resources
 import yaml
 
-from feast import utils
+from feast import flags, flags_helper, utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
@@ -239,7 +239,7 @@ def feature_view_list(ctx: click.Context):
 @cli.group(name="on-demand-feature-views")
 def on_demand_feature_views_cmd():
     """
-    Access feature views
+    [Experimental] Access on demand feature views
     """
     pass
 
@@ -249,7 +249,7 @@ def on_demand_feature_views_cmd():
 @click.pass_context
 def on_demand_feature_view_describe(ctx: click.Context, name: str):
     """
-    Describe an on demand feature view
+    [Experimental] Describe an on demand feature view
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
@@ -274,7 +274,7 @@ def on_demand_feature_view_describe(ctx: click.Context, name: str):
 @click.pass_context
 def on_demand_feature_view_list(ctx: click.Context):
     """
-    List all on demand feature views
+    [Experimental] List all on demand feature views
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
@@ -415,12 +415,119 @@ def init_command(project_directory, minimal: bool, template: str):
 )
 @click.pass_context
 def serve_command(ctx: click.Context, port: int):
-    """Start a the feature consumption server locally on a given port."""
+    """[Experimental] Start a the feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
 
     store.serve(port)
+
+
+@cli.group(name="alpha")
+def alpha_cmd():
+    """
+    Access alpha features
+    """
+    pass
+
+
+@alpha_cmd.command("list")
+@click.pass_context
+def list_alpha_features(ctx: click.Context):
+    """
+    Lists all alpha features
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    flags_to_show = flags.FLAG_NAMES.copy()
+    flags_to_show.remove(flags.FLAG_ALPHA_FEATURES_NAME)
+    print("Alpha features:")
+    for flag in flags_to_show:
+        enabled_string = (
+            "enabled"
+            if flags_helper.feature_flag_enabled(store.config, flag)
+            else "disabled"
+        )
+        print(f"{flag}: {enabled_string}")
+
+
+@alpha_cmd.command("enable-all")
+@click.pass_context
+def enable_alpha_features(ctx: click.Context):
+    """
+    Enables all alpha features
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    if store.config.flags is None:
+        store.config.flags = {}
+    for flag_name in flags.FLAG_NAMES:
+        store.config.flags[flag_name] = True
+    store.config.write_to_path(Path(repo_path))
+
+
+@alpha_cmd.command("enable")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def enable_alpha_feature(ctx: click.Context, name: str):
+    """
+    Enables an alpha feature
+    """
+    if name not in flags.FLAG_NAMES:
+        raise ValueError(f"Flag name, {name}, not valid.")
+
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    if store.config.flags is None:
+        store.config.flags = {}
+    store.config.flags[flags.FLAG_ALPHA_FEATURES_NAME] = True
+    store.config.flags[name] = True
+    store.config.write_to_path(Path(repo_path))
+
+
+@alpha_cmd.command("disable")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def disable_alpha_feature(ctx: click.Context, name: str):
+    """
+    Disables an alpha feature
+    """
+    if name not in flags.FLAG_NAMES:
+        raise ValueError(f"Flag name, {name}, not valid.")
+
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    if store.config.flags is None or name not in store.config.flags:
+        return
+    store.config.flags[name] = False
+    store.config.write_to_path(Path(repo_path))
+
+
+@alpha_cmd.command("disable-all")
+@click.pass_context
+def disable_alpha_features(ctx: click.Context):
+    """
+    Disables all alpha features
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_path = str(repo)
+    store = FeatureStore(repo_path=repo_path)
+
+    store.config.flags = None
+    store.config.write_to_path(Path(repo_path))
 
 
 if __name__ == "__main__":

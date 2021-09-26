@@ -134,7 +134,7 @@ def test_exception_usage_off():
 @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(7))
 def ensure_bigquery_usage_id_with_retry(usage_id):
     rows = read_bigquery_usage_id(usage_id)
-    if rows.total_rows != 1:
+    if rows.total_rows == 0:
         raise Exception(f"Could not find usage id: {usage_id}")
 
 

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,12 @@ from pydantic import (
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
+from feast import flags
+from feast.errors import (
+    FeastFeatureServerTypeInvalidError,
+    FeastFeatureServerTypeSetError,
+    FeastProviderNotSetError,
+)
 from feast.importer import get_class_from_type
 from feast.usage import log_exceptions
 
@@ -34,6 +41,10 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "maxcompute": "feast.infra.offline_stores.maxcompute.MaxcomputeOfflineStore",
 }
 
+FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
+    "aws_lambda": "feast.infra.feature_servers.aws_lambda.config.AwsLambdaFeatureServerConfig",
+}
+
 
 class FeastBaseModel(BaseModel):
     """ Feast Pydantic Configuration Class """
@@ -53,6 +64,9 @@ class FeastConfigBaseModel(BaseModel):
 
 class RegistryConfig(FeastBaseModel):
     """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
+
+    registry_store_type: Optional[StrictStr]
+    """ str: Provider name or a class name that implements RegistryStore. """
 
     path: StrictStr
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
@@ -85,6 +99,12 @@ class RepoConfig(FeastBaseModel):
     offline_store: Any
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
+    feature_server: Optional[Any]
+    """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    flags: Any
+    """ Flags: Feature flags for experimental features (optional) """
+
     repo_path: Optional[Path] = None
 
     def __init__(self, **data: Any):
@@ -103,6 +123,11 @@ class RepoConfig(FeastBaseModel):
             )(**self.offline_store)
         elif isinstance(self.offline_store, str):
             self.offline_store = get_offline_config_from_type(self.offline_store)()
+
+        if isinstance(self.feature_server, Dict):
+            self.feature_server = get_feature_server_config_from_type(
+                self.feature_server["type"]
+            )(**self.feature_server)
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -193,6 +218,43 @@ class RepoConfig(FeastBaseModel):
 
         return values
 
+    @root_validator(pre=True)
+    def _validate_feature_server_config(cls, values):
+        # Having no feature server is the default.
+        if "feature_server" not in values:
+            return values
+
+        # Skip if we aren't creating the configuration from a dict
+        if not isinstance(values["feature_server"], Dict):
+            return values
+
+        # Make sure that the provider configuration is set. We need it to set the defaults
+        if "provider" not in values:
+            raise FeastProviderNotSetError()
+
+        # Make sure that the type is not set, since we will set it based on the provider.
+        if "type" in values["feature_server"]:
+            raise FeastFeatureServerTypeSetError(values["feature_server"]["type"])
+
+        # Set the default type. We only support AWS Lambda for now.
+        if values["provider"] == "aws":
+            values["feature_server"]["type"] = "aws_lambda"
+
+        feature_server_type = values["feature_server"]["type"]
+
+        # Validate the dict to ensure one of the union types match
+        try:
+            feature_server_config_class = get_feature_server_config_from_type(
+                feature_server_type
+            )
+            feature_server_config_class(**values["feature_server"])
+        except ValidationError as e:
+            raise ValidationError(
+                [ErrorWrapper(e, loc="feature_server")], model=RepoConfig,
+            )
+
+        return values
+
     @validator("project")
     def _validate_project_name(cls, v):
         from feast.repo_operations import is_valid_name
@@ -203,6 +265,35 @@ class RepoConfig(FeastBaseModel):
                 f"alphanumerical values and underscores but not start with an underscore."
             )
         return v
+
+    @validator("flags")
+    def _validate_flags(cls, v):
+        if not isinstance(v, Dict):
+            return
+
+        for flag_name, val in v.items():
+            if flag_name not in flags.FLAG_NAMES:
+                raise ValueError(f"Flag name, {flag_name}, not valid.")
+            if type(val) is not bool:
+                raise ValueError(f"Flag value, {val}, not valid.")
+
+        return v
+
+    def write_to_path(self, repo_path: Path):
+        config_path = repo_path / "feature_store.yaml"
+        with open(config_path, mode="w") as f:
+            yaml.dump(
+                yaml.safe_load(
+                    self.json(
+                        exclude={"repo_path"},
+                        exclude_none=True,
+                        exclude_unset=True,
+                        exclude_defaults=True,
+                    )
+                ),
+                f,
+                sort_keys=False,
+            )
 
 
 class FeastConfigError(Exception):
@@ -247,11 +338,21 @@ def get_offline_config_from_type(offline_store_type: str):
     return get_class_from_type(module_name, config_class_name, config_class_name)
 
 
+def get_feature_server_config_from_type(feature_server_type: str):
+    # We do not support custom feature servers right now.
+    if feature_server_type not in FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE:
+        raise FeastFeatureServerTypeInvalidError(feature_server_type)
+
+    feature_server_type = FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE[feature_server_type]
+    module_name, config_class_name = feature_server_type.rsplit(".", 1)
+    return get_class_from_type(module_name, config_class_name, config_class_name)
+
+
 def load_repo_config(repo_path: Path) -> RepoConfig:
     config_path = repo_path / "feature_store.yaml"
 
     with open(config_path) as f:
-        raw_config = yaml.safe_load(f)
+        raw_config = yaml.safe_load(os.path.expandvars(f.read()))
         try:
             c = RepoConfig(**raw_config)
             c.repo_path = repo_path

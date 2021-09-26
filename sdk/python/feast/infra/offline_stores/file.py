@@ -9,7 +9,7 @@ from pydantic.typing import Literal
 from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -51,12 +51,12 @@ class FileRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return df
 
-    def to_arrow(self):
+    def _to_arrow_internal(self):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return pyarrow.Table.from_pandas(df)
@@ -91,8 +91,13 @@ class FileOfflineStore(OfflineStore):
                 raise ValueError(
                     f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
-        feature_views_to_features = _get_requested_feature_views_to_features_dict(
-            feature_refs, feature_views
+        (
+            feature_views_to_features,
+            on_demand_feature_views_to_features,
+        ) = _get_requested_feature_views_to_features_dict(
+            feature_refs,
+            feature_views,
+            registry.list_on_demand_feature_views(config.project),
         )
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -217,7 +222,7 @@ class FileOfflineStore(OfflineStore):
                     df_to_join,
                     left_on=entity_df_event_timestamp_col,
                     right_on=event_timestamp_column,
-                    by=right_entity_columns,
+                    by=right_entity_columns or None,
                     tolerance=feature_view.ttl,
                 )
 
@@ -242,8 +247,8 @@ class FileOfflineStore(OfflineStore):
         job = FileRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
             full_feature_names=full_feature_names,
-            on_demand_feature_views=registry.list_on_demand_feature_views(
-                project, allow_cache=True
+            on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+                feature_refs, project, registry
             ),
         )
         return job
@@ -296,13 +301,19 @@ class FileOfflineStore(OfflineStore):
                 (source_df[event_timestamp_column] >= start_date)
                 & (source_df[event_timestamp_column] < end_date)
             ]
-            last_values_df = filtered_df.drop_duplicates(
-                join_key_columns, keep="last", ignore_index=True
-            )
 
             columns_to_extract = set(
                 join_key_columns + feature_name_columns + ts_columns
             )
+            if join_key_columns:
+                last_values_df = filtered_df.drop_duplicates(
+                    join_key_columns, keep="last", ignore_index=True
+                )
+            else:
+                last_values_df = filtered_df
+                last_values_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                columns_to_extract.add(DUMMY_ENTITY_ID)
+
             return last_values_df[columns_to_extract]
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized

@@ -3,7 +3,6 @@ import os
 import random
 import re
 import sys
-from datetime import timedelta
 from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Set, Tuple, Union
@@ -333,11 +332,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
-    registry = Registry(
-        registry_path=registry_config.path,
-        repo_path=repo_path,
-        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
-    )
+    registry = Registry(registry_config=registry_config, repo_path=repo_path)
 
     for entity in registry.list_entities(project=project):
         print(entity)

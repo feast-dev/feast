@@ -9,11 +9,11 @@ This guide is targeted at developers looking to contribute to Feast:
 * [Feast Data Storage Format](development-guide.md#feast-data-storage-format)
 * [Feast Protobuf API](development-guide.md#feast-protobuf-api)
 
-> Learn How the Feast [Contributing Process](https://docs.feast.dev/contributing/contributing) works.
+> Learn How the Feast [Contributing Process](contributing.md) works.
 
 ## Project Structure
 
-Feast is composed of [multiple components](https://docs.feast.dev/v/master/concepts/architecture#components) distributed into multiple repositories:
+Feast is composed of [multiple components](../getting-started/architecture-and-components/) distributed into multiple repositories:
 
 <table>
   <thead>

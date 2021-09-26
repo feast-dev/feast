@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import uuid
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
-from tempfile import TemporaryFile
 from typing import List, Optional, Set
 from urllib.parse import urlparse
 
+from feast import importer
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -29,16 +26,53 @@ from feast.errors import (
     FeatureTableNotFoundException,
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
-    S3RegistryBucketForbiddenAccess,
-    S3RegistryBucketNotExist,
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.repo_config import RegistryConfig
 
 REGISTRY_SCHEMA_VERSION = "1"
+
+
+REGISTRY_STORE_CLASS_FOR_TYPE = {
+    "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
+    "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
+    "LocalRegistryStore": "feast.infra.local.LocalRegistryStore",
+}
+
+REGISTRY_STORE_CLASS_FOR_SCHEME = {
+    "gs": "GCSRegistryStore",
+    "s3": "S3RegistryStore",
+    "file": "LocalRegistryStore",
+    "": "LocalRegistryStore",
+}
+
+
+def get_registry_store_class_from_type(registry_store_type: str):
+    if not registry_store_type.endswith("RegistryStore"):
+        raise Exception('Registry store class name should end with "RegistryStore"')
+    if registry_store_type in REGISTRY_STORE_CLASS_FOR_TYPE:
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_TYPE[registry_store_type]
+    module_name, registry_store_class_name = registry_store_type.rsplit(".", 1)
+
+    return importer.get_class_from_type(
+        module_name, registry_store_class_name, "RegistryStore"
+    )
+
+
+def get_registry_store_class_from_scheme(registry_path: str):
+    uri = urlparse(registry_path)
+    if uri.scheme not in REGISTRY_STORE_CLASS_FOR_SCHEME:
+        raise Exception(
+            f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
+            f"Supported schemes are file, s3 and gs."
+        )
+    else:
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME[uri.scheme]
+        return get_registry_store_class_from_type(registry_store_type)
 
 
 class Registry:
@@ -54,31 +88,28 @@ class Registry:
     cached_registry_proto_ttl: timedelta
     cache_being_updated: bool = False
 
-    def __init__(self, registry_path: str, repo_path: Path, cache_ttl: timedelta):
+    def __init__(self, registry_config: RegistryConfig, repo_path: Path):
         """
         Create the Registry object.
 
         Args:
+            registry_config: RegistryConfig object containing the destination path and cache ttl,
             repo_path: Path to the base of the Feast repository
-            cache_ttl: The amount of time that cached registry state stays valid
-            registry_path: filepath or GCS URI that is the location of the object store registry,
             or where it will be created if it does not exist yet.
         """
-        uri = urlparse(registry_path)
-        if uri.scheme == "gs":
-            self._registry_store: RegistryStore = GCSRegistryStore(registry_path)
-        elif uri.scheme == "s3":
-            self._registry_store = S3RegistryStore(registry_path)
-        elif uri.scheme == "file" or uri.scheme == "":
-            self._registry_store = LocalRegistryStore(
-                repo_path=repo_path, registry_path_string=registry_path
-            )
+        registry_store_type = registry_config.registry_store_type
+        registry_path = registry_config.path
+        if registry_store_type is None:
+            cls = get_registry_store_class_from_scheme(registry_path)
         else:
-            raise Exception(
-                f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
-                f"Supported schemes are file and gs."
-            )
-        self.cached_registry_proto_ttl = cache_ttl
+            cls = get_registry_store_class_from_type(str(registry_store_type))
+
+        self._registry_store = cls(registry_config, repo_path)
+        self.cached_registry_proto_ttl = timedelta(
+            seconds=registry_config.cache_ttl_seconds
+            if registry_config.cache_ttl_seconds is not None
+            else 0
+        )
 
     def _initialize_registry(self):
         """Explicitly initializes the registry with an empty proto if it doesn't exist."""
@@ -656,201 +687,3 @@ class Registry:
                 for odfv in self.cached_registry_proto.on_demand_feature_views
             ]
         )
-
-
-class RegistryStore(ABC):
-    """
-    RegistryStore: abstract base class implemented by specific backends (local file system, GCS)
-    containing lower level methods used by the Registry class that are backend-specific.
-    """
-
-    @abstractmethod
-    def get_registry_proto(self):
-        """
-        Retrieves the registry proto from the registry path. If there is no file at that path,
-        raises a FileNotFoundError.
-
-        Returns:
-            Returns either the registry proto stored at the registry path, or an empty registry proto.
-        """
-        pass
-
-    @abstractmethod
-    def update_registry_proto(self, registry_proto: RegistryProto):
-        """
-        Overwrites the current registry proto with the proto passed in. This method
-        writes to the registry path.
-
-        Args:
-            registry_proto: the new RegistryProto
-        """
-        pass
-
-    @abstractmethod
-    def teardown(self):
-        """
-        Tear down all resources.
-        """
-        pass
-
-
-class LocalRegistryStore(RegistryStore):
-    def __init__(self, repo_path: Path, registry_path_string: str):
-        registry_path = Path(registry_path_string)
-        if registry_path.is_absolute():
-            self._filepath = registry_path
-        else:
-            self._filepath = repo_path.joinpath(registry_path)
-
-    def get_registry_proto(self):
-        registry_proto = RegistryProto()
-        if self._filepath.exists():
-            registry_proto.ParseFromString(self._filepath.read_bytes())
-            return registry_proto
-        raise FileNotFoundError(
-            f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
-        )
-
-    def update_registry_proto(self, registry_proto: RegistryProto):
-        self._write_registry(registry_proto)
-
-    def teardown(self):
-        try:
-            self._filepath.unlink()
-        except FileNotFoundError:
-            # If the file deletion fails with FileNotFoundError, the file has already
-            # been deleted.
-            pass
-
-    def _write_registry(self, registry_proto: RegistryProto):
-        registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
-        file_dir = self._filepath.parent
-        file_dir.mkdir(exist_ok=True)
-        self._filepath.write_bytes(registry_proto.SerializeToString())
-
-
-class GCSRegistryStore(RegistryStore):
-    def __init__(self, uri: str):
-        try:
-            from google.cloud import storage
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("gcp", str(e))
-
-        self.gcs_client = storage.Client()
-        self._uri = urlparse(uri)
-        self._bucket = self._uri.hostname
-        self._blob = self._uri.path.lstrip("/")
-
-    def get_registry_proto(self):
-        from google.cloud import storage
-        from google.cloud.exceptions import NotFound
-
-        file_obj = TemporaryFile()
-        registry_proto = RegistryProto()
-        try:
-            bucket = self.gcs_client.get_bucket(self._bucket)
-        except NotFound:
-            raise Exception(
-                f"No bucket named {self._bucket} exists; please create it first."
-            )
-        if storage.Blob(bucket=bucket, name=self._blob).exists(self.gcs_client):
-            self.gcs_client.download_blob_to_file(
-                self._uri.geturl(), file_obj, timeout=30
-            )
-            file_obj.seek(0)
-            registry_proto.ParseFromString(file_obj.read())
-            return registry_proto
-        raise FileNotFoundError(
-            f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
-        )
-
-    def update_registry_proto(self, registry_proto: RegistryProto):
-        self._write_registry(registry_proto)
-
-    def teardown(self):
-        from google.cloud.exceptions import NotFound
-
-        gs_bucket = self.gcs_client.get_bucket(self._bucket)
-        try:
-            gs_bucket.delete_blob(self._blob)
-        except NotFound:
-            # If the blob deletion fails with NotFound, it has already been deleted.
-            pass
-
-    def _write_registry(self, registry_proto: RegistryProto):
-        registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
-        # we have already checked the bucket exists so no need to do it again
-        gs_bucket = self.gcs_client.get_bucket(self._bucket)
-        blob = gs_bucket.blob(self._blob)
-        file_obj = TemporaryFile()
-        file_obj.write(registry_proto.SerializeToString())
-        file_obj.seek(0)
-        blob.upload_from_file(file_obj)
-
-
-class S3RegistryStore(RegistryStore):
-    def __init__(self, uri: str):
-        try:
-            import boto3
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("aws", str(e))
-        self._uri = urlparse(uri)
-        self._bucket = self._uri.hostname
-        self._key = self._uri.path.lstrip("/")
-
-        self.s3_client = boto3.resource(
-            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
-        )
-
-    def get_registry_proto(self):
-        file_obj = TemporaryFile()
-        registry_proto = RegistryProto()
-        try:
-            from botocore.exceptions import ClientError
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("aws", str(e))
-        try:
-            bucket = self.s3_client.Bucket(self._bucket)
-            self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
-        except ClientError as e:
-            # If a client error is thrown, then check that it was a 404 error.
-            # If it was a 404 error, then the bucket does not exist.
-            error_code = int(e.response["Error"]["Code"])
-            if error_code == 404:
-                raise S3RegistryBucketNotExist(self._bucket)
-            else:
-                raise S3RegistryBucketForbiddenAccess(self._bucket) from e
-
-        try:
-            obj = bucket.Object(self._key)
-            obj.download_fileobj(file_obj)
-            file_obj.seek(0)
-            registry_proto.ParseFromString(file_obj.read())
-            return registry_proto
-        except ClientError as e:
-            raise FileNotFoundError(
-                f"Error while trying to locate Registry at path {self._uri.geturl()}"
-            ) from e
-
-    def update_registry_proto(self, registry_proto: RegistryProto):
-        self._write_registry(registry_proto)
-
-    def teardown(self):
-        self.s3_client.Object(self._bucket, self._key).delete()
-
-    def _write_registry(self, registry_proto: RegistryProto):
-        registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
-        # we have already checked the bucket exists so no need to do it again
-        file_obj = TemporaryFile()
-        file_obj.write(registry_proto.SerializeToString())
-        file_obj.seek(0)
-        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)

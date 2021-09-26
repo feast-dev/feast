@@ -6,6 +6,7 @@ from google.protobuf.json_format import MessageToJson
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
@@ -38,7 +39,9 @@ class FeatureService:
     def __init__(
         self,
         name: str,
-        features: List[Union[FeatureTable, FeatureView, FeatureViewProjection]],
+        features: List[
+            Union[FeatureTable, FeatureView, OnDemandFeatureView, FeatureViewProjection]
+        ],
         tags: Optional[Dict[str, str]] = None,
         description: Optional[str] = None,
     ):
@@ -51,7 +54,11 @@ class FeatureService:
         self.name = name
         self.features = []
         for feature in features:
-            if isinstance(feature, FeatureTable) or isinstance(feature, FeatureView):
+            if (
+                isinstance(feature, FeatureTable)
+                or isinstance(feature, FeatureView)
+                or isinstance(feature, OnDemandFeatureView)
+            ):
                 self.features.append(FeatureViewProjection.from_definition(feature))
             elif isinstance(feature, FeatureViewProjection):
                 self.features.append(feature)

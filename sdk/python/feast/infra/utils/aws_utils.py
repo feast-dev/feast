@@ -140,6 +140,30 @@ def get_redshift_statement_result(redshift_data_client, statement_id: str) -> di
     return redshift_data_client.get_statement_result(Id=statement_id)
 
 
+def upload_df_to_s3(s3_resource, s3_path: str, df: pd.DataFrame,) -> None:
+    """Uploads a Pandas DataFrame to S3 as a parquet file
+
+    Args:
+        s3_resource: S3 Resource object
+        s3_path: S3 path where the Parquet file is temporarily uploaded
+        df: The Pandas DataFrame to upload
+
+    Returns: None
+
+    """
+    bucket, key = get_bucket_and_key(s3_path)
+
+    # Drop the index so that we dont have unnecessary columns
+    df.reset_index(drop=True, inplace=True)
+
+    table = pa.Table.from_pandas(df)
+    # Write the PyArrow Table on disk in Parquet format and upload it to S3
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_path = f"{temp_dir}/{uuid.uuid4()}.parquet"
+        pq.write_table(table, file_path)
+        s3_resource.Object(bucket, key).put(Body=open(file_path, "rb"))
+
+
 def upload_df_to_redshift(
     redshift_data_client,
     cluster_id: str,
@@ -192,7 +216,7 @@ def upload_df_to_redshift(
     column_names, column_types = [], []
     for field in table.schema:
         column_names.append(field.name)
-        column_types.append(pa_to_redshift_value_type(str(field.type)))
+        column_types.append(pa_to_redshift_value_type(field.type))
     column_query_list = ", ".join(
         [
             f"{column_name} {column_type}"

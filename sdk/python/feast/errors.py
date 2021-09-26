@@ -50,6 +50,20 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"On demand feature view {name} does not exist")
 
 
+class RequestDataNotFoundInEntityDfException(FeastObjectNotFoundException):
+    def __init__(self, feature_name, feature_view_name):
+        super().__init__(
+            f"Feature {feature_name} not found in the entity dataframe, but required by on demand feature view {feature_view_name}"
+        )
+
+
+class RequestDataNotFoundInEntityRowsException(FeastObjectNotFoundException):
+    def __init__(self, feature_names):
+        super().__init__(
+            f"Required request data source features {feature_names} not found in the entity rows, but required by on demand feature views"
+        )
+
+
 class FeatureTableNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:
@@ -77,6 +91,25 @@ class FeastProviderLoginError(Exception):
 class FeastProviderNotImplementedError(Exception):
     def __init__(self, provider_name):
         super().__init__(f"Provider '{provider_name}' is not implemented")
+
+
+class FeastProviderNotSetError(Exception):
+    def __init__(self):
+        super().__init__("Provider is not set, but is required")
+
+
+class FeastFeatureServerTypeSetError(Exception):
+    def __init__(self, feature_server_type: str):
+        super().__init__(
+            f"Feature server type was set to {feature_server_type}, but the type should be determined by the provider"
+        )
+
+
+class FeastFeatureServerTypeInvalidError(Exception):
+    def __init__(self, feature_server_type: str):
+        super().__init__(
+            f"Feature server type was set to {feature_server_type}, but this type is invalid"
+        )
 
 
 class FeastModuleImportError(Exception):
@@ -129,6 +162,14 @@ class FeatureNameCollisionError(Exception):
         )
 
 
+class SpecifiedFeaturesNotPresentError(Exception):
+    def __init__(self, specified_features: List[str], feature_view_name: str):
+        features = ", ".join(specified_features)
+        super().__init__(
+            f"Explicitly specified features {features} not found in inferred list of features for '{feature_view_name}'"
+        )
+
+
 class FeastOnlineStoreInvalidName(Exception):
     def __init__(self, online_store_class_name: str):
         super().__init__(
@@ -166,6 +207,14 @@ class FeastJoinKeysDuringMaterialization(Exception):
         super().__init__(
             f"The DataFrame from {source} being materialized must have at least {join_key_columns} columns present, "
             f"but these were missing: {join_key_columns - source_columns} "
+        )
+
+
+class DockerDaemonNotRunning(Exception):
+    def __init__(self):
+        super().__init__(
+            "The Docker Python sdk cannot connect to the Docker daemon. Please make sure you have"
+            "the docker daemon installed, and that it is running."
         )
 
 
@@ -241,4 +290,12 @@ class ConflictingFeatureViewNames(Exception):
     def __init__(self, feature_view_name: str):
         super().__init__(
             f"The feature view name: {feature_view_name} refers to both an on-demand feature view and a feature view"
+        )
+
+
+class ExperimentalFeatureNotEnabled(Exception):
+    def __init__(self, feature_flag_name: str):
+        super().__init__(
+            f"You are attempting to use an experimental feature that is not enabled. Please run "
+            f"`feast alpha enable {feature_flag_name}` "
         )

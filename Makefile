@@ -52,8 +52,11 @@ compile-protos-python:
 install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
+benchmark-python:
+	FEAST_USAGE=False IS_TEST=True pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+
 test-python:
-	FEAST_USAGE=False pytest -n 8 sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True pytest -n 8 sdk/python/tests
 
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True pytest -n 8 --integration sdk/python/tests
@@ -133,3 +136,6 @@ compile-protos-docs:
 
 build-sphinx: compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
+
+build-templates:
+	python infra/scripts/compile-templates.py

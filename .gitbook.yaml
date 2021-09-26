@@ -5,3 +5,4 @@ structure:
 
 redirects:
   reference/telemetry: ./reference/usage.md
+  quickstart: ./getting-started/quickstart.md

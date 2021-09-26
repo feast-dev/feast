@@ -1,3 +1,5 @@
+<!--Do not modify this file. It is auto-generated from a template (infra/templates/README.md.jinja2)-->
+
 <p align="center">
     <a href="https://feast.dev/">
       <img src="docs/assets/feast_logo.png" width="550">
@@ -19,12 +21,12 @@ Feast is an open source feature store for machine learning. Feast is the fastest
 
 Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
-## Architecture
+## 📐 Architecture
 <img src="https://i.imgur.com/IYUMF3Q.png" width="700">
 
 The above architecture is the minimal Feast deployment. Want to run the full Feast on GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-gcp-aws).
 
-## Getting Started
+## 🐣 Getting Started
 
 ### 1. Install Feast
 ```commandline
@@ -61,7 +63,7 @@ entity_df = pd.DataFrame.from_dict({
 store = FeatureStore(repo_path=".")
 
 training_df = store.get_historical_features(
-    entity_df=entity_df, 
+    entity_df=entity_df,
     features = [
         'driver_hourly_stats:conv_rate',
         'driver_hourly_stats:acc_rate',
@@ -123,23 +125,97 @@ pprint(feature_vector)
 }
 ```
 
-## Important resources
+## 📦 Functionality and Roadmap
+
+The list below contains the functionality that contributors are planning to develop for Feast
+
+* Items below that are in development \(or planned for development\) will be indicated in parentheses. 
+* We welcome contribution to all items in the roadmap!
+* Want to influence our roadmap and prioritization? Submit your feedback to [this form](https://docs.google.com/forms/d/e/1FAIpQLSfa1nRQ0sKz-JEFnMMCi4Jseag_yDssO_3nV9qMfxfrkil-wA/viewform).
+* Want to speak to a Feast contributor? We are more than happy to jump on a call. Please schedule a time using [Calendly](https://calendly.com/d/x2ry-g5bb/meet-with-feast-team).
+
+
+
+* **Data Sources**
+  * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
+  * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
+  * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
+  * [ ] Kafka source \(Planned for Q4 2021\)
+  * [ ] HTTP source
+  * [ ] Snowflake source
+  * [ ] Synapse source 
+* **Offline Stores**
+  * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
+  * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
+  * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
+  * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
+  * [x] [Hive \(community maintained\)](https://github.com/baineng/feast-hive)
+  * [ ] Snowflake 
+  * [ ] Synapse 
+* **Online Stores**
+  * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
+  * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
+  * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
+  * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
+  * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
+  * [ ] Postgres
+  * [ ] Bigtable
+  * [ ] Cassandra 
+* **Streaming**
+  * [ ] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
+  * [ ] Streaming ingestion on AWS \(Planned for Q4 2021\)
+  * [ ] Streaming ingestion on GCP 
+* **Feature Engineering**
+  * [ ] On-demand Transformations \(Development in progress. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#)\)
+  * [ ] Batch transformation \(SQL\)
+  * [ ] Streaming transformation 
+* **Deployments**
+  * [ ] AWS Lambda \(Development in progress. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit)\)
+  * [ ] Cloud Run
+  * [ ] Kubernetes
+  * [ ] KNative 
+* **Feature Serving**
+  * [x] Python Client
+  * [ ] REST Feature Server \(Python\) \(Development in progress. See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev_Wr6ZpnLzER4/edit)\)   
+  * [ ] gRPC Feature Server \(Java\) \(See [\#1497](https://github.com/feast-dev/feast/issues/1497)\)
+  * [ ] Java Client
+  * [ ] Go Client    
+  * [ ] Push API
+  * [ ] Delete API
+  * [ ] Feature Logging \(for training\) 
+* **Data Quality Management**
+  * [ ] Data profiling and validation \(Great Expectations\) \(Planned for Q4 2021\)
+  * [ ] Metric production
+  * [ ] Training-serving skew detection
+  * [ ] Drift detection
+  * [ ] Alerting 
+* **Feature Discovery and Governance**
+  * [x] Python SDK for browsing feature registry
+  * [x] CLI for browsing feature registry
+  * [x] Model-centric feature tracking \(feature services\)
+  * [ ] REST API for browsing feature registry
+  * [ ] Feast Web UI \(Planned for Q4 2021\)
+  * [ ] Feature versioning
+  * [ ] Amundsen integration
+
+
+
+## 🎓 Important Resources
 
 Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
  * [Quickstart](https://docs.feast.dev/getting-started/quickstart)
- * [Roadmap](https://docs.feast.dev/roadmap)
  * [Tutorials](https://docs.feast.dev/tutorials/tutorials-overview)
  * [Running Feast with GCP/AWS](https://docs.feast.dev/how-to-guides/feast-gcp-aws)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
  * [Slack (#Feast)](https://slack.feast.dev/)
 
-## Contributing
+## 👋 Contributing
 Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
 - [Contribution Process for Feast](https://docs.feast.dev/project/contributing)
 - [Development Guide for Feast](https://docs.feast.dev/project/development-guide)
 - [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
 
-## Contributors ✨
+## ✨ Contributors
 
 Thanks goes to these incredible people:
 

@@ -1,143 +1,144 @@
+import os
+import uuid
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from pathlib import Path
+from tempfile import TemporaryFile
+from urllib.parse import urlparse
 
-import pandas
-from tqdm import tqdm
+from colorama import Fore, Style
 
-from feast import FeatureTable
-from feast.entity import Entity
-from feast.feature_view import FeatureView
-from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.infra.online_stores.helpers import get_online_store_from_config
-from feast.infra.provider import (
-    Provider,
-    RetrievalJob,
-    _convert_arrow_to_proto,
-    _get_column_names,
-    _run_field_mapping,
-)
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry
-from feast.repo_config import RepoConfig
+import feast
+from feast.constants import AWS_LAMBDA_FEATURE_SERVER_IMAGE
+from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExist
+from feast.infra.passthrough_provider import PassthroughProvider
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.registry_store import RegistryStore
+from feast.repo_config import RegistryConfig
 
 
-class AwsProvider(Provider):
-    def __init__(self, config: RepoConfig):
-        self.repo_config = config
-        self.offline_store = get_offline_store_from_config(config.offline_store)
-        self.online_store = get_online_store_from_config(config.online_store)
+class AwsProvider(PassthroughProvider):
+    def _upload_docker_image(self) -> None:
+        import base64
 
-    def update_infra(
-        self,
-        project: str,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
-        entities_to_delete: Sequence[Entity],
-        entities_to_keep: Sequence[Entity],
-        partial: bool,
-    ):
-        self.online_store.update(
-            config=self.repo_config,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_keep=entities_to_keep,
-            entities_to_delete=entities_to_delete,
-            partial=partial,
+        try:
+            import boto3
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+
+        try:
+            import docker
+            from docker.errors import APIError
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("docker", str(e))
+
+        try:
+            docker_client = docker.from_env()
+        except APIError:
+            from feast.errors import DockerDaemonNotRunning
+
+            raise DockerDaemonNotRunning()
+
+        print(
+            f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{AWS_LAMBDA_FEATURE_SERVER_IMAGE}{Style.RESET_ALL}:"
         )
+        docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-    def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
-        entities: Sequence[Entity],
-    ) -> None:
-        self.online_store.teardown(self.repo_config, tables, entities)
-
-    def online_write_batch(
-        self,
-        config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
-        progress: Optional[Callable[[int], Any]],
-    ) -> None:
-        self.online_store.online_write_batch(config, table, data, progress)
-
-    def online_read(
-        self,
-        config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
-        entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        result = self.online_store.online_read(config, table, entity_keys)
-
-        return result
-
-    def materialize_single_feature_view(
-        self,
-        config: RepoConfig,
-        feature_view: FeatureView,
-        start_date: datetime,
-        end_date: datetime,
-        registry: Registry,
-        project: str,
-        tqdm_builder: Callable[[int], tqdm],
-    ) -> None:
-        entities = []
-        for entity_name in feature_view.entities:
-            entities.append(registry.get_entity(entity_name, project))
-
-        (
-            join_key_columns,
-            feature_name_columns,
-            event_timestamp_column,
-            created_timestamp_column,
-        ) = _get_column_names(feature_view, entities)
-
-        offline_job = self.offline_store.pull_latest_from_table_or_query(
-            config=config,
-            data_source=feature_view.batch_source,
-            join_key_columns=join_key_columns,
-            feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_timestamp_column,
-            created_timestamp_column=created_timestamp_column,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        table = offline_job.to_arrow()
-
-        if feature_view.batch_source.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
-
-        join_keys = [entity.join_key for entity in entities]
-        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
-
-        with tqdm_builder(len(rows_to_write)) as pbar:
-            self.online_write_batch(
-                self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
+        version = ".".join(feast.__version__.split(".")[:3])
+        repository_name = f"feast-python-server-{version}"
+        ecr_client = boto3.client("ecr")
+        try:
+            print(
+                f"Creating remote ECR repository {Style.BRIGHT + Fore.GREEN}{repository_name}{Style.RESET_ALL}:"
             )
+            response = ecr_client.create_repository(repositoryName=repository_name)
+            repository_uri = response["repository"]["repositoryUri"]
+        except ecr_client.exceptions.RepositoryAlreadyExistsException:
+            response = ecr_client.describe_repositories(
+                repositoryNames=[repository_name]
+            )
+            repository_uri = response["repositories"][0]["repositoryUri"]
 
-    def get_historical_features(
-        self,
-        config: RepoConfig,
-        feature_views: List[FeatureView],
-        feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
-        project: str,
-        full_feature_names: bool,
-    ) -> RetrievalJob:
-        job = self.offline_store.get_historical_features(
-            config=config,
-            feature_views=feature_views,
-            feature_refs=feature_refs,
-            entity_df=entity_df,
-            registry=registry,
-            project=project,
-            full_feature_names=full_feature_names,
+        auth_token = ecr_client.get_authorization_token()["authorizationData"][0][
+            "authorizationToken"
+        ]
+        username, password = base64.b64decode(auth_token).decode("utf-8").split(":")
+
+        ecr_address = repository_uri.split("/")[0]
+        docker_client.login(username=username, password=password, registry=ecr_address)
+
+        image = docker_client.images.get(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
+        image_remote_name = f"{repository_uri}:{version}"
+        print(
+            f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}:"
         )
-        return job
+        image.tag(image_remote_name)
+        docker_client.api.push(repository_uri, tag=version)
+
+
+class S3RegistryStore(RegistryStore):
+    def __init__(self, registry_config: RegistryConfig, repo_path: Path):
+        uri = registry_config.path
+        try:
+            import boto3
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        self._uri = urlparse(uri)
+        self._bucket = self._uri.hostname
+        self._key = self._uri.path.lstrip("/")
+
+        self.s3_client = boto3.resource(
+            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
+        )
+
+    def get_registry_proto(self):
+        file_obj = TemporaryFile()
+        registry_proto = RegistryProto()
+        try:
+            from botocore.exceptions import ClientError
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+        try:
+            bucket = self.s3_client.Bucket(self._bucket)
+            self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
+        except ClientError as e:
+            # If a client error is thrown, then check that it was a 404 error.
+            # If it was a 404 error, then the bucket does not exist.
+            error_code = int(e.response["Error"]["Code"])
+            if error_code == 404:
+                raise S3RegistryBucketNotExist(self._bucket)
+            else:
+                raise S3RegistryBucketForbiddenAccess(self._bucket) from e
+
+        try:
+            obj = bucket.Object(self._key)
+            obj.download_fileobj(file_obj)
+            file_obj.seek(0)
+            registry_proto.ParseFromString(file_obj.read())
+            return registry_proto
+        except ClientError as e:
+            raise FileNotFoundError(
+                f"Error while trying to locate Registry at path {self._uri.geturl()}"
+            ) from e
+
+    def update_registry_proto(self, registry_proto: RegistryProto):
+        self._write_registry(registry_proto)
+
+    def teardown(self):
+        self.s3_client.Object(self._bucket, self._key).delete()
+
+    def _write_registry(self, registry_proto: RegistryProto):
+        registry_proto.version_id = str(uuid.uuid4())
+        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        # we have already checked the bucket exists so no need to do it again
+        file_obj = TemporaryFile()
+        file_obj.write(registry_proto.SerializeToString())
+        file_obj.seek(0)
+        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)

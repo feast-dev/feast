@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Union
@@ -6,10 +5,12 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import pyarrow
+import pyarrow.parquet
 from pydantic import StrictStr
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -17,7 +18,7 @@ from feast.errors import (
     FeastProviderLoginError,
     InvalidEntityType,
 )
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -79,7 +80,9 @@ class BigQueryOfflineStore(OfflineStore):
 
         client = _get_bigquery_client(project=config.offline_store.project_id)
         query = f"""
-            SELECT {field_string}
+            SELECT
+                {field_string}
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
             FROM (
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
@@ -154,8 +157,8 @@ class BigQueryOfflineStore(OfflineStore):
             client=client,
             config=config,
             full_feature_names=full_feature_names,
-            on_demand_feature_views=registry.list_on_demand_feature_views(
-                project, allow_cache=True
+            on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+                feature_refs, project, registry
             ),
         )
 
@@ -183,7 +186,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
-    def to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self) -> pd.DataFrame:
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
@@ -219,6 +222,14 @@ class BigQueryRetrievalJob(RetrievalJob):
             path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
             job_config = bigquery.QueryJobConfig(destination=path)
 
+        if not job_config.dry_run and self.on_demand_feature_views is not None:
+            job = _write_pyarrow_table_to_bq(
+                self.client, self.to_arrow(), job_config.destination
+            )
+            job.result()
+            print(f"Done writing to '{job_config.destination}'.")
+            return str(job_config.destination)
+
         bq_job = self.client.query(self.query, job_config=job_config)
 
         if job_config.dry_run:
@@ -232,7 +243,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         print(f"Done writing to '{job_config.destination}'.")
         return str(job_config.destination)
 
-    def to_arrow(self) -> pyarrow.Table:
+    def _to_arrow_internal(self) -> pyarrow.Table:
         return self.client.query(self.query).to_arrow()
 
 
@@ -257,15 +268,13 @@ def block_until_done(
     """
 
     # For test environments, retry more aggressively
-    is_test = os.getenv("IS_TEST", default="False") == "True"
-    if is_test:
+    if flags_helper.is_test():
         retry_cadence = 0.1
 
-    def _wait_until_done(job_id):
-        if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
-            raise BigQueryJobStillRunning(job_id=job_id)
+    def _wait_until_done(bq_job):
+        if client.get_job(bq_job).state in ["PENDING", "RUNNING"]:
+            raise BigQueryJobStillRunning(job_id=bq_job.job_id)
 
-    job_id = bq_job.job_id
     try:
         retryer = Retrying(
             wait=wait_fixed(retry_cadence),
@@ -273,12 +282,12 @@ def block_until_done(
             retry=retry_if_exception_type(BigQueryJobStillRunning),
             reraise=True,
         )
-        retryer(_wait_until_done, job_id)
+        retryer(_wait_until_done, bq_job)
 
     finally:
-        if client.get_job(job_id).state in ["PENDING", "RUNNING"]:
-            client.cancel_job(job_id)
-            raise BigQueryJobCancelled(job_id=job_id)
+        if client.get_job(bq_job).state in ["PENDING", "RUNNING"]:
+            client.cancel_job(bq_job)
+            raise BigQueryJobCancelled(job_id=bq_job.job_id)
 
         if bq_job.exception():
             raise bq_job.exception()
@@ -320,12 +329,7 @@ def _upload_entity_df_and_get_entity_schema(
     elif isinstance(entity_df, pd.DataFrame):
         # Drop the index so that we dont have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
-
-        # Upload the dataframe into BigQuery, creating a temporary table
-        job_config = bigquery.LoadJobConfig()
-        job = client.load_table_from_dataframe(
-            entity_df, table_name, job_config=job_config
-        )
+        job = _write_df_to_bq(client, entity_df, table_name)
         block_until_done(client, job)
 
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
@@ -360,6 +364,44 @@ def _get_bigquery_client(project: Optional[str] = None):
     return client
 
 
+def _write_df_to_bq(
+    client: bigquery.Client, df: pd.DataFrame, table_name: str
+) -> bigquery.LoadJob:
+    # It is complicated to get BQ to understand that we want an ARRAY<value_type>
+    # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
+    # https://github.com/googleapis/python-bigquery/issues/19
+    writer = pyarrow.BufferOutputStream()
+    pyarrow.parquet.write_table(
+        pyarrow.Table.from_pandas(df), writer, use_compliant_nested_type=True
+    )
+    return _write_pyarrow_buffer_to_bq(client, writer.getvalue(), table_name,)
+
+
+def _write_pyarrow_table_to_bq(
+    client: bigquery.Client, table: pyarrow.Table, table_name: str
+) -> bigquery.LoadJob:
+    # It is complicated to get BQ to understand that we want an ARRAY<value_type>
+    # https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#parquetoptions
+    # https://github.com/googleapis/python-bigquery/issues/19
+    writer = pyarrow.BufferOutputStream()
+    pyarrow.parquet.write_table(table, writer, use_compliant_nested_type=True)
+    return _write_pyarrow_buffer_to_bq(client, writer.getvalue(), table_name,)
+
+
+def _write_pyarrow_buffer_to_bq(
+    client: bigquery.Client, buf: pyarrow.Buffer, table_name: str
+) -> bigquery.LoadJob:
+    reader = pyarrow.BufferReader(buf)
+
+    parquet_options = bigquery.format_options.ParquetOptions()
+    parquet_options.enable_list_inference = True
+    job_config = bigquery.LoadJobConfig()
+    job_config.source_format = bigquery.SourceFormat.PARQUET
+    job_config.parquet_options = parquet_options
+
+    return client.load_table_from_file(reader, table_name, job_config=job_config,)
+
+
 # TODO: Optimizations
 #   * Use GENERATE_UUID() instead of ROW_NUMBER(), or join on entity columns directly
 #   * Precompute ROW_NUMBER() so that it doesn't have to be recomputed for every query on entity_dataframe
@@ -376,12 +418,16 @@ WITH entity_dataframe AS (
     SELECT *,
         {{entity_df_event_timestamp_col}} AS entity_timestamp
         {% for featureview in featureviews %}
+            {% if featureview.entities %}
             ,CONCAT(
                 {% for entity in featureview.entities %}
                     CAST({{entity}} AS STRING),
                 {% endfor %}
                 CAST({{entity_df_event_timestamp_col}} AS STRING)
             ) AS {{featureview.name}}__entity_row_unique_id
+            {% else %}
+            ,CAST({{entity_df_event_timestamp_col}} AS STRING) AS {{featureview.name}}__entity_row_unique_id
+            {% endif %}
         {% endfor %}
     FROM {{ left_table_query_string }}
 ),
@@ -390,11 +436,14 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__entity_dataframe AS (
     SELECT
-        {{ featureview.entities | join(', ')}},
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
         entity_timestamp,
         {{featureview.name}}__entity_row_unique_id
     FROM entity_dataframe
-    GROUP BY {{ featureview.entities | join(', ')}}, entity_timestamp, {{featureview.name}}__entity_row_unique_id
+    GROUP BY
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+        entity_timestamp,
+        {{featureview.name}}__entity_row_unique_id
 ),
 
 /*
@@ -418,7 +467,7 @@ WITH entity_dataframe AS (
     SELECT
         {{ featureview.event_timestamp_column }} as event_timestamp,
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
-        {{ featureview.entity_selections | join(', ')}},
+        {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
