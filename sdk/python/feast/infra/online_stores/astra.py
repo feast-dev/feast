@@ -118,9 +118,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
             all_rows += self._session.execute(
                 prepared_statement.bind([entity_key_bin])
                                  ).all()
-
         # Now find the result
-
         for row in all_rows:
             res = {}
             feature_name = row.feature_name
@@ -202,14 +200,14 @@ def _create_cql_table(key_space: str,
                       column_types: List[str]
                       ) -> str:
     """
-    in this function we will create a CQL to create a table
+    This is general function that will create a CQL to create a table
     """
     assert len(columns) > 0, "Columns can not be empty in a Table. "
 
     assert len(columns) == len(column_types), "Length of columns and type of columns length missmatch."
 
     # If we have same amount of columns and their types
-    cql_create_table = "CREATE TABLE  IF NOT EXISTS " + key_space + "." + table_name
+    cql_create_table = "CREATE TABLE IF NOT EXISTS " + key_space + "." + table_name
     cql_create_table += " ("
     for col, typ in zip(columns, column_types):
         if col in primary_key:
@@ -286,6 +284,9 @@ def _create_index_cql(key_space: str,
                       table_name: str,
                       index_on: str
                       ) -> str:
+    """
+    This is general function to create Index CQL Query
+    """
     cql_index = "CREATE INDEX " + index_name + " ON "
     cql_index += key_space + "." + table_name + " ("
     cql_index += index_on + ");"
@@ -293,5 +294,8 @@ def _create_index_cql(key_space: str,
 
 
 def _create_delete_table_cql(key_space: str, table_name: str) -> str:
+    """
+    This is general function to create DELETE Table CQL
+    """
     cql_delete = "DROP TABLE " + key_space + "." + table_name + ";"
     return cql_delete

@@ -114,7 +114,7 @@ class SqliteOnlineStore(OnlineStore):
 
                     conn.execute(
                         f"""INSERT OR IGNORE INTO {_table_id(project, table)}
-                            (entity_key, feature_name, value, event_ts,created_ts )
+                            (entity_key, feature_name, value, event_ts,created_ts)
                             VALUES (?, ?, ?, ?, ?)""",
                         (
                             entity_key_bin,
