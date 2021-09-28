@@ -317,7 +317,7 @@ def python_value_to_proto_value(
     value: Any, feature_type: ValueType = ValueType.UNKNOWN
 ) -> ProtoValue:
     value_type = feature_type
-    if value is not None:
+    if value is not None and feature_type == ValueType.UNKNOWN:
         if isinstance(value, (list, np.ndarray)):
             value_type = (
                 feature_type
@@ -325,11 +325,7 @@ def python_value_to_proto_value(
                 else python_type_to_feast_value_type("", value)
             )
         else:
-            value_type = (
-                feature_type
-                if feature_type is ValueType.FLOAT
-                else python_type_to_feast_value_type("", value)
-            )
+            value_type = python_type_to_feast_value_type("", value)
     return _python_value_to_proto_value(value_type, value)
 
 
