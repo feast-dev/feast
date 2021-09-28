@@ -245,7 +245,13 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType, Tuple[str, Any, Optional[Set[Type]]]
 ] = {
     ValueType.INT32: ("int32_val", lambda x: int(x), None),
-    ValueType.INT64: ("int64_val", lambda x: int(x.timestamp()) if isinstance(x, pd._libs.tslibs.timestamps.Timestamp) else int(x), None),
+    ValueType.INT64: (
+        "int64_val",
+        lambda x: int(x.timestamp())
+        if isinstance(x, pd._libs.tslibs.timestamps.Timestamp)
+        else int(x),
+        None,
+    ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
     ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
