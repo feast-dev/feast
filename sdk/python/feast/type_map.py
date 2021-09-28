@@ -19,9 +19,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type
 import numpy as np
 import pandas as pd
 import pyarrow
-from google.protobuf.internal.well_known_types import Timestamp
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.pyext.cpp_message import GeneratedProtocolMessageType
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.protos.feast.types.Value_pb2 import (
     BoolList,
