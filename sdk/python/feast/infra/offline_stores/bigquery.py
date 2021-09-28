@@ -164,6 +164,7 @@ class BigQueryOfflineStore(OfflineStore):
                 query_context,
                 left_table_query_string=table_reference,
                 entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+                entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
             )
@@ -517,14 +518,17 @@ WITH entity_dataframe AS (
  Thus we only need to compute the latest timestamp of each feature.
 */
 {{ featureview.name }}__latest AS (
-    SELECT * EXCEPT(row_number)
+    SELECT
+        event_timestamp,
+        {% if featureview.created_timestamp_column %}created_timestamp,{% endif %}
+        {{featureview.name}}__entity_row_unique_id
     FROM
     (
         SELECT *,
             ROW_NUMBER() OVER(
                 PARTITION BY {{featureview.name}}__entity_row_unique_id
                 ORDER BY event_timestamp DESC{% if featureview.created_timestamp_column %},created_timestamp DESC{% endif %}
-            ) AS row_number,
+            ) AS row_number
         FROM {{ featureview.name }}__base
         {% if featureview.created_timestamp_column %}
             INNER JOIN {{ featureview.name }}__dedup
@@ -558,7 +562,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT * EXCEPT(entity_timestamp, {% for featureview in featureviews %} {{featureview.name}}__entity_row_unique_id{% if loop.last %}{% else %},{% endif %}{% endfor %})
+SELECT {{ final_output_feature_names | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (

@@ -2,7 +2,7 @@ import importlib
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, KeysView, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -153,11 +153,21 @@ def build_point_in_time_query(
     feature_view_query_contexts: List[FeatureViewQueryContext],
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
+    entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
+
+    final_output_feature_names = list(entity_df_columns)
+    final_output_feature_names.extend(
+        [
+            (f"{fv.name}__{feature}" if full_feature_names else feature)
+            for fv in feature_view_query_contexts
+            for feature in fv.features
+        ]
+    )
 
     # Add additional fields to dict
     template_context = {
@@ -168,6 +178,7 @@ def build_point_in_time_query(
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
         "full_feature_names": full_feature_names,
+        "final_output_feature_names": final_output_feature_names,
     }
 
     query = template.render(template_context)

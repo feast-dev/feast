@@ -149,6 +149,7 @@ class RedshiftOfflineStore(OfflineStore):
                 query_context,
                 left_table_query_string=table_name,
                 entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+                entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
             )
@@ -479,19 +480,23 @@ WITH entity_dataframe AS (
 */
 {{ featureview.name }}__latest AS (
     SELECT
-        {{featureview.name}}__entity_row_unique_id,
-        MAX(event_timestamp) AS event_timestamp
+        event_timestamp,
+        {% if featureview.created_timestamp_column %}created_timestamp,{% endif %}
+        {{featureview.name}}__entity_row_unique_id
+    FROM
+    (
+        SELECT *,
+            ROW_NUMBER() OVER(
+                PARTITION BY {{featureview.name}}__entity_row_unique_id
+                ORDER BY event_timestamp DESC{% if featureview.created_timestamp_column %},created_timestamp DESC{% endif %}
+            ) AS row_number
+        FROM {{ featureview.name }}__base
         {% if featureview.created_timestamp_column %}
-            ,MAX(created_timestamp) AS created_timestamp
+            INNER JOIN {{ featureview.name }}__dedup
+            USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
         {% endif %}
-
-    FROM {{ featureview.name }}__base
-    {% if featureview.created_timestamp_column %}
-        INNER JOIN {{ featureview.name }}__dedup
-        USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
-    {% endif %}
-
-    GROUP BY {{featureview.name}}__entity_row_unique_id
+    )
+    WHERE row_number = 1
 ),
 
 /*
@@ -518,7 +523,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT *
+SELECT {{ final_output_feature_names | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
