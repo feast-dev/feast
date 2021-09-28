@@ -106,20 +106,17 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
         module = importlib.import_module(module_path)
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
-            if isinstance(obj, FeatureTable):
-                if obj.defined_in is not None and obj.defined_in == module.__file__:
+            assert obj.defined_in is not None
+            if obj.defined_in == module.__file__:
+                if isinstance(obj, FeatureTable):
                     res.feature_tables.append(obj)
-            if isinstance(obj, FeatureView):
-                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                if isinstance(obj, FeatureView):
                     res.feature_views.append(obj)
-            elif isinstance(obj, Entity):
-                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                elif isinstance(obj, Entity):
                     res.entities.append(obj)
-            elif isinstance(obj, FeatureService):
-                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                elif isinstance(obj, FeatureService):
                     res.feature_services.append(obj)
-            elif isinstance(obj, OnDemandFeatureView):
-                if obj.defined_in is not None and obj.defined_in == module.__file__:
+                elif isinstance(obj, OnDemandFeatureView):
                     res.on_demand_feature_views.append(obj)
     return res
 
