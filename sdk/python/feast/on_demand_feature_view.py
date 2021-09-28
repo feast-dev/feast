@@ -12,6 +12,7 @@ from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
+from feast.importer import get_calling_file_name
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -65,10 +66,7 @@ class OnDemandFeatureView:
         self.inputs = inputs
         self.udf = udf
 
-        stack = inspect.stack()
-        # Get two levels up from current, to ignore usage.py
-        previous_stack_frame = stack[2]
-        self.defined_in = previous_stack_frame.filename
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """

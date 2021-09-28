@@ -25,6 +25,7 @@ from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
+from feast.importer import get_calling_file_name
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -144,10 +145,7 @@ class FeatureView:
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
 
-        stack = inspect.stack()
-        # Get two levels up from current, to ignore usage.py
-        previous_stack_frame = stack[2]
-        self.defined_in = previous_stack_frame.filename
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())

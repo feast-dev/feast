@@ -7,6 +7,7 @@ from google.protobuf.json_format import MessageToJson
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
+from feast.importer import get_calling_file_name
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -74,10 +75,7 @@ class FeatureService:
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
-        stack = inspect.stack()
-        # Get two levels up from current, to ignore usage.py
-        previous_stack_frame = stack[2]
-        self.defined_in = previous_stack_frame.filename
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())

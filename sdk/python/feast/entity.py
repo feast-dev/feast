@@ -19,6 +19,7 @@ import yaml
 from google.protobuf import json_format
 from google.protobuf.json_format import MessageToDict, MessageToJson
 
+from feast.importer import get_calling_file_name
 from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
@@ -77,10 +78,7 @@ class Entity:
         self._created_timestamp: Optional[datetime] = None
         self._last_updated_timestamp: Optional[datetime] = None
 
-        stack = inspect.stack()
-        # Get two levels up from current, to ignore usage.py
-        previous_stack_frame = stack[2]
-        self.defined_in = previous_stack_frame.filename
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
