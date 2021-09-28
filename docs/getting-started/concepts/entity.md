@@ -18,5 +18,3 @@ A related concept is an entity key. These are one or more entity values that uni
 
 Entity keys act as primary keys. They are used during the lookup of features from the online store, and they are also used to match feature rows across feature views during point-in-time joins.
 
-
-

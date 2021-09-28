@@ -21,7 +21,7 @@ There are new CLI commands:
 
 ## Example
 
-See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views. 
+See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.
 
 ### **Registering transformations**
 
@@ -59,7 +59,7 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 ### **Feature retrieval**
 
 {% hint style="info" %}
-The on demand feature view's name is the function name \(i.e. `transformed_conv_rate`\). 
+The on demand feature view's name is the function name \(i.e. `transformed_conv_rate`\).
 {% endhint %}
 
 And then to retrieve historical or online features, we can call this in a feature service or reference individual features:

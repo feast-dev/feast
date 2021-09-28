@@ -10,7 +10,7 @@ When individuals apply for loans from banks and other credit providers, the deci
 
 In this example, we will demonstrate how a real-time credit scoring system can be built using Feast and Scikit-Learn on AWS, using feature data from S3.
 
-This real-time system accepts a loan request from a customer and responds within 100ms with a decision on whether their loan has been approved or rejected. 
+This real-time system accepts a loan request from a customer and responds within 100ms with a decision on whether their loan has been approved or rejected.
 
 ## [Real-time Credit Scoring Example](https://github.com/feast-dev/real-time-credit-scoring-on-aws-tutorial)
 

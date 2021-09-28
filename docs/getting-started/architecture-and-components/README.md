@@ -12,5 +12,3 @@
 
 {% page-ref page="provider.md" %}
 
-
-

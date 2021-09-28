@@ -6,9 +6,6 @@ The list below contains the functionality that contributors are planning to deve
 * We welcome contribution to all items in the roadmap!
 * Want to influence our roadmap and prioritization? Submit your feedback to [this form](https://docs.google.com/forms/d/e/1FAIpQLSfa1nRQ0sKz-JEFnMMCi4Jseag_yDssO_3nV9qMfxfrkil-wA/viewform).
 * Want to speak to a Feast contributor? We are more than happy to jump on a call. Please schedule a time using [Calendly](https://calendly.com/d/x2ry-g5bb/meet-with-feast-team).
-
-
-
 * **Data Sources**
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
   * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)

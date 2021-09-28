@@ -14,5 +14,3 @@
 
 {% page-ref page="point-in-time-joins.md" %}
 
-
-

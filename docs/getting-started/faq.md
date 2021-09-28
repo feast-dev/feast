@@ -24,7 +24,7 @@ Feast currently does not support any access control other than the access contro
 
 ### Does Feast support streaming sources?
 
-Feast is actively working on this right now. Please reach out to the Feast team if you're interested in giving feedback! 
+Feast is actively working on this right now. Please reach out to the Feast team if you're interested in giving feedback!
 
 ### Does Feast support composite keys?
 

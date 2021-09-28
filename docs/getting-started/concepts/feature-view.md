@@ -103,5 +103,3 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
     return df
 ```
 
-
-

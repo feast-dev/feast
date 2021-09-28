@@ -9,11 +9,11 @@ In this tutorial we will
 
 You can run this tutorial in Google Colab or run it on your localhost, following the guided steps below.
 
-![](../.gitbook/assets/colab_logo_32px.png)[**Run in Google Colab**](https://colab.research.google.com/github/feast-dev/feast/blob/master/examples/quickstart/quickstart.ipynb)\*\*\*\*
+![](../.gitbook/assets/colab_logo_32px.png)[**Run in Google Colab**](https://colab.research.google.com/github/feast-dev/feast/blob/master/examples/quickstart/quickstart.ipynb)
 
 ## Overview
 
-In this tutorial, we use feature stores to generate training data and power online model inference for a ride-sharing driver satisfaction prediction model. Feast solves several common issues in this flow: 
+In this tutorial, we use feature stores to generate training data and power online model inference for a ride-sharing driver satisfaction prediction model. Feast solves several common issues in this flow:
 
 1. **Training-serving skew and complex data joins:** Feature values often exist across multiple tables. Joining these datasets can be complicated, slow, and error-prone.
    * Feast joins these tables with battle-tested logic that ensures _point-in-time_ correctness so future feature values do not leak to models.
@@ -22,7 +22,7 @@ In this tutorial, we use feature stores to generate training data and power onli
    * Feast manages deployment to a variety of online stores \(e.g. DynamoDB, Redis, Google Cloud Datastore\) and ensures necessary features are consistently _available_ and _freshly computed_ at inference time.
 3. **Feature reusability and model versioning:** Different teams within an organization are often unable to reuse features across projects, resulting in duplicate feature creation logic. Models have data dependencies that need to be versioned, for example when running A/B tests on model versions.
    * Feast enables discovery of and collaboration on previously used features and enables versioning of sets of features \(via _feature services_\). 
-   * _\*Upcoming_: Feast enables feature transformation so users can re-use transformation logic across online / offline usecases and across models.
+   * Feast enables feature transformation so users can re-use transformation logic across online / offline usecases and across models.
 
 ## Step 1: Install Feast
 
@@ -40,7 +40,7 @@ pip install feast
 
 ## Step 2: Create a feature repository
 
-Bootstrap a new feature repository using `feast init` from the command line. 
+Bootstrap a new feature repository using `feast init` from the command line.
 
 {% tabs %}
 {% tab title="Bash" %}
