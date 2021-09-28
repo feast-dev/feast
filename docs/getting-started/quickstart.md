@@ -22,7 +22,7 @@ In this tutorial, we use feature stores to generate training data and power onli
    * Feast manages deployment to a variety of online stores \(e.g. DynamoDB, Redis, Google Cloud Datastore\) and ensures necessary features are consistently _available_ and _freshly computed_ at inference time.
 3. **Feature reusability and model versioning:** Different teams within an organization are often unable to reuse features across projects, resulting in duplicate feature creation logic. Models have data dependencies that need to be versioned, for example when running A/B tests on model versions.
    * Feast enables discovery of and collaboration on previously used features and enables versioning of sets of features \(via _feature services_\). 
-   * _\*Upcoming_: Feast enables feature transformation so users can re-use transformation logic across online / offline usecases and across models.
+   * Feast enables feature transformation so users can re-use transformation logic across online / offline usecases and across models.
 
 ## Step 1: Install Feast
 
