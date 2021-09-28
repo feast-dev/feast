@@ -22,6 +22,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.feature import Feature
+from feast.importer import get_calling_file_name
 from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.protos.feast.core.FeatureTable_pb2 import (
@@ -66,10 +67,7 @@ class FeatureTable:
         self._created_timestamp: Optional[Timestamp] = None
         self._last_updated_timestamp: Optional[Timestamp] = None
 
-        stack = inspect.stack()
-        # Get two levels up from current, to ignore usage.py
-        previous_stack_frame = stack[2]
-        self.defined_in = previous_stack_frame.filename
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
