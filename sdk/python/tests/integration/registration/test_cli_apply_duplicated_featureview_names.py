@@ -45,6 +45,49 @@ def test_cli_apply_duplicated_featureview_names() -> None:
         )
 
 
+def test_cli_apply_imported_featureview() -> None:
+    """
+    Test apply feature views with duplicated names and single py file in a feature repo using CLI
+    """
+
+    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+        runner = CliRunner()
+        # Construct an example repo in a temporary dir
+        repo_path = Path(repo_dir_name)
+        data_path = Path(data_dir_name)
+
+        repo_config = repo_path / "feature_store.yaml"
+
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: foo
+        registry: {data_path / "registry.db"}
+        provider: local
+        online_store:
+            path: {data_path / "online_store.db"}
+        """
+            )
+        )
+
+        repo_example = repo_path / "example.py"
+        repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+        repo_example_2 = repo_path / "example_2.py"
+        repo_example_2.write_text(
+            "from example import driver_hourly_stats_view\n"
+            "from feast import FeatureService\n"
+            "a_feature_service = FeatureService(\n"
+            "   name='driver_locations_service',\n"
+            "   features=[driver_hourly_stats_view],\n"
+            ")\n"
+        )
+
+        rc, output = runner.run_with_output(["apply"], cwd=repo_path)
+
+        assert rc == 0
+        assert b"Registered feature service driver_locations_service" in output
+
+
 def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
     """
     Test apply feature views with duplicated names from multiple py files in a feature repo using CLI
