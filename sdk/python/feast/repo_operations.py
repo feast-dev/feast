@@ -31,11 +31,11 @@ def py_path_to_module(path: Path, repo_root: Path) -> str:
 
 
 class ParsedRepo(NamedTuple):
-    feature_tables: List[FeatureTable]
-    feature_views: List[FeatureView]
-    on_demand_feature_views: List[OnDemandFeatureView]
-    entities: List[Entity]
-    feature_services: List[FeatureService]
+    feature_tables: Set[FeatureTable]
+    feature_views: Set[FeatureView]
+    on_demand_feature_views: Set[OnDemandFeatureView]
+    entities: Set[Entity]
+    feature_services: Set[FeatureService]
 
 
 def read_feastignore(repo_root: Path) -> List[str]:
@@ -94,11 +94,11 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 def parse_repo(repo_root: Path) -> ParsedRepo:
     """ Collect feature table definitions from feature repo """
     res = ParsedRepo(
-        feature_tables=[],
-        entities=[],
-        feature_views=[],
-        feature_services=[],
-        on_demand_feature_views=[],
+        feature_tables=set(),
+        entities=set(),
+        feature_views=set(),
+        feature_services=set(),
+        on_demand_feature_views=set(),
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -107,25 +107,15 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
             if isinstance(obj, FeatureTable):
-                assert obj.defined_in is not None
-                if obj.defined_in == module.__file__:
-                    res.feature_tables.append(obj)
+                res.feature_tables.add(obj)
             if isinstance(obj, FeatureView):
-                assert obj.defined_in is not None
-                if obj.defined_in == module.__file__:
-                    res.feature_views.append(obj)
+                res.feature_views.add(obj)
             elif isinstance(obj, Entity):
-                assert obj.defined_in is not None
-                if obj.defined_in == module.__file__:
-                    res.entities.append(obj)
+                res.entities.add(obj)
             elif isinstance(obj, FeatureService):
-                assert obj.defined_in is not None
-                if obj.defined_in == module.__file__:
-                    res.feature_services.append(obj)
+                res.feature_services.add(obj)
             elif isinstance(obj, OnDemandFeatureView):
-                assert obj.defined_in is not None
-                if obj.defined_in == module.__file__:
-                    res.on_demand_feature_views.append(obj)
+                res.on_demand_feature_views.add(obj)
     return res
 
 
@@ -146,7 +136,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
-    _validate_feature_views(repo.feature_views)
+    _validate_feature_views(list(repo.feature_views))
 
     if not skip_source_validation:
         data_sources = [t.batch_source for t in repo.feature_views]
@@ -259,8 +249,8 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         project,
         tables_to_delete=all_to_delete,
         tables_to_keep=all_to_keep,
-        entities_to_delete=entities_to_delete,
-        entities_to_keep=entities_to_keep,
+        entities_to_delete=list(entities_to_delete),
+        entities_to_keep=list(entities_to_keep),
         partial=False,
     )
 
@@ -270,63 +260,63 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
 def _tag_registry_entities_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-) -> Tuple[List[Entity], List[Entity]]:
-    entities_to_keep: List[Entity] = repo.entities
-    entities_to_delete: List[Entity] = []
+) -> Tuple[Set[Entity], Set[Entity]]:
+    entities_to_keep: Set[Entity] = repo.entities
+    entities_to_delete: Set[Entity] = set()
     repo_entities_names = set([e.name for e in repo.entities])
     for registry_entity in registry.list_entities(project=project):
         if registry_entity.name not in repo_entities_names:
-            entities_to_delete.append(registry_entity)
+            entities_to_delete.add(registry_entity)
     return entities_to_keep, entities_to_delete
 
 
 def _tag_registry_views_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-) -> Tuple[List[FeatureView], List[FeatureView]]:
-    views_to_keep: List[FeatureView] = repo.feature_views
-    views_to_delete: List[FeatureView] = []
+) -> Tuple[Set[FeatureView], Set[FeatureView]]:
+    views_to_keep: Set[FeatureView] = repo.feature_views
+    views_to_delete: Set[FeatureView] = set()
     repo_feature_view_names = set(t.name for t in repo.feature_views)
     for registry_view in registry.list_feature_views(project=project):
         if registry_view.name not in repo_feature_view_names:
-            views_to_delete.append(registry_view)
+            views_to_delete.add(registry_view)
     return views_to_keep, views_to_delete
 
 
 def _tag_registry_on_demand_feature_views_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-) -> Tuple[List[OnDemandFeatureView], List[OnDemandFeatureView]]:
-    odfvs_to_keep: List[OnDemandFeatureView] = repo.on_demand_feature_views
-    odfvs_to_delete: List[OnDemandFeatureView] = []
+) -> Tuple[Set[OnDemandFeatureView], Set[OnDemandFeatureView]]:
+    odfvs_to_keep: Set[OnDemandFeatureView] = repo.on_demand_feature_views
+    odfvs_to_delete: Set[OnDemandFeatureView] = set()
     repo_on_demand_feature_view_names = set(
         t.name for t in repo.on_demand_feature_views
     )
     for registry_odfv in registry.list_on_demand_feature_views(project=project):
         if registry_odfv.name not in repo_on_demand_feature_view_names:
-            odfvs_to_delete.append(registry_odfv)
+            odfvs_to_delete.add(registry_odfv)
     return odfvs_to_keep, odfvs_to_delete
 
 
 def _tag_registry_tables_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-) -> Tuple[List[FeatureTable], List[FeatureTable]]:
-    tables_to_keep: List[FeatureTable] = repo.feature_tables
-    tables_to_delete: List[FeatureTable] = []
+) -> Tuple[Set[FeatureTable], Set[FeatureTable]]:
+    tables_to_keep: Set[FeatureTable] = repo.feature_tables
+    tables_to_delete: Set[FeatureTable] = set()
     repo_table_names = set(t.name for t in repo.feature_tables)
     for registry_table in registry.list_feature_tables(project=project):
         if registry_table.name not in repo_table_names:
-            tables_to_delete.append(registry_table)
+            tables_to_delete.add(registry_table)
     return tables_to_keep, tables_to_delete
 
 
 def _tag_registry_services_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-) -> Tuple[List[FeatureService], List[FeatureService]]:
-    services_to_keep: List[FeatureService] = repo.feature_services
-    services_to_delete: List[FeatureService] = []
+) -> Tuple[Set[FeatureService], Set[FeatureService]]:
+    services_to_keep: Set[FeatureService] = repo.feature_services
+    services_to_delete: Set[FeatureService] = set()
     repo_feature_service_names = set(t.name for t in repo.feature_services)
     for registry_service in registry.list_feature_services(project=project):
         if registry_service.name not in repo_feature_service_names:
-            services_to_delete.append(registry_service)
+            services_to_delete.add(registry_service)
     return services_to_keep, services_to_delete
 
 

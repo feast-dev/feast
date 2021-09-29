@@ -80,6 +80,9 @@ class Entity:
 
         self.defined_in = get_calling_file_name(inspect.stack())
 
+    def __hash__(self) -> int:
+        return hash(self.name)
+
     def __eq__(self, other):
         if not isinstance(other, Entity):
             raise TypeError("Comparisons should only involve Entity class objects.")
