@@ -68,6 +68,9 @@ class FeatureTable:
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
 
+    def __hash__(self) -> int:
+        return hash((id(self), self.name))
+
     def __eq__(self, other):
         if not isinstance(other, FeatureTable):
             raise TypeError(

@@ -149,7 +149,7 @@ class FeatureView:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash(self.name)
+        return hash((id(self), self.name))
 
     def __getitem__(self, item) -> FeatureViewProjection:
         assert isinstance(item, list)

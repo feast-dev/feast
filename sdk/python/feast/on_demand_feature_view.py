@@ -63,6 +63,9 @@ class OnDemandFeatureView:
         self.inputs = inputs
         self.udf = udf
 
+    def __hash__(self) -> int:
+        return hash((id(self), self.name))
+
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
         Converts an on demand feature view object to its protobuf representation.
