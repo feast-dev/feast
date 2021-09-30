@@ -318,7 +318,11 @@ class FeatureStore:
 
         _feature_refs: List[str]
         if isinstance(_features, FeatureService):
-            _feature_refs = _features.features
+            _feature_refs = self.get_feature_service(_features.name).features
+            if _features.features != _feature_refs:
+                raise ValueError(
+                    "FeatureService object that's passed in is inconsistent with version from Registry."
+                )
         else:
             _feature_refs = _features
         return _feature_refs
@@ -1020,22 +1024,22 @@ class FeatureStore:
         hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
 
-        passed_in_feature_views = (
-            {view.name: view for view in features.feature_views}
-            if isinstance(features, FeatureService)
-            else {}
-        )
+        all_feature_views = {
+            fv.name: fv
+            for fv in self._list_feature_views(allow_cache, hide_dummy_entity)
+        }
 
-        all_feature_views = [
-            *filter(
-                lambda view: view.name not in [*passed_in_feature_views.keys()],
-                self._list_feature_views(
-                    allow_cache=allow_cache, hide_dummy_entity=hide_dummy_entity
-                ),
-            )
-        ] + [*passed_in_feature_views.values()]
+        if isinstance(features, FeatureService):
+            for fv in features.feature_views:
+                if fv.name not in all_feature_views:
+                    raise ValueError(
+                        f"{fv.name} used in the FeatureService is not in the registry."
+                    )
+                all_feature_views[fv.name] = all_feature_views[fv.name].get_projection(
+                    fv
+                )
 
-        return all_feature_views
+        return [*all_feature_views.values()]
 
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:

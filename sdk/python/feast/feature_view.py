@@ -388,3 +388,48 @@ class FeatureView:
                     "FeatureView",
                     f"Could not infer Features for the FeatureView named {self.name}.",
                 )
+
+    def get_projection(self, feature_view):
+        """
+        Produces a copy of this FeatureView (self) with specific fields modified according to the FeatureView object
+        that's passed in as the argument. This allows users to make modifications to a FeatureView object
+        (e.g. the name) and then projecting those changes onto the corresponding actual FeatureView from the registry.
+        Currently all FeatureViews that are used must be registered and this method enables modifying those FeatureViews
+        while still making sure we're pulling the most up-to-date FeatureView from the registry to modify from. 
+
+        Currently, only `FeatureView.features` is the field that's replaced the features from feature_view.
+
+        Args:
+            feature_view: The FeatureView object that's likely not registered and has the modified fields that should
+            be projected onto a copy of this FeatureView (self).
+
+        Returns:
+            A copy of this FeatureView (self) with some of its fields modified according to the feature_view argument.
+
+        """
+        if not isinstance(feature_view, FeatureView):
+            raise TypeError(
+                "A projection can only be created from a passed in FeatureView."
+            )
+
+        features_to_use = []
+        features_dict = {feature.name: feature for feature in self.features}
+        for feature in feature_view.features:
+            if feature not in self.features:
+                raise ValueError(
+                    "There are features in the passed in FeatureView object that are not in the FeatureView object"
+                    "of the same name from the registry."
+                )
+            features_to_use.append(features_dict[feature.name])
+
+        return FeatureView(
+            name=self.name,
+            entities=self.entities,
+            ttl=self.ttl,
+            input=self.input,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            features=features_to_use,
+            tags=self.tags,
+            online=self.online,
+        )
