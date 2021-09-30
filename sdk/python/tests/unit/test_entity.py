@@ -36,7 +36,6 @@ def test_entity_without_labels_empty_dict():
     entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
     assert entity.labels == dict()
     assert len(entity.labels) == 0
-    assert entity.defined_in == __file__
 
 
 def test_entity_without_description():

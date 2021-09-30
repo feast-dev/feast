@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import inspect
 import re
 import warnings
 from datetime import datetime, timedelta
@@ -25,7 +24,6 @@ from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
-from feast.importer import get_calling_file_name
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -80,8 +78,6 @@ class FeatureView:
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
-
-    defined_in: str
 
     @log_exceptions
     def __init__(
@@ -145,8 +141,6 @@ class FeatureView:
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
 
-        self.defined_in = get_calling_file_name(inspect.stack())
-
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
         return f"<{self.__class__.__name__}({', '.join(items)})>"
@@ -155,7 +149,7 @@ class FeatureView:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash(self.name)
+        return hash((id(self), self.name))
 
     def __getitem__(self, item) -> FeatureViewProjection:
         assert isinstance(item, list)
