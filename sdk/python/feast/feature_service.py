@@ -26,7 +26,8 @@ class FeatureService:
     Args:
         name: Unique name of the feature service.
         features: A list of Features that are grouped as part of this FeatureService.
-            The list may contain Feature Views, Feature Tables, or a subset of either.
+            The list may contain Feature Views, Feature Tables, or a subset of either. The
+            strings should be in the format 'my_feature_view:my_feature'.
         tags (optional): A dictionary of key-value pairs used for organizing Feature
             Services.
     """

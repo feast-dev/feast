@@ -401,7 +401,7 @@ class FeatureView:
         that's passed in as the argument. This allows users to make modifications to a FeatureView object
         (e.g. the name) and then projecting those changes onto the corresponding actual FeatureView from the registry.
         Currently all FeatureViews that are used must be registered and this method enables modifying those FeatureViews
-        while still making sure we're pulling the most up-to-date FeatureView from the registry to modify from. 
+        while still making sure we're pulling the most up-to-date FeatureView from the registry to modify from.
 
         Currently, only `FeatureView.features` is the field that's replaced the features from feature_view.
 
