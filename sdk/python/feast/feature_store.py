@@ -324,6 +324,7 @@ class FeatureStore:
                     "FeatureService object that's passed in is inconsistent with version from Registry."
                 )
         else:
+            assert isinstance(_features, list)
             _feature_refs = _features
         return _feature_refs
 

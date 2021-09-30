@@ -1,4 +1,5 @@
 import functools
+import inspect
 from types import MethodType
 from typing import Dict, List, Union, cast
 
@@ -10,6 +11,7 @@ from feast.data_source import RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view import FeatureView
+from feast.importer import get_calling_file_name
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -45,6 +47,8 @@ class OnDemandFeatureView:
     inputs: Dict[str, Union[FeatureView, RequestDataSource]]
     udf: MethodType
 
+    defined_in: str
+
     @log_exceptions
     def __init__(
         self,
@@ -61,6 +65,8 @@ class OnDemandFeatureView:
         self.features = features
         self.inputs = inputs
         self.udf = udf
+
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """

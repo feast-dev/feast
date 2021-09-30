@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import inspect
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -19,6 +19,7 @@ import yaml
 from google.protobuf import json_format
 from google.protobuf.json_format import MessageToDict, MessageToJson
 
+from feast.importer import get_calling_file_name
 from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
@@ -49,6 +50,8 @@ class Entity:
     _created_timestamp: Optional[datetime]
     _last_updated_timestamp: Optional[datetime]
 
+    defined_in: str
+
     @log_exceptions
     def __init__(
         self,
@@ -74,6 +77,8 @@ class Entity:
 
         self._created_timestamp: Optional[datetime] = None
         self._last_updated_timestamp: Optional[datetime] = None
+
+        self.defined_in = get_calling_file_name(inspect.stack())
 
     def __eq__(self, other):
         if not isinstance(other, Entity):

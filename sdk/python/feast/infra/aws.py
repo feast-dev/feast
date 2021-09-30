@@ -5,6 +5,10 @@ from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
 
+from colorama import Fore, Style
+
+import feast
+from feast.constants import AWS_LAMBDA_FEATURE_SERVER_IMAGE
 from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExist
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -13,11 +17,66 @@ from feast.repo_config import RegistryConfig
 
 
 class AwsProvider(PassthroughProvider):
-    """
-    This class only exists for backwards compatibility.
-    """
+    def _upload_docker_image(self) -> None:
+        import base64
 
-    pass
+        try:
+            import boto3
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("aws", str(e))
+
+        try:
+            import docker
+            from docker.errors import APIError
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("docker", str(e))
+
+        try:
+            docker_client = docker.from_env()
+        except APIError:
+            from feast.errors import DockerDaemonNotRunning
+
+            raise DockerDaemonNotRunning()
+
+        print(
+            f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{AWS_LAMBDA_FEATURE_SERVER_IMAGE}{Style.RESET_ALL}:"
+        )
+        docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
+
+        version = ".".join(feast.__version__.split(".")[:3])
+        repository_name = f"feast-python-server-{version}"
+        ecr_client = boto3.client("ecr")
+        try:
+            print(
+                f"Creating remote ECR repository {Style.BRIGHT + Fore.GREEN}{repository_name}{Style.RESET_ALL}:"
+            )
+            response = ecr_client.create_repository(repositoryName=repository_name)
+            repository_uri = response["repository"]["repositoryUri"]
+        except ecr_client.exceptions.RepositoryAlreadyExistsException:
+            response = ecr_client.describe_repositories(
+                repositoryNames=[repository_name]
+            )
+            repository_uri = response["repositories"][0]["repositoryUri"]
+
+        auth_token = ecr_client.get_authorization_token()["authorizationData"][0][
+            "authorizationToken"
+        ]
+        username, password = base64.b64decode(auth_token).decode("utf-8").split(":")
+
+        ecr_address = repository_uri.split("/")[0]
+        docker_client.login(username=username, password=password, registry=ecr_address)
+
+        image = docker_client.images.get(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
+        image_remote_name = f"{repository_uri}:{version}"
+        print(
+            f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}:"
+        )
+        image.tag(image_remote_name)
+        docker_client.api.push(repository_uri, tag=version)
 
 
 class S3RegistryStore(RegistryStore):

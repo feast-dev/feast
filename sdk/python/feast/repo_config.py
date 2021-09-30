@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any
 
@@ -345,7 +346,7 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
     config_path = repo_path / "feature_store.yaml"
 
     with open(config_path) as f:
-        raw_config = yaml.safe_load(f)
+        raw_config = yaml.safe_load(os.path.expandvars(f.read()))
         try:
             c = RepoConfig(**raw_config)
             c.repo_path = repo_path

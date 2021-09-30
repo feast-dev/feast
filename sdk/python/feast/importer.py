@@ -3,6 +3,14 @@ import importlib
 from feast import errors
 
 
+def get_calling_file_name(stack) -> str:
+    # Get two levels up from current, to ignore usage.py
+    previous_stack_frame = stack[1]
+    if "feast/usage.py" in previous_stack_frame.filename:
+        previous_stack_frame = stack[2]
+    return previous_stack_frame.filename
+
+
 def get_class_from_type(module_name: str, class_name: str, class_type: str):
     if not class_name.endswith(class_type):
         raise errors.FeastClassInvalidName(class_name, class_type)

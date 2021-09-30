@@ -210,6 +210,14 @@ class FeastJoinKeysDuringMaterialization(Exception):
         )
 
 
+class DockerDaemonNotRunning(Exception):
+    def __init__(self):
+        super().__init__(
+            "The Docker Python sdk cannot connect to the Docker daemon. Please make sure you have"
+            "the docker daemon installed, and that it is running."
+        )
+
+
 class RegistryInferenceFailure(Exception):
     def __init__(self, repo_obj_type: str, specific_issue: str):
         super().__init__(
