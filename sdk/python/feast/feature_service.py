@@ -1,4 +1,3 @@
-import inspect
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -6,7 +5,6 @@ from google.protobuf.json_format import MessageToJson
 
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
-from feast.importer import get_calling_file_name
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -41,8 +39,6 @@ class FeatureService:
     description: Optional[str] = None
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
-
-    defined_in: str
 
     @log_exceptions
     def __init__(
@@ -85,8 +81,6 @@ class FeatureService:
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
-        self.defined_in = get_calling_file_name(inspect.stack())
-
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
         return f"<{self.__class__.__name__}({', '.join(items)})>"
@@ -95,7 +89,7 @@ class FeatureService:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash(self.name)
+        return hash((id(self), self.name))
 
     def __eq__(self, other):
         if not isinstance(other, FeatureService):
