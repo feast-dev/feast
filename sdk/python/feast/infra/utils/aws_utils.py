@@ -7,7 +7,13 @@ from typing import Iterator, List, Optional, Tuple
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from tenacity import retry, retry_if_exception_type, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_exponential,
+)
 
 from feast.errors import RedshiftCredentialsError, RedshiftQueryError
 from feast.type_map import pa_to_redshift_value_type
@@ -53,6 +59,7 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
 @retry(
     wait=wait_exponential(multiplier=1, max=4),
     retry=retry_if_exception_type(ConnectionClosedError),
+    stop=stop_after_attempt(5),
 )
 def execute_redshift_statement_async(
     redshift_data_client, cluster_id: str, database: str, user: str, query: str
@@ -88,6 +95,7 @@ class RedshiftStatementNotFinishedError(Exception):
 @retry(
     wait=wait_exponential(multiplier=1, max=30),
     retry=retry_if_exception_type(RedshiftStatementNotFinishedError),
+    stop=stop_after_delay(300),  # 300 seconds
 )
 def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
     """Waits for the Redshift statement to finish. Raises RedshiftQueryError if the statement didn't succeed.
