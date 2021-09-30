@@ -162,7 +162,7 @@ class RedshiftOfflineStore(OfflineStore):
                     config.offline_store.cluster_id,
                     config.offline_store.database,
                     config.offline_store.user,
-                    f"DROP TABLE {table_name}",
+                    f"DROP TABLE IF EXISTS {table_name}",
                 )
 
         return RedshiftRetrievalJob(

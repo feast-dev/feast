@@ -160,7 +160,7 @@ class BigQueryOfflineStore(OfflineStore):
             finally:
                 # Asynchronously clean up the uploaded Bigquery table, which will expire
                 # if cleanup fails
-                client.query(query=f"DROP TABLE {table_reference}")
+                client.delete_table(table=table_reference, not_found_ok=True)
 
         return BigQueryRetrievalJob(
             query=query_generator,
