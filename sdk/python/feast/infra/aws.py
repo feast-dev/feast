@@ -10,14 +10,13 @@ from urllib.parse import urlparse
 from colorama import Fore, Style
 
 import feast
-from feast import FeatureTable, __version__
+from feast import Entity, FeatureTable, FeatureView, __version__
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
+    FEAST_USAGE,
     SERVER_CONFIG_BASE64_ENV_NAME,
 )
-from feast.entity import Entity
 from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExist
-from feast.feature_view import FeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -78,7 +77,10 @@ class AwsProvider(PassthroughProvider):
                     PackageType="Image",
                     MemorySize=1769,
                     Environment={
-                        "Variables": {SERVER_CONFIG_BASE64_ENV_NAME: config_base64}
+                        "Variables": {
+                            SERVER_CONFIG_BASE64_ENV_NAME: config_base64,
+                            FEAST_USAGE: "False",
+                        }
                     },
                 )
                 function = aws_utils.get_lambda_function(lambda_client, resource_name)
