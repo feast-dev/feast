@@ -518,7 +518,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT *
+SELECT entity_dataframe.*
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
