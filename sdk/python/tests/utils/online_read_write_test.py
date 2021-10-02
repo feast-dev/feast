@@ -11,7 +11,7 @@ def basic_rw_test(
 ) -> None:
     """
     This is a provider-independent test suite for reading and writing from the online store, to
-    be used by provider-specific tests.
+    be used by provider-specific tests. 
     """
     table = store.get_feature_view(name=view_name)
 
