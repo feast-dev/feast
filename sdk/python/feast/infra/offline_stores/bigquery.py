@@ -53,7 +53,11 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     """ (optional) GCP project name used for the BigQuery offline store """
 
     location: Optional[StrictStr] = None
-    """ (optional) GCP location name used for the BigQuery offline store """
+    """ (optional) GCP location name used for the BigQuery offline store.
+    Examples of location names include ``US``, ``EU``, ``us-central1``, ``us-west4``.
+    If a location is not specified, the location defaults to the ``US`` multi-regional location.
+    For more information on BigQuery data locations see: https://cloud.google.com/bigquery/docs/locations
+    """
 
 
 class BigQueryOfflineStore(OfflineStore):
