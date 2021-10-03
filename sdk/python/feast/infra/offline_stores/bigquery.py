@@ -52,6 +52,13 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     project_id: Optional[StrictStr] = None
     """ (optional) GCP project name used for the BigQuery offline store """
 
+    location: Optional[StrictStr] = None
+    """ (optional) GCP location name used for the BigQuery offline store.
+    Examples of location names include ``US``, ``EU``, ``us-central1``, ``us-west4``.
+    If a location is not specified, the location defaults to the ``US`` multi-regional location.
+    For more information on BigQuery data locations see: https://cloud.google.com/bigquery/docs/locations
+    """
+
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
@@ -79,7 +86,10 @@ class BigQueryOfflineStore(OfflineStore):
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
-        client = _get_bigquery_client(project=config.offline_store.project_id)
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
         query = f"""
             SELECT
                 {field_string}
@@ -115,7 +125,10 @@ class BigQueryOfflineStore(OfflineStore):
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
-        client = _get_bigquery_client(project=config.offline_store.project_id)
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
 
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
@@ -367,9 +380,9 @@ def _upload_entity_df_and_get_entity_schema(
     return entity_schema
 
 
-def _get_bigquery_client(project: Optional[str] = None):
+def _get_bigquery_client(project: Optional[str] = None, location: Optional[str] = None):
     try:
-        client = bigquery.Client(project=project)
+        client = bigquery.Client(project=project, location=location)
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
             str(e)
