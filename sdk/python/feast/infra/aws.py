@@ -9,14 +9,22 @@ from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
-import feast
-from feast import Entity, FeatureTable, FeatureView, __version__
+from feast import __version__
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     FEAST_USAGE,
-    SERVER_CONFIG_BASE64_ENV_NAME,
+    FEATURE_STORE_YAML_ENV_NAME,
 )
-from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExist
+from feast.entity import Entity
+from feast.errors import (
+    AwsAPIGatewayDoesNotExist,
+    AwsLambdaDoesNotExist,
+    RepoConfigPathDoesNotExist,
+    S3RegistryBucketForbiddenAccess,
+    S3RegistryBucketNotExist,
+)
+from feast.feature_table import FeatureTable
+from feast.feature_view import FeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -32,8 +40,8 @@ except ImportError as e:
 
 
 class AwsProvider(PassthroughProvider):
-    def _get_lambda_name(self):
-        return f"feast-python-server-{__version__.replace('+', '_').replace('.', '_')}"
+    def _get_lambda_name(self, project: str):
+        return f"feast-python-server-{project}-{__version__.replace('+', '_').replace('.', '_')}"
 
     def update_infra(
         self,
@@ -54,15 +62,17 @@ class AwsProvider(PassthroughProvider):
         )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
-            image_uri = self._upload_docker_image()
+            image_uri = self._upload_docker_image(project)
             print("Deploying feature server...")
 
             assert self.repo_config.repo_path
+            if not self.repo_config.repo_path:
+                raise RepoConfigPathDoesNotExist()
             with open(self.repo_config.repo_path / "feature_store.yaml", "rb") as f:
                 config_bytes = f.read()
                 config_base64 = base64.b64encode(config_bytes).decode()
 
-            resource_name = self._get_lambda_name()
+            resource_name = self._get_lambda_name(project)
             lambda_client = boto3.client("lambda")
             api_gateway_client = boto3.client("apigatewayv2")
             function = aws_utils.get_lambda_function(lambda_client, resource_name)
@@ -78,17 +88,25 @@ class AwsProvider(PassthroughProvider):
                     MemorySize=1769,
                     Environment={
                         "Variables": {
-                            SERVER_CONFIG_BASE64_ENV_NAME: config_base64,
+                            FEATURE_STORE_YAML_ENV_NAME: config_base64,
                             FEAST_USAGE: "False",
                         }
                     },
+                    Tags={
+                        "feast-owned": "True",
+                        "project": project,
+                        "python-version": __version__.replace("+", "_").replace(
+                            ".", "_"
+                        ),
+                    },
                 )
                 function = aws_utils.get_lambda_function(lambda_client, resource_name)
-                assert function
+                if not function:
+                    raise AwsLambdaDoesNotExist()
             else:
                 # If the feature_store.yaml has changed, need to update the environment variable.
                 env = function.get("Environment", {}).get("Variables", {})
-                if env.get(SERVER_CONFIG_BASE64_ENV_NAME) != config_base64:
+                if env.get(FEATURE_STORE_YAML_ENV_NAME) != config_base64:
                     # Note, that this does not update Lambda gracefully (e.g. no rolling deployment).
                     # It's expected that feature_store.yaml is not regularly updated while the lambda
                     # is serving production traffic. However, the update in registry (e.g. modifying
@@ -98,7 +116,7 @@ class AwsProvider(PassthroughProvider):
                     lambda_client.update_function_configuration(
                         FunctionName=resource_name,
                         Environment={
-                            "Variables": {SERVER_CONFIG_BASE64_ENV_NAME: config_base64}
+                            "Variables": {FEATURE_STORE_YAML_ENV_NAME: config_base64}
                         },
                     )
 
@@ -111,8 +129,16 @@ class AwsProvider(PassthroughProvider):
                     ProtocolType="HTTP",
                     Target=function["FunctionArn"],
                     RouteKey="POST /get-online-features",
+                    Tags={
+                        "feast-owned": "True",
+                        "project": project,
+                        "python-version": __version__.replace("+", "_").replace(
+                            ".", "_"
+                        ),
+                    },
                 )
-                assert api
+                if not api:
+                    raise AwsAPIGatewayDoesNotExist()
                 # Make sure to give AWS Lambda a permission to be invoked by the newly created API Gateway
                 api_id = api["ApiId"]
                 region = lambda_client.meta.region_name
@@ -138,7 +164,7 @@ class AwsProvider(PassthroughProvider):
             and self.repo_config.feature_server.enabled
         ):
             print("Tearing down feature server...")
-            resource_name = self._get_lambda_name()
+            resource_name = self._get_lambda_name(project)
             lambda_client = boto3.client("lambda")
             api_gateway_client = boto3.client("apigatewayv2")
 
@@ -153,9 +179,12 @@ class AwsProvider(PassthroughProvider):
                 print("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
-    def _upload_docker_image(self) -> str:
+    def _upload_docker_image(self, project: str) -> str:
         """
         Pulls the AWS Lambda docker image from Dockerhub and uploads it to AWS ECR.
+
+        Args:
+            project: Feast project name
 
         Returns:
             The URI of the uploaded docker image.
@@ -189,8 +218,8 @@ class AwsProvider(PassthroughProvider):
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-        version = ".".join(feast.__version__.split(".")[:3])
-        repository_name = f"feast-python-server-{version}"
+        version = __version__.replace("+", "_").replace(".", "_")
+        repository_name = f"feast-python-server-{project}-{version}"
         ecr_client = boto3.client("ecr")
         try:
             print(

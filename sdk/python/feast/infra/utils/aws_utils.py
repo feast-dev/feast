@@ -421,7 +421,7 @@ def get_lambda_function(lambda_client, function_name: str) -> Optional[Dict]:
     try:
         return lambda_client.get_function(FunctionName=function_name)["Configuration"]
     except ClientError as ce:
-        # If the resource could not be found, return False.
+        # If the resource could not be found, return None.
         # Otherwise bubble up the exception (most likely permission errors)
         if ce.response["Error"]["Code"] == "ResourceNotFoundException":
             return None
@@ -457,7 +457,8 @@ def get_first_api_gateway(api_gateway_client, api_gateway_name: str) -> Optional
     response = api_gateway_client.get_apis()
     apis = response.get("Items", [])
 
-    while True:
+    # Limit the number of times we page through the API.
+    for _ in range(10):
         # Try finding the match before getting the next batch of api gateways from AWS
         for api in apis:
             if api.get("Name") == api_gateway_name:
