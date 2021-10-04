@@ -325,7 +325,7 @@ class FeatureStore:
                     "inconsistent with the version from Registry. Potentially a newer version"
                     "of the FeatureService has been applied to the registry."
                 )
-            for projection in feature_service_from_registry.features:
+            for projection in feature_service_from_registry.feature_view_projections:
                 _feature_refs.extend(
                     [f"{projection.name}:{f.name}" for f in projection.features]
                 )

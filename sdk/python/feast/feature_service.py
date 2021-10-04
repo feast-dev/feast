@@ -89,7 +89,9 @@ class FeatureService:
         if self.tags != other.tags or self.name != other.name:
             return False
 
-        if sorted(self.features) != sorted(other.features):
+        if sorted(self.feature_view_projections) != sorted(
+            other.feature_view_projections
+        ):
             return False
 
         return True
@@ -98,21 +100,25 @@ class FeatureService:
     def from_proto(feature_service_proto: FeatureServiceProto):
         """
         Converts a FeatureServiceProto to a FeatureService object.
+
         Args:
             feature_service_proto: A protobuf representation of a FeatureService.
         """
         fs = FeatureService(
             name=feature_service_proto.spec.name,
-            features=[
-                FeatureViewProjection.from_proto(projection)
-                for projection in feature_service_proto.spec.features
-            ],
+            features=[],
             tags=dict(feature_service_proto.spec.tags),
             description=(
                 feature_service_proto.spec.description
                 if feature_service_proto.spec.description != ""
                 else None
             ),
+        )
+        fs.feature_view_projections.extend(
+            [
+                FeatureViewProjection.from_proto(projection)
+                for projection in feature_service_proto.spec.features
+            ]
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
