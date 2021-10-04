@@ -6,9 +6,7 @@ option java_outer_classname = "FeatureServiceProto";
 option java_package = "feast.proto.core";
 
 import "google/protobuf/timestamp.proto";
-import "feast/core/OnDemandFeatureView.proto";
-import "feast/core/FeatureTable.proto";
-import "feast/core/FeatureView.proto";
+import "feast/core/FeatureViewProjection.proto";
 
 message FeatureService {
   // User-specified specifications of this feature service.
@@ -19,24 +17,15 @@ message FeatureService {
 }
 
 message FeatureServiceSpec {
-  // was previously used with 'repeated FeatureViewProjection features'
-  reserved 3;
-
   // Name of the Feature Service. Must be unique. Not updated.
   string name = 1;
 
   // Name of Feast project that this Feature Service belongs to.
   string project = 2;
 
-  // List of features that this feature service encapsulates.
-  // Stored as a list of references to other features views and the features from those views.
-  repeated string features = 6;
-
-  repeated FeatureTable feature_tables = 7;
-
-  repeated FeatureView feature_views = 8;
-
-  repeated OnDemandFeatureView on_demand_feature_views = 9;
+  // Represents a projection that's to be applied on top of the FeatureView.
+  // Contains data like a name alias or the features to use from a FeatureView.
+  repeated FeatureViewProjection features = 3;
 
   // User defined metadata
   map<string,string> tags = 4;

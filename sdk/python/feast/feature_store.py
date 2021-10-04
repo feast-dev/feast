@@ -316,12 +316,18 @@ class FeatureStore:
         if not _features:
             raise ValueError("No features specified for retrieval")
 
-        _feature_refs: List[str]
+        _feature_refs = []
         if isinstance(_features, FeatureService):
-            _feature_refs = self.get_feature_service(_features.name).features
-            if _features.features != _feature_refs:
-                raise ValueError(
-                    "FeatureService object that's passed in is inconsistent with version from Registry."
+            feature_service_from_registry = self.get_feature_service(_features.name)
+            if feature_service_from_registry != _features:
+                warnings.warn(
+                    "The FeatureService object that has been passed in as an argument is"
+                    "inconsistent with the version from Registry. Potentially a newer version"
+                    "of the FeatureService has been applied to the registry."
+                )
+            for projection in feature_service_from_registry.features:
+                _feature_refs.extend(
+                    [f"{projection.name}:{f.name}" for f in projection.features]
                 )
         else:
             assert isinstance(_features, list)
@@ -1031,14 +1037,18 @@ class FeatureStore:
         }
 
         if isinstance(features, FeatureService):
-            for fv in features.feature_views:
-                if fv.name not in all_feature_views:
+            for fv_name, projection in {
+                projection.name: projection
+                for projection in features.feature_view_projections
+            }.items():
+                if fv_name in all_feature_views:
+                    all_feature_views[fv_name].set_projection(projection)
+                else:
                     raise ValueError(
-                        f"{fv.name} used in the FeatureService is not in the registry."
+                        f"The provided feature service {features.name} contains a reference to a feature view"
+                        f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
+                        f'{fv_name} and that you have registered it by running "apply".'
                     )
-                all_feature_views[fv.name] = all_feature_views[fv.name].get_projection(
-                    fv
-                )
 
         return [*all_feature_views.values()]
 

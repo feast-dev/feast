@@ -23,6 +23,7 @@ from feast import utils
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -73,6 +74,7 @@ class FeatureView:
     online: bool
     input: DataSource
     batch_source: DataSource
+    projection: FeatureViewProjection
     stream_source: Optional[DataSource] = None
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
@@ -140,6 +142,8 @@ class FeatureView:
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
 
+        self.projection = FeatureViewProjection.from_definition(self)
+
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
         return f"<{self.__class__.__name__}({', '.join(items)})>"
@@ -158,17 +162,9 @@ class FeatureView:
             if feature.name in item:
                 referenced_features.append(feature)
 
-        return FeatureView(
-            name=self.name,
-            entities=self.entities,
-            ttl=self.ttl,
-            input=self.input,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
-            features=referenced_features,
-            tags=self.tags,
-            online=self.online,
-        )
+        self.projection.features = referenced_features
+
+        return self
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
@@ -292,6 +288,10 @@ class FeatureView:
             stream_source=stream_source,
         )
 
+        # FeatureViewProjections are not saved in the FeatureView proto.
+        # Create the default projection.
+        feature_view.projection = FeatureViewProjection.from_definition(feature_view)
+
         if feature_view_proto.meta.HasField("created_timestamp"):
             feature_view.created_timestamp = (
                 feature_view_proto.meta.created_timestamp.ToDatetime()
@@ -389,47 +389,14 @@ class FeatureView:
                     f"Could not infer Features for the FeatureView named {self.name}.",
                 )
 
-    def get_projection(self, feature_view):
-        """
-        Produces a copy of this FeatureView (self) with specific fields modified according to the FeatureView object
-        that's passed in as the argument. This allows users to make modifications to a FeatureView object
-        (e.g. the name) and then projecting those changes onto the corresponding actual FeatureView from the registry.
-        Currently all FeatureViews that are used must be registered and this method enables modifying those FeatureViews
-        while still making sure we're pulling the most up-to-date FeatureView from the registry to modify from.
+    def set_projection(self, feature_view_projection: FeatureViewProjection):
+        assert feature_view_projection.name == self.name
 
-        Currently, only `FeatureView.features` is the field that's replaced the features from feature_view.
-
-        Args:
-            feature_view: The FeatureView object that's likely not registered and has the modified fields that should
-            be projected onto a copy of this FeatureView (self).
-
-        Returns:
-            A copy of this FeatureView (self) with some of its fields modified according to the feature_view argument.
-
-        """
-        if not isinstance(feature_view, FeatureView):
-            raise TypeError(
-                "A projection can only be created from a passed in FeatureView."
-            )
-
-        features_to_use = []
-        features_dict = {feature.name: feature for feature in self.features}
-        for feature in feature_view.features:
+        for feature in feature_view_projection.features:
             if feature not in self.features:
                 raise ValueError(
-                    "There are features in the passed in FeatureView object that are not in the FeatureView object"
-                    "of the same name from the registry."
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the"
+                    "FeatureView doesn't have."
                 )
-            features_to_use.append(features_dict[feature.name])
 
-        return FeatureView(
-            name=self.name,
-            entities=self.entities,
-            ttl=self.ttl,
-            input=self.input,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
-            features=features_to_use,
-            tags=self.tags,
-            online=self.online,
-        )
+        self.projection = feature_view_projection

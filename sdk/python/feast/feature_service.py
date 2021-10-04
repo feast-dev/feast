@@ -5,6 +5,7 @@ from google.protobuf.json_format import MessageToJson
 
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -31,10 +32,7 @@ class FeatureService:
     """
 
     name: str
-    features: List[str]
-    feature_tables: List[FeatureTable]
-    feature_views: List[FeatureView]
-    on_demand_feature_views: List[OnDemandFeatureView]
+    feature_view_projections: List[FeatureViewProjection]
     tags: Dict[str, str]
     description: Optional[str] = None
     created_timestamp: Optional[datetime] = None
@@ -55,26 +53,19 @@ class FeatureService:
             ValueError: If one of the specified features is not a valid type.
         """
         self.name = name
-        self.features = []
-        self.feature_tables, self.feature_views, self.on_demand_feature_views = (
-            [],
-            [],
-            [],
-        )
+        self.feature_view_projections = []
 
         for feature_grouping in features:
-            if isinstance(feature_grouping, FeatureTable):
-                self.feature_tables.append(feature_grouping)
+            if isinstance(feature_grouping, FeatureTable) or isinstance(
+                feature_grouping, OnDemandFeatureView
+            ):
+                self.feature_view_projections.append(
+                    FeatureViewProjection.from_definition(feature_grouping)
+                )
             elif isinstance(feature_grouping, FeatureView):
-                self.feature_views.append(feature_grouping)
-            elif isinstance(feature_grouping, OnDemandFeatureView):
-                self.on_demand_feature_views.append(feature_grouping)
+                self.feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(f"Unexpected type: {type(feature_grouping)}")
-
-            self.features.extend(
-                [f"{feature_grouping.name}:{f.name}" for f in feature_grouping.features]
-            )
 
         self.tags = tags or {}
         self.description = description
@@ -108,13 +99,15 @@ class FeatureService:
     def from_proto(feature_service_proto: FeatureServiceProto):
         """
         Converts a FeatureServiceProto to a FeatureService object.
-
         Args:
             feature_service_proto: A protobuf representation of a FeatureService.
         """
         fs = FeatureService(
             name=feature_service_proto.spec.name,
-            features=[],
+            features=[
+                FeatureViewProjection.from_proto(projection)
+                for projection in feature_service_proto.spec.features
+            ],
             tags=dict(feature_service_proto.spec.tags),
             description=(
                 feature_service_proto.spec.description
@@ -122,20 +115,6 @@ class FeatureService:
                 else None
             ),
         )
-
-        fs.features = [feature for feature in feature_service_proto.spec.features]
-        fs.feature_tables = [
-            FeatureTable.from_proto(table)
-            for table in feature_service_proto.spec.feature_tables
-        ]
-        fs.feature_views = [
-            FeatureView.from_proto(view)
-            for view in feature_service_proto.spec.feature_views
-        ]
-        fs.on_demand_feature_views = [
-            OnDemandFeatureView.from_proto(view)
-            for view in feature_service_proto.spec.on_demand_feature_views
-        ]
 
         if feature_service_proto.meta.HasField("created_timestamp"):
             fs.created_timestamp = (
@@ -151,7 +130,6 @@ class FeatureService:
     def to_proto(self) -> FeatureServiceProto:
         """
         Converts a FeatureService to its protobuf representation.
-
         Returns:
             A FeatureServiceProto protobuf.
         """
@@ -161,13 +139,11 @@ class FeatureService:
 
         spec = FeatureServiceSpec(
             name=self.name,
-            features=self.features,
-            feature_tables=[table.to_proto() for table in self.feature_tables],
-            feature_views=[view.to_proto() for view in self.feature_views],
-            on_demand_feature_views=[
-                view.to_proto() for view in self.on_demand_feature_views
+            features=[
+                projection.to_proto() for projection in self.feature_view_projections
             ],
         )
+
         if self.tags:
             spec.tags.update(self.tags)
         if self.description:
