@@ -95,7 +95,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "python-version": __version__.replace("+", "_").replace(
+                        "feast-sdk-version": __version__.replace("+", "_").replace(
                             ".", "_"
                         ),
                     },
@@ -132,7 +132,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "python-version": __version__.replace("+", "_").replace(
+                        "feast-sdk-version": __version__.replace("+", "_").replace(
                             ".", "_"
                         ),
                     },
