@@ -549,9 +549,8 @@ class FeatureStore:
             )
 
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self._get_feature_views_to_use(features)
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project
+        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
+            features
         )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
@@ -811,11 +810,8 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self._get_feature_views_to_use(
+        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
-        )
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project, allow_cache=True
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -1029,11 +1025,18 @@ class FeatureStore:
         features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
-    ) -> List[FeatureView]:
+    ) -> Tuple[List[FeatureView], List[OnDemandFeatureView]]:
 
-        all_feature_views = {
+        fvs = {
             fv.name: fv
             for fv in self._list_feature_views(allow_cache, hide_dummy_entity)
+        }
+
+        od_fvs = {
+            fv.name: fv
+            for fv in self._registry.list_on_demand_feature_views(
+                project=self.project, allow_cache=allow_cache
+            )
         }
 
         if isinstance(features, FeatureService):
@@ -1041,8 +1044,10 @@ class FeatureStore:
                 projection.name: projection
                 for projection in features.feature_view_projections
             }.items():
-                if fv_name in all_feature_views:
-                    all_feature_views[fv_name].set_projection(projection)
+                if fv_name in fvs:
+                    fvs[fv_name].set_projection(projection)
+                elif fv_name in od_fvs:
+                    od_fvs[fv_name].set_projection(projection)
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
@@ -1050,7 +1055,7 @@ class FeatureStore:
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
 
-        return [*all_feature_views.values()]
+        return [*fvs.values()], [*od_fvs.values()]
 
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:

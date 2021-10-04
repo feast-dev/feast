@@ -172,10 +172,14 @@ def feature_service_list(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
-    feature_services = [
-        [feature_service.name, ", ".join(feature_service.features)]
-        for feature_service in store.list_feature_services()
-    ]
+    feature_services = []
+    for feature_service in store.list_feature_services():
+        feature_names = []
+        for projection in feature_service.features:
+            feature_names.extend(
+                [f"{projection.name}:{feature.name}" for feature in projection.features]
+            )
+        feature_services.append([feature_service.name, ", ".join(feature_names)])
 
     from tabulate import tabulate
 

@@ -74,11 +74,11 @@ class FeatureView:
     online: bool
     input: DataSource
     batch_source: DataSource
-    projection: FeatureViewProjection
     stream_source: Optional[DataSource] = None
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
+    projection: FeatureViewProjection
 
     @log_exceptions
     def __init__(
@@ -389,7 +389,15 @@ class FeatureView:
                     f"Could not infer Features for the FeatureView named {self.name}.",
                 )
 
-    def set_projection(self, feature_view_projection: FeatureViewProjection):
+    def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
+        """
+        Setter for the projection object held by this FeatureView. Performs checks to ensure
+        the projection is consistent with this FeatureView before doing the set.
+
+        Args:
+            feature_view_projection: The FeatureViewProjection object to set this FeatureView's
+                'projection' field to.
+        """
         assert feature_view_projection.name == self.name
 
         for feature in feature_view_projection.features:

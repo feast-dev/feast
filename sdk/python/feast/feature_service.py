@@ -25,8 +25,7 @@ class FeatureService:
     Args:
         name: Unique name of the feature service.
         features: A list of Features that are grouped as part of this FeatureService.
-            The list may contain Feature Views, Feature Tables, or a subset of either. The
-            strings should be in the format 'my_feature_view:my_feature'.
+            The list may contain Feature Views, Feature Tables, or a subset of either.
         tags (optional): A dictionary of key-value pairs used for organizing Feature
             Services.
     """
@@ -56,13 +55,13 @@ class FeatureService:
         self.feature_view_projections = []
 
         for feature_grouping in features:
-            if isinstance(feature_grouping, FeatureTable) or isinstance(
-                feature_grouping, OnDemandFeatureView
-            ):
+            if isinstance(feature_grouping, FeatureTable):
                 self.feature_view_projections.append(
                     FeatureViewProjection.from_definition(feature_grouping)
                 )
-            elif isinstance(feature_grouping, FeatureView):
+            elif isinstance(feature_grouping, FeatureView) or isinstance(
+                feature_grouping, OnDemandFeatureView
+            ):
                 self.feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(f"Unexpected type: {type(feature_grouping)}")
@@ -130,6 +129,7 @@ class FeatureService:
     def to_proto(self) -> FeatureServiceProto:
         """
         Converts a FeatureService to its protobuf representation.
+
         Returns:
             A FeatureServiceProto protobuf.
         """

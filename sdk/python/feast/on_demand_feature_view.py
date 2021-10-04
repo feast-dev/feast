@@ -10,6 +10,7 @@ from feast.data_source import RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view import FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -44,6 +45,7 @@ class OnDemandFeatureView:
     features: List[Feature]
     inputs: Dict[str, Union[FeatureView, RequestDataSource]]
     udf: MethodType
+    projection: FeatureViewProjection
 
     @log_exceptions
     def __init__(
@@ -61,6 +63,7 @@ class OnDemandFeatureView:
         self.features = features
         self.inputs = inputs
         self.udf = udf
+        self.projection = FeatureViewProjection.from_definition(self)
 
     def __hash__(self) -> int:
         return hash((id(self), self.name))
@@ -134,6 +137,12 @@ class OnDemandFeatureView:
             ),
         )
 
+        # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
+        # Create the default projection.
+        on_demand_feature_view_obj.projection = FeatureViewProjection.from_definition(
+            on_demand_feature_view_obj
+        )
+
         return on_demand_feature_view_obj
 
     def get_transformed_features_df(
@@ -171,9 +180,9 @@ class OnDemandFeatureView:
             if feature.name in item:
                 referenced_features.append(feature)
 
-        return OnDemandFeatureView(
-            self.name, referenced_features, self.inputs, self.udf
-        )
+        self.projection.features = referenced_features
+
+        return self
 
     def infer_features(self):
         """
@@ -237,6 +246,26 @@ class OnDemandFeatureView:
                     requested_on_demand_feature_views.append(odfv)
                     break
         return requested_on_demand_feature_views
+
+    def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
+        """
+        Setter for the projection object held by this FeatureView. Performs checks to ensure
+        the projection is consistent with this FeatureView before doing the set.
+
+        Args:
+            feature_view_projection: The FeatureViewProjection object to set this FeatureView's
+                'projection' field to.
+        """
+        assert feature_view_projection.name == self.name
+
+        for feature in feature_view_projection.features:
+            if feature not in self.features:
+                raise ValueError(
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the"
+                    "FeatureView doesn't have."
+                )
+
+        self.projection = feature_view_projection
 
 
 def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureView]):

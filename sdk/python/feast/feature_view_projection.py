@@ -15,7 +15,7 @@ class FeatureViewProjection:
 
     def to_proto(self):
         feature_reference_proto = FeatureViewProjectionProto(
-            feature_view_name=self.name,
+            feature_view_name=self.name
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())

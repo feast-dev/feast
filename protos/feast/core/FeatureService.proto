@@ -24,7 +24,7 @@ message FeatureServiceSpec {
   string project = 2;
 
   // Represents a projection that's to be applied on top of the FeatureView.
-  // Contains data like a name alias or the features to use from a FeatureView.
+  // Contains data such as the features to use from a FeatureView.
   repeated FeatureViewProjection features = 3;
 
   // User defined metadata
