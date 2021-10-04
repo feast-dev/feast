@@ -40,9 +40,6 @@ except ImportError as e:
 
 
 class AwsProvider(PassthroughProvider):
-    def _get_lambda_name(self, project: str):
-        return f"feast-python-server-{project}-{__version__.replace('+', '_').replace('.', '_')}"
-
     def update_infra(
         self,
         project: str,
@@ -65,7 +62,6 @@ class AwsProvider(PassthroughProvider):
             image_uri = self._upload_docker_image(project)
             print("Deploying feature server...")
 
-            assert self.repo_config.repo_path
             if not self.repo_config.repo_path:
                 raise RepoConfigPathDoesNotExist()
             with open(self.repo_config.repo_path / "feature_store.yaml", "rb") as f:
@@ -102,7 +98,7 @@ class AwsProvider(PassthroughProvider):
                 )
                 function = aws_utils.get_lambda_function(lambda_client, resource_name)
                 if not function:
-                    raise AwsLambdaDoesNotExist()
+                    raise AwsLambdaDoesNotExist(resource_name)
             else:
                 # If the feature_store.yaml has changed, need to update the environment variable.
                 env = function.get("Environment", {}).get("Variables", {})
@@ -138,7 +134,7 @@ class AwsProvider(PassthroughProvider):
                     },
                 )
                 if not api:
-                    raise AwsAPIGatewayDoesNotExist()
+                    raise AwsAPIGatewayDoesNotExist(resource_name)
                 # Make sure to give AWS Lambda a permission to be invoked by the newly created API Gateway
                 api_id = api["ApiId"]
                 region = lambda_client.meta.region_name
@@ -178,6 +174,9 @@ class AwsProvider(PassthroughProvider):
             if api is not None:
                 print("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
+
+    def _get_lambda_name(self, project: str):
+        return f"feast-python-server-{project}-{__version__.replace('+', '_').replace('.', '_')}"
 
     def _upload_docker_image(self, project: str) -> str:
         """

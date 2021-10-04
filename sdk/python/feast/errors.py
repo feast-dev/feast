@@ -282,10 +282,14 @@ class RepoConfigPathDoesNotExist(Exception):
 
 
 class AwsLambdaDoesNotExist(Exception):
-    def __init__(self):
-        super().__init__("The created AWS Lambda function does not exist.")
+    def __init__(self, resource_name: str):
+        super().__init__(
+            f"The AWS Lambda function {resource_name} should have been created properly, but does not exist."
+        )
 
 
 class AwsAPIGatewayDoesNotExist(Exception):
-    def __init__(self):
-        super().__init__("The created AWS API Gateway does not exist.")
+    def __init__(self, resource_name: str):
+        super().__init__(
+            f"The AWS API Gateway {resource_name} should have been created properly, but does not exist."
+        )
