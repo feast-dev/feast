@@ -17,7 +17,8 @@
 # Maximum interval(secs) to wait between retries for retry function
 MAX_WAIT_INTERVAL: str = "60"
 
-AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server:aws"
+# Dockerhub name for the AWS Lambda feature server docker image.
+AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server:aws-v0.1"
 
 # feature_store.yaml environment variable name for remote feature server
 FEATURE_STORE_YAML_ENV_NAME: str = "FEATURE_STORE_YAML_BASE64"
