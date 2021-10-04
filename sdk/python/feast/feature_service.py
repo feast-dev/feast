@@ -64,7 +64,10 @@ class FeatureService:
             ):
                 self.feature_view_projections.append(feature_grouping.projection)
             else:
-                raise ValueError(f"Unexpected type: {type(feature_grouping)}")
+                raise ValueError(
+                    "The FeatureService {fs_name} has been provided with an invalid type"
+                    f'{type(feature_grouping)} as part of the "features" argument.)'
+                )
 
         self.tags = tags or {}
         self.description = description

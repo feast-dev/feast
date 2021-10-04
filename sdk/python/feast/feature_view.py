@@ -391,19 +391,27 @@ class FeatureView:
 
     def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
         """
-        Setter for the projection object held by this FeatureView. Performs checks to ensure
-        the projection is consistent with this FeatureView before doing the set.
+        Setter for the projection object held by this FeatureView. A projection is an
+        object that stores the modifications to a FeatureView that is applied to the FeatureView
+        when the FeatureView is used such as during feature_store.get_historical_features.
+        This method also performs checks to ensure the projection is consistent with this
+        FeatureView before doing the set.
 
         Args:
             feature_view_projection: The FeatureViewProjection object to set this FeatureView's
                 'projection' field to.
         """
-        assert feature_view_projection.name == self.name
+        if feature_view_projection.name != self.name:
+            raise ValueError(
+                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
+                f"The projection is named {feature_view_projection.name} and the name indicates which "
+                "FeatureView the projection is for."
+            )
 
         for feature in feature_view_projection.features:
             if feature not in self.features:
                 raise ValueError(
-                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the"
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
                     "FeatureView doesn't have."
                 )
 
