@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
-from feast import __version__
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     FEAST_USAGE,
@@ -30,6 +29,7 @@ from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
+from feast.version import get_version
 
 try:
     import boto3
@@ -91,9 +91,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "feast-sdk-version": __version__.replace("+", "_").replace(
-                            ".", "_"
-                        ),
+                        "feast-sdk-version": get_version(),
                     },
                 )
                 function = aws_utils.get_lambda_function(lambda_client, resource_name)
@@ -128,9 +126,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "feast-sdk-version": __version__.replace("+", "_").replace(
-                            ".", "_"
-                        ),
+                        "feast-sdk-version": get_version(),
                     },
                 )
                 if not api:
@@ -175,9 +171,6 @@ class AwsProvider(PassthroughProvider):
                 print("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
-    def _get_lambda_name(self, project: str):
-        return f"feast-python-server-{project}-{__version__.replace('+', '_').replace('.', '_')}"
-
     def _upload_docker_image(self, project: str) -> str:
         """
         Pulls the AWS Lambda docker image from Dockerhub and uploads it to AWS ECR.
@@ -217,7 +210,7 @@ class AwsProvider(PassthroughProvider):
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-        version = __version__.replace("+", "_").replace(".", "_")
+        version = get_version()
         repository_name = f"feast-python-server-{project}-{version}"
         ecr_client = boto3.client("ecr")
         try:
@@ -248,6 +241,9 @@ class AwsProvider(PassthroughProvider):
         image.tag(image_remote_name)
         docker_client.api.push(repository_uri, tag=version)
         return image_remote_name
+
+    def _get_lambda_name(self, project: str):
+        return f"feast-python-server-{project}-{get_version()}"
 
 
 class S3RegistryStore(RegistryStore):
