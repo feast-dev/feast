@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 import uuid
 from datetime import datetime
@@ -38,6 +39,12 @@ except ImportError as e:
 
     raise FeastExtrasDependencyImportError("aws", str(e))
 
+_logger = logging.getLogger(__name__)
+_logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setLevel(logging.INFO)
+_logger.addHandler(_handler)
+
 
 class AwsProvider(PassthroughProvider):
     def update_infra(
@@ -60,7 +67,7 @@ class AwsProvider(PassthroughProvider):
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
             image_uri = self._upload_docker_image(project)
-            print("Deploying feature server...")
+            _logger.info("Deploying feature server...")
 
             if not self.repo_config.repo_path:
                 raise RepoConfigPathDoesNotExist()
@@ -75,7 +82,7 @@ class AwsProvider(PassthroughProvider):
 
             if function is None:
                 # If the Lambda function does not exist, create it.
-                print("  Creating AWS Lambda...")
+                _logger.info("  Creating AWS Lambda...")
                 lambda_client.create_function(
                     FunctionName=resource_name,
                     Role=self.repo_config.feature_server.execution_role_name,
@@ -105,7 +112,7 @@ class AwsProvider(PassthroughProvider):
                     # It's expected that feature_store.yaml is not regularly updated while the lambda
                     # is serving production traffic. However, the update in registry (e.g. modifying
                     # feature views, feature services, and other definitions does not update lambda).
-                    print("  Updating AWS Lambda...")
+                    _logger.info("  Updating AWS Lambda...")
 
                     lambda_client.update_function_configuration(
                         FunctionName=resource_name,
@@ -117,7 +124,7 @@ class AwsProvider(PassthroughProvider):
             api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
             if not api:
                 # If the API Gateway doesn't exist, create it
-                print("  Creating AWS API Gateway...")
+                _logger.info("  Creating AWS API Gateway...")
                 api = api_gateway_client.create_api(
                     Name=resource_name,
                     ProtocolType="HTTP",
@@ -155,7 +162,7 @@ class AwsProvider(PassthroughProvider):
             self.repo_config.feature_server is not None
             and self.repo_config.feature_server.enabled
         ):
-            print("Tearing down feature server...")
+            _logger.info("Tearing down feature server...")
             resource_name = self._get_lambda_name(project)
             lambda_client = boto3.client("lambda")
             api_gateway_client = boto3.client("apigatewayv2")
@@ -163,12 +170,12 @@ class AwsProvider(PassthroughProvider):
             function = aws_utils.get_lambda_function(lambda_client, resource_name)
 
             if function is not None:
-                print("  Tearing down AWS Lambda...")
+                _logger.info("  Tearing down AWS Lambda...")
                 aws_utils.delete_lambda_function(lambda_client, resource_name)
 
             api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
             if api is not None:
-                print("  Tearing down AWS API Gateway...")
+                _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
     def _upload_docker_image(self, project: str) -> str:
@@ -205,7 +212,7 @@ class AwsProvider(PassthroughProvider):
 
             raise DockerDaemonNotRunning()
 
-        print(
+        _logger.info(
             f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{AWS_LAMBDA_FEATURE_SERVER_IMAGE}{Style.RESET_ALL}:"
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
@@ -214,7 +221,7 @@ class AwsProvider(PassthroughProvider):
         repository_name = f"feast-python-server-{project}-{version}"
         ecr_client = boto3.client("ecr")
         try:
-            print(
+            _logger.info(
                 f"Creating remote ECR repository {Style.BRIGHT + Fore.GREEN}{repository_name}{Style.RESET_ALL}:"
             )
             response = ecr_client.create_repository(repositoryName=repository_name)
@@ -235,7 +242,7 @@ class AwsProvider(PassthroughProvider):
 
         image = docker_client.images.get(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
         image_remote_name = f"{repository_uri}:{version}"
-        print(
+        _logger.info(
             f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}:"
         )
         image.tag(image_remote_name)
