@@ -59,10 +59,11 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--log-level",
+    default="info",
     help="The logging level. One of DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive).",
 )
 @click.pass_context
-def cli(ctx: click.Context, chdir: Optional[str], log_level: Optional[str]):
+def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
     """
     Feast CLI
 
@@ -73,11 +74,7 @@ def cli(ctx: click.Context, chdir: Optional[str], log_level: Optional[str]):
     ctx.ensure_object(dict)
     ctx.obj["CHDIR"] = Path.cwd() if chdir is None else Path(chdir).absolute()
     try:
-        level = (
-            getattr(logging, log_level.upper())
-            if log_level is not None
-            else logging.INFO
-        )
+        level = getattr(logging, log_level.upper())
         logging.basicConfig(
             format="%(asctime)s %(levelname)s:%(message)s",
             datefmt="%m/%d/%Y %I:%M:%S %p",
