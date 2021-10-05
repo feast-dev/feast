@@ -100,6 +100,7 @@ class FeatureStore:
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(registry_config, repo_path=self.repo_path)
+        self._provider = get_provider(self.config, self.repo_path)
 
     @log_exceptions
     def version(self) -> str:
@@ -118,7 +119,7 @@ class FeatureStore:
 
     def _get_provider(self) -> Provider:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
-        return get_provider(self.config, self.repo_path)
+        return self._provider
 
     @log_exceptions_and_usage
     def refresh_registry(self):
