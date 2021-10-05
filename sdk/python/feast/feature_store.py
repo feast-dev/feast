@@ -76,6 +76,7 @@ class FeatureStore:
     config: RepoConfig
     repo_path: Path
     _registry: Registry
+    _provider: Provider
 
     @log_exceptions
     def __init__(
