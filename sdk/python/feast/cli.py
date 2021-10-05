@@ -175,7 +175,7 @@ def feature_service_list(ctx: click.Context):
     feature_services = []
     for feature_service in store.list_feature_services():
         feature_names = []
-        for projection in feature_service.features:
+        for projection in feature_service.feature_view_projections:
             feature_names.extend(
                 [f"{projection.name}:{feature.name}" for feature in projection.features]
             )

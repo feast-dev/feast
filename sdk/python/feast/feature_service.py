@@ -31,7 +31,7 @@ class FeatureService:
     """
 
     name: str
-    features: List[FeatureViewProjection]
+    feature_view_projections: List[FeatureViewProjection]
     tags: Dict[str, str]
     description: Optional[str] = None
     created_timestamp: Optional[datetime] = None
@@ -41,9 +41,7 @@ class FeatureService:
     def __init__(
         self,
         name: str,
-        features: List[
-            Union[FeatureTable, FeatureView, OnDemandFeatureView, FeatureViewProjection]
-        ],
+        features: List[Union[FeatureTable, FeatureView, OnDemandFeatureView]],
         tags: Optional[Dict[str, str]] = None,
         description: Optional[str] = None,
     ):
@@ -54,18 +52,23 @@ class FeatureService:
             ValueError: If one of the specified features is not a valid type.
         """
         self.name = name
-        self.features = []
-        for feature in features:
-            if (
-                isinstance(feature, FeatureTable)
-                or isinstance(feature, FeatureView)
-                or isinstance(feature, OnDemandFeatureView)
+        self.feature_view_projections = []
+
+        for feature_grouping in features:
+            if isinstance(feature_grouping, FeatureTable):
+                self.feature_view_projections.append(
+                    FeatureViewProjection.from_definition(feature_grouping)
+                )
+            elif isinstance(feature_grouping, FeatureView) or isinstance(
+                feature_grouping, OnDemandFeatureView
             ):
-                self.features.append(FeatureViewProjection.from_definition(feature))
-            elif isinstance(feature, FeatureViewProjection):
-                self.features.append(feature)
+                self.feature_view_projections.append(feature_grouping.projection)
             else:
-                raise ValueError(f"Unexpected type: {type(feature)}")
+                raise ValueError(
+                    "The FeatureService {fs_name} has been provided with an invalid type"
+                    f'{type(feature_grouping)} as part of the "features" argument.)'
+                )
+
         self.tags = tags or {}
         self.description = description
         self.created_timestamp = None
@@ -89,7 +92,9 @@ class FeatureService:
         if self.tags != other.tags or self.name != other.name:
             return False
 
-        if sorted(self.features) != sorted(other.features):
+        if sorted(self.feature_view_projections) != sorted(
+            other.feature_view_projections
+        ):
             return False
 
         return True
@@ -104,16 +109,19 @@ class FeatureService:
         """
         fs = FeatureService(
             name=feature_service_proto.spec.name,
-            features=[
-                FeatureViewProjection.from_proto(fp)
-                for fp in feature_service_proto.spec.features
-            ],
+            features=[],
             tags=dict(feature_service_proto.spec.tags),
             description=(
                 feature_service_proto.spec.description
                 if feature_service_proto.spec.description != ""
                 else None
             ),
+        )
+        fs.feature_view_projections.extend(
+            [
+                FeatureViewProjection.from_proto(projection)
+                for projection in feature_service_proto.spec.features
+            ]
         )
 
         if feature_service_proto.meta.HasField("created_timestamp"):
@@ -138,19 +146,12 @@ class FeatureService:
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
 
-        spec = FeatureServiceSpec()
-        spec.name = self.name
-        for definition in self.features:
-            if isinstance(definition, FeatureTable) or isinstance(
-                definition, FeatureView
-            ):
-                feature_ref = FeatureViewProjection(
-                    definition.name, definition.features
-                )
-            else:
-                feature_ref = definition
-
-            spec.features.append(feature_ref.to_proto())
+        spec = FeatureServiceSpec(
+            name=self.name,
+            features=[
+                projection.to_proto() for projection in self.feature_view_projections
+            ],
+        )
 
         if self.tags:
             spec.tags.update(self.tags)

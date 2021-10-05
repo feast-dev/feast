@@ -31,7 +31,7 @@ class FeatureViewProjection:
         return ref
 
     @staticmethod
-    def from_definition(feature_definition):
+    def from_definition(feature_grouping):
         return FeatureViewProjection(
-            name=feature_definition.name, features=feature_definition.features
+            name=feature_grouping.name, features=feature_grouping.features
         )
