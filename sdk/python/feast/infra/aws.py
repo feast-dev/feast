@@ -40,10 +40,6 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("aws", str(e))
 
 _logger = logging.getLogger(__name__)
-_logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setLevel(logging.INFO)
-_logger.addHandler(_handler)
 
 
 class AwsProvider(PassthroughProvider):
