@@ -52,9 +52,6 @@ class PassthroughProvider(Provider):
             partial=partial,
         )
 
-        if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
-            self._upload_docker_image()
-
     def teardown_infra(
         self,
         project: str,
@@ -150,7 +147,3 @@ class PassthroughProvider(Provider):
             full_feature_names=full_feature_names,
         )
         return job
-
-    def _upload_docker_image(self) -> None:
-        """Upload the docker image for the feature server to the cloud."""
-        pass

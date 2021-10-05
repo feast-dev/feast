@@ -17,4 +17,10 @@
 # Maximum interval(secs) to wait between retries for retry function
 MAX_WAIT_INTERVAL: str = "60"
 
-AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server"
+AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server:aws"
+
+# feature_store.yaml environment variable name for remote feature server
+FEATURE_STORE_YAML_ENV_NAME: str = "FEATURE_STORE_YAML_BASE64"
+
+# Environment variable for toggling usage
+FEAST_USAGE = "FEAST_USAGE"

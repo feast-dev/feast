@@ -8,7 +8,8 @@ option java_package = "feast.proto.core";
 import "feast/core/Feature.proto";
 
 
-// A reference to features in a feature view
+// A projection to be applied on top of a FeatureView. 
+// Contains the modifications to a FeatureView such as the features subset to use.
 message FeatureViewProjection {
   // The feature view name
   string feature_view_name = 1;

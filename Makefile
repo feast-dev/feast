@@ -53,26 +53,26 @@ install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 benchmark-python:
-	FEAST_USAGE=False IS_TEST=True pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python:
-	FEAST_USAGE=False IS_TEST=True pytest -n 8 sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 sdk/python/tests
 
 test-python-integration:
-	FEAST_USAGE=False IS_TEST=True pytest -n 8 --integration sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
 	# Sort
-	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
 
 	# Format
-	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
+	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py37 feast tests
 
 lint-python:
-	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ --check-only
-	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; black --check feast tests
+	cd ${ROOT_DIR}/sdk/python; python -m mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
+	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
 
 # Go SDK
 

@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -74,6 +73,9 @@ class Entity:
 
         self._created_timestamp: Optional[datetime] = None
         self._last_updated_timestamp: Optional[datetime] = None
+
+    def __hash__(self) -> int:
+        return hash((id(self), self.name))
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
