@@ -23,6 +23,11 @@ class FeatureViewProjection:
 
         return feature_reference_proto
 
+    def copy(self):
+        return FeatureViewProjection(
+            name=self.name, name_to_use=self.name_to_use, features=self.features,
+        )
+
     @staticmethod
     def from_proto(proto: FeatureViewProjectionProto):
         ref = FeatureViewProjection(

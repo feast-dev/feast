@@ -226,8 +226,8 @@ class FeatureView:
             online=self.online,
         )
 
-        fv.set_projection(self.projection)
-        fv.projection.name_alias = name
+        fv.set_projection(self.projection.copy)
+        fv.projection.name_to_use = name
 
         return fv
 
