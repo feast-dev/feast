@@ -516,7 +516,7 @@ WITH entity_dataframe AS (
 /*
  Joins the outputs of multiple time travel joins to a single table.
  The entity_dataframe dataset being our source of truth here.
- */
+*/
 
 SELECT entity_dataframe.*
 FROM entity_dataframe
