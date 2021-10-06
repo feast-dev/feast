@@ -327,7 +327,7 @@ class FeatureStore:
                 )
             for projection in feature_service_from_registry.feature_view_projections:
                 _feature_refs.extend(
-                    [f"{projection.get_name()}:{f.name}" for f in projection.features]
+                    [f"{projection.name_to_use}:{f.name}" for f in projection.features]
                 )
         else:
             assert isinstance(_features, list)
@@ -937,7 +937,7 @@ class FeatureStore:
             if feature_data is None:
                 for feature_name in requested_features:
                     feature_ref = (
-                        f"{table.projection.get_name()}__{feature_name}"
+                        f"{table.projection.name_to_use}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -947,7 +947,7 @@ class FeatureStore:
             else:
                 for feature_name in feature_data:
                     feature_ref = (
-                        f"{table.projection.get_name()}__{feature_name}"
+                        f"{table.projection.name_to_use}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -1007,7 +1007,7 @@ class FeatureStore:
 
                 for transformed_feature in selected_subset:
                     transformed_feature_name = (
-                        f"{odfv.projection.get_name()}__{transformed_feature}"
+                        f"{odfv.projection.name_to_use}__{transformed_feature}"
                         if full_feature_names
                         else transformed_feature
                     )

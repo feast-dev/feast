@@ -187,11 +187,11 @@ def _get_requested_feature_views_to_features_dict(
 
         found = False
         for fv in feature_views:
-            if fv.projection.get_name() == feature_view_from_ref:
+            if fv.projection.name_to_use == feature_view_from_ref:
                 found = True
                 feature_views_to_feature_map[fv].append(feature_from_ref)
         for odfv in on_demand_feature_views:
-            if odfv.projection.get_name() == feature_view_from_ref:
+            if odfv.projection.name_to_use == feature_view_from_ref:
                 found = True
                 on_demand_feature_views_to_feature_map[odfv].append(feature_from_ref)
 

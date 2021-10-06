@@ -11,18 +11,12 @@ from feast.protos.feast.core.FeatureViewProjection_pb2 import (
 @dataclass
 class FeatureViewProjection:
     name: str
-    name_alias: str
+    name_to_use: str
     features: List[Feature]
-
-    def get_name(self):
-        """
-        Lorem ipsum
-        """
-        return self.name_alias or self.name
 
     def to_proto(self):
         feature_reference_proto = FeatureViewProjectionProto(
-            feature_view_name=self.name
+            feature_view_name=self.name, feature_view_name_to_use=self.name_to_use
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())
@@ -32,7 +26,9 @@ class FeatureViewProjection:
     @staticmethod
     def from_proto(proto: FeatureViewProjectionProto):
         ref = FeatureViewProjection(
-            name=proto.feature_view_name, name_alias=proto.name_alias, features=[]
+            name=proto.feature_view_name,
+            name_to_use=proto.feature_view_name_to_use,
+            features=[],
         )
         for feature_column in proto.feature_columns:
             ref.features.append(Feature.from_proto(feature_column))
@@ -43,7 +39,6 @@ class FeatureViewProjection:
     def from_definition(feature_grouping):
         return FeatureViewProjection(
             name=feature_grouping.name,
-            # name_alias defaults to be the same as the 'name' above
-            name_alias=feature_grouping.name,
+            name_to_use=feature_grouping.name,
             features=feature_grouping.features,
         )
