@@ -15,7 +15,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import click
 import pkg_resources
@@ -57,8 +57,13 @@ class NoOptionDefaultFormat(click.Command):
     "-c",
     help="Switch to a different feature repository directory before executing the given subcommand.",
 )
+@click.option(
+    "--log-level",
+    default="info",
+    help="The logging level. One of DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive).",
+)
 @click.pass_context
-def cli(ctx: click.Context, chdir: str):
+def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
     """
     Feast CLI
 
@@ -68,6 +73,15 @@ def cli(ctx: click.Context, chdir: str):
     """
     ctx.ensure_object(dict)
     ctx.obj["CHDIR"] = Path.cwd() if chdir is None else Path(chdir).absolute()
+    try:
+        level = getattr(logging, log_level.upper())
+        logging.basicConfig(
+            format="%(asctime)s %(levelname)s:%(message)s",
+            datefmt="%m/%d/%Y %I:%M:%S %p",
+            level=level,
+        )
+    except Exception as e:
+        raise e
     pass
 
 
