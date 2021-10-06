@@ -40,10 +40,6 @@ message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
 
-    // Name of the base feature view if this is a derived Feature View.
-    // E.g. If the name had been changed with '.with_name'.
-    string base_name = 10;
-
     // Name of Feast project that this feature view belongs to.
     string project = 2;
 

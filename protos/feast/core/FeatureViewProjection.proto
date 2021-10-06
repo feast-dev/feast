@@ -16,4 +16,7 @@ message FeatureViewProjection {
 
   // The features of the feature view that are a part of the feature reference.
   repeated FeatureSpecV2 feature_columns = 2;
+
+  // Alias for feature view name.
+  string name_alias = 3;
 }

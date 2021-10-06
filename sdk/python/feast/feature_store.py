@@ -327,7 +327,7 @@ class FeatureStore:
                 )
             for projection in feature_service_from_registry.feature_view_projections:
                 _feature_refs.extend(
-                    [f"{projection.name}:{f.name}" for f in projection.features]
+                    [f"{projection.get_name()}:{f.name}" for f in projection.features]
                 )
         else:
             assert isinstance(_features, list)
@@ -903,7 +903,11 @@ class FeatureStore:
             GetOnlineFeaturesResponse(field_values=result_rows)
         )
         return self._augment_response_with_on_demand_transforms(
-            _feature_refs, full_feature_names, initial_response, result_rows
+            _feature_refs,
+            all_on_demand_feature_views,
+            full_feature_names,
+            initial_response,
+            result_rows,
         )
 
     def _populate_result_rows_from_feature_view(
@@ -933,7 +937,7 @@ class FeatureStore:
             if feature_data is None:
                 for feature_name in requested_features:
                     feature_ref = (
-                        f"{table.name}__{feature_name}"
+                        f"{table.projection.get_name()}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -943,7 +947,7 @@ class FeatureStore:
             else:
                 for feature_name in feature_data:
                     feature_ref = (
-                        f"{table.name}__{feature_name}"
+                        f"{table.projection.get_name()}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -970,16 +974,12 @@ class FeatureStore:
     def _augment_response_with_on_demand_transforms(
         self,
         feature_refs: List[str],
+        odfvs: List[OnDemandFeatureView],
         full_feature_names: bool,
         initial_response: OnlineResponse,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
     ) -> OnlineResponse:
-        all_on_demand_feature_views = {
-            view.name: view
-            for view in self._registry.list_on_demand_feature_views(
-                project=self.project, allow_cache=True
-            )
-        }
+        all_on_demand_feature_views = {view.name: view for view in odfvs}
         all_odfv_feature_names = all_on_demand_feature_views.keys()
 
         if len(all_on_demand_feature_views) == 0:
@@ -1007,7 +1007,7 @@ class FeatureStore:
 
                 for transformed_feature in selected_subset:
                     transformed_feature_name = (
-                        f"{odfv.name}__{transformed_feature}"
+                        f"{odfv.projection.get_name()}__{transformed_feature}"
                         if full_feature_names
                         else transformed_feature
                     )

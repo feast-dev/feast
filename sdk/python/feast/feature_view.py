@@ -67,7 +67,6 @@ class FeatureView:
     """
 
     name: str
-    base_name: str
     entities: List[str]
     features: List[Feature]
     tags: Optional[Dict[str, str]]
@@ -124,7 +123,6 @@ class FeatureView:
                 )
 
         self.name = name
-        self.base_name = name
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
         self.features = _features
         self.tags = tags if tags is not None else {}
@@ -217,7 +215,7 @@ class FeatureView:
             A copy of this FeatureView with the name replaced with the 'name' input.
         """
         fv = FeatureView(
-            name=name,
+            name=self.name,
             entities=self.entities,
             ttl=self.ttl,
             input=self.input,
@@ -227,7 +225,9 @@ class FeatureView:
             tags=self.tags,
             online=self.online,
         )
-        fv.base_name = self.base_name
+
+        fv.set_projection(self.projection)
+        fv.projection.name_alias = name
 
         return fv
 
@@ -264,7 +264,6 @@ class FeatureView:
 
         spec = FeatureViewSpecProto(
             name=self.name,
-            base_name=self.base_name,
             entities=self.entities,
             features=[feature.to_proto() for feature in self.features],
             tags=self.tags,
@@ -315,9 +314,6 @@ class FeatureView:
             batch_source=batch_source,
             stream_source=stream_source,
         )
-
-
-        feature_view.base_name = feature_view_proto.spec.base_name
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.
