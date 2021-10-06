@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 from urllib.parse import urlparse
 
 from colorama import Fore, Style
@@ -30,7 +30,7 @@ from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
-from feast.version import get_version
+from feast.version import get_clean_version
 
 try:
     import boto3
@@ -94,7 +94,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "feast-sdk-version": get_version(),
+                        "feast-sdk-version": get_clean_version(),
                     },
                 )
                 function = aws_utils.get_lambda_function(lambda_client, resource_name)
@@ -129,7 +129,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "feast-sdk-version": get_version(),
+                        "feast-sdk-version": get_clean_version(),
                     },
                 )
                 if not api:
@@ -174,6 +174,20 @@ class AwsProvider(PassthroughProvider):
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        project = self.repo_config.project
+        resource_name = self._get_lambda_name(project)
+        api_gateway_client = boto3.client("apigatewayv2")
+        api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
+
+        if not api:
+            return None
+
+        api_id = api["ApiId"]
+        lambda_client = boto3.client("lambda")
+        region = lambda_client.meta.region_name
+        return f"https://{api_id}.execute-api.{region}.amazonaws.com"
+
     def _upload_docker_image(self, project: str) -> str:
         """
         Pulls the AWS Lambda docker image from Dockerhub and uploads it to AWS ECR.
@@ -213,7 +227,7 @@ class AwsProvider(PassthroughProvider):
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-        version = get_version()
+        version = get_clean_version()
         repository_name = f"feast-python-server-{project}-{version}"
         ecr_client = boto3.client("ecr")
         try:
@@ -246,7 +260,7 @@ class AwsProvider(PassthroughProvider):
         return image_remote_name
 
     def _get_lambda_name(self, project: str):
-        return f"feast-python-server-{project}-{get_version()}"
+        return f"feast-python-server-{project}-{get_clean_version()}"
 
 
 class S3RegistryStore(RegistryStore):

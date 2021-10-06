@@ -93,6 +93,22 @@ def version():
     print(f'Feast SDK Version: "{pkg_resources.get_distribution("feast")}"')
 
 
+@cli.command()
+@click.pass_context
+def endpoint(ctx: click.Context):
+    """
+    Display feature server endpoints.
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    endpoint = store.get_feature_server_endpoint()
+    if endpoint is not None:
+        print(f"Feature server endpoint: {endpoint}")
+    else:
+        print("There is no active feature server.")
+
+
 @cli.group(name="entities")
 def entities_cmd():
     """
