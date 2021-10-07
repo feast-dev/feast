@@ -17,7 +17,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 
 
-class AstraConfig(FeastConfigBaseModel):
+class AstraDBOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Astra online store"""
 
     type: Literal["astra"] = "astra"
