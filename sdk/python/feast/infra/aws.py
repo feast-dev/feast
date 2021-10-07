@@ -264,7 +264,10 @@ class AwsProvider(PassthroughProvider):
 
     @staticmethod
     def _get_version_for_aws():
-        """Returns Feast version with certain characters replaced."""
+        """Returns Feast version with certain characters replaced.
+        
+        This allows the version to be included in names for AWS resources. 
+        """
         return get_version().replace(".", "_").replace("+", "_")
 
 
