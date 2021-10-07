@@ -30,7 +30,7 @@ from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
-from feast.version import get_clean_version
+from feast.version import get_version
 
 try:
     import boto3
@@ -94,7 +94,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "feast-sdk-version": get_clean_version(),
+                        "feast-sdk-version": get_version(),
                     },
                 )
                 function = aws_utils.get_lambda_function(lambda_client, resource_name)
@@ -129,7 +129,7 @@ class AwsProvider(PassthroughProvider):
                     Tags={
                         "feast-owned": "True",
                         "project": project,
-                        "feast-sdk-version": get_clean_version(),
+                        "feast-sdk-version": get_version(),
                     },
                 )
                 if not api:
@@ -227,7 +227,7 @@ class AwsProvider(PassthroughProvider):
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-        version = get_clean_version()
+        version = self._get_version_for_aws()
         repository_name = f"feast-python-server-{project}-{version}"
         ecr_client = boto3.client("ecr")
         try:
@@ -260,7 +260,12 @@ class AwsProvider(PassthroughProvider):
         return image_remote_name
 
     def _get_lambda_name(self, project: str):
-        return f"feast-python-server-{project}-{get_clean_version()}"
+        return f"feast-python-server-{project}-{self._get_version_for_aws()}"
+
+    @staticmethod
+    def _get_version_for_aws():
+        """Returns Feast version with certain characters replaced."""
+        return get_version().replace(".", "_").replace("+", "_")
 
 
 class S3RegistryStore(RegistryStore):
