@@ -76,7 +76,7 @@ FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
         offline_store_creator=BigQueryDataSourceCreator,
         online_store=REDIS_CONFIG,
     ),
-    # # AWS configurations
+    # AWS configurations
     IntegrationTestRepoConfig(
         provider="aws",
         offline_store_creator=RedshiftDataSourceCreator,

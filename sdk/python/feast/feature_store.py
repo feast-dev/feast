@@ -813,7 +813,6 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-
         all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
