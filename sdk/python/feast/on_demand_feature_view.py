@@ -1,3 +1,4 @@
+import copy
 import functools
 from types import MethodType
 from typing import Dict, List, Union, cast
@@ -82,7 +83,7 @@ class OnDemandFeatureView:
             name=self.name, features=self.features, inputs=self.inputs, udf=self.udf
         )
 
-        odfv.set_projection(self.projection.copy)
+        odfv.set_projection(copy.copy(self.projection))
         odfv.projection.name_to_use = name
 
         return odfv

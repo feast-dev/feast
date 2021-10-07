@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import re
 import warnings
 from datetime import datetime, timedelta
@@ -226,7 +227,7 @@ class FeatureView:
             online=self.online,
         )
 
-        fv.set_projection(self.projection.copy)
+        fv.set_projection(copy.copy(self.projection))
         fv.projection.name_to_use = name
 
         return fv
