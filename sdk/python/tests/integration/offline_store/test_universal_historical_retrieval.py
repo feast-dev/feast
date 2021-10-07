@@ -133,16 +133,16 @@ def get_expected_training_df(
             ts_key=location_fv.batch_source.event_timestamp_column,
             ts_start=order_record[event_timestamp] - location_fv.ttl,
             ts_end=order_record[event_timestamp],
-            filter_key="location_id",
-            filter_value=order_record["origin_id"],
+            filter_keys=["location_id"],
+            filter_values=[order_record["origin_id"]],
         )
         destination_record = find_asof_record(
             location_records,
             ts_key=location_fv.batch_source.event_timestamp_column,
             ts_start=order_record[event_timestamp] - location_fv.ttl,
             ts_end=order_record[event_timestamp],
-            filter_key="location_id",
-            filter_value=order_record["destination_id"],
+            filter_keys=["location_id"],
+            filter_values=[order_record["destination_id"]],
         )
         global_record = find_asof_record(
             global_records,
@@ -183,7 +183,7 @@ def get_expected_training_df(
                 "destination__temperature": destination_record.get("temperature", None),
             }
         )
-        order_record.update(
+        entity_row.update(
             {
                 (f"global_stats__{k}" if full_feature_names else k): global_record.get(
                     k, None
@@ -230,7 +230,7 @@ def get_expected_training_df(
     return expected_df
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
@@ -296,7 +296,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     entity_df_query = None
     orders_table = table_name_from_data_source(data_sources["orders"])
     if orders_table:
-        entity_df_query = f"SELECT customer_id, driver_id, order_id, event_timestamp FROM {orders_table}"
+        entity_df_query = f"SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp FROM {orders_table}"
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
@@ -348,7 +348,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         )
 
         # Not requesting the on demand transform with an entity_df query (can't add request data in them)
-        expected_df_query = full_expected_df.drop(
+        expected_df_query = expected_df.drop(
             columns=["conv_rate_plus_100", "val_to_add", "conv_rate_plus_val_to_add"]
         )
         assert sorted(expected_df_query.columns) == sorted(

@@ -21,7 +21,7 @@ from tests.integration.feature_repos.universal.entities import (
 )
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(environment, universal_data_sources, full_feature_names):
 
@@ -289,21 +289,24 @@ def get_latest_feature_values_from_dataframes(
     max_index = timestamps["event_timestamp"].idxmax()
     latest_orders_row = order_rows.loc[max_index]
 
-    if global_df:
+    if global_df is not None:
         latest_global_row = global_df.loc[
             global_df["event_timestamp"].idxmax()
         ].to_dict()
-    if origin_df:
+    if origin_df is not None:
         latest_origin_row = get_latest_row(
             entity_row, origin_df, "location_id", "origin_id"
         )
         latest_destination_row = get_latest_row(
             entity_row, destination_df, "location_id", "destination_id"
         )
+        # Need full feature names for shadow entities
+        latest_origin_row["origin__temperature"] = latest_origin_row.pop("temperature")
+        latest_destination_row["destination__temperature"] = latest_destination_row.pop("temperature")
     request_data_features = entity_row.copy()
     request_data_features.pop("driver")
     request_data_features.pop("customer_id")
-    if global_df:
+    if global_df is not None:
         return {
             **latest_customer_row,
             **latest_driver_row,
@@ -311,7 +314,7 @@ def get_latest_feature_values_from_dataframes(
             **latest_global_row,
             **request_data_features,
         }
-    if origin_df:
+    if origin_df is not None:
         request_data_features.pop("origin_id")
         request_data_features.pop("destination_id")
         return {
@@ -403,7 +406,12 @@ def assert_feature_service_shadow_entities_correctness(
 
         assert (
             len(feature_service_keys)
-            == sum([len(fv.features) for fv in feature_service.features]) + 4
+            == sum(
+            [
+                len(projection.features)
+                for projection in feature_service.feature_view_projections
+            ]
+        ) + 4
         )  # Add 4 for the driver_id, customer_id, origin_id, and destination_id entity keys
 
         for i, entity_row in enumerate(entity_rows):
@@ -415,7 +423,7 @@ def assert_feature_service_shadow_entities_correctness(
                 destination_df=destinations_df,
                 entity_row=entity_row,
             )
-            for feature_name in ["origin_temperature", "destination_temperature"]:
+            for feature_name in ["origin__temperature", "destination__temperature"]:
                 assert (
                     feature_service_online_features_dict[feature_name][i]
                     == df_features[feature_name]

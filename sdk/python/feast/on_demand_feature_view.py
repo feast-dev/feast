@@ -88,6 +88,24 @@ class OnDemandFeatureView:
 
         return odfv
 
+    def with_name(self, name: str):
+        """
+        Renames this feature view by setting an alias for the feature view name. This rename operation is only used as part of query operations and will not modify the underlying feature view.
+        
+        Args:
+            name: Name to assign to the OnDemandFeatureView copy.
+        Returns:
+            A copy of this OnDemandFeatureView with the name replaced with the 'name' input.
+        """
+        odfv = OnDemandFeatureView(
+            name=self.name, features=self.features, inputs=self.inputs, udf=self.udf
+        )
+
+        odfv.set_projection(copy.copy(self.projection))
+        odfv.projection.name_to_use = name
+
+        return odfv
+
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
         Converts an on demand feature view object to its protobuf representation.

@@ -144,7 +144,7 @@ class FileOfflineStore(OfflineStore):
                         table, feature_view.batch_source.field_mapping
                     )
                 # Rename entity columns by the join_key_map dictionary if it exists
-                if feature_view.join_key_map is not None:
+                if feature_view.join_key_map:
                     table = _run_field_mapping(table, feature_view.join_key_map)
 
                 # Convert pyarrow table to pandas dataframe. Note, if the underlying data has missing values,
@@ -194,7 +194,8 @@ class FileOfflineStore(OfflineStore):
                 join_keys = []
                 for entity_name in feature_view.entities:
                     entity = registry.get_entity(entity_name, project)
-                    join_keys.append(entity.join_key)
+                    join_key = feature_view.join_key_map.get(entity.join_key, entity.join_key)
+                    join_keys.append(join_key)
                 right_entity_columns = join_keys
                 right_entity_key_columns = [
                     event_timestamp_column

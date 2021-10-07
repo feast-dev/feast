@@ -63,30 +63,30 @@ DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+    # IntegrationTestRepoConfig(),
+    # IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
     # GCP configurations
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store="datastore",
-    ),
+    # IntegrationTestRepoConfig(
+    #     provider="gcp",
+    #     offline_store_creator=BigQueryDataSourceCreator,
+    #     online_store="datastore",
+    # ),
     IntegrationTestRepoConfig(
         provider="gcp",
         offline_store_creator=BigQueryDataSourceCreator,
         online_store=REDIS_CONFIG,
     ),
-    # AWS configurations
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=DYNAMO_CONFIG,
-    ),
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
+    # # AWS configurations
+    # IntegrationTestRepoConfig(
+    #     provider="aws",
+    #     offline_store_creator=RedshiftDataSourceCreator,
+    #     online_store=DYNAMO_CONFIG,
+    # ),
+    # IntegrationTestRepoConfig(
+    #     provider="aws",
+    #     offline_store_creator=RedshiftDataSourceCreator,
+    #     online_store=REDIS_CONFIG,
+    # ),
 ]
 
 
@@ -119,7 +119,7 @@ def construct_universal_datasets(
         order_count=20,
     )
     global_df = driver_test_data.create_global_daily_stats_df(start_time, end_time)
-    entity_df = orders_df[["customer_id", "driver_id", "order_id", "event_timestamp"]]
+    entity_df = orders_df[["customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"]]
 
     return {
         "customer": customer_df,

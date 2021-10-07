@@ -96,7 +96,8 @@ class FeatureView:
         features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
-        join_key_map: Optional[Dict] = None,
+        original_name: Optional[str] = None,
+        join_key_map: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a FeatureView object.
@@ -465,5 +466,6 @@ class FeatureView:
             features=self.features,
             tags=self.tags,
             online=self.online,
+            original_name=self.original_name,
             join_key_map=join_key_map,
         )

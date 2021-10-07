@@ -551,15 +551,15 @@ class FeatureStore:
             )
 
         _feature_refs = self._get_features(features, feature_refs)
+        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
+            features
+        )
 
         all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
             features
         )
         all_feature_views = _query_time_feature_views(
-            self.list_feature_views(), features
-        )
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project
+            all_feature_views, features
         )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
@@ -827,14 +827,15 @@ class FeatureStore:
         all_feature_views = _query_time_feature_views(
             self._list_feature_views(allow_cache=True, hide_dummy_entity=False),
             features,
+
         )
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project, allow_cache=True
+        query_time_feature_views = _query_time_feature_views(
+            all_feature_views, features
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
         grouped_refs, grouped_odfv_refs = _group_feature_refs(
-            _feature_refs, all_feature_views, all_on_demand_feature_views
+            _feature_refs, query_time_feature_views, all_on_demand_feature_views
         )
         if len(grouped_odfv_refs) > 0:
             log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV)
@@ -847,10 +848,12 @@ class FeatureStore:
         ]
 
         provider = self._get_provider()
-        entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
-        entity_name_to_join_key_map = {}
-        for entity in entities:
-            entity_name_to_join_key_map[entity.name] = entity.join_key
+        requested_entity_to_join_key_map = {}
+        for feature_view in query_time_feature_views:
+            for entity_name in feature_view.entities:
+                entity = self.get_entity(entity_name)
+                name = feature_view.join_key_map.get(entity.join_key, entity_name)
+                requested_entity_to_join_key_map[name] = feature_view.join_key_map.get(entity.join_key, entity.join_key)
 
         needed_request_data_features = self._get_needed_request_data_features(
             grouped_odfv_refs
@@ -869,7 +872,7 @@ class FeatureStore:
                     request_data_features[entity_name].append(entity_value)
                     continue
                 try:
-                    join_key = entity_name_to_join_key_map[entity_name]
+                    join_key = requested_entity_to_join_key_map[entity_name]
                 except KeyError:
                     raise EntityNotFoundException(entity_name, self.project)
                 join_key_row[join_key] = entity_value
@@ -907,12 +910,7 @@ class FeatureStore:
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         for table, requested_features in grouped_refs:
-            table_join_keys = [
-                table.join_key_map[entity_name_to_join_key_map[entity_name]]
-                if table.join_key_map and entity.join_key in table.join_key_map
-                else entity_name_to_join_key_map[entity_name]
-                for entity_name in table.entities
-            ]
+            table_join_keys = [requested_entity_to_join_key_map[entity_name] for entity_name in table.entities]
             self._populate_result_rows_from_feature_view(
                 table_join_keys,
                 full_feature_names,
@@ -944,12 +942,13 @@ class FeatureStore:
         table: FeatureView,
         union_of_entity_keys: List[EntityKeyProto],
     ):
+        original_table = table if table.name == table.original_name else self.get_feature_view(table.original_name)
         entity_keys = _get_table_entity_keys(
             table, union_of_entity_keys, table_join_keys
         )
         read_rows = provider.online_read(
             config=self.config,
-            table=table,
+            table=original_table,
             entity_keys=entity_keys,
             requested_features=requested_features,
         )
@@ -1195,12 +1194,13 @@ def _group_feature_refs(
 def _get_table_entity_keys(
     table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
 ) -> List[EntityKeyProto]:
+    reverse_join_key_map = {shadow : original for original, shadow in table.join_key_map.items()}
     required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
     entity_key_protos = []
     for entity_key in entity_keys:
         required_entities_to_values = required_entities.copy()
         for i in range(len(entity_key.join_keys)):
-            entity_name = entity_key.join_keys[i]
+            entity_name = reverse_join_key_map.get(entity_key.join_keys[i], entity_key.join_keys[i])
             entity_value = entity_key.entity_values[i]
 
             if entity_name in required_entities_to_values:

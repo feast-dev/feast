@@ -222,13 +222,13 @@ def create_location_stats_df(locations, start_date, end_date) -> pd.DataFrame:
         df_all_locations = pd.concat([df_hourly_copy, df_all_locations])
 
     df_all_locations.reset_index(drop=True, inplace=True)
-    rows = df_hourly["event_timestamp"].count()
+    rows = df_all_locations["event_timestamp"].count()
 
-    df_hourly["temperature"] = np.random.randint(50, 100, size=rows).astype(np.int32)
+    df_all_locations["temperature"] = np.random.randint(50, 100, size=rows).astype(np.int32)
 
     # TODO: Remove created timestamp in order to test whether its really optional
-    df_hourly["created"] = pd.to_datetime(pd.Timestamp.now(tz=None).round("ms"))
-    return df_hourly
+    df_all_locations["created"] = pd.to_datetime(pd.Timestamp.now(tz=None).round("ms"))
+    return df_all_locations
 
 
 def create_global_daily_stats_df(start_date, end_date) -> pd.DataFrame:
