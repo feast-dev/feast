@@ -19,12 +19,15 @@ from feast.entity import Entity
 from feast.errors import (
     AwsAPIGatewayDoesNotExist,
     AwsLambdaDoesNotExist,
+    ExperimentalFeatureNotEnabled,
     RepoConfigPathDoesNotExist,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.flags import FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
+from feast.flags_helper import enable_aws_lambda_feature_server
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -62,6 +65,9 @@ class AwsProvider(PassthroughProvider):
         )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
+            if not enable_aws_lambda_feature_server(self.repo_config):
+                raise ExperimentalFeatureNotEnabled(FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
+
             image_uri = self._upload_docker_image(project)
             _logger.info("Deploying feature server...")
 
