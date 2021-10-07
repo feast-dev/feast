@@ -66,9 +66,6 @@ message FeatureViewSpec {
 
     // Whether these features should be served online or not
     bool online = 8;
-
-    // Entity join_key overrides
-    map<string,string> join_key_map = 10;
 }
 
 message FeatureViewMeta {

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
@@ -555,13 +556,6 @@ class FeatureStore:
             features
         )
 
-        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
-            features
-        )
-        all_feature_views = _query_time_feature_views(
-            all_feature_views, features
-        )
-
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
@@ -824,18 +818,9 @@ class FeatureStore:
             features=features, allow_cache=True, hide_dummy_entity=False
         )
 
-        all_feature_views = _query_time_feature_views(
-            self._list_feature_views(allow_cache=True, hide_dummy_entity=False),
-            features,
-
-        )
-        query_time_feature_views = _query_time_feature_views(
-            all_feature_views, features
-        )
-
         _validate_feature_refs(_feature_refs, full_feature_names)
         grouped_refs, grouped_odfv_refs = _group_feature_refs(
-            _feature_refs, query_time_feature_views, all_on_demand_feature_views
+            _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         if len(grouped_odfv_refs) > 0:
             log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV)
@@ -848,12 +833,22 @@ class FeatureStore:
         ]
 
         provider = self._get_provider()
+
+        entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         requested_entity_to_join_key_map = {}
-        for feature_view in query_time_feature_views:
+        for entity in entities:
+            requested_entity_to_join_key_map[entity.name] = entity.join_key
+        for feature_view in all_feature_views:
             for entity_name in feature_view.entities:
                 entity = self.get_entity(entity_name)
-                name = feature_view.join_key_map.get(entity.join_key, entity_name)
-                requested_entity_to_join_key_map[name] = feature_view.join_key_map.get(entity.join_key, entity.join_key)
+                name = feature_view.projection.join_key_map.get(
+                    entity.join_key, entity_name
+                )
+                requested_entity_to_join_key_map[
+                    name
+                ] = feature_view.projection.join_key_map.get(
+                    entity.join_key, entity.join_key
+                )
 
         needed_request_data_features = self._get_needed_request_data_features(
             grouped_odfv_refs
@@ -910,7 +905,10 @@ class FeatureStore:
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         for table, requested_features in grouped_refs:
-            table_join_keys = [requested_entity_to_join_key_map[entity_name] for entity_name in table.entities]
+            table_join_keys = [
+                requested_entity_to_join_key_map[entity_name]
+                for entity_name in table.entities
+            ]
             self._populate_result_rows_from_feature_view(
                 table_join_keys,
                 full_feature_names,
@@ -942,7 +940,11 @@ class FeatureStore:
         table: FeatureView,
         union_of_entity_keys: List[EntityKeyProto],
     ):
-        original_table = table if table.name == table.original_name else self.get_feature_view(table.original_name)
+        original_table = (
+            table
+            if table.name == table.projection.name_to_use
+            else self.get_feature_view(table.name)
+        )
         entity_keys = _get_table_entity_keys(
             table, union_of_entity_keys, table_join_keys
         )
@@ -1063,14 +1065,19 @@ class FeatureStore:
         }
 
         if isinstance(features, FeatureService):
-            for fv_name, projection in {
-                projection.name: projection
+            fvs_to_use, od_fvs_to_use = [], []
+            for fv_name, projection in [
+                (projection.name, projection)
                 for projection in features.feature_view_projections
-            }.items():
+            ]:
                 if fv_name in fvs:
-                    fvs[fv_name].set_projection(projection)
+                    fv_copy = copy.copy(fvs[fv_name])
+                    fv_copy.set_projection(copy.copy(projection))
+                    fvs_to_use.append(fv_copy)
                 elif fv_name in od_fvs:
-                    od_fvs[fv_name].set_projection(projection)
+                    fv_copy = copy.copy(od_fvs[fv_name])
+                    fv_copy.set_projection(copy.copy(projection))
+                    od_fvs_to_use.append(fv_copy)
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
@@ -1078,6 +1085,7 @@ class FeatureStore:
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
 
+            return [fvs_to_use, od_fvs_to_use]
         return [*fvs.values()], [*od_fvs.values()]
 
     @log_exceptions_and_usage
@@ -1103,26 +1111,6 @@ def _entity_row_to_field_values(
         result.statuses[k] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
     return result
-
-
-def _query_time_feature_views(
-    all_feature_views: List[FeatureView],
-    features: Optional[Union[List[str], FeatureService]],
-) -> List[FeatureView]:
-    """Look for use-time FeatureView.join_key_maps and update all_feature_views"""
-    if features and isinstance(features, FeatureService):
-        feature_view_replacements = {
-            feature.name: feature
-            for feature in features.features
-            if isinstance(feature, FeatureView) and feature.join_key_map
-        }
-        all_feature_views = [
-            feature_view_replacements[fv.name]
-            if fv.name in feature_view_replacements
-            else fv
-            for fv in all_feature_views
-        ]
-    return all_feature_views
 
 
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
@@ -1161,10 +1149,12 @@ def _group_feature_refs(
     """ Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
-    view_index = {view.name: view for view in all_feature_views}
+    view_index = {view.projection.name_to_use: view for view in all_feature_views}
 
     # on demand view to on demand view proto
-    on_demand_view_index = {view.name: view for view in all_on_demand_feature_views}
+    on_demand_view_index = {
+        view.projection.name_to_use: view for view in all_on_demand_feature_views
+    }
 
     # view name to feature names
     views_features = defaultdict(list)
@@ -1194,13 +1184,17 @@ def _group_feature_refs(
 def _get_table_entity_keys(
     table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
 ) -> List[EntityKeyProto]:
-    reverse_join_key_map = {shadow : original for original, shadow in table.join_key_map.items()}
+    reverse_join_key_map = {
+        shadow: original for original, shadow in table.projection.join_key_map.items()
+    }
     required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
     entity_key_protos = []
     for entity_key in entity_keys:
         required_entities_to_values = required_entities.copy()
         for i in range(len(entity_key.join_keys)):
-            entity_name = reverse_join_key_map.get(entity_key.join_keys[i], entity_key.join_keys[i])
+            entity_name = reverse_join_key_map.get(
+                entity_key.join_keys[i], entity_key.join_keys[i]
+            )
             entity_value = entity_key.entity_values[i]
 
             if entity_name in required_entities_to_values:

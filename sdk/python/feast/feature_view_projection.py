@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 
 from attr import dataclass
 
@@ -13,10 +13,13 @@ class FeatureViewProjection:
     name: str
     name_to_use: str
     features: List[Feature]
+    join_key_map: Dict[str, str] = {}
 
     def to_proto(self):
         feature_reference_proto = FeatureViewProjectionProto(
-            feature_view_name=self.name, feature_view_name_to_use=self.name_to_use
+            feature_view_name=self.name,
+            feature_view_name_to_use=self.name_to_use,
+            join_key_map=self.join_key_map,
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())
@@ -29,6 +32,7 @@ class FeatureViewProjection:
             name=proto.feature_view_name,
             name_to_use=proto.feature_view_name_to_use,
             features=[],
+            join_key_map=dict(proto.join_key_map),
         )
         for feature_column in proto.feature_columns:
             ref.features.append(Feature.from_proto(feature_column))

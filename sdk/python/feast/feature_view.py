@@ -65,8 +65,6 @@ class FeatureView:
         features (optional): The set of features defined as part of this FeatureView.
         tags (optional): A dictionary of key-value pairs used for organizing
             FeatureViews.
-        join_key_map (optional): a map of existing entity join_key to a new join_key to use,
-            for example, if a feature data entity column name does not match the entity id name.
     """
 
     name: str
@@ -82,7 +80,6 @@ class FeatureView:
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
     projection: FeatureViewProjection
-    join_key_map: Optional[Dict]
 
     @log_exceptions
     def __init__(
@@ -96,8 +93,6 @@ class FeatureView:
         features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
-        original_name: Optional[str] = None,
-        join_key_map: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a FeatureView object.
@@ -149,7 +144,6 @@ class FeatureView:
         self.last_updated_timestamp: Optional[datetime] = None
 
         self.projection = FeatureViewProjection.from_definition(self)
-        self.join_key_map = join_key_map if join_key_map else {}
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -238,6 +232,34 @@ class FeatureView:
 
         return fv
 
+    def with_join_key_map(self, join_key_map: Dict[str, str]):
+        """
+        Produces a copy of this FeatureView with the passed join_key_map.
+
+        Args:
+            join_key_map: A map of existing entity join_key to a new join_key to use,
+                for example, if a feature data entity column name does not match the entity id name.
+
+        Returns:
+            A copy of this FeatureView with the name replaced with the 'name' input.
+        """
+        fv = FeatureView(
+            name=self.name,
+            entities=self.entities,
+            ttl=self.ttl,
+            input=self.input,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            features=self.features,
+            tags=self.tags,
+            online=self.online,
+        )
+
+        fv.set_projection(copy.copy(self.projection))
+        fv.projection.join_key_map = join_key_map
+
+        return fv
+
     def to_proto(self) -> FeatureViewProto:
         """
         Converts a feature view object to its protobuf representation.
@@ -278,7 +300,6 @@ class FeatureView:
             online=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
-            join_key_map=self.join_key_map,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -321,7 +342,6 @@ class FeatureView:
             ),
             batch_source=batch_source,
             stream_source=stream_source,
-            join_key_map=dict(feature_view_proto.spec.join_key_map),
         )
 
         # FeatureViewProjections are not saved in the FeatureView proto.
@@ -425,7 +445,6 @@ class FeatureView:
                     f"Could not infer Features for the FeatureView named {self.name}.",
                 )
 
-
     def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
         """
         Setter for the projection object held by this FeatureView. A projection is an
@@ -453,19 +472,3 @@ class FeatureView:
                 )
 
         self.projection = feature_view_projection
-
-
-    def with_join_key_map(self, join_key_map: Dict):
-        return FeatureView(
-            name=self.name,
-            entities=self.entities,
-            ttl=self.ttl,
-            input=self.input,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
-            features=self.features,
-            tags=self.tags,
-            online=self.online,
-            original_name=self.original_name,
-            join_key_map=join_key_map,
-        )

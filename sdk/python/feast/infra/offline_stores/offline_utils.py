@@ -64,7 +64,9 @@ def get_expected_join_keys(
         entities = feature_view.entities
         for entity_name in entities:
             entity = registry.get_entity(entity_name, project)
-            join_key = feature_view.join_key_map.get(entity.join_key, entity.join_key)
+            join_key = feature_view.projection.join_key_map.get(
+                entity.join_key, entity.join_key
+            )
             join_keys.add(join_key)
     return join_keys
 
@@ -114,7 +116,9 @@ def get_feature_view_query_context(
         }
         for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
-            join_key = feature_view.join_key_map.get(entity.join_key, entity.join_key)
+            join_key = feature_view.projection.join_key_map.get(
+                entity.join_key, entity.join_key
+            )
             join_keys.append(join_key)
             entity_selections.append(f"{entity.join_key} AS {join_key}")
 

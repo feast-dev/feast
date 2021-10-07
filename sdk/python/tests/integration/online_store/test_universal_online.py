@@ -21,7 +21,7 @@ from tests.integration.feature_repos.universal.entities import (
 )
 
 
-# @pytest.mark.integration
+@pytest.mark.integration
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(environment, universal_data_sources, full_feature_names):
 
@@ -302,7 +302,9 @@ def get_latest_feature_values_from_dataframes(
         )
         # Need full feature names for shadow entities
         latest_origin_row["origin__temperature"] = latest_origin_row.pop("temperature")
-        latest_destination_row["destination__temperature"] = latest_destination_row.pop("temperature")
+        latest_destination_row["destination__temperature"] = latest_destination_row.pop(
+            "temperature"
+        )
     request_data_features = entity_row.copy()
     request_data_features.pop("driver")
     request_data_features.pop("customer_id")
@@ -407,11 +409,12 @@ def assert_feature_service_shadow_entities_correctness(
         assert (
             len(feature_service_keys)
             == sum(
-            [
-                len(projection.features)
-                for projection in feature_service.feature_view_projections
-            ]
-        ) + 4
+                [
+                    len(projection.features)
+                    for projection in feature_service.feature_view_projections
+                ]
+            )
+            + 4
         )  # Add 4 for the driver_id, customer_id, origin_id, and destination_id entity keys
 
         for i, entity_row in enumerate(entity_rows):

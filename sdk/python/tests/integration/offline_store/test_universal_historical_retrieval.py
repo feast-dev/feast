@@ -230,7 +230,7 @@ def get_expected_training_df(
     return expected_df
 
 
-# @pytest.mark.integration
+@pytest.mark.integration
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
@@ -282,6 +282,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             customer_fv,
             driver_fv,
             driver_odfv,
+            location_fv,
             order_fv,
             global_fv,
             driver(),
@@ -566,6 +567,9 @@ def assert_feature_service_shadow_entities_correctness(
                 "destination__temperature",
             ]
         ]
+        print(
+            f"actual_df_from_df_entities.columns: {actual_df_from_df_entities.columns}"
+        )
         actual_df_from_df_entities = (
             actual_df_from_df_entities[expected_df.columns]
             .sort_values(
