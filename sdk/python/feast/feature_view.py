@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import re
 import warnings
 from datetime import datetime, timedelta
@@ -203,6 +204,33 @@ class FeatureView:
 
         if not self.entities:
             raise ValueError("Feature view has no entities.")
+
+    def with_name(self, name: str):
+        """
+        Produces a copy of this FeatureView with the passed name.
+
+        Args:
+            name: Name to assign to the FeatureView copy.
+
+        Returns:
+            A copy of this FeatureView with the name replaced with the 'name' input.
+        """
+        fv = FeatureView(
+            name=self.name,
+            entities=self.entities,
+            ttl=self.ttl,
+            input=self.input,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            features=self.features,
+            tags=self.tags,
+            online=self.online,
+        )
+
+        fv.set_projection(copy.copy(self.projection))
+        fv.projection.name_to_use = name
+
+        return fv
 
     def to_proto(self) -> FeatureViewProto:
         """

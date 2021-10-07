@@ -1,3 +1,4 @@
+import copy
 import functools
 from types import MethodType
 from typing import Dict, List, Union, cast
@@ -67,6 +68,25 @@ class OnDemandFeatureView:
 
     def __hash__(self) -> int:
         return hash((id(self), self.name))
+
+    def with_name(self, name: str):
+        """
+        Produces a copy of this OnDemandFeatureView with the passed name.
+
+        Args:
+            name: Name to assign to the OnDemandFeatureView copy.
+
+        Returns:
+            A copy of this OnDemandFeatureView with the name replaced with the 'name' input.
+        """
+        odfv = OnDemandFeatureView(
+            name=self.name, features=self.features, inputs=self.inputs, udf=self.udf
+        )
+
+        odfv.set_projection(copy.copy(self.projection))
+        odfv.projection.name_to_use = name
+
+        return odfv
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
