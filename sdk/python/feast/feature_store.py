@@ -1067,6 +1067,11 @@ class FeatureStore:
 
         feature_server.start_server(self, port)
 
+    @log_exceptions_and_usage
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        """Returns endpoint for the feature server, if it exists."""
+        return self._provider.get_feature_server_endpoint()
+
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
     names, values = zip(*row.fields.items())

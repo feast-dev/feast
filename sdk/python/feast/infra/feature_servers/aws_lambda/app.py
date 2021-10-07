@@ -6,10 +6,11 @@ from pathlib import Path
 from mangum import Mangum
 
 from feast import FeatureStore
+from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.feature_server import get_app
 
 # Load RepoConfig
-config_base64 = os.environ["FEAST_CONFIG_BASE64"]
+config_base64 = os.environ[FEATURE_STORE_YAML_ENV_NAME]
 config_bytes = base64.b64decode(config_base64)
 
 # Create a new unique directory for writing feature_store.yaml
