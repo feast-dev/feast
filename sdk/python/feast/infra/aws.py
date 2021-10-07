@@ -20,6 +20,7 @@ from feast.errors import (
     AwsAPIGatewayDoesNotExist,
     AwsLambdaDoesNotExist,
     ExperimentalFeatureNotEnabled,
+    IncompatibleRegistryStoreClass,
     RepoConfigPathDoesNotExist,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
@@ -31,6 +32,7 @@ from feast.flags_helper import enable_aws_lambda_feature_server
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.registry import get_registry_store_class_from_scheme
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
 from feast.version import get_version
@@ -67,6 +69,19 @@ class AwsProvider(PassthroughProvider):
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
             if not enable_aws_lambda_feature_server(self.repo_config):
                 raise ExperimentalFeatureNotEnabled(FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
+
+            # Since the AWS Lambda feature server will attempt to load the registry, we
+            # only allow the registry to be in S3.
+            registry_path = (
+                self.repo_config.registry
+                if isinstance(self.repo_config.registry, str)
+                else self.repo_config.registry.path
+            )
+            registry_store_class = get_registry_store_class_from_scheme(registry_path)
+            if registry_store_class != S3RegistryStore:
+                raise IncompatibleRegistryStoreClass(
+                    registry_store_class.__name__, S3RegistryStore.__name__
+                )
 
             image_uri = self._upload_docker_image(project)
             _logger.info("Deploying feature server...")
