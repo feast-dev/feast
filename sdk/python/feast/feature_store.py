@@ -832,7 +832,6 @@ class FeatureStore:
         ]
 
         provider = self._get_provider()
-
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         requested_entity_to_join_key_map = {}
         for entity in entities:
@@ -1074,9 +1073,9 @@ class FeatureStore:
                     fv_copy.set_projection(copy.copy(projection))
                     fvs_to_use.append(fv_copy)
                 elif fv_name in od_fvs:
-                    fv_copy = copy.copy(od_fvs[fv_name])
-                    fv_copy.set_projection(copy.copy(projection))
-                    od_fvs_to_use.append(fv_copy)
+                    od_fv_copy = copy.copy(od_fvs[fv_name])
+                    od_fv_copy.set_projection(copy.copy(projection))
+                    od_fvs_to_use.append(od_fv_copy)
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
@@ -1084,7 +1083,7 @@ class FeatureStore:
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
 
-            return [fvs_to_use, od_fvs_to_use]
+            return fvs_to_use, od_fvs_to_use
         return [*fvs.values()], [*od_fvs.values()]
 
     @log_exceptions_and_usage

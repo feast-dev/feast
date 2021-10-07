@@ -72,7 +72,7 @@ class OnDemandFeatureView:
     def with_name(self, name: str):
         """
         Renames this feature view by setting an alias for the feature view name. This rename operation is only used as part of query operations and will not modify the underlying feature view.
-        
+
         Args:
             name: Name to assign to the OnDemandFeatureView copy.
         Returns:
