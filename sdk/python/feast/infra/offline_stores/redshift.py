@@ -176,7 +176,7 @@ class RedshiftOfflineStore(OfflineStore):
             ),
             drop_columns=["entity_timestamp"]
             + [
-                f"{feature_view.name}__entity_row_unique_id"
+                f"{feature_view.projection.name_to_use}__entity_row_unique_id"
                 for feature_view in feature_views
             ],
         )
