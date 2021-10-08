@@ -84,6 +84,7 @@ def test_cli_apply_imported_featureview() -> None:
 
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
+        print(f"DAVIDX: {output}")
         assert rc == 0
         assert b"Registered feature service driver_locations_service" in output
 

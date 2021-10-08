@@ -20,6 +20,7 @@ from typing import List, Optional
 import click
 import pkg_resources
 import yaml
+from colorama import Fore, Style
 
 from feast import flags, flags_helper, utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
@@ -91,6 +92,24 @@ def version():
     Display Feast SDK version
     """
     print(f'Feast SDK Version: "{pkg_resources.get_distribution("feast")}"')
+
+
+@cli.command()
+@click.pass_context
+def endpoint(ctx: click.Context):
+    """
+    Display feature server endpoints.
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    endpoint = store.get_feature_server_endpoint()
+    if endpoint is not None:
+        _logger.info(
+            f"Feature server endpoint: {Style.BRIGHT + Fore.GREEN}{endpoint}{Style.RESET_ALL}"
+        )
+    else:
+        _logger.info("There is no active feature server.")
 
 
 @cli.group(name="entities")

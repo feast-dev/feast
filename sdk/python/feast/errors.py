@@ -294,3 +294,10 @@ class AwsAPIGatewayDoesNotExist(Exception):
         super().__init__(
             f"The AWS API Gateway {resource_name} should have been created properly, but does not exist."
         )
+
+
+class IncompatibleRegistryStoreClass(Exception):
+    def __init__(self, actual_class: str, expected_class: str):
+        super().__init__(
+            f"The registry store class was expected to be {expected_class}, but was instead {actual_class}."
+        )

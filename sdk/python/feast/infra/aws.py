@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 from urllib.parse import urlparse
 
 from colorama import Fore, Style
@@ -19,15 +19,20 @@ from feast.entity import Entity
 from feast.errors import (
     AwsAPIGatewayDoesNotExist,
     AwsLambdaDoesNotExist,
+    ExperimentalFeatureNotEnabled,
+    IncompatibleRegistryStoreClass,
     RepoConfigPathDoesNotExist,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.flags import FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
+from feast.flags_helper import enable_aws_lambda_feature_server
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.registry import get_registry_store_class_from_scheme
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
 from feast.version import get_version
@@ -62,6 +67,22 @@ class AwsProvider(PassthroughProvider):
         )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
+            if not enable_aws_lambda_feature_server(self.repo_config):
+                raise ExperimentalFeatureNotEnabled(FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
+
+            # Since the AWS Lambda feature server will attempt to load the registry, we
+            # only allow the registry to be in S3.
+            registry_path = (
+                self.repo_config.registry
+                if isinstance(self.repo_config.registry, str)
+                else self.repo_config.registry.path
+            )
+            registry_store_class = get_registry_store_class_from_scheme(registry_path)
+            if registry_store_class != S3RegistryStore:
+                raise IncompatibleRegistryStoreClass(
+                    registry_store_class.__name__, S3RegistryStore.__name__
+                )
+
             image_uri = self._upload_docker_image(project)
             _logger.info("Deploying feature server...")
 
@@ -174,6 +195,20 @@ class AwsProvider(PassthroughProvider):
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        project = self.repo_config.project
+        resource_name = self._get_lambda_name(project)
+        api_gateway_client = boto3.client("apigatewayv2")
+        api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
+
+        if not api:
+            return None
+
+        api_id = api["ApiId"]
+        lambda_client = boto3.client("lambda")
+        region = lambda_client.meta.region_name
+        return f"https://{api_id}.execute-api.{region}.amazonaws.com"
+
     def _upload_docker_image(self, project: str) -> str:
         """
         Pulls the AWS Lambda docker image from Dockerhub and uploads it to AWS ECR.
@@ -213,7 +248,7 @@ class AwsProvider(PassthroughProvider):
         )
         docker_client.images.pull(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
 
-        version = get_version()
+        version = self._get_version_for_aws()
         repository_name = f"feast-python-server-{project}-{version}"
         ecr_client = boto3.client("ecr")
         try:
@@ -246,7 +281,15 @@ class AwsProvider(PassthroughProvider):
         return image_remote_name
 
     def _get_lambda_name(self, project: str):
-        return f"feast-python-server-{project}-{get_version()}"
+        return f"feast-python-server-{project}-{self._get_version_for_aws()}"
+
+    @staticmethod
+    def _get_version_for_aws():
+        """Returns Feast version with certain characters replaced.
+
+        This allows the version to be included in names for AWS resources.
+        """
+        return get_version().replace(".", "_").replace("+", "_")
 
 
 class S3RegistryStore(RegistryStore):

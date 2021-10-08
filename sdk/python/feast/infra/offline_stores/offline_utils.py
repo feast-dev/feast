@@ -131,7 +131,7 @@ def get_feature_view_query_context(
         created_timestamp_column = feature_view.input.created_timestamp_column
 
         context = FeatureViewQueryContext(
-            name=feature_view.projection.name_to_use,
+            name=feature_view.projection.name_to_use(),
             ttl=ttl_seconds,
             entities=join_keys,
             features=features,

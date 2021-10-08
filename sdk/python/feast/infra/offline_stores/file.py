@@ -182,7 +182,7 @@ class FileOfflineStore(OfflineStore):
                     # where there are very few characters available for use as separators
                     if full_feature_names:
                         formatted_feature_name = (
-                            f"{feature_view.projection.name_to_use}__{feature}"
+                            f"{feature_view.projection.name_to_use()}__{feature}"
                         )
                     else:
                         formatted_feature_name = feature

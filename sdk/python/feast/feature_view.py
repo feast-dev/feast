@@ -155,6 +155,21 @@ class FeatureView:
     def __hash__(self):
         return hash((id(self), self.name))
 
+    def __copy__(self):
+        fv = FeatureView(
+            name=self.name,
+            entities=self.entities,
+            ttl=self.ttl,
+            input=self.input,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            features=self.features,
+            tags=self.tags,
+            online=self.online,
+        )
+        fv.projection = copy.copy(self.projection)
+        return fv
+
     def __getitem__(self, item):
         assert isinstance(item, list)
 
@@ -163,7 +178,8 @@ class FeatureView:
             if feature.name in item:
                 referenced_features.append(feature)
 
-        self.projection.features = referenced_features
+        cp = self.__copy__()
+        cp.projection.features = referenced_features
 
         return self
 
@@ -207,7 +223,9 @@ class FeatureView:
 
     def with_name(self, name: str):
         """
-        Produces a copy of this FeatureView with the passed name.
+        Renames this feature view by returning a copy of this feature view with an alias
+        set for the feature view name. This rename operation is only used as part of query
+        operations and will not modify the underlying FeatureView.
 
         Args:
             name: Name to assign to the FeatureView copy.
@@ -215,22 +233,10 @@ class FeatureView:
         Returns:
             A copy of this FeatureView with the name replaced with the 'name' input.
         """
-        fv = FeatureView(
-            name=self.name,
-            entities=self.entities,
-            ttl=self.ttl,
-            input=self.input,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
-            features=self.features,
-            tags=self.tags,
-            online=self.online,
-        )
+        cp = self.__copy__()
+        cp.projection.name_alias = name
 
-        fv.set_projection(copy.copy(self.projection))
-        fv.projection.name_to_use = name
-
-        return fv
+        return cp
 
     def with_join_key_map(self, join_key_map: Dict[str, str]):
         """
@@ -243,22 +249,44 @@ class FeatureView:
         Returns:
             A copy of this FeatureView with the name replaced with the 'name' input.
         """
-        fv = FeatureView(
-            name=self.name,
-            entities=self.entities,
-            ttl=self.ttl,
-            input=self.input,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
-            features=self.features,
-            tags=self.tags,
-            online=self.online,
-        )
+        cp = self.__copy__()
+        cp.projection.join_key_map = join_key_map
 
-        fv.set_projection(copy.copy(self.projection))
-        fv.projection.join_key_map = join_key_map
+        return cp
 
-        return fv
+    def with_projection(self, feature_view_projection: FeatureViewProjection):
+        """
+        Sets the feature view projection by returning a copy of this feature view
+        with its projection set to the given projection. A projection is an
+        object that stores the modifications to a feature view that is used during
+        query operations.
+
+        Args:
+            feature_view_projection: The FeatureViewProjection object to link to this
+                OnDemandFeatureView.
+
+        Returns:
+            A copy of this FeatureView with its projection replaced with the 'feature_view_projection'
+            argument.
+        """
+        if feature_view_projection.name != self.name:
+            raise ValueError(
+                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
+                f"The projection is named {feature_view_projection.name} and the name indicates which "
+                "FeatureView the projection is for."
+            )
+
+        for feature in feature_view_projection.features:
+            if feature not in self.features:
+                raise ValueError(
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
+                    "FeatureView doesn't have."
+                )
+
+        cp = self.__copy__()
+        cp.projection = feature_view_projection
+
+        return cp
 
     def to_proto(self) -> FeatureViewProto:
         """
@@ -444,31 +472,3 @@ class FeatureView:
                     "FeatureView",
                     f"Could not infer Features for the FeatureView named {self.name}.",
                 )
-
-    def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
-        """
-        Setter for the projection object held by this FeatureView. A projection is an
-        object that stores the modifications to a FeatureView that is applied to the FeatureView
-        when the FeatureView is used such as during feature_store.get_historical_features.
-        This method also performs checks to ensure the projection is consistent with this
-        FeatureView before doing the set.
-
-        Args:
-            feature_view_projection: The FeatureViewProjection object to set this FeatureView's
-                'projection' field to.
-        """
-        if feature_view_projection.name != self.name:
-            raise ValueError(
-                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
-                f"The projection is named {feature_view_projection.name} and the name indicates which "
-                "FeatureView the projection is for."
-            )
-
-        for feature in feature_view_projection.features:
-            if feature not in self.features:
-                raise ValueError(
-                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
-                    "FeatureView doesn't have."
-                )
-
-        self.projection = feature_view_projection

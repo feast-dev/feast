@@ -330,7 +330,10 @@ class FeatureStore:
                 )
             for projection in feature_service_from_registry.feature_view_projections:
                 _feature_refs.extend(
-                    [f"{projection.name_to_use}:{f.name}" for f in projection.features]
+                    [
+                        f"{projection.name_to_use()}:{f.name}"
+                        for f in projection.features
+                    ]
                 )
         else:
             assert isinstance(_features, list)
@@ -942,7 +945,7 @@ class FeatureStore:
     ):
         original_table = (
             table
-            if table.name == table.projection.name_to_use
+            if table.name == table.projection.name_to_use()
             else self.get_feature_view(table.name)
         )
         entity_keys = _get_table_entity_keys(
@@ -962,7 +965,7 @@ class FeatureStore:
             if feature_data is None:
                 for feature_name in requested_features:
                     feature_ref = (
-                        f"{table.projection.name_to_use}__{feature_name}"
+                        f"{table.projection.name_to_use()}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -972,7 +975,7 @@ class FeatureStore:
             else:
                 for feature_name in feature_data:
                     feature_ref = (
-                        f"{table.projection.name_to_use}__{feature_name}"
+                        f"{table.projection.name_to_use()}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -1032,7 +1035,7 @@ class FeatureStore:
 
                 for transformed_feature in selected_subset:
                     transformed_feature_name = (
-                        f"{odfv.projection.name_to_use}__{transformed_feature}"
+                        f"{odfv.projection.name_to_use()}__{transformed_feature}"
                         if full_feature_names
                         else transformed_feature
                     )
@@ -1071,22 +1074,24 @@ class FeatureStore:
                 for projection in features.feature_view_projections
             ]:
                 if fv_name in fvs:
-                    fv_copy = copy.copy(fvs[fv_name])
-                    fv_copy.set_projection(copy.copy(projection))
-                    fvs_to_use.append(fv_copy)
+                    fvs_to_use.append(
+                        fvs[fv_name].with_projection(copy.copy(projection))
+                    )
                 elif fv_name in od_fvs:
-                    od_fv_copy = copy.copy(od_fvs[fv_name])
-                    od_fv_copy.set_projection(copy.copy(projection))
-                    od_fvs_to_use.append(od_fv_copy)
+                    od_fvs_to_use.append(
+                        od_fvs[fv_name].with_projection(copy.copy(projection))
+                    )
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
                         f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
+            views_to_use = (fvs_to_use, od_fvs_to_use)
+        else:
+            views_to_use = ([*fvs.values()], [*od_fvs.values()])
 
-            return fvs_to_use, od_fvs_to_use
-        return [*fvs.values()], [*od_fvs.values()]
+        return views_to_use
 
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
@@ -1095,6 +1100,11 @@ class FeatureStore:
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
 
         feature_server.start_server(self, port)
+
+    @log_exceptions_and_usage
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        """Returns endpoint for the feature server, if it exists."""
+        return self._provider.get_feature_server_endpoint()
 
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
@@ -1149,11 +1159,11 @@ def _group_feature_refs(
     """ Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
-    view_index = {view.projection.name_to_use: view for view in all_feature_views}
+    view_index = {view.projection.name_to_use(): view for view in all_feature_views}
 
     # on demand view to on demand view proto
     on_demand_view_index = {
-        view.projection.name_to_use: view for view in all_on_demand_feature_views
+        view.projection.name_to_use(): view for view in all_on_demand_feature_views
     }
 
     # view name to feature names
