@@ -1,18 +1,18 @@
-# \[Alpha\] Feature server
+# \[Alpha\] Local feature server
 
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
 {% hint style="info" %}
-To enable this feature, run **`feast alpha enable python_feature_server`**
+To enable this feature, run**`feast alpha enable python_feature_server`**
 {% endhint %}
 
 ## Overview
 
-Feature Server is an HTTP endpoint that serves features with JSON I/O. This enables users to get features from Feast using any programming language that can make HTTP requests. As of now, it's only possible to run the server locally. A remote feature server is work in progress.
+The local feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to get features from Feast using any programming language that can make HTTP requests. A [remote feature server](alpha-aws-lambda-feature-server.md) on AWS Lambda is also available. A remote feature server on GCP Cloud Run is currently being developed.
 
 ## CLI
 
-There is a new CLI command that starts the server: `feast serve`. By default Feast uses port 6566, however it can be overriden by a `--port` flag.
+There is a new CLI command that starts the server: `feast serve`. By default Feast uses port 6566; the port be overridden by a `--port` flag.
 
 ## Example
 
