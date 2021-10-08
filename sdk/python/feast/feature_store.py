@@ -838,7 +838,9 @@ class FeatureStore:
             requested_entity_to_join_key_map[entity.name] = entity.join_key
         for feature_view in all_feature_views:
             for entity_name in feature_view.entities:
-                entity = self.get_entity(entity_name)
+                entity = self._registry.get_entity(
+                    entity_name, self.project, allow_cache=True
+                )
                 name = feature_view.projection.join_key_map.get(
                     entity.join_key, entity_name
                 )
