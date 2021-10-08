@@ -15,7 +15,7 @@ message FeatureViewProjection {
   string feature_view_name = 1;
 
   // Alias for feature view name
-  string feature_view_name_to_use = 3;
+  string feature_view_name_alias = 3;
 
   // The features of the feature view that are a part of the feature reference.
   repeated FeatureSpecV2 feature_columns = 2;
