@@ -255,25 +255,21 @@ class FeatureView:
             Join a location feature data table to both the origin column and destination
             column of the entity data.
 
-            >>> temperatures_feature_service = FeatureService(
-            ...     name="temperatures",
-            ...     features=[
-            ...         location_stats_feature_view
-            ...             .with_name("origin_stats")
-            ...             .with_join_key_map(
-            ...                 {"location_id": "origin_id"}
-            ...             ),
-            ...         location_stats_feature_view
-            ...             .with_name("destination_stats")
-            ...             .with_join_key_map(
-            ...                 {"location_id": "destination_id"}
-            ...             ),
-            ...     ],
-            ... )
-            >>> retrieval_job = fs.get_historical_features(
-            ...     entity_df=entity_df,
-            ...     features=temperatures_feature_service,
-            ... )
+            temperatures_feature_service = FeatureService(
+                name="temperatures",
+                features=[
+                    location_stats_feature_view
+                        .with_name("origin_stats")
+                        .with_join_key_map(
+                            {"location_id": "origin_id"}
+                        ),
+                    location_stats_feature_view
+                        .with_name("destination_stats")
+                        .with_join_key_map(
+                            {"location_id": "destination_id"}
+                        ),
+                ],
+            )
         """
         cp = self.__copy__()
         cp.projection.join_key_map = join_key_map
