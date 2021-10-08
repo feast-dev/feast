@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide will go over
+This guide will go over:
 
 1. how Feast tests are setup
 2. how to extend the test suite to test new functionality
@@ -164,7 +164,7 @@ To:
   * Use the same function signatures as an existing test \(e.g. have environment as an argument\) to include the relevant test fixtures. 
   * We prefer to expand what an individual test covers due to the cost of standing up offline / online stores
 * Using custom data in a new test:
-  * This is used in several places such `test_universal_types.py` 
+  * This is used in several places such as `test_universal_types.py` 
 
 ```python
 
