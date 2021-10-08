@@ -836,22 +836,26 @@ class FeatureStore:
 
         provider = self._get_provider()
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
-        requested_entity_to_join_key_map = {}
+        entity_name_to_join_key_map = {}
         for entity in entities:
-            requested_entity_to_join_key_map[entity.name] = entity.join_key
+            entity_name_to_join_key_map[entity.name] = entity.join_key
         for feature_view in all_feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
                     entity_name, self.project, allow_cache=True
                 )
-                name = feature_view.projection.join_key_map.get(
-                    entity.join_key, entity_name
+
+                join_key_substitute = feature_view.projection.join_key_map.get(
+                    entity.join_key
                 )
-                requested_entity_to_join_key_map[
-                    name
-                ] = feature_view.projection.join_key_map.get(
-                    entity.join_key, entity.join_key
-                )
+                if not join_key_substitute:
+                    entity_name_to_join_key_map[entity.name] = entity.join_key
+                else:
+                    # User directly uses join_key as the entity reference in the entity_rows for the
+                    # entity mapping case.
+                    entity_name_to_join_key_map[
+                        join_key_substitute
+                    ] = join_key_substitute
 
         needed_request_data_features = self._get_needed_request_data_features(
             grouped_odfv_refs
@@ -870,7 +874,7 @@ class FeatureStore:
                     request_data_features[entity_name].append(entity_value)
                     continue
                 try:
-                    join_key = requested_entity_to_join_key_map[entity_name]
+                    join_key = entity_name_to_join_key_map[entity_name]
                 except KeyError:
                     raise EntityNotFoundException(entity_name, self.project)
                 join_key_row[join_key] = entity_value
@@ -909,7 +913,7 @@ class FeatureStore:
 
         for table, requested_features in grouped_refs:
             table_join_keys = [
-                requested_entity_to_join_key_map[entity_name]
+                entity_name_to_join_key_map[entity_name]
                 for entity_name in table.entities
             ]
             self._populate_result_rows_from_feature_view(

@@ -240,14 +240,40 @@ class FeatureView:
 
     def with_join_key_map(self, join_key_map: Dict[str, str]):
         """
-        Produces a copy of this FeatureView with the passed join_key_map.
+        Sets the join_key_map by returning a copy of this feature view with that field set.
+        This join_key mapping operation is only used as part of query operations and will
+        not modify the underlying FeatureView.
 
         Args:
-            join_key_map: A map of existing entity join_key to a new join_key to use,
-                for example, if a feature data entity column name does not match the entity id name.
+            join_key_map: A map of join keys in which the left is the join_key that
+                corresponds with the feature data and the right corresponds with the entity data.
 
         Returns:
-            A copy of this FeatureView with the name replaced with the 'name' input.
+            A copy of this FeatureView with the join_key_map replaced with the 'join_key_map' input.
+
+        Examples:
+            Join a location feature data table to both the origin column and destination
+            column of the entity data.
+
+            >>> temperatures_feature_service = FeatureService(
+            ...     name="temperatures",
+            ...     features=[
+            ...         location_stats_feature_view
+            ...             .with_name("origin_stats")
+            ...             .with_join_key_map(
+            ...                 {"location_id": "origin_id"}
+            ...             ),
+            ...         location_stats_feature_view
+            ...             .with_name("destination_stats")
+            ...             .with_join_key_map(
+            ...                 {"location_id": "destination_id"}
+            ...             ),
+            ...     ],
+            ... )
+            >>> retrieval_job = fs.get_historical_features(
+            ...     entity_df=entity_df,
+            ...     features=temperatures_feature_service,
+            ... )
         """
         cp = self.__copy__()
         cp.projection.join_key_map = join_key_map
