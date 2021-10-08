@@ -23,8 +23,8 @@ message FeatureServiceSpec {
   // Name of Feast project that this Feature Service belongs to.
   string project = 2;
 
-  // List of features that this feature service encapsulates.
-  // Stored as a list of references to other features views and the features from those views.
+  // Represents a projection that's to be applied on top of the FeatureView.
+  // Contains data such as the features to use from a FeatureView.
   repeated FeatureViewProjection features = 3;
 
   // User defined metadata

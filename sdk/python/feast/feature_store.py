@@ -76,6 +76,7 @@ class FeatureStore:
     config: RepoConfig
     repo_path: Path
     _registry: Registry
+    _provider: Provider
 
     @log_exceptions
     def __init__(
@@ -100,6 +101,7 @@ class FeatureStore:
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(registry_config, repo_path=self.repo_path)
+        self._provider = get_provider(self.config, self.repo_path)
 
     @log_exceptions
     def version(self) -> str:
@@ -118,7 +120,7 @@ class FeatureStore:
 
     def _get_provider(self) -> Provider:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
-        return get_provider(self.config, self.repo_path)
+        return self._provider
 
     @log_exceptions_and_usage
     def refresh_registry(self):
@@ -316,13 +318,21 @@ class FeatureStore:
         if not _features:
             raise ValueError("No features specified for retrieval")
 
-        _feature_refs: List[str]
+        _feature_refs = []
         if isinstance(_features, FeatureService):
-            # Get the latest value of the feature service, in case the object passed in has been updated underneath us.
-            _feature_refs = _get_feature_refs_from_feature_services(
-                self.get_feature_service(_features.name)
-            )
+            feature_service_from_registry = self.get_feature_service(_features.name)
+            if feature_service_from_registry != _features:
+                warnings.warn(
+                    "The FeatureService object that has been passed in as an argument is"
+                    "inconsistent with the version from Registry. Potentially a newer version"
+                    "of the FeatureService has been applied to the registry."
+                )
+            for projection in feature_service_from_registry.feature_view_projections:
+                _feature_refs.extend(
+                    [f"{projection.name_to_use}:{f.name}" for f in projection.features]
+                )
         else:
+            assert isinstance(_features, list)
             _feature_refs = _features
         return _feature_refs
 
@@ -541,10 +551,8 @@ class FeatureStore:
             )
 
         _feature_refs = self._get_features(features, feature_refs)
-
-        all_feature_views = self.list_feature_views()
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project
+        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
+            features
         )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
@@ -804,11 +812,8 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views = self._list_feature_views(
-            allow_cache=True, hide_dummy_entity=False
-        )
-        all_on_demand_feature_views = self._registry.list_on_demand_feature_views(
-            project=self.project, allow_cache=True
+        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
+            features=features, allow_cache=True, hide_dummy_entity=False
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -900,7 +905,11 @@ class FeatureStore:
             GetOnlineFeaturesResponse(field_values=result_rows)
         )
         return self._augment_response_with_on_demand_transforms(
-            _feature_refs, full_feature_names, initial_response, result_rows
+            _feature_refs,
+            all_on_demand_feature_views,
+            full_feature_names,
+            initial_response,
+            result_rows,
         )
 
     def _populate_result_rows_from_feature_view(
@@ -930,7 +939,7 @@ class FeatureStore:
             if feature_data is None:
                 for feature_name in requested_features:
                     feature_ref = (
-                        f"{table.name}__{feature_name}"
+                        f"{table.projection.name_to_use}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -940,7 +949,7 @@ class FeatureStore:
             else:
                 for feature_name in feature_data:
                     feature_ref = (
-                        f"{table.name}__{feature_name}"
+                        f"{table.projection.name_to_use}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -967,16 +976,12 @@ class FeatureStore:
     def _augment_response_with_on_demand_transforms(
         self,
         feature_refs: List[str],
+        odfvs: List[OnDemandFeatureView],
         full_feature_names: bool,
         initial_response: OnlineResponse,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
     ) -> OnlineResponse:
-        all_on_demand_feature_views = {
-            view.name: view
-            for view in self._registry.list_on_demand_feature_views(
-                project=self.project, allow_cache=True
-            )
-        }
+        all_on_demand_feature_views = {view.name: view for view in odfvs}
         all_odfv_feature_names = all_on_demand_feature_views.keys()
 
         if len(all_on_demand_feature_views) == 0:
@@ -1004,7 +1009,7 @@ class FeatureStore:
 
                 for transformed_feature in selected_subset:
                     transformed_feature_name = (
-                        f"{odfv.name}__{transformed_feature}"
+                        f"{odfv.projection.name_to_use}__{transformed_feature}"
                         if full_feature_names
                         else transformed_feature
                     )
@@ -1017,6 +1022,43 @@ class FeatureStore:
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
+    def _get_feature_views_to_use(
+        self,
+        features: Optional[Union[List[str], FeatureService]],
+        allow_cache=False,
+        hide_dummy_entity: bool = True,
+    ) -> Tuple[List[FeatureView], List[OnDemandFeatureView]]:
+
+        fvs = {
+            fv.name: fv
+            for fv in self._list_feature_views(allow_cache, hide_dummy_entity)
+        }
+
+        od_fvs = {
+            fv.name: fv
+            for fv in self._registry.list_on_demand_feature_views(
+                project=self.project, allow_cache=allow_cache
+            )
+        }
+
+        if isinstance(features, FeatureService):
+            for fv_name, projection in {
+                projection.name: projection
+                for projection in features.feature_view_projections
+            }.items():
+                if fv_name in fvs:
+                    fvs[fv_name].set_projection(projection)
+                elif fv_name in od_fvs:
+                    od_fvs[fv_name].set_projection(projection)
+                else:
+                    raise ValueError(
+                        f"The provided feature service {features.name} contains a reference to a feature view"
+                        f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
+                        f'{fv_name} and that you have registered it by running "apply".'
+                    )
+
+        return [*fvs.values()], [*od_fvs.values()]
+
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
         """Start the feature consumption server locally on a given port."""
@@ -1024,6 +1066,11 @@ class FeatureStore:
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
 
         feature_server.start_server(self, port)
+
+    @log_exceptions_and_usage
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        """Returns endpoint for the feature server, if it exists."""
+        return self._provider.get_feature_server_endpoint()
 
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
@@ -1069,7 +1116,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 
 
 def _group_feature_refs(
-    features: Union[List[str], FeatureService],
+    features: List[str],
     all_feature_views: List[FeatureView],
     all_on_demand_feature_views: List[OnDemandFeatureView],
 ) -> Tuple[
@@ -1089,21 +1136,14 @@ def _group_feature_refs(
     # on demand view name to feature names
     on_demand_view_features = defaultdict(list)
 
-    if isinstance(features, list) and isinstance(features[0], str):
-        for ref in features:
-            view_name, feat_name = ref.split(":")
-            if view_name in view_index:
-                views_features[view_name].append(feat_name)
-            elif view_name in on_demand_view_index:
-                on_demand_view_features[view_name].append(feat_name)
-            else:
-                raise FeatureViewNotFoundException(view_name)
-    elif isinstance(features, FeatureService):
-        for feature_projection in features.features:
-            projected_features = feature_projection.features
-            views_features[feature_projection.name].extend(
-                [f.name for f in projected_features]
-            )
+    for ref in features:
+        view_name, feat_name = ref.split(":")
+        if view_name in view_index:
+            views_features[view_name].append(feat_name)
+        elif view_name in on_demand_view_index:
+            on_demand_view_features[view_name].append(feat_name)
+        else:
+            raise FeatureViewNotFoundException(view_name)
 
     fvs_result: List[Tuple[FeatureView, List[str]]] = []
     odfvs_result: List[Tuple[OnDemandFeatureView, List[str]]] = []
@@ -1113,17 +1153,6 @@ def _group_feature_refs(
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], feature_names))
     return fvs_result, odfvs_result
-
-
-def _get_feature_refs_from_feature_services(
-    feature_service: FeatureService,
-) -> List[str]:
-    feature_refs = []
-    for projection in feature_service.features:
-        feature_refs.extend(
-            [f"{projection.name}:{f.name}" for f in projection.features]
-        )
-    return feature_refs
 
 
 def _get_table_entity_keys(

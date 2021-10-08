@@ -110,24 +110,27 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
         assert df_features["driver_id"] == online_features_dict["driver_id"][i]
-        assert (
+        tc.assertAlmostEqual(
             online_features_dict[
                 response_feature_name("conv_rate_plus_100", full_feature_names)
-            ][i]
-            == df_features["conv_rate"] + 100
+            ][i],
+            df_features["conv_rate"] + 100,
+            delta=0.0001,
         )
-        assert (
+        tc.assertAlmostEqual(
             online_features_dict[
                 response_feature_name("conv_rate_plus_val_to_add", full_feature_names)
-            ][i]
-            == df_features["conv_rate"] + df_features["val_to_add"]
+            ][i],
+            df_features["conv_rate"] + df_features["val_to_add"],
+            delta=0.0001,
         )
         for unprefixed_feature_ref in unprefixed_feature_refs:
-            tc.assertEqual(
+            tc.assertAlmostEqual(
                 df_features[unprefixed_feature_ref],
                 online_features_dict[
                     response_feature_name(unprefixed_feature_ref, full_feature_names)
                 ][i],
+                delta=0.0001,
             )
 
     # Check what happens for missing values
@@ -250,17 +253,24 @@ def assert_feature_service_correctness(
 
     assert (
         len(feature_service_keys)
-        == sum([len(projection.features) for projection in feature_service.features])
+        == sum(
+            [
+                len(projection.features)
+                for projection in feature_service.feature_view_projections
+            ]
+        )
         + 3
     )  # Add two for the driver id and the customer id entity keys and val_to_add request data
 
+    tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
         df_features = get_latest_feature_values_from_dataframes(
             drivers_df, customers_df, orders_df, global_df, entity_row
         )
-        assert (
+        tc.assertAlmostEqual(
             feature_service_online_features_dict[
                 response_feature_name("conv_rate_plus_100", full_feature_names)
-            ][i]
-            == df_features["conv_rate"] + 100
+            ][i],
+            df_features["conv_rate"] + 100,
+            delta=0.0001,
         )

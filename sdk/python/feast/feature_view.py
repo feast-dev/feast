@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import re
 import warnings
 from datetime import datetime, timedelta
@@ -78,6 +79,7 @@ class FeatureView:
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
+    projection: FeatureViewProjection
 
     @log_exceptions
     def __init__(
@@ -141,6 +143,8 @@ class FeatureView:
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
 
+        self.projection = FeatureViewProjection.from_definition(self)
+
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
         return f"<{self.__class__.__name__}({', '.join(items)})>"
@@ -149,9 +153,9 @@ class FeatureView:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash(self.name)
+        return hash((id(self), self.name))
 
-    def __getitem__(self, item) -> FeatureViewProjection:
+    def __getitem__(self, item):
         assert isinstance(item, list)
 
         referenced_features = []
@@ -159,7 +163,9 @@ class FeatureView:
             if feature.name in item:
                 referenced_features.append(feature)
 
-        return FeatureViewProjection(self.name, referenced_features)
+        self.projection.features = referenced_features
+
+        return self
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
@@ -198,6 +204,33 @@ class FeatureView:
 
         if not self.entities:
             raise ValueError("Feature view has no entities.")
+
+    def with_name(self, name: str):
+        """
+        Produces a copy of this FeatureView with the passed name.
+
+        Args:
+            name: Name to assign to the FeatureView copy.
+
+        Returns:
+            A copy of this FeatureView with the name replaced with the 'name' input.
+        """
+        fv = FeatureView(
+            name=self.name,
+            entities=self.entities,
+            ttl=self.ttl,
+            input=self.input,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            features=self.features,
+            tags=self.tags,
+            online=self.online,
+        )
+
+        fv.set_projection(copy.copy(self.projection))
+        fv.projection.name_to_use = name
+
+        return fv
 
     def to_proto(self) -> FeatureViewProto:
         """
@@ -282,6 +315,10 @@ class FeatureView:
             batch_source=batch_source,
             stream_source=stream_source,
         )
+
+        # FeatureViewProjections are not saved in the FeatureView proto.
+        # Create the default projection.
+        feature_view.projection = FeatureViewProjection.from_definition(feature_view)
 
         if feature_view_proto.meta.HasField("created_timestamp"):
             feature_view.created_timestamp = (
@@ -379,3 +416,31 @@ class FeatureView:
                     "FeatureView",
                     f"Could not infer Features for the FeatureView named {self.name}.",
                 )
+
+    def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
+        """
+        Setter for the projection object held by this FeatureView. A projection is an
+        object that stores the modifications to a FeatureView that is applied to the FeatureView
+        when the FeatureView is used such as during feature_store.get_historical_features.
+        This method also performs checks to ensure the projection is consistent with this
+        FeatureView before doing the set.
+
+        Args:
+            feature_view_projection: The FeatureViewProjection object to set this FeatureView's
+                'projection' field to.
+        """
+        if feature_view_projection.name != self.name:
+            raise ValueError(
+                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
+                f"The projection is named {feature_view_projection.name} and the name indicates which "
+                "FeatureView the projection is for."
+            )
+
+        for feature in feature_view_projection.features:
+            if feature not in self.features:
+                raise ValueError(
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
+                    "FeatureView doesn't have."
+                )
+
+        self.projection = feature_view_projection

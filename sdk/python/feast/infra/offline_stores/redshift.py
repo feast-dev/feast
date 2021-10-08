@@ -153,16 +153,17 @@ class RedshiftOfflineStore(OfflineStore):
                 full_feature_names=full_feature_names,
             )
 
-            yield query
-
-            # Clean up the uploaded Redshift table
-            aws_utils.execute_redshift_statement(
-                redshift_client,
-                config.offline_store.cluster_id,
-                config.offline_store.database,
-                config.offline_store.user,
-                f"DROP TABLE {table_name}",
-            )
+            try:
+                yield query
+            finally:
+                # Always clean up the uploaded Redshift table
+                aws_utils.execute_redshift_statement(
+                    redshift_client,
+                    config.offline_store.cluster_id,
+                    config.offline_store.database,
+                    config.offline_store.user,
+                    f"DROP TABLE IF EXISTS {table_name}",
+                )
 
         return RedshiftRetrievalJob(
             query=query_generator,

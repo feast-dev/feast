@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from typing import Dict, List, MutableMapping, Optional, Union
 
 import yaml
@@ -30,6 +29,7 @@ from feast.protos.feast.core.FeatureTable_pb2 import (
 from feast.protos.feast.core.FeatureTable_pb2 import (
     FeatureTableSpec as FeatureTableSpecProto,
 )
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -38,6 +38,7 @@ class FeatureTable:
     Represents a collection of features and associated metadata.
     """
 
+    @log_exceptions
     def __init__(
         self,
         name: str,
@@ -66,6 +67,9 @@ class FeatureTable:
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
+
+    def __hash__(self) -> int:
+        return hash((id(self), self.name))
 
     def __eq__(self, other):
         if not isinstance(other, FeatureTable):

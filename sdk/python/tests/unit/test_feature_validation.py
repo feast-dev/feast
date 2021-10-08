@@ -20,13 +20,13 @@ def test_feature_name_collision_on_historical_retrieval():
             full_feature_names=False,
         )
 
-    expected_error_message = (
-        "Duplicate features named avg_daily_trips found.\n"
-        "To resolve this collision, either use the full feature name by setting "
-        "'full_feature_names=True', or ensure that the features in question have different names."
-    )
+        expected_error_message = (
+            "Duplicate features named avg_daily_trips found.\n"
+            "To resolve this collision, either use the full feature name by setting "
+            "'full_feature_names=True', or ensure that the features in question have different names."
+        )
 
-    assert str(error.value) == expected_error_message
+        assert str(error.value) == expected_error_message
 
     # check when feature names collide and 'full_feature_names=True'
     with pytest.raises(FeatureNameCollisionError) as error:
@@ -43,9 +43,10 @@ def test_feature_name_collision_on_historical_retrieval():
             full_feature_names=True,
         )
 
-    expected_error_message = (
-        "Duplicate features named driver_stats__avg_daily_trips found.\n"
-        "To resolve this collision, please ensure that the features in question "
-        "have different names."
-    )
-    assert str(error.value) == expected_error_message
+        expected_error_message = (
+            "Duplicate features named driver_stats__avg_daily_trips found.\n"
+            "To resolve this collision, please ensure that the feature views or their own features "
+            "have different names. If you're intentionally joining the same feature view twice on "
+            "different sets of entities, please rename one of the feature views with '.with_name'."
+        )
+        assert str(error.value) == expected_error_message

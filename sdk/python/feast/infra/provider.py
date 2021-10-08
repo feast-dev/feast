@@ -143,6 +143,10 @@ class Provider(abc.ABC):
         """
         ...
 
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        """Returns endpoint for the feature server, if it exists."""
+        return None
+
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
@@ -191,18 +195,14 @@ def _get_requested_feature_views_to_features_dict(
         feature_from_ref = ref_parts[1]
 
         found = False
-        for feature_view_from_registry in feature_views:
-            if feature_view_from_registry.name == feature_view_from_ref:
+        for fv in feature_views:
+            if fv.projection.name_to_use == feature_view_from_ref:
                 found = True
-                feature_views_to_feature_map[feature_view_from_registry].append(
-                    feature_from_ref
-                )
-        for odfv_from_registry in on_demand_feature_views:
-            if odfv_from_registry.name == feature_view_from_ref:
+                feature_views_to_feature_map[fv].append(feature_from_ref)
+        for odfv in on_demand_feature_views:
+            if odfv.projection.name_to_use == feature_view_from_ref:
                 found = True
-                on_demand_feature_views_to_feature_map[odfv_from_registry].append(
-                    feature_from_ref
-                )
+                on_demand_feature_views_to_feature_map[odfv].append(feature_from_ref)
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
