@@ -97,6 +97,7 @@ class OnDemandFeatureView:
 
         Args:
             name: Name to assign to the OnDemandFeatureView copy.
+
         Returns:
             A copy of this OnDemandFeatureView with the name replaced with the 'name' input.
         """
