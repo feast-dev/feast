@@ -947,17 +947,12 @@ class FeatureStore:
         table: FeatureView,
         union_of_entity_keys: List[EntityKeyProto],
     ):
-        original_table = (
-            table
-            if table.name == table.projection.name_to_use()
-            else self.get_feature_view(table.name)
-        )
         entity_keys = _get_table_entity_keys(
             table, union_of_entity_keys, table_join_keys
         )
         read_rows = provider.online_read(
             config=self.config,
-            table=original_table,
+            table=table,
             entity_keys=entity_keys,
             requested_features=requested_features,
         )
