@@ -69,9 +69,31 @@ class OnDemandFeatureView:
     def __hash__(self) -> int:
         return hash((id(self), self.name))
 
+    def __copy__(self):
+        fv = OnDemandFeatureView(
+            name=self.name, features=self.features, inputs=self.inputs, udf=self.udf
+        )
+        fv.projection = copy.copy(self.projection)
+        return fv
+
+    def __getitem__(self, item):
+        assert isinstance(item, list)
+
+        referenced_features = []
+        for feature in self.features:
+            if feature.name in item:
+                referenced_features.append(feature)
+
+        cp = self.__copy__()
+        cp.projection.features = referenced_features
+
+        return self
+
     def with_name(self, name: str):
         """
-        Produces a copy of this OnDemandFeatureView with the passed name.
+        Renames this on-demand feature view by returning a copy of this feature view with an alias
+        set for the feature view name. This rename operation is only used as part of query
+        operations and will not modify the underlying OnDemandFeatureView.
 
         Args:
             name: Name to assign to the OnDemandFeatureView copy.
@@ -79,14 +101,44 @@ class OnDemandFeatureView:
         Returns:
             A copy of this OnDemandFeatureView with the name replaced with the 'name' input.
         """
-        odfv = OnDemandFeatureView(
-            name=self.name, features=self.features, inputs=self.inputs, udf=self.udf
-        )
+        cp = self.__copy__()
+        cp.projection.name_alias = name
 
-        odfv.set_projection(copy.copy(self.projection))
-        odfv.projection.name_to_use = name
+        return cp
 
-        return odfv
+    def with_projection(self, feature_view_projection: FeatureViewProjection):
+        """
+        Sets the feature view projection by returning a copy of this on-demand feature view
+        with its projection set to the given projection. A projection is an
+        object that stores the modifications to a feature view that is used during
+        query operations.
+
+        Args:
+            feature_view_projection: The FeatureViewProjection object to link to this
+                OnDemandFeatureView.
+
+        Returns:
+            A copy of this OnDemandFeatureView with its projection replaced with the
+            'feature_view_projection' argument.
+        """
+        if feature_view_projection.name != self.name:
+            raise ValueError(
+                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
+                f"The projection is named {feature_view_projection.name} and the name indicates which "
+                "FeatureView the projection is for."
+            )
+
+        for feature in feature_view_projection.features:
+            if feature not in self.features:
+                raise ValueError(
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
+                    "FeatureView doesn't have."
+                )
+
+        cp = self.__copy__()
+        cp.projection = feature_view_projection
+
+        return cp
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
@@ -192,18 +244,6 @@ class OnDemandFeatureView:
         df_with_features.drop(columns=columns_to_cleanup, inplace=True)
         return df_with_transformed_features
 
-    def __getitem__(self, item):
-        assert isinstance(item, list)
-
-        referenced_features = []
-        for feature in self.features:
-            if feature.name in item:
-                referenced_features.append(feature)
-
-        self.projection.features = referenced_features
-
-        return self
-
     def infer_features(self):
         """
         Infers the set of features associated to this feature view from the input source.
@@ -266,26 +306,6 @@ class OnDemandFeatureView:
                     requested_on_demand_feature_views.append(odfv)
                     break
         return requested_on_demand_feature_views
-
-    def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
-        """
-        Setter for the projection object held by this FeatureView. Performs checks to ensure
-        the projection is consistent with this FeatureView before doing the set.
-
-        Args:
-            feature_view_projection: The FeatureViewProjection object to set this FeatureView's
-                'projection' field to.
-        """
-        assert feature_view_projection.name == self.name
-
-        for feature in feature_view_projection.features:
-            if feature not in self.features:
-                raise ValueError(
-                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the"
-                    "FeatureView doesn't have."
-                )
-
-        self.projection = feature_view_projection
 
 
 def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureView]):

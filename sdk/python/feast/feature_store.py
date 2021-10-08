@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
@@ -329,7 +330,10 @@ class FeatureStore:
                 )
             for projection in feature_service_from_registry.feature_view_projections:
                 _feature_refs.extend(
-                    [f"{projection.name_to_use}:{f.name}" for f in projection.features]
+                    [
+                        f"{projection.name_to_use()}:{f.name}"
+                        for f in projection.features
+                    ]
                 )
         else:
             assert isinstance(_features, list)
@@ -939,7 +943,7 @@ class FeatureStore:
             if feature_data is None:
                 for feature_name in requested_features:
                     feature_ref = (
-                        f"{table.projection.name_to_use}__{feature_name}"
+                        f"{table.projection.name_to_use()}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -949,7 +953,7 @@ class FeatureStore:
             else:
                 for feature_name in feature_data:
                     feature_ref = (
-                        f"{table.projection.name_to_use}__{feature_name}"
+                        f"{table.projection.name_to_use()}__{feature_name}"
                         if full_feature_names
                         else feature_name
                     )
@@ -1009,7 +1013,7 @@ class FeatureStore:
 
                 for transformed_feature in selected_subset:
                     transformed_feature_name = (
-                        f"{odfv.projection.name_to_use}__{transformed_feature}"
+                        f"{odfv.projection.name_to_use()}__{transformed_feature}"
                         if full_feature_names
                         else transformed_feature
                     )
@@ -1041,23 +1045,31 @@ class FeatureStore:
             )
         }
 
+        fvs_to_use, od_fvs_to_use = [], []
         if isinstance(features, FeatureService):
-            for fv_name, projection in {
-                projection.name: projection
+            for fv_name, projection in [
+                (projection.name, projection)
                 for projection in features.feature_view_projections
-            }.items():
+            ]:
                 if fv_name in fvs:
-                    fvs[fv_name].set_projection(projection)
+                    fvs_to_use.append(
+                        fvs[fv_name].with_projection(copy.copy(projection))
+                    )
                 elif fv_name in od_fvs:
-                    od_fvs[fv_name].set_projection(projection)
+                    od_fvs_to_use.append(
+                        od_fvs[fv_name].with_projection(copy.copy(projection))
+                    )
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
                         f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
+            views_to_use = (fvs_to_use, od_fvs_to_use)
+        else:
+            views_to_use = ([*fvs.values()], [*od_fvs.values()])
 
-        return [*fvs.values()], [*od_fvs.values()]
+        return views_to_use
 
     @log_exceptions_and_usage
     def serve(self, port: int) -> None:
