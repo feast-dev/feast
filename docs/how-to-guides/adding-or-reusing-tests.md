@@ -1,10 +1,14 @@
 # Adding or reusing tests
 
+## Overview
+
 This guide will go over
 
 1. how Feast tests are setup
 2. how to extend the test suite to test new functionality
 3. how to use the existing test suite to test a new custom offline / online store.
+
+## Test suite overview
 
 Let's inspect the test setup as is:
 
@@ -52,6 +56,8 @@ $ tree
 ```
 
 `feature_repos` has setup files for most tests in the test suite and sets up pytest fixtures for other tests. Crucially, this parametrizes on different offline stores, different online stores, etc and abstracts away store specific implementations so tests don't need to rewrite e.g. uploading dataframes to a specific store for setup.
+
+## Understanding an example test
 
 Let's look at a sample test using the universal repo:
 
@@ -139,6 +145,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 {% endtabs %}
 
 The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories. This by default pulls in a standard dataset with driver and customer entities, certain feature views, and feature values. By including the environment as a parameter, the test automatically parametrizes across other offline / online store combinations.
+
+## Writing a new test or reusing existing tests
 
 To:
 
