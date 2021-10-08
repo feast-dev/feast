@@ -33,8 +33,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "convrate_plus100",
         features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
     )
-    feature_service_shadow_entities = FeatureService(
-        name="shadow_entities",
+    feature_service_entity_mapping = FeatureService(
+        name="entity_mapping",
         features=[
             feature_views["location"]
             .with_name("origin")
@@ -53,7 +53,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             customer(),
             location(),
             feature_service,
-            feature_service_shadow_entities,
+            feature_service_entity_mapping,
         ]
     )
     fs.apply(feast_objects)
@@ -219,9 +219,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             sample_drivers, sample_customers, *sample_location_pairs
         )
     ]
-    assert_feature_service_shadow_entities_correctness(
+    assert_feature_service_entity_mapping_correctness(
         fs,
-        feature_service_shadow_entities,
+        feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
         drivers_df,
@@ -384,7 +384,7 @@ def assert_feature_service_correctness(
         )
 
 
-def assert_feature_service_shadow_entities_correctness(
+def assert_feature_service_entity_mapping_correctness(
     fs,
     feature_service,
     entity_rows,

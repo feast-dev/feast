@@ -264,8 +264,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         name="convrate_plus100",
         features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
     )
-    feature_service_shadow_entities = FeatureService(
-        name="shadow_entities",
+    feature_service_entity_mapping = FeatureService(
+        name="entity_mapping",
         features=[
             location_fv.with_name("origin").with_join_key_map(
                 {"location_id": "origin_id"}
@@ -289,7 +289,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             customer(),
             location(),
             feature_service,
-            feature_service_shadow_entities,
+            feature_service_entity_mapping,
         ]
     )
     store.apply(feast_objects)
@@ -439,9 +439,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         expected_df,
         event_timestamp,
     )
-    assert_feature_service_shadow_entities_correctness(
+    assert_feature_service_entity_mapping_correctness(
         store,
-        feature_service_shadow_entities,
+        feature_service_entity_mapping,
         full_feature_names,
         entity_df_with_request_data,
         full_expected_df,
@@ -530,7 +530,7 @@ def assert_feature_service_correctness(
     )
 
 
-def assert_feature_service_shadow_entities_correctness(
+def assert_feature_service_entity_mapping_correctness(
     store, feature_service, full_feature_names, entity_df, expected_df, event_timestamp
 ):
     if full_feature_names:
@@ -567,9 +567,6 @@ def assert_feature_service_shadow_entities_correctness(
                 "destination__temperature",
             ]
         ]
-        print(
-            f"actual_df_from_df_entities.columns: {actual_df_from_df_entities.columns}"
-        )
         actual_df_from_df_entities = (
             actual_df_from_df_entities[expected_df.columns]
             .sort_values(
