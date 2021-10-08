@@ -46,6 +46,7 @@
 * [Adding a custom provider](how-to-guides/creating-a-custom-provider.md)
 * [Adding a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
 * [Adding a new offline store](how-to-guides/adding-a-new-offline-store.md)
+* [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 
 ## Reference
 
