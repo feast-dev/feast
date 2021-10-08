@@ -1,11 +1,9 @@
 name: build_feature_server_aws
 
 on:
-  pull_request_target:
-    types:
-      - opened
-      - synchronize
-      - labeled
+  push:
+    branches:
+      - master
 
 jobs:
   build-docker-image:
@@ -22,9 +20,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile
-          push: true
-          tags: feature_server_ci:test
+        run: |
+          docker build \
+            --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
+            --tag feastdev/feature-server:`git rev-parse HEAD` \
+            .
+          docker push feastdev/feature-server:`git rev-parse HEAD`
