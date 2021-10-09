@@ -1,5 +1,41 @@
 # Changelog
 
+## [v0.14.0](https://github.com/feast-dev/feast/tree/v0.14.0) (2021-10-08)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.13.0...v0.14.0)
+
+**Implemented enhancements:**
+
+- Changed FVProjection 'name\_to\_use' field to 'name\_alias' and changed '.set\_projection' in FeatureView to ".with\_projection". Also adjustments for some edge cases [\#1929](https://github.com/feast-dev/feast/pull/1929) ([mavysavydav](https://github.com/mavysavydav))
+- Make serverless alpha feature [\#1928](https://github.com/feast-dev/feast/pull/1928) ([felixwang9817](https://github.com/felixwang9817))
+- Feast endpoint [\#1927](https://github.com/feast-dev/feast/pull/1927) ([felixwang9817](https://github.com/felixwang9817))
+- Add location to BigQueryOfflineStoreConfig [\#1921](https://github.com/feast-dev/feast/pull/1921) ([loftiskg](https://github.com/loftiskg))
+- Create & teardown Lambda & API Gateway resources for serverless feature server [\#1900](https://github.com/feast-dev/feast/pull/1900) ([tsotnet](https://github.com/tsotnet))
+- Hide FeatureViewProjections from user interface & have FeatureViews carry FVProjections that carries the modified info of the FeatureView [\#1899](https://github.com/feast-dev/feast/pull/1899) ([mavysavydav](https://github.com/mavysavydav))
+- Upload docker image to ECR during feast apply [\#1877](https://github.com/feast-dev/feast/pull/1877) ([felixwang9817](https://github.com/felixwang9817))
+- Added .with\_name method in FeatureView/OnDemandFeatureView classes for name aliasing. FeatureViewProjection will hold this information [\#1872](https://github.com/feast-dev/feast/pull/1872) ([mavysavydav](https://github.com/mavysavydav))
+
+**Fixed bugs:**
+
+- Update makefile to use pip installed dependencies [\#1920](https://github.com/feast-dev/feast/pull/1920) ([loftiskg](https://github.com/loftiskg))
+- Delete tables [\#1916](https://github.com/feast-dev/feast/pull/1916) ([felixwang9817](https://github.com/felixwang9817))
+- Set a 5 minute limit for redshift statement execution [\#1915](https://github.com/feast-dev/feast/pull/1915) ([achals](https://github.com/achals))
+- Use set when parsing repos to prevent duplicates [\#1913](https://github.com/feast-dev/feast/pull/1913) ([achals](https://github.com/achals))
+- resolve environment variables in repo config [\#1909](https://github.com/feast-dev/feast/pull/1909) ([samuel100](https://github.com/samuel100))
+- Respect specified ValueTypes for features during materialization [\#1906](https://github.com/feast-dev/feast/pull/1906) ([Agent007](https://github.com/Agent007))
+- Fix issue with feature views being detected as duplicated when imported [\#1905](https://github.com/feast-dev/feast/pull/1905) ([achals](https://github.com/achals))
+- Use contextvars to maintain a call stack during the usage calls [\#1882](https://github.com/feast-dev/feast/pull/1882) ([achals](https://github.com/achals))
+
+**Merged pull requests:**
+
+- Update concepts/README.md [\#1926](https://github.com/feast-dev/feast/pull/1926) ([ysk24ok](https://github.com/ysk24ok))
+- Add CI for feature server Docker image [\#1925](https://github.com/feast-dev/feast/pull/1925) ([felixwang9817](https://github.com/felixwang9817))
+- cache provider in feature store instance [\#1924](https://github.com/feast-dev/feast/pull/1924) ([DvirDukhan](https://github.com/DvirDukhan))
+- Refactor logging and error messages in serverless [\#1923](https://github.com/feast-dev/feast/pull/1923) ([felixwang9817](https://github.com/felixwang9817))
+- Add a caching step to our github actions [\#1919](https://github.com/feast-dev/feast/pull/1919) ([achals](https://github.com/achals))
+- Add provider, offline store, online store, registry to RTD [\#1918](https://github.com/feast-dev/feast/pull/1918) ([felixwang9817](https://github.com/felixwang9817))
+- Cleanup tests [\#1901](https://github.com/feast-dev/feast/pull/1901) ([felixwang9817](https://github.com/felixwang9817))
+
 ## [v0.13.0](https://github.com/feast-dev/feast/tree/v0.13.0) (2021-09-22)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.12.1...v0.13.0)
@@ -31,7 +67,6 @@
 
 **Fixed bugs:**
 
-- Array/list feature materialization in BQ crashes in type conversion [\#1839](https://github.com/feast-dev/feast/issues/1839)
 - Fixing odfv cli group description [\#1890](https://github.com/feast-dev/feast/pull/1890) ([adchia](https://github.com/adchia))
 - Fix list feature format for BigQuery offline datasources.  [\#1889](https://github.com/feast-dev/feast/pull/1889) ([judahrand](https://github.com/judahrand))
 - Add `dill` to main dependencies [\#1886](https://github.com/feast-dev/feast/pull/1886) ([judahrand](https://github.com/judahrand))
@@ -53,6 +88,8 @@
 - Fix get\_online\_features telemetry to only log every 10000 times [\#1786](https://github.com/feast-dev/feast/pull/1786) ([felixwang9817](https://github.com/felixwang9817))
 - Add a description field the Feature Service class and proto [\#1771](https://github.com/feast-dev/feast/pull/1771) ([achals](https://github.com/achals))
 - Validate project name upon feast.apply [\#1766](https://github.com/feast-dev/feast/pull/1766) ([tedhtchang](https://github.com/tedhtchang))
+- Fix BQ historical retrieval with rows that got backfilled [\#1744](https://github.com/feast-dev/feast/pull/1744) ([MattDelac](https://github.com/MattDelac))
+- Handle case where`_LIST` type is empty [\#1703](https://github.com/feast-dev/feast/pull/1703) ([judahrand](https://github.com/judahrand))
 
 **Merged pull requests:**
 
@@ -88,6 +125,7 @@
 - Clean up docstring tests [\#1778](https://github.com/feast-dev/feast/pull/1778) ([felixwang9817](https://github.com/felixwang9817))
 - Add offline retrival integration tests using the universal repo [\#1769](https://github.com/feast-dev/feast/pull/1769) ([achals](https://github.com/achals))
 - Adding initial type support related tests for BQ [\#1768](https://github.com/feast-dev/feast/pull/1768) ([adchia](https://github.com/adchia))
+- Add release-patch script [\#1554](https://github.com/feast-dev/feast/pull/1554) ([jklegar](https://github.com/jklegar))
 
 ## [v0.12.1](https://github.com/feast-dev/feast/tree/v0.12.1) (2021-08-20)
 
