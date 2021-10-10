@@ -14,10 +14,14 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+from proto import Message
+
 from feast import importer
+from feast.base_feature_view import BaseFeatureView
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -33,6 +37,7 @@ from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
+from feast.request_feature_view import RequestFeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -290,7 +295,7 @@ class Registry:
             self.commit()
 
     def apply_feature_view(
-        self, feature_view: FeatureView, project: str, commit: bool = True
+        self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
         """
         Registers a single feature view with Feast
@@ -300,74 +305,46 @@ class Registry:
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
         """
-        feature_view.is_valid()
+        feature_view.check_valid()
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
 
-        if feature_view.name in self._get_existing_on_demand_feature_view_names():
-            raise ConflictingFeatureViewNames(feature_view.name)
+        self._check_conflicting_feature_view_names(feature_view)
+        existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
+        if isinstance(feature_view, FeatureView):
+            existing_feature_views_of_same_type = (
+                self.cached_registry_proto.feature_views
+            )
+        elif isinstance(feature_view, OnDemandFeatureView):
+            existing_feature_views_of_same_type = (
+                self.cached_registry_proto.on_demand_feature_views
+            )
+        elif isinstance(feature_view, RequestFeatureView):
+            existing_feature_views_of_same_type = (
+                self.cached_registry_proto.request_feature_views
+            )
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
         for idx, existing_feature_view_proto in enumerate(
-            self.cached_registry_proto.feature_views
+            existing_feature_views_of_same_type
         ):
             if (
                 existing_feature_view_proto.spec.name == feature_view_proto.spec.name
                 and existing_feature_view_proto.spec.project == project
             ):
-                if FeatureView.from_proto(existing_feature_view_proto) == feature_view:
+                if (
+                    feature_view.__class__.from_proto(existing_feature_view_proto)
+                    == feature_view
+                ):
                     return
                 else:
                     del self.cached_registry_proto.feature_views[idx]
                     break
 
-        self.cached_registry_proto.feature_views.append(feature_view_proto)
-        if commit:
-            self.commit()
-
-    def apply_on_demand_feature_view(
-        self,
-        on_demand_feature_view: OnDemandFeatureView,
-        project: str,
-        commit: bool = True,
-    ):
-        """
-        Registers a single on demand feature view with Feast
-
-        Args:
-            on_demand_feature_view: Feature view that will be registered
-            project: Feast project that this feature view belongs to
-            commit: Whether the change should be persisted immediately
-        """
-        on_demand_feature_view_proto = on_demand_feature_view.to_proto()
-        on_demand_feature_view_proto.spec.project = project
-        self._prepare_registry_for_changes()
-        assert self.cached_registry_proto
-
-        if on_demand_feature_view.name in self._get_existing_feature_view_names():
-            raise ConflictingFeatureViewNames(on_demand_feature_view.name)
-
-        for idx, existing_feature_view_proto in enumerate(
-            self.cached_registry_proto.on_demand_feature_views
-        ):
-            if (
-                existing_feature_view_proto.spec.name
-                == on_demand_feature_view_proto.spec.name
-                and existing_feature_view_proto.spec.project == project
-            ):
-                if (
-                    OnDemandFeatureView.from_proto(existing_feature_view_proto)
-                    == on_demand_feature_view
-                ):
-                    return
-                else:
-                    del self.cached_registry_proto.on_demand_feature_views[idx]
-                    break
-
-        self.cached_registry_proto.on_demand_feature_views.append(
-            on_demand_feature_view_proto
-        )
+        existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
             self.commit()
 
@@ -675,15 +652,22 @@ class Registry:
             self.cache_being_updated = False
         return registry_proto
 
-    def _get_existing_feature_view_names(self) -> Set[str]:
-        assert self.cached_registry_proto
-        return set([fv.spec.name for fv in self.cached_registry_proto.feature_views])
+    def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):
+        name_to_fv_protos = self._existing_feature_view_names_to_fvs()
+        if feature_view.name in name_to_fv_protos:
+            if not isinstance(
+                name_to_fv_protos.get(feature_view.name), feature_view.proto_class
+            ):
+                raise ConflictingFeatureViewNames(feature_view.name)
 
-    def _get_existing_on_demand_feature_view_names(self) -> Set[str]:
+    def _existing_feature_view_names_to_fvs(self) -> Dict[str, Message]:
         assert self.cached_registry_proto
-        return set(
-            [
-                odfv.spec.name
-                for odfv in self.cached_registry_proto.on_demand_feature_views
-            ]
-        )
+        odfvs = {
+            fv.spec.name: fv
+            for fv in self.cached_registry_proto.on_demand_feature_views
+        }
+        fvs = {fv.spec.name: fv for fv in self.cached_registry_proto.feature_views}
+        request_fvs = {
+            fv.spec.name: fv for fv in self.cached_registry_proto.request_feature_views
+        }
+        return {**odfvs, **fvs, **request_fvs}

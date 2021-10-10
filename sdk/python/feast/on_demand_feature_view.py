@@ -1,12 +1,13 @@
 import copy
 import functools
 from types import MethodType
-from typing import Dict, List, Union, cast
+from typing import Dict, List, Type, Union, cast
 
 import dill
 import pandas as pd
 
 from feast import errors
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
@@ -30,7 +31,7 @@ from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
-class OnDemandFeatureView:
+class OnDemandFeatureView(BaseFeatureView):
     """
     [Experimental] An OnDemandFeatureView defines on demand transformations on existing feature view values and request
     data.
@@ -42,11 +43,8 @@ class OnDemandFeatureView:
         udf: User defined transformation function that takes as input pandas dataframes
     """
 
-    name: str
-    features: List[Feature]
     inputs: Dict[str, Union[FeatureView, RequestDataSource]]
     udf: MethodType
-    projection: FeatureViewProjection
 
     @log_exceptions
     def __init__(
@@ -60,14 +58,35 @@ class OnDemandFeatureView:
         Creates an OnDemandFeatureView object.
         """
 
-        self.name = name
-        self.features = features
+        self._name = name
+        self._features = features
+        self._projection = FeatureViewProjection.from_definition(self)
         self.inputs = inputs
         self.udf = udf
-        self.projection = FeatureViewProjection.from_definition(self)
 
-    def __hash__(self) -> int:
-        return hash((id(self), self.name))
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def features(self) -> List[Feature]:
+        return self._features
+
+    @features.setter
+    def features(self, value):
+        self._features = value
+
+    @property
+    def projection(self) -> FeatureViewProjection:
+        return self._projection
+
+    @projection.setter
+    def projection(self, value):
+        self._projection = value
+
+    @property
+    def proto_class(self) -> Type[OnDemandFeatureViewProto]:
+        return OnDemandFeatureViewProto
 
     def __copy__(self):
         fv = OnDemandFeatureView(

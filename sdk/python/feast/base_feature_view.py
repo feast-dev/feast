@@ -1,0 +1,136 @@
+# Copyright 2019 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import warnings
+from abc import ABC, abstractmethod
+from typing import List, Type
+
+from google.protobuf.json_format import MessageToJson
+from proto import Message
+
+from feast.feature import Feature
+from feast.feature_view_projection import FeatureViewProjection
+
+warnings.simplefilter("once", DeprecationWarning)
+
+
+class BaseFeatureView(ABC):
+    """A FeatureView defines a logical grouping of features to be served."""
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def features(self) -> List[Feature]:
+        pass
+
+    @property
+    @abstractmethod
+    def projection(self) -> FeatureViewProjection:
+        pass
+
+    @projection.setter
+    @abstractmethod
+    def projection(self, value):
+        pass
+
+    @property
+    @abstractmethod
+    def proto_class(self) -> Type[Message]:
+        pass
+
+    @abstractmethod
+    def to_proto(self) -> Message:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_proto(cls, feature_view_proto):
+        pass
+
+    def __repr__(self):
+        items = (f"{k} = {v}" for k, v in self.__dict__.items())
+        return f"<{self.__class__.__name__}({', '.join(items)})>"
+
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
+
+    def __hash__(self):
+        return hash((id(self), self.name))
+
+    def __getitem__(self, item):
+        assert isinstance(item, list)
+
+        referenced_features = []
+        for feature in self.features:
+            if feature.name in item:
+                referenced_features.append(feature)
+
+        self.projection.features = referenced_features
+
+        return self
+
+    def __eq__(self, other):
+        if not isinstance(other, BaseFeatureView):
+            raise TypeError(
+                "Comparisons should only involve BaseFeatureView class objects."
+            )
+
+        if self.name != other.name:
+            return False
+
+        if sorted(self.features) != sorted(other.features):
+            return False
+
+        return True
+
+    def check_valid(self):
+        """
+        Validates the state of this feature view locally.
+
+        Raises:
+            ValueError: The feature view does not have a name or does not have entities.
+        """
+        if not self.name:
+            raise ValueError("Feature view needs a name.")
+
+    def set_projection(self, feature_view_projection: FeatureViewProjection) -> None:
+        """
+        Setter for the projection object held by this FeatureView. A projection is an
+        object that stores the modifications to a FeatureView that is applied to the FeatureView
+        when the FeatureView is used such as during feature_store.get_historical_features.
+        This method also performs checks to ensure the projection is consistent with this
+        FeatureView before doing the set.
+
+        Args:
+            feature_view_projection: The FeatureViewProjection object to set this FeatureView's
+                'projection' field to.
+        """
+        if feature_view_projection.name != self.name:
+            raise ValueError(
+                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
+                f"The projection is named {feature_view_projection.name} and the name indicates which "
+                "FeatureView the projection is for."
+            )
+
+        for feature in feature_view_projection.features:
+            if feature not in self.features:
+                raise ValueError(
+                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
+                    "FeatureView doesn't have."
+                )
+
+        self.projection = feature_view_projection

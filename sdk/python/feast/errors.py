@@ -265,7 +265,7 @@ class InvalidEntityType(Exception):
 class ConflictingFeatureViewNames(Exception):
     def __init__(self, feature_view_name: str):
         super().__init__(
-            f"The feature view name: {feature_view_name} refers to both an on-demand feature view and a feature view"
+            f"The feature view name: {feature_view_name} refers to feature views of different types."
         )
 
 

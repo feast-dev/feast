@@ -56,6 +56,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
+from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_value_to_proto_value
 from feast.usage import UsageEvent, log_event, log_exceptions, log_exceptions_and_usage
 from feast.value_type import ValueType
@@ -347,8 +348,17 @@ class FeatureStore:
             Entity,
             FeatureView,
             OnDemandFeatureView,
+            RequestFeatureView,
             FeatureService,
-            List[Union[FeatureView, OnDemandFeatureView, Entity, FeatureService]],
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                ]
+            ],
         ],
         commit: bool = True,
     ):
@@ -394,6 +404,9 @@ class FeatureStore:
         assert isinstance(objects, list)
 
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        request_views_to_update = [
+            ob for ob in objects if isinstance(ob, RequestFeatureView)
+        ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         if (
             not flags_helper.enable_on_demand_feature_views(self.config)
@@ -425,7 +438,7 @@ class FeatureStore:
 
         if len(views_to_update) + len(entities_to_update) + len(
             services_to_update
-        ) + len(odfvs_to_update) != len(objects):
+        ) + len(odfvs_to_update) + len(request_views_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
@@ -439,8 +452,10 @@ class FeatureStore:
         for view in views_to_update:
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for odfv in odfvs_to_update:
-            self._registry.apply_on_demand_feature_view(
-                odfv, project=self.project, commit=False
+            self._registry.apply_feature_view(odfv, project=self.project, commit=False)
+        for request_fv in request_views_to_update:
+            self._registry.apply_feature_view(
+                request_fv, project=self.project, commit=False
             )
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
