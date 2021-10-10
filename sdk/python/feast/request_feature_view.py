@@ -1,3 +1,4 @@
+import copy
 from typing import Type
 
 from feast.base_feature_view import BaseFeatureView
@@ -81,3 +82,10 @@ class RequestFeatureView(BaseFeatureView):
         )
 
         return request_feature_view_obj
+
+    def __copy__(self):
+        fv = RequestFeatureView(
+            name=self.name, request_data_source=self.request_data_source
+        )
+        fv.projection = copy.copy(self.projection)
+        return fv
