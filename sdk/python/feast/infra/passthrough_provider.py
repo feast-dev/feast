@@ -93,6 +93,7 @@ class PassthroughProvider(Provider):
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         entities = []
+        print(f"DANNY {type(feature_view)}")
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))
 

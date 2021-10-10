@@ -22,7 +22,7 @@ import pkg_resources
 import yaml
 from colorama import Fore, Style
 
-from feast import flags, flags_helper, utils
+from feast import FeatureView, flags, flags_helper, utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
@@ -262,7 +262,14 @@ def feature_view_list(ctx: click.Context):
     store = FeatureStore(repo_path=str(repo))
     table = []
     for feature_view in store.list_feature_views():
-        table.append([feature_view.name, feature_view.entities])
+        table.append(
+            [
+                feature_view.name,
+                feature_view.entities
+                if isinstance(feature_view, FeatureView)
+                else "n/a",
+            ]
+        )
 
     from tabulate import tabulate
 

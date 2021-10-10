@@ -180,24 +180,30 @@ class FeatureStore:
         return self._registry.list_feature_services(self.project)
 
     @log_exceptions_and_usage
-    def list_feature_views(self, allow_cache: bool = False) -> List[BaseFeatureView]:
+    def list_feature_views(
+        self, allow_cache: bool = False, for_materialize: bool = False
+    ) -> List[BaseFeatureView]:
         """
         Retrieves the list of feature views from the registry.
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
+            for_materialize: Whether to filter for only feature views needed to materialize
 
         Returns:
             A list of feature views.
         """
-        return self._list_feature_views(allow_cache)
+        return self._list_feature_views(allow_cache, for_materialize=for_materialize)
 
     def _list_feature_views(
-        self, allow_cache: bool = False, hide_dummy_entity: bool = True
-    ) -> List[FeatureView]:
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+        for_materialize: bool = False,
+    ) -> List[BaseFeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache
+            self.project, allow_cache=allow_cache, for_materialize=for_materialize
         ):
             if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
@@ -649,10 +655,11 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
-        feature_views_to_materialize = []
+        feature_views_to_materialize: List[FeatureView] = []
         if feature_views is None:
-            feature_views_to_materialize = self._list_feature_views(
-                hide_dummy_entity=False
+            feature_views_to_materialize = cast(
+                List[FeatureView],
+                self._list_feature_views(hide_dummy_entity=False, for_materialize=True),
             )
         else:
             for name in feature_views:
@@ -741,10 +748,11 @@ class FeatureStore:
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
             )
 
-        feature_views_to_materialize = []
+        feature_views_to_materialize: List[FeatureView] = []
         if feature_views is None:
-            feature_views_to_materialize = self._list_feature_views(
-                hide_dummy_entity=False
+            feature_views_to_materialize = cast(
+                List[FeatureView],
+                self._list_feature_views(hide_dummy_entity=False, for_materialize=True),
             )
         else:
             for name in feature_views:

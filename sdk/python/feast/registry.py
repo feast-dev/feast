@@ -457,14 +457,15 @@ class Registry:
         return feature_tables
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[FeatureView]:
+        self, project: str, allow_cache: bool = False, for_materialize: bool = False
+    ) -> List[BaseFeatureView]:
         """
         Retrieve a list of feature views from the registry
 
         Args:
             allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature tables based on project name
+            project: Filter feature views based on project name
+            for_materialize: Filter for feature views that materialize if True
 
         Returns:
             List of feature views
@@ -474,6 +475,12 @@ class Registry:
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
+        if not for_materialize:
+            for feature_view_proto in registry_proto.request_feature_views:
+                if feature_view_proto.spec.project == project:
+                    feature_views.append(
+                        RequestFeatureView.from_proto(feature_view_proto)
+                    )
         return feature_views
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:

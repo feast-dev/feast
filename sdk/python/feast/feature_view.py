@@ -67,9 +67,6 @@ class FeatureView(BaseFeatureView):
             FeatureViews.
     """
 
-    _name: str
-    _features: List[Feature]
-    _projection: FeatureViewProjection
     entities: List[str]
     tags: Optional[Dict[str, str]]
     ttl: timedelta
