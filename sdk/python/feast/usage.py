@@ -16,7 +16,6 @@ import contextvars
 import enum
 import logging
 import os
-import sys
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -26,6 +25,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import requests
+import sys
 
 from feast.constants import FEAST_USAGE
 from feast.version import get_version
@@ -47,6 +47,8 @@ class UsageEvent(enum.Enum):
     APPLY_WITH_ODFV = 1
     GET_HISTORICAL_FEATURES_WITH_ODFV = 2
     GET_ONLINE_FEATURES_WITH_ODFV = 3
+    GET_HISTORICAL_FEATURES_WITH_REQUEST_FV = 4
+    GET_ONLINE_FEATURES_WITH_REQUEST_FV = 5
 
     def __str__(self):
         return self.name.lower()
