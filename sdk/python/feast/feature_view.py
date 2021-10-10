@@ -158,19 +158,6 @@ class FeatureView(BaseFeatureView):
         fv.projection = copy.copy(self.projection)
         return fv
 
-    def __getitem__(self, item):
-        assert isinstance(item, list)
-
-        referenced_features = []
-        for feature in self.features:
-            if feature.name in item:
-                referenced_features.append(feature)
-
-        cp = self.__copy__()
-        cp.projection.features = referenced_features
-
-        return cp
-
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
             raise TypeError(
