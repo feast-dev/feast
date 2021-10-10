@@ -123,10 +123,7 @@ class FeatureView(BaseFeatureView):
                     f"Entity or Feature name."
                 )
 
-        self._name = name
-        self._features = _features
-        self._projection = FeatureViewProjection.from_definition(self)
-
+        super().__init__(name, _features)
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
         self.tags = tags if tags is not None else {}
 
@@ -144,22 +141,6 @@ class FeatureView(BaseFeatureView):
 
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def features(self) -> List[Feature]:
-        return self._features
-
-    @property
-    def projection(self) -> FeatureViewProjection:
-        return self._projection
-
-    @projection.setter
-    def projection(self, value):
-        self._projection = value
 
     # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):

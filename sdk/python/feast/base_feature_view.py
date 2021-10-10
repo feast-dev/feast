@@ -27,25 +27,31 @@ warnings.simplefilter("once", DeprecationWarning)
 class BaseFeatureView(ABC):
     """A FeatureView defines a logical grouping of features to be served."""
 
-    @property
     @abstractmethod
+    def __init__(self, name: str, features: List[Feature]):
+        self._name = name
+        self._features = features
+        self._projection = FeatureViewProjection.from_definition(self)
+
+    @property
     def name(self) -> str:
-        pass
+        return self._name
 
     @property
-    @abstractmethod
     def features(self) -> List[Feature]:
-        pass
+        return self._features
+
+    @features.setter
+    def features(self, value):
+        self._features = value
 
     @property
-    @abstractmethod
     def projection(self) -> FeatureViewProjection:
-        pass
+        return self._projection
 
     @projection.setter
-    @abstractmethod
     def projection(self, value):
-        pass
+        self._projection = value
 
     @property
     @abstractmethod

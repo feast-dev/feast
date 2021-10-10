@@ -57,32 +57,9 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         Creates an OnDemandFeatureView object.
         """
-
-        self._name = name
-        self._features = features
-        self._projection = FeatureViewProjection.from_definition(self)
+        super().__init__(name, features)
         self.inputs = inputs
         self.udf = udf
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def features(self) -> List[Feature]:
-        return self._features
-
-    @features.setter
-    def features(self, value):
-        self._features = value
-
-    @property
-    def projection(self) -> FeatureViewProjection:
-        return self._projection
-
-    @projection.setter
-    def projection(self, value):
-        self._projection = value
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -266,9 +243,6 @@ class OnDemandFeatureView(BaseFeatureView):
     def infer_features(self):
         """
         Infers the set of features associated to this feature view from the input source.
-
-        Args:
-            config: Configuration object used to configure the feature store.
 
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.

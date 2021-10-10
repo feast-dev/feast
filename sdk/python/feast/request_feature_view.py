@@ -1,4 +1,4 @@
-from typing import List, Type
+from typing import Type
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestDataSource
@@ -17,9 +17,7 @@ class RequestFeatureView(BaseFeatureView):
 
     Args:
         name: Name of the group of features.
-        features: Output schema of transformation with feature names
-        inputs: The input feature views passed into the transform.
-        udf: User defined transformation function that takes as input pandas dataframes
+        request_data_source: Request data source that specifies the schema and features
     """
 
     request_data_source: RequestDataSource
@@ -31,34 +29,14 @@ class RequestFeatureView(BaseFeatureView):
         """
         Creates an RequestFeatureView object.
         """
-
-        self._name = name
-        self._features = [
-            Feature(name=name, dtype=dtype)
-            for name, dtype in request_data_source.schema.items()
-        ]
-        self._projection = FeatureViewProjection.from_definition(self)
+        super().__init__(
+            name=name,
+            features=[
+                Feature(name=name, dtype=dtype)
+                for name, dtype in request_data_source.schema.items()
+            ],
+        )
         self.request_data_source = request_data_source
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def features(self) -> List[Feature]:
-        return self._features
-
-    @features.setter
-    def features(self, value):
-        self._features = value
-
-    @property
-    def projection(self) -> FeatureViewProjection:
-        return self._projection
-
-    @projection.setter
-    def projection(self, value):
-        self._projection = value
 
     @property
     def proto_class(self) -> Type[RequestFeatureViewProto]:
@@ -80,13 +58,13 @@ class RequestFeatureView(BaseFeatureView):
     @classmethod
     def from_proto(cls, request_feature_view_proto: RequestFeatureViewProto):
         """
-        Creates an on demand feature view from a protobuf representation.
+        Creates a request feature view from a protobuf representation.
 
         Args:
-            request_feature_view_proto: A protobuf representation of an on-demand feature view.
+            request_feature_view_proto: A protobuf representation of an request feature view.
 
         Returns:
-            A RequestFeatureView object based on the on-demand feature view protobuf.
+            A RequestFeatureView object based on the request feature view protobuf.
         """
 
         request_feature_view_obj = cls(

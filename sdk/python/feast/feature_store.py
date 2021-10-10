@@ -24,6 +24,7 @@ from colorama import Fore, Style
 from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestDataSource
 from feast.entity import Entity
 from feast.errors import (
@@ -179,7 +180,7 @@ class FeatureStore:
         return self._registry.list_feature_services(self.project)
 
     @log_exceptions_and_usage
-    def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
+    def list_feature_views(self, allow_cache: bool = False) -> List[BaseFeatureView]:
         """
         Retrieves the list of feature views from the registry.
 
@@ -477,7 +478,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
-        tables: List[Union[FeatureView, FeatureTable]] = []
+        tables: List[Union[BaseFeatureView, FeatureTable]] = []
         feature_views = self.list_feature_views()
         feature_tables = self._registry.list_feature_tables(self.project)
 
