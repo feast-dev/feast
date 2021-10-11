@@ -292,7 +292,8 @@ def _tag_registry_views_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
 ) -> Tuple[Set[BaseFeatureView], Set[BaseFeatureView]]:
     views_to_keep: Set[BaseFeatureView] = cast(Set[BaseFeatureView], repo.feature_views)
-    views_to_keep.add(*repo.request_feature_views)
+    for request_fv in repo.request_feature_views:
+        views_to_keep.add(request_fv)
     views_to_delete: Set[BaseFeatureView] = set()
     repo_feature_view_names = set(t.name for t in repo.feature_views)
     for registry_view in registry.list_feature_views(project=project):
