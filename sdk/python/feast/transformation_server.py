@@ -11,7 +11,7 @@ from feast.protos.feast.serving.TransformationService_pb2 import (
     DESCRIPTOR,
     TRANSFORMATION_SERVICE_TYPE_PYTHON,
     GetTransformationServiceInfoResponse,
-    TransformFeatureResponse,
+    TransformFeaturesResponse,
     ValueType,
 )
 from feast.protos.feast.serving.TransformationService_pb2_grpc import (
@@ -34,7 +34,6 @@ class TransformationServer(TransformationServiceServicer):
         return response
 
     def TransformFeatures(self, request, context):
-        odfv = None
         try:
             odfv = self.fs.get_on_demand_feature_view(request.transformation_name)
         except OnDemandFeatureViewNotFoundException:
@@ -49,12 +48,12 @@ class TransformationServer(TransformationServiceServicer):
         result_arrow = pa.Table.from_pandas(result_df)
         sink = pa.BufferOutputStream()
         writer = pa.ipc.new_file(sink, result_arrow.schema)
-        writer.write_batch(result_arrow)
+        writer.write_table(result_arrow)
         writer.close()
 
-        buf = sink.getvalue()
+        buf = sink.getvalue().to_pybytes()
 
-        return TransformFeatureResponse(
+        return TransformFeaturesResponse(
             transformation_output=ValueType(arrow_value=buf)
         )
 
