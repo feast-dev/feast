@@ -268,12 +268,14 @@ def feature_view_list(ctx: click.Context):
                 feature_view.entities
                 if isinstance(feature_view, FeatureView)
                 else "n/a",
+                type(feature_view).__name__
             ]
         )
+    # TODO: add on demand feature views
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
+    print(tabulate(table, headers=["NAME", "ENTITIES", "TYPE"], tablefmt="plain"))
 
 
 @cli.group(name="on-demand-feature-views")
