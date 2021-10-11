@@ -20,6 +20,6 @@ message FeatureViewProjection {
   // The features of the feature view that are a part of the feature reference.
   repeated FeatureSpecV2 feature_columns = 2;
 
-  // Entity join_key overrides
+  // Map for entity join_key overrides of feature data entity join_key to entity data join_key
   map<string,string> join_key_map = 4;
 }

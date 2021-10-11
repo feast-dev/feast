@@ -1194,7 +1194,7 @@ def _get_table_entity_keys(
     table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
 ) -> List[EntityKeyProto]:
     reverse_join_key_map = {
-        shadow: original for original, shadow in table.projection.join_key_map.items()
+        alias: original for original, alias in table.projection.join_key_map.items()
     }
     required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
     entity_key_protos = []
