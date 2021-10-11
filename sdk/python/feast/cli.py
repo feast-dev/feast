@@ -456,6 +456,20 @@ def serve_command(ctx: click.Context, port: int):
     store.serve(port)
 
 
+@cli.command("serve_transformations")
+@click.option(
+    "--port", "-p", type=click.INT, default=6569, help="Specify a port for the server"
+)
+@click.pass_context
+def serve_transformations_command(ctx: click.Context, port: int):
+    """[Experimental] Start a the feature consumption server locally on a given port."""
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    store.serve_transformations(port)
+
+
 @cli.group(name="alpha")
 def alpha_cmd():
     """
