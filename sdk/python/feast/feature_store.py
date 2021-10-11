@@ -844,18 +844,12 @@ class FeatureStore:
                 entity = self._registry.get_entity(
                     entity_name, self.project, allow_cache=True
                 )
-
                 join_key_substitute = feature_view.projection.join_key_map.get(
-                    entity.join_key
+                    entity.join_key, entity.name
                 )
-                if not join_key_substitute:
-                    entity_name_to_join_key_map[entity.name] = entity.join_key
-                else:
-                    # User directly uses join_key as the entity reference in the entity_rows for the
-                    # entity mapping case.
-                    entity_name_to_join_key_map[
-                        join_key_substitute
-                    ] = join_key_substitute
+                # User directly uses join_key as the entity reference in the entity_rows for the
+                # entity mapping case.
+                entity_name_to_join_key_map[join_key_substitute] = join_key_substitute
 
         needed_request_data_features = self._get_needed_request_data_features(
             grouped_odfv_refs
