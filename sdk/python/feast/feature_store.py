@@ -428,7 +428,9 @@ class FeatureStore:
         if len(odfvs_to_update) > 0:
             log_event(UsageEvent.APPLY_WITH_ODFV)
 
-        _validate_feature_views(views_to_update)
+        _validate_feature_views(
+            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        )
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
 
@@ -1318,7 +1320,7 @@ def _print_materialization_log(
         )
 
 
-def _validate_feature_views(feature_views: List[FeatureView]):
+def _validate_feature_views(feature_views: List[BaseFeatureView]):
     """ Verify feature views have case-insensitively unique names"""
     fv_names = set()
     for fv in feature_views:
