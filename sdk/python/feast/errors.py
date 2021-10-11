@@ -53,14 +53,14 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
 class RequestDataNotFoundInEntityDfException(FeastObjectNotFoundException):
     def __init__(self, feature_name, feature_view_name):
         super().__init__(
-            f"Feature {feature_name} not found in the entity dataframe, but required by on demand feature view {feature_view_name}"
+            f"Feature {feature_name} not found in the entity dataframe, but required by feature view {feature_view_name}"
         )
 
 
 class RequestDataNotFoundInEntityRowsException(FeastObjectNotFoundException):
     def __init__(self, feature_names):
         super().__init__(
-            f"Required request data source features {feature_names} not found in the entity rows, but required by on demand feature views"
+            f"Required request data source features {feature_names} not found in the entity rows, but required by feature views"
         )
 
 
