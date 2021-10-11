@@ -2,12 +2,12 @@ import importlib
 import os
 import random
 import re
+import sys
 from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Set, Tuple, Union, cast
 
 import click
-import sys
 from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
