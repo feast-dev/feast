@@ -465,7 +465,7 @@ class Registry:
         Args:
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
-            for_materialize: Filter for feature views that materialize if True
+            for_materialize: Filter for feature views that should materialize if True
 
         Returns:
             List of feature views
