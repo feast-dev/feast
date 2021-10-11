@@ -6,7 +6,11 @@ from feast import FeatureService
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import customer, driver
+from tests.integration.feature_repos.universal.entities import (
+    customer,
+    driver,
+    location,
+)
 
 
 @pytest.mark.benchmark
@@ -24,7 +28,7 @@ def test_online_retrieval(environment, universal_data_sources, benchmark):
 
     feast_objects = []
     feast_objects.extend(feature_views.values())
-    feast_objects.extend([driver(), customer(), feature_service])
+    feast_objects.extend([driver(), customer(), location(), feature_service])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
 

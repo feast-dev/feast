@@ -126,7 +126,7 @@ class FeatureView:
         self.name = name
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
         self.features = _features
-        self.tags = tags if tags is not None else {}
+        self.tags = tags if tags else {}
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
@@ -235,6 +235,44 @@ class FeatureView:
         """
         cp = self.__copy__()
         cp.projection.name_alias = name
+
+        return cp
+
+    def with_join_key_map(self, join_key_map: Dict[str, str]):
+        """
+        Sets the join_key_map by returning a copy of this feature view with that field set.
+        This join_key mapping operation is only used as part of query operations and will
+        not modify the underlying FeatureView.
+
+        Args:
+            join_key_map: A map of join keys in which the left is the join_key that
+                corresponds with the feature data and the right corresponds with the entity data.
+
+        Returns:
+            A copy of this FeatureView with the join_key_map replaced with the 'join_key_map' input.
+
+        Examples:
+            Join a location feature data table to both the origin column and destination
+            column of the entity data.
+
+            temperatures_feature_service = FeatureService(
+                name="temperatures",
+                features=[
+                    location_stats_feature_view
+                        .with_name("origin_stats")
+                        .with_join_key_map(
+                            {"location_id": "origin_id"}
+                        ),
+                    location_stats_feature_view
+                        .with_name("destination_stats")
+                        .with_join_key_map(
+                            {"location_id": "destination_id"}
+                        ),
+                ],
+            )
+        """
+        cp = self.__copy__()
+        cp.projection.join_key_map = join_key_map
 
         return cp
 

@@ -839,6 +839,20 @@ class FeatureStore:
         entity_name_to_join_key_map = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
+        for feature_view in all_feature_views:
+            for entity_name in feature_view.entities:
+                entity = self._registry.get_entity(
+                    entity_name, self.project, allow_cache=True
+                )
+                # User directly uses join_key as the entity reference in the entity_rows for the
+                # entity mapping case.
+                entity_name = feature_view.projection.join_key_map.get(
+                    entity.join_key, entity.name
+                )
+                join_key = feature_view.projection.join_key_map.get(
+                    entity.join_key, entity.join_key
+                )
+                entity_name_to_join_key_map[entity_name] = join_key
 
         needed_request_data_features = self._get_needed_request_data_features(
             grouped_odfv_refs
@@ -895,8 +909,12 @@ class FeatureStore:
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         for table, requested_features in grouped_refs:
+            table_join_keys = [
+                entity_name_to_join_key_map[entity_name]
+                for entity_name in table.entities
+            ]
             self._populate_result_rows_from_feature_view(
-                entity_name_to_join_key_map,
+                table_join_keys,
                 full_feature_names,
                 provider,
                 requested_features,
@@ -918,7 +936,7 @@ class FeatureStore:
 
     def _populate_result_rows_from_feature_view(
         self,
-        entity_name_to_join_key_map: Dict[str, str],
+        table_join_keys: List[str],
         full_feature_names: bool,
         provider: Provider,
         requested_features: List[str],
@@ -927,7 +945,7 @@ class FeatureStore:
         union_of_entity_keys: List[EntityKeyProto],
     ):
         entity_keys = _get_table_entity_keys(
-            table, union_of_entity_keys, entity_name_to_join_key_map
+            table, union_of_entity_keys, table_join_keys
         )
         read_rows = provider.online_read(
             config=self.config,
@@ -1045,8 +1063,8 @@ class FeatureStore:
             )
         }
 
-        fvs_to_use, od_fvs_to_use = [], []
         if isinstance(features, FeatureService):
+            fvs_to_use, od_fvs_to_use = [], []
             for fv_name, projection in [
                 (projection.name, projection)
                 for projection in features.feature_view_projections
@@ -1137,10 +1155,12 @@ def _group_feature_refs(
     """ Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
-    view_index = {view.name: view for view in all_feature_views}
+    view_index = {view.projection.name_to_use(): view for view in all_feature_views}
 
     # on demand view to on demand view proto
-    on_demand_view_index = {view.name: view for view in all_on_demand_feature_views}
+    on_demand_view_index = {
+        view.projection.name_to_use(): view for view in all_on_demand_feature_views
+    }
 
     # view name to feature names
     views_features = defaultdict(list)
@@ -1168,15 +1188,19 @@ def _group_feature_refs(
 
 
 def _get_table_entity_keys(
-    table: FeatureView, entity_keys: List[EntityKeyProto], join_key_map: Dict[str, str],
+    table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
 ) -> List[EntityKeyProto]:
-    table_join_keys = [join_key_map[entity_name] for entity_name in table.entities]
+    reverse_join_key_map = {
+        alias: original for original, alias in table.projection.join_key_map.items()
+    }
     required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
     entity_key_protos = []
     for entity_key in entity_keys:
         required_entities_to_values = required_entities.copy()
         for i in range(len(entity_key.join_keys)):
-            entity_name = entity_key.join_keys[i]
+            entity_name = reverse_join_key_map.get(
+                entity_key.join_keys[i], entity_key.join_keys[i]
+            )
             entity_value = entity_key.entity_values[i]
 
             if entity_name in required_entities_to_values:

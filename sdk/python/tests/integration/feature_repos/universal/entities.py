@@ -12,3 +12,7 @@ def driver(value_type: ValueType = ValueType.INT64):
 
 def customer():
     return Entity(name="customer_id", value_type=ValueType.INT64)
+
+
+def location():
+    return Entity(name="location_id", value_type=ValueType.INT64)

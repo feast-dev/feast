@@ -143,6 +143,11 @@ class FileOfflineStore(OfflineStore):
                     table = _run_field_mapping(
                         table, feature_view.batch_source.field_mapping
                     )
+                # Rename entity columns by the join_key_map dictionary if it exists
+                if feature_view.projection.join_key_map:
+                    table = _run_field_mapping(
+                        table, feature_view.projection.join_key_map
+                    )
 
                 # Convert pyarrow table to pandas dataframe. Note, if the underlying data has missing values,
                 # pandas will convert those values to np.nan if the dtypes are numerical (floats, ints, etc.) or boolean
@@ -176,7 +181,9 @@ class FileOfflineStore(OfflineStore):
                     # double underscore as separator for consistency with other databases like BigQuery,
                     # where there are very few characters available for use as separators
                     if full_feature_names:
-                        formatted_feature_name = f"{feature_view.name}__{feature}"
+                        formatted_feature_name = (
+                            f"{feature_view.projection.name_to_use()}__{feature}"
+                        )
                     else:
                         formatted_feature_name = feature
                     # Add the feature name to the list of columns
@@ -191,7 +198,10 @@ class FileOfflineStore(OfflineStore):
                 join_keys = []
                 for entity_name in feature_view.entities:
                     entity = registry.get_entity(entity_name, project)
-                    join_keys.append(entity.join_key)
+                    join_key = feature_view.projection.join_key_map.get(
+                        entity.join_key, entity.join_key
+                    )
+                    join_keys.append(join_key)
                 right_entity_columns = join_keys
                 right_entity_key_columns = [
                     event_timestamp_column
