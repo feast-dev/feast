@@ -4,7 +4,7 @@ import random
 import re
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set, Tuple, Union
+from typing import List, NamedTuple, Set, Tuple, Union, cast
 
 import click
 import sys
@@ -291,7 +291,7 @@ def _tag_registry_entities_for_keep_delete(
 def _tag_registry_views_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
 ) -> Tuple[Set[BaseFeatureView], Set[BaseFeatureView]]:
-    views_to_keep: Set[BaseFeatureView] = repo.feature_views
+    views_to_keep: Set[BaseFeatureView] = cast(Set[BaseFeatureView], repo.feature_views)
     views_to_keep.add(*repo.request_feature_views)
     views_to_delete: Set[BaseFeatureView] = set()
     repo_feature_view_names = set(t.name for t in repo.feature_views)
