@@ -471,15 +471,15 @@ class Registry:
             List of feature views
         """
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
-        feature_views = []
+        feature_views: List[BaseFeatureView] = []
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         if not for_materialize:
-            for feature_view_proto in registry_proto.request_feature_views:
-                if feature_view_proto.spec.project == project:
+            for request_feature_view_proto in registry_proto.request_feature_views:
+                if request_feature_view_proto.spec.project == project:
                     feature_views.append(
-                        RequestFeatureView.from_proto(feature_view_proto)
+                        RequestFeatureView.from_proto(request_feature_view_proto)
                     )
         return feature_views
 

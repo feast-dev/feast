@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 
+from feast.base_feature_view import BaseFeatureView
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
@@ -59,9 +60,7 @@ class FeatureService:
                 self.feature_view_projections.append(
                     FeatureViewProjection.from_definition(feature_grouping)
                 )
-            elif isinstance(feature_grouping, FeatureView) or isinstance(
-                feature_grouping, OnDemandFeatureView
-            ):
+            elif isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(

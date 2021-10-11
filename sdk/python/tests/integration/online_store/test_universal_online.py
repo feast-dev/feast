@@ -31,7 +31,11 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     feature_service = FeatureService(
         "convrate_plus100",
-        features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
+        features=[
+            feature_views["driver"][["conv_rate"]],
+            feature_views["driver_odfv"],
+            feature_views["driver_age_request_fv"],
+        ],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
@@ -94,7 +98,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     global_df = datasets["global"]
 
     entity_rows = [
-        {"driver": d, "customer_id": c, "val_to_add": 50}
+        {"driver": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -109,6 +113,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "order:order_is_success",
         "global_stats:num_rides",
         "global_stats:avg_ride_length",
+        "driver_age:driver_age",
     ]
     unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
     # Remove the on demand feature view output features, since they're not present in the source dataframe
@@ -128,7 +133,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         len(keys) == len(feature_refs) + 3
     )  # Add three for the driver id and the customer id entity keys + val_to_add request data.
     for feature in feature_refs:
-        if full_feature_names:
+        # full_feature_names does not apply to request feature views
+        if full_feature_names and feature != "driver_age:driver_age":
             assert feature.replace(":", "__") in keys
         else:
             assert feature.rsplit(":", 1)[-1] in keys
@@ -177,12 +183,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     # Check what happens for missing values
     missing_responses_dict = fs.get_online_features(
         features=feature_refs,
-        entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 100}],
+        entity_rows=[
+            {"driver": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
+        ],
         full_feature_names=full_feature_names,
     ).to_dict()
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
-        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length"}:
+        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length", "driver_age"}:
             tc.assertIsNone(
                 missing_responses_dict[
                     response_feature_name(unprefixed_feature_ref, full_feature_names)
@@ -194,6 +202,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         fs.get_online_features(
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0}],
+            full_feature_names=full_feature_names,
+        ).to_dict()
+
+    # Also with request data
+    with pytest.raises(RequestDataNotFoundInEntityRowsException):
+        fs.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 20}],
             full_feature_names=full_feature_names,
         ).to_dict()
 

@@ -5,7 +5,7 @@ import re
 import sys
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set, Tuple, Union
+from typing import List, NamedTuple, Set, Tuple, Union, cast
 
 import click
 from click.exceptions import BadParameter
@@ -276,9 +276,11 @@ def _tag_registry_views_for_keep_delete(
     views_to_keep: Set[FeatureView] = repo.feature_views
     views_to_delete: Set[FeatureView] = set()
     repo_feature_view_names = set(t.name for t in repo.feature_views)
-    for registry_view in registry.list_feature_views(project=project):
+    for registry_view in registry.list_feature_views(
+        project=project, for_materialize=True
+    ):
         if registry_view.name not in repo_feature_view_names:
-            views_to_delete.add(registry_view)
+            views_to_delete.add(cast(FeatureView, registry_view))
     return views_to_keep, views_to_delete
 
 

@@ -205,7 +205,11 @@ class FeatureStore:
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache, for_materialize=for_materialize
         ):
-            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
+            if (
+                isinstance(fv, FeatureView)
+                and hide_dummy_entity
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
                 fv.entities = []
             feature_views.append(fv)
         return feature_views
@@ -485,7 +489,7 @@ class FeatureStore:
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
         tables: List[Union[BaseFeatureView, FeatureTable]] = []
-        feature_views = self.list_feature_views()
+        feature_views = self.list_feature_views(for_materialize=True)
         feature_tables = self._registry.list_feature_tables(self.project)
 
         tables.extend(feature_views)
@@ -584,7 +588,7 @@ class FeatureStore:
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
-        fvs, odfvs, request_fvs = _group_feature_refs(
+        fvs, odfvs, request_fvs, request_fv_refs = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         feature_views = list(view for view, _ in fvs)
@@ -618,7 +622,9 @@ class FeatureStore:
                                 )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-
+        # Drop refs that refer to RequestFeatureViews since they don't need to be fetched and
+        # already exist in the entity_df
+        _feature_refs = [ref for ref in _feature_refs if ref not in request_fv_refs]
         provider = self._get_provider()
 
         job = provider.get_historical_features(
@@ -855,7 +861,12 @@ class FeatureStore:
         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-        grouped_refs, grouped_odfv_refs, grouped_request_fv_refs = _group_feature_refs(
+        (
+            grouped_refs,
+            grouped_odfv_refs,
+            grouped_request_fv_refs,
+            _,
+        ) = _group_feature_refs(
             _feature_refs, all_feature_views, all_on_demand_feature_views
         )
         if len(grouped_odfv_refs) > 0:
@@ -1197,6 +1208,7 @@ def _group_feature_refs(
     List[Tuple[FeatureView, List[str]]],
     List[Tuple[OnDemandFeatureView, List[str]]],
     List[Tuple[RequestFeatureView, List[str]]],
+    Set[str],
 ]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -1218,6 +1230,7 @@ def _group_feature_refs(
     # view name to feature names
     views_features = defaultdict(list)
     request_views_features = defaultdict(list)
+    request_view_refs = set()
 
     # on demand view name to feature names
     on_demand_view_features = defaultdict(list)
@@ -1230,6 +1243,7 @@ def _group_feature_refs(
             on_demand_view_features[view_name].append(feat_name)
         elif view_name in request_view_index:
             request_views_features[view_name].append(feat_name)
+            request_view_refs.add(ref)
         else:
             raise FeatureViewNotFoundException(view_name)
 
@@ -1240,10 +1254,10 @@ def _group_feature_refs(
     for view_name, feature_names in views_features.items():
         fvs_result.append((view_index[view_name], feature_names))
     for view_name, feature_names in request_views_features.items():
-        fvs_result.append((view_index[view_name], feature_names))
+        request_fvs_result.append((request_view_index[view_name], feature_names))
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], feature_names))
-    return fvs_result, odfvs_result, request_fvs_result
+    return fvs_result, odfvs_result, request_fvs_result, request_view_refs
 
 
 def _get_table_entity_keys(
