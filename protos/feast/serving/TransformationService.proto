@@ -50,7 +50,7 @@ message GetTransformationServiceInfoResponse {
 }
 
 message TransformFeaturesRequest {
-    string transformation_name = 1;
+    string on_demand_feature_view_name = 1;
     string project = 2;
 
     ValueType transformation_input = 3;

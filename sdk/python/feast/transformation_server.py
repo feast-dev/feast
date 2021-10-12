@@ -1,3 +1,4 @@
+import logging
 import sys
 from concurrent import futures
 
@@ -20,6 +21,8 @@ from feast.protos.feast.serving.TransformationService_pb2_grpc import (
 )
 from feast.version import get_version
 
+log = logging.getLogger(__name__)
+
 
 class TransformationServer(TransformationServiceServicer):
     def __init__(self, fs: FeatureStore) -> None:
@@ -35,7 +38,9 @@ class TransformationServer(TransformationServiceServicer):
 
     def TransformFeatures(self, request, context):
         try:
-            odfv = self.fs.get_on_demand_feature_view(request.transformation_name)
+            odfv = self.fs.get_on_demand_feature_view(
+                request.on_demand_feature_view_name
+            )
         except OnDemandFeatureViewNotFoundException:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             raise
@@ -59,7 +64,14 @@ class TransformationServer(TransformationServiceServicer):
 
 
 def start_server(store: FeatureStore, port: int):
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(
+        futures.ThreadPoolExecutor(
+            max_workers=store.config.servers.transformation.max_workers
+        )
+    )
+    log.info(
+        f"Using {store.config.servers.transformation.max_workers} workers for transformation server"
+    )
     add_TransformationServiceServicer_to_server(TransformationServer(store), server)
     service_names_available_for_reflection = (
         DESCRIPTOR.services_by_name["TransformationService"].full_name,

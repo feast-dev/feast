@@ -1107,6 +1107,9 @@ class FeatureStore:
         """Start the feature consumption server locally on a given port."""
         if not flags_helper.enable_python_feature_server(self.config):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
+        if not flags_helper.enable_on_demand_feature_views(self.config):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
