@@ -20,7 +20,7 @@ package feast.serving;
 
 option java_package = "feast.proto.serving";
 option java_outer_classname = "TransformationServiceAPIProto";
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/transformation-service";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/serving";
 
 service TransformationService {
     rpc GetTransformationServiceInfo (GetTransformationServiceInfoRequest) returns (GetTransformationServiceInfoResponse);
@@ -54,15 +54,10 @@ message TransformFeaturesRequest {
     string project = 2;
 
     ValueType transformation_input = 3;
-
 }
 
 message TransformFeaturesResponse {
-    string transformation_name = 1;
-    string project = 2;
-
     ValueType transformation_output = 3;
-
 }
 
 enum TransformationServiceType {
