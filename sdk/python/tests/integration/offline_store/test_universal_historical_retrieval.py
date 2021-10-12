@@ -1,4 +1,6 @@
-from datetime import datetime
+import random
+import time
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -8,15 +10,18 @@ from pandas.testing import assert_frame_equal
 from pytz import utc
 
 from feast import utils
+from feast.entity import Entity
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityDfException,
 )
+from feast.feature import Feature
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
+from feast.value_type import ValueType
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
@@ -478,6 +483,113 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             ],
             full_feature_names=full_feature_names,
         )
+
+
+@pytest.mark.integration
+def test_historical_features_from_bigquery_sources_containing_backfills(environment):
+    store = environment.feature_store
+
+    now = datetime.now().replace(microsecond=0, second=0, minute=0)
+    tomorrow = now + timedelta(days=1)
+
+    entity_df = pd.DataFrame(
+        data=[
+            {"driver_id": 1001, "event_timestamp": now + timedelta(days=2)},
+            {"driver_id": 1002, "event_timestamp": now + timedelta(days=2)},
+        ]
+    )
+
+    driver_stats_df = pd.DataFrame(
+        data=[
+            # Duplicated rows simple case
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 10,
+                "event_timestamp": now,
+                "created": now,
+            },
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 20,
+                "event_timestamp": now,
+                "created": tomorrow,
+            },
+            # Duplicated rows after a backfill
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 30,
+                "event_timestamp": now,
+                "created": tomorrow,
+            },
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 40,
+                "event_timestamp": tomorrow,
+                "created": now,
+            },
+        ]
+    )
+
+    expected_df = pd.DataFrame(
+        data=[
+            {
+                "driver_id": 1001,
+                "event_timestamp": now + timedelta(days=2),
+                "avg_daily_trips": 20,
+            },
+            {
+                "driver_id": 1002,
+                "event_timestamp": now + timedelta(days=2),
+                "avg_daily_trips": 40,
+            },
+        ]
+    )
+
+    driver_stats_data_source = environment.data_source_creator.create_data_source(
+        df=driver_stats_df,
+        destination_name=f"test_driver_stats_{int(time.time_ns())}_{random.randint(1000, 9999)}",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
+    driver_fv = FeatureView(
+        name="driver_stats",
+        entities=["driver"],
+        features=[Feature(name="avg_daily_trips", dtype=ValueType.INT32)],
+        batch_source=driver_stats_data_source,
+        ttl=None,
+    )
+
+    store.apply([driver, driver_fv])
+
+    try:
+        offline_job = store.get_historical_features(
+            entity_df=entity_df,
+            features=["driver_stats:avg_daily_trips"],
+            full_feature_names=False,
+        )
+
+        start_time = datetime.utcnow()
+        actual_df = offline_job.to_df()
+
+        print(f"actual_df shape: {actual_df.shape}")
+        end_time = datetime.utcnow()
+        print(
+            str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
+        )
+
+        assert sorted(expected_df.columns) == sorted(actual_df.columns)
+        assert_frame_equal(
+            expected_df.sort_values(by=["driver_id"]).reset_index(drop=True),
+            actual_df[expected_df.columns]
+            .sort_values(by=["driver_id"])
+            .reset_index(drop=True),
+            check_dtype=False,
+        )
+
+    finally:
+        store.teardown()
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
