@@ -86,7 +86,7 @@ class TransformationServerConfig(FeastBaseModel):
 class ServerConfig(FeastBaseModel):
     """Server Configuration that determines to how feast servers are configured. """
 
-    transformation: TransformationServerConfig
+    transformation: Optional[TransformationServerConfig]
 
 
 class RepoConfig(FeastBaseModel):
@@ -116,7 +116,7 @@ class RepoConfig(FeastBaseModel):
     flags: Any
     """ Flags: Feature flags for experimental features (optional) """
 
-    servers: ServerConfig
+    servers: Optional[ServerConfig]
 
     repo_path: Optional[Path] = None
 
