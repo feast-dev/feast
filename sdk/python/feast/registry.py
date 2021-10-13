@@ -615,12 +615,12 @@ class Registry:
                     self.commit()
                 return
 
-        for idx, existing_feature_view_proto in enumerate(
+        for idx, existing_request_feature_view_proto in enumerate(
             self.cached_registry_proto.request_feature_views
         ):
             if (
-                existing_feature_view_proto.spec.name == name
-                and existing_feature_view_proto.spec.project == project
+                existing_request_feature_view_proto.spec.name == name
+                and existing_request_feature_view_proto.spec.project == project
             ):
                 del self.cached_registry_proto.request_feature_views[idx]
                 if commit:
