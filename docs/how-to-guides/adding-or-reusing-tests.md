@@ -17,35 +17,35 @@ $ tree
 
 .
 ├── e2e
-│   └── test_universal_e2e.py
+│   └── test_universal_e2e.py
 ├── feature_repos
-│   ├── repo_configuration.py
-│   └── universal
-│       ├── data_source_creator.py
-│       ├── data_sources
-│       │   ├── bigquery.py
-│       │   ├── file.py
-│       │   └── redshift.py
-│       ├── entities.py
-│       └── feature_views.py
+│   ├── repo_configuration.py
+│   └── universal
+│       ├── data_source_creator.py
+│       ├── data_sources
+│       │   ├── bigquery.py
+│       │   ├── file.py
+│       │   └── redshift.py
+│       ├── entities.py
+│       └── feature_views.py
 ├── offline_store
-│   ├── test_s3_custom_endpoint.py
-│   └── test_universal_historical_retrieval.py
+│   ├── test_s3_custom_endpoint.py
+│   └── test_universal_historical_retrieval.py
 ├── online_store
-│   ├── test_e2e_local.py
-│   ├── test_feature_service_read.py
-│   ├── test_online_retrieval.py
-│   └── test_universal_online.py
+│   ├── test_e2e_local.py
+│   ├── test_feature_service_read.py
+│   ├── test_online_retrieval.py
+│   └── test_universal_online.py
 ├── registration
-│   ├── test_cli.py
-│   ├── test_cli_apply_duplicated_featureview_names.py
-│   ├── test_cli_chdir.py
-│   ├── test_feature_service_apply.py
-│   ├── test_feature_store.py
-│   ├── test_inference.py
-│   ├── test_registry.py
-│   ├── test_universal_odfv_feature_inference.py
-│   └── test_universal_types.py
+│   ├── test_cli.py
+│   ├── test_cli_apply_duplicated_featureview_names.py
+│   ├── test_cli_chdir.py
+│   ├── test_feature_service_apply.py
+│   ├── test_feature_store.py
+│   ├── test_inference.py
+│   ├── test_registry.py
+│   ├── test_universal_odfv_feature_inference.py
+│   └── test_universal_types.py
 └── scaffolding
     ├── test_init.py
     ├── test_partial_apply.py
@@ -79,7 +79,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         datasets["global"],
         datasets["entity"],
     )
-    
+
     # ... more test code
 
     customer_fv, driver_fv, driver_odfv, order_fv, global_fv = (
@@ -138,7 +138,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     assert_frame_equal(
         expected_df, actual_df_from_df_entities, check_dtype=False,
     )
-    
+
     # ... more test code
 ```
 {% endtab %}
@@ -152,7 +152,7 @@ To:
 
 * Include a new offline store: 
   * extend `data_source_creator.py` for your offline store
-  * in `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two \(depending on how many online stores you want to test\)
+  * in `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test)
   * Run the full test suite with `make test-python-integration`
   * See more guidelines at [https://github.com/feast-dev/feast/issues/1892](https://github.com/feast-dev/feast/issues/1892)
 * Include a new online store:
@@ -161,13 +161,12 @@ To:
   * Run the full test suite with `make test-python-integration`
   * See more guidelines at [https://github.com/feast-dev/feast/issues/1892](https://github.com/feast-dev/feast/issues/1892)
 * Add a new test to an existing test file:
-  * Use the same function signatures as an existing test \(e.g. have environment as an argument\) to include the relevant test fixtures. 
+  * Use the same function signatures as an existing test (e.g. have environment as an argument) to include the relevant test fixtures. 
   * We prefer to expand what an individual test covers due to the cost of standing up offline / online stores
 * Using custom data in a new test:
   * This is used in several places such as `test_universal_types.py` 
 
 ```python
-
 @pytest.mark.integration
 def your_test(environment: Environment):
     df = #...#
@@ -178,9 +177,8 @@ def your_test(environment: Environment):
     your_fv = driver_feature_view(data_source)
     entity = driver(value_type=ValueType.UNKNOWN)
     fs.apply([fv, entity])
-    
+
     # ... run test
-    
+
     environment.data_source_creator.teardown()
 ```
-

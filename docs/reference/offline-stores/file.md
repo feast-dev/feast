@@ -9,7 +9,7 @@ The File offline store provides support for reading [FileSources](../data-source
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: data/registry.db
@@ -20,4 +20,3 @@ offline_store:
 {% endcode %}
 
 Configuration options are available [here](https://rtd.feast.dev/en/latest/#feast.repo_config.FileOfflineStoreConfig).
-

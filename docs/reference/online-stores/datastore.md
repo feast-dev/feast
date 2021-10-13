@@ -6,7 +6,7 @@ The [Datastore](https://cloud.google.com/datastore) online store provides suppor
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: data/registry.db
@@ -19,4 +19,3 @@ online_store:
 {% endcode %}
 
 Configuration options are available [here](https://rtd.feast.dev/en/latest/#feast.repo_config.DatastoreOnlineStoreConfig).
-

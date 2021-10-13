@@ -2,10 +2,10 @@
 
 ## Feature views
 
-A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Feature views consist of zero or more [entities](entity.md), one or more [features](feature-view.md#feature), and a [data source](data-source.md). Feature views allow Feast to model your existing feature data in a consistent way in both an offline \(training\) and online \(serving\) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view. If the features are not related to a specific object, the feature view might not have entities; see [feature views without entities](feature-view.md#feature-views-without-entities) below.
+A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Feature views consist of zero or more [entities](entity.md), one or more [features](feature-view.md#feature), and a [data source](data-source.md). Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view. If the features are not related to a specific object, the feature view might not have entities; see [feature views without entities](feature-view.md#feature-views-without-entities) below.
 
 {% tabs %}
-{% tab title="driver\_trips\_feature\_view.py" %}
+{% tab title="driver_trips_feature_view.py" %}
 ```python
 driver_stats_fv = FeatureView(
     name="driver_activity",
@@ -37,7 +37,7 @@ Feast does not generate feature values. It acts as the ingestion and serving sys
 If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities.
 
 {% tabs %}
-{% tab title="global\_stats.py" %}
+{% tab title="global_stats.py" %}
 ```python
 global_stats_fv = FeatureView(
     name="global_stats",
@@ -70,9 +70,9 @@ Together with [data sources](data-source.md), they indicate to Feast where to fi
 
 Feature names must be unique within a [feature view](feature-view.md#feature-view).
 
-## \[Alpha\] On demand feature views
+## \[Alpha] On demand feature views
 
-On demand feature views allows users to use existing features and request time data \(features only available at request time\) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths:
+On demand feature views allows users to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths:
 
 ```python
 # Define a request data source which encodes features / information only 
@@ -102,6 +102,3 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
     df['conv_rate_plus_val2'] = (features_df['conv_rate'] + features_df['val_to_add_2'])
     return df
 ```
-
-
-

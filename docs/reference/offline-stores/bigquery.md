@@ -11,7 +11,7 @@ The BigQuery offline store provides support for reading [BigQuerySources](../dat
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: gs://my-bucket/data/registry.db
@@ -23,4 +23,3 @@ offline_store:
 {% endcode %}
 
 Configuration options are available [here](https://rtd.feast.dev/en/latest/#feast.repo_config.BigQueryOfflineStoreConfig).
-

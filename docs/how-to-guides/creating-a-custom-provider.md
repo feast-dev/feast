@@ -1,13 +1,13 @@
 # Adding a custom provider
 
-### Overview
+## Overview
 
 All Feast operations execute through a `provider`. Operations like materializing data from the offline to the online store, updating infrastructure like databases, launching streaming ingestion jobs, building training datasets, and reading features from the online store.
 
 Custom providers allow Feast users to extend Feast to execute any custom logic. Examples include:
 
-* Launching custom streaming ingestion jobs \(Spark, Beam\)
-* Launching custom batch ingestion \(materialization\) jobs \(Spark, Beam\)
+* Launching custom streaming ingestion jobs (Spark, Beam)
+* Launching custom batch ingestion (materialization) jobs (Spark, Beam)
 * Adding custom validation to feature repositories during `feast apply`
 * Adding custom infrastructure setup logic which runs during `feast apply`
 * Extending Feast commands with in-house metrics, logging, or tracing
@@ -18,11 +18,11 @@ Feast comes with built-in providers, e.g, `LocalProvider`, `GcpProvider`, and `A
 This guide also comes with a fully functional [custom provider demo repository](https://github.com/feast-dev/feast-custom-provider-demo). Please have a look at the repository for a representative example of what a custom provider looks like, or fork the repository when creating your own provider.
 {% endhint %}
 
-### Guide
+## Guide
 
 The fastest way to add custom logic to Feast is to extend an existing provider. The most generic provider is the `LocalProvider` which contains no cloud-specific logic. The guide that follows will extend the `LocalProvider` with operations that print text to the console. It is up to you as a developer to add your custom code to the provider methods, but the guide below will provide the necessary scaffolding to get you started.
 
-#### Step 1: Define a Provider class
+### Step 1: Define a Provider class
 
 The first step is to define a custom provider class. We've created the `MyCustomProvider` below.
 
@@ -85,9 +85,9 @@ Notice how in the above provider we have only overwritten two of the methods on 
 
 It is possible to overwrite all the methods on the provider class. In fact, it isn't even necessary to subclass an existing provider like `LocalProvider`. The only requirement for the provider class is that it follows the [Provider contract](https://github.com/feast-dev/feast/blob/048c837b2fa741b38b0e35b8f8e534761a232561/sdk/python/feast/infra/provider.py#L22).
 
-#### Step 2: Configuring Feast to use the provider
+### Step 2: Configuring Feast to use the provider
 
-Configure your [feature\_store.yaml](../reference/feature-repository/feature-store-yaml.md) file to point to your new provider class:
+Configure your [feature_store.yaml](../reference/feature-repository/feature-store-yaml.md) file to point to your new provider class:
 
 ```yaml
 project: repo
@@ -100,9 +100,9 @@ offline_store:
     type: file
 ```
 
-Notice how the `provider` field above points to the module and class where your provider can be found. 
+Notice how the `provider` field above points to the module and class where your provider can be found.
 
-#### Step 3: Using the provider
+### Step 3: Using the provider
 
 Now you should be able to use your provider by running a Feast command:
 
@@ -110,7 +110,7 @@ Now you should be able to use your provider by running a Feast command:
 feast apply
 ```
 
-```text
+```
 Registered entity driver_id
 Registered feature view driver_hourly_stats
 Deploying infrastructure for driver_hourly_stats
@@ -125,7 +125,6 @@ PYTHONPATH=$PYTHONPATH:/home/my_user/my_custom_provider feast apply
 
 That's it. You should not have a fully functional custom provider!
 
-### Next steps
+## Next steps
 
 Have a look at the [custom provider demo repository](https://github.com/feast-dev/feast-custom-provider-demo) for a fully functional example of a custom provider. Feel free to fork it when creating your own custom provider!
-

@@ -6,7 +6,7 @@ The [DynamoDB](https://aws.amazon.com/dynamodb/) online store provides support f
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: data/registry.db
@@ -23,40 +23,11 @@ Configuration options are available [here](https://github.com/feast-dev/feast/bl
 
 Feast requires the following permissions in order to execute commands for DynamoDB online store:
 
-<table>
-  <thead>
-    <tr>
-      <th style="text-align:left"><b>Command</b>
-      </th>
-      <th style="text-align:left">Permissions</th>
-      <th style="text-align:left">Resources</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><b>Apply</b>
-      </td>
-      <td style="text-align:left">
-        <p>dynamodb:CreateTable</p>
-        <p>dynamodb:DescribeTable</p>
-        <p>dynamodb:DeleteTable</p>
-      </td>
-      <td style="text-align:left">arn:aws:dynamodb:&lt;region&gt;:&lt;account_id&gt;:table/*</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Materialize</b>
-      </td>
-      <td style="text-align:left">dynamodb.BatchWriteItem</td>
-      <td style="text-align:left">arn:aws:dynamodb:&lt;region&gt;:&lt;account_id&gt;:table/*</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Get Online Features</b>
-      </td>
-      <td style="text-align:left">dynamodb.GetItem</td>
-      <td style="text-align:left">arn:aws:dynamodb:&lt;region&gt;:&lt;account_id&gt;:table/*</td>
-    </tr>
-  </tbody>
-</table>
+| **Command**             | Permissions                                                                         | Resources                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **Apply**               | <p>dynamodb:CreateTable</p><p>dynamodb:DescribeTable</p><p>dynamodb:DeleteTable</p> | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
+| **Materialize**         | dynamodb.BatchWriteItem                                                             | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
+| **Get Online Features** | dynamodb.GetItem                                                                    | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
 
 The following inline policy can be used to grant Feast the necessary permissions:
 
@@ -82,4 +53,3 @@ The following inline policy can be used to grant Feast the necessary permissions
 ```
 
 Lastly, this IAM role needs to be associated with the desired Redshift cluster. Please follow the official AWS guide for the necessary steps [here](https://docs.aws.amazon.com/redshift/latest/dg/c-getting-started-using-spectrum-add-role.html).
-

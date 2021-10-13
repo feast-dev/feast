@@ -7,7 +7,7 @@
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: data/registry.db
@@ -25,4 +25,3 @@ offline_store:
   iam_role: arn:aws:iam::123456789012:role/redshift_s3_access_role
 ```
 {% endcode %}
-
