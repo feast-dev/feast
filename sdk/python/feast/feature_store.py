@@ -180,36 +180,43 @@ class FeatureStore:
         return self._registry.list_feature_services(self.project)
 
     @log_exceptions_and_usage
-    def list_feature_views(
-        self, allow_cache: bool = False, for_materialize: bool = False
-    ) -> List[BaseFeatureView]:
+    def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
-            for_materialize: Whether to filter for only feature views needed to materialize
 
         Returns:
             A list of feature views.
         """
-        return self._list_feature_views(allow_cache, for_materialize=for_materialize)
+        return self._list_feature_views(allow_cache)
+
+    @log_exceptions_and_usage
+    def list_request_feature_views(
+        self, allow_cache: bool = False
+    ) -> List[RequestFeatureView]:
+        """
+        Retrieves the list of feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
+
+        Returns:
+            A list of feature views.
+        """
+        return self._registry.list_request_feature_views(
+            self.project, allow_cache=allow_cache
+        )
 
     def _list_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
-        for_materialize: bool = False,
-    ) -> List[BaseFeatureView]:
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True,
+    ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache, for_materialize=for_materialize
+            self.project, allow_cache=allow_cache
         ):
-            if (
-                isinstance(fv, FeatureView)
-                and hide_dummy_entity
-                and fv.entities[0] == DUMMY_ENTITY_NAME
-            ):
+            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
             feature_views.append(fv)
         return feature_views
@@ -491,7 +498,7 @@ class FeatureStore:
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
         tables: List[Union[BaseFeatureView, FeatureTable]] = []
-        feature_views = self.list_feature_views(for_materialize=True)
+        feature_views = self.list_feature_views()
         feature_tables = self._registry.list_feature_tables(self.project)
 
         tables.extend(feature_views)
@@ -583,15 +590,20 @@ class FeatureStore:
             )
 
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
-            features
-        )
+        (
+            all_feature_views,
+            all_request_feature_views,
+            all_on_demand_feature_views,
+        ) = self._get_feature_views_to_use(features)
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
         fvs, odfvs, request_fvs, request_fv_refs = _group_feature_refs(
-            _feature_refs, all_feature_views, all_on_demand_feature_views
+            _feature_refs,
+            all_feature_views,
+            all_request_feature_views,
+            all_on_demand_feature_views,
         )
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
@@ -676,8 +688,7 @@ class FeatureStore:
         feature_views_to_materialize: List[FeatureView] = []
         if feature_views is None:
             feature_views_to_materialize = cast(
-                List[FeatureView],
-                self._list_feature_views(hide_dummy_entity=False, for_materialize=True),
+                List[FeatureView], self._list_feature_views(hide_dummy_entity=False),
             )
         else:
             for name in feature_views:
@@ -769,8 +780,7 @@ class FeatureStore:
         feature_views_to_materialize: List[FeatureView] = []
         if feature_views is None:
             feature_views_to_materialize = cast(
-                List[FeatureView],
-                self._list_feature_views(hide_dummy_entity=False, for_materialize=True),
+                List[FeatureView], self._list_feature_views(hide_dummy_entity=False),
             )
         else:
             for name in feature_views:
@@ -858,7 +868,11 @@ class FeatureStore:
             >>> online_response_dict = online_response.to_dict()
         """
         _feature_refs = self._get_features(features, feature_refs)
-        all_feature_views, all_on_demand_feature_views = self._get_feature_views_to_use(
+        (
+            all_feature_views,
+            all_request_feature_views,
+            all_on_demand_feature_views,
+        ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
 
@@ -869,7 +883,10 @@ class FeatureStore:
             grouped_request_fv_refs,
             _,
         ) = _group_feature_refs(
-            _feature_refs, all_feature_views, all_on_demand_feature_views
+            _feature_refs,
+            all_feature_views,
+            all_request_feature_views,
+            all_on_demand_feature_views,
         )
         if len(grouped_odfv_refs) > 0:
             log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV)
@@ -1106,11 +1123,18 @@ class FeatureStore:
         features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
-    ) -> Tuple[List[FeatureView], List[OnDemandFeatureView]]:
+    ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
 
         fvs = {
             fv.name: fv
             for fv in self._list_feature_views(allow_cache, hide_dummy_entity)
+        }
+
+        request_fvs = {
+            fv.name: fv
+            for fv in self._registry.list_request_feature_views(
+                project=self.project, allow_cache=allow_cache
+            )
         }
 
         od_fvs = {
@@ -1121,7 +1145,7 @@ class FeatureStore:
         }
 
         if isinstance(features, FeatureService):
-            fvs_to_use, od_fvs_to_use = [], []
+            fvs_to_use, request_fvs_to_use, od_fvs_to_use = [], [], []
             for fv_name, projection in [
                 (projection.name, projection)
                 for projection in features.feature_view_projections
@@ -1129,6 +1153,10 @@ class FeatureStore:
                 if fv_name in fvs:
                     fvs_to_use.append(
                         fvs[fv_name].with_projection(copy.copy(projection))
+                    )
+                elif fv_name in request_fvs:
+                    request_fvs_to_use.append(
+                        request_fvs[fv_name].with_projection(copy.copy(projection))
                     )
                 elif fv_name in od_fvs:
                     od_fvs_to_use.append(
@@ -1140,9 +1168,13 @@ class FeatureStore:
                         f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
-            views_to_use = (fvs_to_use, od_fvs_to_use)
+            views_to_use = (fvs_to_use, request_fvs_to_use, od_fvs_to_use)
         else:
-            views_to_use = ([*fvs.values()], [*od_fvs.values()])
+            views_to_use = (
+                [*fvs.values()],
+                [*request_fvs.values()],
+                [*od_fvs.values()],
+            )
 
         return views_to_use
 
@@ -1205,6 +1237,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 def _group_feature_refs(
     features: List[str],
     all_feature_views: List[FeatureView],
+    all_request_feature_views: List[RequestFeatureView],
     all_on_demand_feature_views: List[OnDemandFeatureView],
 ) -> Tuple[
     List[Tuple[FeatureView, List[str]]],
@@ -1218,11 +1251,7 @@ def _group_feature_refs(
     view_index = {view.projection.name_to_use(): view for view in all_feature_views}
 
     # request view name to proto
-    request_view_index = {
-        view.projection.name_to_use(): view
-        for view in all_feature_views
-        if isinstance(view, RequestFeatureView)
-    }
+    request_view_index = {view.projection.name_to_use(): view for view in all_request_feature_views}
 
     # on demand view to on demand view proto
     on_demand_view_index = {

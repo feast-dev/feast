@@ -263,6 +263,7 @@ class InvalidEntityType(Exception):
 
 
 class ConflictingFeatureViewNames(Exception):
+    # TODO: print file location of conflicting feature views
     def __init__(self, feature_view_name: str):
         super().__init__(
             f"The feature view name: {feature_view_name} refers to feature views of different types."

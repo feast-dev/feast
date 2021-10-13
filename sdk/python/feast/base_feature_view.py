@@ -69,6 +69,12 @@ class BaseFeatureView(ABC):
 
     @abstractmethod
     def __copy__(self):
+        """
+        Generates a deep copy of this feature view
+
+        Returns:
+            A copy of this FeatureView
+        """
         pass
 
     def __repr__(self):
@@ -108,12 +114,12 @@ class BaseFeatureView(ABC):
 
         return True
 
-    def check_valid(self):
+    def ensure_valid(self):
         """
         Validates the state of this feature view locally.
 
         Raises:
-            ValueError: The feature view does not have a name or does not have entities.
+            ValueError: The feature view is invalid.
         """
         if not self.name:
             raise ValueError("Feature view needs a name.")

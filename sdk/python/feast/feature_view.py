@@ -183,14 +183,14 @@ class FeatureView(BaseFeatureView):
 
         return True
 
-    def check_valid(self):
+    def ensure_valid(self):
         """
         Validates the state of this feature view locally.
 
         Raises:
             ValueError: The feature view does not have a name or does not have entities.
         """
-        super().check_valid()
+        super().ensure_valid()
 
         if not self.entities:
             raise ValueError("Feature view has no entities.")

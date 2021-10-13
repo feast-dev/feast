@@ -305,7 +305,7 @@ class Registry:
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
         """
-        feature_view.check_valid()
+        feature_view.ensure_valid()
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
@@ -457,30 +457,45 @@ class Registry:
         return feature_tables
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False, for_materialize: bool = False
-    ) -> List[BaseFeatureView]:
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
 
         Args:
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
-            for_materialize: Filter for feature views that should materialize if True
 
         Returns:
             List of feature views
         """
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
-        feature_views: List[BaseFeatureView] = []
+        feature_views: List[FeatureView] = []
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
-        if not for_materialize:
-            for request_feature_view_proto in registry_proto.request_feature_views:
-                if request_feature_view_proto.spec.project == project:
-                    feature_views.append(
-                        RequestFeatureView.from_proto(request_feature_view_proto)
-                    )
+        return feature_views
+
+    def list_request_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[RequestFeatureView]:
+        """
+        Retrieve a list of request feature views from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+
+        Returns:
+            List of feature views
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        feature_views: List[RequestFeatureView] = []
+        for request_feature_view_proto in registry_proto.request_feature_views:
+            if request_feature_view_proto.spec.project == project:
+                feature_views.append(
+                    RequestFeatureView.from_proto(request_feature_view_proto)
+                )
         return feature_views
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:

@@ -38,6 +38,6 @@ message RequestFeatureViewSpec {
     // Name of Feast project that this feature view belongs to.
     string project = 2;
 
-    // List of features specifications for each feature defined with this feature view.
+    // Request data which contains the underlying data schema and list of associated features
     DataSource request_data_source = 3;
 }
