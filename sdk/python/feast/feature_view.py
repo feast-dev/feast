@@ -181,7 +181,7 @@ class FeatureView:
         cp = self.__copy__()
         cp.projection.features = referenced_features
 
-        return self
+        return cp
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
