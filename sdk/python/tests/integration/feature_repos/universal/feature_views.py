@@ -64,7 +64,7 @@ def conv_rate_plus_100_feature_view(
     )
 
 
-def create_driver_age_feature_view():
+def create_driver_age_request_feature_view():
     return RequestFeatureView(
         name="driver_age",
         request_data_source=RequestDataSource(
