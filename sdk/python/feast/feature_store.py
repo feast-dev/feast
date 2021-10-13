@@ -1251,7 +1251,9 @@ def _group_feature_refs(
     view_index = {view.projection.name_to_use(): view for view in all_feature_views}
 
     # request view name to proto
-    request_view_index = {view.projection.name_to_use(): view for view in all_request_feature_views}
+    request_view_index = {
+        view.projection.name_to_use(): view for view in all_request_feature_views
+    }
 
     # on demand view to on demand view proto
     on_demand_view_index = {

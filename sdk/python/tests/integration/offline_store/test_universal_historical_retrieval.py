@@ -254,7 +254,15 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         i + 100 for i in range(len(entity_df_with_request_data))
     ]
 
-    customer_fv, driver_fv, driver_odfv, location_fv, order_fv, global_fv, driver_age_request_fv = (
+    (
+        customer_fv,
+        driver_fv,
+        driver_odfv,
+        location_fv,
+        order_fv,
+        global_fv,
+        driver_age_request_fv,
+    ) = (
         feature_views["customer"],
         feature_views["driver"],
         feature_views["driver_odfv"],
