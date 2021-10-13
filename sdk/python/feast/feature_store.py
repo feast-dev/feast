@@ -497,7 +497,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
-        tables: List[Union[BaseFeatureView, FeatureTable]] = []
+        tables: List[Union[FeatureView, FeatureTable]] = []
         feature_views = self.list_feature_views()
         feature_tables = self._registry.list_feature_tables(self.project)
 
