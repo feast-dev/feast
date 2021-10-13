@@ -65,7 +65,7 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
-    "google-cloud-bigquery>=2.0.*",
+    "google-cloud-bigquery>=2.14.0",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.34.*",
@@ -111,7 +111,7 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    "google-cloud-bigquery>=2.0.*",
+    "google-cloud-bigquery>=2.14.0",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.20.*",
