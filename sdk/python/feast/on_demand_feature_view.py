@@ -87,7 +87,7 @@ class OnDemandFeatureView:
         cp = self.__copy__()
         cp.projection.features = referenced_features
 
-        return self
+        return cp
 
     def with_name(self, name: str):
         """
