@@ -687,8 +687,8 @@ class FeatureStore:
         """
         feature_views_to_materialize: List[FeatureView] = []
         if feature_views is None:
-            feature_views_to_materialize = cast(
-                List[FeatureView], self._list_feature_views(hide_dummy_entity=False),
+            feature_views_to_materialize = self._list_feature_views(
+                hide_dummy_entity=False
             )
         else:
             for name in feature_views:
@@ -779,8 +779,8 @@ class FeatureStore:
 
         feature_views_to_materialize: List[FeatureView] = []
         if feature_views is None:
-            feature_views_to_materialize = cast(
-                List[FeatureView], self._list_feature_views(hide_dummy_entity=False),
+            feature_views_to_materialize = self._list_feature_views(
+                hide_dummy_entity=False
             )
         else:
             for name in feature_views:
