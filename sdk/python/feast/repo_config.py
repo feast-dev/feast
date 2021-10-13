@@ -86,7 +86,7 @@ class TransformationServerConfig(FeastBaseModel):
 class ServerConfig(FeastBaseModel):
     """Server Configuration that determines to how feast servers are configured. """
 
-    transformation: Optional[TransformationServerConfig]
+    transformation: TransformationServerConfig = TransformationServerConfig()
 
 
 class RepoConfig(FeastBaseModel):
@@ -116,7 +116,7 @@ class RepoConfig(FeastBaseModel):
     flags: Any
     """ Flags: Feature flags for experimental features (optional) """
 
-    servers: Optional[ServerConfig]
+    servers: ServerConfig = ServerConfig()
 
     repo_path: Optional[Path] = None
 
@@ -141,6 +141,10 @@ class RepoConfig(FeastBaseModel):
             self.feature_server = get_feature_server_config_from_type(
                 self.feature_server["type"]
             )(**self.feature_server)
+
+        if "servers" not in data:
+            self.servers = ServerConfig()
+            self.servers.transformation = TransformationServerConfig()
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
