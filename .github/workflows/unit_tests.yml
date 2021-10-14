@@ -24,6 +24,9 @@ jobs:
         id: pip-cache
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
+      - name: Echo Pip location
+        run: |
+          which pip
 #      - name: pip cache
 #        uses: actions/cache@v2
 #        with:
