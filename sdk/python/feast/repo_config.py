@@ -276,14 +276,7 @@ class RepoConfig(FeastBaseModel):
         config_path = repo_path / "feature_store.yaml"
         with open(config_path, mode="w") as f:
             yaml.dump(
-                yaml.safe_load(
-                    self.json(
-                        exclude={"repo_path"},
-                        exclude_none=True,
-                        exclude_unset=True,
-                        exclude_defaults=True,
-                    )
-                ),
+                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True,)),
                 f,
                 sort_keys=False,
             )
