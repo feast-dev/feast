@@ -255,7 +255,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                 path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
                 job_config = bigquery.QueryJobConfig(destination=path)
 
-            if not job_config.dry_run and self.on_demand_feature_views is not None:
+            if not job_config.dry_run and self.on_demand_feature_views:
                 job = _write_pyarrow_table_to_bq(
                     self.client, self.to_arrow(), job_config.destination
                 )
