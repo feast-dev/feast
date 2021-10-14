@@ -76,19 +76,6 @@ class RegistryConfig(FeastBaseModel):
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
 
-class TransformationServerConfig(FeastBaseModel):
-    """Configuration that determines specifically how the transformation server is configured."""
-
-    max_workers: StrictInt = 10
-    """ int: The number of workers the thread pool powering the gRPC server can use."""
-
-
-class ServerConfig(FeastBaseModel):
-    """Server Configuration that determines how feast servers are configured. """
-
-    transformation: TransformationServerConfig = TransformationServerConfig()
-
-
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
@@ -115,8 +102,6 @@ class RepoConfig(FeastBaseModel):
 
     flags: Any
     """ Flags: Feature flags for experimental features (optional) """
-
-    servers: ServerConfig = ServerConfig()
 
     repo_path: Optional[Path] = None
 
