@@ -24,14 +24,14 @@ jobs:
         id: pip-cache
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+#      - name: pip cache
+#        uses: actions/cache@v2
+#        with:
+#          path: |
+#            ${{ steps.pip-cache.outputs.dir }}
+#          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('**/setup.py') }}
+#          restore-keys: |
+#            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
