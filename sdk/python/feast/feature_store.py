@@ -810,6 +810,19 @@ class FeatureStore:
             )
 
     @log_exceptions_and_usage
+    def ingest_df(
+        self,
+        feature_view_name: str,
+        df: pd.DataFrame,
+    ):
+        feature_view = self._registry.get_feature_view(feature_view_name, self.project)
+        entities = []
+        for entity_name in feature_view.entities:
+            entities.append(self._registry.get_entity(entity_name, self.project))
+        provider = self._get_provider()
+        provider.ingest_df(feature_view, entities, df)
+
+    @log_exceptions_and_usage
     def get_online_features(
         self,
         features: Union[List[str], FeatureService],
