@@ -116,6 +116,7 @@ def get_fixtures(request):
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_entity_inference_types_match(offline_types_test_fixtures):
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
@@ -139,6 +140,7 @@ def test_entity_inference_types_match(offline_types_test_fixtures):
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_feature_get_historical_features_types_match(offline_types_test_fixtures):
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
@@ -185,6 +187,7 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_feature_get_online_features_types_match(online_types_test_fixtures):
     environment, config, data_source, fv = online_types_test_fixtures
     fv = create_feature_view(

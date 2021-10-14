@@ -1,3 +1,5 @@
+import importlib
+import os
 import tempfile
 import uuid
 from contextlib import contextmanager
@@ -9,6 +11,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 import pandas as pd
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data
+from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -61,7 +64,15 @@ class IntegrationTestRepoConfig:
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
-FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
+
+# FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
+# online store, test data, and more parameters) that most integration tests will test
+# against. By default, FULL_REPO_CONFIGS uses the three providers (local, GCP, and AWS)
+# with their default offline and online stores; it also tests the providers with the
+# Redis online store. It can be overwritten by specifying a Python module through the
+# FULL_REPO_CONFIGS_MODULE_ENV_NAME environment variable. In this case, that Python
+# module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
+DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
     IntegrationTestRepoConfig(),
     IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
@@ -88,6 +99,17 @@ FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
         online_store=REDIS_CONFIG,
     ),
 ]
+full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
+if full_repo_configs_module is not None:
+    try:
+        module = importlib.import_module(full_repo_configs_module)
+        FULL_REPO_CONFIGS = getattr(module, "FULL_REPO_CONFIGS")
+    except Exception:
+        pass
+    finally:
+        FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
+else:
+    FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
 
 def construct_universal_entities() -> Dict[str, List[Any]]:
