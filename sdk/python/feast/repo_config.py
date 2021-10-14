@@ -280,9 +280,7 @@ class RepoConfig(FeastBaseModel):
                 yaml.safe_load(
                     self.json(
                         exclude={"repo_path"},
-                        exclude_none=True,
                         exclude_unset=True,
-                        exclude_defaults=True,
                     )
                 ),
                 f,
