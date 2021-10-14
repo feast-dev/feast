@@ -62,14 +62,7 @@ class TransformationServer(TransformationServiceServicer):
 
 
 def start_server(store: FeatureStore, port: int):
-    server = grpc.server(
-        futures.ThreadPoolExecutor(
-            max_workers=store.config.servers.transformation.max_workers
-        )
-    )
-    log.info(
-        f"Using {store.config.servers.transformation.max_workers} workers for transformation server"
-    )
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     add_TransformationServiceServicer_to_server(TransformationServer(store), server)
     service_names_available_for_reflection = (
         DESCRIPTOR.services_by_name["TransformationService"].full_name,

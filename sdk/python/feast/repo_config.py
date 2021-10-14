@@ -76,19 +76,6 @@ class RegistryConfig(FeastBaseModel):
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
 
-class TransformationServerConfig(FeastBaseModel):
-    """Configuration that determines specifically how the transformation server is configured."""
-
-    max_workers: StrictInt = 10
-    """ int: The number of workers the thread pool powering the gRPC server can use."""
-
-
-class ServerConfig(FeastBaseModel):
-    """Server Configuration that determines how feast servers are configured. """
-
-    transformation: TransformationServerConfig = TransformationServerConfig()
-
-
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
@@ -116,8 +103,6 @@ class RepoConfig(FeastBaseModel):
     flags: Any
     """ Flags: Feature flags for experimental features (optional) """
 
-    servers: ServerConfig = ServerConfig()
-
     repo_path: Optional[Path] = None
 
     def __init__(self, **data: Any):
@@ -141,10 +126,6 @@ class RepoConfig(FeastBaseModel):
             self.feature_server = get_feature_server_config_from_type(
                 self.feature_server["type"]
             )(**self.feature_server)
-
-        if "servers" not in data:
-            self.servers = ServerConfig()
-            self.servers.transformation = TransformationServerConfig()
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -193,16 +174,6 @@ class RepoConfig(FeastBaseModel):
             raise ValidationError(
                 [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
             )
-
-    @root_validator(pre=True)
-    @log_exceptions
-    def _validate_servers_config(cls, values):
-        if "servers" not in values:
-            values["servers"] = {}
-        if "transformation" not in values["servers"]:
-            values["servers"]["transformation"] = {"max_workers": 10}
-
-        return values
 
     @root_validator(pre=True)
     def _validate_offline_store_config(cls, values):
@@ -304,7 +275,14 @@ class RepoConfig(FeastBaseModel):
         config_path = repo_path / "feature_store.yaml"
         with open(config_path, mode="w") as f:
             yaml.dump(
-                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True,)),
+                yaml.safe_load(
+                    self.json(
+                        exclude={"repo_path"},
+                        exclude_none=True,
+                        exclude_unset=True,
+                        exclude_defaults=True,
+                    )
+                ),
                 f,
                 sort_keys=False,
             )
