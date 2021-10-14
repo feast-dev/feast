@@ -42,8 +42,7 @@ message GetTransformationServiceInfoResponse {
     // Feast version of this transformation service deployment.
     string version = 1;
 
-    // Type of serving deployment, either ONLINE or BATCH. Different store types support different
-    // feature retrieval methods.
+    // Type of transformation service deployment. This is either Python, or custom
     TransformationServiceType type = 2;
 
     string transformation_service_type_details = 3;
