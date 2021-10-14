@@ -574,9 +574,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     print(f"actual_df shape: {actual_df.shape}")
     end_time = datetime.utcnow()
-    print(
-        str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
-    )
+    print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df.columns)
     assert_frame_equal(
