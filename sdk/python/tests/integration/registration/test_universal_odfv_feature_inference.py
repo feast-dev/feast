@@ -11,6 +11,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 @pytest.mark.parametrize("infer_features", [True, False], ids=lambda v: str(v))
 def test_infer_odfv_features(environment, universal_data_sources, infer_features):
     store = environment.feature_store
@@ -33,6 +34,7 @@ def test_infer_odfv_features(environment, universal_data_sources, infer_features
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_infer_odfv_features_with_error(environment, universal_data_sources):
     store = environment.feature_store
 

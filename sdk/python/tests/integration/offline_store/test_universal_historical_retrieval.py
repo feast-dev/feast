@@ -231,6 +231,7 @@ def get_expected_training_df(
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store

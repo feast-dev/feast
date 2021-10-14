@@ -40,6 +40,9 @@ def pytest_configure(config):
         "markers", "integration: mark test that has external dependencies"
     )
     config.addinivalue_line("markers", "benchmark: mark benchmarking tests")
+    config.addinivalue_line(
+        "markers", "universal: mark tests that use the universal feature repo"
+    )
 
 
 def pytest_addoption(parser):
@@ -52,11 +55,15 @@ def pytest_addoption(parser):
     parser.addoption(
         "--benchmark", action="store_true", default=False, help="Run benchmark tests",
     )
+    parser.addoption(
+        "--universal", action="store_true", default=False, help="Run universal tests",
+    )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
+    should_run_universal = config.getoption("--universal") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -74,6 +81,12 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     else:
         items.clear()
         for t in benchmark_tests:
+            items.append(t)
+
+    universal_tests = [t for t in items if "universal" in t.keywords]
+    if should_run_universal:
+        items.clear()
+        for t in universal_tests:
             items.append(t)
 
 

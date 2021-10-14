@@ -22,6 +22,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(environment, universal_data_sources, full_feature_names):
 
