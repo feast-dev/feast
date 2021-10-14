@@ -24,10 +24,10 @@ jobs:
         id: pip-cache
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
-      - name: Echo Pip location
+      - name: Upgrade pip
         run: |
-          which pip
-#      - name: pip cache
+          pip install --upgrade pip setuptools wheel
+      #      - name: pip cache
 #        uses: actions/cache@v2
 #        with:
 #          path: |
