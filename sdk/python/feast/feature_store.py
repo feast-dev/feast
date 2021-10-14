@@ -1102,6 +1102,18 @@ class FeatureStore:
         """Returns endpoint for the feature server, if it exists."""
         return self._provider.get_feature_server_endpoint()
 
+    @log_exceptions_and_usage
+    def serve_transformations(self, port: int) -> None:
+        """Start the feature transformation server locally on a given port."""
+        if not flags_helper.enable_python_feature_server(self.config):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
+        if not flags_helper.enable_on_demand_feature_views(self.config):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        from feast import transformation_server
+
+        transformation_server.start_server(self, port)
+
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
     names, values = zip(*row.fields.items())

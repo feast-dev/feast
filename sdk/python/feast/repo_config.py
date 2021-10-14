@@ -174,7 +174,6 @@ class RepoConfig(FeastBaseModel):
             raise ValidationError(
                 [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
             )
-
         return values
 
     @root_validator(pre=True)
