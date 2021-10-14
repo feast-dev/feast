@@ -45,8 +45,6 @@ class TransformationServer(TransformationServiceServicer):
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             raise
 
-        assert odfv
-
         df = pa.ipc.open_file(request.transformation_input.arrow_value).read_pandas()
 
         result_df = odfv.get_transformed_features_df(True, df)

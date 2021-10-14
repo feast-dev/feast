@@ -77,14 +77,14 @@ class RegistryConfig(FeastBaseModel):
 
 
 class TransformationServerConfig(FeastBaseModel):
-    """Server Configuration that determines to how the transformation server is configured."""
+    """Configuration that determines specifically how the transformation server is configured."""
 
     max_workers: StrictInt = 10
     """ int: The number of workers the thread pool powering the gRPC server can use."""
 
 
 class ServerConfig(FeastBaseModel):
-    """Server Configuration that determines to how feast servers are configured. """
+    """Server Configuration that determines how feast servers are configured. """
 
     transformation: TransformationServerConfig = TransformationServerConfig()
 
@@ -194,6 +194,9 @@ class RepoConfig(FeastBaseModel):
                 [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
             )
 
+    @root_validator(pre=True)
+    @log_exceptions
+    def _validate_servers_config(cls, values):
         if "servers" not in values:
             values["servers"] = {}
         if "transformation" not in values["servers"]:
