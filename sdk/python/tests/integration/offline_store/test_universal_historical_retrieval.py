@@ -563,34 +563,29 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     store.apply([driver, driver_fv])
 
-    try:
-        offline_job = store.get_historical_features(
-            entity_df=entity_df,
-            features=["driver_stats:avg_daily_trips"],
-            full_feature_names=False,
-        )
+    offline_job = store.get_historical_features(
+        entity_df=entity_df,
+        features=["driver_stats:avg_daily_trips"],
+        full_feature_names=False,
+    )
 
-        start_time = datetime.utcnow()
-        actual_df = offline_job.to_df()
+    start_time = datetime.utcnow()
+    actual_df = offline_job.to_df()
 
-        print(f"actual_df shape: {actual_df.shape}")
-        end_time = datetime.utcnow()
-        print(
-            str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
-        )
+    print(f"actual_df shape: {actual_df.shape}")
+    end_time = datetime.utcnow()
+    print(
+        str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n")
+    )
 
-        assert sorted(expected_df.columns) == sorted(actual_df.columns)
-        assert_frame_equal(
-            expected_df.sort_values(by=["driver_id"]).reset_index(drop=True),
-            actual_df[expected_df.columns]
-            .sort_values(by=["driver_id"])
-            .reset_index(drop=True),
-            check_dtype=False,
-        )
-
-    finally:
-        store.teardown()
-        environment.data_source_creator.teardown()
+    assert sorted(expected_df.columns) == sorted(actual_df.columns)
+    assert_frame_equal(
+        expected_df.sort_values(by=["driver_id"]).reset_index(drop=True),
+        actual_df[expected_df.columns]
+        .sort_values(by=["driver_id"])
+        .reset_index(drop=True),
+        check_dtype=False,
+    )
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
