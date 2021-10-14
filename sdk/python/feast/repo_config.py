@@ -78,12 +78,14 @@ class RegistryConfig(FeastBaseModel):
 
 class TransformationServerConfig(FeastBaseModel):
     """Configuration that determines specifically how the transformation server is configured."""
+
     max_workers: StrictInt = 10
     """ int: The number of workers the thread pool powering the gRPC server can use."""
 
 
 class ServerConfig(FeastBaseModel):
     """Server Configuration that determines how feast servers are configured. """
+
     transformation: TransformationServerConfig = TransformationServerConfig()
 
 
