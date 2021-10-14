@@ -590,6 +590,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     finally:
         store.teardown()
+        environment.data_source_creator.teardown()
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
