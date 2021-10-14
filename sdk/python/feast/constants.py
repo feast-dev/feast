@@ -24,3 +24,6 @@ FEATURE_STORE_YAML_ENV_NAME: str = "FEATURE_STORE_YAML_BASE64"
 
 # Environment variable for toggling usage
 FEAST_USAGE = "FEAST_USAGE"
+
+# Environment variable for the path for overwriting universal test configs
+FULL_REPO_CONFIGS_MODULE_ENV_NAME: str = "FULL_REPO_CONFIGS_MODULE"
