@@ -26,7 +26,6 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import RequestDataSource
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -912,7 +911,7 @@ class FeatureStore:
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
 
-        needed_request_data_features = self._get_needed_request_data_features(
+        needed_request_data, needed_request_fv_features = self.get_needed_request_data(
             grouped_odfv_refs, grouped_request_fv_refs
         )
 
@@ -923,7 +922,10 @@ class FeatureStore:
             join_key_row = {}
             for entity_name, entity_value in row.items():
                 # Found request data
-                if entity_name in needed_request_data_features:
+                if (
+                    entity_name in needed_request_data
+                    or entity_name in needed_request_fv_features
+                ):
                     if entity_name not in request_data_features:
                         request_data_features[entity_name] = []
                     request_data_features[entity_name].append(entity_value)
@@ -939,10 +941,9 @@ class FeatureStore:
                 # May be empty if this entity row was request data
                 join_key_rows.append(join_key_row)
 
-        if len(needed_request_data_features) != len(request_data_features.keys()):
-            raise RequestDataNotFoundInEntityRowsException(
-                feature_names=needed_request_data_features
-            )
+        self.ensure_request_data_values_exist(
+            needed_request_data, needed_request_fv_features, request_data_features
+        )
 
         entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
 
@@ -991,6 +992,41 @@ class FeatureStore:
             initial_response,
             result_rows,
         )
+
+    def get_needed_request_data(
+        self,
+        grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
+        grouped_request_fv_refs: List[Tuple[RequestFeatureView, List[str]]],
+    ) -> Tuple[Set[str], Set[str]]:
+        needed_request_data: Set[str] = set()
+        needed_request_fv_features: Set[str] = set()
+        for odfv, _ in grouped_odfv_refs:
+            odfv_request_data_schema = odfv.get_request_data_schema()
+            needed_request_data.update(odfv_request_data_schema.keys())
+        for request_fv, _ in grouped_request_fv_refs:
+            for feature in request_fv.features:
+                needed_request_fv_features.add(feature.name)
+        return needed_request_data, needed_request_fv_features
+
+    def ensure_request_data_values_exist(
+        self,
+        needed_request_data: Set[str],
+        needed_request_fv_features: Set[str],
+        request_data_features: Dict[str, List[Any]],
+    ):
+        if len(needed_request_data) + len(needed_request_fv_features) != len(
+            request_data_features.keys()
+        ):
+            missing_features = [
+                x
+                for x in itertools.chain(
+                    needed_request_data, needed_request_fv_features
+                )
+                if x not in request_data_features
+            ]
+            raise RequestDataNotFoundInEntityRowsException(
+                feature_names=missing_features
+            )
 
     def _populate_result_rows_from_feature_view(
         self,
@@ -1049,16 +1085,13 @@ class FeatureStore:
         needed_request_data_features = set()
         for odfv_to_feature_names in grouped_odfv_refs:
             odfv, requested_feature_names = odfv_to_feature_names
-            odfv_inputs = odfv.inputs.values()
-            for odfv_input in odfv_inputs:
-                if type(odfv_input) == RequestDataSource:
-                    request_data_source = cast(RequestDataSource, odfv_input)
-                    for feature_name in request_data_source.schema.keys():
-                        needed_request_data_features.add(feature_name)
+            odfv_request_data_schema = odfv.get_request_data_schema()
+            for feature_name in odfv_request_data_schema.keys():
+                needed_request_data_features.add(feature_name)
         for request_fv_to_feature_names in grouped_request_fv_refs:
             request_fv, requested_feature_names = request_fv_to_feature_names
-            for feature_name in request_fv.request_data_source.schema.keys():
-                needed_request_data_features.add(feature_name)
+            for fv in request_fv.features:
+                needed_request_data_features.add(fv.name)
         return needed_request_data_features
 
     def _augment_response_with_on_demand_transforms(
