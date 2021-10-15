@@ -1,7 +1,7 @@
 import copy
 import functools
 from types import MethodType
-from typing import Dict, List, Type, Union, cast
+from typing import Dict, List, Type, Union
 
 import dill
 import pandas as pd
@@ -43,7 +43,10 @@ class OnDemandFeatureView(BaseFeatureView):
         udf: User defined transformation function that takes as input pandas dataframes
     """
 
+    # TODO(adchia): remove inputs from proto and declaration
     inputs: Dict[str, Union[FeatureView, RequestDataSource]]
+    input_feature_views: Dict[str, FeatureView]
+    input_request_data_sources: Dict[str, RequestDataSource]
     udf: MethodType
 
     @log_exceptions
@@ -59,6 +62,14 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         super().__init__(name, features)
         self.inputs = inputs
+        self.input_feature_views = {}
+        self.input_request_data_sources = {}
+        for input_ref, odfv_input in inputs.items():
+            if isinstance(odfv_input, RequestDataSource):
+                self.input_request_data_sources[input_ref] = odfv_input
+            else:
+                self.input_feature_views[input_ref] = odfv_input
+
         self.udf = udf
 
     @property
@@ -80,15 +91,12 @@ class OnDemandFeatureView(BaseFeatureView):
             A OnDemandFeatureViewProto protobuf.
         """
         inputs = {}
-        for feature_ref, input in self.inputs.items():
-            if type(input) == FeatureView:
-                fv = cast(FeatureView, input)
-                inputs[feature_ref] = OnDemandInput(feature_view=fv.to_proto())
-            else:
-                request_data_source = cast(RequestDataSource, input)
-                inputs[feature_ref] = OnDemandInput(
-                    request_data_source=request_data_source.to_proto()
-                )
+        for input_ref, fv in self.input_feature_views.items():
+            inputs[input_ref] = OnDemandInput(feature_view=fv.to_proto())
+        for input_ref, request_data_source in self.input_request_data_sources.items():
+            inputs[input_ref] = OnDemandInput(
+                request_data_source=request_data_source.to_proto()
+            )
 
         spec = OnDemandFeatureViewSpec(
             name=self.name,
@@ -149,6 +157,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return on_demand_feature_view_obj
 
+    def get_request_data_schema(self) -> Dict[str, ValueType]:
+        schema: Dict[str, ValueType] = {}
+        for request_data_source in self.input_request_data_sources.values():
+            schema.update(request_data_source.schema)
+        return schema
+
     def get_transformed_features_df(
         self, full_feature_names: bool, df_with_features: pd.DataFrame
     ) -> pd.DataFrame:
@@ -157,10 +171,7 @@ class OnDemandFeatureView(BaseFeatureView):
         # Copy over un-prefixed features even if not requested since transform may need it
         columns_to_cleanup = []
         if full_feature_names:
-            for input in self.inputs.values():
-                if type(input) != FeatureView:
-                    continue
-                input_fv = cast(FeatureView, input)
+            for input_fv in self.input_feature_views.values():
                 for feature in input_fv.features:
                     full_feature_ref = f"{input_fv.name}__{feature.name}"
                     if full_feature_ref in df_with_features.keys():
@@ -184,18 +195,15 @@ class OnDemandFeatureView(BaseFeatureView):
             RegistryInferenceFailure: The set of features could not be inferred.
         """
         df = pd.DataFrame()
-        for input in self.inputs.values():
-            if type(input) == FeatureView:
-                feature_view = cast(FeatureView, input)
-                for feature in feature_view.features:
-                    dtype = feast_value_type_to_pandas_type(feature.dtype)
-                    df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
-                    df[f"{feature.name}"] = pd.Series(dtype=dtype)
-            else:
-                request_data = cast(RequestDataSource, input)
-                for feature_name, feature_type in request_data.schema.items():
-                    dtype = feast_value_type_to_pandas_type(feature_type)
-                    df[f"{feature_name}"] = pd.Series(dtype=dtype)
+        for feature_view in self.input_feature_views.values():
+            for feature in feature_view.features:
+                dtype = feast_value_type_to_pandas_type(feature.dtype)
+                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
+                df[f"{feature.name}"] = pd.Series(dtype=dtype)
+        for request_data in self.input_request_data_sources.values():
+            for feature_name, feature_type in request_data.schema.items():
+                dtype = feast_value_type_to_pandas_type(feature_type)
+                df[f"{feature_name}"] = pd.Series(dtype=dtype)
         output_df: pd.DataFrame = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):

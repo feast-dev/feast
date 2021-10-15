@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import itertools
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
@@ -469,14 +470,10 @@ class FeatureStore:
         )
         entities_to_update.append(DUMMY_ENTITY)
 
-        for view in views_to_update:
+        for view in itertools.chain(
+            views_to_update, odfvs_to_update, request_views_to_update
+        ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
-        for odfv in odfvs_to_update:
-            self._registry.apply_feature_view(odfv, project=self.project, commit=False)
-        for request_fv in request_views_to_update:
-            self._registry.apply_feature_view(
-                request_fv, project=self.project, commit=False
-            )
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
@@ -617,23 +614,18 @@ class FeatureStore:
         if type(entity_df) == pd.DataFrame:
             entity_pd_df = cast(pd.DataFrame, entity_df)
             for fv in request_feature_views:
-                request_data_source = fv.request_data_source
-                for feature_name in request_data_source.schema.keys():
-                    if feature_name not in entity_pd_df.columns:
+                for feature in fv.features:
+                    if feature.name not in entity_pd_df.columns:
                         raise RequestDataNotFoundInEntityDfException(
-                            feature_name=feature_name, feature_view_name=fv.name
+                            feature_name=feature.name, feature_view_name=fv.name
                         )
             for odfv in on_demand_feature_views:
-                odfv_inputs = odfv.inputs.values()
-                for odfv_input in odfv_inputs:
-                    if type(odfv_input) == RequestDataSource:
-                        request_data_source = cast(RequestDataSource, odfv_input)
-                        for feature_name in request_data_source.schema.keys():
-                            if feature_name not in entity_pd_df.columns:
-                                raise RequestDataNotFoundInEntityDfException(
-                                    feature_name=feature_name,
-                                    feature_view_name=odfv.name,
-                                )
+                odfv_request_data_schema = odfv.get_request_data_schema()
+                for feature_name in odfv_request_data_schema.keys():
+                    if feature_name not in entity_pd_df.columns:
+                        raise RequestDataNotFoundInEntityDfException(
+                            feature_name=feature_name, feature_view_name=odfv.name,
+                        )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
         # Drop refs that refer to RequestFeatureViews since they don't need to be fetched and

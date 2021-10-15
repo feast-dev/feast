@@ -22,9 +22,11 @@ import pkg_resources
 import yaml
 from colorama import Fore, Style
 
-from feast import FeatureView, OnDemandFeatureView, flags, flags_helper, utils
+from feast import flags, flags_helper, utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
+from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
