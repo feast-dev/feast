@@ -25,6 +25,8 @@ from colorama import Fore, Style
 from feast import flags, flags_helper, utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
+from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
@@ -261,12 +263,29 @@ def feature_view_list(ctx: click.Context):
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
     table = []
-    for feature_view in store.list_feature_views():
-        table.append([feature_view.name, feature_view.entities])
+    for feature_view in [
+        *store.list_feature_views(),
+        *store.list_request_feature_views(),
+        *store.list_on_demand_feature_views(),
+    ]:
+        entities = set()
+        if isinstance(feature_view, FeatureView):
+            entities.update(feature_view.entities)
+        elif isinstance(feature_view, OnDemandFeatureView):
+            for backing_fv in feature_view.inputs.values():
+                if isinstance(backing_fv, FeatureView):
+                    entities.update(backing_fv.entities)
+        table.append(
+            [
+                feature_view.name,
+                entities if len(entities) > 0 else "n/a",
+                type(feature_view).__name__,
+            ]
+        )
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
+    print(tabulate(table, headers=["NAME", "ENTITIES", "TYPE"], tablefmt="plain"))
 
 
 @cli.group(name="on-demand-feature-views")

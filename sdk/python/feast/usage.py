@@ -47,6 +47,8 @@ class UsageEvent(enum.Enum):
     APPLY_WITH_ODFV = 1
     GET_HISTORICAL_FEATURES_WITH_ODFV = 2
     GET_ONLINE_FEATURES_WITH_ODFV = 3
+    GET_HISTORICAL_FEATURES_WITH_REQUEST_FV = 4
+    GET_ONLINE_FEATURES_WITH_REQUEST_FV = 5
 
     def __str__(self):
         return self.name.lower()

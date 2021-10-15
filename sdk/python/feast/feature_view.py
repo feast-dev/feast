@@ -15,12 +15,12 @@ import copy
 import re
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.json_format import MessageToJson
 
 from feast import utils
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
@@ -47,7 +47,7 @@ DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
 
 
-class FeatureView:
+class FeatureView(BaseFeatureView):
     """
     A FeatureView defines a logical grouping of serveable features.
 
@@ -67,9 +67,7 @@ class FeatureView:
             FeatureViews.
     """
 
-    name: str
     entities: List[str]
-    features: List[Feature]
     tags: Optional[Dict[str, str]]
     ttl: timedelta
     online: bool
@@ -79,7 +77,6 @@ class FeatureView:
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
-    projection: FeatureViewProjection
 
     @log_exceptions
     def __init__(
@@ -123,10 +120,9 @@ class FeatureView:
                     f"Entity or Feature name."
                 )
 
-        self.name = name
+        super().__init__(name, _features)
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
-        self.features = _features
-        self.tags = tags if tags else {}
+        self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
@@ -143,17 +139,9 @@ class FeatureView:
         self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
 
-        self.projection = FeatureViewProjection.from_definition(self)
-
-    def __repr__(self):
-        items = (f"{k} = {v}" for k, v in self.__dict__.items())
-        return f"<{self.__class__.__name__}({', '.join(items)})>"
-
-    def __str__(self):
-        return str(MessageToJson(self.to_proto()))
-
+    # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
-        return hash((id(self), self.name))
+        return super().__hash__()
 
     def __copy__(self):
         fv = FeatureView(
@@ -170,36 +158,23 @@ class FeatureView:
         fv.projection = copy.copy(self.projection)
         return fv
 
-    def __getitem__(self, item):
-        assert isinstance(item, list)
-
-        referenced_features = []
-        for feature in self.features:
-            if feature.name in item:
-                referenced_features.append(feature)
-
-        cp = self.__copy__()
-        cp.projection.features = referenced_features
-
-        return cp
-
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
             raise TypeError(
                 "Comparisons should only involve FeatureView class objects."
             )
 
+        if not super().__eq__(other):
+            return False
+
         if (
             self.tags != other.tags
-            or self.name != other.name
             or self.ttl != other.ttl
             or self.online != other.online
         ):
             return False
 
         if sorted(self.entities) != sorted(other.entities):
-            return False
-        if sorted(self.features) != sorted(other.features):
             return False
         if self.batch_source != other.batch_source:
             return False
@@ -208,18 +183,21 @@ class FeatureView:
 
         return True
 
-    def is_valid(self):
+    def ensure_valid(self):
         """
         Validates the state of this feature view locally.
 
         Raises:
             ValueError: The feature view does not have a name or does not have entities.
         """
-        if not self.name:
-            raise ValueError("Feature view needs a name.")
+        super().ensure_valid()
 
         if not self.entities:
             raise ValueError("Feature view has no entities.")
+
+    @property
+    def proto_class(self) -> Type[FeatureViewProto]:
+        return FeatureViewProto
 
     def with_name(self, name: str):
         """

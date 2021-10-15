@@ -44,6 +44,7 @@ class RetrievalJob(ABC):
         if self.on_demand_feature_views is None:
             return features_df
 
+        # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
         for odfv in self.on_demand_feature_views:
             features_df = features_df.join(
                 odfv.get_transformed_features_df(self.full_feature_names, features_df)

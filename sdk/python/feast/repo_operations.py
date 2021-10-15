@@ -5,12 +5,13 @@ import re
 import sys
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set, Tuple, Union
+from typing import List, NamedTuple, Set, Tuple, Union, cast
 
 import click
 from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
+from feast.base_feature_view import BaseFeatureView
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore, _validate_feature_views
 from feast.feature_view import FeatureView
@@ -19,6 +20,7 @@ from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
 
 
@@ -34,6 +36,7 @@ class ParsedRepo(NamedTuple):
     feature_tables: Set[FeatureTable]
     feature_views: Set[FeatureView]
     on_demand_feature_views: Set[OnDemandFeatureView]
+    request_feature_views: Set[RequestFeatureView]
     entities: Set[Entity]
     feature_services: Set[FeatureService]
 
@@ -99,6 +102,7 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
         feature_views=set(),
         feature_services=set(),
         on_demand_feature_views=set(),
+        request_feature_views=set(),
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -116,6 +120,8 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
                 res.feature_services.add(obj)
             elif isinstance(obj, OnDemandFeatureView):
                 res.on_demand_feature_views.add(obj)
+            elif isinstance(obj, RequestFeatureView):
+                res.request_feature_views.add(obj)
     return res
 
 
@@ -136,7 +142,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
-    _validate_feature_views(list(repo.feature_views))
+    _validate_feature_views(
+        [
+            *list(repo.feature_views),
+            *list(repo.on_demand_feature_views),
+            *list(repo.request_feature_views),
+        ]
+    )
 
     if not skip_source_validation:
         data_sources = [t.batch_source for t in repo.feature_views]
@@ -193,7 +205,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     # Add / update views + entities + services
     all_to_apply: List[
-        Union[Entity, FeatureView, FeatureService, OnDemandFeatureView]
+        Union[Entity, BaseFeatureView, FeatureService, OnDemandFeatureView]
     ] = []
     all_to_apply.extend(entities_to_keep)
     all_to_apply.extend(views_to_keep)
@@ -225,13 +237,19 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         )
 
     infra_provider = get_provider(repo_config, repo_path)
+    views_to_keep_in_infra = [
+        view for view in views_to_keep if isinstance(view, FeatureView)
+    ]
     for name in [view.name for view in repo.feature_tables] + [
-        table.name for table in repo.feature_views
+        table.name for table in views_to_keep_in_infra
     ]:
         click.echo(
             f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
-    for name in [view.name for view in views_to_delete] + [
+    views_to_delete_from_infra = [
+        view for view in views_to_delete if isinstance(view, FeatureView)
+    ]
+    for name in [view.name for view in views_to_delete_from_infra] + [
         table.name for table in tables_to_delete
     ]:
         click.echo(
@@ -241,10 +259,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     all_to_delete: List[Union[FeatureTable, FeatureView]] = []
     all_to_delete.extend(tables_to_delete)
-    all_to_delete.extend(views_to_delete)
+    all_to_delete.extend(views_to_delete_from_infra)
     all_to_keep: List[Union[FeatureTable, FeatureView]] = []
     all_to_keep.extend(tables_to_keep)
-    all_to_keep.extend(views_to_delete)
+    all_to_keep.extend(views_to_keep_in_infra)
     infra_provider.update_infra(
         project,
         tables_to_delete=all_to_delete,
@@ -272,9 +290,11 @@ def _tag_registry_entities_for_keep_delete(
 
 def _tag_registry_views_for_keep_delete(
     project: str, registry: Registry, repo: ParsedRepo
-) -> Tuple[Set[FeatureView], Set[FeatureView]]:
-    views_to_keep: Set[FeatureView] = repo.feature_views
-    views_to_delete: Set[FeatureView] = set()
+) -> Tuple[Set[BaseFeatureView], Set[BaseFeatureView]]:
+    views_to_keep: Set[BaseFeatureView] = cast(Set[BaseFeatureView], repo.feature_views)
+    for request_fv in repo.request_feature_views:
+        views_to_keep.add(request_fv)
+    views_to_delete: Set[BaseFeatureView] = set()
     repo_feature_view_names = set(t.name for t in repo.feature_views)
     for registry_view in registry.list_feature_views(project=project):
         if registry_view.name not in repo_feature_view_names:

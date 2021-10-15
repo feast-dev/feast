@@ -256,19 +256,35 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     entity_df_with_request_data["val_to_add"] = [
         i for i in range(len(entity_df_with_request_data))
     ]
+    entity_df_with_request_data["driver_age"] = [
+        i + 100 for i in range(len(entity_df_with_request_data))
+    ]
 
-    customer_fv, driver_fv, driver_odfv, location_fv, order_fv, global_fv = (
+    (
+        customer_fv,
+        driver_fv,
+        driver_odfv,
+        location_fv,
+        order_fv,
+        global_fv,
+        driver_age_request_fv,
+    ) = (
         feature_views["customer"],
         feature_views["driver"],
         feature_views["driver_odfv"],
         feature_views["location"],
         feature_views["order"],
         feature_views["global"],
+        feature_views["driver_age_request_fv"],
     )
 
     feature_service = FeatureService(
         name="convrate_plus100",
-        features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
+        features=[
+            feature_views["driver"][["conv_rate"]],
+            driver_odfv,
+            driver_age_request_fv,
+        ],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
@@ -291,6 +307,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             location_fv,
             order_fv,
             global_fv,
+            driver_age_request_fv,
             driver(),
             customer(),
             location(),
@@ -356,7 +373,12 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
         # Not requesting the on demand transform with an entity_df query (can't add request data in them)
         expected_df_query = expected_df.drop(
-            columns=["conv_rate_plus_100", "val_to_add", "conv_rate_plus_val_to_add"]
+            columns=[
+                "conv_rate_plus_100",
+                "val_to_add",
+                "conv_rate_plus_val_to_add",
+                "driver_age",
+            ]
         )
         assert sorted(expected_df_query.columns) == sorted(
             actual_df_from_sql_entities.columns
@@ -408,6 +430,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "order:order_is_success",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
+            "driver_age:driver_age",
         ],
         full_feature_names=full_feature_names,
     )
@@ -478,6 +501,22 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
                 "customer_profile:lifetime_trip_count",
                 "conv_rate_plus_100:conv_rate_plus_100",
                 "conv_rate_plus_100:conv_rate_plus_val_to_add",
+                "global_stats:num_rides",
+                "global_stats:avg_ride_length",
+            ],
+            full_feature_names=full_feature_names,
+        )
+    # If request data is missing that's needed for a request feature view, throw an error
+    with pytest.raises(RequestDataNotFoundInEntityDfException):
+        store.get_historical_features(
+            entity_df=entity_df,
+            features=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+                "driver_age:driver_age",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
             ],
@@ -624,6 +663,7 @@ def assert_feature_service_correctness(
             "customer_id",
             response_feature_name("conv_rate", full_feature_names),
             "conv_rate_plus_100",
+            "driver_age",
         ]
     ]
     actual_df_from_df_entities = (

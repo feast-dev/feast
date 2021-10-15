@@ -5,6 +5,7 @@ import pandas as pd
 
 from feast import Feature, FeatureView, OnDemandFeatureView, ValueType
 from feast.data_source import DataSource, RequestDataSource
+from feast.request_feature_view import RequestFeatureView
 
 
 def driver_feature_view(
@@ -60,6 +61,15 @@ def conv_rate_plus_100_feature_view(
         inputs=inputs,
         features=[] if infer_features else _features,
         udf=conv_rate_plus_100,
+    )
+
+
+def create_driver_age_request_feature_view():
+    return RequestFeatureView(
+        name="driver_age",
+        request_data_source=RequestDataSource(
+            name="driver_age_source", schema={"driver_age": ValueType.INT32}
+        ),
     )
 
 

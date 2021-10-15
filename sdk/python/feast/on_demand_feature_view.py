@@ -1,12 +1,13 @@
 import copy
 import functools
 from types import MethodType
-from typing import Dict, List, Union, cast
+from typing import Dict, List, Type, Union
 
 import dill
 import pandas as pd
 
 from feast import errors
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
@@ -30,7 +31,7 @@ from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
-class OnDemandFeatureView:
+class OnDemandFeatureView(BaseFeatureView):
     """
     [Experimental] An OnDemandFeatureView defines on demand transformations on existing feature view values and request
     data.
@@ -42,11 +43,11 @@ class OnDemandFeatureView:
         udf: User defined transformation function that takes as input pandas dataframes
     """
 
-    name: str
-    features: List[Feature]
+    # TODO(adchia): remove inputs from proto and declaration
     inputs: Dict[str, Union[FeatureView, RequestDataSource]]
+    input_feature_views: Dict[str, FeatureView]
+    input_request_data_sources: Dict[str, RequestDataSource]
     udf: MethodType
-    projection: FeatureViewProjection
 
     @log_exceptions
     def __init__(
@@ -59,15 +60,21 @@ class OnDemandFeatureView:
         """
         Creates an OnDemandFeatureView object.
         """
-
-        self.name = name
-        self.features = features
+        super().__init__(name, features)
         self.inputs = inputs
-        self.udf = udf
-        self.projection = FeatureViewProjection.from_definition(self)
+        self.input_feature_views = {}
+        self.input_request_data_sources = {}
+        for input_ref, odfv_input in inputs.items():
+            if isinstance(odfv_input, RequestDataSource):
+                self.input_request_data_sources[input_ref] = odfv_input
+            else:
+                self.input_feature_views[input_ref] = odfv_input
 
-    def __hash__(self) -> int:
-        return hash((id(self), self.name))
+        self.udf = udf
+
+    @property
+    def proto_class(self) -> Type[OnDemandFeatureViewProto]:
+        return OnDemandFeatureViewProto
 
     def __copy__(self):
         fv = OnDemandFeatureView(
@@ -75,70 +82,6 @@ class OnDemandFeatureView:
         )
         fv.projection = copy.copy(self.projection)
         return fv
-
-    def __getitem__(self, item):
-        assert isinstance(item, list)
-
-        referenced_features = []
-        for feature in self.features:
-            if feature.name in item:
-                referenced_features.append(feature)
-
-        cp = self.__copy__()
-        cp.projection.features = referenced_features
-
-        return cp
-
-    def with_name(self, name: str):
-        """
-        Renames this on-demand feature view by returning a copy of this feature view with an alias
-        set for the feature view name. This rename operation is only used as part of query
-        operations and will not modify the underlying OnDemandFeatureView.
-
-        Args:
-            name: Name to assign to the OnDemandFeatureView copy.
-
-        Returns:
-            A copy of this OnDemandFeatureView with the name replaced with the 'name' input.
-        """
-        cp = self.__copy__()
-        cp.projection.name_alias = name
-
-        return cp
-
-    def with_projection(self, feature_view_projection: FeatureViewProjection):
-        """
-        Sets the feature view projection by returning a copy of this on-demand feature view
-        with its projection set to the given projection. A projection is an
-        object that stores the modifications to a feature view that is used during
-        query operations.
-
-        Args:
-            feature_view_projection: The FeatureViewProjection object to link to this
-                OnDemandFeatureView.
-
-        Returns:
-            A copy of this OnDemandFeatureView with its projection replaced with the
-            'feature_view_projection' argument.
-        """
-        if feature_view_projection.name != self.name:
-            raise ValueError(
-                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
-                f"The projection is named {feature_view_projection.name} and the name indicates which "
-                "FeatureView the projection is for."
-            )
-
-        for feature in feature_view_projection.features:
-            if feature not in self.features:
-                raise ValueError(
-                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
-                    "FeatureView doesn't have."
-                )
-
-        cp = self.__copy__()
-        cp.projection = feature_view_projection
-
-        return cp
 
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
@@ -148,15 +91,12 @@ class OnDemandFeatureView:
             A OnDemandFeatureViewProto protobuf.
         """
         inputs = {}
-        for feature_ref, input in self.inputs.items():
-            if type(input) == FeatureView:
-                fv = cast(FeatureView, input)
-                inputs[feature_ref] = OnDemandInput(feature_view=fv.to_proto())
-            else:
-                request_data_source = cast(RequestDataSource, input)
-                inputs[feature_ref] = OnDemandInput(
-                    request_data_source=request_data_source.to_proto()
-                )
+        for input_ref, fv in self.input_feature_views.items():
+            inputs[input_ref] = OnDemandInput(feature_view=fv.to_proto())
+        for input_ref, request_data_source in self.input_request_data_sources.items():
+            inputs[input_ref] = OnDemandInput(
+                request_data_source=request_data_source.to_proto()
+            )
 
         spec = OnDemandFeatureViewSpec(
             name=self.name,
@@ -217,6 +157,12 @@ class OnDemandFeatureView:
 
         return on_demand_feature_view_obj
 
+    def get_request_data_schema(self) -> Dict[str, ValueType]:
+        schema: Dict[str, ValueType] = {}
+        for request_data_source in self.input_request_data_sources.values():
+            schema.update(request_data_source.schema)
+        return schema
+
     def get_transformed_features_df(
         self, full_feature_names: bool, df_with_features: pd.DataFrame
     ) -> pd.DataFrame:
@@ -225,10 +171,7 @@ class OnDemandFeatureView:
         # Copy over un-prefixed features even if not requested since transform may need it
         columns_to_cleanup = []
         if full_feature_names:
-            for input in self.inputs.values():
-                if type(input) != FeatureView:
-                    continue
-                input_fv = cast(FeatureView, input)
+            for input_fv in self.input_feature_views.values():
                 for feature in input_fv.features:
                     full_feature_ref = f"{input_fv.name}__{feature.name}"
                     if full_feature_ref in df_with_features.keys():
@@ -248,25 +191,19 @@ class OnDemandFeatureView:
         """
         Infers the set of features associated to this feature view from the input source.
 
-        Args:
-            config: Configuration object used to configure the feature store.
-
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
         df = pd.DataFrame()
-        for input in self.inputs.values():
-            if type(input) == FeatureView:
-                feature_view = cast(FeatureView, input)
-                for feature in feature_view.features:
-                    dtype = feast_value_type_to_pandas_type(feature.dtype)
-                    df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
-                    df[f"{feature.name}"] = pd.Series(dtype=dtype)
-            else:
-                request_data = cast(RequestDataSource, input)
-                for feature_name, feature_type in request_data.schema.items():
-                    dtype = feast_value_type_to_pandas_type(feature_type)
-                    df[f"{feature_name}"] = pd.Series(dtype=dtype)
+        for feature_view in self.input_feature_views.values():
+            for feature in feature_view.features:
+                dtype = feast_value_type_to_pandas_type(feature.dtype)
+                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
+                df[f"{feature.name}"] = pd.Series(dtype=dtype)
+        for request_data in self.input_request_data_sources.values():
+            for feature_name, feature_type in request_data.schema.items():
+                dtype = feast_value_type_to_pandas_type(feature_type)
+                df[f"{feature_name}"] = pd.Series(dtype=dtype)
         output_df: pd.DataFrame = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
