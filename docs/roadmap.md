@@ -10,7 +10,6 @@ The list below contains the functionality that contributors are planning to deve
 
 
 *   **Data Sources**
-
     * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
     * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
     * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
