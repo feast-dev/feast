@@ -53,6 +53,50 @@ global_stats_fv = FeatureView(
 {% endtab %}
 {% endtabs %}
 
+## Entity aliasing
+
+"Entity aliases" can be specified to join `entity_df` columns that do not match the column names in the feature data table. Another use case involves entities that are a subclass of a more general entity. For example, "spammer" and "reporter" could be aliases of a "user" entity, and "origin" and "destination" could be aliases of a "location" entity as shown below. It is suggested that you dynamically specify the new FeatureView name using `.with_name` and `join_key_map` override using `.with_join_key_map` instead of register each new copy.
+
+{% tabs %}
+{% tab title="location_stats_feature_view.py" %}
+```python
+location = Entity(name="location", join_key="location_id", value_type=ValueType.INT64)
+
+location_stats_fv= FeatureView(
+    name="location_stats",
+    entities=["location"],
+    features=[
+        Feature(name="temperature", dtype=ValueType.INT32)
+    ],
+    batch_source=BigQuerySource(
+        table_ref="feast-oss.demo_data.location_stats"
+    ),
+)
+```
+{% endtab %}
+{% tab title="temperatures_feature_service.py" %}
+```python
+from location_stats_feature_view import location_stats_fv
+
+temperatures_fs = FeatureService(
+    name="temperatures",
+    features=[
+        location_stats_feature_view
+            .with_name("origin_stats")
+            .with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+        location_stats_feature_view
+            .with_name("destination_stats")
+            .with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
+    ],
+)
+```
+{% endtab %}
+{% endtabs %}
+
 ## Feature
 
 A feature is an individual measurable property. It is typically a property observed on a specific entity, but does not have to be associated with an entity. For example, a feature of a `customer` entity could be the number of transactions they have made on an average month, while a feature that is not observed on a specific entity could be the total number of posts made by all users in the last month.
