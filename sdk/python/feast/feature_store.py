@@ -988,7 +988,6 @@ class FeatureStore:
         return self._augment_response_with_on_demand_transforms(
             _feature_refs,
             all_on_demand_feature_views,
-            needed_request_data,
             full_feature_names,
             initial_response,
             result_rows,
@@ -1095,11 +1094,11 @@ class FeatureStore:
                 needed_request_data_features.add(fv.name)
         return needed_request_data_features
 
+    # TODO(adchia): remove request data, which isn't part of the feature_refs
     def _augment_response_with_on_demand_transforms(
         self,
         feature_refs: List[str],
         odfvs: List[OnDemandFeatureView],
-        needed_request_data: Set[str],
         full_feature_names: bool,
         initial_response: OnlineResponse,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
@@ -1143,11 +1142,6 @@ class FeatureStore:
                     result_row.statuses[
                         transformed_feature_name
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
-
-                # Remove request data that shouldn't be in response
-                for request_data_ref in needed_request_data:
-                    del result_row.fields[request_data_ref]
-                    del result_row.statuses[request_data_ref]
 
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
