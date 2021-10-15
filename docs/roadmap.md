@@ -9,14 +9,16 @@ The list below contains the functionality that contributors are planning to deve
 
 
 
-* **Data Sources**
-  * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
-  * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
-  * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
-  * [ ] Kafka source (Planned for Q4 2021)
-  * [ ] HTTP source
-  * [ ] Snowflake source
-  * [ ] Synapse source\
+*   **Data Sources**
+
+    * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
+    * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
+    * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
+    * [ ] Kafka source (Planned for Q4 2021)
+    * [ ] Synapse source (Planned for Q4 2021)
+    * [ ] Snowflake source (Planned for Q4 2021)
+    * [ ] HTTP source
+
 
 * **Offline Stores**
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
@@ -24,8 +26,9 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
   * [x] [Hive (community maintained)](https://github.com/baineng/feast-hive)
-  * [ ] Snowflake 
-  * [ ] Synapse\
+  * [x] [Postgres (community maintained)](https://github.com/nossrannug/feast-postgres)
+  * [ ] Snowflake (Planned for Q4 2021)
+  * [ ] Synapse (Planned for Q4 2021)\
 
 * **Online Stores**
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
@@ -33,30 +36,30 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
-  * [ ] Postgres
+  * [x] [Postgres (community maintained)](https://github.com/nossrannug/feast-postgres)
   * [ ] Bigtable
   * [ ] Cassandra\
 
 * **Streaming**
-  * [ ] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
+  * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
   * [ ] Streaming ingestion on AWS (Planned for Q4 2021)
   * [ ] Streaming ingestion on GCP\
 
 * **Feature Engineering**
-  * [ ] On-demand Transformations (Development in progress. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
+  * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
   * [ ] Batch transformation (SQL)
   * [ ] Streaming transformation\
 
 * **Deployments**
-  * [ ] AWS Lambda (Development in progress. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
+  * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
   * [ ] Cloud Run
   * [ ] Kubernetes
   * [ ] KNative\
 
 * **Feature Serving**
   * [x] Python Client
-  * [ ] REST Feature Server (Python) (Development in progress. See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev_Wr6ZpnLzER4/edit))   
-  * [ ] gRPC Feature Server (Java) (See [#1497](https://github.com/feast-dev/feast/issues/1497))
+  * [x] REST Feature Server (Python) (Alpha release. See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev_Wr6ZpnLzER4/edit))   
+  * [x] gRPC Feature Server (Java) (See [#1497](https://github.com/feast-dev/feast/issues/1497))
   * [ ] Java Client
   * [ ] Go Client    
   * [ ] Push API
