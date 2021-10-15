@@ -1142,7 +1142,6 @@ class FeatureStore:
                     result_row.statuses[
                         transformed_feature_name
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
-
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
     def _get_feature_views_to_use(
