@@ -6,10 +6,7 @@ from google.cloud.bigquery import Dataset
 
 from feast import BigQuerySource
 from feast.data_source import DataSource
-from feast.infra.offline_stores.bigquery import (
-    BigQueryOfflineStoreConfig,
-    _write_df_to_bq,
-)
+from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -69,7 +66,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
                 f"{self.gcp_project}.{self.project_name}.{destination_name}"
             )
 
-        job = _write_df_to_bq(self.client, df, destination_name)
+        job = self.client.load_table_from_dataframe(df, destination_name)
         job.result()
 
         self.tables.append(destination_name)
