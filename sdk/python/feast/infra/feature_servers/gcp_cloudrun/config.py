@@ -1,4 +1,4 @@
-from pydantic import StrictBool, StrictStr
+from pydantic import StrictBool
 from pydantic.typing import Literal
 
 from feast.repo_config import FeastConfigBaseModel
@@ -18,6 +18,3 @@ class GcpCloudRunFeatureServerConfig(FeastConfigBaseModel):
 
     auth: Literal["none", "api-key"] = "none"
     """Authentication method for the endpoint."""
-
-    execution_role_name: StrictStr
-    """The execution role for the AWS Lambda function."""
