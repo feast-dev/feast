@@ -2,7 +2,7 @@
 
 ## Overview
 
-Feast makes adding support for a new offline store \(database\) easy. Developers can simply implement the [OfflineStore](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/offline_store.py#L41) interface to add support for a new store \(other than the existing stores like Parquet files, Redshift, and Bigquery\). 
+Feast makes adding support for a new offline store (database) easy. Developers can simply implement the [OfflineStore](../../sdk/python/feast/infra/offline_stores/offline_store.py#L41) interface to add support for a new store (other than the existing stores like Parquet files, Redshift, and Bigquery). 
 
 In this guide, we will show you how to extend the existing File offline store and use in a feature repo. While we will be implementing a specific store, this guide should be representative for adding support for any new offline store.
 
@@ -25,10 +25,10 @@ The OfflineStore class contains a couple of methods to read features from the of
 
 There are two methods that deal with reading data from the offline stores`get_historical_features`and `pull_latest_from_table_or_query`.
 
-* `pull_latest_from_table_or_query` is invoked when running materialization \(using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
-* `get_historical_features` is invoked when reading values from the offline store using the `FeatureStore.get_historica_features()` method. Typically, this method is used to retrieve features when training ML models.
+* `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
+* `get_historical_features `is invoked when reading values from the offline store using the `FeatureStore.get_historica_features()` method. Typically, this method is used to retrieve features when training ML models.
 
-{% code title="feast\_custom\_offline\_store/file.py" %}
+{% code title="feast_custom_offline_store/file.py" %}
 ```python
     def get_historical_features(self,
                                 config: RepoConfig,
@@ -72,9 +72,9 @@ There are two methods that deal with reading data from the offline stores`get_hi
 
 Additional configuration may be needed to allow the OfflineStore to talk to the backing store. For example, Redshift needs configuration information like the connection information for the Redshift instance, credentials for connecting to the database, etc.
 
-To facilitate configuration, all OfflineStore implementations are **required** to also define a corresponding OfflineStoreConfig class in the same file. This OfflineStoreConfig class should inherit from the `FeastConfigBaseModel` class, which is defined [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/repo_config.py#L44). 
+To facilitate configuration, all OfflineStore implementations are **required** to also define a corresponding OfflineStoreConfig class in the same file. This OfflineStoreConfig class should inherit from the `FeastConfigBaseModel` class, which is defined [here](../../sdk/python/feast/repo_config.py#L44). 
 
-The `FeastConfigBaseModel` is a [pydantic](https://pydantic-docs.helpmanual.io/) class, which parses yaml configuration into python objects. Pydantic also allows the model classes to define validators for the config classes, to make sure that the config classes are correctly defined.
+The `FeastConfigBaseModel` is a [pydantic](https://pydantic-docs.helpmanual.io) class, which parses yaml configuration into python objects. Pydantic also allows the model classes to define validators for the config classes, to make sure that the config classes are correctly defined.
 
 This config class **must** container a `type` field, which contains the fully qualified class name of its corresponding OfflineStore class. 
 
@@ -82,7 +82,7 @@ Additionally, the name of the config class must be the same as the OfflineStore 
 
 An example of the config class for the custom file offline store :
 
-{% code title="feast\_custom\_offline\_store/file.py" %}
+{% code title="feast_custom_offline_store/file.py" %}
 ```python
 class CustomFileOfflineStoreConfig(FeastConfigBaseModel):
     """ Custom offline store config for local (file-based) store """
@@ -95,7 +95,7 @@ class CustomFileOfflineStoreConfig(FeastConfigBaseModel):
 
 This configuration can be specified in the `feature_store.yaml` as follows:
 
-{% code title="feature\_repo/feature\_store.yaml" %}
+{% code title="feature_repo/feature_store.yaml" %}
 ```yaml
     type: feast_custom_offline_store.file.CustomFileOfflineStore
 
@@ -104,7 +104,7 @@ This configuration can be specified in the `feature_store.yaml` as follows:
 
 This configuration information is available to the methods of the OfflineStore, via the`config: RepoConfig` parameter which is passed into the methods of the OfflineStore interface, specifically at the `config.offline_store` field of the `config` parameter. 
 
-{% code title="feast\_custom\_offline\_store/file.py" %}
+{% code title="feast_custom_offline_store/file.py" %}
 ```python
     def get_historical_features(self,
                                 config: RepoConfig,
@@ -129,7 +129,7 @@ Custom offline stores may need to implement their own instances of the `Retrieva
 
 The `RetrievalJob` interface exposes two methods - `to_df` and `to_arrow`. The expectation is for the retrieval job to be able to return the rows read from the offline store as a parquet DataFrame, or as an Arrow table respectively.
 
-{% code title="feast\_custom\_offline\_store/file.py" %}
+{% code title="feast_custom_offline_store/file.py" %}
 ```python
 class CustomFileRetrievalJob(RetrievalJob):
     def __init__(self, evaluation_function: Callable):
@@ -161,7 +161,7 @@ As long as your OfflineStore class is available in your Python environment, it w
 
 To use our custom file offline store, we can use the following `feature_store.yaml`:
 
-{% code title="feature\_repo/feature\_store.yaml" %}
+{% code title="feature_repo/feature_store.yaml" %}
 ```yaml
 project: test_custom
 registry: data/registry.db
@@ -171,9 +171,9 @@ offline_store:
 ```
 {% endcode %}
 
-If additional configuration for the offline store is **not** required, then we can omit the other fields and only specify the `type` of the offline store class as the value for the `offline_store`.
+If additional configuration for the offline store is **not **required, then we can omit the other fields and only specify the `type` of the offline store class as the value for the `offline_store`.
 
-{% code title="feature\_repo/feature\_store.yaml" %}
+{% code title="feature_repo/feature_store.yaml" %}
 ```yaml
 project: test_custom
 registry: data/registry.db
@@ -181,4 +181,3 @@ provider: local
 offline_store: feast_custom_offline_store.file.CustomFileOfflineStore
 ```
 {% endcode %}
-

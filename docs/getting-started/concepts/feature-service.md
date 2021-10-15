@@ -3,7 +3,7 @@
 A feature service is an object that represents a logical group of features from one or more [feature views](feature-view.md#feature-view). Feature Services allows features from within a feature view to be used as needed by an ML model. Users can expect to create one feature service per model, allowing for tracking of the features used by models.
 
 {% tabs %}
-{% tab title="driver\_trips\_feature\_service.py" %}
+{% tab title="driver_trips_feature_service.py" %}
 ```python
 from driver_ratings_feature_view import driver_ratings_fv
 from driver_trips_feature_view import driver_stats_fv
@@ -46,4 +46,3 @@ feature_store = FeatureStore('.')  # Initialize the feature store
 feature_service = feature_store.get_feature_service("driver_activity")
 feature_store.get_historical_features(features=feature_service, entity_df=entity_df)
 ```
-

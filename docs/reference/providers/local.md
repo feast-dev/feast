@@ -7,11 +7,10 @@
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: data/registry.db
 provider: local
 ```
 {% endcode %}
-

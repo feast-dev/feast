@@ -11,7 +11,7 @@ The Redshift offline store provides support for reading [RedshiftSources](../dat
 
 ## Example
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
 registry: data/registry.db
@@ -33,89 +33,15 @@ Configuration options are available [here](https://github.com/feast-dev/feast/bl
 
 Feast requires the following permissions in order to execute commands for Redshift offline store:
 
-<table>
-  <thead>
-    <tr>
-      <th style="text-align:left"><b>Command</b>
-      </th>
-      <th style="text-align:left">Permissions</th>
-      <th style="text-align:left">Resources</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><b>Apply</b>
-      </td>
-      <td style="text-align:left">
-        <p>redshift-data:DescribeTable</p>
-        <p>redshift:GetClusterCredentials</p>
-      </td>
-      <td style="text-align:left">
-        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbuser:&lt;redshift_cluster_id&gt;/&lt;redshift_username&gt;</p>
-        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbname:&lt;redshift_cluster_id&gt;/&lt;redshift_database_name&gt;</p>
-        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Materialize</b>
-      </td>
-      <td style="text-align:left">redshift-data:ExecuteStatement</td>
-      <td style="text-align:left">arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Materialize</b>
-      </td>
-      <td style="text-align:left">redshift-data:DescribeStatement</td>
-      <td style="text-align:left">*</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Materialize</b>
-      </td>
-      <td style="text-align:left">
-        <p>s3:ListBucket</p>
-        <p>s3:GetObject</p>
-        <p>s3:DeleteObject</p>
-      </td>
-      <td style="text-align:left">
-        <p>arn:aws:s3:::&lt;bucket_name&gt;</p>
-        <p>arn:aws:s3:::&lt;bucket_name&gt;/*</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Get Historical Features</b>
-      </td>
-      <td style="text-align:left">
-        <p>redshift-data:ExecuteStatement</p>
-        <p>redshift:GetClusterCredentials</p>
-      </td>
-      <td style="text-align:left">
-        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbuser:&lt;redshift_cluster_id&gt;/&lt;redshift_username&gt;</p>
-        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:dbname:&lt;redshift_cluster_id&gt;/&lt;redshift_database_name&gt;</p>
-        <p>arn:aws:redshift:&lt;region&gt;:&lt;account_id&gt;:cluster:&lt;redshift_cluster_id&gt;</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Get Historical Features</b>
-      </td>
-      <td style="text-align:left">redshift-data:DescribeStatement</td>
-      <td style="text-align:left">*</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><b>Get Historical Features</b>
-      </td>
-      <td style="text-align:left">
-        <p>s3:ListBucket</p>
-        <p>s3:GetObject</p>
-        <p>s3:PutObject</p>
-        <p>s3:DeleteObject</p>
-      </td>
-      <td style="text-align:left">
-        <p>arn:aws:s3:::&lt;bucket_name&gt;</p>
-        <p>arn:aws:s3:::&lt;bucket_name&gt;/*</p>
-      </td>
-    </tr>
-  </tbody>
-</table>
+| **Command**                 | Permissions                                                                      | Resources                                                                                                                                                                                                                                                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Apply**                   | <p>redshift-data:DescribeTable</p><p>redshift:GetClusterCredentials</p>          | <p>arn:aws:redshift:&#x3C;region>:&#x3C;account_id>:dbuser:&#x3C;redshift_cluster_id>/&#x3C;redshift_username></p><p>arn:aws:redshift:&#x3C;region>:&#x3C;account_id>:dbname:&#x3C;redshift_cluster_id>/&#x3C;redshift_database_name></p><p>arn:aws:redshift:&#x3C;region>:&#x3C;account_id>:cluster:&#x3C;redshift_cluster_id></p> |
+| **Materialize**             | redshift-data:ExecuteStatement                                                   | arn:aws:redshift:\<region>:\<account_id>:cluster:\<redshift_cluster_id>                                                                                                                                                                                                                                                             |
+| **Materialize**             | redshift-data:DescribeStatement                                                  | \*                                                                                                                                                                                                                                                                                                                                  |
+| **Materialize**             | <p>s3:ListBucket</p><p>s3:GetObject</p><p>s3:DeleteObject</p>                    | <p>arn:aws:s3:::&#x3C;bucket_name></p><p>arn:aws:s3:::&#x3C;bucket_name>/*</p>                                                                                                                                                                                                                                                      |
+| **Get Historical Features** | <p>redshift-data:ExecuteStatement</p><p>redshift:GetClusterCredentials</p>       | <p>arn:aws:redshift:&#x3C;region>:&#x3C;account_id>:dbuser:&#x3C;redshift_cluster_id>/&#x3C;redshift_username></p><p>arn:aws:redshift:&#x3C;region>:&#x3C;account_id>:dbname:&#x3C;redshift_cluster_id>/&#x3C;redshift_database_name></p><p>arn:aws:redshift:&#x3C;region>:&#x3C;account_id>:cluster:&#x3C;redshift_cluster_id></p> |
+| **Get Historical Features** | redshift-data:DescribeStatement                                                  | \*                                                                                                                                                                                                                                                                                                                                  |
+| **Get Historical Features** | <p>s3:ListBucket</p><p>s3:GetObject</p><p>s3:PutObject</p><p>s3:DeleteObject</p> | <p>arn:aws:s3:::&#x3C;bucket_name></p><p>arn:aws:s3:::&#x3C;bucket_name>/*</p>                                                                                                                                                                                                                                                      |
 
 The following inline policy can be used to grant Feast the necessary permissions:
 
@@ -196,4 +122,3 @@ While the following trust relationship is necessary to make sure that Redshift, 
   ]
 }
 ```
-

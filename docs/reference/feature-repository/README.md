@@ -31,7 +31,7 @@ The structure of a feature repository is as follows:
 
 An example structure of a feature repository is shown below:
 
-```text
+```
 $ tree -a
 .
 ├── data
@@ -48,11 +48,11 @@ A couple of things to note about the feature repository:
 * Feast reads _all_ Python files recursively when `feast apply` is ran, including subdirectories, even if they don't contain feature definitions.
 * It's recommended to add `.feastignore` and add paths to all imperative scripts if you need to store them inside the feature registry.
 
-## The feature\_store.yaml configuration file
+## The feature_store.yaml configuration file
 
 The configuration for a feature store is stored in a file named `feature_store.yaml` , which must be located at the root of a feature repository. An example `feature_store.yaml` file is shown below:
 
-{% code title="feature\_store.yaml" %}
+{% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo_1
 registry: data/metadata.db
@@ -62,14 +62,14 @@ online_store:
 ```
 {% endcode %}
 
-The `feature_store.yaml` file configures how the feature store should run. See [feature\_store.yaml](feature-store-yaml.md) for more details.
+The `feature_store.yaml` file configures how the feature store should run. See [feature_store.yaml](feature-store-yaml.md) for more details.
 
 ## The .feastignore file
 
 This file contains paths that should be ignored when running `feast apply`. An example `.feastignore` is shown below:
 
 {% code title=".feastignore" %}
-```text
+```
 # Ignore virtual environment
 venv
 
@@ -90,7 +90,7 @@ See [.feastignore](feast-ignore.md) for more details.
 
 A feature repository can also contain one or more Python files that contain feature definitions. An example feature definition file is shown below:
 
-{% code title="driver\_features.py" %}
+{% code title="driver_features.py" %}
 ```python
 from datetime import timedelta
 
@@ -126,5 +126,4 @@ To declare new feature definitions, just add code to the feature repository, eit
 ### Next steps
 
 * See [Create a feature repository](../../how-to-guides/feast-gcp-aws/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature\_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md), or [Feature Views](../../getting-started/concepts/#feature-view) for more information on the configuration files that live in a feature registry.
-
+* See [feature_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md), or [Feature Views](../../getting-started/concepts/#feature-view) for more information on the configuration files that live in a feature registry.
