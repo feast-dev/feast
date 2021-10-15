@@ -2,13 +2,13 @@
 
 ## What is Feast?
 
-Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production. Feast is able to serve feature data to models from a low-latency online store \(for real-time prediction\) or from an offline store \(for scale-out batch scoring or model training\).
+Feast (**Fea**ture **St**ore) is an operational data system for managing and serving machine learning features to models in production. Feast is able to serve feature data to models from a low-latency online store (for real-time prediction) or from an offline store (for scale-out batch scoring or model training).
 
-![](.gitbook/assets/feast_hero_010.png)
+![](.gitbook/assets/feast-marchitecture-211014.png)
 
 ## Problems Feast Solves
 
-**Models need consistent access to data:** Machine Learning \(ML\) systems built on traditional data infrastructure are often coupled to databases, object stores, streams, and files. A result of this coupling, however, is that any change in data infrastructure may break dependent ML systems. Another challenge is that dual implementations of data retrieval for training and serving can lead to inconsistencies in data, which in turn can lead to training-serving skew.
+**Models need consistent access to data:** Machine Learning (ML) systems built on traditional data infrastructure are often coupled to databases, object stores, streams, and files. A result of this coupling, however, is that any change in data infrastructure may break dependent ML systems. Another challenge is that dual implementations of data retrieval for training and serving can lead to inconsistencies in data, which in turn can lead to training-serving skew.
 
 Feast decouples your models from your data infrastructure by providing a single data access layer that abstracts feature storage from feature retrieval. Feast also provides a consistent means of referencing feature data for retrieval, and therefore ensures that models remain portable when moving from training to serving.
 
@@ -34,9 +34,9 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 
 ## What Feast is not
 
-[**ETL**](https://en.wikipedia.org/wiki/Extract,_transform,_load) **or** [**ELT**](https://en.wikipedia.org/wiki/Extract,_load,_transform) **system:** Feast is not \(and does not plan to become\) a general purpose data transformation or pipelining system. Feast plans to include a light-weight feature engineering toolkit, but we encourage teams to integrate Feast with upstream ETL/ELT systems that are specialized in transformation.
+[**ETL**](https://en.wikipedia.org/wiki/Extract,\_transform,\_load) **or** [**ELT**](https://en.wikipedia.org/wiki/Extract,\_load,\_transform) **system:** Feast is not (and does not plan to become) a general purpose data transformation or pipelining system. Feast plans to include a light-weight feature engineering toolkit, but we encourage teams to integrate Feast with upstream ETL/ELT systems that are specialized in transformation.
 
-**Data warehouse:** Feast is not a replacement for your data warehouse or the source of truth for all transformed data in your organization. Rather, Feast is a light-weight downstream layer that can serve data from an existing data warehouse \(or other data sources\) to models in production.
+**Data warehouse:** Feast is not a replacement for your data warehouse or the source of truth for all transformed data in your organization. Rather, Feast is a light-weight downstream layer that can serve data from an existing data warehouse (or other data sources) to models in production.
 
 **Data catalog:** Feast is not a general purpose data catalog for your organization. Feast is purely focused on cataloging features for use in ML pipelines or systems, and only to the extent of facilitating the reuse of features.
 
@@ -55,4 +55,3 @@ Explore the following resources to get started with Feast:
 * [Running Feast with GCP/AWS](how-to-guides/feast-gcp-aws/) provides a more in-depth guide to using Feast.
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
 * [Contributing](project/contributing.md) contains resources for anyone who wants to contribute to Feast.
-
