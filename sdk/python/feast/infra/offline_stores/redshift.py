@@ -149,6 +149,7 @@ class RedshiftOfflineStore(OfflineStore):
                 query_context,
                 left_table_query_string=table_name,
                 entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+                entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
             )
@@ -174,11 +175,6 @@ class RedshiftOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
-            drop_columns=["entity_timestamp"]
-            + [
-                f"{feature_view.projection.name_to_use()}__entity_row_unique_id"
-                for feature_view in feature_views
-            ],
         )
 
 
@@ -191,7 +187,6 @@ class RedshiftRetrievalJob(RetrievalJob):
         config: RepoConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]],
-        drop_columns: Optional[List[str]] = None,
     ):
         """Initialize RedshiftRetrievalJob object.
 
@@ -202,8 +197,6 @@ class RedshiftRetrievalJob(RetrievalJob):
             config: Feast repo config
             full_feature_names: Whether to add the feature view prefixes to the feature names
             on_demand_feature_views: A list of on demand transforms to apply at retrieval time
-            drop_columns: Optionally a list of columns to drop before unloading to S3.
-                          This is a convenient field, since "SELECT ... EXCEPT col" isn't supported in Redshift.
         """
         if not isinstance(query, str):
             self._query_generator = query
@@ -225,7 +218,6 @@ class RedshiftRetrievalJob(RetrievalJob):
         )
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views
-        self._drop_columns = drop_columns
 
     @property
     def full_feature_names(self) -> bool:
@@ -246,7 +238,6 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._s3_path,
                 self._config.offline_store.iam_role,
                 query,
-                self._drop_columns,
             )
 
     def _to_arrow_internal(self) -> pa.Table:
@@ -260,7 +251,6 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._s3_path,
                 self._config.offline_store.iam_role,
                 query,
-                self._drop_columns,
             )
 
     def to_s3(self) -> str:
@@ -279,7 +269,6 @@ class RedshiftRetrievalJob(RetrievalJob):
                 self._s3_path,
                 self._config.offline_store.iam_role,
                 query,
-                self._drop_columns,
             )
             return self._s3_path
 
@@ -302,9 +291,6 @@ class RedshiftRetrievalJob(RetrievalJob):
 
         with self._query_generator() as query:
             query = f'CREATE TABLE "{table_name}" AS ({query});\n'
-            if self._drop_columns is not None:
-                for column in self._drop_columns:
-                    query += f"ALTER TABLE {table_name} DROP COLUMN {column};\n"
 
             aws_utils.execute_redshift_statement(
                 self._redshift_client,
@@ -479,19 +465,23 @@ WITH entity_dataframe AS (
 */
 {{ featureview.name }}__latest AS (
     SELECT
-        {{featureview.name}}__entity_row_unique_id,
-        MAX(event_timestamp) AS event_timestamp
+        event_timestamp,
+        {% if featureview.created_timestamp_column %}created_timestamp,{% endif %}
+        {{featureview.name}}__entity_row_unique_id
+    FROM
+    (
+        SELECT *,
+            ROW_NUMBER() OVER(
+                PARTITION BY {{featureview.name}}__entity_row_unique_id
+                ORDER BY event_timestamp DESC{% if featureview.created_timestamp_column %},created_timestamp DESC{% endif %}
+            ) AS row_number
+        FROM {{ featureview.name }}__base
         {% if featureview.created_timestamp_column %}
-            ,MAX(created_timestamp) AS created_timestamp
+            INNER JOIN {{ featureview.name }}__dedup
+            USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
         {% endif %}
-
-    FROM {{ featureview.name }}__base
-    {% if featureview.created_timestamp_column %}
-        INNER JOIN {{ featureview.name }}__dedup
-        USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
-    {% endif %}
-
-    GROUP BY {{featureview.name}}__entity_row_unique_id
+    )
+    WHERE row_number = 1
 ),
 
 /*
@@ -518,7 +508,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT *
+SELECT {{ final_output_feature_names | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
