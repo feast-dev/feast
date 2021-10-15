@@ -486,6 +486,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_historical_features_from_bigquery_sources_containing_backfills(environment):
     store = environment.feature_store
 
