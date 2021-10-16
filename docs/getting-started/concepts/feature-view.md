@@ -55,7 +55,11 @@ global_stats_fv = FeatureView(
 
 ## Entity aliasing
 
-"Entity aliases" can be specified to join `entity_df` columns that do not match the column names in the feature data table. Another use case involves entities that are a subclass of a more general entity. For example, "spammer" and "reporter" could be aliases of a "user" entity, and "origin" and "destination" could be aliases of a "location" entity as shown below. It is suggested that you dynamically specify the new FeatureView name using `.with_name` and `join_key_map` override using `.with_join_key_map` instead of register each new copy.
+"Entity aliases" can be specified to join `entity_dataframe` columns that do not match the column names in the source table of a FeatureView.
+
+This could be used if a user has no control over these column names or if there are multiple entities are a subclass of a more general entity. For example, "spammer" and "reporter" could be aliases of a "user" entity, and "origin" and "destination" could be aliases of a "location" entity as shown below. 
+
+It is suggested that you dynamically specify the new FeatureView name using `.with_name` and `join_key_map` override using `.with_join_key_map` instead of needing to register each new copy.
 
 {% tabs %}
 {% tab title="location_stats_feature_view.py" %}
