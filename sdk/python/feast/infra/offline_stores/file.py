@@ -116,7 +116,7 @@ class FileOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
-        if not isinstance(entity_df, pd.DataFrame):
+        if not isinstance(entity_df, pd.DataFrame) and not isinstance(entity_df, dd.DataFrame):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
             )
@@ -160,9 +160,14 @@ class FileOfflineStore(OfflineStore):
 
             # Convert event timestamp column to datetime and normalize time zone to UTC
             # This is necessary to avoid issues with pd.merge_asof
-            entity_df_with_features[entity_df_event_timestamp_col] = pd.to_datetime(
-                entity_df_with_features[entity_df_event_timestamp_col], utc=True
-            )
+            if isinstance(entity_df_with_features, dd.DataFrame):
+                entity_df_with_features[entity_df_event_timestamp_col] = dd.to_datetime(
+                    entity_df_with_features[entity_df_event_timestamp_col], utc=True
+                )
+            else:
+                entity_df_with_features[entity_df_event_timestamp_col] = pd.to_datetime(
+                    entity_df_with_features[entity_df_event_timestamp_col], utc=True
+                )
 
             # Sort event timestamp values
             entity_df_with_features = entity_df_with_features.sort_values(
@@ -319,8 +324,11 @@ class FileOfflineStore(OfflineStore):
                 # Do point in-time-join between entity_df and feature dataframe
 
                 if use_dask:
-                    entity_df_with_features = dd.from_pandas(entity_df_with_features, npartitions=1).sort_values(entity_df_event_timestamp_col)
+                    if not isinstance(entity_df_with_features, dd.DataFrame):
+                        entity_df_with_features = dd.from_pandas(entity_df_with_features, npartitions=1)
+
                     df_to_join = df_to_join.sort_values(event_timestamp_column)
+                    entity_df_with_features = entity_df_with_features.sort_values(entity_df_event_timestamp_col)
 
                 entity_df_with_features = merge_asof(
                     entity_df_with_features,
