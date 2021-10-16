@@ -152,6 +152,9 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             from feast.infra.local import LocalProvider
 
             return LocalProvider(config)
+        elif config.provider == "astra":
+            from feast.infra.astra import AstraProvider
+            return AstraProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
     else:

@@ -17,7 +17,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 
 
-class AstraConfig(FeastConfigBaseModel):
+class AstraDBOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Astra online store"""
 
     type: Literal["astra"] = "astra"
@@ -35,7 +35,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
     """
     _session = None
 
-    def _initialize_astra_session(self, config: AstraConfig):
+    def _initialize_astra_session(self, config: AstraDBOnlineStoreConfig):
         if self._session:
             return self._session
         cloud_config = {
@@ -169,8 +169,8 @@ class AstraDBOnlineStore(OnlineStore, ABC):
             self._session.execute(cql_create_table)
 
             # Now create Index
-            cql_index = _create_index_cql(key_space, table_name+"_ek", table_name, "entity_key")
-            self._session.execute(cql_index)
+            # cql_index = _create_index_cql(key_space, table_name+"_ek", table_name, "entity_key")
+            # self._session.execute(cql_index)
 
         for table in tables_to_delete:
             table_name = _table_id(project, table)
@@ -184,7 +184,7 @@ class AstraDBOnlineStore(OnlineStore, ABC):
         entities: Sequence[Entity],
     ):
         online_config = config.online_store
-        assert isinstance(online_config, AstraConfig)
+        assert isinstance(online_config, AstraDBOnlineStoreConfig)
         key_space = online_config.keyspace
         for table in tables:
             table_name = _table_id(config.project, table)

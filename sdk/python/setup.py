@@ -139,7 +139,7 @@ class BuildProtoCommand(Command):
     description = "Builds the proto files into python files."
 
     def initialize_options(self):
-        self.protoc = ["python", "-m", "grpc_tools.protoc"]  # find_executable("protoc")
+        self.protoc = ["python3", "-m", "grpc_tools.protoc"]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
         self.this_package = os.path.join(os.path.dirname(__file__) or os.getcwd(), 'feast/protos')
         self.sub_folders = ["core", "serving", "types", "storage"]

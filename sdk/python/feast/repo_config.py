@@ -157,6 +157,7 @@ class RepoConfig(FeastBaseModel):
 
     @root_validator(pre=True)
     def _validate_offline_store_config(cls, values):
+        return values
         # Set empty offline_store config if it isn't set explicitly
         if "offline_store" not in values:
             values["offline_store"] = dict()
@@ -167,11 +168,11 @@ class RepoConfig(FeastBaseModel):
 
         # Make sure that the provider configuration is set. We need it to set the defaults
         assert "provider" in values
-
+        print("values: ", values)
         # Set the default type
         if "type" not in values["offline_store"]:
             if values["provider"] == "local":
-                values["offline_store"]["type"] = "file"
+                    values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
