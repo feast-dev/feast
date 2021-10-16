@@ -275,15 +275,9 @@ class FileOfflineStore(OfflineStore):
                     feature_names.append(formatted_feature_name)
 
                     # Ensure that the source dataframe feature column includes the feature view name as a prefix
-                    if use_dask:
-                        df_to_join=df_to_join.rename(
-                            columns={feature: formatted_feature_name}
-                        )
-                    else:
-                        df_to_join.rename(
-                            columns={feature: formatted_feature_name}, inplace=True,
-                        )
-
+                    df_to_join=df_to_join.rename(
+                        columns={feature: formatted_feature_name}
+                    )
 
                 # Build a list of entity columns to join on (from the right table)
                 join_keys = []
@@ -306,10 +300,7 @@ class FileOfflineStore(OfflineStore):
                         created_timestamp_column
                     ]
 
-                if use_dask:
-                    df_to_join=df_to_join.sort_values(by=event_timestamp_column)
-                else:
-                    df_to_join.sort_values(by=right_entity_key_sort_columns, inplace=True)
+                df_to_join=df_to_join.sort_values(by=event_timestamp_column)
 
                 df_to_join.drop_duplicates(
                     right_entity_key_sort_columns,
@@ -395,21 +386,42 @@ class FileOfflineStore(OfflineStore):
         assert isinstance(data_source, FileSource)
 
         # Create lazy function that is only called from the RetrievalJob object
-        def evaluate_offline_job():
-            filesystem, path = FileSource.create_filesystem_and_path(
-                data_source.path, data_source.file_options.s3_endpoint_override
-            )
-            source_df = pd.read_parquet(path, filesystem=filesystem)
-            # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-            source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-                lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
-            )
-            if created_timestamp_column:
-                source_df[created_timestamp_column] = source_df[
-                    created_timestamp_column
-                ].apply(
+        def evaluate_offline_job(use_dask: bool = False):
+
+            if use_dask:
+                storage_options = {
+                    "client_kwargs": {
+                        "endpoint_url": data_source.file_options.s3_endpoint_override
+                    }
+                } if data_source.file_options.s3_endpoint_override else None
+
+                source_df = dd.read_parquet(path, storage_options=storage_options)
+
+                source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
+                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc), meta=(event_timestamp_column,'datetime64[ns, UTC]'
+                )
+                if created_timestamp_column:
+                    source_df[created_timestamp_column] = source_df[
+                        created_timestamp_column
+                    ].apply(
+                        lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc), meta=(event_timestamp_column,'datetime64[ns, UTC]'
+                    )
+
+            else:
+                filesystem, path = FileSource.create_filesystem_and_path(
+                    data_source.path, data_source.file_options.s3_endpoint_override
+                )
+                source_df = pd.read_parquet(path, filesystem=filesystem)
+                # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+                source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
                     lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
                 )
+                if created_timestamp_column:
+                    source_df[created_timestamp_column] = source_df[
+                        created_timestamp_column
+                    ].apply(
+                        lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+                    )
 
             source_columns = set(source_df.columns)
             if not set(join_key_columns).issubset(source_columns):
@@ -423,7 +435,8 @@ class FileOfflineStore(OfflineStore):
                 else [event_timestamp_column]
             )
 
-            source_df.sort_values(by=ts_columns, inplace=True)
+
+            source_df=source_df.sort_values(by=ts_columns)
 
             filtered_df = source_df[
                 (source_df[event_timestamp_column] >= start_date)

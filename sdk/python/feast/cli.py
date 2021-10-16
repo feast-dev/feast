@@ -420,12 +420,13 @@ def registry_dump_command(ctx: click.Context):
 @cli.command("materialize")
 @click.argument("start_ts")
 @click.argument("end_ts")
+@click.argument("use_dask")
 @click.option(
     "--views", "-v", help="Feature views to materialize", multiple=True,
 )
 @click.pass_context
 def materialize_command(
-    ctx: click.Context, start_ts: str, end_ts: str, views: List[str]
+    ctx: click.Context, start_ts: str, end_ts: str, views: List[str], use_dask: bool
 ):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
@@ -442,11 +443,13 @@ def materialize_command(
         feature_views=None if not views else views,
         start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
         end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
+        use_dask=use_dask,
     )
 
 
 @cli.command("materialize-incremental")
 @click.argument("end_ts")
+@click.argument("use_dask")
 @click.option(
     "--views", "-v", help="Feature views to incrementally materialize", multiple=True,
 )
@@ -466,6 +469,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     store.materialize_incremental(
         feature_views=None if not views else views,
         end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
+        use_dask=use_dask,
     )
 
 

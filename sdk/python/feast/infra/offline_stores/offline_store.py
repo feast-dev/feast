@@ -112,7 +112,6 @@ class RetrievalJob(ABC):
             )
         return features_df
 
-
     @abstractmethod
     def _to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
@@ -121,8 +120,7 @@ class RetrievalJob(ABC):
     @abstractmethod
     def _to_dask_df_internal(self) -> dd.DataFrame:
         """Return dataset as Dask DataFrame synchronously"""
-        pass
-
+        raise NotImplementedError("Dask is currently not supported for this provider")
 
     @abstractmethod
     def _to_arrow_internal(self) -> pyarrow.Table:
