@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import pandas
 import pyarrow
 from tqdm import tqdm
+import dask.dataframe as dd
 
 from feast import errors
 from feast.entity import Entity
@@ -311,6 +312,12 @@ def _run_field_mapping(
     table = table.rename_columns(mapped_cols)
     return table
 
+def _run_dask_field_mapping(
+    table: dd.DataFrame, field_mapping: Dict[str, str],
+):
+    if field_mapping:
+        # run field mapping in the forward direction
+        table.rename(field_mapping)
 
 def _coerce_datetime(ts):
     """
@@ -321,12 +328,10 @@ def _coerce_datetime(ts):
     same way. We convert it to normal datetime so that consumers downstream don't have to deal
     with these quirks.
     """
-
     if isinstance(ts, pandas.Timestamp):
         return ts.to_pydatetime()
     else:
         return ts
-
 
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
