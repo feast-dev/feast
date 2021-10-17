@@ -117,7 +117,6 @@ class RetrievalJob(ABC):
         """Return dataset as Pandas DataFrame synchronously"""
         pass
 
-    @abstractmethod
     def _to_dask_df_internal(self) -> dd.DataFrame:
         """Return dataset as Dask DataFrame synchronously"""
         raise NotImplementedError("Dask is currently not supported for this provider")
