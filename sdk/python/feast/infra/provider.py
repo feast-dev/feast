@@ -4,10 +4,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
+import dask.dataframe as dd
 import pandas
 import pyarrow
 from tqdm import tqdm
-import dask.dataframe as dd
 
 from feast import errors
 from feast.entity import Entity

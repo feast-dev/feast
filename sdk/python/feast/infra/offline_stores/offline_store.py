@@ -16,8 +16,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional, Union
 
-import pandas as pd
 import dask.dataframe as dd
+import pandas as pd
 import pyarrow
 
 from feast.data_source import DataSource

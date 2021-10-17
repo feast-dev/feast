@@ -914,7 +914,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def materialize_incremental(
-        self, end_date: datetime, feature_views: Optional[List[str]] = None, use_dask: bool = False
+        self,
+        end_date: datetime,
+        feature_views: Optional[List[str]] = None,
+        use_dask: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1011,7 +1014,7 @@ class FeatureStore:
         start_date: datetime,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
-        use_dask: bool = False
+        use_dask: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
