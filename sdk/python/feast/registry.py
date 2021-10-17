@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+from google.protobuf.timestamp_pb2 import Timestamp
 from proto import Message
 
 from feast import importer
@@ -314,6 +315,10 @@ class Registry:
         self._check_conflicting_feature_view_names(feature_view)
         existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
         if isinstance(feature_view, FeatureView):
+            if not feature_view_proto.meta.HasField("created_timestamp"):
+                feature_view_proto.meta.created_timestamp = Timestamp.FromDatetime(
+                    datetime.now()
+                )
             existing_feature_views_of_same_type = (
                 self.cached_registry_proto.feature_views
             )
