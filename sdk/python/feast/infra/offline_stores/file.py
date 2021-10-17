@@ -200,9 +200,15 @@ class FileOfflineStore(OfflineStore):
                         feature_view.batch_source.path, storage_options=storage_options
                     )
 
+                    # Rename columns by the field mapping dictionary if it exists
                     if feature_view.batch_source.field_mapping is not None:
                         _run_dask_field_mapping(
                             df_to_join, feature_view.batch_source.field_mapping
+                        )
+                    # Rename entity columns by the join_key_map dictionary if it exists
+                    if feature_view.projection.join_key_map:
+                        _run_dask_field_mapping(
+                            df_to_join, feature_view.projection.join_key_map
                         )
 
                     # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
@@ -234,6 +240,11 @@ class FileOfflineStore(OfflineStore):
 
                     table = pyarrow.parquet.read_table(path, filesystem=filesystem)
 
+                    # Rename columns by the field mapping dictionary if it exists
+                    if feature_view.batch_source.field_mapping is not None:
+                        table = _run_field_mapping(
+                            table, feature_view.batch_source.field_mapping
+                        )
                     # Rename entity columns by the join_key_map dictionary if it exists
                     if feature_view.projection.join_key_map:
                         table = _run_field_mapping(
