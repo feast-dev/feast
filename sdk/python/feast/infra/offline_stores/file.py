@@ -149,7 +149,7 @@ class FileOfflineStore(OfflineStore):
         )
 
         # Create lazy function that is only called from the RetrievalJob object
-        def evaluate_historical_retrieval(use_dask: bool = False):
+        def evaluate_historical_retrieval(use_dask=False):
 
             # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
             entity_df[entity_df_event_timestamp_col] = entity_df[
@@ -407,7 +407,7 @@ class FileOfflineStore(OfflineStore):
         assert isinstance(data_source, FileSource)
 
         # Create lazy function that is only called from the RetrievalJob object
-        def evaluate_offline_job(use_dask: bool = False):
+        def evaluate_offline_job(use_dask=False):
 
             if use_dask:
                 storage_options = (
