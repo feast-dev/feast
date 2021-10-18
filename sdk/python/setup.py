@@ -81,6 +81,10 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0",
 ]
 
+DASK_REQUIRED = [
+    "dask==2021.9.1",
+]
+
 AWS_REQUIRED = [
     "boto3>=1.17.0",
     "docker>=5.0.2",
@@ -243,6 +247,7 @@ setup(
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "ge": GE_REQUIRED,
+        "dask": DASK_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
