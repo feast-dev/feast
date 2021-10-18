@@ -119,8 +119,8 @@ class AstraDBOnlineStore(OnlineStore, ABC):
                 prepared_statement.bind([entity_key_bin])
                                  ).all()
         # Now find the result
+        res = {}
         for row in all_rows:
-            res = {}
             feature_name = row.feature_name
             value = row.value
             ts = row.event_ts
@@ -128,9 +128,11 @@ class AstraDBOnlineStore(OnlineStore, ABC):
             val.ParseFromString(value)
             res[feature_name] = val
             res_ts = ts
-            result.append((res_ts, res))
-        if not result:
+
+        if not res:
             result.append((None, None))
+        else:
+            result.append((res_ts, res))
         return result
 
     def update(
