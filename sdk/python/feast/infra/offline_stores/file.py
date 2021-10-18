@@ -354,16 +354,12 @@ class FileOfflineStore(OfflineStore):
                 )
 
                 # Remove right (feature table/view) event_timestamp column.
-                if event_timestamp_column != entity_df_event_timestamp_col:
-                    if use_dask:
-                        if event_timestamp_column in entity_df_with_features.columns:
-                            entity_df_with_features.drop(
-                                columns=[event_timestamp_column]
-                            )
-                    else:
-                        entity_df_with_features.drop(
-                            columns=[event_timestamp_column], inplace=True
-                        )
+                entity_df_with_features = (
+                    entity_df_with_features.drop(columns=[event_timestamp_column])
+                    if event_timestamp_column != entity_df_event_timestamp_col
+                    and event_timestamp_column in entity_df_with_features.columns
+                    else entity_df_with_features
+                )
 
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
