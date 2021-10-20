@@ -69,7 +69,7 @@ GCP_REQUIRED = [
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
-    "google-cloud-storage>=1.34.*",
+    "google-cloud-storage>=1.34.*,<1.41",
     "google-cloud-core==1.4.*",
 ]
 
@@ -115,7 +115,7 @@ CI_REQUIRED = [
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
-    "google-cloud-storage>=1.20.*",
+    "google-cloud-storage>=1.20.*,<1.41",
     "google-cloud-core==1.4.*",
     "redis-py-cluster==2.1.2",
     "boto3==1.17.*",
