@@ -307,6 +307,8 @@ class Registry:
             commit: Whether the change should be persisted immediately
         """
         feature_view.ensure_valid()
+        if not feature_view.created_timestamp:
+            feature_view.created_timestamp = datetime.now()
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
@@ -315,10 +317,6 @@ class Registry:
         self._check_conflicting_feature_view_names(feature_view)
         existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
         if isinstance(feature_view, FeatureView):
-            if not feature_view_proto.meta.HasField("created_timestamp"):
-                feature_view_proto.meta.created_timestamp = Timestamp.FromDatetime(
-                    datetime.now()
-                )
             existing_feature_views_of_same_type = (
                 self.cached_registry_proto.feature_views
             )

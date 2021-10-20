@@ -13,7 +13,8 @@
 # limitations under the License.
 import warnings
 from abc import ABC, abstractmethod
-from typing import List, Type
+from datetime import datetime
+from typing import List, Optional, Type
 
 from google.protobuf.json_format import MessageToJson
 from proto import Message
@@ -32,6 +33,7 @@ class BaseFeatureView(ABC):
         self._name = name
         self._features = features
         self._projection = FeatureViewProjection.from_definition(self)
+        self.created_timestamp: Optional[datetime] = None
 
     @property
     def name(self) -> str:

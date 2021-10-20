@@ -1,7 +1,8 @@
 import copy
+from datetime import datetime
 import functools
 from types import MethodType
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
@@ -71,6 +72,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.input_feature_views[input_ref] = odfv_input
 
         self.udf = udf
+        self.created_timestamp: Optional[datetime] = None
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
