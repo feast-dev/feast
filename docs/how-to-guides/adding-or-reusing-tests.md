@@ -150,7 +150,7 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 
 To:
 
-* Include a new offline store: 
+* Include a new offline store:&#x20;
   * extend `data_source_creator.py` for your offline store
   * in `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test)
   * Run the full test suite with `make test-python-integration`
@@ -161,10 +161,10 @@ To:
   * Run the full test suite with `make test-python-integration`
   * See more guidelines at [https://github.com/feast-dev/feast/issues/1892](https://github.com/feast-dev/feast/issues/1892)
 * Add a new test to an existing test file:
-  * Use the same function signatures as an existing test (e.g. have environment as an argument) to include the relevant test fixtures. 
+  * Use the same function signatures as an existing test (e.g. have environment as an argument) to include the relevant test fixtures.&#x20;
   * We prefer to expand what an individual test covers due to the cost of standing up offline / online stores
 * Using custom data in a new test:
-  * This is used in several places such as `test_universal_types.py` 
+  * This is used in several places such as `test_universal_types.py`&#x20;
 
 ```python
 @pytest.mark.integration
@@ -179,6 +179,4 @@ def your_test(environment: Environment):
     fs.apply([fv, entity])
 
     # ... run test
-
-    environment.data_source_creator.teardown()
 ```
