@@ -810,11 +810,18 @@ class FeatureStore:
             )
 
     @log_exceptions_and_usage
-    def ingest_df(
-        self,
-        feature_view_name: str,
-        df: pd.DataFrame,
+    def write_to_online_store(
+        self, feature_view_name: str, df: pd.DataFrame,
     ):
+        """
+        ingests data directly into the Online store
+        """
+        if not flags_helper.enable_direct_ingestion_to_online_store(self.config):
+            raise ExperimentalFeatureNotEnabled(
+                flags.FLAG_DIRECT_INGEST_TO_ONLINE_STORE
+            )
+
+        # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         feature_view = self._registry.get_feature_view(feature_view_name, self.project)
         entities = []
         for entity_name in feature_view.entities:

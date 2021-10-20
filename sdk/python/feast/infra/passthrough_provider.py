@@ -84,10 +84,7 @@ class PassthroughProvider(Provider):
         return result
 
     def ingest_df(
-        self,
-        feature_view: FeatureView,
-        entities: List[Entity],
-        df: pandas.DataFrame,
+        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
     ):
         table = pa.Table.from_pandas(df)
 
@@ -97,7 +94,9 @@ class PassthroughProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(self.repo_config, feature_view, rows_to_write, progress=None)
+        self.online_write_batch(
+            self.repo_config, feature_view, rows_to_write, progress=None
+        )
 
     def materialize_single_feature_view(
         self,

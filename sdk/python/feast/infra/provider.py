@@ -98,12 +98,8 @@ class Provider(abc.ABC):
         """
         ...
 
-    @abc.abstractmethod
     def ingest_df(
-        self,
-        feature_view: FeatureView,
-        entities: List[Entity],
-        df: pandas.DataFrame,
+        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
     ):
         """
         Ingests a DataFrame directly into the online store
