@@ -48,7 +48,7 @@ def feature_store_with_local_registry():
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
-            flags={"direct_ingest_to_online_store": True, "alpha_features": True}
+            flags={"direct_ingest_to_online_store": True, "alpha_features": True},
         )
     )
 
@@ -461,8 +461,7 @@ def test_write_to_online_store(test_feature_store, dataframe_source):
 
         # assert the right data is in the Online Store
         df = test_feature_store.get_online_features(
-            features=["feature_view_123:string_col"],
-            entity_rows=[{"id": 123}]
+            features=["feature_view_123:string_col"], entity_rows=[{"id": 123}]
         ).to_df()
         assert df["string_col"].iloc[0] == "hi_123"
 
