@@ -38,9 +38,8 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 
 # Python SDK
 
-# TODO(adchia): add back -e once pip version includes https://github.com/pypa/pip/issues/10573 fix
 install-python-ci-dependencies:
-	pip install "sdk/python[ci]"
+	pip install -e "sdk/python[ci]"
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos

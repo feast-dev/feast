@@ -14,6 +14,9 @@ jobs:
           python-version: "3.7"
           architecture: x64
       - name: Get pip cache dir
+        run: |
+          pip install --upgrade --force-reinstall "sdk/python[ci]"
+      - name: Get pip cache dir
         id: pip-cache
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
