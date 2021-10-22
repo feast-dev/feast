@@ -13,6 +13,9 @@ jobs:
         with:
           python-version: "3.7"
           architecture: x64
+      - name: Downgrade pip
+        run: |
+          pip install --upgrade "pip<21.3"
       - name: Get pip cache dir
         id: pip-cache
         run: |

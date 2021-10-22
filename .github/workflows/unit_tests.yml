@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Downgrade  pip
+      - name: Downgrade pip
         run: |
           pip install --upgrade "pip<21.3"
       - name: Get pip cache dir

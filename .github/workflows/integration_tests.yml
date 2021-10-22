@@ -50,6 +50,9 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
+      - name: Downgrade pip
+        run: |
+          pip install --upgrade "pip<21.3"
       - name: Get pip cache dir
         id: pip-cache
         run: |
