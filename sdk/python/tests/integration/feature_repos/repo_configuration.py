@@ -6,21 +6,21 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,
+)
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (
-    FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
@@ -35,33 +35,6 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_location_stats_feature_view,
     create_order_feature_view,
 )
-
-
-@dataclass(frozen=True)
-class IntegrationTestRepoConfig:
-    """
-    This class should hold all possible parameters that may need to be varied by individual tests.
-    """
-
-    provider: str = "local"
-    online_store: Union[str, Dict] = "sqlite"
-
-    offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
-
-    full_feature_names: bool = True
-    infer_features: bool = False
-
-    def __repr__(self) -> str:
-        return "-".join(
-            [
-                f"Provider: {self.provider}",
-                f"{self.offline_store_creator.__name__.split('.')[-1].rstrip('DataSourceCreator')}",
-                self.online_store
-                if isinstance(self.online_store, str)
-                else self.online_store["type"],
-            ]
-        )
-
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
