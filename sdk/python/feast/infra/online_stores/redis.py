@@ -72,9 +72,21 @@ class RedisOnlineStore(OnlineStore):
         partial: bool,
     ):
         """
-        There's currently no setup done for Redis.
+        We delete the keys in redis for tables/views being removed.
         """
-        pass
+        client = self._get_client(config.online_store)
+        deleted_count = 0
+        for table in tables_to_delete:
+            pipline = client.pipeline()
+            prefix = _redis_key_prefix(table.entities)
+
+            for _k in client.scan_iter(
+                    b"".join([prefix, b"*", config.project.encode("utf8")])
+            ):
+                pipline.delete(_k)
+                deleted_count += 1
+            pipline.execute()
+        logger.debug(f"Deleted {deleted_count} keys")
 
     def teardown(
         self,
@@ -83,7 +95,7 @@ class RedisOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         """
-        There's currently no teardown done for Redis.
+        We delete the keys in redis for tables/views being removed.
         """
 
         client = self._get_client(config.online_store)
