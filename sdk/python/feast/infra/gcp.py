@@ -4,6 +4,9 @@ from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
 
+from google.cloud import storage
+from google.cloud.exceptions import NotFound
+
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
@@ -34,9 +37,6 @@ class GCSRegistryStore(RegistryStore):
         self._blob = self._uri.path.lstrip("/")
 
     def get_registry_proto(self):
-        from google.cloud import storage
-        from google.cloud.exceptions import NotFound
-
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
         try:
