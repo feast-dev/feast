@@ -92,7 +92,9 @@ class RedisOnlineStore(OnlineStore):
             pipline = client.pipeline()
             prefix = _redis_key_prefix(table.entities)
 
-            for _k in client.scan_iter(b"".join([prefix, b"*"])):
+            for _k in client.scan_iter(
+                b"".join([prefix, b"*", config.project.encode("utf8")])
+            ):
                 pipline.delete(_k)
                 deleted_count += 1
             pipline.execute()
