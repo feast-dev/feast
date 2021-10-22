@@ -110,7 +110,7 @@ class FeatureTable:
         self._name = name
 
     @property
-    def entities(self):
+    def entities(self) -> List[str]:
         """
         Returns the entities of this feature table
         """
