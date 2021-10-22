@@ -34,6 +34,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Pin pip at 21.2.4
+        run: pip install "pip==21.2.4"
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
         with:
