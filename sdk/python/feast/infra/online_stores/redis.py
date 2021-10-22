@@ -24,9 +24,11 @@ from pydantic.typing import Literal
 from feast import Entity, FeatureTable, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.type_map import feast_value_type_to_python_type
 
 try:
     from redis import Redis
@@ -36,7 +38,6 @@ except ImportError as e:
 
     raise FeastExtrasDependencyImportError("redis", str(e))
 
-EX_SECONDS = 253402300799
 logger = logging.getLogger(__name__)
 
 
@@ -169,23 +170,65 @@ class RedisOnlineStore(OnlineStore):
         entity_hset = {}
         feature_view = table.name
 
-        ex = Timestamp()
-        ex.seconds = EX_SECONDS
-        ex_str = ex.SerializeToString()
         for entity_key, values, timestamp, created_ts in data:
             redis_key_bin = _redis_key(project, entity_key)
+            ts_key = f"_ts:{feature_view}"
+            event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
+
+            prev_event_time = client.hmget(redis_key_bin, ts_key)[0]
+
+            # ignore the record if it's event_timestamp is before the event features that
+            # are currently in the feature store
+            if prev_event_time:
+                prev_ts = Timestamp()
+                prev_ts.ParseFromString(prev_event_time)
+                if prev_ts.seconds and event_time_seconds <= prev_ts.seconds:
+                    continue
+
             ts = Timestamp()
-            ts.seconds = int(utils.make_tzaware(timestamp).timestamp())
-            entity_hset[f"_ts:{feature_view}"] = ts.SerializeToString()
-            entity_hset[f"_ex:{feature_view}"] = ex_str
+            ts.seconds = event_time_seconds
+            entity_hset[ts_key] = ts.SerializeToString()
 
             for feature_name, val in values.items():
                 f_key = _mmh3(f"{feature_view}:{feature_name}")
                 entity_hset[f_key] = val.SerializeToString()
 
             client.hset(redis_key_bin, mapping=entity_hset)
+
+            # TODO: expire really should be on an entity level since that's the key in Redis
+            # this works out for now since the minimum expire time for a set of features for entity will expire
+            # the entire entity feature set which makes sense to keep whole data together
+            if table.ttl:
+                client.expire(name=redis_key_bin, time=table.ttl)
             if progress:
                 progress(1)
+
+    def get_entity_rows(
+        self, config: RepoConfig, entities: List[Entity]
+    ) -> List[Dict[str, Any]]:
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = self._get_client(online_store_config)
+
+        project = config.project
+        # TODO: support getting keys for multiple entities
+        # also this is not a great access pattern for Redis and will be slow if there are lots of keys
+        keys = client.keys(pattern=f"*{project}*{entities[0].name}*")
+
+        entity_rows = []
+
+        for key in keys:
+            redis_key = RedisKeyProto()
+            redis_key.ParseFromString(key)
+
+            entity_row = {}
+            entity_row[redis_key.entity_names[0]] = feast_value_type_to_python_type(
+                redis_key.entity_values[0]
+            )
+
+            entity_rows.append(entity_row)
+        return entity_rows
 
     def online_read(
         self,
@@ -206,30 +249,44 @@ class RedisOnlineStore(OnlineStore):
         if not requested_features:
             requested_features = [f.name for f in table.features]
 
+        hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
+
+        ts_key = f"_ts:{feature_view}"
+        hset_keys.append(ts_key)
+        requested_features.append(ts_key)
+
+        keys = []
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
-            hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
-            ts_key = f"_ts:{feature_view}"
-            hset_keys.append(ts_key)
-            values = client.hmget(redis_key_bin, hset_keys)
-            requested_features.append(ts_key)
-            res_val = dict(zip(requested_features, values))
-
-            res_ts = Timestamp()
-            ts_val = res_val.pop(ts_key)
-            if ts_val:
-                res_ts.ParseFromString(ts_val)
-
-            res = {}
-            for feature_name, val_bin in res_val.items():
-                val = ValueProto()
-                if val_bin:
-                    val.ParseFromString(val_bin)
-                res[feature_name] = val
-
-            if not res:
-                result.append((None, None))
-            else:
-                timestamp = datetime.fromtimestamp(res_ts.seconds)
-                result.append((timestamp, res))
+            keys.append(redis_key_bin)
+        with client.pipeline() as pipe:
+            for redis_key_bin in keys:
+                pipe.hmget(redis_key_bin, hset_keys)
+            redis_values = pipe.execute()
+        for values in redis_values:
+            features = self._get_features_for_entity(
+                values, feature_view, requested_features
+            )
+            result.append(features)
         return result
+
+    def _get_features_for_entity(self, values, feature_view, requested_features):
+        res_val = dict(zip(requested_features, values))
+
+        res_ts = Timestamp()
+        ts_val = res_val.pop(f"_ts:{feature_view}")
+        if ts_val:
+            res_ts.ParseFromString(ts_val)
+
+        res = {}
+        for feature_name, val_bin in res_val.items():
+            val = ValueProto()
+            if val_bin:
+                val.ParseFromString(val_bin)
+            res[feature_name] = val
+
+        if not res:
+            return None, None
+        else:
+            timestamp = datetime.fromtimestamp(res_ts.seconds)
+            return timestamp, res
