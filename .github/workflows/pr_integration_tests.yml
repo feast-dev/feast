@@ -61,6 +61,9 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1"
       - name: Get pip cache dir
         id: pip-cache
         run: |

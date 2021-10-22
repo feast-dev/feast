@@ -22,7 +22,7 @@ class GCSRegistryStore(RegistryStore):
     def __init__(self, registry_config: RegistryConfig, repo_path: Path):
         uri = registry_config.path
         try:
-            from google.cloud import storage
+            import google.cloud.storage as storage
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
@@ -34,7 +34,7 @@ class GCSRegistryStore(RegistryStore):
         self._blob = self._uri.path.lstrip("/")
 
     def get_registry_proto(self):
-        from google.cloud import storage
+        import google.cloud.storage as storage
         from google.cloud.exceptions import NotFound
 
         file_obj = TemporaryFile()
