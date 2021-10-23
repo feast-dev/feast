@@ -107,7 +107,6 @@ if full_repo_configs_module is not None:
         FULL_REPO_CONFIGS = getattr(module, "FULL_REPO_CONFIGS")
     except Exception:
         FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
-        pass
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
