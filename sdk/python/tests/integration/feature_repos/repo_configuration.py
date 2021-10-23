@@ -79,8 +79,6 @@ if full_repo_configs_module is not None:
         module = importlib.import_module(full_repo_configs_module)
         FULL_REPO_CONFIGS = getattr(module, "FULL_REPO_CONFIGS")
     except Exception:
-        pass
-    finally:
         FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
