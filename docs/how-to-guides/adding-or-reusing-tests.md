@@ -10,7 +10,7 @@ This guide will go over:
 
 ## Test suite overview
 
-Let's inspect the test setup as is:
+Let's inspect the test setup in `sdk/python/tests/integration`:
 
 ```bash
 $ tree
@@ -55,7 +55,7 @@ $ tree
 8 directories, 27 files
 ```
 
-`feature_repos` has setup files for most tests in the test suite and sets up pytest fixtures for other tests. Crucially, this parametrizes on different offline stores, different online stores, etc and abstracts away store specific implementations so tests don't need to rewrite e.g. uploading dataframes to a specific store for setup.
+`feature_repos` has setup files for most tests in the test suite and pytest fixtures for other tests. These fixtures parametrize on different offline stores, online stores, etc. and thus abstract away store specific implementations so tests don't need to rewrite e.g. uploading dataframes to a specific store for setup.
 
 ## Understanding an example test
 
@@ -148,26 +148,34 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 
 ## Writing a new test or reusing existing tests
 
-To:
+To add a new test to an existing test file:
 
-* Include a new offline store:&#x20;
-  * extend `data_source_creator.py` for your offline store
-  * in `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test)
-  * Run the full test suite with `make test-python-integration`
-  * See more guidelines at [https://github.com/feast-dev/feast/issues/1892](https://github.com/feast-dev/feast/issues/1892)
-* Include a new online store:
-  * in `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
-  * in `repo_configuration.py`, add new`IntegrationTestRepoConfig` for offline stores you want to test
-  * Run the full test suite with `make test-python-integration`
-  * See more guidelines at [https://github.com/feast-dev/feast/issues/1892](https://github.com/feast-dev/feast/issues/1892)
-* Add a new test to an existing test file:
-  * Use the same function signatures as an existing test (e.g. have environment as an argument) to include the relevant test fixtures.&#x20;
-  * We prefer to expand what an individual test covers due to the cost of standing up offline / online stores
-* Using custom data in a new test:
-  * This is used in several places such as `test_universal_types.py`&#x20;
+* Use the same function signatures as an existing test (e.g. use `environment` as an argument) to include the relevant test fixtures.
+* If possible, expand an individual test instead of writing a new test, due to the cost of standing up offline / online stores.
+
+To test a new offline / online store from a plugin repo:
+
+* Install Feast in editable mode with `pip install -e`.
+* The core tests for offline / online store behavior are parametrized by the `FULL_REPO_CONFIGS` variable defined in `feature_repos/repo_configuration.py`. To overwrite this variable without modifying the Feast repo, create your own file that contains a `FULL_REPO_CONFIGS` (which will require adding a new `IntegrationTestRepoConfig` or two) and set the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. Then the core offline / online store tests can be run with `make test-python-universal`.
+* See the [custom offline store demo](https://github.com/feast-dev/feast-custom-offline-store-demo) and the [custom online store demo](https://github.com/feast-dev/feast-custom-online-store-demo) for examples.
+
+To include a new offline / online store in the main Feast repo:
+
+* Extend `data_source_creator.py` for your offline store.
+* In `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
+* Run the full test suite with `make test-python-integration.`
+
+To include a new online store:
+
+* In `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
+* In `repo_configuration.py`, add new`IntegrationTestRepoConfig` for offline stores you want to test.
+* Run the full test suite with `make test-python-integration`
+
+To use custom data in a new test:
+
+* Check `test_universal_types.py` for an example of how to do this.
 
 ```python
-
 @pytest.mark.integration
 def your_test(environment: Environment):
     df = #...#
