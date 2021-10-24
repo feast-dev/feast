@@ -19,6 +19,22 @@ def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:
         raise ValueError(f"Value type not supported for Firestore: {v}")
 
 
+def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
+    """
+    Serialize keys to a bytestring so it can be used to prefix-scan through items stored in the online store
+    using serialize_entity_key.
+
+    This encoding is a partial implementation of serialize_entity_key, only operating on the keys of entities,
+    and not the values.
+    """
+    sorted_keys = sorted(entity_keys)
+    output: List[bytes] = []
+    for k in sorted_keys:
+        output.append(struct.pack("<I", ValueType.STRING))
+        output.append(k.encode("utf8"))
+    return b"".join(output)
+
+
 def serialize_entity_key(entity_key: EntityKeyProto) -> bytes:
     """
     Serialize entity key to a bytestring so it can be used as a lookup key in a hash table.

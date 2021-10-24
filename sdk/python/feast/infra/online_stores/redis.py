@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import logging
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -21,7 +22,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureTable, FeatureView, RepoConfig, utils
-from feast.infra.online_stores.helpers import _mmh3, _redis_key
+from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -36,6 +37,7 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("redis", str(e))
 
 EX_SECONDS = 253402300799
+logger = logging.getLogger(__name__)
 
 
 class RedisType(str, Enum):
@@ -60,6 +62,23 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
+    def delete_table_values(
+        self, config: RepoConfig, table: Union[FeatureTable, FeatureView]
+    ):
+        client = self._get_client(config.online_store)
+        deleted_count = 0
+        pipeline = client.pipeline()
+        prefix = _redis_key_prefix(table.entities)
+
+        for _k in client.scan_iter(
+            b"".join([prefix, b"*", config.project.encode("utf8")])
+        ):
+            pipeline.delete(_k)
+            deleted_count += 1
+        pipeline.execute()
+
+        logger.debug(f"Deleted {deleted_count} keys for {table.name}")
+
     def update(
         self,
         config: RepoConfig,
@@ -70,9 +89,10 @@ class RedisOnlineStore(OnlineStore):
         partial: bool,
     ):
         """
-        There's currently no setup done for Redis.
+        We delete the keys in redis for tables/views being removed.
         """
-        pass
+        for table in tables_to_delete:
+            self.delete_table_values(config, table)
 
     def teardown(
         self,
@@ -81,9 +101,10 @@ class RedisOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         """
-        There's currently no teardown done for Redis.
+        We delete the keys in redis for tables/views being removed.
         """
-        pass
+        for table in tables:
+            self.delete_table_values(config, table)
 
     @staticmethod
     def _parse_connection_string(connection_string: str):
@@ -151,7 +172,6 @@ class RedisOnlineStore(OnlineStore):
         ex = Timestamp()
         ex.seconds = EX_SECONDS
         ex_str = ex.SerializeToString()
-
         for entity_key, values, timestamp, created_ts in data:
             redis_key_bin = _redis_key(project, entity_key)
             ts = Timestamp()
