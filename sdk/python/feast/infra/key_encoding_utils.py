@@ -26,10 +26,6 @@ def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
 
     This encoding is a partial implementation of serialize_entity_key, only operating on the keys of entities,
     and not the values.
-
-
-    :param entity_keys: Join keys representing the entities for a feature view.
-    :return: a bytestring.
     """
     sorted_keys = sorted(entity_keys)
     output: List[bytes] = []
