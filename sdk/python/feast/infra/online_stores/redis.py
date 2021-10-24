@@ -62,16 +62,16 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
-    def delete_table_values(self,
-                            config: RepoConfig,
-                            table: Union[FeatureTable, FeatureView]):
+    def delete_table_values(
+        self, config: RepoConfig, table: Union[FeatureTable, FeatureView]
+    ):
         client = self._get_client(config.online_store)
         deleted_count = 0
         pipeline = client.pipeline()
         prefix = _redis_key_prefix(table.entities)
 
         for _k in client.scan_iter(
-                b"".join([prefix, b"*", config.project.encode("utf8")])
+            b"".join([prefix, b"*", config.project.encode("utf8")])
         ):
             pipeline.delete(_k)
             deleted_count += 1

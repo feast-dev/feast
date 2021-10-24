@@ -20,6 +20,17 @@ def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:
 
 
 def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
+    """
+    Serialize keys to a bytestring so it can be used to prefix-scan through items stored in the online store
+    using serialize_entity_key.
+
+    This encoding is a partial implementation of serialize_entity_key, only operating on the keys of entities,
+    and not the values.
+
+
+    :param entity_keys: Join keys representing the entities for a feature view.
+    :return: a bytestring.
+    """
     sorted_keys = sorted(entity_keys)
     output: List[bytes] = []
     for k in sorted_keys:
