@@ -62,6 +62,23 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
+    def delete_table_values(self,
+                            config: RepoConfig,
+                            table: Union[FeatureTable, FeatureView]):
+        client = self._get_client(config.online_store)
+        deleted_count = 0
+        pipeline = client.pipeline()
+        prefix = _redis_key_prefix(table.entities)
+
+        for _k in client.scan_iter(
+                b"".join([prefix, b"*", config.project.encode("utf8")])
+        ):
+            pipeline.delete(_k)
+            deleted_count += 1
+        pipeline.execute()
+
+        logger.debug(f"Deleted {deleted_count} keys for {table.name}")
+
     def update(
         self,
         config: RepoConfig,
@@ -74,19 +91,8 @@ class RedisOnlineStore(OnlineStore):
         """
         We delete the keys in redis for tables/views being removed.
         """
-        client = self._get_client(config.online_store)
-        deleted_count = 0
         for table in tables_to_delete:
-            pipline = client.pipeline()
-            prefix = _redis_key_prefix(table.entities)
-
-            for _k in client.scan_iter(
-                b"".join([prefix, b"*", config.project.encode("utf8")])
-            ):
-                pipline.delete(_k)
-                deleted_count += 1
-            pipline.execute()
-        logger.debug(f"Deleted {deleted_count} keys")
+            self.delete_table_values(config, table)
 
     def teardown(
         self,
@@ -97,20 +103,8 @@ class RedisOnlineStore(OnlineStore):
         """
         We delete the keys in redis for tables/views being removed.
         """
-
-        client = self._get_client(config.online_store)
-        deleted_count = 0
         for table in tables:
-            pipline = client.pipeline()
-            prefix = _redis_key_prefix(table.entities)
-
-            for _k in client.scan_iter(
-                b"".join([prefix, b"*", config.project.encode("utf8")])
-            ):
-                pipline.delete(_k)
-                deleted_count += 1
-            pipline.execute()
-        logger.debug(f"Deleted {deleted_count} keys")
+            self.delete_table_values(config, table)
 
     @staticmethod
     def _parse_connection_string(connection_string: str):
