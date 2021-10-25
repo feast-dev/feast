@@ -20,7 +20,9 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-from tests.integration.feature_repos.universal.feature_views import create_driver_hourly_stats_feature_view
+from tests.integration.feature_repos.universal.feature_views import (
+    create_driver_hourly_stats_feature_view,
+)
 
 
 @pytest.mark.integration

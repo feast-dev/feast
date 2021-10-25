@@ -243,7 +243,7 @@ def construct_test_environment(
             offline_store=offline_store_config,
             online_store=online_store,
             repo_path=repo_dir_name,
-            flags={"direct_ingest_to_online_store": True, "alpha_features": True}
+            flags={"direct_ingest_to_online_store": True, "alpha_features": True},
         )
         fs = FeatureStore(config=config)
         # We need to initialize the registry, because if nothing is applied in the test before tearing down
