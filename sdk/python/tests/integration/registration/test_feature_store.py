@@ -15,7 +15,6 @@ import time
 from datetime import datetime, timedelta
 from tempfile import mkstemp
 
-import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
