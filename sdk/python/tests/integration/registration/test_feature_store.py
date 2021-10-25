@@ -48,7 +48,6 @@ def feature_store_with_local_registry():
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
-            flags={"direct_ingest_to_online_store": True, "alpha_features": True},
         )
     )
 
@@ -424,46 +423,6 @@ def test_apply_remote_repo():
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
         )
     )
-
-
-@pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
-)
-@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
-def test_write_to_online_store(test_feature_store, dataframe_source):
-    with prep_file_source(
-        df=dataframe_source, event_timestamp_column="ts_1"
-    ) as file_source:
-
-        e = Entity(name="id", value_type=ValueType.STRING)
-
-        # Create Feature View
-        fv1 = FeatureView(
-            name="feature_view_123",
-            features=[Feature(name="string_col", dtype=ValueType.STRING)],
-            entities=["id"],
-            batch_source=file_source,
-            ttl=timedelta(minutes=5),
-        )
-        # Register Feature View and Entity
-        test_feature_store.apply([fv1, e])
-
-        # fake data to ingest into Online Store
-        data = {
-            "id": [123],
-            "string_col": ["hi_123"],
-            "ts_1": [pd.Timestamp(datetime.utcnow()).round("ms")],
-        }
-        df_data = pd.DataFrame(data)
-
-        # directly ingest data into the Online Store
-        test_feature_store.write_to_online_store("feature_view_123", df_data)
-
-        # assert the right data is in the Online Store
-        df = test_feature_store.get_online_features(
-            features=["feature_view_123:string_col"], entity_rows=[{"id": 123}]
-        ).to_df()
-        assert df["string_col"].iloc[0] == "hi_123"
 
 
 @pytest.mark.parametrize(
