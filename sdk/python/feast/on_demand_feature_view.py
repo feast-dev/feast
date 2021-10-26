@@ -1,6 +1,6 @@
 import copy
-from datetime import datetime
 import functools
+from datetime import datetime
 from types import MethodType
 from typing import Dict, List, Optional, Type, Union
 
