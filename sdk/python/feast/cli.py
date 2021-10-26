@@ -23,6 +23,7 @@ import yaml
 from colorama import Fore, Style
 
 from feast import flags, flags_helper, utils
+from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
@@ -477,7 +478,11 @@ def serve_command(ctx: click.Context, port: int):
 
 @cli.command("serve_transformations")
 @click.option(
-    "--port", "-p", type=click.INT, default=6569, help="Specify a port for the server"
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    help="Specify a port for the server",
 )
 @click.pass_context
 def serve_transformations_command(ctx: click.Context, port: int):
