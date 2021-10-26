@@ -14,7 +14,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
 def get_online_store_from_config(online_store_config: Any,) -> OnlineStore:
-    """Get the offline store from offline store config"""
+    """Get the online store from online store config"""
 
     module_name = online_store_config.__module__
     qualified_name = type(online_store_config).__name__
