@@ -5,7 +5,10 @@ from typing import Any, List
 import mmh3
 
 from feast import errors
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.key_encoding_utils import (
+    serialize_entity_key,
+    serialize_entity_key_prefix,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
@@ -39,6 +42,10 @@ def get_online_store_from_config(online_store_config: Any,) -> OnlineStore:
 def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:
     key: List[bytes] = [serialize_entity_key(entity_key), project.encode("utf-8")]
     return b"".join(key)
+
+
+def _redis_key_prefix(entity_keys: List[str]) -> bytes:
+    return serialize_entity_key_prefix(entity_keys)
 
 
 def _mmh3(key: str):

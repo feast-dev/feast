@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
+import pyarrow as pa
 from tqdm import tqdm
 
 from feast.entity import Entity
@@ -81,6 +82,21 @@ class PassthroughProvider(Provider):
         result = self.online_store.online_read(config, table, entity_keys)
 
         return result
+
+    def ingest_df(
+        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
+    ):
+        table = pa.Table.from_pandas(df)
+
+        if feature_view.batch_source.field_mapping is not None:
+            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
+
+        join_keys = [entity.join_key for entity in entities]
+        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+
+        self.online_write_batch(
+            self.repo_config, feature_view, rows_to_write, progress=None
+        )
 
     def materialize_single_feature_view(
         self,
