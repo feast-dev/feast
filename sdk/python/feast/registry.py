@@ -18,7 +18,6 @@ from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
-from google.protobuf.timestamp_pb2 import Timestamp
 from proto import Message
 
 from feast import importer
