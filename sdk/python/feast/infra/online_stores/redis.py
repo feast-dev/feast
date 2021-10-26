@@ -24,11 +24,9 @@ from pydantic.typing import Literal
 from feast import Entity, FeatureTable, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.type_map import feast_value_type_to_python_type
 
 try:
     from redis import Redis
@@ -167,68 +165,51 @@ class RedisOnlineStore(OnlineStore):
         client = self._get_client(online_store_config)
         project = config.project
 
-        entity_hset = {}
         feature_view = table.name
+        ts_key = f"_ts:{feature_view}"
+        keys = []
+        # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
+        with client.pipeline() as pipe:
 
-        for entity_key, values, timestamp, created_ts in data:
-            redis_key_bin = _redis_key(project, entity_key)
-            ts_key = f"_ts:{feature_view}"
-            event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
+            # check if a previous record under the key exists and validate the event timestamp recency
+            for entity_key, _, _, _ in data:
+                redis_key_bin = _redis_key(project, entity_key)
+                keys.append(redis_key_bin)
+                pipe.hmget(redis_key_bin, ts_key)
+            prev_event_timestamps = pipe.execute()
+            prev_event_timestamps = [i[0] for i in prev_event_timestamps]
 
-            prev_event_time = client.hmget(redis_key_bin, ts_key)[0]
+            for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
+                keys, prev_event_timestamps, data
+            ):
+                event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
 
-            # ignore the record if it's event_timestamp is before the event features that
-            # are currently in the feature store
-            if prev_event_time:
-                prev_ts = Timestamp()
-                prev_ts.ParseFromString(prev_event_time)
-                if prev_ts.seconds and event_time_seconds <= prev_ts.seconds:
-                    continue
+                # ignore if event_timestamp is before the event features that are currently in the feature store
+                if prev_event_time:
+                    prev_ts = Timestamp()
+                    prev_ts.ParseFromString(prev_event_time)
+                    if prev_ts.seconds and event_time_seconds <= prev_ts.seconds:
+                        # TODO: somehow signal that it's not overwriting the current record?
+                        if progress:
+                            progress(1)
+                        continue
 
-            ts = Timestamp()
-            ts.seconds = event_time_seconds
-            entity_hset[ts_key] = ts.SerializeToString()
+                ts = Timestamp()
+                ts.seconds = event_time_seconds
+                entity_hset = dict()
+                entity_hset[ts_key] = ts.SerializeToString()
 
-            for feature_name, val in values.items():
-                f_key = _mmh3(f"{feature_view}:{feature_name}")
-                entity_hset[f_key] = val.SerializeToString()
+                for feature_name, val in values.items():
+                    f_key = _mmh3(f"{feature_view}:{feature_name}")
+                    entity_hset[f_key] = val.SerializeToString()
 
-            client.hset(redis_key_bin, mapping=entity_hset)
-
-            # TODO: expire really should be on an entity level since that's the key in Redis
-            # this works out for now since the minimum expire time for a set of features for entity will expire
-            # the entire entity feature set which makes sense to keep whole data together
-            if table.ttl:
-                client.expire(name=redis_key_bin, time=table.ttl)
-            if progress:
-                progress(1)
-
-    def get_entity_rows(
-        self, config: RepoConfig, entities: List[Entity]
-    ) -> List[Dict[str, Any]]:
-        online_store_config = config.online_store
-        assert isinstance(online_store_config, RedisOnlineStoreConfig)
-
-        client = self._get_client(online_store_config)
-
-        project = config.project
-        # TODO: support getting keys for multiple entities
-        # also this is not a great access pattern for Redis and will be slow if there are lots of keys
-        keys = client.keys(pattern=f"*{project}*{entities[0].name}*")
-
-        entity_rows = []
-
-        for key in keys:
-            redis_key = RedisKeyProto()
-            redis_key.ParseFromString(key)
-
-            entity_row = {}
-            entity_row[redis_key.entity_names[0]] = feast_value_type_to_python_type(
-                redis_key.entity_values[0]
-            )
-
-            entity_rows.append(entity_row)
-        return entity_rows
+                pipe.hset(redis_key_bin, mapping=entity_hset)
+                # TODO: support expiring the entity / features in Redis
+                # otherwise entity features remain in redis until cleaned up in separate process
+                # client.expire redis_key_bin based a ttl setting
+                if progress:
+                    progress(1)
+            pipe.execute()
 
     def online_read(
         self,
