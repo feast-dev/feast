@@ -249,21 +249,22 @@ class BigQueryRetrievalJob(RetrievalJob):
         Returns:
             Returns the destination table name or returns None if job_config.dry_run is True.
         """
+
+        if not job_config:
+            today = date.today().strftime("%Y%m%d")
+            rand_id = str(uuid.uuid4())[:7]
+            path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
+            job_config = bigquery.QueryJobConfig(destination=path)
+
+        if not job_config.dry_run and self.on_demand_feature_views:
+            job = self.client.load_table_from_dataframe(
+                self.to_df(), job_config.destination
+            )
+            job.result()
+            print(f"Done writing to '{job_config.destination}'.")
+            return str(job_config.destination)
+
         with self._query_generator() as query:
-            if not job_config:
-                today = date.today().strftime("%Y%m%d")
-                rand_id = str(uuid.uuid4())[:7]
-                path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
-                job_config = bigquery.QueryJobConfig(destination=path)
-
-            if not job_config.dry_run and self.on_demand_feature_views:
-                job = self.client.load_table_from_dataframe(
-                    self.to_df(), job_config.destination
-                )
-                job.result()
-                print(f"Done writing to '{job_config.destination}'.")
-                return str(job_config.destination)
-
             bq_job = self.client.query(query, job_config=job_config)
 
             if job_config.dry_run:
