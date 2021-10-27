@@ -16,7 +16,6 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional, Union
 
-import dask.dataframe as dd
 import pandas as pd
 import pyarrow
 

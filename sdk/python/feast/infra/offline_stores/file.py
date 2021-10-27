@@ -23,7 +23,6 @@ from feast.infra.offline_stores.offline_utils import (
 from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
     _run_dask_field_mapping,
-    _run_field_mapping,
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -330,7 +329,7 @@ class FileOfflineStore(OfflineStore):
                 [entity_df_event_timestamp_col] + current_cols
             ]
 
-            return entity_df_with_features
+            return entity_df_with_features.compute()
 
         job = FileRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
