@@ -127,7 +127,9 @@ Valid values for `provider` in `feature_store.yaml` are:
 * gcp: use BigQuery / Google Cloud Datastore
 * aws: use Redshift / DynamoDB
 
-A custom setup (e.g. using the built-in support for Redis) can be made by following Creating a custom provider
+A custom setup can be made by following Creating a custom provider.
+
+To specify Redis as the **online store**, define under type: redis and connection_string: "localhost:6379" for a single Redis instance. For more details on setting up Redis as the online store as well as on how to connect a Redis Cluster see [Redis](https://docs.feast.dev/reference/online-stores/redis).
 
 ## Step 3: Register feature definitions and deploy your feature store
 
