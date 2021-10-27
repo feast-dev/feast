@@ -100,26 +100,10 @@ class RetrievalJob(ABC):
 
         return features_df
 
-    def to_dask_df(self) -> dd.DataFrame:
-        """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
-        features_df = self._to_dask_df_internal()
-        if self.on_demand_feature_views is None:
-            return features_df
-
-        for odfv in self.on_demand_feature_views:
-            features_df = features_df.join(
-                odfv.get_transformed_features_df(self.full_feature_names, features_df)
-            )
-        return features_df
-
     @abstractmethod
     def _to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
         pass
-
-    def _to_dask_df_internal(self) -> dd.DataFrame:
-        """Return dataset as Dask DataFrame synchronously"""
-        raise NotImplementedError("Dask is currently not supported for this provider")
 
     @abstractmethod
     def _to_arrow_internal(self) -> pyarrow.Table:
