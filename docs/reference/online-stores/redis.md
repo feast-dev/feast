@@ -36,4 +36,4 @@ online_store:
 ```
 {% endcode %}
 
-Configuration options are available [here](https://rtd.feast.dev/en/master/#feast.repo_config.RedisOnlineStoreConfig).
+Configuration options are available [here](https://rtd.feast.dev/en/master/#module-feast.infra.online_stores.redis).
