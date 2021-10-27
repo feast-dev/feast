@@ -256,7 +256,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                 path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
                 job_config = bigquery.QueryJobConfig(destination=path)
 
-            if not job_config.dry_run and self.on_demand_feature_views:
+            if not job_config.dry_run and self._on_demand_feature_views:
                 job = self.client.load_table_from_dataframe(
                     self.to_df(), job_config.destination
                 )
