@@ -21,13 +21,14 @@ import pytest
 from _pytest.nodes import Item
 
 from tests.data.data_creator import create_dataset
+from tests.integration.feature_repos.integration_test_repo_config import IntegrationTestRepoConfig
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     Environment,
     construct_test_environment,
     construct_universal_data_sources,
     construct_universal_datasets,
-    construct_universal_entities,
+    construct_universal_entities, REDIS_CONFIG,
 )
 
 
@@ -135,6 +136,12 @@ def simple_dataset_2() -> pd.DataFrame:
 )
 def environment(request):
     with construct_test_environment(request.param) as e:
+        yield e
+
+
+@pytest.fixture()
+def local_redis_environment():
+    with construct_test_environment(IntegrationTestRepoConfig(online_store=REDIS_CONFIG)) as e:
         yield e
 
 

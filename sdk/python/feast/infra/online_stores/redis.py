@@ -170,13 +170,13 @@ class RedisOnlineStore(OnlineStore):
         keys = []
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline() as pipe:
-
-            # check if a previous record under the key exists and validate the event timestamp recency
+            # check if a previous record under the key bin exists
             for entity_key, _, _, _ in data:
                 redis_key_bin = _redis_key(project, entity_key)
                 keys.append(redis_key_bin)
                 pipe.hmget(redis_key_bin, ts_key)
             prev_event_timestamps = pipe.execute()
+            # flattening the list of lists. `hmget` does the lookup assuming a list of keys in the key bin
             prev_event_timestamps = [i[0] for i in prev_event_timestamps]
 
             for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
@@ -207,9 +207,9 @@ class RedisOnlineStore(OnlineStore):
                 # TODO: support expiring the entity / features in Redis
                 # otherwise entity features remain in redis until cleaned up in separate process
                 # client.expire redis_key_bin based a ttl setting
-                if progress:
-                    progress(1)
-            pipe.execute()
+            results = pipe.execute()
+            if progress:
+                progress(len(results))
 
     def online_read(
         self,
@@ -251,7 +251,12 @@ class RedisOnlineStore(OnlineStore):
             result.append(features)
         return result
 
-    def _get_features_for_entity(self, values, feature_view, requested_features):
+    def _get_features_for_entity(
+            self,
+            values: List[str],
+            feature_view: str,
+            requested_features: List[str],
+    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res_val = dict(zip(requested_features, values))
 
         res_ts = Timestamp()
