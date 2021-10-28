@@ -252,10 +252,7 @@ class RedisOnlineStore(OnlineStore):
         return result
 
     def _get_features_for_entity(
-            self,
-            values: List[str],
-            feature_view: str,
-            requested_features: List[str],
+        self, values: List[str], feature_view: str, requested_features: List[str],
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res_val = dict(zip(requested_features, values))
 

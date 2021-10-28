@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from feast import FeatureService, Entity, ValueType, FeatureView, Feature
+from feast import Entity, Feature, FeatureService, FeatureView, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
@@ -50,8 +50,12 @@ def test_write_to_online_store_event_check(local_redis_environment, dataframe_so
 
         # write same data points 3 with different timestamps
         now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
-        hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round("ms")
-        latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round("ms")
+        hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round(
+            "ms"
+        )
+        latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round(
+            "ms"
+        )
 
         #  data to ingest into Online Store (recent)
         data = {
@@ -65,8 +69,7 @@ def test_write_to_online_store_event_check(local_redis_environment, dataframe_so
         fs.write_to_online_store("feature_view_123", df_data)
 
         df = fs.get_online_features(
-            features=["feature_view_123:string_col"],
-            entity_rows=[{"id": 123}]
+            features=["feature_view_123:string_col"], entity_rows=[{"id": 123}]
         ).to_df()
         assert df["string_col"].iloc[0] == "hi_123"
 
@@ -84,7 +87,7 @@ def test_write_to_online_store_event_check(local_redis_environment, dataframe_so
 
         df = fs.get_online_features(
             features=["feature_view_123:string_col"],
-            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}]
+            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}],
         ).to_df()
         assert df["string_col"].iloc[0] == "hi_123"
         assert df["string_col"].iloc[1] == "hello_123"
@@ -102,7 +105,7 @@ def test_write_to_online_store_event_check(local_redis_environment, dataframe_so
 
         df = fs.get_online_features(
             features=["feature_view_123:string_col"],
-            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}]
+            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}],
         ).to_df()
         assert df["string_col"].iloc[0] == "LATEST_VALUE"
         assert df["string_col"].iloc[1] == "hello_123"
