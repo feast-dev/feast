@@ -15,7 +15,7 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, ByteString
 
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
@@ -252,7 +252,7 @@ class RedisOnlineStore(OnlineStore):
         return result
 
     def _get_features_for_entity(
-        self, values: List[str], feature_view: str, requested_features: List[str],
+        self, values: List[ByteString], feature_view: str, requested_features: List[str],
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res_val = dict(zip(requested_features, values))
 
