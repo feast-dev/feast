@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.14.1](https://github.com/feast-dev/feast/tree/v0.14.1) (2021-10-28)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.14.0...v0.14.1)
+
+**Fixed bugs:**
+
+- Fix duplicate upload entity [\#1981](https://github.com/feast-dev/feast/pull/1981) ([achals](https://github.com/achals))
+- Fix bug in feast alpha enable CLI command [\#1940](https://github.com/feast-dev/feast/pull/1940) ([felixwang9817](https://github.com/felixwang9817))
+- Fix conditional statements for if OnDemandFVs exist [\#1937](https://github.com/feast-dev/feast/pull/1937) ([codyjlin](https://github.com/codyjlin))
+- Fix \_\_getitem\_\_ return value for feature view and on-demand feature view [\#1936](https://github.com/feast-dev/feast/pull/1936) ([mavysavydav](https://github.com/mavysavydav))
+- Corrected setup.py BigQuery version that's needed for a contributor's merged PR 1844 [\#1934](https://github.com/feast-dev/feast/pull/1934) ([mavysavydav](https://github.com/mavysavydav))
+
+**Merged pull requests:**
+
+- Updating roadmap + hero image [\#1950](https://github.com/feast-dev/feast/pull/1950) ([adchia](https://github.com/adchia))
+- Simplify BigQuery load jobs [\#1935](https://github.com/feast-dev/feast/pull/1935) ([judahrand](https://github.com/judahrand))
+
 ## [v0.14.0](https://github.com/feast-dev/feast/tree/v0.14.0) (2021-10-08)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.13.0...v0.14.0)
