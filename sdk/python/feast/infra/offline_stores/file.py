@@ -20,6 +20,7 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 
 class FileOfflineStoreConfig(FeastConfigBaseModel):
@@ -64,6 +65,7 @@ class FileRetrievalJob(RetrievalJob):
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage(offline_store="file")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -264,6 +266,7 @@ class FileOfflineStore(OfflineStore):
         return job
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="file")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,

@@ -11,8 +11,8 @@ from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
 
-@pytest.mark.integration
-@pytest.mark.universal
+# @pytest.mark.integration
+# @pytest.mark.universal
 @pytest.mark.parametrize("infer_features", [True, False])
 def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     fs = environment.feature_store
@@ -78,7 +78,7 @@ def check_offline_and_online_features(
 def run_offline_online_store_consistency_test(
     fs: FeatureStore, fv: FeatureView
 ) -> None:
-    now = datetime.now()
+    now = datetime.utcnow()
 
     full_feature_names = True
     check_offline_store: bool = True

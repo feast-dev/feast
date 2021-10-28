@@ -26,6 +26,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -69,6 +70,7 @@ class DatastoreOnlineStore(OnlineStore):
 
     _client: Optional[datastore.Client] = None
 
+    @log_exceptions_and_usage(online_store="datastore")
     def update(
         self,
         config: RepoConfig,
@@ -140,6 +142,7 @@ class DatastoreOnlineStore(OnlineStore):
                 )
         return self._client
 
+    @log_exceptions_and_usage(online_store="datastore")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -220,6 +223,7 @@ class DatastoreOnlineStore(OnlineStore):
         if progress:
             progress(len(entities))
 
+    @log_exceptions_and_usage(online_store="datastore")
     def online_read(
         self,
         config: RepoConfig,

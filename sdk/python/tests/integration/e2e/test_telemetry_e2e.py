@@ -11,31 +11,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import tempfile
-import uuid
-from datetime import datetime
-
-from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from tenacity import retry, wait_exponential, stop_after_attempt
-
-from google.cloud import bigquery
 import os
-from time import sleep
+import sys
+import tempfile
+from importlib import reload
+from unittest.mock import patch
 
-from feast import Entity, ValueType, FeatureStore, RepoConfig
+import pytest
+
+from feast import Entity, RepoConfig, ValueType
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 
 
-USAGE_BIGQUERY_TABLE = (
-    "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
-)
+@pytest.fixture(scope="function")
+def dummy_exporter():
+    event_log = []
+
+    with patch("feast.usage._export", new=event_log.append):
+        yield event_log
 
 
-def test_usage_on():
+@pytest.mark.integration
+def test_usage_on(dummy_exporter):
     old_environ = dict(os.environ)
-    test_usage_id = str(uuid.uuid4())
-    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
-    os.environ["FEAST_IS_USAGE_TEST"] = "True"
     os.environ["FEAST_USAGE"] = "True"
+
+    _reload_feast()
+    from feast.feature_store import FeatureStore
 
     with tempfile.TemporaryDirectory() as temp_dir:
         test_feature_store = FeatureStore(
@@ -59,15 +61,19 @@ def test_usage_on():
 
         os.environ.clear()
         os.environ.update(old_environ)
-        ensure_bigquery_usage_id_with_retry(test_usage_id)
+        assert len(dummy_exporter) == 1
+        assert {
+            "entrypoint": "feast.feature_store.FeatureStore.apply"
+        }.items() <= dummy_exporter[0].items()
 
 
-def test_usage_off():
+@pytest.mark.integration
+def test_usage_off(dummy_exporter):
     old_environ = dict(os.environ)
-    test_usage_id = str(uuid.uuid4())
-    os.environ["FEAST_IS_USAGE_TEST"] = "True"
     os.environ["FEAST_USAGE"] = "False"
-    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
+
+    _reload_feast()
+    from feast.feature_store import FeatureStore
 
     with tempfile.TemporaryDirectory() as temp_dir:
         test_feature_store = FeatureStore(
@@ -90,68 +96,55 @@ def test_usage_off():
 
         os.environ.clear()
         os.environ.update(old_environ)
-        sleep(30)
-        rows = read_bigquery_usage_id(test_usage_id)
-        assert rows.total_rows == 0
+
+        assert not dummy_exporter
 
 
-def test_exception_usage_on():
+@pytest.mark.integration
+def test_exception_usage_on(dummy_exporter):
     old_environ = dict(os.environ)
-    test_usage_id = str(uuid.uuid4())
-    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
-    os.environ["FEAST_IS_USAGE_TEST"] = "True"
     os.environ["FEAST_USAGE"] = "True"
 
-    try:
-        test_feature_store = FeatureStore("/tmp/non_existent_directory")
-    except:
-        pass
+    _reload_feast()
+    from feast.feature_store import FeatureStore
+
+    with pytest.raises(OSError):
+        FeatureStore("/tmp/non_existent_directory")
 
     os.environ.clear()
     os.environ.update(old_environ)
-    ensure_bigquery_usage_id_with_retry(test_usage_id)
+
+    assert len(dummy_exporter) == 1
+    assert {
+        "entrypoint": "feast.feature_store.FeatureStore.__init__",
+        "exception": repr(FileNotFoundError(2, "No such file or directory")),
+    }.items() <= dummy_exporter[0].items()
 
 
-def test_exception_usage_off():
+@pytest.mark.integration
+def test_exception_usage_off(dummy_exporter):
     old_environ = dict(os.environ)
-    test_usage_id = str(uuid.uuid4())
-    os.environ["FEAST_IS_USAGE_TEST"] = "True"
     os.environ["FEAST_USAGE"] = "False"
-    os.environ["FEAST_FORCE_USAGE_UUID"] = test_usage_id
 
-    try:
-        test_feature_store = FeatureStore("/tmp/non_existent_directory")
-    except:
-        pass
+    _reload_feast()
+    from feast.feature_store import FeatureStore
+
+    with pytest.raises(OSError):
+        FeatureStore("/tmp/non_existent_directory")
 
     os.environ.clear()
     os.environ.update(old_environ)
-    sleep(30)
-    rows = read_bigquery_usage_id(test_usage_id)
-    assert rows.total_rows == 0
+
+    assert not dummy_exporter
 
 
-@retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(7))
-def ensure_bigquery_usage_id_with_retry(usage_id):
-    rows = read_bigquery_usage_id(usage_id)
-    if rows.total_rows == 0:
-        raise Exception(f"Could not find usage id: {usage_id}")
-
-
-def read_bigquery_usage_id(usage_id):
-    bq_client = bigquery.Client()
-    query = f"""
-                SELECT
-                  usage_id
-                FROM (
-                  SELECT
-                    JSON_EXTRACT(textPayload, '$.usage_id') AS usage_id
-                  FROM
-                    `{USAGE_BIGQUERY_TABLE}`
-                  WHERE
-                    timestamp >= TIMESTAMP(\"{datetime.utcnow().date().isoformat()}\"))
-                WHERE
-                  usage_id = '\"{usage_id}\"'
-            """
-    query_job = bq_client.query(query)
-    return query_job.result()
+def _reload_feast():
+    """ After changing environment need to reload modules and rerun usage decorators """
+    modules = (
+        "feast.infra.local",
+        "feast.infra.online_stores.sqlite",
+        "feast.feature_store",
+    )
+    for mod in modules:
+        if mod in sys.modules:
+            reload(sys.modules[mod])

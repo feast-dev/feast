@@ -13,17 +13,19 @@
 # limitations under the License.
 import concurrent.futures
 import contextvars
+import dataclasses
 import enum
 import logging
 import os
+import random
 import sys
+import typing
 import uuid
 from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 from os.path import expanduser, join
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
 
 import requests
 
@@ -34,214 +36,269 @@ USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-call_stack: contextvars.ContextVar = contextvars.ContextVar("call_stack", default=[])
 
 
-@enum.unique
-class UsageEvent(enum.Enum):
-    """
-    An event meant to be logged
-    """
+@dataclasses.dataclass
+class FnCall:
+    fn_name: str
 
-    UNKNOWN = 0
-    APPLY_WITH_ODFV = 1
-    GET_HISTORICAL_FEATURES_WITH_ODFV = 2
-    GET_ONLINE_FEATURES_WITH_ODFV = 3
-    GET_HISTORICAL_FEATURES_WITH_REQUEST_FV = 4
-    GET_ONLINE_FEATURES_WITH_REQUEST_FV = 5
-
-    def __str__(self):
-        return self.name.lower()
+    start: datetime
+    end: typing.Optional[datetime] = None
 
 
-class Usage:
-    def __init__(self):
-        self._usage_enabled: bool = False
-        self._is_test = os.getenv("FEAST_IS_USAGE_TEST", "False") == "True"
-        self._usage_counter = defaultdict(lambda: 0)
-        self.check_env_and_configure()
-
-    def check_env_and_configure(self):
-        usage_enabled = (
-            os.getenv(FEAST_USAGE, default="True") == "True"
-        )  # written this way to turn the env var string into a boolean
-
-        # Check if it changed
-        if usage_enabled != self._usage_enabled:
-            self._usage_enabled = usage_enabled
-
-            if self._usage_enabled:
-                try:
-                    feast_home_dir = join(expanduser("~"), ".feast")
-                    Path(feast_home_dir).mkdir(exist_ok=True)
-                    usage_filepath = join(feast_home_dir, "usage")
-
-                    if os.path.exists(usage_filepath):
-                        with open(usage_filepath, "r") as f:
-                            self._usage_id = f.read()
-                    else:
-                        self._usage_id = str(uuid.uuid4())
-
-                        with open(usage_filepath, "w") as f:
-                            f.write(self._usage_id)
-                        print(
-                            "Feast is an open source project that collects anonymized error reporting and usage statistics. To opt out or learn"
-                            " more see https://docs.feast.dev/reference/usage"
-                        )
-                except Exception as e:
-                    _logger.debug(f"Unable to configure usage {e}")
+class Sampler:
+    def should_record(self, event) -> bool:
+        raise NotImplementedError
 
     @property
-    def usage_id(self) -> Optional[str]:
-        if os.getenv("FEAST_FORCE_USAGE_UUID"):
-            return os.getenv("FEAST_FORCE_USAGE_UUID")
-        return self._usage_id
+    def priority(self):
+        return 0
 
-    def _send_usage_request(self, json):
-        try:
-            future = executor.submit(requests.post, USAGE_ENDPOINT, json=json)
-            if self._is_test:
-                concurrent.futures.wait([future])
-        except Exception as e:
-            if self._is_test:
-                raise e
-            else:
-                pass
 
-    def log_function(self, function_name: str):
-        self.check_env_and_configure()
-        if self._usage_enabled and self.usage_id:
-            if "get_online_features" in call_stack.get() and not self.should_log_for_get_online_features_event(
-                "get_online_features"
-            ):
-                return
-            json = {
-                "function_name": function_name,
-                "usage_id": self.usage_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "version": get_version(),
-                "os": sys.platform,
-                "is_test": self._is_test,
-            }
-            self._send_usage_request(json)
-
-    def increment_event_count(self, event_name: Union[UsageEvent, str]):
-        self._usage_counter[event_name] += 1
-
-    def should_log_for_get_online_features_event(self, event_name: str):
-        if self._usage_counter[event_name] % 10000 != 2:
-            return False
-        self._usage_counter[event_name] = 2  # avoid overflow
+class AlwaysSampler(Sampler):
+    def should_record(self, event) -> bool:
         return True
 
-    def log_event(self, event: UsageEvent):
-        self.check_env_and_configure()
-        if self._usage_enabled and self.usage_id:
-            event_name = str(event)
-            if (
-                event == UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV
-                and not self.should_log_for_get_online_features_event(event_name)
-            ):
-                return
-            json = {
-                "event_name": event_name,
-                "usage_id": self.usage_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "version": get_version(),
-                "os": sys.platform,
-                "is_test": self._is_test,
-            }
-            self._send_usage_request(json)
 
-    def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
-        self.check_env_and_configure()
-        if self._usage_enabled and self.usage_id:
-            json = {
-                "error_type": error_type,
-                "traceback": traceback,
-                "usage_id": self.usage_id,
-                "version": get_version(),
-                "os": sys.platform,
-                "is_test": self._is_test,
-            }
+class RatioSampler(Sampler):
+    MAX_COUNTER = (1 << 32) - 1
+
+    def __init__(self, ratio):
+        self.ratio = ratio
+        self.counter = 0
+
+    def should_record(self, event) -> bool:
+        self.counter += 1
+        if self.counter == self.MAX_COUNTER:
+            self.counter = 1
+
+        return self.counter < self.ratio * self.MAX_COUNTER
+
+    @property
+    def priority(self):
+        return int(1 / self.ratio)
+
+
+class TelemetryContext:
+    attributes: typing.Dict[str, typing.Any]
+
+    call_stack: typing.List[FnCall]
+    completed_calls: typing.List[FnCall]
+
+    exception: typing.Optional[Exception] = None
+    traceback: typing.Optional[typing.Tuple[str, int, str]] = None
+
+    sampler: Sampler = AlwaysSampler()
+
+    def __init__(self):
+        self.attributes = {}
+        self.call_stack = []
+        self.completed_calls = []
+
+
+_context = contextvars.ContextVar("telemetry_context", default=TelemetryContext())
+_session_id = str(uuid.uuid4())
+
+
+def _is_enabled():
+    return os.getenv(FEAST_USAGE, default="True") == "True"
+
+
+def _installation_id():
+    if os.getenv("FEAST_FORCE_USAGE_UUID"):
+        return os.getenv("FEAST_FORCE_USAGE_UUID")
+
+    feast_home_dir = join(expanduser("~"), ".feast")
+
+    try:
+        Path(feast_home_dir).mkdir(exist_ok=True)
+        usage_filepath = join(feast_home_dir, "usage")
+
+        if os.path.exists(usage_filepath):
+            with open(usage_filepath, "r") as f:
+                installation_id = f.read()
+        else:
+            installation_id = str(uuid.uuid4())
+
+            with open(usage_filepath, "w") as f:
+                f.write(installation_id)
+            print(
+                "Feast is an open source project that collects anonymized error reporting and usage statistics. To opt out or learn"
+                " more see https://docs.feast.dev/reference/usage"
+            )
+    except OSError as e:
+        _logger.debug(f"Unable to configure usage {e}")
+        return "undefined"
+
+    return installation_id
+
+
+def _export(event: typing.Dict[str, typing.Any]):
+    executor.submit(requests.post, USAGE_ENDPOINT, json=event)
+
+
+def _produce_event(ctx: TelemetryContext):
+    event = {
+        "installation_id": _installation_id(),
+        "session_id": _session_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": get_version(),
+        "python_version": _get_python_version(),
+        "os": sys.platform,
+        "is_test": bool({"pytest", "unittest"} & sys.modules.keys()),
+        "is_webserver": (
+            not bool({"pytest", "unittest"} & sys.modules.keys())
+            and bool({"uwsgi", "gunicorn", "fastapi"} & sys.modules.keys())
+        ),
+        "calls": [dataclasses.asdict(c) for c in reversed(ctx.completed_calls)],
+        "entrypoint": ctx.completed_calls[-1].fn_name,
+        "exception": repr(ctx.exception) if ctx.exception else None,
+        "traceback": ctx.traceback if ctx.exception else None,
+    }
+    event.update(ctx.attributes)
+
+    if ctx.sampler and not ctx.sampler.should_record(event):
+        return
+
+    _export(event)
+
+
+def log_exceptions_and_usage(*args, **attrs):
+    """
+        Example:
+            @log_exceptions_and_usage
+            def fn(...):
+                nested()
+
+            @log_exceptions_and_usage(attr='value')
+            def nested(...):
+                deeply_nested()
+
+            @log_exceptions_and_usage(attr2='value2', sample=RateSampler(rate=0.1))
+            def deeply_nested(...):
+                ...
+    """
+    sampler = attrs.pop("sampler", AlwaysSampler())
+
+    def decorator(func):
+        if not _is_enabled():
+            return func
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
             try:
-                requests.post(USAGE_ENDPOINT, json=json)
-            except Exception as e:
-                if self._is_test:
-                    raise e
+                ctx = _context.get()
+                ctx.call_stack.append(
+                    FnCall(fn_name=_fn_fullname(func), start=datetime.now())
+                )
+                ctx.attributes.update(attrs)
+                _context.set(ctx)
+
+                return func(*args, **kwargs)
+            except Exception:
+                _, exc, traceback = sys.exc_info()
+
+                ctx = _context.get()
+                if not ctx.exception:
+                    ctx.exception = exc
+                    ctx.traceback = _trace_to_log(traceback)
+                    _context.set(ctx)
+
+                if traceback:
+                    raise exc.with_traceback(traceback)
+
+                raise exc
+            finally:
+                ctx = _context.get()
+                last_call = ctx.call_stack.pop(-1)
+                last_call.end = datetime.now()
+                ctx.completed_calls.append(last_call)
+                ctx.sampler = (
+                    sampler if sampler.priority > ctx.sampler.priority else ctx.sampler
+                )
+
+                if not ctx.call_stack:
+                    # we reached the root of our context
+                    _context.set(TelemetryContext())  # reset
+                    _produce_event(ctx)
                 else:
-                    pass
-            return
+                    _context.set(ctx)
+
+        return wrapper
+
+    if args:
+        return decorator(args[0])
+
+    return decorator
 
 
-def log_exceptions(func):
-    @wraps(func)
-    def exception_logging_wrapper(*args, **kwargs):
-        try:
-            call_stack.set(call_stack.get() + [func.__name__])
-            result = func(*args, **kwargs)
-        except Exception as e:
-            error_type = type(e).__name__
-            trace_to_log = []
-            tb = e.__traceback__
-            while tb is not None:
-                trace_to_log.append(
-                    (
-                        _trim_filename(tb.tb_frame.f_code.co_filename),
-                        tb.tb_lineno,
-                        tb.tb_frame.f_code.co_name,
-                    )
-                )
-                tb = tb.tb_next
-            usage.log_exception(error_type, trace_to_log)
-            raise
-        finally:
-            if len(call_stack.get()) > 0:
-                call_stack.set(call_stack.get()[:-1])
-        return result
+def log_exceptions(*args, **attrs):
+    def decorator(func):
+        if not _is_enabled():
+            return func
 
-    return exception_logging_wrapper
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if _context.get().call_stack:
+                # we're already inside telemetry context
+                # let it handle exception
+                return func(*args, **kwargs)
 
+            fn_call = FnCall(fn_name=_fn_fullname(func), start=datetime.now())
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                _, exc, traceback = sys.exc_info()
 
-def log_exceptions_and_usage(func):
-    @wraps(func)
-    def exception_logging_wrapper(*args, **kwargs):
-        try:
-            call_stack.set(call_stack.get() + [func.__name__])
-            usage.increment_event_count(func.__name__)
-            result = func(*args, **kwargs)
-            usage.log_function(func.__name__)
-        except Exception as e:
-            error_type = type(e).__name__
-            trace_to_log = []
-            tb = e.__traceback__
-            while tb is not None:
-                trace_to_log.append(
-                    (
-                        _trim_filename(tb.tb_frame.f_code.co_filename),
-                        tb.tb_lineno,
-                        tb.tb_frame.f_code.co_name,
-                    )
-                )
-                tb = tb.tb_next
-            usage.log_exception(error_type, trace_to_log)
-            raise
-        finally:
-            if len(call_stack.get()) > 0:
-                call_stack.set(call_stack.get()[:-1])
-        return result
+                fn_call.end = datetime.now()
 
-    return exception_logging_wrapper
+                ctx = TelemetryContext()
+                ctx.exception = exc
+                ctx.traceback = _trace_to_log(traceback)
+                ctx.attributes = attrs
+                ctx.completed_calls.append(fn_call)
+                _produce_event(ctx)
+
+                if traceback:
+                    raise exc.with_traceback(traceback)
+
+                raise exc
+
+        return wrapper
+
+    if args:
+        return decorator(args[0])
+
+    return decorator
 
 
-def log_event(event: UsageEvent):
-    usage.increment_event_count(event)
-    usage.log_event(event)
+def set_usage_attribute(name, value):
+    ctx = _context.get()
+    ctx.attributes[name] = value
 
 
 def _trim_filename(filename: str) -> str:
     return filename.split("/")[-1]
 
 
-# Single global usage object
-usage = Usage()
+def _fn_fullname(fn: typing.Callable):
+    return fn.__module__ + "." + fn.__qualname__
+
+
+def _trace_to_log(traceback):
+    log = []
+    while traceback is not None:
+        log.append(
+            (
+                _trim_filename(traceback.tb_frame.f_code.co_filename),
+                traceback.tb_lineno,
+                traceback.tb_frame.f_code.co_name,
+            )
+        )
+        traceback = traceback.tb_next
+
+    return log
+
+
+def _get_python_version():
+    return ".".join(map(str, sys.version_info))
