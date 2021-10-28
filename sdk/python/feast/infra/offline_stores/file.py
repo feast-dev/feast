@@ -178,7 +178,7 @@ class FileOfflineStore(OfflineStore):
             for feature_view, features in feature_views_to_features.items():
 
                 entity_name = feature_view.entities[0]
-                entity_df_with_features.set_index(entity_name)
+                entity_df_with_features = entity_df_with_features.set_index(entity_name)
 
                 event_timestamp_column = (
                     feature_view.batch_source.event_timestamp_column
@@ -205,7 +205,11 @@ class FileOfflineStore(OfflineStore):
 
                 # Get only data with requested entities
                 df_to_join = dd.merge(
-                    df_to_join, entity_df_with_features[[entity_name]]
+                    df_to_join,
+                    entity_df_with_features,
+                    left_index=True,
+                    right_index=True,
+                    suffixes=("", "__"),
                 )
                 df_to_join = df_to_join.persist()
 
@@ -278,10 +282,9 @@ class FileOfflineStore(OfflineStore):
                         created_timestamp_column
                     ]
 
-                df_to_join = df_to_join.sort_values(by=event_timestamp_column)
-                df_to_join = df_to_join.persist()
-
-                df_to_join = df_to_join.drop_duplicates(
+                # df_to_join = df_to_join.sort_values(by=event_timestamp_column)
+                # df_to_join = df_to_join.persist()
+                df_to_join = df_to_join.reset_index().drop_duplicates(
                     right_entity_key_sort_columns, keep="last", ignore_index=True,
                 )
                 df_to_join = df_to_join.persist()
@@ -297,8 +300,8 @@ class FileOfflineStore(OfflineStore):
                         entity_df_with_features, npartitions=1
                     )
 
-                # df_to_join = df_to_join.sort_values(event_timestamp_column)
-                entity_df_with_features = entity_df_with_features.sort_values(
+                df_to_join = df_to_join.sort_values(event_timestamp_column)
+                entity_df_with_features = entity_df_with_features.reset_index().sort_values(
                     entity_df_event_timestamp_col
                 )
 
