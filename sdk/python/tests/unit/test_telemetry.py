@@ -5,16 +5,6 @@ import pytest
 from feast.usage import log_exceptions_and_usage, set_usage_attribute
 
 
-@log_exceptions_and_usage(provider="provider-two")
-def provider_two():
-    raise ValueError(1)
-
-
-@log_exceptions_and_usage(provider="provider-three")
-def provider_three():
-    set_usage_attribute("new-attr", "new-val")
-
-
 @pytest.fixture(scope="function")
 def dummy_exporter():
     event_log = []
@@ -56,18 +46,20 @@ def test_global_context_building(dummy_exporter):
     root_fn(provider="one")
     root_fn(provider="two")
 
+    module_name = "test_telemetry.test_global_context_building.<locals>"
+
     assert dummy_exporter
     assert {
         "event": "test-event",
         "provider": "provider-one",
         "store": "redis",
         "attr": "val",
-        "entrypoint": "test_telemetry.root_fn",
+        "entrypoint": f"{module_name}.root_fn",
     }.items() <= dummy_exporter[0].items()
-    assert dummy_exporter[0]["calls"][0]["fn_name"] == "test_telemetry.root_fn"
-    assert dummy_exporter[0]["calls"][1]["fn_name"] == "test_telemetry.provider_one"
-    assert dummy_exporter[0]["calls"][2]["fn_name"] == "test_telemetry.dummy_layer"
-    assert dummy_exporter[0]["calls"][3]["fn_name"] == "test_telemetry.redis_store"
+    assert dummy_exporter[0]["calls"][0]["fn_name"] == f"{module_name}.root_fn"
+    assert dummy_exporter[0]["calls"][1]["fn_name"] == f"{module_name}.provider_one"
+    assert dummy_exporter[0]["calls"][2]["fn_name"] == f"{module_name}.dummy_layer"
+    assert dummy_exporter[0]["calls"][3]["fn_name"] == f"{module_name}.redis_store"
 
     assert (
         not {"store", "attr"} & dummy_exporter[1].keys()
@@ -96,5 +88,5 @@ def test_exception_logging(dummy_exporter):
         "event": "test-event",
         "provider": "provider-one",
         "exception": repr(ValueError(1)),
-        "entrypoint": "test_telemetry.root_fn",
+        "entrypoint": "test_telemetry.test_exception_logging.<locals>.root_fn",
     }.items() <= dummy_exporter[0].items()
