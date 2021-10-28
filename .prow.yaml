@@ -64,26 +64,6 @@ presubmits:
   branches:
   - ^v0\.(3|4)-branch$
 
-- name: test-usage
-  decorate: true
-  run_if_changed: "sdk/python/.*"
-  spec:
-    containers:
-    - image: python:3.7
-      command: ["infra/scripts/test-usage.sh"]
-      env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/gcloud/service-account.json
-      volumeMounts:
-        - mountPath: /etc/gcloud/service-account.json
-          name: service-account
-          readOnly: true
-          subPath: service-account.json
-    volumes:
-      - name: service-account
-        secret:
-          secretName: feast-service-account
-
 - name: test-golang-sdk
   decorate: true
   spec:
