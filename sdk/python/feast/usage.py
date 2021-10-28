@@ -14,14 +14,11 @@
 import concurrent.futures
 import contextvars
 import dataclasses
-import enum
 import logging
 import os
-import random
 import sys
 import typing
 import uuid
-from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 from os.path import expanduser, join
@@ -247,7 +244,7 @@ def log_exceptions(*args, **attrs):
             fn_call = FnCall(fn_name=_fn_fullname(func), start=datetime.now())
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
+            except Exception:
                 _, exc, traceback = sys.exc_info()
 
                 fn_call.end = datetime.now()
