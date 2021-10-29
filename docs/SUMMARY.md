@@ -23,6 +23,7 @@
   * [Offline store](getting-started/architecture-and-components/offline-store.md)
   * [Online store](getting-started/architecture-and-components/online-store.md)
   * [Provider](getting-started/architecture-and-components/provider.md)
+* [Third party integrations](getting-started/third-party-integrations.md)
 * [FAQ](getting-started/faq.md)
 
 ## Tutorials
@@ -42,7 +43,7 @@
   * [Load data into the online store](how-to-guides/feast-gcp-aws/load-data-into-the-online-store.md)
   * [Read features from the online store](how-to-guides/feast-gcp-aws/read-features-from-the-online-store.md)
 * [Running Feast in production](how-to-guides/running-feast-in-production.md)
-* [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
+* [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr\_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
 * [Adding a custom provider](how-to-guides/creating-a-custom-provider.md)
 * [Adding a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
 * [Adding a new offline store](how-to-guides/adding-a-new-offline-store.md)
@@ -74,7 +75,7 @@
 * [\[Alpha\] Local feature server](reference/feature-server.md)
 * [\[Alpha\] AWS Lambda feature server](reference/alpha-aws-lambda-feature-server.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
-* [Python API reference](http://rtd.feast.dev/)
+* [Python API reference](http://rtd.feast.dev)
 * [Usage](reference/usage.md)
 
 ## Project
@@ -84,4 +85,3 @@
 * [Versioning policy](project/versioning-policy.md)
 * [Release process](project/release-process.md)
 * [Feast 0.9 vs Feast 0.10+](project/feast-0.9-vs-feast-0.10+.md)
-
