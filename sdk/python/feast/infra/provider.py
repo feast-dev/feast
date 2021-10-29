@@ -304,27 +304,28 @@ def _convert_arrow_to_proto(
         else:
             return ts
 
+    column_names_idx = {k: i for i, k in enumerate(table.column_names)}
     for row in zip(*table.to_pydict().values()):
         entity_key = EntityKeyProto()
         for join_key in join_keys:
             entity_key.join_keys.append(join_key)
-            idx = table.column_names.index(join_key)
+            idx = column_names_idx[join_key]
             value = python_value_to_proto_value(row[idx])
             entity_key.entity_values.append(value)
         feature_dict = {}
         for feature in feature_view.features:
-            idx = table.column_names.index(feature.name)
+            idx = column_names_idx[feature.name]
             value = python_value_to_proto_value(row[idx], feature.dtype)
             feature_dict[feature.name] = value
-        event_timestamp_idx = table.column_names.index(
+        event_timestamp_idx = column_names_idx[
             feature_view.batch_source.event_timestamp_column
-        )
+        ]
         event_timestamp = _coerce_datetime(row[event_timestamp_idx])
 
         if feature_view.batch_source.created_timestamp_column:
-            created_timestamp_idx = table.column_names.index(
+            created_timestamp_idx = column_names_idx[
                 feature_view.batch_source.created_timestamp_column
-            )
+            ]
             created_timestamp = _coerce_datetime(row[created_timestamp_idx])
         else:
             created_timestamp = None
