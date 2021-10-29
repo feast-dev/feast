@@ -206,7 +206,7 @@ class FileOfflineStore(OfflineStore):
                 # Get only data with requested entities
                 df_to_join = dd.merge(
                     df_to_join,
-                    entity_df_with_features,
+                    entity_df_with_features.drop(entity_df_event_timestamp_col, axis=1),
                     left_index=True,
                     right_index=True,
                     suffixes=("", "__"),
