@@ -15,6 +15,7 @@ The process for using a custom offline store consists of 4 steps:
 3. Defining a `RetrievalJob` class for this offline store.
 4. Defining a `DataSource` class for the offline store
 5. Referencing the `OfflineStore` in a feature repo's `feature_store.yaml` file.
+6. Testing the `OfflineStore` class.
 
 ## 1. Defining an OfflineStore class
 
@@ -65,7 +66,6 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                                        created_timestamp_column,
                                                        start_date,
                                                        end_date)
-
 ```
 {% endcode %}
 
@@ -90,7 +90,6 @@ class CustomFileOfflineStoreConfig(FeastConfigBaseModel):
 
     type: Literal["feast_custom_offline_store.file.CustomFileOfflineStore"] \
         = "feast_custom_offline_store.file.CustomFileOfflineStore"
-
 ```
 {% endcode %}
 
@@ -98,8 +97,7 @@ This configuration can be specified in the `feature_store.yaml` as follows:
 
 {% code title="feature_repo/feature_store.yaml" %}
 ```yaml
-    type: feast_custom_offline_store.file.CustomFileOfflineStore
-
+type: feast_custom_offline_store.file.CustomFileOfflineStore
 ```
 {% endcode %}
 
@@ -118,7 +116,6 @@ This configuration information is available to the methods of the OfflineStore, 
         offline_store_config = config.offline_store
         assert isinstance(offline_store_config, CustomFileOfflineStoreConfig)
         store_type = offline_store_config.type
-
 ```
 {% endcode %}
 
@@ -150,7 +147,6 @@ class CustomFileRetrievalJob(RetrievalJob):
         print("Getting a pandas DataFrame from a File is easy!")
         df = self.evaluation_function()
         return pyarrow.Table.from_pandas(df)
-
 ```
 {% endcode %}
 
@@ -258,6 +254,28 @@ driver_hourly_stats_view = FeatureView(
     batch_source=driver_hourly_stats,
     ...
 )
-
 ```
 {% endcode %}
+
+## 6. Testing the OfflineStore class
+
+Even if you have created the `OfflineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo. In the Feast submodule, we can run all the unit tests with:
+
+```
+make test
+```
+
+The universal tests, which are integration tests specifically intended to test offline and online stores, can be run with:
+
+```
+make test-python-universal
+```
+
+The unit tests should succeed, but the universal tests will likely fail. The tests are parametrized based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py`. To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The main challenge there will be to write a `DataSourceCreator` for the offline store. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run
+
+```
+export FULL_REPO_CONFIGS_MODULE='feast_custom_offline_store.feast_tests'
+make test-python-universal
+```
+
+to test the offline store against the Feast universal tests. You should notice that some of the tests actually fail; this indicates that there is a mistake in the implementation of this offline store!
