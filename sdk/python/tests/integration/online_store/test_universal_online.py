@@ -29,9 +29,24 @@ from tests.utils.data_source_utils import prep_file_source
 
 # TODO: make this work with all universal (all online store types)
 @pytest.mark.integration
-@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
-def test_write_to_online_store_event_check(local_redis_environment, dataframe_source):
+def test_write_to_online_store_event_check(local_redis_environment):
     fs = local_redis_environment.feature_store
+
+    # write same data points 3 with different timestamps
+    now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
+    hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round(
+        "ms"
+    )
+    latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round(
+        "ms"
+    )
+
+    data = {
+        "id": [123, 567, 890],
+        "string_col": ["OLD_FEATURE", "LATEST_VALUE2", "LATEST_VALUE3"],
+        "ts_1": [hour_ago, now, now],
+    }
+    dataframe_source = pd.DataFrame(data)
     with prep_file_source(
         df=dataframe_source, event_timestamp_column="ts_1"
     ) as file_source:
@@ -47,15 +62,6 @@ def test_write_to_online_store_event_check(local_redis_environment, dataframe_so
         )
         # Register Feature View and Entity
         fs.apply([fv1, e])
-
-        # write same data points 3 with different timestamps
-        now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
-        hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round(
-            "ms"
-        )
-        latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round(
-            "ms"
-        )
 
         #  data to ingest into Online Store (recent)
         data = {
@@ -110,6 +116,17 @@ def test_write_to_online_store_event_check(local_redis_environment, dataframe_so
         assert df["string_col"].iloc[0] == "LATEST_VALUE"
         assert df["string_col"].iloc[1] == "hello_123"
         assert df["string_col"].iloc[2] == "greetings_321"
+
+        # writes to online store via datasource (dataframe_source) materialization
+        fs.materialize(start_date=datetime.datetime.now() - timedelta(hours=12), end_date=datetime.datetime.utcnow())
+
+        df = fs.get_online_features(
+            features=["feature_view_123:string_col"],
+            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}],
+        ).to_df()
+        assert df["string_col"].iloc[0] == "LATEST_VALUE"
+        assert df["string_col"].iloc[1] == "LATEST_VALUE2"
+        assert df["string_col"].iloc[2] == "LATEST_VALUE3"
 
 
 @pytest.mark.integration

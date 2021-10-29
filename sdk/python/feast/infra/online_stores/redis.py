@@ -15,7 +15,17 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, ByteString
+from typing import (
+    Any,
+    ByteString,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
@@ -171,6 +181,8 @@ class RedisOnlineStore(OnlineStore):
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline() as pipe:
             # check if a previous record under the key bin exists
+            # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
+            # it may be significantly slower but avoids potential (rare) race conditions
             for entity_key, _, _, _ in data:
                 redis_key_bin = _redis_key(project, entity_key)
                 keys.append(redis_key_bin)
@@ -252,7 +264,10 @@ class RedisOnlineStore(OnlineStore):
         return result
 
     def _get_features_for_entity(
-        self, values: List[ByteString], feature_view: str, requested_features: List[str],
+        self,
+        values: List[ByteString],
+        feature_view: str,
+        requested_features: List[str],
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res_val = dict(zip(requested_features, values))
 
