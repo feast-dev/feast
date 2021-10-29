@@ -6,7 +6,6 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import pytest
-from pytest_lazyfixture import lazy_fixture
 
 from feast import Entity, Feature, FeatureService, FeatureView, ValueType
 from feast.errors import (
@@ -34,12 +33,8 @@ def test_write_to_online_store_event_check(local_redis_environment):
 
     # write same data points 3 with different timestamps
     now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
-    hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round(
-        "ms"
-    )
-    latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round(
-        "ms"
-    )
+    hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round("ms")
+    latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round("ms")
 
     data = {
         "id": [123, 567, 890],
@@ -118,7 +113,10 @@ def test_write_to_online_store_event_check(local_redis_environment):
         assert df["string_col"].iloc[2] == "greetings_321"
 
         # writes to online store via datasource (dataframe_source) materialization
-        fs.materialize(start_date=datetime.datetime.now() - timedelta(hours=12), end_date=datetime.datetime.utcnow())
+        fs.materialize(
+            start_date=datetime.datetime.now() - timedelta(hours=12),
+            end_date=datetime.datetime.utcnow(),
+        )
 
         df = fs.get_online_features(
             features=["feature_view_123:string_col"],
