@@ -9,9 +9,9 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [Adding a new online store](../how-to-guides/adding-support-for-a-new-online-store.md)
 {% endhint %}
 
-### Integrations
+## Integrations
 
-#### **Data Sources**
+### **Data Sources**
 
 * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
 * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
@@ -23,7 +23,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [ ] Snowflake source (Planned for Q4 2021)
 * [ ] HTTP source
 
-#### Offline Stores
+### Offline Stores
 
 * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
 * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
@@ -35,7 +35,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [ ] Snowflake (Planned for Q4 2021)
 * [ ] Trino (Planned for Q4 2021)
 
-#### Online Stores
+### Online Stores
 
 * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
 * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
@@ -47,7 +47,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [ ] Bigtable
 * [ ] Cassandra
 
-#### **Deployments**
+### **Deployments**
 
 * [x] AWS Lambda (Alpha release. See [guide](../reference/alpha-aws-lambda-feature-server.md) and [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
 * [ ] Cloud Run
