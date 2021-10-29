@@ -10,28 +10,32 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
   * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
   * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
+  * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
+  * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
+  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [ ] Kafka source (Planned for Q4 2021)
-  * [ ] Synapse source (Planned for Q4 2021)
   * [ ] Snowflake source (Planned for Q4 2021)
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
   * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
+  * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
+  * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
+  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-  * [x] [Hive (community maintained)](https://github.com/baineng/feast-hive)
-  * [x] [Postgres (community maintained)](https://github.com/nossrannug/feast-postgres)
   * [ ] Snowflake (Planned for Q4 2021)
-  * [ ] Synapse (Planned for Q4 2021)
+  * [ ] Trino (Planned for Q4 2021)
 * **Online Stores**
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
+  * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
+  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
-  * [x] [Postgres (community maintained)](https://github.com/nossrannug/feast-postgres)
   * [ ] Bigtable
-  * [ ] Cassandra\\
+  * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
   * [ ] Streaming ingestion on AWS (Planned for Q4 2021)
@@ -44,7 +48,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
   * [ ] Cloud Run
   * [ ] Kubernetes
-  * [ ] KNative\\
+  * [ ] KNative
 * **Feature Serving**
   * [x] Python Client
   * [x] REST Feature Server (Python) (Alpha release. See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev\_Wr6ZpnLzER4/edit))
