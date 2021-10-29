@@ -392,6 +392,8 @@ class FileOfflineStore(OfflineStore):
                     meta=(event_timestamp_column, "datetime64[ns, UTC]"),
                 )
 
+            source_df = source_df.persist()
+
             source_columns = set(source_df.columns)
             if not set(join_key_columns).issubset(source_columns):
                 raise FeastJoinKeysDuringMaterialization(
@@ -404,26 +406,29 @@ class FileOfflineStore(OfflineStore):
                 else [event_timestamp_column]
             )
 
-            source_df = source_df.sort_values(by=ts_columns[0])
+            # source_df = source_df.sort_values(by=ts_columns[0])
 
-            filtered_df = source_df[
+            source_df = source_df[
                 (source_df[event_timestamp_column] >= start_date)
                 & (source_df[event_timestamp_column] < end_date)
             ]
+
+            source_df = source_df.persist()
 
             columns_to_extract = set(
                 join_key_columns + feature_name_columns + ts_columns
             )
             if join_key_columns:
-                last_values_df = filtered_df.drop_duplicates(
+                source_df = source_df.drop_duplicates(
                     join_key_columns, keep="last", ignore_index=True
                 )
             else:
-                last_values_df = filtered_df
-                last_values_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                source_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
                 columns_to_extract.add(DUMMY_ENTITY_ID)
 
-            return last_values_df[list(columns_to_extract)]
+            source_df = source_df.persist()
+
+            return source_df[list(columns_to_extract)]
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return FileRetrievalJob(
