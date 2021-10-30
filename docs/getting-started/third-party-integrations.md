@@ -49,7 +49,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 
 ### **Deployments**
 
-* [x] AWS Lambda (Alpha release. See [guide](broken-reference) and [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
+* [x] AWS Lambda (Alpha release. See [guide](../reference/alpha-aws-lambda-feature-server.md) and [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
 * [ ] Cloud Run
 * [ ] Kubernetes
 * [ ] KNative
