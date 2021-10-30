@@ -72,7 +72,7 @@ class FileRetrievalJob(RetrievalJob):
     @log_exceptions_and_usage
     def _to_dask_df_internal(self) -> dd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
-        df = self.evaluation_function(True)
+        df = self.evaluation_function().compute()
         return df
 
     @log_exceptions_and_usage
@@ -332,7 +332,7 @@ class FileOfflineStore(OfflineStore):
                 [entity_df_event_timestamp_col] + current_cols
             ]
 
-            return entity_df_with_features.compute()
+            return entity_df_with_features.persist()
 
         job = FileRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
@@ -428,7 +428,7 @@ class FileOfflineStore(OfflineStore):
 
             source_df = source_df.persist()
 
-            return source_df[list(columns_to_extract)]
+            return source_df[list(columns_to_extract)].persist()
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return FileRetrievalJob(
