@@ -378,6 +378,7 @@ class FeatureStore:
                 ]
             ],
         ],
+        update_infra: bool = True,
         commit: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
@@ -389,6 +390,7 @@ class FeatureStore:
 
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
+            update_infra: If True, update online store infra to reflect the newly applied objects.
             commit: whether to commit changes to the registry
 
         Raises:
@@ -478,14 +480,15 @@ class FeatureStore:
         for feature_service in services_to_update:
             self._registry.apply_feature_service(feature_service, project=self.project)
 
-        self._get_provider().update_infra(
-            project=self.project,
-            tables_to_delete=[],
-            tables_to_keep=views_to_update,
-            entities_to_delete=[],
-            entities_to_keep=entities_to_update,
-            partial=True,
-        )
+        if update_infra:
+            self._get_provider().update_infra(
+                project=self.project,
+                tables_to_delete=[],
+                tables_to_keep=views_to_update,
+                entities_to_delete=[],
+                entities_to_keep=entities_to_update,
+                partial=True,
+            )
 
         if commit:
             self._registry.commit()
