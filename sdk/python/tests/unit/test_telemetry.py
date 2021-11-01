@@ -203,7 +203,7 @@ def test_time_recording(dummy_exporter):
 
     assert dummy_exporter
     calls = dummy_exporter[0]["calls"]
-    assert 900 > call_length_ms(calls[0]) >= 800
+    assert call_length_ms(calls[0]) >= 800
     assert call_length_ms(calls[0]) > call_length_ms(calls[1]) >= 700
     assert call_length_ms(calls[1]) > call_length_ms(calls[2]) >= 200
 
