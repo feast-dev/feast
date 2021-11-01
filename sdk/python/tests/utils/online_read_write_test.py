@@ -67,16 +67,14 @@ def basic_rw_test(
         event_ts=time_1, created_ts=time_1, write=(1.1, "3.1"), expect_read=(1.1, "3.1")
     )
 
-    # Note: This behavior has changed for performance. We should test that older
-    # value can't overwrite over a newer value once we add the respective flag
+    # We should test that older value can't overwrite over a newer value once we add the respective flag
     # TODO: event_ts check supported by Redis Online Store; add to other Online stores as well
-    """ Values with an older event_ts should overwrite newer ones """
     # time_2 = datetime.utcnow()
     # _driver_rw_test(
     #     event_ts=time_1 - timedelta(hours=1),
     #     created_ts=time_2,
     #     write=(-1000, "OLD"),
-    #     expect_read=(-1000, "OLD"),
+    #     expect_read=(1.1, "3.1"),
     # )
 
     """ Values with an new event_ts should overwrite older ones """
@@ -88,16 +86,14 @@ def basic_rw_test(
         expect_read=(1123, "NEWER"),
     )
 
-    # Note: This behavior has changed for performance. We should test that older
-    # value can't overwrite over a newer value once we add the respective flag
+    # We should test that older value can't overwrite over a newer value once we add the respective flag
     # TODO: add the `created_ts` tie breaker check in the Online stores
-    # TODO: switch order of _driver_rw_test to check that it's tie breaker logic vs. order of write
-    """ created_ts is used as a tie breaker, using older created_ts here, but we still overwrite """
+    """ created_ts is used as a tie breaker, using older created_ts here """
     # _driver_rw_test(
     #     event_ts=time_1 + timedelta(hours=1),
     #     created_ts=time_3 - timedelta(hours=1),
     #     write=(54321, "I HAVE AN OLDER created_ts SO I LOSE"),
-    #     expect_read=(54321, "I HAVE AN OLDER created_ts SO I LOSE"),
+    #     expect_read=(1123, "NEWER"),
     # )
 
     """ created_ts is used as a tie breaker, using newer created_ts here so we should overwrite """
