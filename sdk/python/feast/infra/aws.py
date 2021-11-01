@@ -30,6 +30,7 @@ from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.flags import FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
 from feast.flags_helper import enable_aws_lambda_feature_server
+from feast.infra.feature_servers.aws_lambda.config import AwsLambdaFeatureServerConfig
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -117,6 +118,9 @@ class AwsProvider(PassthroughProvider):
         if function is None:
             # If the Lambda function does not exist, create it.
             _logger.info("  Creating AWS Lambda...")
+            assert isinstance(
+                self.repo_config.feature_server, AwsLambdaFeatureServerConfig
+            )
             lambda_client.create_function(
                 FunctionName=resource_name,
                 Role=self.repo_config.feature_server.execution_role_name,
