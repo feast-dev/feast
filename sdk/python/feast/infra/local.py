@@ -11,7 +11,7 @@ from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
-from feast.usage import log_exceptions_and_usage
+from feast.telemetry import enable_telemetry
 
 
 class LocalProvider(PassthroughProvider):
@@ -41,7 +41,7 @@ class LocalRegistryStore(RegistryStore):
         else:
             self._filepath = repo_path.joinpath(registry_path)
 
-    @log_exceptions_and_usage(registry="local")
+    @enable_telemetry(registry="local")
     def get_registry_proto(self):
         registry_proto = RegistryProto()
         if self._filepath.exists():
@@ -51,7 +51,7 @@ class LocalRegistryStore(RegistryStore):
             f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
         )
 
-    @log_exceptions_and_usage(registry="local")
+    @enable_telemetry(registry="local")
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
 

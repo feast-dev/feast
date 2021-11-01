@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import concurrent.futures
+import contextlib
 import contextvars
 import dataclasses
 import logging
 import os
+import platform
 import sys
 import typing
 import uuid
@@ -61,15 +63,20 @@ class RatioSampler(Sampler):
     MAX_COUNTER = (1 << 32) - 1
 
     def __init__(self, ratio):
+        assert 0 < ratio <= 1, "Ratio must be within (0, 1]"
         self.ratio = ratio
-        self.counter = 0
+        self.total_counter = 0
+        self.sampled_counter = 0
 
     def should_record(self, event) -> bool:
-        self.counter += 1
-        if self.counter == self.MAX_COUNTER:
-            self.counter = 1
+        self.total_counter += 1
+        if self.total_counter == self.MAX_COUNTER:
+            self.total_counter = 1
+            self.sampled_counter = 1
 
-        return self.counter < self.ratio * self.MAX_COUNTER
+        decision = self.sampled_counter < self.ratio * self.total_counter
+        self.sampled_counter += int(decision)
+        return decision
 
     @property
     def priority(self):
@@ -135,19 +142,26 @@ def _export(event: typing.Dict[str, typing.Any]):
 
 
 def _produce_event(ctx: TelemetryContext):
+    is_test = bool({"pytest", "unittest"} & sys.modules.keys())
     event = {
         "installation_id": _installation_id(),
         "session_id": _session_id,
         "timestamp": datetime.utcnow().isoformat(),
         "version": get_version(),
-        "python_version": _get_python_version(),
-        "os": sys.platform,
-        "is_test": bool({"pytest", "unittest"} & sys.modules.keys()),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "is_test": is_test,
         "is_webserver": (
-            not bool({"pytest", "unittest"} & sys.modules.keys())
-            and bool({"uwsgi", "gunicorn", "fastapi"} & sys.modules.keys())
+            not is_test and bool({"uwsgi", "gunicorn", "fastapi"} & sys.modules.keys())
         ),
-        "calls": [dataclasses.asdict(c) for c in reversed(ctx.completed_calls)],
+        "calls": [
+            dict(
+                fn_name=c.fn_name,
+                start=c.start and c.start.isoformat(),
+                end=c.end and c.end.isoformat(),
+            )
+            for c in reversed(ctx.completed_calls)
+        ],
         "entrypoint": ctx.completed_calls[-1].fn_name,
         "exception": repr(ctx.exception) if ctx.exception else None,
         "traceback": ctx.traceback if ctx.exception else None,
@@ -160,18 +174,53 @@ def _produce_event(ctx: TelemetryContext):
     _export(event)
 
 
-def log_exceptions_and_usage(*args, **attrs):
+@contextlib.contextmanager
+def tracing_span(name):
     """
-        Example:
-            @log_exceptions_and_usage
+    Context manager for wrapping heavy parts of code in tracing span
+    """
+    if _is_enabled():
+        ctx = _context.get()
+        if not ctx.call_stack:
+            raise RuntimeError("tracing_span must be called in telemetry context")
+
+        last_call = ctx.call_stack[-1]
+        fn_call = FnCall(fn_name=f"{last_call.fn_name}.{name}", start=datetime.now())
+        ctx.call_stack.append(fn_call)
+        _context.set(ctx)
+    try:
+        yield
+    finally:
+        if _is_enabled():
+            ctx = _context.get()
+            last_call = ctx.call_stack.pop(-1)
+            last_call.end = datetime.now()
+
+            ctx.completed_calls.append(last_call)
+            _context.set(ctx)
+
+
+def enable_telemetry(*args, **attrs):
+    """
+        This function decorator enables 3-component telemetry:
+        1. Error tracking
+        2. Usage statistic collection
+        3. Time profiling
+
+        This data is being collected and sent to Feast Developers.
+        All events from nested decorated functions are being grouped into single event
+        to build comprehensive context useful for profiling and error tracking.
+
+        Usage example (will result in one output event):
+            @enable_telemetry
             def fn(...):
                 nested()
 
-            @log_exceptions_and_usage(attr='value')
+            @enable_telemetry(attr='value')
             def nested(...):
                 deeply_nested()
 
-            @log_exceptions_and_usage(attr2='value2', sample=RateSampler(rate=0.1))
+            @enable_telemetry(attr2='value2', sample=RateSampler(rate=0.1))
             def deeply_nested(...):
                 ...
     """
@@ -183,23 +232,25 @@ def log_exceptions_and_usage(*args, **attrs):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            try:
-                ctx = _context.get()
-                ctx.call_stack.append(
-                    FnCall(fn_name=_fn_fullname(func), start=datetime.now())
-                )
-                ctx.attributes.update(attrs)
-                _context.set(ctx)
+            ctx = _context.get()
+            ctx.call_stack.append(
+                FnCall(fn_name=_fn_fullname(func), start=datetime.now())
+            )
+            ctx.attributes.update(attrs)
+            _context.set(ctx)
 
+            try:
                 return func(*args, **kwargs)
             except Exception:
-                _, exc, traceback = sys.exc_info()
-
                 ctx = _context.get()
-                if not ctx.exception:
-                    ctx.exception = exc
-                    ctx.traceback = _trace_to_log(traceback)
-                    _context.set(ctx)
+                if ctx.exception:
+                    # exception was already recorded
+                    raise
+
+                _, exc, traceback = sys.exc_info()
+                ctx.exception = exc
+                ctx.traceback = _trace_to_log(traceback)
+                _context.set(ctx)
 
                 if traceback:
                     raise exc.with_traceback(traceback)
@@ -215,8 +266,8 @@ def log_exceptions_and_usage(*args, **attrs):
                 )
 
                 if not ctx.call_stack:
-                    # we reached the root of our context
-                    _context.set(TelemetryContext())  # reset
+                    # we reached the root of the stack
+                    _context.set(TelemetryContext())  # reset context to default values
                     _produce_event(ctx)
                 else:
                     _context.set(ctx)
@@ -230,6 +281,10 @@ def log_exceptions_and_usage(*args, **attrs):
 
 
 def log_exceptions(*args, **attrs):
+    """
+    Function decorator that track errors and send them to Feast Developers
+    """
+
     def decorator(func):
         if not _is_enabled():
             return func
@@ -270,6 +325,9 @@ def log_exceptions(*args, **attrs):
 
 
 def set_usage_attribute(name, value):
+    """
+    Extend current context with custom attribute
+    """
     ctx = _context.get()
     ctx.attributes[name] = value
 
@@ -295,7 +353,3 @@ def _trace_to_log(traceback):
         traceback = traceback.tb_next
 
     return log
-
-
-def _get_python_version():
-    return ".".join(map(str, sys.version_info))

@@ -27,7 +27,7 @@ from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 def dummy_exporter():
     event_log = []
 
-    with patch("feast.usage._export", new=event_log.append):
+    with patch("feast.telemetry._export", new=event_log.append):
         yield event_log
 
 

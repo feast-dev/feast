@@ -18,7 +18,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.utils import aws_utils
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
+from feast.telemetry import enable_telemetry
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -48,7 +48,7 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
 
 class RedshiftOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="redshift")
+    @enable_telemetry(offline_store="redshift")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -105,7 +105,7 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="redshift")
+    @enable_telemetry(offline_store="redshift")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -230,6 +230,7 @@ class RedshiftRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
+    @enable_telemetry
     def _to_df_internal(self) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
@@ -243,6 +244,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
+    @enable_telemetry
     def _to_arrow_internal(self) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
@@ -256,6 +258,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
+    @enable_telemetry
     def to_s3(self) -> str:
         """ Export dataset to S3 in Parquet format and return path """
         if self.on_demand_feature_views:
@@ -275,6 +278,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
             return self._s3_path
 
+    @enable_telemetry
     def to_redshift(self, table_name: str) -> None:
         """ Save dataset as a new Redshift table """
         if self.on_demand_feature_views:

@@ -29,7 +29,7 @@ from feast.protos.feast.core.FeatureTable_pb2 import (
 from feast.protos.feast.core.FeatureTable_pb2 import (
     FeatureTableSpec as FeatureTableSpecProto,
 )
-from feast.usage import log_exceptions
+from feast.telemetry import log_exceptions
 from feast.value_type import ValueType
 
 

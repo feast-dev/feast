@@ -9,7 +9,7 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
 from feast.protos.feast.core.RequestFeatureView_pb2 import RequestFeatureViewSpec
-from feast.usage import log_exceptions
+from feast.telemetry import log_exceptions
 
 
 class RequestFeatureView(BaseFeatureView):

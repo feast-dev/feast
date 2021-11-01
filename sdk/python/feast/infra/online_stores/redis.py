@@ -39,6 +39,8 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.usage import log_exceptions_and_usage
 
+from feast.telemetry import tracing_span
+
 try:
     from redis import Redis
     from rediscluster import RedisCluster
@@ -256,7 +258,7 @@ class RedisOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
             keys.append(redis_key_bin)
-        with client.pipeline() as pipe:
+        with client.pipeline() as pipe, tracing_span('remote_call'):
             for redis_key_bin in keys:
                 pipe.hmget(redis_key_bin, hset_keys)
             redis_values = pipe.execute()

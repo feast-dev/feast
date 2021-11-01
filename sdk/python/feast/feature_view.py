@@ -36,7 +36,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.repo_config import RepoConfig
-from feast.usage import log_exceptions
+from feast.telemetry import log_exceptions
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)

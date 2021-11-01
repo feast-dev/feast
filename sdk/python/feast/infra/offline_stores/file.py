@@ -20,7 +20,7 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
+from feast.telemetry import enable_telemetry
 
 
 class FileOfflineStoreConfig(FeastConfigBaseModel):
@@ -52,11 +52,13 @@ class FileRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         return self._on_demand_feature_views
 
+    @enable_telemetry
     def _to_df_internal(self) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return df
 
+    @enable_telemetry
     def _to_arrow_internal(self):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
@@ -65,7 +67,7 @@ class FileRetrievalJob(RetrievalJob):
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="file")
+    @enable_telemetry(offline_store="file")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -266,7 +268,7 @@ class FileOfflineStore(OfflineStore):
         return job
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="file")
+    @enable_telemetry(offline_store="file")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
