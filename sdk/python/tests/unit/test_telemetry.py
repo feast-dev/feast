@@ -9,7 +9,7 @@ from feast.telemetry import (
     RatioSampler,
     enable_telemetry,
     log_exceptions,
-    set_usage_attribute,
+    set_telemetry_attribute,
     tracing_span,
 )
 
@@ -63,7 +63,7 @@ def test_global_context_building(dummy_exporter):
 
     @enable_telemetry(provider="provider-two")
     def provider_two():
-        set_usage_attribute("new-attr", "new-val")
+        set_telemetry_attribute("new-attr", "new-val")
 
     @enable_telemetry
     def dummy_layer():
@@ -71,7 +71,7 @@ def test_global_context_building(dummy_exporter):
 
     @enable_telemetry(store="redis")
     def redis_store():
-        set_usage_attribute("attr", "val")
+        set_telemetry_attribute("attr", "val")
 
     entrypoint(provider="one")
     entrypoint(provider="two")

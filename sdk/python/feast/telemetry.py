@@ -324,7 +324,7 @@ def log_exceptions(*args, **attrs):
     return decorator
 
 
-def set_usage_attribute(name, value):
+def set_telemetry_attribute(name, value):
     """
     Extend current context with custom attribute
     """

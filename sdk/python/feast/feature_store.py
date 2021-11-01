@@ -58,7 +58,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
-from feast.telemetry import enable_telemetry, log_exceptions, set_usage_attribute
+from feast.telemetry import enable_telemetry, log_exceptions, set_telemetry_attribute
 from feast.type_map import python_value_to_proto_value
 from feast.value_type import ValueType
 from feast.version import get_version
@@ -432,7 +432,7 @@ class FeatureStore:
         ):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
-        set_usage_attribute("odfv", bool(odfvs_to_update))
+        set_telemetry_attribute("odfv", bool(odfvs_to_update))
 
         _validate_feature_views(
             [*views_to_update, *odfvs_to_update, *request_views_to_update]
@@ -604,8 +604,8 @@ class FeatureStore:
         on_demand_feature_views = list(view for view, _ in odfvs)
         request_feature_views = list(view for view, _ in request_fvs)
 
-        set_usage_attribute("odfv", bool(on_demand_feature_views))
-        set_usage_attribute("request_fv", bool(request_feature_views))
+        set_telemetry_attribute("odfv", bool(on_demand_feature_views))
+        set_telemetry_attribute("request_fv", bool(request_feature_views))
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
@@ -897,8 +897,8 @@ class FeatureStore:
             all_request_feature_views,
             all_on_demand_feature_views,
         )
-        set_usage_attribute("odfv", bool(grouped_odfv_refs))
-        set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
+        set_telemetry_attribute("odfv", bool(grouped_odfv_refs))
+        set_telemetry_attribute("request_fv", bool(grouped_request_fv_refs))
 
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [
