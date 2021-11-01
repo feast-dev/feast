@@ -156,6 +156,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         for data_source in data_sources:
             data_source.validate(store.config)
 
+    # For each object in the registry, determine whether it should be kept or deleted.
     entities_to_keep, entities_to_delete = _tag_registry_entities_for_keep_delete(
         project, registry, repo
     )
@@ -175,24 +176,24 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     sys.dont_write_bytecode = False
 
-    # Delete views that should not exist
+    # Delete all registry objects that should not exist.
+    for registry_entity in entities_to_delete:
+        registry.delete_entity(registry_entity.name, project=project, commit=False)
+        click.echo(
+            f"Deleted entity {Style.BRIGHT + Fore.GREEN}{registry_entity.name}{Style.RESET_ALL} from registry"
+        )
     for registry_view in views_to_delete:
         registry.delete_feature_view(registry_view.name, project=project, commit=False)
         click.echo(
             f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
         )
-
-    # Delete feature services that should not exist
-    for feature_service_to_delete in services_to_delete:
-        registry.delete_feature_service(
-            feature_service_to_delete.name, project=project, commit=False
+    for registry_on_demand_feature_view in odfvs_to_delete:
+        registry.delete_on_demand_feature_view(
+            registry_on_demand_feature_view.name, project=project, commit=False
         )
         click.echo(
-            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service_to_delete.name}{Style.RESET_ALL} "
-            f"from registry"
+            f"Deleted on demand feature view {Style.BRIGHT + Fore.GREEN}{registry_on_demand_feature_view.name}{Style.RESET_ALL} from registry"
         )
-
-    # Delete tables that should not exist
     for registry_table in tables_to_delete:
         registry.delete_feature_table(
             registry_table.name, project=project, commit=False
@@ -200,8 +201,14 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL} from registry"
         )
-
-    # TODO: delete entities from the registry too
+    for registry_feature_service in services_to_delete:
+        registry.delete_feature_service(
+            registry_feature_service.name, project=project, commit=False
+        )
+        click.echo(
+            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{registry_feature_service.name}{Style.RESET_ALL} "
+            f"from registry"
+        )
 
     # Add / update views + entities + services
     all_to_apply: List[
@@ -211,7 +218,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_apply.extend(views_to_keep)
     all_to_apply.extend(services_to_keep)
     all_to_apply.extend(odfvs_to_keep)
-    # TODO: delete odfvs
 
     store.apply(all_to_apply, update_infra=False, commit=False)
     for entity in entities_to_keep:
