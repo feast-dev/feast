@@ -150,24 +150,37 @@ class FileOfflineStore(OfflineStore):
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_historical_retrieval():
 
-            # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
-            entity_df[entity_df_event_timestamp_col] = entity_df[
-                entity_df_event_timestamp_col
-            ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
-
             # Create a copy of entity_df to prevent modifying the original
             entity_df_with_features = entity_df.copy()
 
-            # Convert event timestamp column to datetime and normalize time zone to UTC
-            # This is necessary to avoid issues with pd.merge_asof
-            if isinstance(entity_df_with_features, dd.DataFrame):
-                entity_df_with_features[entity_df_event_timestamp_col] = dd.to_datetime(
-                    entity_df_with_features[entity_df_event_timestamp_col], utc=True
+            entity_df_event_timestamp_col_type = entity_df_with_features.dtypes[
+                entity_df_event_timestamp_col
+            ]
+            if (
+                not hasattr(entity_df_event_timestamp_col_type, "tz")
+                or entity_df_event_timestamp_col_type.tz != pytz.UTC
+            ):
+                # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
+                entity_df_with_features[
+                    entity_df_event_timestamp_col
+                ] = entity_df_with_features[entity_df_event_timestamp_col].apply(
+                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
                 )
-            else:
-                entity_df_with_features[entity_df_event_timestamp_col] = pd.to_datetime(
-                    entity_df_with_features[entity_df_event_timestamp_col], utc=True
-                )
+
+                # Convert event timestamp column to datetime and normalize time zone to UTC
+                # This is necessary to avoid issues with pd.merge_asof
+                if isinstance(entity_df_with_features, dd.DataFrame):
+                    entity_df_with_features[
+                        entity_df_event_timestamp_col
+                    ] = dd.to_datetime(
+                        entity_df_with_features[entity_df_event_timestamp_col], utc=True
+                    )
+                else:
+                    entity_df_with_features[
+                        entity_df_event_timestamp_col
+                    ] = pd.to_datetime(
+                        entity_df_with_features[entity_df_event_timestamp_col], utc=True
+                    )
 
             # Sort event timestamp values
             entity_df_with_features = entity_df_with_features.sort_values(
@@ -224,14 +237,32 @@ class FileOfflineStore(OfflineStore):
                         df_to_join, feature_view.projection.join_key_map
                     )
 
-                # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-                df_to_join[event_timestamp_column] = df_to_join[
-                    event_timestamp_column
-                ].apply(
-                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
-                    meta=(event_timestamp_column, "datetime64[ns, UTC]"),
-                )
+                df_to_join_types = df_to_join.dtypes
+                event_timestamp_column_type = df_to_join_types[event_timestamp_column]
+
                 if created_timestamp_column:
+                    created_timestamp_column_type = df_to_join_types[
+                        created_timestamp_column
+                    ]
+
+                if (
+                    not hasattr(event_timestamp_column_type, "tz")
+                    or event_timestamp_column_type.tz != pytz.UTC
+                ):
+                    # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+                    df_to_join[event_timestamp_column] = df_to_join[
+                        event_timestamp_column
+                    ].apply(
+                        lambda x: x
+                        if x.tzinfo is not None
+                        else x.replace(tzinfo=pytz.utc),
+                        meta=(event_timestamp_column, "datetime64[ns, UTC]"),
+                    )
+
+                if created_timestamp_column and (
+                    not hasattr(created_timestamp_column_type, "tz")
+                    or created_timestamp_column_type.tz != pytz.UTC
+                ):
                     df_to_join[created_timestamp_column] = df_to_join[
                         created_timestamp_column
                     ].apply(
@@ -380,11 +411,29 @@ class FileOfflineStore(OfflineStore):
                 data_source.path, storage_options=storage_options
             )
 
-            source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-                lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
-                meta=(event_timestamp_column, "datetime64[ns, UTC]"),
-            )
+            source_df_types = source_df.dtypes
+            event_timestamp_column_type = source_df_types[event_timestamp_column]
+
             if created_timestamp_column:
+                created_timestamp_column_type = source_df_types[
+                    created_timestamp_column
+                ]
+
+            if (
+                not hasattr(event_timestamp_column_type, "tz")
+                or event_timestamp_column_type.tz != pytz.UTC
+            ):
+                source_df[event_timestamp_column] = source_df[
+                    event_timestamp_column
+                ].apply(
+                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
+                    meta=(event_timestamp_column, "datetime64[ns, UTC]"),
+                )
+
+            if created_timestamp_column and (
+                not hasattr(created_timestamp_column_type, "tz")
+                or created_timestamp_column_type.tz != pytz.UTC
+            ):
                 source_df[created_timestamp_column] = source_df[
                     created_timestamp_column
                 ].apply(
