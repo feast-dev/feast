@@ -306,7 +306,7 @@ def log_exceptions(*args, **attrs):
                 return func(*args, **kwargs)
 
             fn_call = FnCall(
-                id=uuid.uuid4(), fn_name=_fn_fullname(func), start=datetime.utcnow()
+                id=uuid.uuid4().hex, fn_name=_fn_fullname(func), start=datetime.utcnow()
             )
             try:
                 return func(*args, **kwargs)
