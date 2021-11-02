@@ -256,10 +256,11 @@ class RedisOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
             keys.append(redis_key_bin)
-        with client.pipeline() as pipe, tracing_span("remote_call"):
+        with client.pipeline() as pipe:
             for redis_key_bin in keys:
                 pipe.hmget(redis_key_bin, hset_keys)
-            redis_values = pipe.execute()
+            with tracing_span(name="remote_call"):
+                redis_values = pipe.execute()
         for values in redis_values:
             features = self._get_features_for_entity(
                 values, feature_view, requested_features
