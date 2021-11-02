@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from feast import Entity, RepoConfig, ValueType
+from feast import Entity, RepoConfig, ValueType, telemetry
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 
 
@@ -33,8 +33,7 @@ def dummy_exporter():
 
 @pytest.mark.integration
 def test_usage_on(dummy_exporter):
-    old_environ = dict(os.environ)
-    os.environ["FEAST_USAGE"] = "True"
+    telemetry._is_enabled = True
 
     _reload_feast()
     from feast.feature_store import FeatureStore
@@ -59,8 +58,6 @@ def test_usage_on(dummy_exporter):
 
         test_feature_store.apply([entity])
 
-        os.environ.clear()
-        os.environ.update(old_environ)
         assert len(dummy_exporter) == 1
         assert {
             "entrypoint": "feast.feature_store.FeatureStore.apply"
@@ -69,8 +66,7 @@ def test_usage_on(dummy_exporter):
 
 @pytest.mark.integration
 def test_usage_off(dummy_exporter):
-    old_environ = dict(os.environ)
-    os.environ["FEAST_USAGE"] = "False"
+    telemetry._is_enabled = False
 
     _reload_feast()
     from feast.feature_store import FeatureStore
@@ -94,25 +90,18 @@ def test_usage_off(dummy_exporter):
         )
         test_feature_store.apply([entity])
 
-        os.environ.clear()
-        os.environ.update(old_environ)
-
         assert not dummy_exporter
 
 
 @pytest.mark.integration
 def test_exception_usage_on(dummy_exporter):
-    old_environ = dict(os.environ)
-    os.environ["FEAST_USAGE"] = "True"
+    telemetry._is_enabled = True
 
     _reload_feast()
     from feast.feature_store import FeatureStore
 
     with pytest.raises(OSError):
         FeatureStore("/tmp/non_existent_directory")
-
-    os.environ.clear()
-    os.environ.update(old_environ)
 
     assert len(dummy_exporter) == 1
     assert {
@@ -123,17 +112,13 @@ def test_exception_usage_on(dummy_exporter):
 
 @pytest.mark.integration
 def test_exception_usage_off(dummy_exporter):
-    old_environ = dict(os.environ)
-    os.environ["FEAST_USAGE"] = "False"
+    telemetry._is_enabled = False
 
     _reload_feast()
     from feast.feature_store import FeatureStore
 
     with pytest.raises(OSError):
         FeatureStore("/tmp/non_existent_directory")
-
-    os.environ.clear()
-    os.environ.update(old_environ)
 
     assert not dummy_exporter
 

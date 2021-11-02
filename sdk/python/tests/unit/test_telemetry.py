@@ -27,12 +27,13 @@ def dummy_exporter():
 
 @pytest.fixture(scope="function", autouse=True)
 def enabling_patch():
-    with patch("feast.telemetry._is_enabled", return_value=True) as p:
+    with patch("feast.telemetry._is_enabled") as p:
+        p.__bool__.return_value = True
         yield p
 
 
 def test_logging_disabled(dummy_exporter, enabling_patch):
-    enabling_patch.return_value = False
+    enabling_patch.__bool__.return_value = False
 
     @enable_telemetry(event="test-event")
     def entrypoint():

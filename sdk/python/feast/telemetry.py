@@ -32,9 +32,19 @@ from feast.constants import FEAST_USAGE
 from feast.version import get_version
 
 USAGE_ENDPOINT = "https://usage.feast.dev"
-_logger = logging.getLogger(__name__)
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+_logger = logging.getLogger(__name__)
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+_is_enabled = os.getenv(FEAST_USAGE, default="True") == "True"
+
+_constant_attributes = {
+    "session_id": str(uuid.uuid4()),
+    "installation_id": None,
+    "version": get_version(),
+    "python_version": platform.python_version(),
+    "platform": platform.platform(),
+}
 
 
 @dataclasses.dataclass
@@ -101,16 +111,12 @@ class TelemetryContext:
 
 
 _context = contextvars.ContextVar("telemetry_context", default=TelemetryContext())
-_session_id = str(uuid.uuid4())
 
 
-def _is_enabled():
-    return os.getenv(FEAST_USAGE, default="True") == "True"
-
-
-def _installation_id():
+def _set_installation_id():
     if os.getenv("FEAST_FORCE_USAGE_UUID"):
-        return os.getenv("FEAST_FORCE_USAGE_UUID")
+        _constant_attributes["installation_id"] = os.getenv("FEAST_FORCE_USAGE_UUID")
+        return
 
     feast_home_dir = join(expanduser("~"), ".feast")
 
@@ -127,29 +133,28 @@ def _installation_id():
             with open(usage_filepath, "w") as f:
                 f.write(installation_id)
             print(
-                "Feast is an open source project that collects anonymized error reporting and usage statistics. To opt out or learn"
+                "Feast is an open source project that collects "
+                "anonymized error reporting and usage statistics. To opt out or learn"
                 " more see https://docs.feast.dev/reference/usage"
             )
     except OSError as e:
         _logger.debug(f"Unable to configure usage {e}")
-        return "undefined"
+        installation_id = "undefined"
 
-    return installation_id
+    _constant_attributes["installation_id"] = installation_id
+
+
+_set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
-    executor.submit(requests.post, USAGE_ENDPOINT, json=event)
+    _executor.submit(requests.post, USAGE_ENDPOINT, json=event)
 
 
 def _produce_event(ctx: TelemetryContext):
     is_test = bool({"pytest", "unittest"} & sys.modules.keys())
     event = {
-        "installation_id": _installation_id(),
-        "session_id": _session_id,
         "timestamp": datetime.utcnow().isoformat(),
-        "version": get_version(),
-        "python_version": platform.python_version(),
-        "platform": platform.platform(),
         "is_test": is_test,
         "is_webserver": (
             not is_test and bool({"uwsgi", "gunicorn", "fastapi"} & sys.modules.keys())
@@ -165,6 +170,7 @@ def _produce_event(ctx: TelemetryContext):
         "entrypoint": ctx.completed_calls[-1].fn_name,
         "exception": repr(ctx.exception) if ctx.exception else None,
         "traceback": ctx.traceback if ctx.exception else None,
+        **_constant_attributes,
     }
     event.update(ctx.attributes)
 
@@ -179,25 +185,19 @@ def tracing_span(name):
     """
     Context manager for wrapping heavy parts of code in tracing span
     """
-    if _is_enabled():
+    if _is_enabled:
         ctx = _context.get()
         if not ctx.call_stack:
             raise RuntimeError("tracing_span must be called in telemetry context")
 
         last_call = ctx.call_stack[-1]
         fn_call = FnCall(fn_name=f"{last_call.fn_name}.{name}", start=datetime.now())
-        ctx.call_stack.append(fn_call)
-        _context.set(ctx)
     try:
         yield
     finally:
-        if _is_enabled():
-            ctx = _context.get()
-            last_call = ctx.call_stack.pop(-1)
-            last_call.end = datetime.now()
-
-            ctx.completed_calls.append(last_call)
-            _context.set(ctx)
+        if _is_enabled:
+            fn_call.end = datetime.now()
+            ctx.completed_calls.append(fn_call)
 
 
 def enable_telemetry(*args, **attrs):
@@ -227,7 +227,7 @@ def enable_telemetry(*args, **attrs):
     sampler = attrs.pop("sampler", AlwaysSampler())
 
     def decorator(func):
-        if not _is_enabled():
+        if not _is_enabled:
             return func
 
         @wraps(func)
@@ -237,12 +237,10 @@ def enable_telemetry(*args, **attrs):
                 FnCall(fn_name=_fn_fullname(func), start=datetime.now())
             )
             ctx.attributes.update(attrs)
-            _context.set(ctx)
 
             try:
                 return func(*args, **kwargs)
             except Exception:
-                ctx = _context.get()
                 if ctx.exception:
                     # exception was already recorded
                     raise
@@ -250,14 +248,12 @@ def enable_telemetry(*args, **attrs):
                 _, exc, traceback = sys.exc_info()
                 ctx.exception = exc
                 ctx.traceback = _trace_to_log(traceback)
-                _context.set(ctx)
 
                 if traceback:
                     raise exc.with_traceback(traceback)
 
                 raise exc
             finally:
-                ctx = _context.get()
                 last_call = ctx.call_stack.pop(-1)
                 last_call.end = datetime.now()
                 ctx.completed_calls.append(last_call)
@@ -269,8 +265,6 @@ def enable_telemetry(*args, **attrs):
                     # we reached the root of the stack
                     _context.set(TelemetryContext())  # reset context to default values
                     _produce_event(ctx)
-                else:
-                    _context.set(ctx)
 
         return wrapper
 
@@ -286,7 +280,7 @@ def log_exceptions(*args, **attrs):
     """
 
     def decorator(func):
-        if not _is_enabled():
+        if not _is_enabled:
             return func
 
         @wraps(func)
