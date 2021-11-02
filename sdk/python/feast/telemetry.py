@@ -50,9 +50,12 @@ _constant_attributes = {
 @dataclasses.dataclass
 class FnCall:
     fn_name: str
+    id: str
 
     start: datetime
     end: typing.Optional[datetime] = None
+
+    parent_id: typing.Optional[str] = None
 
 
 class Sampler:
@@ -162,6 +165,8 @@ def _produce_event(ctx: TelemetryContext):
         "calls": [
             dict(
                 fn_name=c.fn_name,
+                id=c.id,
+                parent_id=c.parent_id,
                 start=c.start and c.start.isoformat(),
                 end=c.end and c.end.isoformat(),
             )
@@ -191,12 +196,16 @@ def tracing_span(name):
             raise RuntimeError("tracing_span must be called in telemetry context")
 
         last_call = ctx.call_stack[-1]
-        fn_call = FnCall(fn_name=f"{last_call.fn_name}.{name}", start=datetime.now())
+        fn_call = FnCall(
+            id=uuid.uuid4().hex,
+            parent_id=last_call.id,
+            fn_name=f"{last_call.fn_name}.{name}",
+            start=datetime.utcnow())
     try:
         yield
     finally:
         if _is_enabled:
-            fn_call.end = datetime.now()
+            fn_call.end = datetime.utcnow()
             ctx.completed_calls.append(fn_call)
 
 
@@ -234,7 +243,10 @@ def enable_telemetry(*args, **attrs):
         def wrapper(*args, **kwargs):
             ctx = _context.get()
             ctx.call_stack.append(
-                FnCall(fn_name=_fn_fullname(func), start=datetime.now())
+                FnCall(id=uuid.uuid4().hex,
+                       parent_id=ctx.call_stack[-1].id if ctx.call_stack else None,
+                       fn_name=_fn_fullname(func),
+                       start=datetime.utcnow())
             )
             ctx.attributes.update(attrs)
 
@@ -255,7 +267,7 @@ def enable_telemetry(*args, **attrs):
                 raise exc
             finally:
                 last_call = ctx.call_stack.pop(-1)
-                last_call.end = datetime.now()
+                last_call.end = datetime.utcnow()
                 ctx.completed_calls.append(last_call)
                 ctx.sampler = (
                     sampler if sampler.priority > ctx.sampler.priority else ctx.sampler
@@ -290,13 +302,16 @@ def log_exceptions(*args, **attrs):
                 # let it handle exception
                 return func(*args, **kwargs)
 
-            fn_call = FnCall(fn_name=_fn_fullname(func), start=datetime.now())
+            fn_call = FnCall(
+                id=uuid.uuid4(),
+                fn_name=_fn_fullname(func),
+                start=datetime.utcnow())
             try:
                 return func(*args, **kwargs)
             except Exception:
                 _, exc, traceback = sys.exc_info()
 
-                fn_call.end = datetime.now()
+                fn_call.end = datetime.utcnow()
 
                 ctx = TelemetryContext()
                 ctx.exception = exc
