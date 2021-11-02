@@ -18,6 +18,7 @@
 MAX_WAIT_INTERVAL: str = "60"
 
 AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server:aws"
+AWS_LAMBDA_FEATURE_SERVER_REPOSITORY = "feast-python-server"
 
 # feature_store.yaml environment variable name for remote feature server
 FEATURE_STORE_YAML_ENV_NAME: str = "FEATURE_STORE_YAML_BASE64"
