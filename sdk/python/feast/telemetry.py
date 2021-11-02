@@ -200,7 +200,8 @@ def tracing_span(name):
             id=uuid.uuid4().hex,
             parent_id=last_call.id,
             fn_name=f"{last_call.fn_name}.{name}",
-            start=datetime.utcnow())
+            start=datetime.utcnow(),
+        )
     try:
         yield
     finally:
@@ -243,10 +244,12 @@ def enable_telemetry(*args, **attrs):
         def wrapper(*args, **kwargs):
             ctx = _context.get()
             ctx.call_stack.append(
-                FnCall(id=uuid.uuid4().hex,
-                       parent_id=ctx.call_stack[-1].id if ctx.call_stack else None,
-                       fn_name=_fn_fullname(func),
-                       start=datetime.utcnow())
+                FnCall(
+                    id=uuid.uuid4().hex,
+                    parent_id=ctx.call_stack[-1].id if ctx.call_stack else None,
+                    fn_name=_fn_fullname(func),
+                    start=datetime.utcnow(),
+                )
             )
             ctx.attributes.update(attrs)
 
@@ -303,9 +306,8 @@ def log_exceptions(*args, **attrs):
                 return func(*args, **kwargs)
 
             fn_call = FnCall(
-                id=uuid.uuid4(),
-                fn_name=_fn_fullname(func),
-                start=datetime.utcnow())
+                id=uuid.uuid4(), fn_name=_fn_fullname(func), start=datetime.utcnow()
+            )
             try:
                 return func(*args, **kwargs)
             except Exception:
