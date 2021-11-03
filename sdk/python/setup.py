@@ -66,8 +66,6 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
-    # proto-plus>=1.19.7 requires protobuf>=3.19.0
-    # which conflicts with the version required by google-api-core[grpc]
     "proto-plus<1.19.7",
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
@@ -115,8 +113,6 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    # proto-plus>=1.19.7 requires protobuf>=3.19.0
-    # which conflicts with the version required by google-api-core[grpc]
     "proto-plus<1.19.7",
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
