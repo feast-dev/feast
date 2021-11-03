@@ -13,9 +13,8 @@ from click.exceptions import BadParameter
 from feast import Entity, FeatureTable
 from feast.base_feature_view import BaseFeatureView
 from feast.feature_service import FeatureService
-from feast.feature_store import FeatureStore, _validate_feature_views
+from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
@@ -142,13 +141,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
-    _validate_feature_views(
-        [
-            *list(repo.feature_views),
-            *list(repo.on_demand_feature_views),
-            *list(repo.request_feature_views),
-        ]
-    )
 
     if not skip_source_validation:
         data_sources = [t.batch_source for t in repo.feature_views]
@@ -170,56 +162,60 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     tables_to_keep, tables_to_delete = _tag_registry_tables_for_keep_delete(
         project, registry, repo
     )
-    (services_to_keep, services_to_delete,) = _tag_registry_services_for_keep_delete(
+    services_to_keep, services_to_delete = _tag_registry_services_for_keep_delete(
         project, registry, repo
     )
 
     sys.dont_write_bytecode = False
 
-    # Delete all registry objects that should not exist.
-    for registry_entity in entities_to_delete:
-        registry.delete_entity(registry_entity.name, project=project, commit=False)
-        click.echo(
-            f"Deleted entity {Style.BRIGHT + Fore.GREEN}{registry_entity.name}{Style.RESET_ALL} from registry"
-        )
-    for registry_view in views_to_delete:
-        registry.delete_feature_view(registry_view.name, project=project, commit=False)
-        click.echo(
-            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
-        )
-    for registry_on_demand_feature_view in odfvs_to_delete:
-        registry.delete_on_demand_feature_view(
-            registry_on_demand_feature_view.name, project=project, commit=False
-        )
-        click.echo(
-            f"Deleted on demand feature view {Style.BRIGHT + Fore.GREEN}{registry_on_demand_feature_view.name}{Style.RESET_ALL} from registry"
-        )
-    for registry_table in tables_to_delete:
-        registry.delete_feature_table(
-            registry_table.name, project=project, commit=False
-        )
-        click.echo(
-            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL} from registry"
-        )
-    for registry_feature_service in services_to_delete:
-        registry.delete_feature_service(
-            registry_feature_service.name, project=project, commit=False
-        )
-        click.echo(
-            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{registry_feature_service.name}{Style.RESET_ALL} "
-            f"from registry"
-        )
-
-    # Add / update views + entities + services
+    # Apply all changes to the registry and infrastructure.
     all_to_apply: List[
-        Union[Entity, BaseFeatureView, FeatureService, OnDemandFeatureView]
+        Union[
+            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
+        ]
     ] = []
     all_to_apply.extend(entities_to_keep)
     all_to_apply.extend(views_to_keep)
     all_to_apply.extend(services_to_keep)
     all_to_apply.extend(odfvs_to_keep)
+    all_to_apply.extend(tables_to_keep)
+    all_to_delete: List[
+        Union[
+            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
+        ]
+    ] = []
+    all_to_delete.extend(entities_to_delete)
+    all_to_delete.extend(views_to_delete)
+    all_to_delete.extend(services_to_delete)
+    all_to_delete.extend(odfvs_to_delete)
+    all_to_delete.extend(tables_to_delete)
 
-    store.apply(all_to_apply, update_infra=False, commit=False)
+    store.apply(
+        all_to_apply, objects_to_delete=all_to_delete, partial=False, commit=False
+    )
+
+    for entity in entities_to_delete:
+        click.echo(
+            f"Deleted entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL} from registry"
+        )
+    for view in views_to_delete:
+        click.echo(
+            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL} from registry"
+        )
+    for odfv in odfvs_to_delete:
+        click.echo(
+            f"Deleted on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL} from registry"
+        )
+    for table in tables_to_delete:
+        click.echo(
+            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL} from registry"
+        )
+    for feature_service in services_to_delete:
+        click.echo(
+            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL} "
+            f"from registry"
+        )
+
     for entity in entities_to_keep:
         click.echo(
             f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
@@ -238,12 +234,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         )
     # Create tables that should exist
     for table in tables_to_keep:
-        registry.apply_feature_table(table, project, commit=False)
         click.echo(
             f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
         )
 
-    infra_provider = get_provider(repo_config, repo_path)
     views_to_keep_in_infra = [
         view for view in views_to_keep if isinstance(view, FeatureView)
     ]
@@ -263,21 +257,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
             f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
     # TODO: consider echoing also entities being deployed/removed
-
-    all_to_delete: List[Union[FeatureTable, FeatureView]] = []
-    all_to_delete.extend(tables_to_delete)
-    all_to_delete.extend(views_to_delete_from_infra)
-    all_to_keep: List[Union[FeatureTable, FeatureView]] = []
-    all_to_keep.extend(tables_to_keep)
-    all_to_keep.extend(views_to_keep_in_infra)
-    infra_provider.update_infra(
-        project,
-        tables_to_delete=all_to_delete,
-        tables_to_keep=all_to_keep,
-        entities_to_delete=list(entities_to_delete),
-        entities_to_keep=list(entities_to_keep),
-        partial=False,
-    )
 
     # Commit the update to the registry only after successful infra update
     registry.commit()
