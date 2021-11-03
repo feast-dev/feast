@@ -5,11 +5,11 @@ from unittest.mock import patch
 
 import pytest
 
-from feast.telemetry import (
+from feast.usage import (
     RatioSampler,
-    enable_telemetry,
     log_exceptions,
-    set_telemetry_attribute,
+    log_usage,
+    set_usage_attribute,
     tracing_span,
 )
 
@@ -19,7 +19,7 @@ def dummy_exporter():
     event_log = []
 
     with patch(
-        "feast.telemetry._export",
+        "feast.usage._export",
         new=lambda e: event_log.append(json.loads(json.dumps(e))),
     ):
         yield event_log
@@ -27,7 +27,7 @@ def dummy_exporter():
 
 @pytest.fixture(scope="function", autouse=True)
 def enabling_patch():
-    with patch("feast.telemetry._is_enabled") as p:
+    with patch("feast.usage._is_enabled") as p:
         p.__bool__.return_value = True
         yield p
 
@@ -35,7 +35,7 @@ def enabling_patch():
 def test_logging_disabled(dummy_exporter, enabling_patch):
     enabling_patch.__bool__.return_value = False
 
-    @enable_telemetry(event="test-event")
+    @log_usage(event="test-event")
     def entrypoint():
         pass
 
@@ -51,33 +51,33 @@ def test_logging_disabled(dummy_exporter, enabling_patch):
 
 
 def test_global_context_building(dummy_exporter):
-    @enable_telemetry(event="test-event")
+    @log_usage(event="test-event")
     def entrypoint(provider):
         if provider == "one":
             provider_one()
         if provider == "two":
             provider_two()
 
-    @enable_telemetry(provider="provider-one")
+    @log_usage(provider="provider-one")
     def provider_one():
         dummy_layer()
 
-    @enable_telemetry(provider="provider-two")
+    @log_usage(provider="provider-two")
     def provider_two():
-        set_telemetry_attribute("new-attr", "new-val")
+        set_usage_attribute("new-attr", "new-val")
 
-    @enable_telemetry
+    @log_usage
     def dummy_layer():
         redis_store()
 
-    @enable_telemetry(store="redis")
+    @log_usage(store="redis")
     def redis_store():
-        set_telemetry_attribute("attr", "val")
+        set_usage_attribute("attr", "val")
 
     entrypoint(provider="one")
     entrypoint(provider="two")
 
-    scope_name = "test_telemetry.test_global_context_building.<locals>"
+    scope_name = "test_usage.test_global_context_building.<locals>"
 
     assert dummy_exporter
     assert {
@@ -103,11 +103,11 @@ def test_global_context_building(dummy_exporter):
 
 
 def test_exception_recording(dummy_exporter):
-    @enable_telemetry(event="test-event")
+    @log_usage(event="test-event")
     def entrypoint():
         provider()
 
-    @enable_telemetry(provider="provider-one")
+    @log_usage(provider="provider-one")
     def provider():
         raise ValueError(1)
 
@@ -119,7 +119,7 @@ def test_exception_recording(dummy_exporter):
         "event": "test-event",
         "provider": "provider-one",
         "exception": repr(ValueError(1)),
-        "entrypoint": "test_telemetry.test_exception_recording.<locals>.entrypoint",
+        "entrypoint": "test_usage.test_exception_recording.<locals>.entrypoint",
     }.items() <= dummy_exporter[0].items()
 
 
@@ -128,7 +128,7 @@ def test_only_exception_logging(dummy_exporter):
     def failing_fn():
         raise ValueError(1)
 
-    @enable_telemetry(scope="usage-and-exception")
+    @log_usage(scope="usage-and-exception")
     def entrypoint():
         failing_fn()
 
@@ -138,7 +138,7 @@ def test_only_exception_logging(dummy_exporter):
     assert {
         "exception": repr(ValueError(1)),
         "scope": "exception-only",
-        "entrypoint": "test_telemetry.test_only_exception_logging.<locals>.failing_fn",
+        "entrypoint": "test_usage.test_only_exception_logging.<locals>.failing_fn",
     }.items() <= dummy_exporter[0].items()
 
     with pytest.raises(ValueError):
@@ -147,16 +147,16 @@ def test_only_exception_logging(dummy_exporter):
     assert {
         "exception": repr(ValueError(1)),
         "scope": "usage-and-exception",
-        "entrypoint": "test_telemetry.test_only_exception_logging.<locals>.entrypoint",
+        "entrypoint": "test_usage.test_only_exception_logging.<locals>.entrypoint",
     }.items() <= dummy_exporter[1].items()
 
 
 def test_ratio_based_sampling(dummy_exporter):
-    @enable_telemetry()
+    @log_usage()
     def entrypoint():
         expensive_fn()
 
-    @enable_telemetry(sampler=RatioSampler(ratio=0.1))
+    @log_usage(sampler=RatioSampler(ratio=0.1))
     def expensive_fn():
         pass
 
@@ -167,15 +167,15 @@ def test_ratio_based_sampling(dummy_exporter):
 
 
 def test_sampling_priority(dummy_exporter):
-    @enable_telemetry(sampler=RatioSampler(ratio=0.3))
+    @log_usage(sampler=RatioSampler(ratio=0.3))
     def entrypoint():
         expensive_fn()
 
-    @enable_telemetry(sampler=RatioSampler(ratio=0.01))
+    @log_usage(sampler=RatioSampler(ratio=0.01))
     def expensive_fn():
         other_fn()
 
-    @enable_telemetry(sampler=RatioSampler(ratio=0.1))
+    @log_usage(sampler=RatioSampler(ratio=0.1))
     def other_fn():
         pass
 
@@ -186,17 +186,17 @@ def test_sampling_priority(dummy_exporter):
 
 
 def test_time_recording(dummy_exporter):
-    @enable_telemetry()
+    @log_usage()
     def entrypoint():
         time.sleep(0.1)
         expensive_fn()
 
-    @enable_telemetry()
+    @log_usage()
     def expensive_fn():
         time.sleep(0.5)
         other_fn()
 
-    @enable_telemetry()
+    @log_usage()
     def other_fn():
         time.sleep(0.2)
 
@@ -210,7 +210,7 @@ def test_time_recording(dummy_exporter):
 
 
 def test_profiling_decorator(dummy_exporter):
-    @enable_telemetry()
+    @log_usage()
     def entrypoint():
         with tracing_span("custom_span"):
             time.sleep(0.1)
@@ -226,7 +226,7 @@ def test_profiling_decorator(dummy_exporter):
 
     assert (
         calls[1]["fn_name"]
-        == "test_telemetry.test_profiling_decorator.<locals>.entrypoint.custom_span"
+        == "test_usage.test_profiling_decorator.<locals>.entrypoint.custom_span"
     )
 
 

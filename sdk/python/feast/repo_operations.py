@@ -21,7 +21,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.request_feature_view import RequestFeatureView
-from feast.telemetry import enable_telemetry
+from feast.usage import log_usage
 
 
 def py_path_to_module(path: Path, repo_root: Path) -> str:
@@ -125,7 +125,7 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     return res
 
 
-@enable_telemetry
+@log_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     from colorama import Fore, Style
 
@@ -340,14 +340,14 @@ def _tag_registry_services_for_keep_delete(
     return services_to_keep, services_to_delete
 
 
-@enable_telemetry
+@log_usage
 def teardown(repo_config: RepoConfig, repo_path: Path):
     # Cannot pass in both repo_path and repo_config to FeatureStore.
     feature_store = FeatureStore(repo_path=repo_path, config=None)
     feature_store.teardown()
 
 
-@enable_telemetry
+@log_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
     registry_config = repo_config.get_registry_config()
@@ -371,7 +371,7 @@ def cli_check_repo(repo_path: Path):
         sys.exit(1)
 
 
-@enable_telemetry
+@log_usage
 def init_repo(repo_name: str, template: str):
     import os
     from distutils.dir_util import copy_tree

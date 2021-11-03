@@ -21,7 +21,7 @@ from feast.errors import (
     FeastProviderNotSetError,
 )
 from feast.importer import get_class_from_type
-from feast.telemetry import log_exceptions
+from feast.usage import log_exceptions
 
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way

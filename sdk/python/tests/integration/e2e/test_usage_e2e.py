@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from feast import Entity, RepoConfig, ValueType, telemetry
+from feast import Entity, RepoConfig, ValueType, usage
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 
 
@@ -27,13 +27,13 @@ from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 def dummy_exporter():
     event_log = []
 
-    with patch("feast.telemetry._export", new=event_log.append):
+    with patch("feast.usage._export", new=event_log.append):
         yield event_log
 
 
 @pytest.mark.integration
 def test_usage_on(dummy_exporter):
-    telemetry._is_enabled = True
+    usage._is_enabled = True
 
     _reload_feast()
     from feast.feature_store import FeatureStore
@@ -66,7 +66,7 @@ def test_usage_on(dummy_exporter):
 
 @pytest.mark.integration
 def test_usage_off(dummy_exporter):
-    telemetry._is_enabled = False
+    usage._is_enabled = False
 
     _reload_feast()
     from feast.feature_store import FeatureStore
@@ -95,7 +95,7 @@ def test_usage_off(dummy_exporter):
 
 @pytest.mark.integration
 def test_exception_usage_on(dummy_exporter):
-    telemetry._is_enabled = True
+    usage._is_enabled = True
 
     _reload_feast()
     from feast.feature_store import FeatureStore
@@ -112,7 +112,7 @@ def test_exception_usage_on(dummy_exporter):
 
 @pytest.mark.integration
 def test_exception_usage_off(dummy_exporter):
-    telemetry._is_enabled = False
+    usage._is_enabled = False
 
     _reload_feast()
     from feast.feature_store import FeatureStore

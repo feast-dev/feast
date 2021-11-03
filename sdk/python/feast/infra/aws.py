@@ -35,7 +35,7 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry import get_registry_store_class_from_scheme
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
-from feast.telemetry import enable_telemetry
+from feast.usage import log_usage
 from feast.version import get_version
 
 try:
@@ -49,7 +49,7 @@ _logger = logging.getLogger(__name__)
 
 
 class AwsProvider(PassthroughProvider):
-    @enable_telemetry(provider="AwsProvider")
+    @log_usage(provider="AwsProvider")
     def update_infra(
         self,
         project: str,
@@ -169,7 +169,7 @@ class AwsProvider(PassthroughProvider):
                     SourceArn=f"arn:aws:execute-api:{region}:{account_id}:{api_id}/*/*/get-online-features",
                 )
 
-    @enable_telemetry(provider="AwsProvider")
+    @log_usage(provider="AwsProvider")
     def teardown_infra(
         self,
         project: str,
@@ -198,7 +198,7 @@ class AwsProvider(PassthroughProvider):
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
-    @enable_telemetry(provider="AwsProvider")
+    @log_usage(provider="AwsProvider")
     def get_feature_server_endpoint(self) -> Optional[str]:
         project = self.repo_config.project
         resource_name = self._get_lambda_name(project)
@@ -307,7 +307,7 @@ class S3RegistryStore(RegistryStore):
             "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
         )
 
-    @enable_telemetry(registry="s3")
+    @log_usage(registry="s3")
     def get_registry_proto(self):
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
@@ -340,7 +340,7 @@ class S3RegistryStore(RegistryStore):
                 f"Error while trying to locate Registry at path {self._uri.geturl()}"
             ) from e
 
-    @enable_telemetry(registry="s3")
+    @log_usage(registry="s3")
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
 

@@ -23,11 +23,11 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
-from feast.telemetry import log_exceptions
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
 )
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 

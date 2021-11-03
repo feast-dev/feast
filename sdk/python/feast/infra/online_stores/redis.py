@@ -37,7 +37,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.telemetry import enable_telemetry, tracing_span
+from feast.usage import log_usage, tracing_span
 
 try:
     from redis import Redis
@@ -89,7 +89,7 @@ class RedisOnlineStore(OnlineStore):
 
         logger.debug(f"Deleted {deleted_count} keys for {table.name}")
 
-    @enable_telemetry(online_store="redis")
+    @log_usage(online_store="redis")
     def update(
         self,
         config: RepoConfig,
@@ -162,7 +162,7 @@ class RedisOnlineStore(OnlineStore):
                 self._client = Redis(**kwargs)
         return self._client
 
-    @enable_telemetry(online_store="redis")
+    @log_usage(online_store="redis")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -226,7 +226,7 @@ class RedisOnlineStore(OnlineStore):
             if progress:
                 progress(len(results))
 
-    @enable_telemetry(online_store="redis")
+    @log_usage(online_store="redis")
     def online_read(
         self,
         config: RepoConfig,

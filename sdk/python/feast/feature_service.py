@@ -15,7 +15,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceMeta,
     FeatureServiceSpec,
 )
-from feast.telemetry import log_exceptions
+from feast.usage import log_exceptions
 
 
 class FeatureService:

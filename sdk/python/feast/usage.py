@@ -96,7 +96,7 @@ class RatioSampler(Sampler):
         return int(1 / self.ratio)
 
 
-class TelemetryContext:
+class UsageContext:
     attributes: typing.Dict[str, typing.Any]
 
     call_stack: typing.List[FnCall]
@@ -113,7 +113,7 @@ class TelemetryContext:
         self.completed_calls = []
 
 
-_context = contextvars.ContextVar("telemetry_context", default=TelemetryContext())
+_context = contextvars.ContextVar("usage_context", default=UsageContext())
 
 
 def _set_installation_id():
@@ -154,7 +154,7 @@ def _export(event: typing.Dict[str, typing.Any]):
     _executor.submit(requests.post, USAGE_ENDPOINT, json=event)
 
 
-def _produce_event(ctx: TelemetryContext):
+def _produce_event(ctx: UsageContext):
     is_test = bool({"pytest", "unittest"} & sys.modules.keys())
     event = {
         "timestamp": datetime.utcnow().isoformat(),
@@ -193,7 +193,7 @@ def tracing_span(name):
     if _is_enabled:
         ctx = _context.get()
         if not ctx.call_stack:
-            raise RuntimeError("tracing_span must be called in telemetry context")
+            raise RuntimeError("tracing_span must be called in usage context")
 
         last_call = ctx.call_stack[-1]
         fn_call = FnCall(
@@ -210,27 +210,27 @@ def tracing_span(name):
             ctx.completed_calls.append(fn_call)
 
 
-def enable_telemetry(*args, **attrs):
+def log_usage(*args, **attrs):
     """
-        This function decorator enables 3-component telemetry:
+        This function decorator enables three components:
         1. Error tracking
         2. Usage statistic collection
         3. Time profiling
 
-        This data is being collected and sent to Feast Developers.
+        This data is being collected, anonymized and sent to Feast Developers.
         All events from nested decorated functions are being grouped into single event
         to build comprehensive context useful for profiling and error tracking.
 
         Usage example (will result in one output event):
-            @enable_telemetry
+            @log_usage
             def fn(...):
                 nested()
 
-            @enable_telemetry(attr='value')
+            @log_usage(attr='value')
             def nested(...):
                 deeply_nested()
 
-            @enable_telemetry(attr2='value2', sample=RateSampler(rate=0.1))
+            @log_usage(attr2='value2', sample=RateSampler(rate=0.1))
             def deeply_nested(...):
                 ...
     """
@@ -278,7 +278,7 @@ def enable_telemetry(*args, **attrs):
 
                 if not ctx.call_stack:
                     # we reached the root of the stack
-                    _context.set(TelemetryContext())  # reset context to default values
+                    _context.set(UsageContext())  # reset context to default values
                     _produce_event(ctx)
 
         return wrapper
@@ -301,7 +301,7 @@ def log_exceptions(*args, **attrs):
         @wraps(func)
         def wrapper(*args, **kwargs):
             if _context.get().call_stack:
-                # we're already inside telemetry context
+                # we're already inside usage context
                 # let it handle exception
                 return func(*args, **kwargs)
 
@@ -315,7 +315,7 @@ def log_exceptions(*args, **attrs):
 
                 fn_call.end = datetime.utcnow()
 
-                ctx = TelemetryContext()
+                ctx = UsageContext()
                 ctx.exception = exc
                 ctx.traceback = _trace_to_log(traceback)
                 ctx.attributes = attrs
@@ -335,7 +335,7 @@ def log_exceptions(*args, **attrs):
     return decorator
 
 
-def set_telemetry_attribute(name, value):
+def set_usage_attribute(name, value):
     """
     Extend current context with custom attribute
     """
