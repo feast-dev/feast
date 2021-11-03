@@ -21,7 +21,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
-from feast.usage import RatioSampler, log_usage, set_usage_attribute
+from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
 
 
 class PassthroughProvider(Provider):
@@ -76,7 +76,7 @@ class PassthroughProvider(Provider):
         set_usage_attribute("provider", self.__class__.__name__)
         self.online_store.online_write_batch(config, table, data, progress)
 
-    @log_usage(sampler=RatioSampler(ratio=0.001))
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
         self,
         config: RepoConfig,

@@ -210,7 +210,7 @@ def tracing_span(name):
             ctx.completed_calls.append(fn_call)
 
 
-def log_usage(*args, **attrs):
+def log_exceptions_and_usage(*args, **attrs):
     """
         This function decorator enables three components:
         1. Error tracking
@@ -222,15 +222,15 @@ def log_usage(*args, **attrs):
         to build comprehensive context useful for profiling and error tracking.
 
         Usage example (will result in one output event):
-            @log_usage
+            @log_exceptions_and_usage
             def fn(...):
                 nested()
 
-            @log_usage(attr='value')
+            @log_exceptions_and_usage(attr='value')
             def nested(...):
                 deeply_nested()
 
-            @log_usage(attr2='value2', sample=RateSampler(rate=0.1))
+            @log_exceptions_and_usage(attr2='value2', sample=RateSampler(rate=0.1))
             def deeply_nested(...):
                 ...
     """

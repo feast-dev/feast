@@ -29,7 +29,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_usage, tracing_span
+from feast.usage import log_exceptions_and_usage, tracing_span
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -74,7 +74,7 @@ class SqliteOnlineStore(OnlineStore):
             )
         return self._conn
 
-    @log_usage(online_store="sqlite")
+    @log_exceptions_and_usage(online_store="sqlite")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -129,7 +129,7 @@ class SqliteOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
-    @log_usage(online_store="sqlite")
+    @log_exceptions_and_usage(online_store="sqlite")
     def online_read(
         self,
         config: RepoConfig,
@@ -172,7 +172,7 @@ class SqliteOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    @log_usage(online_store="sqlite")
+    @log_exceptions_and_usage(online_store="sqlite")
     def update(
         self,
         config: RepoConfig,

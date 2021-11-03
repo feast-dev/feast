@@ -26,7 +26,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
-from ...usage import log_usage
+from ...usage import log_exceptions_and_usage
 from .bigquery_source import BigQuerySource
 
 try:
@@ -63,7 +63,7 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
-    @log_usage(offline_store="bigquery")
+    @log_exceptions_and_usage(offline_store="bigquery")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -115,7 +115,7 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_usage(offline_store="bigquery")
+    @log_exceptions_and_usage(offline_store="bigquery")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -277,7 +277,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return self._execute_query(query).to_arrow()
 
-    @log_usage
+    @log_exceptions_and_usage
     def _execute_query(
         self, query, job_config=None, timeout: int = 1800
     ) -> bigquery.job.query.QueryJob:

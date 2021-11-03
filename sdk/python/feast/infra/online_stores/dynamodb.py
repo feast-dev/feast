@@ -23,7 +23,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_usage, tracing_span
+from feast.usage import log_exceptions_and_usage, tracing_span
 
 try:
     import boto3
@@ -49,7 +49,7 @@ class DynamoDBOnlineStore(OnlineStore):
     Online feature store for AWS DynamoDB.
     """
 
-    @log_usage(online_store="dynamodb")
+    @log_exceptions_and_usage(online_store="dynamodb")
     def update(
         self,
         config: RepoConfig,
@@ -99,7 +99,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         self._delete_tables_idempotent(dynamodb_resource, config, tables)
 
-    @log_usage(online_store="dynamodb")
+    @log_exceptions_and_usage(online_store="dynamodb")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -130,7 +130,7 @@ class DynamoDBOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
-    @log_usage(online_store="dynamodb")
+    @log_exceptions_and_usage(online_store="dynamodb")
     def online_read(
         self,
         config: RepoConfig,

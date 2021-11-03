@@ -59,7 +59,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_value_to_proto_value
-from feast.usage import log_exceptions, log_usage, set_usage_attribute
+from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -125,7 +125,7 @@ class FeatureStore:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return self._provider
 
-    @log_usage
+    @log_exceptions_and_usage
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
@@ -144,7 +144,7 @@ class FeatureStore:
         self._registry = Registry(registry_config, repo_path=self.repo_path)
         self._registry.refresh()
 
-    @log_usage
+    @log_exceptions_and_usage
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieves the list of entities from the registry.
@@ -169,7 +169,7 @@ class FeatureStore:
             if entity.name != DUMMY_ENTITY_NAME or not hide_dummy_entity
         ]
 
-    @log_usage
+    @log_exceptions_and_usage
     def list_feature_services(self) -> List[FeatureService]:
         """
         Retrieves the list of feature services from the registry.
@@ -179,7 +179,7 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project)
 
-    @log_usage
+    @log_exceptions_and_usage
     def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
@@ -192,7 +192,7 @@ class FeatureStore:
         """
         return self._list_feature_views(allow_cache)
 
-    @log_usage
+    @log_exceptions_and_usage
     def list_request_feature_views(
         self, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
@@ -221,7 +221,7 @@ class FeatureStore:
             feature_views.append(fv)
         return feature_views
 
-    @log_usage
+    @log_exceptions_and_usage
     def list_on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """
         Retrieves the list of on demand feature views from the registry.
@@ -231,7 +231,7 @@ class FeatureStore:
         """
         return self._registry.list_on_demand_feature_views(self.project)
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
@@ -247,7 +247,7 @@ class FeatureStore:
         """
         return self._registry.get_entity(name, self.project)
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_feature_service(self, name: str) -> FeatureService:
         """
         Retrieves a feature service.
@@ -263,7 +263,7 @@ class FeatureStore:
         """
         return self._registry.get_feature_service(name, self.project)
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_feature_view(self, name: str) -> FeatureView:
         """
         Retrieves a feature view.
@@ -287,7 +287,7 @@ class FeatureStore:
             feature_view.entities = []
         return feature_view
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
@@ -303,7 +303,7 @@ class FeatureStore:
         """
         return self._registry.get_on_demand_feature_view(name, self.project)
 
-    @log_usage
+    @log_exceptions_and_usage
     def delete_feature_view(self, name: str):
         """
         Deletes a feature view.
@@ -316,7 +316,7 @@ class FeatureStore:
         """
         return self._registry.delete_feature_view(name, self.project)
 
-    @log_usage
+    @log_exceptions_and_usage
     def delete_feature_service(self, name: str):
         """
             Deletes a feature service.
@@ -359,7 +359,7 @@ class FeatureStore:
             _feature_refs = _features
         return _feature_refs
 
-    @log_usage
+    @log_exceptions_and_usage
     def apply(
         self,
         objects: Union[
@@ -489,7 +489,7 @@ class FeatureStore:
         if commit:
             self._registry.commit()
 
-    @log_usage
+    @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
         tables: List[Union[FeatureView, FeatureTable]] = []
@@ -504,7 +504,7 @@ class FeatureStore:
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_historical_features(
         self,
         entity_df: Union[pd.DataFrame, str],
@@ -642,7 +642,7 @@ class FeatureStore:
 
         return job
 
-    @log_usage
+    @log_exceptions_and_usage
     def materialize_incremental(
         self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
@@ -727,7 +727,7 @@ class FeatureStore:
                 feature_view, self.project, start_date, end_date
             )
 
-    @log_usage
+    @log_exceptions_and_usage
     def materialize(
         self,
         start_date: datetime,
@@ -807,7 +807,7 @@ class FeatureStore:
                 feature_view, self.project, start_date, end_date
             )
 
-    @log_usage
+    @log_exceptions_and_usage
     def write_to_online_store(
         self, feature_view_name: str, df: pd.DataFrame,
     ):
@@ -827,7 +827,7 @@ class FeatureStore:
         provider = self._get_provider()
         provider.ingest_df(feature_view, entities, df)
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1220,7 +1220,7 @@ class FeatureStore:
 
         return views_to_use
 
-    @log_usage
+    @log_exceptions_and_usage
     def serve(self, port: int) -> None:
         """Start the feature consumption server locally on a given port."""
         if not flags_helper.enable_python_feature_server(self.config):
@@ -1228,12 +1228,12 @@ class FeatureStore:
 
         feature_server.start_server(self, port)
 
-    @log_usage
+    @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return self._provider.get_feature_server_endpoint()
 
-    @log_usage
+    @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
         if not flags_helper.enable_python_feature_server(self.config):

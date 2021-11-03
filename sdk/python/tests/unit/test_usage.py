@@ -8,7 +8,7 @@ import pytest
 from feast.usage import (
     RatioSampler,
     log_exceptions,
-    log_usage,
+    log_exceptions_and_usage,
     set_usage_attribute,
     tracing_span,
 )
@@ -35,7 +35,7 @@ def enabling_patch():
 def test_logging_disabled(dummy_exporter, enabling_patch):
     enabling_patch.__bool__.return_value = False
 
-    @log_usage(event="test-event")
+    @log_exceptions_and_usage(event="test-event")
     def entrypoint():
         pass
 
@@ -51,26 +51,26 @@ def test_logging_disabled(dummy_exporter, enabling_patch):
 
 
 def test_global_context_building(dummy_exporter):
-    @log_usage(event="test-event")
+    @log_exceptions_and_usage(event="test-event")
     def entrypoint(provider):
         if provider == "one":
             provider_one()
         if provider == "two":
             provider_two()
 
-    @log_usage(provider="provider-one")
+    @log_exceptions_and_usage(provider="provider-one")
     def provider_one():
         dummy_layer()
 
-    @log_usage(provider="provider-two")
+    @log_exceptions_and_usage(provider="provider-two")
     def provider_two():
         set_usage_attribute("new-attr", "new-val")
 
-    @log_usage
+    @log_exceptions_and_usage
     def dummy_layer():
         redis_store()
 
-    @log_usage(store="redis")
+    @log_exceptions_and_usage(store="redis")
     def redis_store():
         set_usage_attribute("attr", "val")
 
@@ -103,11 +103,11 @@ def test_global_context_building(dummy_exporter):
 
 
 def test_exception_recording(dummy_exporter):
-    @log_usage(event="test-event")
+    @log_exceptions_and_usage(event="test-event")
     def entrypoint():
         provider()
 
-    @log_usage(provider="provider-one")
+    @log_exceptions_and_usage(provider="provider-one")
     def provider():
         raise ValueError(1)
 
@@ -128,7 +128,7 @@ def test_only_exception_logging(dummy_exporter):
     def failing_fn():
         raise ValueError(1)
 
-    @log_usage(scope="usage-and-exception")
+    @log_exceptions_and_usage(scope="usage-and-exception")
     def entrypoint():
         failing_fn()
 
@@ -152,11 +152,11 @@ def test_only_exception_logging(dummy_exporter):
 
 
 def test_ratio_based_sampling(dummy_exporter):
-    @log_usage()
+    @log_exceptions_and_usage()
     def entrypoint():
         expensive_fn()
 
-    @log_usage(sampler=RatioSampler(ratio=0.1))
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.1))
     def expensive_fn():
         pass
 
@@ -167,15 +167,15 @@ def test_ratio_based_sampling(dummy_exporter):
 
 
 def test_sampling_priority(dummy_exporter):
-    @log_usage(sampler=RatioSampler(ratio=0.3))
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.3))
     def entrypoint():
         expensive_fn()
 
-    @log_usage(sampler=RatioSampler(ratio=0.01))
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.01))
     def expensive_fn():
         other_fn()
 
-    @log_usage(sampler=RatioSampler(ratio=0.1))
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.1))
     def other_fn():
         pass
 
@@ -186,17 +186,17 @@ def test_sampling_priority(dummy_exporter):
 
 
 def test_time_recording(dummy_exporter):
-    @log_usage()
+    @log_exceptions_and_usage()
     def entrypoint():
         time.sleep(0.1)
         expensive_fn()
 
-    @log_usage()
+    @log_exceptions_and_usage()
     def expensive_fn():
         time.sleep(0.5)
         other_fn()
 
-    @log_usage()
+    @log_exceptions_and_usage()
     def other_fn():
         time.sleep(0.2)
 
@@ -210,7 +210,7 @@ def test_time_recording(dummy_exporter):
 
 
 def test_profiling_decorator(dummy_exporter):
-    @log_usage()
+    @log_exceptions_and_usage()
     def entrypoint():
         with tracing_span("custom_span"):
             time.sleep(0.1)
