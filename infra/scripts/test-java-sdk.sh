@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Skip Maven enforcer: https://stackoverflow.com/questions/50647223/maven-enforcer-issue-when-running-from-reactor-level
-mvn -f java/pom.xml --projects java/sdk/java --batch-mode --define skipTests=true \
+mvn -f java/pom.xml --projects sdk/java --batch-mode --define skipTests=true \
     --define enforcer.skip=true clean install
-mvn -f java/pom.xml --projects java/sdk/java --define enforcer.skip=true test
+mvn -f java/pom.xml --projects sdk/java --define enforcer.skip=true test
 TEST_EXIT_CODE=$?
 
 # Default artifact location setting in Prow jobs
