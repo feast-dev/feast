@@ -163,7 +163,7 @@ _set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
-    _executor.submit(requests.post, USAGE_ENDPOINT, json=event)
+    _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=30)
 
 
 def _produce_event(ctx: UsageContext):
