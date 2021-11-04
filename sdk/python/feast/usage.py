@@ -15,6 +15,7 @@ import concurrent.futures
 import contextlib
 import contextvars
 import dataclasses
+import hashlib
 import logging
 import os
 import platform
@@ -44,6 +45,11 @@ _constant_attributes = {
     "version": get_version(),
     "python_version": platform.python_version(),
     "platform": platform.platform(),
+    "env_signature": hashlib.md5(
+        ",".join(
+            sorted([k for k in os.environ.keys() if not k.startswith("FEAST")])
+        ).encode()
+    ).hexdigest(),
 }
 
 
@@ -119,15 +125,20 @@ _context = contextvars.ContextVar("usage_context", default=UsageContext())
 def _set_installation_id():
     if os.getenv("FEAST_FORCE_USAGE_UUID"):
         _constant_attributes["installation_id"] = os.getenv("FEAST_FORCE_USAGE_UUID")
+        _constant_attributes["installation_ts"] = datetime.utcnow().isoformat()
         return
 
     feast_home_dir = join(expanduser("~"), ".feast")
+    installation_timestamp = datetime.utcnow()
 
     try:
         Path(feast_home_dir).mkdir(exist_ok=True)
         usage_filepath = join(feast_home_dir, "usage")
 
         if os.path.exists(usage_filepath):
+            installation_timestamp = datetime.utcfromtimestamp(
+                os.path.getmtime(usage_filepath)
+            )
             with open(usage_filepath, "r") as f:
                 installation_id = f.read()
         else:
@@ -145,6 +156,7 @@ def _set_installation_id():
         installation_id = "undefined"
 
     _constant_attributes["installation_id"] = installation_id
+    _constant_attributes["installation_ts"] = installation_timestamp.isoformat()
 
 
 _set_installation_id()
