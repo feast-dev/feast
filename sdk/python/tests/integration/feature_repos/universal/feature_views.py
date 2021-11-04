@@ -44,6 +44,9 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
     df["conv_rate_plus_val_to_add"] = (
         features_df["conv_rate"] + features_df["val_to_add"]
     )
+    df["conv_rate_plus_100_rounded"] = (
+        df["conv_rate_plus_100"].astype("float").round().astype(pd.Int32Dtype())
+    )
     return df
 
 
@@ -55,6 +58,7 @@ def conv_rate_plus_100_feature_view(
     _features = features or [
         Feature("conv_rate_plus_100", ValueType.DOUBLE),
         Feature("conv_rate_plus_val_to_add", ValueType.DOUBLE),
+        Feature("conv_rate_plus_100_rounded", ValueType.INT32),
     ]
     return OnDemandFeatureView(
         name=conv_rate_plus_100.__name__,
