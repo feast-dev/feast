@@ -101,6 +101,10 @@ def test_apply_entity_success(test_registry):
         and entity.labels["team"] == "matchmaking"
     )
 
+    test_registry.delete_entity("driver_car_id", project)
+    entities = test_registry.list_entities(project)
+    assert len(entities) == 0
+
     test_registry.teardown()
 
     # Will try to reload registry, which will fail because the file has been deleted

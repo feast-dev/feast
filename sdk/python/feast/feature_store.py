@@ -368,6 +368,7 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
+            FeatureTable,
             List[
                 Union[
                     FeatureView,
@@ -375,9 +376,21 @@ class FeatureStore:
                     RequestFeatureView,
                     Entity,
                     FeatureService,
+                    FeatureTable,
                 ]
             ],
         ],
+        objects_to_delete: List[
+            Union[
+                FeatureView,
+                OnDemandFeatureView,
+                RequestFeatureView,
+                Entity,
+                FeatureService,
+                FeatureTable,
+            ]
+        ] = [],
+        partial: bool = True,
         commit: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
@@ -389,6 +402,10 @@ class FeatureStore:
 
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
+            objects_to_delete: A list of objects to be deleted from the registry and removed from the
+                provider's infrastructure. This deletion will only be performed if partial is set to False.
+            partial: If True, apply will only handle the specified objects; if False, apply will also delete
+                all the objects in objects_to_delete, and tear down any associated cloud resources.
             commit: whether to commit changes to the registry
 
         Raises:
@@ -421,11 +438,26 @@ class FeatureStore:
 
         assert isinstance(objects, list)
 
+        # Separate all objects into entities, feature services, and different feature view types.
+        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
         request_views_to_update = [
             ob for ob in objects if isinstance(ob, RequestFeatureView)
         ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
+        services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
+        tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
+
+        if len(entities_to_update) + len(views_to_update) + len(
+            request_views_to_update
+        ) + len(odfvs_to_update) + len(services_to_update) + len(
+            tables_to_update
+        ) != len(
+            objects
+        ):
+            raise ValueError("Unknown object type provided as part of apply() call")
+
+        # Validate all types of feature views.
         if (
             not flags_helper.enable_on_demand_feature_views(self.config)
             and len(odfvs_to_update) > 0
@@ -438,8 +470,6 @@ class FeatureStore:
         _validate_feature_views(
             [*views_to_update, *odfvs_to_update, *request_views_to_update]
         )
-        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
 
         # Make inferences
         update_entities_with_inferred_types_from_feature_views(
@@ -456,12 +486,7 @@ class FeatureStore:
         for odfv in odfvs_to_update:
             odfv.infer_features()
 
-        if len(views_to_update) + len(entities_to_update) + len(
-            services_to_update
-        ) + len(odfvs_to_update) + len(request_views_to_update) != len(objects):
-            raise ValueError("Unknown object type provided as part of apply() call")
-
-        # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
+        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         DUMMY_ENTITY = Entity(
             name=DUMMY_ENTITY_NAME,
             join_key=DUMMY_ENTITY_ID,
@@ -469,6 +494,7 @@ class FeatureStore:
         )
         entities_to_update.append(DUMMY_ENTITY)
 
+        # Add all objects to the registry and update the provider's infrastructure.
         for view in itertools.chain(
             views_to_update, odfvs_to_update, request_views_to_update
         ):
@@ -477,14 +503,62 @@ class FeatureStore:
             self._registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
             self._registry.apply_feature_service(feature_service, project=self.project)
+        for table in tables_to_update:
+            self._registry.apply_feature_table(table, project=self.project)
+
+        if not partial:
+            # Delete all registry objects that should not exist.
+            entities_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, Entity)
+            ]
+            views_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, FeatureView)
+            ]
+            request_views_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
+            ]
+            odfvs_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
+            ]
+            services_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, FeatureService)
+            ]
+            tables_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, FeatureTable)
+            ]
+
+            for entity in entities_to_delete:
+                self._registry.delete_entity(
+                    entity.name, project=self.project, commit=False
+                )
+            for view in views_to_delete:
+                self._registry.delete_feature_view(
+                    view.name, project=self.project, commit=False
+                )
+            for request_view in request_views_to_delete:
+                self._registry.delete_feature_view(
+                    request_view.name, project=self.project, commit=False
+                )
+            for odfv in odfvs_to_delete:
+                self._registry.delete_feature_view(
+                    odfv.name, project=self.project, commit=False
+                )
+            for service in services_to_delete:
+                self._registry.delete_feature_service(
+                    service.name, project=self.project, commit=False
+                )
+            for table in tables_to_delete:
+                self._registry.delete_feature_table(
+                    table.name, project=self.project, commit=False
+                )
 
         self._get_provider().update_infra(
             project=self.project,
-            tables_to_delete=[],
-            tables_to_keep=views_to_update,
-            entities_to_delete=[],
+            tables_to_delete=views_to_delete + tables_to_delete if not partial else [],
+            tables_to_keep=views_to_update + tables_to_update,
+            entities_to_delete=entities_to_delete if not partial else [],
             entities_to_keep=entities_to_update,
-            partial=True,
+            partial=partial,
         )
 
         if commit:
