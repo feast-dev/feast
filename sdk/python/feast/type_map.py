@@ -402,6 +402,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "FLOAT64": ValueType.DOUBLE,
         "BYTES": ValueType.BYTES,
         "BOOL": ValueType.BOOL,
+        "BOOLEAN": ValueType.BOOL, # legacy sql data type
         "ARRAY<INT64>": ValueType.INT64_LIST,
         "ARRAY<FLOAT64>": ValueType.DOUBLE_LIST,
         "ARRAY<STRING>": ValueType.STRING_LIST,
