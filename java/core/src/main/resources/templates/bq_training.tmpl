@@ -1,0 +1,12 @@
+SELECT
+  id,
+  event_timestamp{%- if features | length > 0 %},{%- endif %}
+  {{ features | join(',') }}
+FROM
+  `{{ table_id }}`
+WHERE event_timestamp >= TIMESTAMP("{{ start_date }}") AND event_timestamp <= TIMESTAMP(DATETIME_ADD("{{ end_date }}", INTERVAL 1 DAY))
+{%- for key, val in number_filters.items() %} AND {{ key }} = {{ val }} {%- endfor %}
+{%- for key, val in string_filters.items() %} AND {{ key }} = "{{ val }}" {%- endfor %}
+{% if limit is not none -%}
+LIMIT {{ limit }}
+{%- endif %}
