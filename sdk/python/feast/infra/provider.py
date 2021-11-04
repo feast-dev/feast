@@ -164,9 +164,14 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
                 return AwsProvider(config)
 
-            from feast.infra.passthrough_provider import PassthroughProvider
+            if config.provider == "gcp":
+                from feast.infra.gcp import GcpProvider
 
-            return PassthroughProvider(config)
+                return GcpProvider(config)
+
+            from feast.infra.local import LocalProvider
+
+            return LocalProvider(config)
         else:
             raise errors.FeastProviderNotImplementedError(config.provider)
     else:
