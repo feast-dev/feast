@@ -114,7 +114,7 @@ def python_type_to_feast_value_type(
     Returns:
         Feast Value Type
     """
-    type_name = type_name or type(value).__name__
+    type_name = (type_name or type(value).__name__).lower()
 
     type_map = {
         "int": ValueType.INT64,
@@ -131,7 +131,7 @@ def python_type_to_feast_value_type(
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
-        "Timestamp": ValueType.UNIX_TIMESTAMP,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
