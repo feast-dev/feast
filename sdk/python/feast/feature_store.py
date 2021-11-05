@@ -1210,7 +1210,7 @@ class FeatureStore:
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = all_on_demand_feature_views[odfv_name]
             transformed_features_df = odfv.get_transformed_features_df(
-                full_feature_names, initial_response_df
+                initial_response_df
             )
             for row_idx in range(len(result_rows)):
                 result_row = result_rows[row_idx]
