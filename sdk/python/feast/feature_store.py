@@ -1079,13 +1079,13 @@ class FeatureStore:
         return needed_request_data, needed_request_fv_features
 
     def _augment_response_with_on_demand_transforms(
-            self,
-            feature_refs: List[str],
-            requested_result_row_names: Set[str],
-            odfvs: List[OnDemandFeatureView],
-            full_feature_names: bool,
-            initial_response: OnlineResponse,
-            result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+        self,
+        feature_refs: List[str],
+        requested_result_row_names: Set[str],
+        odfvs: List[OnDemandFeatureView],
+        full_feature_names: bool,
+        initial_response: OnlineResponse,
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
     ) -> OnlineResponse:
         all_on_demand_feature_views = {view.name: view for view in odfvs}
         all_odfv_feature_names = all_on_demand_feature_views.keys()
