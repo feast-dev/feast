@@ -1078,71 +1078,6 @@ class FeatureStore:
                 needed_request_fv_features.add(feature.name)
         return needed_request_data, needed_request_fv_features
 
-    def _augment_response_with_on_demand_transforms(
-        self,
-        feature_refs: List[str],
-        requested_result_row_names: Set[str],
-        odfvs: List[OnDemandFeatureView],
-        full_feature_names: bool,
-        initial_response: OnlineResponse,
-        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
-    ) -> OnlineResponse:
-        all_on_demand_feature_views = {view.name: view for view in odfvs}
-        all_odfv_feature_names = all_on_demand_feature_views.keys()
-
-        if len(all_on_demand_feature_views) == 0:
-            return initial_response
-        initial_response_df = initial_response.to_df()
-
-        odfv_feature_refs = defaultdict(list)
-        for feature_ref in feature_refs:
-            view_name, feature_name = feature_ref.split(":")
-            if view_name in all_odfv_feature_names:
-                odfv_feature_refs[view_name].append(feature_name)
-
-        # Apply on demand transformations
-        odfv_result_names = set()
-        for odfv_name, _feature_refs in odfv_feature_refs.items():
-            odfv = all_on_demand_feature_views[odfv_name]
-            transformed_features_df = odfv.get_transformed_features_df(
-                full_feature_names, initial_response_df
-            )
-            for row_idx in range(len(result_rows)):
-                result_row = result_rows[row_idx]
-
-                selected_subset = [
-                    f for f in transformed_features_df.columns if f in _feature_refs
-                ]
-
-                for transformed_feature in selected_subset:
-                    transformed_feature_name = (
-                        f"{odfv.projection.name_to_use()}__{transformed_feature}"
-                        if full_feature_names
-                        else transformed_feature
-                    )
-                    odfv_result_names.add(transformed_feature_name)
-                    proto_value = python_value_to_proto_value(
-                        transformed_features_df[transformed_feature].values[row_idx]
-                    )
-                    result_row.fields[transformed_feature_name].CopyFrom(proto_value)
-                    result_row.statuses[
-                        transformed_feature_name
-                    ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
-
-        # Drop values that aren't needed
-        unneeded_features = [
-            val
-            for val in result_rows[0].fields
-            if val not in requested_result_row_names and val not in odfv_result_names
-        ]
-        for row_idx in range(len(result_rows)):
-            result_row = result_rows[row_idx]
-            for unneeded_feature in unneeded_features:
-                result_row.fields.pop(unneeded_feature)
-                result_row.statuses.pop(unneeded_feature)
-
-        return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
-
     def ensure_request_data_values_exist(
         self,
         needed_request_data: Set[str],
@@ -1211,6 +1146,71 @@ class FeatureStore:
                         result_row.statuses[
                             feature_ref
                         ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+
+    def _augment_response_with_on_demand_transforms(
+        self,
+        feature_refs: List[str],
+        requested_result_row_names: Set[str],
+        odfvs: List[OnDemandFeatureView],
+        full_feature_names: bool,
+        initial_response: OnlineResponse,
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+    ) -> OnlineResponse:
+        all_on_demand_feature_views = {view.name: view for view in odfvs}
+        all_odfv_feature_names = all_on_demand_feature_views.keys()
+
+        if len(all_on_demand_feature_views) == 0:
+            return initial_response
+        initial_response_df = initial_response.to_df()
+
+        odfv_feature_refs = defaultdict(list)
+        for feature_ref in feature_refs:
+            view_name, feature_name = feature_ref.split(":")
+            if view_name in all_odfv_feature_names:
+                odfv_feature_refs[view_name].append(feature_name)
+
+        # Apply on demand transformations
+        odfv_result_names = set()
+        for odfv_name, _feature_refs in odfv_feature_refs.items():
+            odfv = all_on_demand_feature_views[odfv_name]
+            transformed_features_df = odfv.get_transformed_features_df(
+                full_feature_names, initial_response_df
+            )
+            for row_idx in range(len(result_rows)):
+                result_row = result_rows[row_idx]
+
+                selected_subset = [
+                    f for f in transformed_features_df.columns if f in _feature_refs
+                ]
+
+                for transformed_feature in selected_subset:
+                    transformed_feature_name = (
+                        f"{odfv.projection.name_to_use()}__{transformed_feature}"
+                        if full_feature_names
+                        else transformed_feature
+                    )
+                    odfv_result_names.add(transformed_feature_name)
+                    proto_value = python_value_to_proto_value(
+                        transformed_features_df[transformed_feature].values[row_idx]
+                    )
+                    result_row.fields[transformed_feature_name].CopyFrom(proto_value)
+                    result_row.statuses[
+                        transformed_feature_name
+                    ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+
+        # Drop values that aren't needed
+        unneeded_features = [
+            val
+            for val in result_rows[0].fields
+            if val not in requested_result_row_names and val not in odfv_result_names
+        ]
+        for row_idx in range(len(result_rows)):
+            result_row = result_rows[row_idx]
+            for unneeded_feature in unneeded_features:
+                result_row.fields.pop(unneeded_feature)
+                result_row.statuses.pop(unneeded_feature)
+
+        return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
     def _get_feature_views_to_use(
         self,
