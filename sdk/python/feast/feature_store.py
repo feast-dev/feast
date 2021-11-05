@@ -1023,8 +1023,7 @@ class FeatureStore:
     ):
         # Get requested feature values so we can drop odfv dependencies that aren't requested
         requested_result_row_names: Set[str] = set()
-        for row_idx in range(len(result_rows)):
-            result_row = result_rows[row_idx]
+        for result_row in result_rows:
             for feature_name in result_row.fields.keys():
                 requested_result_row_names.add(feature_name)
         # Request feature view values are also request data features that should be in the

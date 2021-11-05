@@ -277,7 +277,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     )
     assert online_features is not None
 
-    # Test if the dependent conv_rate feature isn't present for odfv
+    # Test that the on demand feature views compute properly even if the dependent conv_rate
+    # feature isn't requested.
     online_features_no_conv_rate = fs.get_online_features(
         features=[ref for ref in feature_refs if ref != "driver_stats:conv_rate"],
         entity_rows=entity_rows,
