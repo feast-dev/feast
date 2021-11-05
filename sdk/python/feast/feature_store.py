@@ -991,13 +991,15 @@ class FeatureStore:
                 union_of_entity_keys,
             )
 
-        requested_result_row_names = self._get_requested_result_fields_and_populate_odfv_dependencies(
+        requested_result_row_names = self._get_requested_result_fields(
+            result_rows, needed_request_fv_features
+        )
+        self._populate_odfv_dependencies(
             entity_name_to_join_key_map,
             full_feature_names,
             grouped_odfv_refs,
             provider,
             request_data_features,
-            needed_request_fv_features,
             result_rows,
             union_of_entity_keys,
         )
@@ -1014,23 +1016,32 @@ class FeatureStore:
             result_rows,
         )
 
-    def _get_requested_result_fields_and_populate_odfv_dependencies(
+    def _get_requested_result_fields(
         self,
-        entity_name_to_join_key_map: Dict[str, str],
-        full_feature_names: bool,
-        grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
-        provider: Provider,
-        request_data_features: Dict[str, List[Any]],
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
         needed_request_fv_features: Set[str],
-        result_rows,
-        union_of_entity_keys,
-    ) -> Set[str]:
+    ):
         # Get requested feature values so we can drop odfv dependencies that aren't requested
         requested_result_row_names: Set[str] = set()
         for row_idx in range(len(result_rows)):
             result_row = result_rows[row_idx]
             for feature_name in result_row.fields.keys():
                 requested_result_row_names.add(feature_name)
+        # Request feature view values are also request data features that should be in the
+        # final output
+        requested_result_row_names.update(needed_request_fv_features)
+        return requested_result_row_names
+
+    def _populate_odfv_dependencies(
+        self,
+        entity_name_to_join_key_map: Dict[str, str],
+        full_feature_names: bool,
+        grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
+        provider: Provider,
+        request_data_features: Dict[str, List[Any]],
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+        union_of_entity_keys: List[EntityKeyProto],
+    ):
         # Add more feature values to the existing result rows for the request data features
         for feature_name, feature_values in request_data_features.items():
             for row_idx, feature_value in enumerate(feature_values):
@@ -1041,9 +1052,7 @@ class FeatureStore:
                 result_row.statuses[
                     feature_name
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
-        # Request feature view values are also request data features that should be in the
-        # final output
-        requested_result_row_names.update(needed_request_fv_features)
+
         # Add data if odfv requests specific feature views as dependencies
         if len(grouped_odfv_refs) > 0:
             for odfv, _ in grouped_odfv_refs:
@@ -1061,7 +1070,6 @@ class FeatureStore:
                         fv,
                         union_of_entity_keys,
                     )
-        return requested_result_row_names
 
     def get_needed_request_data(
         self,
