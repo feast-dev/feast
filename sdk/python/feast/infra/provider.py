@@ -20,6 +20,12 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.type_map import python_value_to_proto_value
 
+PROVIDERS_CLASS_FOR_TYPE = {
+    "gcp": "feast.infra.gcp.GcpProvider",
+    "aws": "feast.infra.aws.AwsProvider",
+    "local": "feast.infra.local.LocalProvider",
+}
+
 
 class Provider(abc.ABC):
     @abc.abstractmethod
@@ -158,25 +164,20 @@ class Provider(abc.ABC):
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:
-        if config.provider in {"gcp", "aws", "local"}:
-            if config.provider == "aws":
-                from feast.infra.aws import AwsProvider
-
-                return AwsProvider(config)
-
-            from feast.infra.passthrough_provider import PassthroughProvider
-
-            return PassthroughProvider(config)
-        else:
+        if config.provider not in PROVIDERS_CLASS_FOR_TYPE:
             raise errors.FeastProviderNotImplementedError(config.provider)
+
+        provider = PROVIDERS_CLASS_FOR_TYPE[config.provider]
     else:
-        # Split provider into module and class names by finding the right-most dot.
-        # For example, provider 'foo.bar.MyProvider' will be parsed into 'foo.bar' and 'MyProvider'
-        module_name, class_name = config.provider.rsplit(".", 1)
+        provider = config.provider
 
-        cls = importer.get_class_from_type(module_name, class_name, "Provider")
+    # Split provider into module and class names by finding the right-most dot.
+    # For example, provider 'foo.bar.MyProvider' will be parsed into 'foo.bar' and 'MyProvider'
+    module_name, class_name = provider.rsplit(".", 1)
 
-        return cls(config)
+    cls = importer.get_class_from_type(module_name, class_name, "Provider")
+
+    return cls(config)
 
 
 def _get_requested_feature_views_to_features_dict(

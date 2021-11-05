@@ -59,7 +59,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_value_to_proto_value
-from feast.usage import UsageEvent, log_event, log_exceptions, log_exceptions_and_usage
+from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -464,8 +464,7 @@ class FeatureStore:
         ):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
-        if len(odfvs_to_update) > 0:
-            log_event(UsageEvent.APPLY_WITH_ODFV)
+        set_usage_attribute("odfv", bool(odfvs_to_update))
 
         _validate_feature_views(
             [*views_to_update, *odfvs_to_update, *request_views_to_update]
@@ -678,10 +677,9 @@ class FeatureStore:
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
         request_feature_views = list(view for view, _ in request_fvs)
-        if len(on_demand_feature_views) > 0:
-            log_event(UsageEvent.GET_HISTORICAL_FEATURES_WITH_ODFV)
-        if len(request_feature_views) > 0:
-            log_event(UsageEvent.GET_HISTORICAL_FEATURES_WITH_REQUEST_FV)
+
+        set_usage_attribute("odfv", bool(on_demand_feature_views))
+        set_usage_attribute("request_fv", bool(request_feature_views))
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
@@ -973,10 +971,8 @@ class FeatureStore:
             all_request_feature_views,
             all_on_demand_feature_views,
         )
-        if len(grouped_odfv_refs) > 0:
-            log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_ODFV)
-        if len(grouped_request_fv_refs) > 0:
-            log_event(UsageEvent.GET_ONLINE_FEATURES_WITH_REQUEST_FV)
+        set_usage_attribute("odfv", bool(grouped_odfv_refs))
+        set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
 
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import itertools
 import os
 import sqlite3
 from datetime import datetime
@@ -29,6 +29,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage, tracing_span
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -73,6 +74,7 @@ class SqliteOnlineStore(OnlineStore):
             )
         return self._conn
 
+    @log_exceptions_and_usage(online_store="sqlite")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -127,6 +129,7 @@ class SqliteOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
+    @log_exceptions_and_usage(online_store="sqlite")
     def online_read(
         self,
         config: RepoConfig,
@@ -134,24 +137,30 @@ class SqliteOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        pass
         conn = self._get_conn(config)
         cur = conn.cursor()
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        project = config.project
+        with tracing_span(name="remote_call"):
+            # Fetch all entities in one go
+            cur.execute(
+                f"SELECT entity_key, feature_name, value, event_ts "
+                f"FROM {_table_id(config.project, table)} "
+                f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
+                f"ORDER BY entity_key",
+                [serialize_entity_key(entity_key) for entity_key in entity_keys],
+            )
+            rows = cur.fetchall()
+
+        rows = {
+            k: list(group) for k, group in itertools.groupby(rows, key=lambda r: r[0])
+        }
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(entity_key)
-
-            cur.execute(
-                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = ?",
-                (entity_key_bin,),
-            )
-
             res = {}
             res_ts = None
-            for feature_name, val_bin, ts in cur.fetchall():
+            for _, feature_name, val_bin, ts in rows.get(entity_key_bin, []):
                 val = ValueProto()
                 val.ParseFromString(val_bin)
                 res[feature_name] = val
@@ -163,6 +172,7 @@ class SqliteOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
+    @log_exceptions_and_usage(online_store="sqlite")
     def update(
         self,
         config: RepoConfig,
