@@ -7,6 +7,8 @@ from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_data_source,
     create_driver_hourly_stats_feature_view,
+    create_similarity_request_data_source,
+    similarity_feature_view,
 )
 
 
@@ -27,10 +29,21 @@ def test_infer_odfv_features(environment, universal_data_sources, infer_features
         infer_features=infer_features,
     )
 
-    feast_objects = [driver_hourly_stats, driver_odfv, driver(), customer()]
+    sim_odfv = similarity_feature_view(
+        {
+            "driver": driver_hourly_stats,
+            "input_request": create_similarity_request_data_source(),
+        },
+        infer_features=infer_features,
+    )
+
+    feast_objects = [driver_hourly_stats, driver_odfv, sim_odfv, driver(), customer()]
     store.apply(feast_objects)
     odfv = store.get_on_demand_feature_view("conv_rate_plus_100")
     assert len(odfv.features) == 3
+
+    odfv = store.get_on_demand_feature_view("similarity")
+    assert len(odfv.features) == 1
 
 
 @pytest.mark.integration

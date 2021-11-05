@@ -124,6 +124,7 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date) -> pd.DataFrame
     df_all_drivers["avg_daily_trips"] = np.random.randint(0, 1000, size=rows).astype(
         np.int32
     )
+    df_all_drivers["embedding"] = [[1.0, 0.0]] * rows
     df_all_drivers["created"] = pd.to_datetime(pd.Timestamp.now(tz=None).round("ms"))
 
     # Create duplicate rows that should be filtered by created timestamp

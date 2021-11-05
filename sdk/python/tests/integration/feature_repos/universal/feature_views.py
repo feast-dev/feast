@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from feast import Feature, FeatureView, OnDemandFeatureView, ValueType
@@ -68,6 +69,35 @@ def conv_rate_plus_100_feature_view(
     )
 
 
+def similarity(features_df: pd.DataFrame) -> pd.DataFrame:
+    if features_df.size == 0:
+        return pd.DataFrame({"cos": [0.0]})  # give hint to Feast about return type
+    vectors_a = features_df["embedding"].apply(np.array)
+    vectors_b = features_df["vector"].apply(np.array)
+    dot_products = vectors_a.mul(vectors_b).apply(sum)
+    norms_q = vectors_a.apply(np.linalg.norm)
+    norms_doc = vectors_b.apply(np.linalg.norm)
+    df = pd.DataFrame()
+    df["cos"] = dot_products / (norms_q * norms_doc)
+    return df
+
+
+def similarity_feature_view(
+    inputs: Dict[str, Union[RequestDataSource, FeatureView]],
+    infer_features: bool = False,
+    features: Optional[List[Feature]] = None,
+) -> OnDemandFeatureView:
+    _features = features or [
+        Feature("cos", ValueType.DOUBLE),
+    ]
+    return OnDemandFeatureView(
+        name=similarity.__name__,
+        inputs=inputs,
+        features=[] if infer_features else _features,
+        udf=similarity,
+    )
+
+
 def create_driver_age_request_feature_view():
     return RequestFeatureView(
         name="driver_age",
@@ -83,6 +113,12 @@ def create_conv_rate_request_data_source():
     )
 
 
+def create_similarity_request_data_source():
+    return RequestDataSource(
+        name="similarity_input", schema={"vector": ValueType.DOUBLE_LIST}
+    )
+
+
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
@@ -93,6 +129,7 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
             Feature(name="conv_rate", dtype=ValueType.FLOAT),
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
+            Feature(name="embedding", dtype=ValueType.DOUBLE_LIST),
         ],
         batch_source=source,
         ttl=timedelta(hours=2),
