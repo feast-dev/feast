@@ -2,12 +2,15 @@ import datetime
 import itertools
 import unittest
 from datetime import timedelta
+from typing import Any, Dict, List, Union
 
+import assertpy
 import numpy as np
 import pandas as pd
 import pytest
+import requests
 
-from feast import Entity, Feature, FeatureService, FeatureView, ValueType
+from feast import Entity, Feature, FeatureService, FeatureStore, FeatureView, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
@@ -167,11 +170,85 @@ def test_write_to_online_store(environment, universal_data_sources):
     assert df["conv_rate"].iloc[0] == 0.85
 
 
+def _get_online_features_dict_remotely(
+    endpoint: str,
+    features: Union[List[str], FeatureService],
+    entity_rows: List[Dict[str, Any]],
+    full_feature_names: bool = False,
+) -> Dict[str, List[Any]]:
+    """Sends the online feature request to a remote feature server (through endpoint) and returns the feature dict.
+
+    The output should be identical to:
+
+    >>> fs.get_online_features(features=features, entity_rows=entity_rows, full_feature_names=full_feature_names).to_dict()
+
+    This makes it easy to test the remote feature server by comparing the output to the local method.
+
+    """
+    request = {
+        # Convert list of dicts (entity_rows) into dict of lists (entities) for json request
+        "entities": {key: [row[key] for row in entity_rows] for key in entity_rows[0]},
+        "full_feature_names": full_feature_names,
+    }
+    # Either set features of feature_service depending on the parameter
+    if isinstance(features, list):
+        request["features"] = features
+    else:
+        request["feature_service"] = features.name
+    for _ in range(5):
+        # Send the request to the remote feature server and get the response in JSON format
+        response = requests.post(f"{endpoint}/get-online-features", json=request).json()
+        # Retry if the response is internal server error, which can happen when lambda is being restarted
+        if response.get("message") != "Internal Server Error":
+            break
+    else:
+        raise Exception("Failed to get online features from remote feature server")
+
+    # Get rid of unnecessary structure in the response, leaving list of dicts
+    response = [row["fields"] for row in response["field_values"]]
+    # Convert list of dicts (response) into dict of lists which is the format of the return value
+    return {key: [row[key] for row in response] for key in response[0]}
+
+
+def get_online_features_dict(
+    fs: FeatureStore,
+    features: Union[List[str], FeatureService],
+    entity_rows: List[Dict[str, Any]],
+    full_feature_names: bool = False,
+) -> Dict[str, List[Any]]:
+    """Get the online feature values from both SDK and remote feature servers, assert equality and return values.
+
+    Always use this method instead of fs.get_online_features(...) in this test file.
+
+    """
+    online_features = fs.get_online_features(
+        features=features,
+        entity_rows=entity_rows,
+        full_feature_names=full_feature_names,
+    )
+    assertpy.assert_that(online_features).is_not_none()
+    dict1 = online_features.to_dict()
+
+    endpoint = fs.get_feature_server_endpoint()
+    # If endpoint is None, it means that the remote feature server isn't configured
+    if endpoint is not None:
+        dict2 = _get_online_features_dict_remotely(
+            endpoint=endpoint,
+            features=features,
+            entity_rows=entity_rows,
+            full_feature_names=full_feature_names,
+        )
+
+        # Make sure that the two dicts are equal
+        assertpy.assert_that(dict1).is_equal_to(dict2)
+
+    return dict1
+
+
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(environment, universal_data_sources, full_feature_names):
-
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -267,14 +344,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     unprefixed_feature_refs.remove("conv_rate_plus_100")
     unprefixed_feature_refs.remove("conv_rate_plus_val_to_add")
 
-    online_features = fs.get_online_features(
+    online_features_dict = get_online_features_dict(
+        fs=fs,
         features=feature_refs,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
     )
-    assert online_features is not None
-
-    online_features_dict = online_features.to_dict()
     keys = online_features_dict.keys()
     assert (
         len(keys) == len(feature_refs) + 3
@@ -328,13 +403,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             )
 
     # Check what happens for missing values
-    missing_responses_dict = fs.get_online_features(
+    missing_responses_dict = get_online_features_dict(
+        fs=fs,
         features=feature_refs,
         entity_rows=[
             {"driver": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
         ],
         full_feature_names=full_feature_names,
-    ).to_dict()
+    )
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
         if unprefixed_feature_ref not in {"num_rides", "avg_ride_length", "driver_age"}:
@@ -346,19 +422,21 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     # Check what happens for missing request data
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
-        fs.get_online_features(
+        get_online_features_dict(
+            fs=fs,
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0}],
             full_feature_names=full_feature_names,
-        ).to_dict()
+        )
 
     # Also with request data
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
-        fs.get_online_features(
+        get_online_features_dict(
+            fs=fs,
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 20}],
             full_feature_names=full_feature_names,
-        ).to_dict()
+        )
 
     assert_feature_service_correctness(
         fs,
@@ -508,14 +586,12 @@ def assert_feature_service_correctness(
     orders_df,
     global_df,
 ):
-    feature_service_response = fs.get_online_features(
+    feature_service_online_features_dict = get_online_features_dict(
+        fs=fs,
         features=feature_service,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
     )
-    assert feature_service_response is not None
-
-    feature_service_online_features_dict = feature_service_response.to_dict()
     feature_service_keys = feature_service_online_features_dict.keys()
 
     assert (
@@ -559,14 +635,12 @@ def assert_feature_service_entity_mapping_correctness(
     destinations_df,
 ):
     if full_feature_names:
-        feature_service_response = fs.get_online_features(
+        feature_service_online_features_dict = get_online_features_dict(
+            fs=fs,
             features=feature_service,
             entity_rows=entity_rows,
             full_feature_names=full_feature_names,
         )
-        assert feature_service_response is not None
-
-        feature_service_online_features_dict = feature_service_response.to_dict()
         feature_service_keys = feature_service_online_features_dict.keys()
 
         assert (
@@ -597,7 +671,8 @@ def assert_feature_service_entity_mapping_correctness(
     else:
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
         with pytest.raises(FeatureNameCollisionError):
-            feature_service_response = fs.get_online_features(
+            get_online_features_dict(
+                fs=fs,
                 features=feature_service,
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,
