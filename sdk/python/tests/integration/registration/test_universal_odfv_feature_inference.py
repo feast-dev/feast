@@ -30,7 +30,7 @@ def test_infer_odfv_features(environment, universal_data_sources, infer_features
     feast_objects = [driver_hourly_stats, driver_odfv, driver(), customer()]
     store.apply(feast_objects)
     odfv = store.get_on_demand_feature_view("conv_rate_plus_100")
-    assert len(odfv.features) == 2
+    assert len(odfv.features) == 3
 
 
 @pytest.mark.integration
