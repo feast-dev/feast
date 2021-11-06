@@ -72,6 +72,7 @@
   * [feature\_store.yaml](reference/feature-repository/feature-store-yaml.md)
   * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
+* [\[Alpha\] Stream ingestion](reference/alpha-stream-ingestion.md)
 * [\[Alpha\] Local feature server](reference/feature-server.md)
 * [\[Alpha\] AWS Lambda feature server](reference/alpha-aws-lambda-feature-server.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)

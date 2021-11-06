@@ -17,35 +17,35 @@ $ tree
 
 .
 ├── e2e
-│   └── test_universal_e2e.py
+│   └── test_universal_e2e.py
 ├── feature_repos
-│   ├── repo_configuration.py
-│   └── universal
-│       ├── data_source_creator.py
-│       ├── data_sources
-│       │   ├── bigquery.py
-│       │   ├── file.py
-│       │   └── redshift.py
-│       ├── entities.py
-│       └── feature_views.py
+│   ├── repo_configuration.py
+│   └── universal
+│       ├── data_source_creator.py
+│       ├── data_sources
+│       │   ├── bigquery.py
+│       │   ├── file.py
+│       │   └── redshift.py
+│       ├── entities.py
+│       └── feature_views.py
 ├── offline_store
-│   ├── test_s3_custom_endpoint.py
-│   └── test_universal_historical_retrieval.py
+│   ├── test_s3_custom_endpoint.py
+│   └── test_universal_historical_retrieval.py
 ├── online_store
-│   ├── test_e2e_local.py
-│   ├── test_feature_service_read.py
-│   ├── test_online_retrieval.py
-│   └── test_universal_online.py
+│   ├── test_e2e_local.py
+│   ├── test_feature_service_read.py
+│   ├── test_online_retrieval.py
+│   └── test_universal_online.py
 ├── registration
-│   ├── test_cli.py
-│   ├── test_cli_apply_duplicated_featureview_names.py
-│   ├── test_cli_chdir.py
-│   ├── test_feature_service_apply.py
-│   ├── test_feature_store.py
-│   ├── test_inference.py
-│   ├── test_registry.py
-│   ├── test_universal_odfv_feature_inference.py
-│   └── test_universal_types.py
+│   ├── test_cli.py
+│   ├── test_cli_apply_duplicated_featureview_names.py
+│   ├── test_cli_chdir.py
+│   ├── test_feature_service_apply.py
+│   ├── test_feature_store.py
+│   ├── test_inference.py
+│   ├── test_registry.py
+│   ├── test_universal_odfv_feature_inference.py
+│   └── test_universal_types.py
 └── scaffolding
     ├── test_init.py
     ├── test_partial_apply.py
@@ -148,30 +148,30 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 
 ## Writing a new test or reusing existing tests
 
-To add a new test to an existing test file:
+### To add a new test to an existing test file
 
 * Use the same function signatures as an existing test (e.g. use `environment` as an argument) to include the relevant test fixtures.
 * If possible, expand an individual test instead of writing a new test, due to the cost of standing up offline / online stores.
 
-To test a new offline / online store from a plugin repo:
+### To test a new offline / online store from a plugin repo
 
 * Install Feast in editable mode with `pip install -e`.
 * The core tests for offline / online store behavior are parametrized by the `FULL_REPO_CONFIGS` variable defined in `feature_repos/repo_configuration.py`. To overwrite this variable without modifying the Feast repo, create your own file that contains a `FULL_REPO_CONFIGS` (which will require adding a new `IntegrationTestRepoConfig` or two) and set the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. Then the core offline / online store tests can be run with `make test-python-universal`.
 * See the [custom offline store demo](https://github.com/feast-dev/feast-custom-offline-store-demo) and the [custom online store demo](https://github.com/feast-dev/feast-custom-online-store-demo) for examples.
 
-To include a new offline / online store in the main Feast repo:
+### To include a new offline / online store in the main Feast repo
 
 * Extend `data_source_creator.py` for your offline store.
 * In `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
 * Run the full test suite with `make test-python-integration.`
 
-To include a new online store:
+### To include a new online store
 
 * In `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
 * In `repo_configuration.py`, add new`IntegrationTestRepoConfig` for offline stores you want to test.
 * Run the full test suite with `make test-python-integration`
 
-To use custom data in a new test:
+### To use custom data in a new test
 
 * Check `test_universal_types.py` for an example of how to do this.
 
