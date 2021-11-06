@@ -453,6 +453,9 @@ def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
         # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
         return pa_type_as_str
 
+    if pa_type_as_str.startswith("list"):
+        return "super"
+
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
     # Other mappings have also been adjusted accordingly.
