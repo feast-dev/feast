@@ -71,14 +71,18 @@ def conv_rate_plus_100_feature_view(
 
 def similarity(features_df: pd.DataFrame) -> pd.DataFrame:
     if features_df.size == 0:
-        return pd.DataFrame({"cos": [0.0]})  # give hint to Feast about return type
-    vectors_a = features_df["embedding"].apply(np.array)
-    vectors_b = features_df["vector"].apply(np.array)
+        # give hint to Feast about return type
+        df = pd.DataFrame({"cos_double": [0.0]})
+        df["cos_float"] = df["cos_double"].astype(np.float32)
+        return df
+    vectors_a = features_df["embedding_double"].apply(np.array)
+    vectors_b = features_df["vector_double"].apply(np.array)
     dot_products = vectors_a.mul(vectors_b).apply(sum)
     norms_q = vectors_a.apply(np.linalg.norm)
     norms_doc = vectors_b.apply(np.linalg.norm)
     df = pd.DataFrame()
-    df["cos"] = dot_products / (norms_q * norms_doc)
+    df["cos_double"] = dot_products / (norms_q * norms_doc)
+    df["cos_float"] = df["cos_double"].astype(np.float32)
     return df
 
 
@@ -88,7 +92,8 @@ def similarity_feature_view(
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
     _features = features or [
-        Feature("cos", ValueType.DOUBLE),
+        Feature("cos_double", ValueType.DOUBLE),
+        Feature("cos_float", ValueType.FLOAT),
     ]
     return OnDemandFeatureView(
         name=similarity.__name__,
@@ -115,7 +120,11 @@ def create_conv_rate_request_data_source():
 
 def create_similarity_request_data_source():
     return RequestDataSource(
-        name="similarity_input", schema={"vector": ValueType.DOUBLE_LIST}
+        name="similarity_input",
+        schema={
+            "vector_double": ValueType.DOUBLE_LIST,
+            "vector_float": ValueType.FLOAT_LIST,
+        },
     )
 
 
@@ -129,7 +138,8 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
             Feature(name="conv_rate", dtype=ValueType.FLOAT),
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
-            Feature(name="embedding", dtype=ValueType.DOUBLE_LIST),
+            Feature(name="embedding_double", dtype=ValueType.DOUBLE_LIST),
+            Feature(name="embedding_float", dtype=ValueType.FLOAT_LIST),
         ],
         batch_source=source,
         ttl=timedelta(hours=2),

@@ -43,7 +43,7 @@ def test_infer_odfv_features(environment, universal_data_sources, infer_features
     assert len(odfv.features) == 3
 
     odfv = store.get_on_demand_feature_view("similarity")
-    assert len(odfv.features) == 1
+    assert len(odfv.features) == 2
 
 
 @pytest.mark.integration
