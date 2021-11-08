@@ -20,11 +20,11 @@ No, there are [feature views without entities](concepts/feature-view.md#feature-
 
 ### Does Feast provide security or access control?
 
-Feast currently does not support any access control other than the access control required for the Provider's environment \(for example, GCP and AWS permissions\).
+Feast currently does not support any access control other than the access control required for the Provider's environment (for example, GCP and AWS permissions).
 
 ### Does Feast support streaming sources?
 
-Feast is actively working on this right now. Please reach out to the Feast team if you're interested in giving feedback! 
+Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/alpha-stream-ingestion.md).
 
 ### Does Feast support composite keys?
 
@@ -42,12 +42,12 @@ Feast is designed to work at scale and support low latency online serving. Bench
 
 Yes. Specifically:
 
-* Simple lists / dense embeddings: 
-  * BigQuery supports list types natively 
-  * Redshift does not support list types, so you'll need to serialize these features into strings \(e.g. json or protocol buffers\)
-  * Feast's implementation of online stores serializes features into Feast protocol buffers and supports list types \(see [reference](https://github.com/feast-dev/feast/blob/master/docs/specs/online_store_format.md#appendix-a-value-proto-format)\)
-* Sparse embeddings \(e.g. one hot encodings\)
-  * One way to do this efficiently is to have a protobuf or string representation of [https://www.tensorflow.org/guide/sparse\_tensor](https://www.tensorflow.org/guide/sparse_tensor)
+* Simple lists / dense embeddings:
+  * BigQuery supports list types natively
+  * Redshift does not support list types, so you'll need to serialize these features into strings (e.g. json or protocol buffers)
+  * Feast's implementation of online stores serializes features into Feast protocol buffers and supports list types (see [reference](https://github.com/feast-dev/feast/blob/master/docs/specs/online\_store\_format.md#appendix-a-value-proto-format))
+* Sparse embeddings (e.g. one hot encodings)
+  * One way to do this efficiently is to have a protobuf or string representation of [https://www.tensorflow.org/guide/sparse\_tensor](https://www.tensorflow.org/guide/sparse\_tensor)
 
 ### Does Feast support X storage engine?
 
@@ -61,7 +61,7 @@ Please follow the instructions [here](../how-to-guides/adding-support-for-a-new-
 
 Yes. There are two ways to use S3 in Feast:
 
-* Using Redshift as a data source via Spectrum \([AWS tutorial](https://docs.aws.amazon.com/redshift/latest/dg/tutorial-nested-data-create-table.html)\), and then continuing with the [Running Feast with GCP/AWS](../how-to-guides/feast-gcp-aws/) guide. See a [presentation](https://youtu.be/pMFbRJ7AnBk?t=9463) we did on this at our apply\(\) meetup.
+* Using Redshift as a data source via Spectrum ([AWS tutorial](https://docs.aws.amazon.com/redshift/latest/dg/tutorial-nested-data-create-table.html)), and then continuing with the [Running Feast with GCP/AWS](../how-to-guides/feast-gcp-aws/) guide. See a [presentation](https://youtu.be/pMFbRJ7AnBk?t=9463) we did on this at our apply() meetup.
 * Using the `s3_endpoint_override` in a `FileSource` data source. This endpoint is more suitable for quick proof of concepts that won't necessarily scale for production use cases.
 
 ### How can I use Spark with Feast?
@@ -76,11 +76,11 @@ Please see the [roadmap](../roadmap.md).
 
 ### What is the difference between Feast 0.9 and Feast 0.10+?
 
-Feast 0.10+ is much lighter weight and more extensible than Feast 0.9. It is designed to be simple to install and use. Please see this [document](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0) for more details.
+Feast 0.10+ is much lighter weight and more extensible than Feast 0.9. It is designed to be simple to install and use. Please see this [document](https://docs.google.com/document/d/1AOsr\_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0) for more details.
 
 ### How do I migrate from Feast 0.9 to Feast 0.10+?
 
-Please see this [document](https://docs.google.com/document/d/1AOsr_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0). If you have any questions or suggestions, feel free to leave a comment on the document!
+Please see this [document](https://docs.google.com/document/d/1AOsr\_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0). If you have any questions or suggestions, feel free to leave a comment on the document!
 
 ### How do I contribute to Feast?
 
@@ -93,6 +93,5 @@ Feast Core and Feast Serving were both part of Feast Java. We plan to support Fe
 {% hint style="info" %}
 **Don't see your question?**
 
-We encourage you to ask questions on [Slack](https://slack.feast.dev/) or [Github](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
+We encourage you to ask questions on [Slack](https://slack.feast.dev) or [Github](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
 {% endhint %}
-
