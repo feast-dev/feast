@@ -20,7 +20,7 @@ Feast now allows users to push features previously registered in a feature view 
 
 ## Example
 
-See [https://github.com/feast-dev/feast-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.
+See [https://github.com/feast-dev/feast-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to ingest stream data into Feast.
 
 We register a feature view as normal, and during stream processing (e.g. Kafka consumers), now we push a dataframe matching the feature view schema:
 
