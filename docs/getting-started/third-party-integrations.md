@@ -19,7 +19,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-* [ ] Kafka source (Planned for Q4 2021)
+* [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
 * [ ] Snowflake source (Planned for Q4 2021)
 * [ ] HTTP source
 
