@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import time
 import unittest
 from datetime import timedelta
 from typing import Any, Dict, List, Union
@@ -195,19 +196,21 @@ def _get_online_features_dict_remotely(
         request["features"] = features
     else:
         request["feature_service"] = features.name
-    for _ in range(5):
+    for _ in range(25):
         # Send the request to the remote feature server and get the response in JSON format
         response = requests.post(f"{endpoint}/get-online-features", json=request).json()
         # Retry if the response is internal server error, which can happen when lambda is being restarted
         if response.get("message") != "Internal Server Error":
             break
+        # Sleep between retries to give the server some time to start
+        time.sleep(1)
     else:
         raise Exception("Failed to get online features from remote feature server")
-
+    keys = response["field_values"][0]["statuses"].keys()
     # Get rid of unnecessary structure in the response, leaving list of dicts
     response = [row["fields"] for row in response["field_values"]]
     # Convert list of dicts (response) into dict of lists which is the format of the return value
-    return {key: [row[key] for row in response] for key in response[0]}
+    return {key: [row.get(key) for row in response] for key in keys}
 
 
 def get_online_features_dict(
@@ -311,7 +314,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     ]
 
     location_pairs = np.array(list(itertools.permutations(entities["location"], 2)))
-    sample_location_pairs = location_pairs[np.random.choice(len(location_pairs), 10)].T
+    sample_location_pairs = location_pairs[
+        np.random.choice(len(location_pairs), 10)
+    ].T.tolist()
     origins_df = datasets["location"][
         datasets["location"]["location_id"].isin(sample_location_pairs[0])
     ]

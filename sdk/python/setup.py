@@ -47,7 +47,7 @@ REQUIRED = [
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
     "grpcio>=1.34.0",
-    "grpcio-reflection>=1.34.0"
+    "grpcio-reflection>=1.34.0",
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
@@ -63,10 +63,10 @@ REQUIRED = [
     "tqdm==4.*",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
+    "proto-plus<1.19.7",
 ]
 
 GCP_REQUIRED = [
-    "proto-plus<1.19.7",
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
@@ -113,7 +113,6 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    "proto-plus<1.19.7",
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
