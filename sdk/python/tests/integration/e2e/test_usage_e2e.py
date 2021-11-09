@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from feast import Entity, RepoConfig, ValueType, usage
+from feast import Entity, RepoConfig, ValueType
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 
 
@@ -114,8 +114,8 @@ def test_exception_usage_on(dummy_exporter, enabling_toggle):
 
 
 @pytest.mark.integration
-def test_exception_usage_off(dummy_exporter):
-    usage._is_enabled = False
+def test_exception_usage_off(dummy_exporter, enabling_toggle):
+    enabling_toggle.__bool__.return_value = False
 
     _reload_feast()
     from feast.feature_store import FeatureStore
