@@ -14,8 +14,6 @@ jobs:
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: 'true'
       - name: Get release version
         id: get_release_version
         run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
