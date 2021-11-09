@@ -31,10 +31,15 @@ def dummy_exporter():
         yield event_log
 
 
-@pytest.mark.integration
-def test_usage_on(dummy_exporter):
-    usage._is_enabled = True
+@pytest.fixture(scope="function")
+def enabling_toggle():
+    with patch("feast.usage._is_enabled") as p:
+        p.__bool__.return_value = True
+        yield p
 
+
+@pytest.mark.integration
+def test_usage_on(dummy_exporter, enabling_toggle):
     _reload_feast()
     from feast.feature_store import FeatureStore
 
@@ -65,8 +70,8 @@ def test_usage_on(dummy_exporter):
 
 
 @pytest.mark.integration
-def test_usage_off(dummy_exporter):
-    usage._is_enabled = False
+def test_usage_off(dummy_exporter, enabling_toggle):
+    enabling_toggle.__bool__.return_value = False
 
     _reload_feast()
     from feast.feature_store import FeatureStore
@@ -94,9 +99,7 @@ def test_usage_off(dummy_exporter):
 
 
 @pytest.mark.integration
-def test_exception_usage_on(dummy_exporter):
-    usage._is_enabled = True
-
+def test_exception_usage_on(dummy_exporter, enabling_toggle):
     _reload_feast()
     from feast.feature_store import FeatureStore
 
