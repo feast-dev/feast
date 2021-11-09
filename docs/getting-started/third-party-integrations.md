@@ -1,6 +1,6 @@
 # Third party integrations
 
-We integrate with a wide set of tools and technologies so you can make Feast work in your existing stack. Many of these integrations are maintained as plugins to the main Feast repo.&#x20;
+We integrate with a wide set of tools and technologies so you can make Feast work in your existing stack. Many of these integrations are maintained as plugins to the main Feast repo.
 
 {% hint style="info" %}
 Don't see your offline store or online store of choice here? Check our our guides to make a custom one!
@@ -19,7 +19,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-* [ ] Kafka source (Planned for Q4 2021)
+* [x] Kafka source (with [push support into the online store](../reference/alpha-stream-ingestion.md))
 * [ ] Snowflake source (Planned for Q4 2021)
 * [ ] HTTP source
 
@@ -53,6 +53,3 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [ ] Cloud Run
 * [ ] Kubernetes
 * [ ] KNative
-
-
-
