@@ -46,7 +46,7 @@ REQUIRED = [
     "fastavro>=1.1.0",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
-    "grpcio>=1.34.0",
+    "grpcio>=1.34.0,<1.40",
     "grpcio-reflection>=1.34.0"
     "Jinja2>=2.0.0",
     "jsonschema",
