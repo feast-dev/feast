@@ -113,6 +113,7 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
+    "pip-tools~=6"
 ] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
 
 # Get git repo root directory
@@ -207,7 +208,7 @@ setup(
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
-        "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*", "pip-tools"] + CI_REQUIRED,
+        "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"] + CI_REQUIRED,
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
