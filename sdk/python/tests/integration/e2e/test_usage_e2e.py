@@ -37,6 +37,9 @@ def enabling_toggle():
         p.__bool__.return_value = True
         yield p
 
+    # return to initial state
+    _reload_feast()
+
 
 @pytest.mark.integration
 def test_usage_on(dummy_exporter, enabling_toggle):
