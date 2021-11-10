@@ -41,6 +41,8 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test Python
         run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests
+      - name: Ensure conflict-free dependencies
+        run: FEAST_USAGE=False pip-compile --dry-run sdk/python/setup.py --extra ci
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
