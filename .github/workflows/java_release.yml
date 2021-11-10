@@ -1,5 +1,5 @@
 name: release
-
+# TODO(adchia): update DockerHub + Maven repo paths so version can match existing Feast versions.
 on:
   push:
     tags:

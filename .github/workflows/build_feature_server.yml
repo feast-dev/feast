@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "protos/**"
+      - "sdk/python**"
 
 jobs:
   build-docker-image:

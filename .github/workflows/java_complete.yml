@@ -1,12 +1,6 @@
 name: java_complete
 
-on:
-  push:
-    paths:
-      - 'sdk/java/**'
-  pull_request:
-    paths:
-      - 'sdk/java/**'
+on: [push, pull_request]
 
 jobs:
   lint-java:
