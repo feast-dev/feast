@@ -113,7 +113,7 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    "pip-tools~=6"
+    "pip-tools"
 ] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
 
 # Get git repo root directory
