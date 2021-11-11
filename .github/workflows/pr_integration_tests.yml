@@ -8,8 +8,6 @@ on:
       - labeled
 
 jobs:
-<<<<<<< Updated upstream
-=======
   build-docker-image:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
@@ -47,11 +45,11 @@ jobs:
             --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
->>>>>>> Stashed changes
   integration-test-python:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
       || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
+    needs: build-docker-image
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
