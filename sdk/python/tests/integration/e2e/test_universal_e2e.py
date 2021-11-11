@@ -78,7 +78,7 @@ def check_offline_and_online_features(
 def run_offline_online_store_consistency_test(
     fs: FeatureStore, fv: FeatureView
 ) -> None:
-    now = datetime.now()
+    now = datetime.utcnow()
 
     full_feature_names = True
     check_offline_store: bool = True

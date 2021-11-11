@@ -54,6 +54,7 @@ REQUIRED = [
     "pandas>=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
+    "proto-plus",
     "pyarrow>=4.0.0",
     "pydantic>=1.0.0",
     "PyYAML>=5.4.*",
@@ -113,14 +114,10 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    "google-cloud-bigquery>=2.28.1",
-    "google-cloud-bigquery-storage >= 2.0.0",
-    "google-cloud-datastore>=2.1.*",
-    "google-cloud-storage>=1.20.*,<1.41",
-    "google-cloud-core==1.4.*",
-    "redis-py-cluster==2.1.2",
-    "boto3==1.17.*",
-]
+    "pip-tools",
+] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
+
+DEV_REQUIRED = ["mypy-protobuf==1.*", "grpcio-testing==1.*"] + CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
@@ -214,7 +211,7 @@ setup(
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
-        "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
+        "dev": DEV_REQUIRED,
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,

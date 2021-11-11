@@ -51,31 +51,36 @@ REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
     IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-    # GCP configurations
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store="datastore",
-    ),
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
-    # AWS configurations
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=DYNAMO_CONFIG,
-        python_feature_server=True,
-    ),
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
 ]
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    DEFAULT_FULL_REPO_CONFIGS.extend(
+        [
+            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            # GCP configurations
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store="datastore",
+            ),
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            # AWS configurations
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=DYNAMO_CONFIG,
+                python_feature_server=True,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+        ]
+    )
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
@@ -211,7 +216,7 @@ class Environment:
     data_source_creator: DataSourceCreator
 
     end_date: datetime = field(
-        default=datetime.now().replace(microsecond=0, second=0, minute=0)
+        default=datetime.utcnow().replace(microsecond=0, second=0, minute=0)
     )
 
     def __post_init__(self):

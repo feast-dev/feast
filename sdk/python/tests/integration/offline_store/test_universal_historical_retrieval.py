@@ -228,6 +228,12 @@ def get_expected_training_df(
 
     conv_feature_name = "driver_stats__conv_rate" if full_feature_names else "conv_rate"
     expected_df["conv_rate_plus_100"] = expected_df[conv_feature_name] + 100
+    expected_df["conv_rate_plus_100_rounded"] = (
+        expected_df["conv_rate_plus_100"]
+        .astype("float")
+        .round()
+        .astype(pd.Int32Dtype())
+    )
     expected_df["conv_rate_plus_val_to_add"] = (
         expected_df[conv_feature_name] + expected_df["val_to_add"]
     )
@@ -375,6 +381,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         expected_df_query = expected_df.drop(
             columns=[
                 "conv_rate_plus_100",
+                "conv_rate_plus_100_rounded",
                 "val_to_add",
                 "conv_rate_plus_val_to_add",
                 "driver_age",
@@ -426,6 +433,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "customer_profile:avg_passenger_count",
             "customer_profile:lifetime_trip_count",
             "conv_rate_plus_100:conv_rate_plus_100",
+            "conv_rate_plus_100:conv_rate_plus_100_rounded",
             "conv_rate_plus_100:conv_rate_plus_val_to_add",
             "order:order_is_success",
             "global_stats:num_rides",

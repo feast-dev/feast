@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import os
 import time
 import unittest
 from datetime import timedelta
@@ -33,6 +34,8 @@ from tests.utils.data_source_utils import prep_file_source
 # TODO: make this work with all universal (all online store types)
 @pytest.mark.integration
 def test_write_to_online_store_event_check(local_redis_environment):
+    if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
+        return
     fs = local_redis_environment.feature_store
 
     # write same data points 3 with different timestamps
@@ -355,10 +358,22 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
     )
+
+    # Test that the on demand feature views compute properly even if the dependent conv_rate
+    # feature isn't requested.
+    online_features_no_conv_rate = get_online_features_dict(
+        fs=fs,
+        features=[ref for ref in feature_refs if ref != "driver_stats:conv_rate"],
+        entity_rows=entity_rows,
+        full_feature_names=full_feature_names,
+    )
+
+    assert online_features_no_conv_rate is not None
+
     keys = online_features_dict.keys()
     assert (
-        len(keys) == len(feature_refs) + 3
-    )  # Add three for the driver id and the customer id entity keys + val_to_add request data.
+        len(keys) == len(feature_refs) + 2
+    )  # Add two for the driver id and the customer id entity keys
     for feature in feature_refs:
         # full_feature_names does not apply to request feature views
         if full_feature_names and feature != "driver_age:driver_age":
@@ -607,8 +622,8 @@ def assert_feature_service_correctness(
                 for projection in feature_service.feature_view_projections
             ]
         )
-        + 3
-    )  # Add two for the driver id and the customer id entity keys and val_to_add request data
+        + 2
+    )  # Add two for the driver id and the customer id entity keys
 
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):

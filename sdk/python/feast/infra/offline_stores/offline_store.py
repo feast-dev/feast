@@ -47,7 +47,7 @@ class RetrievalJob(ABC):
         # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
         for odfv in self.on_demand_feature_views:
             features_df = features_df.join(
-                odfv.get_transformed_features_df(self.full_feature_names, features_df)
+                odfv.get_transformed_features_df(features_df)
             )
         return features_df
 
@@ -69,7 +69,7 @@ class RetrievalJob(ABC):
         features_df = self._to_df_internal()
         for odfv in self.on_demand_feature_views:
             features_df = features_df.join(
-                odfv.get_transformed_features_df(self.full_feature_names, features_df)
+                odfv.get_transformed_features_df(features_df)
             )
         return pyarrow.Table.from_pandas(features_df)
 

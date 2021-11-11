@@ -25,7 +25,7 @@ driver_stats_fv = FeatureView(
 Feature views are used during
 
 * The generation of training datasets by querying the data source of feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
-* Loading of feature values into an online store. Feature views determine the storage schema in the online store.
+* Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/alpha-stream-ingestion.md).
 * Retrieval of features from the online store. Feature views provide the schema definition to Feast in order to look up features from the online store.
 
 {% hint style="info" %}
@@ -48,6 +48,55 @@ global_stats_fv = FeatureView(
     batch_source=BigQuerySource(
         table_ref="feast-oss.demo_data.global_stats"
     )
+)
+```
+{% endtab %}
+{% endtabs %}
+
+## Entity aliasing
+
+"Entity aliases" can be specified to join `entity_dataframe` columns that do not match the column names in the source table of a FeatureView.
+
+This could be used if a user has no control over these column names or if there are multiple entities are a subclass of a more general entity. For example, "spammer" and "reporter" could be aliases of a "user" entity, and "origin" and "destination" could be aliases of a "location" entity as shown below.
+
+It is suggested that you dynamically specify the new FeatureView name using `.with_name` and `join_key_map` override using `.with_join_key_map` instead of needing to register each new copy.
+
+{% tabs %}
+{% tab title="location_stats_feature_view.py" %}
+```python
+location = Entity(name="location", join_key="location_id", value_type=ValueType.INT64)
+
+location_stats_fv= FeatureView(
+    name="location_stats",
+    entities=["location"],
+    features=[
+        Feature(name="temperature", dtype=ValueType.INT32)
+    ],
+    batch_source=BigQuerySource(
+        table_ref="feast-oss.demo_data.location_stats"
+    ),
+)
+```
+{% endtab %}
+
+{% tab title="temperatures_feature_service.py" %}
+```python
+from location_stats_feature_view import location_stats_fv
+
+temperatures_fs = FeatureService(
+    name="temperatures",
+    features=[
+        location_stats_feature_view
+            .with_name("origin_stats")
+            .with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+        location_stats_feature_view
+            .with_name("destination_stats")
+            .with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
+    ],
 )
 ```
 {% endtab %}
@@ -102,4 +151,3 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
     df['conv_rate_plus_val2'] = (features_df['conv_rate'] + features_df['val_to_add_2'])
     return df
 ```
-
