@@ -213,7 +213,7 @@ class Environment:
     data_source_creator: DataSourceCreator
 
     end_date: datetime = field(
-        default=datetime.now().replace(microsecond=0, second=0, minute=0)
+        default=datetime.utcnow().replace(microsecond=0, second=0, minute=0)
     )
 
     def __post_init__(self):
