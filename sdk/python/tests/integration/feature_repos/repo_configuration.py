@@ -214,6 +214,7 @@ class Environment:
     test_repo_config: IntegrationTestRepoConfig
     feature_store: FeatureStore
     data_source_creator: DataSourceCreator
+    python_feature_server: bool
 
     end_date: datetime = field(
         default=datetime.utcnow().replace(microsecond=0, second=0, minute=0)
@@ -282,6 +283,7 @@ def construct_test_environment(
             test_repo_config=test_repo_config,
             feature_store=fs,
             data_source_creator=offline_creator,
+            python_feature_server=test_repo_config.python_feature_server,
         )
 
         try:

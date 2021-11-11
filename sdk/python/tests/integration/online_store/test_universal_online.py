@@ -12,12 +12,13 @@ import pandas as pd
 import pytest
 import requests
 
-from feast import Entity, Feature, FeatureService, FeatureStore, FeatureView, ValueType
+from feast import Entity, Feature, FeatureService, FeatureView, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
 )
 from tests.integration.feature_repos.repo_configuration import (
+    Environment,
     construct_universal_feature_views,
 )
 from tests.integration.feature_repos.universal.entities import (
@@ -201,7 +202,9 @@ def _get_online_features_dict_remotely(
         request["feature_service"] = features.name
     for _ in range(25):
         # Send the request to the remote feature server and get the response in JSON format
-        response = requests.post(f"{endpoint}/get-online-features", json=request).json()
+        response = requests.post(
+            f"{endpoint}/get-online-features", json=request, timeout=30
+        ).json()
         # Retry if the response is internal server error, which can happen when lambda is being restarted
         if response.get("message") != "Internal Server Error":
             break
@@ -217,7 +220,7 @@ def _get_online_features_dict_remotely(
 
 
 def get_online_features_dict(
-    fs: FeatureStore,
+    environment: Environment,
     features: Union[List[str], FeatureService],
     entity_rows: List[Dict[str, Any]],
     full_feature_names: bool = False,
@@ -227,7 +230,7 @@ def get_online_features_dict(
     Always use this method instead of fs.get_online_features(...) in this test file.
 
     """
-    online_features = fs.get_online_features(
+    online_features = environment.feature_store.get_online_features(
         features=features,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -235,7 +238,7 @@ def get_online_features_dict(
     assertpy.assert_that(online_features).is_not_none()
     dict1 = online_features.to_dict()
 
-    endpoint = fs.get_feature_server_endpoint()
+    endpoint = environment.feature_store.get_feature_server_endpoint()
     # If endpoint is None, it means that the remote feature server isn't configured
     if endpoint is not None:
         dict2 = _get_online_features_dict_remotely(
@@ -247,7 +250,10 @@ def get_online_features_dict(
 
         # Make sure that the two dicts are equal
         assertpy.assert_that(dict1).is_equal_to(dict2)
-
+    elif environment.python_feature_server:
+        raise ValueError(
+            "feature_store.get_feature_server_endpoint() is None while python feature server is enabled"
+        )
     return dict1
 
 
@@ -353,7 +359,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     unprefixed_feature_refs.remove("conv_rate_plus_val_to_add")
 
     online_features_dict = get_online_features_dict(
-        fs=fs,
+        environment=environment,
         features=feature_refs,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -362,7 +368,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     # Test that the on demand feature views compute properly even if the dependent conv_rate
     # feature isn't requested.
     online_features_no_conv_rate = get_online_features_dict(
-        fs=fs,
+        environment=environment,
         features=[ref for ref in feature_refs if ref != "driver_stats:conv_rate"],
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -424,7 +430,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     # Check what happens for missing values
     missing_responses_dict = get_online_features_dict(
-        fs=fs,
+        environment=environment,
         features=feature_refs,
         entity_rows=[
             {"driver": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
@@ -443,7 +449,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     # Check what happens for missing request data
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
         get_online_features_dict(
-            fs=fs,
+            environment=environment,
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0}],
             full_feature_names=full_feature_names,
@@ -452,14 +458,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     # Also with request data
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
         get_online_features_dict(
-            fs=fs,
+            environment=environment,
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 20}],
             full_feature_names=full_feature_names,
         )
 
     assert_feature_service_correctness(
-        fs,
+        environment,
         feature_service,
         entity_rows,
         full_feature_names,
@@ -481,7 +487,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         )
     ]
     assert_feature_service_entity_mapping_correctness(
-        fs,
+        environment,
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
@@ -597,7 +603,7 @@ def get_latest_feature_values_from_dataframes(
 
 
 def assert_feature_service_correctness(
-    fs,
+    environment,
     feature_service,
     entity_rows,
     full_feature_names,
@@ -607,7 +613,7 @@ def assert_feature_service_correctness(
     global_df,
 ):
     feature_service_online_features_dict = get_online_features_dict(
-        fs=fs,
+        environment=environment,
         features=feature_service,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -644,7 +650,7 @@ def assert_feature_service_correctness(
 
 
 def assert_feature_service_entity_mapping_correctness(
-    fs,
+    environment,
     feature_service,
     entity_rows,
     full_feature_names,
@@ -656,7 +662,7 @@ def assert_feature_service_entity_mapping_correctness(
 ):
     if full_feature_names:
         feature_service_online_features_dict = get_online_features_dict(
-            fs=fs,
+            environment=environment,
             features=feature_service,
             entity_rows=entity_rows,
             full_feature_names=full_feature_names,
@@ -692,7 +698,7 @@ def assert_feature_service_entity_mapping_correctness(
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
         with pytest.raises(FeatureNameCollisionError):
             get_online_features_dict(
-                fs=fs,
+                environment=environment,
                 features=feature_service,
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,

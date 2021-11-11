@@ -335,6 +335,7 @@ def _get_docker_image_version() -> str:
 
     """
     if flags_helper.is_test():
+        # Note: this should be in sync with https://github.com/feast-dev/feast/blob/6fbe01b6e9a444dc77ec3328a54376f4d9387664/.github/workflows/pr_integration_tests.yml#L41
         return (
             subprocess.check_output(
                 ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent

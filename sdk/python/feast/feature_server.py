@@ -49,7 +49,7 @@ def get_app(store: "feast.FeatureStore"):
             ).proto
 
             # Convert the Protobuf object to JSON and return it
-            return MessageToDict(
+            return MessageToDict(  # type: ignore
                 response_proto, preserving_proto_field_name=True, float_precision=18
             )
         except Exception as e:
