@@ -47,14 +47,14 @@ REQUIRED = [
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
     "grpcio>=1.34.0",
-    "grpcio-reflection>=1.34.0"
+    "grpcio-reflection>=1.34.0",
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
     "pandas>=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
-    "proto-plus",
+    "proto-plus<1.19.7",
     "pyarrow>=4.0.0",
     "pydantic>=1.0.0",
     "PyYAML>=5.4.*",
@@ -67,7 +67,6 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
-    "proto-plus<1.19.7",
     "google-cloud-bigquery>=2.28.1",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
