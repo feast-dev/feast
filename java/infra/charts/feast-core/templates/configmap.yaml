@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "feast-core.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-core.name" . }}
+    component: core
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  application-generated.yaml: |
+{{- if index .Values "application-generated.yaml" "enabled" }}
+    spring:
+      datasource:
+        url: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/postgres
+
+    server:
+      port: {{ .Values.service.http.targetPort }}
+{{- end }}
+
+  application-override.yaml: |
+{{- if index .Values "application-override.yaml" "enabled" }}
+{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    
+{{- end }}

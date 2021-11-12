@@ -1,0 +1,103 @@
+#
+# Copyright 2018 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+
+feast:
+  stream:
+    # Feature stream type. Only kafka is supported.
+    type: kafka
+    # Feature stream options.
+    # See the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
+    options:
+      topic: feast-features
+      bootstrapServers: localhost:9092
+      replicationFactor: 1
+      partitions: 1
+    specsOptions:
+      specsTopic: feast-specs
+      specsAckTopic: feast-specs-ack
+      notifyIntervalMilliseconds: 1000
+      
+  security:
+    authentication:
+      enabled: false
+      provider: jwt
+      options:
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+        subjectClaim: email
+
+    authorization:
+      enabled: false
+      provider: http
+      options:
+        authorizationUrl: http://localhost:8082
+        
+    # If set to true, HTTP REST endpoints at /api/v1 implemented by
+    # CoreServiceRestController will be accessible in Feast Core WITHOUT
+    # authentication.
+    disableRestControllerAuth: false
+
+  logging:
+    # Audit logging provides a machine readable structured JSON log that can give better 
+    # insight into what is happening in Feast.
+    audit:
+      # Whether audit logging is enabled. 
+      enabled: true
+      # Whether to enable message level (ie request/response) audit logging
+      messageLogging:
+        enabled: false
+        # Logging forwarder currently provides a machine readable structured JSON log to an
+        # external fluentd service that can give better insight into what is happening in Feast.
+        # Accepts console / fluentd as destination
+        destination: console
+        fluentdHost: localhost
+        fluentdPort: 24224
+
+grpc:
+  server:
+    # The port that Feast Core gRPC service listens on
+    port: 6565
+    security:
+      enabled: false
+      certificateChain: server.crt
+      privateKey: server.key
+      
+spring:
+  jpa:
+    properties.hibernate:
+      format_sql: true
+      event:
+        merge:
+          entity_copy_observer: allow
+    hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
+    hibernate.ddl-auto: validate
+  datasource:
+    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+  flyway:
+    baseline-on-migrate: true
+
+management:
+  metrics:
+    export:
+      simple:
+        enabled: false
+      statsd:
+        enabled: true
+        host: ${STATSD_HOST:localhost}
+        port: ${STATSD_PORT:8125}

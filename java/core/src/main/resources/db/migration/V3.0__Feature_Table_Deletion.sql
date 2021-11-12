@@ -1,0 +1,1 @@
+ALTER TABLE feature_tables ADD COLUMN is_deleted boolean NOT NULL;
