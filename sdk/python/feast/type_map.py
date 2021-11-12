@@ -399,6 +399,7 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
 
 def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
     type_map: Dict[str, ValueType] = {
+        "DATE": ValueType.UNIX_TIMESTAMP,
         "DATETIME": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "INTEGER": ValueType.INT64,
