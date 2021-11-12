@@ -38,6 +38,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: feast-python-server
+        # Note: the image tags should be in sync with sdk/python/feast/infra/aws.py:_get_docker_image_version
         run: |
           docker build \
             --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \

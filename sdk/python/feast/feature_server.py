@@ -7,6 +7,7 @@ from google.protobuf.json_format import MessageToDict, Parse
 import feast
 from feast import proto_json
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
+from feast.type_map import feast_value_type_to_python_type
 
 
 def get_app(store: "feast.FeatureStore"):
@@ -36,7 +37,10 @@ def get_app(store: "feast.FeatureStore"):
                 raise HTTPException(status_code=500, detail="Uneven number of columns")
 
             entity_rows = [
-                {k: v.val[idx] for k, v in request_proto.entities.items()}
+                {
+                    k: feast_value_type_to_python_type(v.val[idx])
+                    for k, v in request_proto.entities.items()
+                }
                 for idx in range(num_entities)
             ]
 
@@ -45,7 +49,9 @@ def get_app(store: "feast.FeatureStore"):
             ).proto
 
             # Convert the Protobuf object to JSON and return it
-            return MessageToDict(response_proto, preserving_proto_field_name=True)
+            return MessageToDict(  # type: ignore
+                response_proto, preserving_proto_field_name=True, float_precision=18
+            )
         except Exception as e:
             # Print the original exception on the server side
             logger.exception(e)
