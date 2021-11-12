@@ -156,11 +156,10 @@ class AwsProvider(PassthroughProvider):
                 # feature views, feature services, and other definitions does not update lambda).
                 _logger.info("  Updating AWS Lambda...")
 
-                lambda_client.update_function_configuration(
-                    FunctionName=resource_name,
-                    Environment={
-                        "Variables": {FEATURE_STORE_YAML_ENV_NAME: config_base64}
-                    },
+                aws_utils.update_lambda_function_environment(
+                    lambda_client,
+                    resource_name,
+                    {"Variables": {FEATURE_STORE_YAML_ENV_NAME: config_base64}},
                 )
 
         api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)

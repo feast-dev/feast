@@ -170,9 +170,9 @@ def test_write_to_online_store(environment, universal_data_sources):
         ],
         entity_rows=[{"driver": 123}],
     ).to_df()
-    assert df["avg_daily_trips"].iloc[0] == 14
-    assert df["acc_rate"].iloc[0] == 0.91
-    assert df["conv_rate"].iloc[0] == 0.85
+    assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_equal_to(14)
+    assertpy.assert_that(df["acc_rate"].iloc[0]).is_close_to(0.91, 1e-6)
+    assertpy.assert_that(df["conv_rate"].iloc[0]).is_close_to(0.85, 1e-6)
 
 
 def _get_online_features_dict_remotely(
