@@ -128,6 +128,22 @@ def create_similarity_request_data_source():
     )
 
 
+def create_item_embeddings_feature_view(source, infer_features: bool = False):
+    item_embeddings_feature_view = FeatureView(
+        name="item_embeddings",
+        entities=["item"],
+        features=None
+        if infer_features
+        else [
+            Feature(name="embedding_double", dtype=ValueType.DOUBLE_LIST),
+            Feature(name="embedding_float", dtype=ValueType.FLOAT_LIST),
+        ],
+        batch_source=source,
+        ttl=timedelta(hours=2),
+    )
+    return item_embeddings_feature_view
+
+
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
@@ -138,8 +154,6 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
             Feature(name="conv_rate", dtype=ValueType.FLOAT),
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
-            Feature(name="embedding_double", dtype=ValueType.DOUBLE_LIST),
-            Feature(name="embedding_float", dtype=ValueType.FLOAT_LIST),
         ],
         batch_source=source,
         ttl=timedelta(hours=2),

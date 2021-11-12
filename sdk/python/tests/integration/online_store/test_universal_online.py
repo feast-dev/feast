@@ -143,14 +143,11 @@ def test_write_to_online_store(environment, universal_data_sources):
     fs.apply([driver_hourly_stats, driver_entity])
 
     # fake data to ingest into Online Store
-    dummy_vector = [1.0, 0.0]
     data = {
         "driver_id": [123],
         "conv_rate": [0.85],
         "acc_rate": [0.91],
         "avg_daily_trips": [14],
-        "embedding_double": [dummy_vector],
-        "embedding_float": [dummy_vector],
         "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
         "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
     }
