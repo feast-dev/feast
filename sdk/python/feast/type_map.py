@@ -47,7 +47,11 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     Returns:
         Python native type representation/version of the given field_value_proto
     """
-    field_value_dict = MessageToDict(field_value_proto)
+    field_value_dict = MessageToDict(field_value_proto, float_precision=18)  # type: ignore
+
+    # This can happen when proto_json.patch() has been called before this call, which is true for a feature server
+    if not isinstance(field_value_dict, dict):
+        return field_value_dict
 
     for k, v in field_value_dict.items():
         if "List" in k:

@@ -64,6 +64,7 @@ REQUIRED = [
     "tqdm==4.*",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
+    "proto-plus<1.19.7",
 ]
 
 GCP_REQUIRED = [
@@ -113,7 +114,7 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    "pip-tools"
+    "pip-tools",
 ] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
 
 DEV_REQUIRED = ["mypy-protobuf==1.*", "grpcio-testing==1.*"] + CI_REQUIRED

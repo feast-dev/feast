@@ -2,7 +2,7 @@ import contextlib
 import os
 import tempfile
 import uuid
-from typing import Dict, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -60,6 +60,7 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
     wait=wait_exponential(multiplier=1, max=4),
     retry=retry_if_exception_type(ConnectionClosedError),
     stop=stop_after_attempt(5),
+    reraise=True,
 )
 def execute_redshift_statement_async(
     redshift_data_client, cluster_id: str, database: str, user: str, query: str
@@ -96,6 +97,7 @@ class RedshiftStatementNotFinishedError(Exception):
     wait=wait_exponential(multiplier=1, max=30),
     retry=retry_if_exception_type(RedshiftStatementNotFinishedError),
     stop=stop_after_delay(300),  # 300 seconds
+    reraise=True,
 )
 def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
     """Waits for the Redshift statement to finish. Raises RedshiftQueryError if the statement didn't succeed.
@@ -424,6 +426,29 @@ def delete_lambda_function(lambda_client, function_name: str) -> Dict:
 
     """
     return lambda_client.delete_function(FunctionName=function_name)
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, max=4),
+    retry=retry_if_exception_type(ClientError),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def update_lambda_function_environment(
+    lambda_client, function_name: str, environment: Dict[str, Any]
+) -> None:
+    """
+    Update AWS Lambda function environment. The function is retried multiple times in case another action is
+    currently being run on the lambda (e.g. it's being created or being updated in parallel).
+    Args:
+        lambda_client: AWS Lambda client.
+        function_name: Name of the AWS Lambda function.
+        environment: The desired lambda environment.
+
+    """
+    lambda_client.update_function_configuration(
+        FunctionName=function_name, Environment=environment
+    )
 
 
 def get_first_api_gateway(api_gateway_client, api_gateway_name: str) -> Optional[Dict]:
