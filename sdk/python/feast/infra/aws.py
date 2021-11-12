@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import logging
 import os
 import subprocess
@@ -314,7 +315,7 @@ def _get_lambda_name(project: str):
     # AWS Lambda name can't have the length greater than 64 bytes.
     # This usually occurs during integration tests where feast version is long
     if len(lambda_prefix) + len(lambda_suffix) >= 63:
-        lambda_suffix = base64.b64encode(lambda_suffix.encode()).decode()[:40]
+        lambda_suffix = hashlib.md5(lambda_suffix.encode()).hexdigest()
     return f"{lambda_prefix}-{lambda_suffix}"
 
 

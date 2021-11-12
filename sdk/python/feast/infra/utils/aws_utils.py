@@ -431,7 +431,7 @@ def delete_lambda_function(lambda_client, function_name: str) -> Dict:
 @retry(
     wait=wait_exponential(multiplier=1, max=4),
     retry=retry_if_exception_type(ClientError),
-    stop=stop_after_attempt(7),
+    stop=stop_after_attempt(5),
     reraise=True,
 )
 def update_lambda_function_environment(
