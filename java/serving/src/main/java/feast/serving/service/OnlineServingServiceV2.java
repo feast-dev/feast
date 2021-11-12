@@ -208,7 +208,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
               checkOutsideMaxAge(
                   feature, entityRow, featureMaxAges.get(feature.getFeatureReference()));
 
-          if (!isOutsideMaxAge && value != null) {
+          if (value != null) {
             rowValues.put(FeatureV2.getFeatureStringRef(feature.getFeatureReference()), value);
           } else {
             rowValues.put(

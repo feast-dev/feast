@@ -96,19 +96,6 @@
       <version>${project.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigtable-emulator</artifactId>
-      <version>0.130.2</version>
-      <scope>test</scope>
-    </dependency>
-
 
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
     <dependency>
@@ -317,84 +304,26 @@
       <version>${jakarta.validation.api.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-core</artifactId>
-      <version>${spring.security.version}</version>
-    </dependency>
-	<dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-config</artifactId>
-      <version>${spring.security.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security.oauth</groupId>
-      <artifactId>spring-security-oauth2</artifactId>
-      <version>${spring.security.oauth2.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-oauth2-client</artifactId>
-      <version>${spring.security.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-web</artifactId>
-      <version>${spring.security.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-oauth2-jose</artifactId>
-      <version>${spring.security.version}</version>
-    </dependency>
-    <dependency>
       <groupId>net.devh</groupId>
       <artifactId>grpc-server-spring-boot-starter</artifactId>
       <version>${grpc.spring.boot.starter.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.nimbusds</groupId>
-      <artifactId>nimbus-jose-jwt</artifactId>
-      <version>8.2.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-oauth2-core</artifactId>
-      <version>${spring.security.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.15.1</version>
+      <version>1.16.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>1.15.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>gcloud</artifactId>
-      <version>1.15.2</version>
+      <version>1.16.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
       <version>3.0.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>sh.ory.keto</groupId>
-      <artifactId>keto-client</artifactId>
-      <version>0.4.4-alpha.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-common-test</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
