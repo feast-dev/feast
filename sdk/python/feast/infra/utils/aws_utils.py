@@ -15,11 +15,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from feast.errors import (
-    AwsLambdaResourceConflictException,
-    RedshiftCredentialsError,
-    RedshiftQueryError,
-)
+from feast.errors import RedshiftCredentialsError, RedshiftQueryError
 from feast.type_map import pa_to_redshift_value_type
 
 try:
@@ -434,30 +430,25 @@ def delete_lambda_function(lambda_client, function_name: str) -> Dict:
 
 @retry(
     wait=wait_exponential(multiplier=1, max=4),
-    retry=retry_if_exception_type(AwsLambdaResourceConflictException),
-    stop=stop_after_attempt(5),
+    retry=retry_if_exception_type(ClientError),
+    stop=stop_after_attempt(7),
     reraise=True,
 )
 def update_lambda_function_environment(
     lambda_client, function_name: str, environment: Dict[str, Any]
 ) -> None:
     """
-    Update AWS Lambda function environment. The function is retried multiple times in case the lambda is currently
-    being created.
+    Update AWS Lambda function environment. The function is retried multiple times in case another action is
+    currently being run on the lambda (e.g. it's being created or being updated in parallel).
     Args:
         lambda_client: AWS Lambda client.
         function_name: Name of the AWS Lambda function.
         environment: The desired lambda environment.
 
     """
-    try:
-        lambda_client.update_function_configuration(
-            FunctionName=function_name, Environment=environment,
-        )
-    # Need to re-raise this exception, because ResourceConflictException can only be accessed through the client
-    # object (lambda_client). It can't be imported at the top level to include in `@retry` decorator.
-    except lambda_client.exceptions.ResourceConflictException as e:
-        raise AwsLambdaResourceConflictException(function_name) from e
+    lambda_client.update_function_configuration(
+        FunctionName=function_name, Environment=environment
+    )
 
 
 def get_first_api_gateway(api_gateway_client, api_gateway_name: str) -> Optional[Dict]:

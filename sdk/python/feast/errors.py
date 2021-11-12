@@ -290,13 +290,6 @@ class AwsLambdaDoesNotExist(Exception):
         )
 
 
-class AwsLambdaResourceConflictException(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS Lambda function {resource_name} cannot be updated due to a conflicting update."
-        )
-
-
 class AwsAPIGatewayDoesNotExist(Exception):
     def __init__(self, resource_name: str):
         super().__init__(
