@@ -38,7 +38,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: feast-python-server
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.event.pull_request.head.ref }}
         run: |
           docker build \
             --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
