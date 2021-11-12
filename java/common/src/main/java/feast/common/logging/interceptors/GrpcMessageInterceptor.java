@@ -18,9 +18,6 @@ package feast.common.logging.interceptors;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
-import feast.common.auth.config.SecurityProperties;
-import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
-import feast.common.auth.utils.AuthUtils;
 import feast.common.logging.AuditLogger;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.entry.MessageAuditLogEntry;
@@ -32,10 +29,8 @@ import io.grpc.ServerCall.Listener;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
-import java.util.Map;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -48,20 +43,15 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class GrpcMessageInterceptor implements ServerInterceptor {
-  private SecurityProperties securityProperties;
   private LoggingProperties loggingProperties;
 
   /**
    * Construct GrpcMessageIntercetor.
    *
    * @param loggingProperties properties used to configure logging interceptor.
-   * @param securityProperties If provided, will output the subject claim specified in
-   *     securityProperties as identity in {@link MessageAuditLogEntry} instead.
    */
   @Autowired
-  public GrpcMessageInterceptor(
-      LoggingProperties loggingProperties, @Nullable SecurityProperties securityProperties) {
-    this.securityProperties = securityProperties;
+  public GrpcMessageInterceptor(LoggingProperties loggingProperties) {
     this.loggingProperties = loggingProperties;
   }
 
@@ -132,18 +122,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
    */
   private String getIdentity(Authentication authentication) {
     // use subject claim as identity if set in security authorization properties
-    if (securityProperties != null) {
-      Map<String, String> options = securityProperties.getAuthentication().getOptions();
-      if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
-        try {
-          return AuthUtils.getSubjectFromAuth(
-              authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
-        } catch (IllegalStateException e) {
-          // could not extract claim, revert to authenticated name.
-          return authentication.getName();
-        }
-      }
-    }
     return authentication.getName();
   }
 }

@@ -36,11 +36,11 @@
       <version>${project.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>dev.feast</groupId>-->
+<!--      <artifactId>feast-common</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--    </dependency>-->
 
     <dependency>
       <groupId>com.google.auto.value</groupId>

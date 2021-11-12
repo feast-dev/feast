@@ -1,42 +1,8 @@
 feast:
-  # GRPC service address for Feast Core
-  # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
-  core-host: ${FEAST_CORE_HOST:localhost}
-  core-grpc-port: ${FEAST_CORE_GRPC_PORT:6565}
-
-  core-authentication:
-    enabled: false # should be set to true if authentication is enabled on core.
-    provider: google # can be set to `oauth` or `google`
-    # if google, GOOGLE_APPLICATION_CREDENTIALS environment variable should be set.
-    options:
-      #if provider is oauth following properties need to be set, else serving boot up will fail.
-      oauth_url: https://localhost/oauth/token #oauth token request url
-      grant_type: client_credentials #oauth grant type
-      client_id: <client_id> #oauth client id which will be used for jwt token token request
-      client_secret: <client_secret> #oauth client secret which will be used for jwt token token request
-      audience: https://localhost #token audience.
-      jwkEndpointURI: <jwkEndpointURI> #jwk enpoint uri, used for caching token till expiry.
-      
-  core-cache-refresh-interval: 10
-
   # Indicates the active store. Only a single store in the last can be active at one time. In the future this key
   # will be deprecated in order to allow multiple stores to be served from a single serving instance
   active_store: online
   
-  security:
-    authentication:
-      enabled: false
-      provider: jwt
-      options:
-        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
-        subjectClaim: email
-
-    authorization:
-      enabled: false
-      provider: http
-      options:
-        basePath: http://localhost:3000
-
   # List of store configurations
   stores:
       # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
@@ -54,18 +20,6 @@ feast:
         read_from: MASTER
         # Redis operation timeout in ISO-8601 format
         timeout: PT0.5S
-    - name: bigtable
-      type: BIGTABLE
-      config:
-        project_id: <gcp_project>
-        instance_id: <gcp_bigtable_instance>
-        app_profile_id: <gcp_bigtable_app_profile_id>
-    - name: cassandra
-      type: CASSANDRA
-      config:
-        connection_string: localhost:9042
-        data_center: datacenter1
-        keyspace: feast
   tracing:
     # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
     # which can be useful to debug performance issues and perform benchmarking

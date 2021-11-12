@@ -1,4 +1,5 @@
 project: feast_project
+registry: registry.db
 provider: local
 online_store:
   type: redis

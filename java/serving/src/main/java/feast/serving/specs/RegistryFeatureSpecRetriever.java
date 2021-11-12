@@ -20,9 +20,7 @@ import com.google.protobuf.Duration;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.core.OnDemandFeatureViewProto;
-import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
-import feast.serving.exception.SpecRetrievalException;
 import feast.serving.registry.RegistryRepository;
 import java.util.List;
 
@@ -36,29 +34,15 @@ public class RegistryFeatureSpecRetriever implements FeatureSpecRetriever {
   @Override
   public Duration getMaxAge(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    final RegistryProto.Registry registry = this.registryRepository.getRegistry();
-    for (final FeatureViewProto.FeatureView featureView : registry.getFeatureViewsList()) {
-      if (featureView.getSpec().getName().equals(featureReference.getFeatureTable())) {
-        return featureView.getSpec().getTtl();
-      }
-    }
-    throw new SpecRetrievalException(
-        String.format(
-            "Unable to find feature view with name: %s", featureReference.getFeatureTable()));
+    return this.registryRepository.getFeatureViewSpec(projectName, featureReference).getTtl();
   }
 
   @Override
   public List<String> getEntitiesList(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    final RegistryProto.Registry registry = this.registryRepository.getRegistry();
-    for (final FeatureViewProto.FeatureView featureView : registry.getFeatureViewsList()) {
-      if (featureView.getSpec().getName().equals(featureReference.getFeatureTable())) {
-        return featureView.getSpec().getEntitiesList();
-      }
-    }
-    throw new SpecRetrievalException(
-        String.format(
-            "Unable to find feature view with name: %s", featureReference.getFeatureTable()));
+    return this.registryRepository
+        .getFeatureViewSpec(projectName, featureReference)
+        .getEntitiesList();
   }
 
   @Override

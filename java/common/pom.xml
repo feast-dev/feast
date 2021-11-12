@@ -102,7 +102,7 @@
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
-        </dependency>        
+        </dependency>
     
         <!-- Security -->
 	    <dependency>
@@ -120,42 +120,6 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-jose</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.auth</groupId>
-            <artifactId>google-auth-library-oauth2-http</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>sh.ory.keto</groupId>
-            <artifactId>keto-client</artifactId>
-            <version>0.5.7-alpha.1.pre.0</version>
-        </dependency>
-
-        <!-- HTTP/REST -->
-        <dependency>
-            <groupId>org.openapitools</groupId>
-            <artifactId>jackson-databind-nullable</artifactId>
-            <version>0.1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.swagger</groupId>
-            <artifactId>swagger-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>logging-interceptor</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger2</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger-ui</artifactId>
         </dependency>
 
         <!-- Logging -->
@@ -192,15 +156,11 @@
             <artifactId>hamcrest-library</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>2.5.0</version>
-        </dependency>
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>4.13.2</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
@@ -228,41 +188,9 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.openapitools</groupId>
-                <artifactId>openapi-generator-maven-plugin</artifactId>
-                <version>4.3.1</version>
-                <executions>
-                    <execution>
-                        <id>client</id>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                        <configuration>
-                            <inputSpec>${project.basedir}/src/main/resources/api.yaml</inputSpec>
-                            <generatorName>java</generatorName>
-                            <packageName>${feast.auth.providers.http.client.package.name}</packageName>
-                            <modelPackage>${feast.auth.providers.http.client.package.name}.model</modelPackage>
-                            <apiPackage>${feast.auth.providers.http.client.package.name}.api</apiPackage>
-                            <invokerPackage>${feast.auth.providers.http.client.package.name}.invoker</invokerPackage>
-                            <configOptions>
-                                <groupId>${project.groupId}</groupId>
-                                <artifactId>${project.artifactId}</artifactId>
-                                <artifactVersion>${project.version}</artifactVersion>
-                                <java8>true</java8>
-                                <dateLibrary>java8</dateLibrary>
-                                <licenseName>Apache 2.0</licenseName>
-                                <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
-                                <output>${project.build.directory}/generated-sources</output>
-                            </configOptions>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <excludePackageNames>${feast.auth.providers.http.client.package.name}.*</excludePackageNames>
                 </configuration>
             </plugin>
             <plugin>
