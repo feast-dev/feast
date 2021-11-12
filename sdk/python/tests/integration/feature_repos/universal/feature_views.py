@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from feast import Feature, FeatureView, OnDemandFeatureView, ValueType
@@ -68,6 +69,40 @@ def conv_rate_plus_100_feature_view(
     )
 
 
+def similarity(features_df: pd.DataFrame) -> pd.DataFrame:
+    if features_df.size == 0:
+        # give hint to Feast about return type
+        df = pd.DataFrame({"cos_double": [0.0]})
+        df["cos_float"] = df["cos_double"].astype(np.float32)
+        return df
+    vectors_a = features_df["embedding_double"].apply(np.array)
+    vectors_b = features_df["vector_double"].apply(np.array)
+    dot_products = vectors_a.mul(vectors_b).apply(sum)
+    norms_q = vectors_a.apply(np.linalg.norm)
+    norms_doc = vectors_b.apply(np.linalg.norm)
+    df = pd.DataFrame()
+    df["cos_double"] = dot_products / (norms_q * norms_doc)
+    df["cos_float"] = df["cos_double"].astype(np.float32)
+    return df
+
+
+def similarity_feature_view(
+    inputs: Dict[str, Union[RequestDataSource, FeatureView]],
+    infer_features: bool = False,
+    features: Optional[List[Feature]] = None,
+) -> OnDemandFeatureView:
+    _features = features or [
+        Feature("cos_double", ValueType.DOUBLE),
+        Feature("cos_float", ValueType.FLOAT),
+    ]
+    return OnDemandFeatureView(
+        name=similarity.__name__,
+        inputs=inputs,
+        features=[] if infer_features else _features,
+        udf=similarity,
+    )
+
+
 def create_driver_age_request_feature_view():
     return RequestFeatureView(
         name="driver_age",
@@ -81,6 +116,32 @@ def create_conv_rate_request_data_source():
     return RequestDataSource(
         name="conv_rate_input", schema={"val_to_add": ValueType.INT32}
     )
+
+
+def create_similarity_request_data_source():
+    return RequestDataSource(
+        name="similarity_input",
+        schema={
+            "vector_double": ValueType.DOUBLE_LIST,
+            "vector_float": ValueType.FLOAT_LIST,
+        },
+    )
+
+
+def create_item_embeddings_feature_view(source, infer_features: bool = False):
+    item_embeddings_feature_view = FeatureView(
+        name="item_embeddings",
+        entities=["item"],
+        features=None
+        if infer_features
+        else [
+            Feature(name="embedding_double", dtype=ValueType.DOUBLE_LIST),
+            Feature(name="embedding_float", dtype=ValueType.FLOAT_LIST),
+        ],
+        batch_source=source,
+        ttl=timedelta(hours=2),
+    )
+    return item_embeddings_feature_view
 
 
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):

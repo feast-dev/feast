@@ -90,6 +90,8 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
         ValueType.BOOL: "bool",
         ValueType.UNIX_TIMESTAMP: "datetime",
     }
+    if value_type.name.endswith("_LIST"):
+        return "object"
     if value_type in value_type_to_pandas_type:
         return value_type_to_pandas_type[value_type]
     raise TypeError(
@@ -450,6 +452,9 @@ def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
     if pa_type_as_str.startswith("decimal"):
         # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("list"):
+        return "super"
 
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
