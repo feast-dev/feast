@@ -1,0 +1,23 @@
+WITH {{tableName}} AS (
+ SELECT
+   ROW_NUMBER() OVER (PARTITION BY id, event_timestamp ORDER BY created_timestamp ASC) rownum,
+   id,
+   event_timestamp,
+   created_timestamp
+   {{#features}}
+   ,FIRST_VALUE({{name}} IGNORE NULLS) OVER w as {{name}}
+   {{/features}}
+ FROM
+   `{{project}}.{{dataset}}.{{tableName}}`
+ WINDOW w AS (
+     PARTITION BY id, event_timestamp ORDER BY event_timestamp DESC
+ )
+)
+SELECT
+ id,
+ event_timestamp,
+ created_timestamp
+ {{#features}}
+ ,{{name}}
+ {{/features}}
+FROM {{tableName}} WHERE rownum = 1

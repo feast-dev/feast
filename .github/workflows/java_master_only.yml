@@ -1,0 +1,45 @@
+name: master only
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-docker-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [core, serving]
+    env:
+      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: google-github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker --quiet
+      - name: Get m2 cache
+        run: |
+          infra/scripts/download-maven-cache.sh \
+          --archive-uri ${MAVEN_CACHE} \
+          --output-dir .
+      - name: Get version
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Build image
+        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+      - name: Push image
+        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+      - name: Push development Docker image
+        run: |
+          if [ ${GITHUB_REF#refs/*/} == "master" ]; then
+            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:develop
+            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:develop
+          fi

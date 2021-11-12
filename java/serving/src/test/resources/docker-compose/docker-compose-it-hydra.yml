@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  hydra-migrate:
+    image: oryd/hydra:v1.6.0
+    environment:
+      - DSN=postgres://hydra:secret@postgresd:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+    command:
+      migrate sql -e --yes
+    restart: on-failure
+
+  hydra:
+    depends_on:
+      - hydra-migrate
+    environment:
+      - DSN=postgres://hydra:secret@postgresd:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+
+  postgresd:
+    image: postgres:9.6
+    ports:
+      - "54320:5432"
+    environment:
+      - POSTGRES_USER=hydra
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=hydra
+
+  hydra:
+    image: oryd/hydra:v1.6.0
+    ports:
+      - "4444:4444" # Public port
+      - "4445:4445" # Admin port
+      #- "5555:5555" # Port for hydra token user
+    command:
+      serve all --dangerous-force-http
+    environment:
+      - URLS_SELF_ISSUER=http://hydra:4444
+      - URLS_CONSENT=http://hydra:3000/consent
+      - URLS_LOGIN=http://hydra:3000/login
+      - URLS_LOGOUT=http://hydra:3000/logout
+      - DSN=memory
+      - SECRETS_SYSTEM=youReallyNeedToChangeThis
+      - OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES=public,pairwise
+      - OIDC_SUBJECT_IDENTIFIERS_PAIRWISE_SALT=youReallyNeedToChangeThis
+      - OAUTH2_ACCESS_TOKEN_STRATEGY=jwt
+      - OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES=public
+    restart: unless-stopped
+
+  consent:
+    environment:
+      - HYDRA_ADMIN_URL=http://hydra:4445
+    image: oryd/hydra-login-consent-node:v1.5.2
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

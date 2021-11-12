@@ -1,0 +1,117 @@
+openapi: 3.0.1
+info:
+  description: 'Feast Authorization Server'
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Feast Authorization Server
+  version: 1.0.0
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      responses:
+        "200":
+          description: Online
+        "500":
+          description: Offline
+  /readiness:
+    get:
+      responses:
+        "200":
+          description: Ready
+        "500":
+          description: Not Ready
+  /checkAccess:
+    post:
+      parameters:
+        - name: Authorization
+          in: header
+          description: Auth token
+          schema:
+            type: string
+      operationId: check_access_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/checkAccessRequest'
+        description: Request containing user, resource, and action information. Used to make an authorization decision.
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/authorizationResult'
+          description: Authorization passed response
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/authorizationResult'
+          description: Authorization failed response
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+          description: The standard error format
+      summary: Check whether request is authorized to access a specific resource
+      x-codegen-request-body-name: body
+components:
+  schemas:
+    checkAccessRequest:
+      example:
+        action: 'read'
+        context: '{}'
+        resource: 'feast:project'
+        subject: 'me@example.com'
+      properties:
+        action:
+          description: Action is the action that is being taken on the requested resource.
+          type: string
+        context:
+          description: Context is the request's environmental context.
+          properties: {}
+          type: object
+        resource:
+          description: Resource is the resource that access is requested to.
+          type: string
+        subject:
+          description: Subject is the subject that is requesting access, typically the user.
+          type: string
+      title: Input for checking if a request is allowed or not.
+      type: object
+    authorizationResult:
+      example:
+        allowed: true
+      properties:
+        allowed:
+          description: Allowed is true if the request should be allowed and false
+            otherwise.
+          type: boolean
+      required:
+        - allowed
+      title: AuthorizationResult is the result of an access control decision. It contains
+        the decision outcome.
+      type: object
+    inline_response_500:
+      properties:
+        code:
+          format: int64
+          type: integer
+        details:
+          items:
+            properties: {}
+            type: object
+          type: array
+        message:
+          type: string
+        reason:
+          type: string
+        request:
+          type: string
+        status:
+          type: string
