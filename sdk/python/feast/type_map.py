@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
 import numpy as np
@@ -307,6 +307,10 @@ def _python_value_to_proto_value(feast_value_type: ValueType, value: Any) -> Pro
         if feast_value_type == ValueType.UNIX_TIMESTAMP:
             if isinstance(value, datetime):
                 return ProtoValue(int64_val=int(value.timestamp()))
+            elif isinstance(value, date):
+                return ProtoValue(
+                    int64_val=int(datetime(*value.timetuple()[:6]).timestamp())
+                )
             elif isinstance(value, Timestamp):
                 return ProtoValue(int64_val=int(value.ToSeconds()))
             return ProtoValue(int64_val=int(value))
