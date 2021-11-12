@@ -38,13 +38,12 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: feast-python-server
-          IMAGE_TAG: ${{ github.event.pull_request.head.ref }}
         run: |
           docker build \
             --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:`git rev-parse HEAD` \
             .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:`git rev-parse HEAD`
   integration-test-python:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
