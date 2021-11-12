@@ -21,7 +21,6 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.Timestamp;
-import feast.common.auth.credentials.JwtCallCredentials;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
@@ -31,7 +30,6 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.*;
-import io.grpc.ServerCall.Listener;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -70,24 +68,7 @@ public class FeastClientTest {
                 }
               }));
 
-  // Mock Authentication interceptor will flag authenticated request by setting isAuthenticated to
-  // true.
-  private ServerInterceptor mockAuthInterceptor =
-      new ServerInterceptor() {
-        @Override
-        public <ReqT, RespT> Listener<ReqT> interceptCall(
-            ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
-          final Metadata.Key<String> authorizationKey =
-              Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER);
-          if (headers.containsKey(authorizationKey)) {
-            isAuthenticated.set(true);
-          }
-          return next.startCall(call, headers);
-        }
-      };
-
   private FeastClient client;
-  private FeastClient authenticatedClient;
 
   @Before
   public void setup() throws Exception {
@@ -99,7 +80,6 @@ public class FeastClientTest {
         InProcessServerBuilder.forName(serverName)
             .directExecutor()
             .addService(this.servingMock)
-            .intercept(mockAuthInterceptor)
             .build()
             .start());
 
@@ -108,20 +88,11 @@ public class FeastClientTest {
         this.grpcRule.register(
             InProcessChannelBuilder.forName(serverName).directExecutor().build());
     this.client = new FeastClient(channel, Optional.empty());
-    this.authenticatedClient =
-        new FeastClient(channel, Optional.of(new JwtCallCredentials(AUTH_TOKEN)));
   }
 
   @Test
   public void shouldGetOnlineFeatures() {
     shouldGetOnlineFeaturesWithClient(this.client);
-  }
-
-  @Test
-  public void shouldAuthenticateAndGetOnlineFeatures() {
-    isAuthenticated.set(false);
-    shouldGetOnlineFeaturesWithClient(this.authenticatedClient);
-    assertEquals(isAuthenticated.get(), true);
   }
 
   private void shouldGetOnlineFeaturesWithClient(FeastClient client) {

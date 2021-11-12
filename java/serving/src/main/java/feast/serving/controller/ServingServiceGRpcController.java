@@ -16,7 +16,6 @@
  */
 package feast.serving.controller;
 
-import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -38,7 +37,6 @@ import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 @GrpcService(
     interceptors = {
@@ -53,15 +51,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   private final ServingServiceV2 servingServiceV2;
   private final String version;
   private final Tracer tracer;
-  private final AuthorizationService authorizationService;
 
   @Autowired
   public ServingServiceGRpcController(
-      AuthorizationService authorizationService,
-      ServingServiceV2 servingServiceV2,
-      FeastProperties feastProperties,
-      Tracer tracer) {
-    this.authorizationService = authorizationService;
+      ServingServiceV2 servingServiceV2, FeastProperties feastProperties, Tracer tracer) {
     this.servingServiceV2 = servingServiceV2;
     this.version = feastProperties.getVersion();
     this.tracer = tracer;
@@ -84,10 +77,6 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
     try {
       // authorize for the project in request object.
       if (request.getProject() != null && !request.getProject().isEmpty()) {
-        // project set at root level overrides the project set at feature table level
-        this.authorizationService.authorizeRequest(
-            SecurityContextHolder.getContext(), request.getProject());
-
         // update monitoring context
         GrpcMonitoringContext.getInstance().setProject(request.getProject());
       }
