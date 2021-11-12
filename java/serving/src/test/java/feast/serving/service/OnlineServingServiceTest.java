@@ -16,7 +16,7 @@
  */
 package feast.serving.service;
 
-import static feast.common.it.DataGenerator.*;
+import static feast.serving.util.DataGenerator.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,15 +26,16 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
-import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import feast.proto.core.FeatureViewProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.ValueProto;
-import feast.serving.specs.CachedSpecService;
-import feast.serving.specs.CoreFeatureSpecRetriever;
+import feast.serving.registry.LocalRegistryRepo;
+import feast.serving.specs.FeatureSpecRetriever;
+import feast.serving.specs.RegistryFeatureSpecRetriever;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.ProtoFeature;
 import feast.storage.connectors.redis.retriever.OnlineRetriever;
@@ -50,7 +51,7 @@ import org.mockito.Mockito;
 
 public class OnlineServingServiceTest {
 
-  @Mock CachedSpecService specService;
+  @Mock LocalRegistryRepo registryRepo;
   @Mock Tracer tracer;
   @Mock OnlineRetriever retrieverV2;
   private String transformationServiceEndpoint;
@@ -63,12 +64,12 @@ public class OnlineServingServiceTest {
   @Before
   public void setUp() {
     initMocks(this);
-    CoreFeatureSpecRetriever coreFeatureSpecRetriever = new CoreFeatureSpecRetriever(specService);
+    FeatureSpecRetriever featureSpecRetriever = new RegistryFeatureSpecRetriever(registryRepo);
     OnlineTransformationService onlineTransformationService =
-        new OnlineTransformationService(transformationServiceEndpoint, coreFeatureSpecRetriever);
+        new OnlineTransformationService(transformationServiceEndpoint, featureSpecRetriever);
     onlineServingServiceV2 =
         new OnlineServingServiceV2(
-            retrieverV2, tracer, coreFeatureSpecRetriever, onlineTransformationService);
+            retrieverV2, tracer, featureSpecRetriever, onlineTransformationService);
 
     mockedFeatureRows = new ArrayList<>();
     mockedFeatureRows.add(
@@ -160,14 +161,14 @@ public class OnlineServingServiceTest {
     List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(specService.getFeatureTableSpec(any(), any())).thenReturn(getFeatureTableSpec());
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(0).getFeatureReference()))
+    when(registryRepo.getFeatureViewSpec(any(), any())).thenReturn(getFeatureViewSpec());
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(2).getFeatureReference()))
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(2).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(3).getFeatureReference()))
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(3).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -227,10 +228,10 @@ public class OnlineServingServiceTest {
     List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(specService.getFeatureTableSpec(any(), any())).thenReturn(getFeatureTableSpec());
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(0).getFeatureReference()))
+    when(registryRepo.getFeatureViewSpec(any(), any())).thenReturn(getFeatureViewSpec());
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -265,7 +266,7 @@ public class OnlineServingServiceTest {
   }
 
   @Test
-  public void shouldReturnResponseWithUnsetValuesAndMetadataIfMaxAgeIsExceeded() {
+  public void shouldReturnResponseWithValuesAndMetadataIfMaxAgeIsExceeded() {
     String projectName = "default";
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
@@ -291,9 +292,9 @@ public class OnlineServingServiceTest {
     List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(specService.getFeatureTableSpec(any(), any()))
+    when(registryRepo.getFeatureViewSpec(any(), any()))
         .thenReturn(
-            FeatureTableSpec.newBuilder()
+            FeatureViewProto.FeatureViewSpec.newBuilder()
                 .setName("featuretable_1")
                 .addEntities("entity1")
                 .addEntities("entity2")
@@ -307,11 +308,11 @@ public class OnlineServingServiceTest {
                         .setName("feature_2")
                         .setValueType(ValueProto.ValueType.Enum.STRING)
                         .build())
-                .setMaxAge(Duration.newBuilder().setSeconds(1))
+                .setTtl(Duration.newBuilder().setSeconds(1))
                 .build());
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
-    when(specService.getFeatureSpec(projectName, mockedFeatureRows.get(5).getFeatureReference()))
+    when(registryRepo.getFeatureSpec(projectName, mockedFeatureRows.get(5).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -324,7 +325,7 @@ public class OnlineServingServiceTest {
                     .putStatuses("entity1", FieldStatus.PRESENT)
                     .putFields("entity2", createStrValue("a"))
                     .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createEmptyValue())
+                    .putFields("featuretable_1:feature_1", createStrValue("6"))
                     .putStatuses("featuretable_1:feature_1", FieldStatus.OUTSIDE_MAX_AGE)
                     .putFields("featuretable_1:feature_2", createStrValue("2"))
                     .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
@@ -335,7 +336,7 @@ public class OnlineServingServiceTest {
                     .putStatuses("entity1", FieldStatus.PRESENT)
                     .putFields("entity2", createStrValue("b"))
                     .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createEmptyValue())
+                    .putFields("featuretable_1:feature_1", createStrValue("6"))
                     .putStatuses("featuretable_1:feature_1", FieldStatus.OUTSIDE_MAX_AGE)
                     .putFields("featuretable_1:feature_2", createStrValue("2"))
                     .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
@@ -345,8 +346,8 @@ public class OnlineServingServiceTest {
     assertThat(actual, equalTo(expected));
   }
 
-  private FeatureTableSpec getFeatureTableSpec() {
-    return FeatureTableSpec.newBuilder()
+  private FeatureViewProto.FeatureViewSpec getFeatureViewSpec() {
+    return FeatureViewProto.FeatureViewSpec.newBuilder()
         .setName("featuretable_1")
         .addEntities("entity1")
         .addEntities("entity2")
@@ -360,7 +361,7 @@ public class OnlineServingServiceTest {
                 .setName("feature_2")
                 .setValueType(ValueProto.ValueType.Enum.STRING)
                 .build())
-        .setMaxAge(Duration.newBuilder().setSeconds(120))
+        .setTtl(Duration.newBuilder().setSeconds(120))
         .build();
   }
 
