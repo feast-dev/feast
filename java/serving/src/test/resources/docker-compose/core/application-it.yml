@@ -1,0 +1,13 @@
+feast:
+  stream:
+    type: kafka
+    options:
+      topic: feast-features
+      bootstrapServers: "kafka:9092,localhost:9094"
+      
+  security:
+    authentication:
+      enabled: true
+      provider: jwt
+      options:
+        jwkEndpointURI: http://hydra:4444/.well-known/jwks.json

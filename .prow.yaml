@@ -4,7 +4,7 @@ presubmits:
   spec:
     containers:
     - image: maven:3.6-jdk-11
-      command: ["infra/scripts/test-core-ingestion.sh"]
+      command: ["infra/scripts/test-java-core-ingestion.sh"]
       resources:
         requests:
           cpu: "2000m"
@@ -18,7 +18,7 @@ presubmits:
   spec:
     containers:
       - image: maven:3.6-jdk-8
-        command: ["infra/scripts/test-core-ingestion.sh"]
+        command: ["infra/scripts/test-java-core-ingestion.sh"]
         resources:
           requests:
             cpu: "2000m"
@@ -31,7 +31,7 @@ presubmits:
   spec:
     containers:
     - image: maven:3.6-jdk-11
-      command: ["infra/scripts/test-serving.sh"]
+      command: ["infra/scripts/test-java-serving.sh"]
   skip_branches:
   - ^v0\.(3|4)-branch$
 
@@ -41,7 +41,7 @@ presubmits:
   spec:
     containers:
       - image: maven:3.6-jdk-8
-        command: ["infra/scripts/test-serving.sh"]
+        command: ["infra/scripts/test-java-serving.sh"]
   branches:
   - ^v0\.(3|4)-branch$
 

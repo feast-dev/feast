@@ -1,0 +1,147 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "feast-core.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-core.name" . }}
+    component: core
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast-core.name" . }}
+      component: core
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- if .Values.prometheus.enabled }}
+        prometheus.io/path: /metrics
+        prometheus.io/port: "{{ .Values.service.http.targetPort }}"
+        prometheus.io/scrape: "true"
+      {{- end }}
+      labels:
+        app: {{ template "feast-core.name" . }}
+        component: core
+        release: {{ .Release.Name }}
+      {{- if .Values.podLabels }}
+        {{ toYaml .Values.podLabels | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      volumes:
+      - name: {{ template "feast-core.fullname" . }}-config
+        configMap:
+          name: {{ template "feast-core.fullname" . }}
+      - name: {{ template "feast-core.fullname" . }}-secret
+        secret:
+          secretName: {{ template "feast-core.fullname" . }}
+      {{- range $secret := .Values.secrets }}
+      - name: {{ $secret }}
+        secret:
+          secretName: {{ $secret }}
+      {{- end }}
+
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+        volumeMounts:
+        - name: {{ template "feast-core.fullname" . }}-config
+          mountPath: /etc/feast
+        - name: {{ template "feast-core.fullname" . }}-secret
+          mountPath: /etc/secrets/feast
+          readOnly: true
+        {{- range $secret := .Values.secrets }}
+        - name: {{ $secret }}
+          mountPath: "/etc/secrets/{{ $secret }}"
+          readOnly: true
+        {{- end }}
+
+        env:
+        - name: LOG_TYPE
+          value: {{ .Values.logType | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.logLevel | quote }}
+          
+        {{- if .Values.postgresql.existingSecret }}
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresql.existingSecret }}
+              key: postgresql-password
+        {{- end }}
+
+        {{- if .Values.javaOpts }}
+        - name: JAVA_TOOL_OPTIONS
+          value: {{ .Values.javaOpts }}
+        {{- end }}
+
+        {{- range $key, $value := .Values.envOverrides }}
+        - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+          {{- if eq (kindOf $value) "map" }}
+          valueFrom:
+            {{- toYaml $value | nindent 12}}
+          {{- else }}
+          value: {{ $value | quote }}
+          {{- end}}
+        {{- end }}
+
+        command:
+        - java 
+        - -jar 
+        - /opt/feast/feast-core.jar
+        - --spring.config.location=
+          {{- if index .Values "application.yaml" "enabled" -}}
+          classpath:/application.yml
+          {{- end }}
+          {{- if index .Values "application-generated.yaml" "enabled" -}}
+          ,file:/etc/feast/application-generated.yaml
+          {{- end }}
+          {{- if index .Values "application-secret.yaml" "enabled" -}}
+          ,file:/etc/secrets/feast/application-secret.yaml
+          {{- end }}
+          {{- if index .Values "application-override.yaml" "enabled" -}}
+          ,file:/etc/feast/application-override.yaml
+          {{- end }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.http.targetPort }}
+        - name: grpc
+          containerPort: {{ .Values.service.grpc.targetPort }}
+
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          exec:
+            command: ["/usr/bin/grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        {{- end }}
+
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          exec:
+            command: ["/usr/bin/grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- end }}
+
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
