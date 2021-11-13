@@ -166,21 +166,21 @@ class OnDemandFeatureView(BaseFeatureView):
         return schema
 
     def get_transformed_features_df(
-        self, full_feature_names: bool, df_with_features: pd.DataFrame
+        self, df_with_features: pd.DataFrame
     ) -> pd.DataFrame:
         # Apply on demand transformations
-        # TODO(adchia): Include only the feature values from the specified input FVs in the ODFV.
-        # Copy over un-prefixed features even if not requested since transform may need it
         columns_to_cleanup = []
-        if full_feature_names:
-            for input_fv in self.input_feature_views.values():
-                for feature in input_fv.features:
-                    full_feature_ref = f"{input_fv.name}__{feature.name}"
-                    if full_feature_ref in df_with_features.keys():
-                        df_with_features[feature.name] = df_with_features[
-                            full_feature_ref
-                        ]
-                        columns_to_cleanup.append(feature.name)
+        for input_fv in self.input_feature_views.values():
+            for feature in input_fv.features:
+                full_feature_ref = f"{input_fv.name}__{feature.name}"
+                if full_feature_ref in df_with_features.keys():
+                    # Make sure the partial feature name is always present
+                    df_with_features[feature.name] = df_with_features[full_feature_ref]
+                    columns_to_cleanup.append(feature.name)
+                elif feature.name in df_with_features.keys():
+                    # Make sure the full feature name is always present
+                    df_with_features[full_feature_ref] = df_with_features[feature.name]
+                    columns_to_cleanup.append(full_feature_ref)
 
         # Compute transformed values and apply to each result row
         df_with_transformed_features = self.udf.__call__(df_with_features)

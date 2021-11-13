@@ -59,7 +59,7 @@ pip install --upgrade pip
 
 4. Install development dependencies for Feast Python SDK / CLI
 ```sh
-pip install -e "sdk/python[ci]"
+pip install -e "sdk/python[dev]"
 ```
 
 ### Code Style & Linting

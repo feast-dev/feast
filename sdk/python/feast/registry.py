@@ -631,6 +631,32 @@ class Registry:
 
         raise FeatureViewNotFoundException(name, project)
 
+    def delete_entity(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes an entity or raises an exception if not found.
+
+        Args:
+            name: Name of entity
+            project: Feast project that this entity belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        for idx, existing_entity_proto in enumerate(
+            self.cached_registry_proto.entities
+        ):
+            if (
+                existing_entity_proto.spec.name == name
+                and existing_entity_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.entities[idx]
+                if commit:
+                    self.commit()
+                return
+
+        raise EntityNotFoundException(name, project)
+
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""
         if self.cached_registry_proto:

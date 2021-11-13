@@ -47,7 +47,11 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     Returns:
         Python native type representation/version of the given field_value_proto
     """
-    field_value_dict = MessageToDict(field_value_proto)
+    field_value_dict = MessageToDict(field_value_proto, float_precision=18)  # type: ignore
+
+    # This can happen when proto_json.patch() has been called before this call, which is true for a feature server
+    if not isinstance(field_value_dict, dict):
+        return field_value_dict
 
     for k, v in field_value_dict.items():
         if "List" in k:
@@ -90,6 +94,8 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
         ValueType.BOOL: "bool",
         ValueType.UNIX_TIMESTAMP: "datetime",
     }
+    if value_type.name.endswith("_LIST"):
+        return "object"
     if value_type in value_type_to_pandas_type:
         return value_type_to_pandas_type[value_type]
     raise TypeError(
@@ -114,7 +120,7 @@ def python_type_to_feast_value_type(
     Returns:
         Feast Value Type
     """
-    type_name = type_name or type(value).__name__
+    type_name = (type_name or type(value).__name__).lower()
 
     type_map = {
         "int": ValueType.INT64,
@@ -131,7 +137,7 @@ def python_type_to_feast_value_type(
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
-        "Timestamp": ValueType.UNIX_TIMESTAMP,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
@@ -402,6 +408,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "FLOAT64": ValueType.DOUBLE,
         "BYTES": ValueType.BYTES,
         "BOOL": ValueType.BOOL,
+        "BOOLEAN": ValueType.BOOL,  # legacy sql data type
         "ARRAY<INT64>": ValueType.INT64_LIST,
         "ARRAY<FLOAT64>": ValueType.DOUBLE_LIST,
         "ARRAY<STRING>": ValueType.STRING_LIST,
@@ -449,6 +456,9 @@ def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
     if pa_type_as_str.startswith("decimal"):
         # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("list"):
+        return "super"
 
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.

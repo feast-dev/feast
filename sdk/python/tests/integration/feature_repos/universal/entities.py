@@ -16,3 +16,7 @@ def customer():
 
 def location():
     return Entity(name="location_id", value_type=ValueType.INT64)
+
+
+def item():
+    return Entity(name="item_id", value_type=ValueType.INT64)

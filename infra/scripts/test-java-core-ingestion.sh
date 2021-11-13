@@ -11,9 +11,9 @@ infra/scripts/download-maven-cache.sh \
 
 # Core depends on Ingestion so they are tested together
 # Skip Maven enforcer: https://stackoverflow.com/questions/50647223/maven-enforcer-issue-when-running-from-reactor-level
-mvn --projects core,ingestion --batch-mode --define skipTests=true \
+mvn -f java/pom.xml --projects core,ingestion --batch-mode --define skipTests=true \
     --define enforcer.skip=true clean install
-mvn --projects core,ingestion --define enforcer.skip=true test
+mvn -f java/pom.xml --projects core,ingestion --define enforcer.skip=true test
 TEST_EXIT_CODE=$?
 
 # Default artifact location setting in Prow jobs

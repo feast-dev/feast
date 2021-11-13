@@ -56,7 +56,7 @@ if [ -z $REVISION ]; then usage; exit 1; fi
 echo "============================================================"
 echo "Checking Maven and GPG versions"
 echo "============================================================"
-mvn --version 
+mvn -f java/pom.xml --version
 echo ""
 gpg --version
 
@@ -69,4 +69,4 @@ gpg --import --batch --yes $GPG_KEY_IMPORT_DIR/private-key
 echo "============================================================"
 echo "Deploying Java SDK with revision: $REVISION"
 echo "============================================================"
-mvn --projects datatypes/java,sdk/java -Drevision=$REVISION --batch-mode clean deploy
+mvn -f java/pom.xml --projects datatypes/java,sdk/java -Drevision=$REVISION --batch-mode clean deploy

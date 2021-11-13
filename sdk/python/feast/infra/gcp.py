@@ -8,6 +8,7 @@ from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
+from feast.usage import log_exceptions_and_usage
 
 
 class GcpProvider(PassthroughProvider):
@@ -33,6 +34,7 @@ class GCSRegistryStore(RegistryStore):
         self._bucket = self._uri.hostname
         self._blob = self._uri.path.lstrip("/")
 
+    @log_exceptions_and_usage(registry="gs")
     def get_registry_proto(self):
         import google.cloud.storage as storage
         from google.cloud.exceptions import NotFound
@@ -56,6 +58,7 @@ class GCSRegistryStore(RegistryStore):
             f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
         )
 
+    @log_exceptions_and_usage(registry="gs")
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
 

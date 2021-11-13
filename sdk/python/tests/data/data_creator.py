@@ -13,7 +13,7 @@ def create_dataset(
     feature_is_list: bool = False,
     list_has_empty_list: bool = False,
 ) -> pd.DataFrame:
-    now = datetime.now().replace(microsecond=0, second=0, minute=0)
+    now = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
     ts = pd.Timestamp(now).round("ms")
     data = {
         "driver_id": get_entities_for_value_type(entity_type),

@@ -1,18 +1,24 @@
 import datetime
 import itertools
+import os
+import time
 import unittest
 from datetime import timedelta
+from typing import Any, Dict, List, Union
 
+import assertpy
 import numpy as np
 import pandas as pd
 import pytest
+import requests
 
-from feast import FeatureService
+from feast import Entity, Feature, FeatureService, FeatureView, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
 )
 from tests.integration.feature_repos.repo_configuration import (
+    Environment,
     construct_universal_feature_views,
 )
 from tests.integration.feature_repos.universal.entities import (
@@ -23,6 +29,110 @@ from tests.integration.feature_repos.universal.entities import (
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
 )
+from tests.utils.data_source_utils import prep_file_source
+
+
+# TODO: make this work with all universal (all online store types)
+@pytest.mark.integration
+def test_write_to_online_store_event_check(local_redis_environment):
+    if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
+        return
+    fs = local_redis_environment.feature_store
+
+    # write same data points 3 with different timestamps
+    now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
+    hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round("ms")
+    latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round("ms")
+
+    data = {
+        "id": [123, 567, 890],
+        "string_col": ["OLD_FEATURE", "LATEST_VALUE2", "LATEST_VALUE3"],
+        "ts_1": [hour_ago, now, now],
+    }
+    dataframe_source = pd.DataFrame(data)
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source:
+        e = Entity(name="id", value_type=ValueType.STRING)
+
+        # Create Feature View
+        fv1 = FeatureView(
+            name="feature_view_123",
+            features=[Feature(name="string_col", dtype=ValueType.STRING)],
+            entities=["id"],
+            batch_source=file_source,
+            ttl=timedelta(minutes=5),
+        )
+        # Register Feature View and Entity
+        fs.apply([fv1, e])
+
+        #  data to ingest into Online Store (recent)
+        data = {
+            "id": [123],
+            "string_col": ["hi_123"],
+            "ts_1": [now],
+        }
+        df_data = pd.DataFrame(data)
+
+        # directly ingest data into the Online Store
+        fs.write_to_online_store("feature_view_123", df_data)
+
+        df = fs.get_online_features(
+            features=["feature_view_123:string_col"], entity_rows=[{"id": 123}]
+        ).to_df()
+        assert df["string_col"].iloc[0] == "hi_123"
+
+        # data to ingest into Online Store (1 hour delayed data)
+        # should now overwrite features for id=123 because it's less recent data
+        data = {
+            "id": [123, 567, 890],
+            "string_col": ["bye_321", "hello_123", "greetings_321"],
+            "ts_1": [hour_ago, hour_ago, hour_ago],
+        }
+        df_data = pd.DataFrame(data)
+
+        # directly ingest data into the Online Store
+        fs.write_to_online_store("feature_view_123", df_data)
+
+        df = fs.get_online_features(
+            features=["feature_view_123:string_col"],
+            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}],
+        ).to_df()
+        assert df["string_col"].iloc[0] == "hi_123"
+        assert df["string_col"].iloc[1] == "hello_123"
+        assert df["string_col"].iloc[2] == "greetings_321"
+
+        # should overwrite string_col for id=123 because it's most recent based on event_timestamp
+        data = {
+            "id": [123],
+            "string_col": ["LATEST_VALUE"],
+            "ts_1": [latest],
+        }
+        df_data = pd.DataFrame(data)
+
+        fs.write_to_online_store("feature_view_123", df_data)
+
+        df = fs.get_online_features(
+            features=["feature_view_123:string_col"],
+            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}],
+        ).to_df()
+        assert df["string_col"].iloc[0] == "LATEST_VALUE"
+        assert df["string_col"].iloc[1] == "hello_123"
+        assert df["string_col"].iloc[2] == "greetings_321"
+
+        # writes to online store via datasource (dataframe_source) materialization
+        fs.materialize(
+            start_date=datetime.datetime.now() - timedelta(hours=12),
+            end_date=datetime.datetime.utcnow(),
+        )
+
+        df = fs.get_online_features(
+            features=["feature_view_123:string_col"],
+            entity_rows=[{"id": 123}, {"id": 567}, {"id": 890}],
+        ).to_df()
+        assert df["string_col"].iloc[0] == "LATEST_VALUE"
+        assert df["string_col"].iloc[1] == "LATEST_VALUE2"
+        assert df["string_col"].iloc[2] == "LATEST_VALUE3"
 
 
 @pytest.mark.integration
@@ -60,16 +170,97 @@ def test_write_to_online_store(environment, universal_data_sources):
         ],
         entity_rows=[{"driver": 123}],
     ).to_df()
-    assert df["avg_daily_trips"].iloc[0] == 14
-    assert df["acc_rate"].iloc[0] == 0.91
-    assert df["conv_rate"].iloc[0] == 0.85
+    assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_equal_to(14)
+    assertpy.assert_that(df["acc_rate"].iloc[0]).is_close_to(0.91, 1e-6)
+    assertpy.assert_that(df["conv_rate"].iloc[0]).is_close_to(0.85, 1e-6)
+
+
+def _get_online_features_dict_remotely(
+    endpoint: str,
+    features: Union[List[str], FeatureService],
+    entity_rows: List[Dict[str, Any]],
+    full_feature_names: bool = False,
+) -> Dict[str, List[Any]]:
+    """Sends the online feature request to a remote feature server (through endpoint) and returns the feature dict.
+
+    The output should be identical to:
+
+    >>> fs.get_online_features(features=features, entity_rows=entity_rows, full_feature_names=full_feature_names).to_dict()
+
+    This makes it easy to test the remote feature server by comparing the output to the local method.
+
+    """
+    request = {
+        # Convert list of dicts (entity_rows) into dict of lists (entities) for json request
+        "entities": {key: [row[key] for row in entity_rows] for key in entity_rows[0]},
+        "full_feature_names": full_feature_names,
+    }
+    # Either set features of feature_service depending on the parameter
+    if isinstance(features, list):
+        request["features"] = features
+    else:
+        request["feature_service"] = features.name
+    for _ in range(25):
+        # Send the request to the remote feature server and get the response in JSON format
+        response = requests.post(
+            f"{endpoint}/get-online-features", json=request, timeout=30
+        ).json()
+        # Retry if the response is internal server error, which can happen when lambda is being restarted
+        if response.get("message") != "Internal Server Error":
+            break
+        # Sleep between retries to give the server some time to start
+        time.sleep(1)
+    else:
+        raise Exception("Failed to get online features from remote feature server")
+    keys = response["field_values"][0]["statuses"].keys()
+    # Get rid of unnecessary structure in the response, leaving list of dicts
+    response = [row["fields"] for row in response["field_values"]]
+    # Convert list of dicts (response) into dict of lists which is the format of the return value
+    return {key: [row.get(key) for row in response] for key in keys}
+
+
+def get_online_features_dict(
+    environment: Environment,
+    features: Union[List[str], FeatureService],
+    entity_rows: List[Dict[str, Any]],
+    full_feature_names: bool = False,
+) -> Dict[str, List[Any]]:
+    """Get the online feature values from both SDK and remote feature servers, assert equality and return values.
+
+    Always use this method instead of fs.get_online_features(...) in this test file.
+
+    """
+    online_features = environment.feature_store.get_online_features(
+        features=features,
+        entity_rows=entity_rows,
+        full_feature_names=full_feature_names,
+    )
+    assertpy.assert_that(online_features).is_not_none()
+    dict1 = online_features.to_dict()
+
+    endpoint = environment.feature_store.get_feature_server_endpoint()
+    # If endpoint is None, it means that the remote feature server isn't configured
+    if endpoint is not None:
+        dict2 = _get_online_features_dict_remotely(
+            endpoint=endpoint,
+            features=features,
+            entity_rows=entity_rows,
+            full_feature_names=full_feature_names,
+        )
+
+        # Make sure that the two dicts are equal
+        assertpy.assert_that(dict1).is_equal_to(dict2)
+    elif environment.python_feature_server:
+        raise ValueError(
+            "feature_store.get_feature_server_endpoint() is None while python feature server is enabled"
+        )
+    return dict1
 
 
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(environment, universal_data_sources, full_feature_names):
-
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -132,7 +323,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     ]
 
     location_pairs = np.array(list(itertools.permutations(entities["location"], 2)))
-    sample_location_pairs = location_pairs[np.random.choice(len(location_pairs), 10)].T
+    sample_location_pairs = location_pairs[
+        np.random.choice(len(location_pairs), 10)
+    ].T.tolist()
     origins_df = datasets["location"][
         datasets["location"]["location_id"].isin(sample_location_pairs[0])
     ]
@@ -165,18 +358,28 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     unprefixed_feature_refs.remove("conv_rate_plus_100")
     unprefixed_feature_refs.remove("conv_rate_plus_val_to_add")
 
-    online_features = fs.get_online_features(
+    online_features_dict = get_online_features_dict(
+        environment=environment,
         features=feature_refs,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
     )
-    assert online_features is not None
 
-    online_features_dict = online_features.to_dict()
+    # Test that the on demand feature views compute properly even if the dependent conv_rate
+    # feature isn't requested.
+    online_features_no_conv_rate = get_online_features_dict(
+        environment=environment,
+        features=[ref for ref in feature_refs if ref != "driver_stats:conv_rate"],
+        entity_rows=entity_rows,
+        full_feature_names=full_feature_names,
+    )
+
+    assert online_features_no_conv_rate is not None
+
     keys = online_features_dict.keys()
     assert (
-        len(keys) == len(feature_refs) + 3
-    )  # Add three for the driver id and the customer id entity keys + val_to_add request data.
+        len(keys) == len(feature_refs) + 2
+    )  # Add two for the driver id and the customer id entity keys
     for feature in feature_refs:
         # full_feature_names does not apply to request feature views
         if full_feature_names and feature != "driver_age:driver_age":
@@ -226,13 +429,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             )
 
     # Check what happens for missing values
-    missing_responses_dict = fs.get_online_features(
+    missing_responses_dict = get_online_features_dict(
+        environment=environment,
         features=feature_refs,
         entity_rows=[
             {"driver": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
         ],
         full_feature_names=full_feature_names,
-    ).to_dict()
+    )
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
         if unprefixed_feature_ref not in {"num_rides", "avg_ride_length", "driver_age"}:
@@ -244,22 +448,24 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     # Check what happens for missing request data
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
-        fs.get_online_features(
+        get_online_features_dict(
+            environment=environment,
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0}],
             full_feature_names=full_feature_names,
-        ).to_dict()
+        )
 
     # Also with request data
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
-        fs.get_online_features(
+        get_online_features_dict(
+            environment=environment,
             features=feature_refs,
             entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 20}],
             full_feature_names=full_feature_names,
-        ).to_dict()
+        )
 
     assert_feature_service_correctness(
-        fs,
+        environment,
         feature_service,
         entity_rows,
         full_feature_names,
@@ -281,7 +487,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         )
     ]
     assert_feature_service_entity_mapping_correctness(
-        fs,
+        environment,
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
@@ -397,7 +603,7 @@ def get_latest_feature_values_from_dataframes(
 
 
 def assert_feature_service_correctness(
-    fs,
+    environment,
     feature_service,
     entity_rows,
     full_feature_names,
@@ -406,14 +612,12 @@ def assert_feature_service_correctness(
     orders_df,
     global_df,
 ):
-    feature_service_response = fs.get_online_features(
+    feature_service_online_features_dict = get_online_features_dict(
+        environment=environment,
         features=feature_service,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
     )
-    assert feature_service_response is not None
-
-    feature_service_online_features_dict = feature_service_response.to_dict()
     feature_service_keys = feature_service_online_features_dict.keys()
 
     assert (
@@ -424,8 +628,8 @@ def assert_feature_service_correctness(
                 for projection in feature_service.feature_view_projections
             ]
         )
-        + 3
-    )  # Add two for the driver id and the customer id entity keys and val_to_add request data
+        + 2
+    )  # Add two for the driver id and the customer id entity keys
 
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
@@ -446,7 +650,7 @@ def assert_feature_service_correctness(
 
 
 def assert_feature_service_entity_mapping_correctness(
-    fs,
+    environment,
     feature_service,
     entity_rows,
     full_feature_names,
@@ -457,14 +661,12 @@ def assert_feature_service_entity_mapping_correctness(
     destinations_df,
 ):
     if full_feature_names:
-        feature_service_response = fs.get_online_features(
+        feature_service_online_features_dict = get_online_features_dict(
+            environment=environment,
             features=feature_service,
             entity_rows=entity_rows,
             full_feature_names=full_feature_names,
         )
-        assert feature_service_response is not None
-
-        feature_service_online_features_dict = feature_service_response.to_dict()
         feature_service_keys = feature_service_online_features_dict.keys()
 
         assert (
@@ -495,7 +697,8 @@ def assert_feature_service_entity_mapping_correctness(
     else:
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
         with pytest.raises(FeatureNameCollisionError):
-            feature_service_response = fs.get_online_features(
+            get_online_features_dict(
+                environment=environment,
                 features=feature_service,
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,

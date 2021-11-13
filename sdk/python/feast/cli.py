@@ -84,6 +84,16 @@ def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
             datefmt="%m/%d/%Y %I:%M:%S %p",
             level=level,
         )
+        # Override the logging level for already created loggers (due to loggers being created at the import time)
+        # Note, that format & datefmt does not need to be set, because by default child loggers don't override them
+
+        # Also note, that mypy complains that logging.root doesn't have "manager" because of the way it's written.
+        # So we have to put a type ignore hint for mypy.
+        for logger_name in logging.root.manager.loggerDict:  # type: ignore
+            if "feast" in logger_name:
+                logger = logging.getLogger(logger_name)
+                logger.setLevel(level)
+
     except Exception as e:
         raise e
     pass

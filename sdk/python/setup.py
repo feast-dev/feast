@@ -47,13 +47,14 @@ REQUIRED = [
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
     "grpcio>=1.34.0",
-    "grpcio-reflection>=1.34.0"
+    "grpcio-reflection>=1.34.0",
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
     "pandas>=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
+    "proto-plus<1.19.7",
     "pyarrow>=4.0.0",
     "pydantic>=1.0.0",
     "PyYAML>=5.4.*",
@@ -63,6 +64,7 @@ REQUIRED = [
     "tqdm==4.*",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
+    "proto-plus<1.19.7",
 ]
 
 GCP_REQUIRED = [
@@ -112,14 +114,10 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
-    "google-cloud-bigquery>=2.28.1",
-    "google-cloud-bigquery-storage >= 2.0.0",
-    "google-cloud-datastore>=2.1.*",
-    "google-cloud-storage>=1.20.*,<1.41",
-    "google-cloud-core==1.4.*",
-    "redis-py-cluster==2.1.2",
-    "boto3==1.17.*",
-]
+    "pip-tools",
+] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
+
+DEV_REQUIRED = ["mypy-protobuf==1.*", "grpcio-testing==1.*"] + CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
@@ -213,7 +211,7 @@ setup(
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
-        "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
+        "dev": DEV_REQUIRED,
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
@@ -231,7 +229,7 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
-    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf", "sphinx!=4.0.0"],
+    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf==1.*", "sphinx!=4.0.0"],
     package_data={
         "": [
             "protos/feast/**/*.proto",

@@ -45,6 +45,12 @@ class OnlineResponse:
         online_response_proto: GetOnlineResponse proto object to construct from.
         """
         self.proto = online_response_proto
+        # Delete DUMMY_ENTITY_ID from proto if it exists
+        for item in self.proto.field_values:
+            if DUMMY_ENTITY_ID in item.statuses:
+                del item.statuses[DUMMY_ENTITY_ID]
+            if DUMMY_ENTITY_ID in item.fields:
+                del item.fields[DUMMY_ENTITY_ID]
 
     @property
     def field_values(self):
@@ -57,13 +63,9 @@ class OnlineResponse:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
-        fields = [
-            k
-            for row in self.field_values
-            for k, _ in row.statuses.items()
-            if k != DUMMY_ENTITY_ID
-        ]
-        features_dict: Dict[str, List[Any]] = {k: list() for k in fields}
+        features_dict: Dict[str, List[Any]] = {
+            k: list() for row in self.field_values for k, _ in row.statuses.items()
+        }
 
         for row in self.field_values:
             for feature in features_dict.keys():
@@ -77,9 +79,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
         """
 
-        return pd.DataFrame(self.to_dict()).drop(
-            DUMMY_ENTITY_ID, axis=1, errors="ignore"
-        )
+        return pd.DataFrame(self.to_dict())
 
 
 def _infer_online_entity_rows(
