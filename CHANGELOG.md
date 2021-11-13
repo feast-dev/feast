@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.15.1](https://github.com/feast-dev/feast/tree/v0.15.1) (2021-11-13)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.15.0...v0.15.1)
+
+**Fixed bugs:**
+
+- Add missing comma in setup.py [\#2031](https://github.com/feast-dev/feast/pull/2031) ([achals](https://github.com/achals))
+- Correct cleanup after usage e2e tests [\#2015](https://github.com/feast-dev/feast/pull/2015) ([pyalex](https://github.com/pyalex))
+- Change Environment timestamps to be in UTC [\#2007](https://github.com/feast-dev/feast/pull/2007) ([felixwang9817](https://github.com/felixwang9817))
+- ODFV UDFs should handle list types [\#2002](https://github.com/feast-dev/feast/pull/2002) ([Agent007](https://github.com/Agent007))
+
+**Merged pull requests:**
+
+- Remove unsupported java parts [\#2029](https://github.com/feast-dev/feast/pull/2029) ([pyalex](https://github.com/pyalex))
+- Fix checked out branch for PR docker image build workflow [\#2018](https://github.com/feast-dev/feast/pull/2018) ([tsotnet](https://github.com/tsotnet))
+- Remove duplicates in setup.py and run rudimentary verifications [\#2016](https://github.com/feast-dev/feast/pull/2016) ([achals](https://github.com/achals))
+- Upload feature server docker image to ECR on approved PRs [\#2014](https://github.com/feast-dev/feast/pull/2014) ([tsotnet](https://github.com/tsotnet))
+- Add integration tests for AWS Lambda feature server [\#2001](https://github.com/feast-dev/feast/pull/2001) ([tsotnet](https://github.com/tsotnet))
+- Moving Feast Java back into main repo under java/ package [\#1997](https://github.com/feast-dev/feast/pull/1997) ([adchia](https://github.com/adchia))
+
 ## [v0.15.0](https://github.com/feast-dev/feast/tree/v0.15.0) (2021-11-08)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.14.1...v0.15.0)
