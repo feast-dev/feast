@@ -1,8 +1,7 @@
 import copy
 import functools
-from datetime import datetime
 from types import MethodType
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Type, Union
 
 import dill
 import pandas as pd
@@ -19,6 +18,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureViewSpec,
+    OnDemandFeatureViewMeta,
     OnDemandInput,
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
@@ -72,7 +72,6 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.input_feature_views[input_ref] = odfv_input
 
         self.udf = udf
-        self.created_timestamp: Optional[datetime] = None
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -92,6 +91,9 @@ class OnDemandFeatureView(BaseFeatureView):
         Returns:
             A OnDemandFeatureViewProto protobuf.
         """
+        meta = OnDemandFeatureViewMeta()
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
         inputs = {}
         for input_ref, fv in self.input_feature_views.items():
             inputs[input_ref] = OnDemandInput(feature_view=fv.to_proto())
@@ -109,7 +111,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ),
         )
 
-        return OnDemandFeatureViewProto(spec=spec)
+        return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
     def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto):
@@ -156,6 +158,11 @@ class OnDemandFeatureView(BaseFeatureView):
         on_demand_feature_view_obj.projection = FeatureViewProjection.from_definition(
             on_demand_feature_view_obj
         )
+
+        if on_demand_feature_view_proto.meta.HasField("created_timestamp"):
+            on_demand_feature_view_obj.created_timestamp = (
+                on_demand_feature_view_proto.meta.created_timestamp.ToDatetime()
+            )
 
         return on_demand_feature_view_obj
 
