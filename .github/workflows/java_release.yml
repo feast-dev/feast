@@ -46,9 +46,6 @@ jobs:
   build-publish-docker-images:
     runs-on: [ubuntu-latest]
     needs: get-version
-    strategy:
-      matrix:
-        component: [core, serving]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
     steps:
@@ -83,20 +80,20 @@ jobs:
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
         run: |
           docker build --build-arg VERSION=$RELEASE_VERSION \
-            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} \
-            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
-            -t feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
-            -f infra/docker/${{ matrix.component }}/Dockerfile .
-          docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-          docker push feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
+            -t gcr.io/kf-feast/feast-serving:${GITHUB_SHA} \
+            -t gcr.io/kf-feast/feast-serving:${VERSION_WITHOUT_PREFIX} \
+            -t feastdev/feast-serving:${VERSION_WITHOUT_PREFIX} \
+            -f java/infra/docker/serving/Dockerfile .
+          docker push gcr.io/kf-feast/feast-serving:${VERSION_WITHOUT_PREFIX}
+          docker push feastdev/feast-serving:${VERSION_WITHOUT_PREFIX}
 
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
-            docker tag feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/feast-${{ matrix.component }}:latest
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
-            docker push feastdev/feast-${{ matrix.component }}:latest
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
+            docker tag feastdev/feast-serving:${VERSION_WITHOUT_PREFIX} feastdev/feast-serving:latest
+            docker tag gcr.io/kf-feast/feast-serving:${VERSION_WITHOUT_PREFIX} gcr.io/kf-feast/feast-serving:latest
+            docker push feastdev/feast-serving:latest
+            docker push gcr.io/kf-feast/feast-serving:latest
           fi
 
   publish-java-sdk:
