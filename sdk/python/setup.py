@@ -65,6 +65,7 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
     "proto-plus<1.19.7",
+    "tensorflow-metadata>=1.0.0<2.0.0",
 ]
 
 GCP_REQUIRED = [
@@ -236,7 +237,6 @@ setup(
             "protos/feast/third_party/grpc/health/v1/*.proto",
             "protos/tensorflow_metadata/proto/v0/*.proto",
             "feast/protos/feast/**/*.py",
-            "tensorflow_metadata/proto/v0/*.py"
         ],
     },
     cmdclass={
