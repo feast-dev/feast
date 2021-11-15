@@ -65,7 +65,7 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
     "proto-plus<1.19.7",
-    "tensorflow-metadata>=1.0.0<2.0.0",
+    "tensorflow-metadata>=1.0.0,<2.0.0",
 ]
 
 GCP_REQUIRED = [
