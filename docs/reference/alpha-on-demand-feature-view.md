@@ -3,7 +3,7 @@
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
 {% hint style="info" %}
-To enable this feature, run **`feast alpha enable enable_on_demand_transforms`**
+To enable this feature, run **`feast alpha enable on_demand_transforms`**
 {% endhint %}
 
 ## Overview
