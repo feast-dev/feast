@@ -17,8 +17,8 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-    OnDemandFeatureViewSpec,
     OnDemandFeatureViewMeta,
+    OnDemandFeatureViewSpec,
     OnDemandInput,
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
