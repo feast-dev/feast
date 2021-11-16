@@ -339,6 +339,8 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
+    from colorama import Fore, Style
+
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)
@@ -364,8 +366,12 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
         registry_dict["requestFeatureViews"].append(
             MessageToDict(request_feature_view.to_proto())
         )
-
-    print(json.dumps(registry_dict, indent=2))
+    warning = (
+        "Warning: The registry-dump command is for debugging only and may contain "
+        "breaking changes in the future. No guarantees are made on this interface."
+    )
+    click.echo(f"{Style.BRIGHT}{Fore.YELLOW}{warning}{Style.RESET_ALL}")
+    click.echo(json.dumps(registry_dict, indent=2))
 
 
 def cli_check_repo(repo_path: Path):
