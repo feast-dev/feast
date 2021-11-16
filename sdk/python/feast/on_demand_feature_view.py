@@ -215,7 +215,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
         if self.features:
             missing_features = []
-            for specified_features in self.features:
+            delabeled_features = [Feature(name=f.name, dtype=f.dtype) for f in self.features]
+            for specified_features in delabeled_features:
                 if specified_features not in inferred_features:
                     missing_features.append(specified_features)
             if missing_features:
