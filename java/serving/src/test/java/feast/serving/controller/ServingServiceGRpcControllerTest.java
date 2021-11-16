@@ -26,6 +26,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.config.FeastProperties;
 import feast.serving.service.ServingServiceV2;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;
 import io.opentracing.Tracer;
@@ -91,6 +92,6 @@ public class ServingServiceGRpcControllerTest {
     GetOnlineFeaturesRequestV2 missingEntityName =
         GetOnlineFeaturesRequestV2.newBuilder(validRequest).clearEntityRows().build();
     service.getOnlineFeaturesV2(missingEntityName, mockStreamObserver);
-    Mockito.verify(mockStreamObserver).onError(Mockito.any(IllegalArgumentException.class));
+    Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
 }

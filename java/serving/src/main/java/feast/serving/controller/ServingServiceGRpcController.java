@@ -36,7 +36,6 @@ import io.opentracing.contrib.grpc.TracingServerInterceptor;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
 
 @GrpcService(
     interceptors = {
@@ -89,19 +88,13 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
     } catch (SpecRetrievalException e) {
-      log.error("Failed to retrieve specs in SpecService", e);
+      log.error("Failed to retrieve specs from Registry", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
-    } catch (AccessDeniedException e) {
-      log.info(String.format("User prevented from accessing one of the projects in request"));
-      responseObserver.onError(
-          Status.PERMISSION_DENIED
-              .withDescription(e.getMessage())
-              .withCause(e)
-              .asRuntimeException());
     } catch (Exception e) {
       log.warn("Failed to get Online Features", e);
-      responseObserver.onError(e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 }

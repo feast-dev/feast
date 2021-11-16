@@ -28,7 +28,7 @@ import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRespon
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
 import feast.proto.serving.TransformationServiceGrpc;
 import feast.proto.types.ValueProto;
-import feast.serving.specs.FeatureSpecRetriever;
+import feast.serving.registry.RegistryRepository;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
@@ -55,12 +55,12 @@ public class OnlineTransformationService implements TransformationService {
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(OnlineTransformationService.class);
   private final TransformationServiceGrpc.TransformationServiceBlockingStub stub;
-  private final FeatureSpecRetriever featureSpecRetriever;
+  private final RegistryRepository registryRepository;
   static final int INT64_BITWIDTH = 64;
   static final int INT32_BITWIDTH = 32;
 
   public OnlineTransformationService(
-      String transformationServiceEndpoint, FeatureSpecRetriever featureSpecRetriever) {
+      String transformationServiceEndpoint, RegistryRepository registryRepository) {
     if (transformationServiceEndpoint != null) {
       final ManagedChannel channel =
           ManagedChannelBuilder.forTarget(transformationServiceEndpoint).usePlaintext().build();
@@ -68,7 +68,7 @@ public class OnlineTransformationService implements TransformationService {
     } else {
       this.stub = null;
     }
-    this.featureSpecRetriever = featureSpecRetriever;
+    this.registryRepository = registryRepository;
   }
 
   /** {@inheritDoc} */
@@ -88,7 +88,7 @@ public class OnlineTransformationService implements TransformationService {
         new ArrayList<ServingAPIProto.FeatureReferenceV2>();
     for (ServingAPIProto.FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
       OnDemandFeatureViewProto.OnDemandFeatureViewSpec onDemandFeatureViewSpec =
-          this.featureSpecRetriever.getOnDemandFeatureViewSpec(projectName, featureReference);
+          this.registryRepository.getOnDemandFeatureViewSpec(projectName, featureReference);
       Map<String, OnDemandFeatureViewProto.OnDemandInput> inputs =
           onDemandFeatureViewSpec.getInputsMap();
 

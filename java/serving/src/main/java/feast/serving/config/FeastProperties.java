@@ -68,6 +68,36 @@ public class FeastProperties {
     this.registry = registry;
   }
 
+  private int registryRefreshInterval;
+
+  public int getRegistryRefreshInterval() {
+    return registryRefreshInterval;
+  }
+
+  public void setRegistryRefreshInterval(final int registryRefreshInterval) {
+    this.registryRefreshInterval = registryRefreshInterval;
+  }
+
+  private String gcpProject;
+
+  public String getGcpProject() {
+    return gcpProject;
+  }
+
+  public void setGcpProject(final String gcpProject) {
+    this.gcpProject = gcpProject;
+  }
+
+  private String awsRegion;
+
+  public String getAwsRegion() {
+    return awsRegion;
+  }
+
+  public void setAwsRegion(final String awsRegion) {
+    this.awsRegion = awsRegion;
+  }
+
   private String transformationServiceEndpoint;
 
   public String getTransformationServiceEndpoint() {
