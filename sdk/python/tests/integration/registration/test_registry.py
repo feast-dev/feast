@@ -15,6 +15,7 @@ import time
 from datetime import timedelta
 from tempfile import mkstemp
 
+import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
@@ -23,6 +24,7 @@ from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import RequestDataSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
@@ -223,6 +225,126 @@ def test_apply_feature_view_success(test_registry):
     test_registry.delete_feature_view("my_feature_view_1", project)
     feature_views = test_registry.list_feature_views(project)
     assert len(feature_views) == 0
+
+    test_registry.teardown()
+
+    # Will try to reload registry, which will fail because the file has been deleted
+    with pytest.raises(FileNotFoundError):
+        test_registry._get_registry_proto()
+
+
+@pytest.mark.parametrize(
+    "test_registry", [lazy_fixture("local_registry")],
+)
+def test_modify_feature_views_success(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
+        date_partition_column="date_partition_col",
+    )
+
+    request_source = RequestDataSource(
+        name="request_source", schema={"my_input_1": ValueType.INT32}
+    )
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        features=[Feature(name="fs1_my_feature_1", dtype=ValueType.INT64)],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        batch_source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    @on_demand_feature_view(
+        features=[
+            Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
+            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        ],
+        inputs={"request_source": request_source},
+    )
+    def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["odfv1_my_feature_1"] = feature_df["my_input_1"].astype("category")
+        data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
+        return data
+
+    project = "project"
+
+    # Register Feature Views
+    test_registry.apply_feature_view(odfv1, project)
+    test_registry.apply_feature_view(fv1, project)
+
+    # Modify odfv by changing a single feature dtype
+    @on_demand_feature_view(
+        features=[
+            Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
+            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        ],
+        inputs={"request_source": request_source},
+    )
+    def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["odfv1_my_feature_1"] = feature_df["my_input_1"].astype("float")
+        data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
+        return data
+
+    # Apply the modified odfv
+    test_registry.apply_feature_view(odfv1, project)
+
+    # Check odfv
+    on_demand_feature_views = test_registry.list_on_demand_feature_views(project)
+
+    assert (
+        len(on_demand_feature_views) == 1
+        and on_demand_feature_views[0].name == "odfv1"
+        and on_demand_feature_views[0].features[0].name == "odfv1_my_feature_1"
+        and on_demand_feature_views[0].features[0].dtype == ValueType.FLOAT
+        and on_demand_feature_views[0].features[1].name == "odfv1_my_feature_2"
+        and on_demand_feature_views[0].features[1].dtype == ValueType.INT32
+    )
+    request_schema = on_demand_feature_views[0].get_request_data_schema()
+    assert (
+        list(request_schema.keys())[0] == "my_input_1"
+        and list(request_schema.values())[0] == ValueType.INT32
+    )
+
+    feature_view = test_registry.get_on_demand_feature_view("odfv1", project)
+    assert (
+        feature_view.name == "odfv1"
+        and feature_view.features[0].name == "odfv1_my_feature_1"
+        and feature_view.features[0].dtype == ValueType.FLOAT
+        and feature_view.features[1].name == "odfv1_my_feature_2"
+        and feature_view.features[1].dtype == ValueType.INT32
+    )
+    request_schema = feature_view.get_request_data_schema()
+    assert (
+        list(request_schema.keys())[0] == "my_input_1"
+        and list(request_schema.values())[0] == ValueType.INT32
+    )
+
+    # Make sure fv1 is untouched
+    feature_views = test_registry.list_feature_views(project)
+
+    # List Feature Views
+    assert (
+        len(feature_views) == 1
+        and feature_views[0].name == "my_feature_view_1"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    feature_view = test_registry.get_feature_view("my_feature_view_1", project)
+    assert (
+        feature_view.name == "my_feature_view_1"
+        and feature_view.features[0].name == "fs1_my_feature_1"
+        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.entities[0] == "fs1_my_entity_1"
+    )
 
     test_registry.teardown()
 
