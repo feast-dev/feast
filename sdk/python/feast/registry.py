@@ -341,7 +341,7 @@ class Registry:
                 ):
                     return
                 else:
-                    del self.cached_registry_proto.feature_views[idx]
+                    del existing_feature_views_of_same_type[idx]
                     break
 
         existing_feature_views_of_same_type.append(feature_view_proto)
