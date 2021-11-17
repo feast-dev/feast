@@ -1,11 +1,15 @@
-name: java_complete
+name: java_pr
 
-on: [push, pull_request]
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - labeled
 
 jobs:
   lint-java:
-    container: gcr.io/kf-feast/feast-ci:latest
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
@@ -45,16 +49,6 @@ jobs:
       || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
     runs-on: ubuntu-latest
     needs: unit-test-java
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6389:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v2
         with:
