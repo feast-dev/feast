@@ -1,18 +1,11 @@
 import re
 from typing import List
 
-import pandas as pd
-
-from feast import BigQuerySource, Entity, Feature, FileSource, RedshiftSource, errors
+from feast import BigQuerySource, Entity, Feature, FileSource, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
-from feast.type_map import (
-    feast_value_type_to_pandas_type,
-    python_type_to_feast_value_type,
-)
 from feast.value_type import ValueType
 
 
@@ -189,49 +182,3 @@ def update_feature_views_with_inferred_features(
                     "FeatureView",
                     f"Could not infer Features for the FeatureView named {fv.name}.",
                 )
-
-
-def update_odfvs_with_inferred_features(odfvs: List[OnDemandFeatureView]) -> None:
-    """
-    Infers the set of features associated to this feature view from the input source.
-
-    Raises:
-        RegistryInferenceFailure: The set of features could not be inferred.
-    """
-    for odfv in odfvs:
-        df = pd.DataFrame()
-        for feature_view in odfv.input_feature_views.values():
-            for feature in feature_view.features:
-                dtype = feast_value_type_to_pandas_type(feature.dtype)
-                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
-                df[f"{feature.name}"] = pd.Series(dtype=dtype)
-        for request_data in odfv.input_request_data_sources.values():
-            for feature_name, feature_type in request_data.schema.items():
-                dtype = feast_value_type_to_pandas_type(feature_type)
-                df[f"{feature_name}"] = pd.Series(dtype=dtype)
-        output_df: pd.DataFrame = odfv.udf.__call__(df)
-        inferred_features = []
-        for f, dt in zip(output_df.columns, output_df.dtypes):
-            inferred_features.append(
-                Feature(
-                    name=f, dtype=python_type_to_feast_value_type(f, type_name=str(dt))
-                )
-            )
-
-        if odfv.features:
-            missing_features = []
-            for specified_features in odfv.features:
-                if specified_features not in inferred_features:
-                    missing_features.append(specified_features)
-            if missing_features:
-                raise errors.SpecifiedFeaturesNotPresentError(
-                    [f.name for f in missing_features], odfv.name
-                )
-        else:
-            odfv.features = inferred_features
-
-        if not odfv.features:
-            raise RegistryInferenceFailure(
-                "OnDemandFeatureView",
-                f"Could not infer Features for the feature view '{odfv.name}'.",
-            )

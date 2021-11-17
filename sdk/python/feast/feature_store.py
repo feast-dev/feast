@@ -47,7 +47,6 @@ from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
     update_feature_views_with_inferred_features,
-    update_odfvs_with_inferred_features,
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -485,7 +484,8 @@ class FeatureStore:
             views_to_update, entities_to_update, self.config
         )
 
-        update_odfvs_with_inferred_features(odfvs_to_update)
+        for odfv in odfvs_to_update:
+            odfv.infer_features()
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         DUMMY_ENTITY = Entity(
