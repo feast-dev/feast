@@ -1,11 +1,18 @@
 import re
 from typing import List
 
-from feast import BigQuerySource, Entity, FileSource, RedshiftSource
+import pandas as pd
+
+from feast import BigQuerySource, Entity, Feature, FileSource, RedshiftSource, errors
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
+from feast.type_map import (
+    feast_value_type_to_pandas_type,
+    python_type_to_feast_value_type,
+)
 from feast.value_type import ValueType
 
 
@@ -118,3 +125,113 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
                     """,
                 )
+
+
+def update_feature_views_with_inferred_features(
+    fvs: List[FeatureView], entities: List[Entity], config: RepoConfig
+) -> None:
+    """
+    Infers the set of features associated to each FeatureView and updates the FeatureView with those features.
+    Inference occurs through considering each column of the underlying data source as a feature except columns that are
+    associated with the data source's timestamp columns and the FeatureView's entity columns.
+    """
+    entity_name_to_join_key_map = {entity.name: entity.join_key for entity in entities}
+
+    for fv in fvs:
+        if not fv.features:
+            columns_to_exclude = {
+                fv.batch_source.event_timestamp_column,
+                fv.batch_source.created_timestamp_column,
+            } | {
+                entity_name_to_join_key_map[entity_name] for entity_name in fv.entities
+            }
+
+            if fv.batch_source.event_timestamp_column in fv.batch_source.field_mapping:
+                columns_to_exclude.add(
+                    fv.batch_source.field_mapping[
+                        fv.batch_source.event_timestamp_column
+                    ]
+                )
+            if (
+                fv.batch_source.created_timestamp_column
+                in fv.batch_source.field_mapping
+            ):
+                columns_to_exclude.add(
+                    fv.batch_source.field_mapping[
+                        fv.batch_source.created_timestamp_column
+                    ]
+                )
+
+            for (
+                col_name,
+                col_datatype,
+            ) in fv.batch_source.get_table_column_names_and_types(config):
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$",
+                    col_name,  # double underscores often signal an internal-use column
+                ):
+                    feature_name = (
+                        fv.batch_source.field_mapping[col_name]
+                        if col_name in fv.batch_source.field_mapping
+                        else col_name
+                    )
+                    fv.features.append(
+                        Feature(
+                            feature_name,
+                            fv.batch_source.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            ),
+                        )
+                    )
+
+            if not fv.features:
+                raise RegistryInferenceFailure(
+                    "FeatureView",
+                    f"Could not infer Features for the FeatureView named {fv.name}.",
+                )
+
+
+def update_odfvs_with_inferred_features(odfvs: List[OnDemandFeatureView]) -> None:
+    """
+    Infers the set of features associated to this feature view from the input source.
+
+    Raises:
+        RegistryInferenceFailure: The set of features could not be inferred.
+    """
+    for odfv in odfvs:
+        df = pd.DataFrame()
+        for feature_view in odfv.input_feature_views.values():
+            for feature in feature_view.features:
+                dtype = feast_value_type_to_pandas_type(feature.dtype)
+                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
+                df[f"{feature.name}"] = pd.Series(dtype=dtype)
+        for request_data in odfv.input_request_data_sources.values():
+            for feature_name, feature_type in request_data.schema.items():
+                dtype = feast_value_type_to_pandas_type(feature_type)
+                df[f"{feature_name}"] = pd.Series(dtype=dtype)
+        output_df: pd.DataFrame = odfv.udf.__call__(df)
+        inferred_features = []
+        for f, dt in zip(output_df.columns, output_df.dtypes):
+            inferred_features.append(
+                Feature(
+                    name=f, dtype=python_type_to_feast_value_type(f, type_name=str(dt))
+                )
+            )
+
+        if odfv.features:
+            missing_features = []
+            for specified_features in odfv.features:
+                if specified_features not in inferred_features:
+                    missing_features.append(specified_features)
+            if missing_features:
+                raise errors.SpecifiedFeaturesNotPresentError(
+                    [f.name for f in missing_features], odfv.name
+                )
+        else:
+            odfv.features = inferred_features
+
+        if not odfv.features:
+            raise RegistryInferenceFailure(
+                "OnDemandFeatureView",
+                f"Could not infer Features for the feature view '{odfv.name}'.",
+            )
