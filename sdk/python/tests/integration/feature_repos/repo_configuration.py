@@ -15,6 +15,7 @@ import yaml
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
+from feast.errors import FeastModuleImportError
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -86,8 +87,10 @@ if full_repo_configs_module is not None:
     try:
         module = importlib.import_module(full_repo_configs_module)
         FULL_REPO_CONFIGS = getattr(module, "FULL_REPO_CONFIGS")
-    except Exception:
-        FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
+    except Exception as e:
+        raise FeastModuleImportError(
+            "FULL_REPO_CONFIGS", full_repo_configs_module
+        ) from e
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
