@@ -1,6 +1,7 @@
 import base64
 import os
 import tempfile
+import threading
 from pathlib import Path
 
 import yaml
@@ -28,9 +29,10 @@ with open(repo_path / "feature_store.yaml", "wb") as f:
 # Write registry contents for local registries
 config_string = config_bytes.decode("utf-8")
 raw_config = yaml.safe_load(config_string)
-registry_path = raw_config["registry"]
+registry = raw_config["registry"]
+registry_path = registry["path"] if isinstance(registry, dict) else registry
 registry_store_class = get_registry_store_class_from_scheme(registry_path)
-if registry_store_class == LocalRegistryStore:
+if registry_store_class == LocalRegistryStore and not os.path.exists(registry_path):
     registry_base64 = os.environ[REGISTRY_ENV_NAME]
     registry_bytes = base64.b64decode(registry_base64)
     registry_dir = os.path.dirname(registry_path)
@@ -41,6 +43,17 @@ if registry_store_class == LocalRegistryStore:
 
 # Initialize the feature store
 store = FeatureStore(repo_path=str(repo_path.resolve()))
+
+if isinstance(registry, dict) and registry.get("cache_ttl_seconds", 0) > 0:
+    # disable synchronous refresh
+    store.config.registry.cache_ttl_seconds = 0
+
+    # enable asynchronous refresh
+    def async_refresh():
+        store.refresh_registry()
+        threading.Timer(registry["cache_ttl_seconds"], async_refresh).start()
+
+    async_refresh()
 
 # Start the feature transformation server
 port = (
