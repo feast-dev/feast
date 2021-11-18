@@ -332,13 +332,13 @@ def block_until_done(
 
 
 def _get_table_reference_for_new_entity(
-    client: Client, dataset_project: str, dataset_name: str, dataset_location: str
+    client: Client, dataset_project: str, dataset_name: str, dataset_location: Optional[str]
 ) -> str:
     """Gets the table_id for the new entity to be uploaded."""
 
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{dataset_project}.{dataset_name}")
-    dataset.location = dataset_location
+    dataset.location = dataset_location if dataset_location else "US"
 
     try:
         client.get_dataset(dataset)
