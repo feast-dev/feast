@@ -99,7 +99,7 @@ def simple_dataset_1() -> pd.DataFrame:
     now = datetime.utcnow()
     ts = pd.Timestamp(now).round("ms")
     data = {
-        "id": [1, 2, 1, 3, 3],
+        "id_join_key": [1, 2, 1, 3, 3],
         "float_col": [0.1, 0.2, 0.3, 4, 5],
         "int64_col": [1, 2, 3, 4, 5],
         "string_col": ["a", "b", "c", "d", "e"],
@@ -119,7 +119,7 @@ def simple_dataset_2() -> pd.DataFrame:
     now = datetime.utcnow()
     ts = pd.Timestamp(now).round("ms")
     data = {
-        "id": ["a", "b", "c", "d", "e"],
+        "id_join_key": ["a", "b", "c", "d", "e"],
         "float_col": [0.1, 0.2, 0.3, 4, 5],
         "int64_col": [1, 2, 3, 4, 5],
         "string_col": ["a", "b", "c", "d", "e"],
