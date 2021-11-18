@@ -236,7 +236,6 @@ setup(
         "": [
             "protos/feast/**/*.proto",
             "protos/feast/third_party/grpc/health/v1/*.proto",
-            "protos/tensorflow_metadata/proto/v0/*.proto",
             "feast/protos/feast/**/*.py",
         ],
     },
