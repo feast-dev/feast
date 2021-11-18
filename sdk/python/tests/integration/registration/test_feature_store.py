@@ -218,6 +218,8 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
     with prep_file_source(
         df=dataframe_source, event_timestamp_column="ts_1"
     ) as file_source:
+        entity = Entity(name="id", join_key="id_join_key", value_type=ValueType.INT64)
+
         fv1 = FeatureView(
             name="fv1",
             entities=["id"],
@@ -245,7 +247,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             tags={},
         )
 
-        test_feature_store.apply([fv1, fv2, fv3])  # Register Feature Views
+        test_feature_store.apply([entity, fv1, fv2, fv3])  # Register Feature Views
         feature_view_1 = test_feature_store.list_feature_views()[0]
         feature_view_2 = test_feature_store.list_feature_views()[1]
         feature_view_3 = test_feature_store.list_feature_views()[2]
@@ -433,7 +435,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         df=dataframe_source, event_timestamp_column="ts_1"
     ) as file_source:
 
-        e = Entity(name="id", value_type=ValueType.STRING)
+        e = Entity(name="id", join_key="id_join_key", value_type=ValueType.STRING)
 
         # Create Feature View
         fv1 = FeatureView(

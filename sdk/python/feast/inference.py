@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from feast import BigQuerySource, Entity, FileSource, RedshiftSource
+from feast import BigQuerySource, Entity, Feature, FileSource, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
@@ -117,4 +117,68 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     f"""
                     {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
                     """,
+                )
+
+
+def update_feature_views_with_inferred_features(
+    fvs: List[FeatureView], entities: List[Entity], config: RepoConfig
+) -> None:
+    """
+    Infers the set of features associated to each FeatureView and updates the FeatureView with those features.
+    Inference occurs through considering each column of the underlying data source as a feature except columns that are
+    associated with the data source's timestamp columns and the FeatureView's entity columns.
+    """
+    entity_name_to_join_key_map = {entity.name: entity.join_key for entity in entities}
+
+    for fv in fvs:
+        if not fv.features:
+            columns_to_exclude = {
+                fv.batch_source.event_timestamp_column,
+                fv.batch_source.created_timestamp_column,
+            } | {
+                entity_name_to_join_key_map[entity_name] for entity_name in fv.entities
+            }
+
+            if fv.batch_source.event_timestamp_column in fv.batch_source.field_mapping:
+                columns_to_exclude.add(
+                    fv.batch_source.field_mapping[
+                        fv.batch_source.event_timestamp_column
+                    ]
+                )
+            if (
+                fv.batch_source.created_timestamp_column
+                in fv.batch_source.field_mapping
+            ):
+                columns_to_exclude.add(
+                    fv.batch_source.field_mapping[
+                        fv.batch_source.created_timestamp_column
+                    ]
+                )
+
+            for (
+                col_name,
+                col_datatype,
+            ) in fv.batch_source.get_table_column_names_and_types(config):
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$",
+                    col_name,  # double underscores often signal an internal-use column
+                ):
+                    feature_name = (
+                        fv.batch_source.field_mapping[col_name]
+                        if col_name in fv.batch_source.field_mapping
+                        else col_name
+                    )
+                    fv.features.append(
+                        Feature(
+                            feature_name,
+                            fv.batch_source.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            ),
+                        )
+                    )
+
+            if not fv.features:
+                raise RegistryInferenceFailure(
+                    "FeatureView",
+                    f"Could not infer Features for the FeatureView named {fv.name}.",
                 )

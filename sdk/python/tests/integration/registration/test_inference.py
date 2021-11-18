@@ -30,8 +30,8 @@ def test_update_entities_with_inferred_types_from_feature_views(
             name="fv2", entities=["id"], batch_source=file_source_2, ttl=None,
         )
 
-        actual_1 = Entity(name="id")
-        actual_2 = Entity(name="id")
+        actual_1 = Entity(name="id", join_key="id_join_key")
+        actual_2 = Entity(name="id", join_key="id_join_key")
 
         update_entities_with_inferred_types_from_feature_views(
             [actual_1], [fv1], RepoConfig(provider="local", project="test")
@@ -39,13 +39,17 @@ def test_update_entities_with_inferred_types_from_feature_views(
         update_entities_with_inferred_types_from_feature_views(
             [actual_2], [fv2], RepoConfig(provider="local", project="test")
         )
-        assert actual_1 == Entity(name="id", value_type=ValueType.INT64)
-        assert actual_2 == Entity(name="id", value_type=ValueType.STRING)
+        assert actual_1 == Entity(
+            name="id", join_key="id_join_key", value_type=ValueType.INT64
+        )
+        assert actual_2 == Entity(
+            name="id", join_key="id_join_key", value_type=ValueType.STRING
+        )
 
         with pytest.raises(RegistryInferenceFailure):
             # two viable data types
             update_entities_with_inferred_types_from_feature_views(
-                [Entity(name="id")],
+                [Entity(name="id", join_key="id_join_key")],
                 [fv1, fv2],
                 RepoConfig(provider="local", project="test"),
             )

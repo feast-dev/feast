@@ -46,6 +46,7 @@ from feast.feature_view import (
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
+    update_feature_views_with_inferred_features,
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -477,8 +478,9 @@ class FeatureStore:
             [view.batch_source for view in views_to_update], self.config
         )
 
-        for view in views_to_update:
-            view.infer_features_from_batch_source(self.config)
+        update_feature_views_with_inferred_features(
+            views_to_update, entities_to_update, self.config
+        )
 
         for odfv in odfvs_to_update:
             odfv.infer_features()

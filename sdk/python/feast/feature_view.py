@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-import re
 import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
@@ -22,7 +21,6 @@ from google.protobuf.duration_pb2 import Duration
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
-from feast.errors import RegistryInferenceFailure
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -35,7 +33,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
@@ -406,69 +403,3 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
-
-    def infer_features_from_batch_source(self, config: RepoConfig):
-        """
-        Infers the set of features associated to this feature view from the input source.
-
-        Args:
-            config: Configuration object used to configure the feature store.
-
-        Raises:
-            RegistryInferenceFailure: The set of features could not be inferred.
-        """
-        if not self.features:
-            columns_to_exclude = {
-                self.batch_source.event_timestamp_column,
-                self.batch_source.created_timestamp_column,
-            } | set(self.entities)
-
-            if (
-                self.batch_source.event_timestamp_column
-                in self.batch_source.field_mapping
-            ):
-                columns_to_exclude.add(
-                    self.batch_source.field_mapping[
-                        self.batch_source.event_timestamp_column
-                    ]
-                )
-            if (
-                self.batch_source.created_timestamp_column
-                in self.batch_source.field_mapping
-            ):
-                columns_to_exclude.add(
-                    self.batch_source.field_mapping[
-                        self.batch_source.created_timestamp_column
-                    ]
-                )
-            for e in self.entities:
-                if e in self.batch_source.field_mapping:
-                    columns_to_exclude.add(self.batch_source.field_mapping[e])
-
-            for (
-                col_name,
-                col_datatype,
-            ) in self.batch_source.get_table_column_names_and_types(config):
-                if col_name not in columns_to_exclude and not re.match(
-                    "^__|__$",
-                    col_name,  # double underscores often signal an internal-use column
-                ):
-                    feature_name = (
-                        self.batch_source.field_mapping[col_name]
-                        if col_name in self.batch_source.field_mapping
-                        else col_name
-                    )
-                    self.features.append(
-                        Feature(
-                            feature_name,
-                            self.batch_source.source_datatype_to_feast_value_type()(
-                                col_datatype
-                            ),
-                        )
-                    )
-
-            if not self.features:
-                raise RegistryInferenceFailure(
-                    "FeatureView",
-                    f"Could not infer Features for the FeatureView named {self.name}.",
-                )
