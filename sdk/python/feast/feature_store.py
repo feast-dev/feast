@@ -891,7 +891,7 @@ class FeatureStore:
         self,
         feature_view_name: str,
         df: pd.DataFrame,
-        allow_registry_cache: bool = False,
+        allow_registry_cache: bool = True,
     ):
         """
         ingests data directly into the Online store
