@@ -22,37 +22,24 @@ import feast.proto.core.OnDemandFeatureViewProto;
 import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.serving.exception.SpecRetrievalException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class LocalRegistryRepo implements RegistryRepository {
+public class Registry {
   private final RegistryProto.Registry registry;
   private Map<String, FeatureViewProto.FeatureViewSpec> featureViewNameToSpec;
   private Map<String, OnDemandFeatureViewProto.OnDemandFeatureViewSpec>
       onDemandFeatureViewNameToSpec;
 
-  public LocalRegistryRepo(Path localRegistryPath) {
-    if (!localRegistryPath.toFile().exists()) {
-      throw new RuntimeException(
-          String.format("Local registry not found at path %s", localRegistryPath));
-    }
-    try {
-      final byte[] registryContents = Files.readAllBytes(localRegistryPath);
-      this.registry = RegistryProto.Registry.parseFrom(registryContents);
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
-    }
-
-    final RegistryProto.Registry registry = this.getRegistry();
+  Registry(RegistryProto.Registry registry) {
+    this.registry = registry;
     List<FeatureViewProto.FeatureViewSpec> featureViewSpecs =
         registry.getFeatureViewsList().stream()
             .map(fv -> fv.getSpec())
             .collect(Collectors.toList());
-    featureViewNameToSpec =
+    this.featureViewNameToSpec =
         featureViewSpecs.stream()
             .collect(
                 Collectors.toMap(FeatureViewProto.FeatureViewSpec::getName, Function.identity()));
@@ -60,7 +47,7 @@ public class LocalRegistryRepo implements RegistryRepository {
         registry.getOnDemandFeatureViewsList().stream()
             .map(odfv -> odfv.getSpec())
             .collect(Collectors.toList());
-    onDemandFeatureViewNameToSpec =
+    this.onDemandFeatureViewNameToSpec =
         onDemandFeatureViewSpecs.stream()
             .collect(
                 Collectors.toMap(
@@ -68,12 +55,10 @@ public class LocalRegistryRepo implements RegistryRepository {
                     Function.identity()));
   }
 
-  @Override
   public RegistryProto.Registry getRegistry() {
     return this.registry;
   }
 
-  @Override
   public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
     String featureViewName = featureReference.getFeatureTable();
@@ -84,7 +69,6 @@ public class LocalRegistryRepo implements RegistryRepository {
         String.format("Unable to find feature view with name: %s", featureViewName));
   }
 
-  @Override
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
     final FeatureViewProto.FeatureViewSpec spec =
@@ -101,7 +85,6 @@ public class LocalRegistryRepo implements RegistryRepository {
             featureReference.getName(), featureReference.getFeatureTable()));
   }
 
-  @Override
   public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
     String onDemandFeatureViewName = featureReference.getFeatureTable();
@@ -113,7 +96,6 @@ public class LocalRegistryRepo implements RegistryRepository {
             "Unable to find on demand feature view with name: %s", onDemandFeatureViewName));
   }
 
-  @Override
   public boolean isOnDemandFeatureReference(ServingAPIProto.FeatureReferenceV2 featureReference) {
     String onDemandFeatureViewName = featureReference.getFeatureTable();
     return onDemandFeatureViewNameToSpec.containsKey(onDemandFeatureViewName);

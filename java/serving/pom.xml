@@ -211,6 +211,31 @@
       <version>1.6.6</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <version>1.118.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-nio</artifactId>
+      <version>0.123.10</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-s3</artifactId>
+      <version>1.12.110</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.adobe.testing</groupId>
+      <artifactId>s3mock-testcontainers</artifactId>
+      <version>2.2.3</version>
+      <scope>test</scope>
+    </dependency>
 
     <!--testCompile "io.grpc:grpc-testing:${grpc.version}"-->
     <dependency>
@@ -310,7 +335,7 @@
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
-      <version>3.0.0</version>
+      <version>4.1.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>

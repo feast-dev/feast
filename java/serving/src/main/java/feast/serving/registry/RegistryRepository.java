@@ -16,27 +16,82 @@
  */
 package feast.serving.registry;
 
+import com.google.protobuf.Duration;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.core.OnDemandFeatureViewProto;
 import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-/**
- * RegistryRepository allows the ServingService to retrieve feature definitions from a Registry
- * object. This approach is needed for a feature store created using feast 0.10+.
- */
-public interface RegistryRepository {
-  RegistryProto.Registry getRegistry();
+/*
+ *
+ * Read-only access to Feast registry.
+ * Registry is obtained by calling specific storage implementation: eg, Local, GCS, AWS S3.
+ * All data is being then cached.
+ * It is possible to refresh registry (reload from storage) on configured interval.
+ *
+ * */
+public class RegistryRepository {
+  private Registry registry;
+  private RegistryFile registryFile;
 
-  FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference);
+  public RegistryRepository(RegistryFile registryFile, int refreshIntervalSecs) {
+    this.registryFile = registryFile;
+    this.registry = new Registry(this.registryFile.getContent());
 
-  FeatureProto.FeatureSpecV2 getFeatureSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference);
+    if (refreshIntervalSecs > 0) {
+      setupPeriodicalRefresh(refreshIntervalSecs);
+    }
+  }
 
-  OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference);
+  public RegistryRepository(Registry registry) {
+    this.registry = registry;
+  }
 
-  boolean isOnDemandFeatureReference(ServingAPIProto.FeatureReferenceV2 featureReference);
+  private void setupPeriodicalRefresh(int seconds) {
+    Executors.newSingleThreadScheduledExecutor()
+        .scheduleWithFixedDelay(this::refresh, seconds, seconds, TimeUnit.SECONDS);
+  }
+
+  private void refresh() {
+    Optional<RegistryProto.Registry> registryProto = this.registryFile.getContentIfModified();
+    if (registryProto.isEmpty()) {
+      return;
+    }
+
+    this.registry = new Registry(registryProto.get());
+  }
+
+  public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.getFeatureViewSpec(projectName, featureReference);
+  }
+
+  public FeatureProto.FeatureSpecV2 getFeatureSpec(
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.getFeatureSpec(projectName, featureReference);
+  }
+
+  public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.getOnDemandFeatureViewSpec(projectName, featureReference);
+  }
+
+  public boolean isOnDemandFeatureReference(ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.isOnDemandFeatureReference(featureReference);
+  }
+
+  public Duration getMaxAge(
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return getFeatureViewSpec(projectName, featureReference).getTtl();
+  }
+
+  public List<String> getEntitiesList(
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return getFeatureViewSpec(projectName, featureReference).getEntitiesList();
+  }
 }

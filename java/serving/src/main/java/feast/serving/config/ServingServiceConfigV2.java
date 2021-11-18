@@ -16,16 +16,13 @@
  */
 package feast.serving.config;
 
-import feast.serving.registry.LocalRegistryRepo;
+import feast.serving.registry.*;
 import feast.serving.service.OnlineServingServiceV2;
 import feast.serving.service.OnlineTransformationService;
 import feast.serving.service.ServingServiceV2;
-import feast.serving.specs.FeatureSpecRetriever;
-import feast.serving.specs.RegistryFeatureSpecRetriever;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import feast.storage.connectors.redis.retriever.*;
 import io.opentracing.Tracer;
-import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,7 +33,7 @@ public class ServingServiceConfigV2 {
 
   @Bean
   public ServingServiceV2 registryBasedServingServiceV2(
-      FeastProperties feastProperties, Tracer tracer) {
+      FeastProperties feastProperties, RegistryRepository registryRepository, Tracer tracer) {
     final ServingServiceV2 servingService;
     final FeastProperties.Store store = feastProperties.getActiveStore();
 
@@ -56,23 +53,19 @@ public class ServingServiceConfigV2 {
       default:
         throw new RuntimeException(
             String.format(
-                "Unable to identify online store type: %s for Regsitry Backed Serving Service",
+                "Unable to identify online store type: %s for Registry Backed Serving Service",
                 store.getType()));
     }
 
-    final FeatureSpecRetriever featureSpecRetriever;
-    log.info("Created RegistryFeatureSpecRetriever");
     log.info("Working Directory = " + System.getProperty("user.dir"));
-    final LocalRegistryRepo repo = new LocalRegistryRepo(Paths.get(feastProperties.getRegistry()));
-    featureSpecRetriever = new RegistryFeatureSpecRetriever(repo);
 
     final String transformationServiceEndpoint = feastProperties.getTransformationServiceEndpoint();
     final OnlineTransformationService onlineTransformationService =
-        new OnlineTransformationService(transformationServiceEndpoint, featureSpecRetriever);
+        new OnlineTransformationService(transformationServiceEndpoint, registryRepository);
 
     servingService =
         new OnlineServingServiceV2(
-            retrieverV2, tracer, featureSpecRetriever, onlineTransformationService);
+            retrieverV2, tracer, registryRepository, onlineTransformationService);
 
     return servingService;
   }

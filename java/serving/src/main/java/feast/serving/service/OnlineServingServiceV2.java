@@ -31,19 +31,14 @@ import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRespon
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
 import feast.proto.types.ValueProto;
 import feast.serving.exception.SpecRetrievalException;
-import feast.serving.specs.FeatureSpecRetriever;
+import feast.serving.registry.RegistryRepository;
 import feast.serving.util.Metrics;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import java.io.*;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -55,17 +50,17 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(OnlineServingServiceV2.class);
   private final Tracer tracer;
   private final OnlineRetrieverV2 retriever;
-  private final FeatureSpecRetriever featureSpecRetriever;
+  private final RegistryRepository registryRepository;
   private final OnlineTransformationService onlineTransformationService;
 
   public OnlineServingServiceV2(
       OnlineRetrieverV2 retriever,
       Tracer tracer,
-      FeatureSpecRetriever featureSpecRetriever,
+      RegistryRepository registryRepository,
       OnlineTransformationService onlineTransformationService) {
     this.retriever = retriever;
     this.tracer = tracer;
-    this.featureSpecRetriever = featureSpecRetriever;
+    this.registryRepository = registryRepository;
     this.onlineTransformationService = onlineTransformationService;
   }
 
@@ -90,11 +85,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     List<FeatureReferenceV2> allFeatureReferences = request.getFeaturesList();
     List<FeatureReferenceV2> featureReferences =
         allFeatureReferences.stream()
-            .filter(r -> !this.featureSpecRetriever.isOnDemandFeatureReference(r))
+            .filter(r -> !this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
     List<FeatureReferenceV2> onDemandFeatureReferences =
         allFeatureReferences.stream()
-            .filter(r -> this.featureSpecRetriever.isOnDemandFeatureReference(r))
+            .filter(r -> this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
 
     // Get the set of request data feature names and feature inputs from the ODFV references.
@@ -143,10 +138,10 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .collect(
                 Collectors.toMap(
                     Function.identity(),
-                    ref -> this.featureSpecRetriever.getMaxAge(finalProjectName, ref)));
+                    ref -> this.registryRepository.getMaxAge(finalProjectName, ref)));
     List<String> entityNames =
         featureReferences.stream()
-            .map(ref -> this.featureSpecRetriever.getEntitiesList(finalProjectName, ref))
+            .map(ref -> this.registryRepository.getEntitiesList(finalProjectName, ref))
             .findFirst()
             .get();
 
@@ -158,7 +153,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                     Function.identity(),
                     ref -> {
                       try {
-                        return this.featureSpecRetriever
+                        return this.registryRepository
                             .getFeatureSpec(finalProjectName, ref)
                             .getValueType();
                       } catch (SpecRetrievalException e) {
