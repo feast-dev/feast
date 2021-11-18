@@ -44,12 +44,16 @@ def check_offline_and_online_features(
 
     if full_feature_names:
         if expected_value:
-            assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+            assert (
+                abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+            ), f"Response: {response_dict}, Expected: {expected_value}"
         else:
             assert response_dict[f"{fv.name}__value"][0] is None
     else:
         if expected_value:
-            assert abs(response_dict["value"][0] - expected_value) < 1e-6
+            assert (
+                abs(response_dict["value"][0] - expected_value) < 1e-6
+            ), f"Response: {response_dict}, Expected: {expected_value}"
         else:
             assert response_dict["value"][0] is None
 
@@ -78,7 +82,7 @@ def check_offline_and_online_features(
 def run_offline_online_store_consistency_test(
     fs: FeatureStore, fv: FeatureView
 ) -> None:
-    now = datetime.now()
+    now = datetime.utcnow()
 
     full_feature_names = True
     check_offline_store: bool = True

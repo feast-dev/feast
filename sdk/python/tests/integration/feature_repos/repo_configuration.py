@@ -1,4 +1,5 @@
 import importlib
+import json
 import os
 import tempfile
 import uuid
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+import yaml
 
 from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
@@ -49,30 +51,36 @@ REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
     IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-    # GCP configurations
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store="datastore",
-    ),
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
-    # AWS configurations
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=DYNAMO_CONFIG,
-    ),
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
 ]
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    DEFAULT_FULL_REPO_CONFIGS.extend(
+        [
+            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            # GCP configurations
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store="datastore",
+            ),
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            # AWS configurations
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=DYNAMO_CONFIG,
+                python_feature_server=True,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+        ]
+    )
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
@@ -206,9 +214,10 @@ class Environment:
     test_repo_config: IntegrationTestRepoConfig
     feature_store: FeatureStore
     data_source_creator: DataSourceCreator
+    python_feature_server: bool
 
     end_date: datetime = field(
-        default=datetime.now().replace(microsecond=0, second=0, minute=0)
+        default=datetime.utcnow().replace(microsecond=0, second=0, minute=0)
     )
 
     def __post_init__(self):
@@ -236,15 +245,36 @@ def construct_test_environment(
     online_store = test_repo_config.online_store
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
+        if test_repo_config.python_feature_server:
+            from feast.infra.feature_servers.aws_lambda.config import (
+                AwsLambdaFeatureServerConfig,
+            )
+
+            feature_server = AwsLambdaFeatureServerConfig(
+                enabled=True,
+                execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
+            )
+
+            registry = f"s3://feast-integration-tests/registries/{project}/registry.db"
+        else:
+            feature_server = None
+            registry = str(Path(repo_dir_name) / "registry.db")
+
         config = RepoConfig(
-            registry=str(Path(repo_dir_name) / "registry.db"),
+            registry=registry,
             project=project,
             provider=test_repo_config.provider,
             offline_store=offline_store_config,
             online_store=online_store,
             repo_path=repo_dir_name,
+            feature_server=feature_server,
         )
-        fs = FeatureStore(config=config)
+
+        # Create feature_store.yaml out of the config
+        with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
+            yaml.safe_dump(json.loads(config.json()), f)
+
+        fs = FeatureStore(repo_dir_name)
         # We need to initialize the registry, because if nothing is applied in the test before tearing down
         # the feature store, that will cause the teardown method to blow up.
         fs.registry._initialize_registry()
@@ -253,6 +283,7 @@ def construct_test_environment(
             test_repo_config=test_repo_config,
             feature_store=fs,
             data_source_creator=offline_creator,
+            python_feature_server=test_repo_config.python_feature_server,
         )
 
         try:

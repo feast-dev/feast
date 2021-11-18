@@ -21,6 +21,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
 
 
 class PassthroughProvider(Provider):
@@ -44,6 +45,7 @@ class PassthroughProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        set_usage_attribute("provider", self.__class__.__name__)
         self.online_store.update(
             config=self.repo_config,
             tables_to_delete=tables_to_delete,
@@ -59,6 +61,7 @@ class PassthroughProvider(Provider):
         tables: Sequence[Union[FeatureTable, FeatureView]],
         entities: Sequence[Entity],
     ) -> None:
+        set_usage_attribute("provider", self.__class__.__name__)
         self.online_store.teardown(self.repo_config, tables, entities)
 
     def online_write_batch(
@@ -70,8 +73,10 @@ class PassthroughProvider(Provider):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+        set_usage_attribute("provider", self.__class__.__name__)
         self.online_store.online_write_batch(config, table, data, progress)
 
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
         self,
         config: RepoConfig,
@@ -79,6 +84,7 @@ class PassthroughProvider(Provider):
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        set_usage_attribute("provider", self.__class__.__name__)
         result = self.online_store.online_read(config, table, entity_keys)
 
         return result
@@ -86,6 +92,7 @@ class PassthroughProvider(Provider):
     def ingest_df(
         self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
     ):
+        set_usage_attribute("provider", self.__class__.__name__)
         table = pa.Table.from_pandas(df)
 
         if feature_view.batch_source.field_mapping is not None:
@@ -108,6 +115,8 @@ class PassthroughProvider(Provider):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
+        set_usage_attribute("provider", self.__class__.__name__)
+
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))
@@ -153,6 +162,8 @@ class PassthroughProvider(Provider):
         project: str,
         full_feature_names: bool,
     ) -> RetrievalJob:
+        set_usage_attribute("provider", self.__class__.__name__)
+
         job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,

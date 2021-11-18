@@ -44,6 +44,11 @@ FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "gcp_cloudrun": "feast.infra.feature_servers.gcp_cloudrun.config.GcpCloudRunFeatureServerConfig",
 }
 
+FEATURE_SERVER_TYPE_FOR_PROVIDER = {
+    "aws": "aws_lambda",
+    "gcp": "gcp_cloudrun",
+}
+
 
 class FeastBaseModel(BaseModel):
     """ Feast Pydantic Configuration Class """
@@ -226,15 +231,12 @@ class RepoConfig(FeastBaseModel):
         if "provider" not in values:
             raise FeastProviderNotSetError()
 
-        # Make sure that the type is not set, since we will set it based on the provider.
-        if "type" in values["feature_server"]:
-            raise FeastFeatureServerTypeSetError(values["feature_server"]["type"])
-
-        # Set the default type. We only support AWS Lambda for now.
-        if values["provider"] == "aws":
-            values["feature_server"]["type"] = "aws_lambda"
-
-        feature_server_type = values["feature_server"]["type"]
+        feature_server_type = FEATURE_SERVER_TYPE_FOR_PROVIDER.get(values["provider"])
+        defined_type = values["feature_server"].get("type")
+        # Make sure that the type is either not set, or set correctly, since it's defined by the provider
+        if defined_type not in (None, feature_server_type):
+            raise FeastFeatureServerTypeSetError(defined_type)
+        values["feature_server"]["type"] = feature_server_type
 
         # Validate the dict to ensure one of the union types match
         try:

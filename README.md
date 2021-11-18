@@ -140,7 +140,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [ ] Kafka source (Planned for Q4 2021)
+  * [x] Kafka source (with [push support into the online store](reference/alpha-stream-ingestion.md))
   * [ ] Snowflake source (Planned for Q4 2021)
   * [ ] HTTP source
 * **Offline Stores**
@@ -165,7 +165,8 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
-  * [ ] Streaming ingestion on AWS (Planned for Q4 2021)
+  * [x] [Push based streaming data ingestion](reference/alpha-stream-ingestion.md)
+  * [ ] Streaming ingestion on AWS
   * [ ] Streaming ingestion on GCP
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
@@ -180,9 +181,9 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Python Client
   * [x] REST Feature Server (Python) (Alpha release. See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev\_Wr6ZpnLzER4/edit))
   * [x] gRPC Feature Server (Java) (See [#1497](https://github.com/feast-dev/feast/issues/1497))
+  * [x] Push API
   * [ ] Java Client
   * [ ] Go Client
-  * [ ] Push API
   * [ ] Delete API
   * [ ] Feature Logging (for training)
 * **Data Quality Management**

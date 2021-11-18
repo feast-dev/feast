@@ -1,0 +1,8 @@
+feast[redis]>=0.13,<1
+
+# for source generation
+pyarrow==6.0.0
+
+# temp fixes
+proto-plus
+Jinja2>=2.0.0

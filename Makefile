@@ -15,6 +15,7 @@
 #
 
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
 OS := linux
@@ -24,17 +25,17 @@ endif
 
 # General
 
-format: format-python format-go
+format: format-python format-java format-go
 
-lint: lint-python lint-go
+lint: lint-python lint-java lint-go
 
-test: test-python test-go
+test: test-python test-java test-go
 
 protos: compile-protos-go compile-protos-python compile-protos-docs
 
-build: protos build-docker build-html
+build: protos build-java build-docker build-html
 
-install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependencies
+install-ci-dependencies: install-python-ci-dependencies install-java-ci-dependencies install-go-ci-dependencies
 
 # Python SDK
 
@@ -61,6 +62,9 @@ test-python:
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
+test-python-universal-local:
+	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
@@ -76,6 +80,32 @@ lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
 	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
+
+# Java
+
+install-java-ci-dependencies:
+	${MVN} verify clean --fail-never
+
+format-java:
+	${MVN} spotless:apply
+
+lint-java:
+	${MVN} --no-transfer-progress spotless:check
+
+test-java:
+	${MVN} --no-transfer-progress -DskipITs=true test
+
+test-java-integration:
+	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean verify
+
+test-java-with-coverage:
+	${MVN} --no-transfer-progress -DskipITs=true test jacoco:report-aggregate
+
+build-java:
+	${MVN} clean verify
+
+build-java-no-tests:
+	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -DskipITs=true -Drevision=${REVISION} clean package
 
 # Go SDK
 
@@ -101,8 +131,10 @@ lint-go:
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-ci-docker
+build-docker: build-ci-docker build-core-docker build-serving-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
@@ -112,6 +144,18 @@ build-ci-docker:
 
 build-local-test-docker:
 	docker build -t feast:local -f infra/docker/tests/Dockerfile .
+
+push-core-docker:
+	docker push $(REGISTRY)/feast-core:$(VERSION)
+
+push-serving-docker:
+	docker push $(REGISTRY)/feast-serving:$(VERSION)
+
+build-core-docker:
+	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+
+build-serving-docker:
+	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 # Documentation
 
@@ -142,3 +186,16 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
+
+
+# Java Docker
+
+build-push-java-docker:
+	@$(MAKE) build-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
+
+push-feature-server-java-docker:
+	docker push $(REGISTRY)/feature-server-java:$(VERSION)
+
+build-feature-server-java-docker:
+	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feature-server-java:$(VERSION) -f java/infra/docker/feature-server/Dockerfile .

@@ -1,5 +1,77 @@
 # Changelog
 
+## [v0.15.1](https://github.com/feast-dev/feast/tree/v0.15.1) (2021-11-13)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.15.0...v0.15.1)
+
+**Fixed bugs:**
+
+- Add missing comma in setup.py [\#2031](https://github.com/feast-dev/feast/pull/2031) ([achals](https://github.com/achals))
+- Correct cleanup after usage e2e tests [\#2015](https://github.com/feast-dev/feast/pull/2015) ([pyalex](https://github.com/pyalex))
+- Change Environment timestamps to be in UTC [\#2007](https://github.com/feast-dev/feast/pull/2007) ([felixwang9817](https://github.com/felixwang9817))
+- ODFV UDFs should handle list types [\#2002](https://github.com/feast-dev/feast/pull/2002) ([Agent007](https://github.com/Agent007))
+
+**Merged pull requests:**
+
+- Remove unsupported java parts [\#2029](https://github.com/feast-dev/feast/pull/2029) ([pyalex](https://github.com/pyalex))
+- Fix checked out branch for PR docker image build workflow [\#2018](https://github.com/feast-dev/feast/pull/2018) ([tsotnet](https://github.com/tsotnet))
+- Remove duplicates in setup.py and run rudimentary verifications [\#2016](https://github.com/feast-dev/feast/pull/2016) ([achals](https://github.com/achals))
+- Upload feature server docker image to ECR on approved PRs [\#2014](https://github.com/feast-dev/feast/pull/2014) ([tsotnet](https://github.com/tsotnet))
+- Add integration tests for AWS Lambda feature server [\#2001](https://github.com/feast-dev/feast/pull/2001) ([tsotnet](https://github.com/tsotnet))
+- Moving Feast Java back into main repo under java/ package [\#1997](https://github.com/feast-dev/feast/pull/1997) ([adchia](https://github.com/adchia))
+
+## [v0.15.0](https://github.com/feast-dev/feast/tree/v0.15.0) (2021-11-08)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.14.1...v0.15.0)
+
+**Implemented enhancements:**
+
+- Adding stream ingestion alpha documentation [\#2005](https://github.com/feast-dev/feast/pull/2005) ([adchia](https://github.com/adchia))
+- Feature transformation server docker image [\#1972](https://github.com/feast-dev/feast/pull/1972) ([felixwang9817](https://github.com/felixwang9817))
+- eventtime check before writing features, use pipelines, ttl [\#1961](https://github.com/feast-dev/feast/pull/1961) ([vas28r13](https://github.com/vas28r13))
+- Plugin repo universal tests [\#1946](https://github.com/feast-dev/feast/pull/1946) ([felixwang9817](https://github.com/felixwang9817))
+- direct data ingestion into Online store [\#1939](https://github.com/feast-dev/feast/pull/1939) ([vas28r13](https://github.com/vas28r13))
+- Add an interface for TransformationService and a basic implementation [\#1932](https://github.com/feast-dev/feast/pull/1932) ([achals](https://github.com/achals))
+- Allows registering of features in request data as RequestFeatureView. Refactors common logic into a BaseFeatureView class [\#1931](https://github.com/feast-dev/feast/pull/1931) ([adchia](https://github.com/adchia))
+- Add final\_output\_feature\_names in Query context to avoid SELECT \* EXCEPT [\#1911](https://github.com/feast-dev/feast/pull/1911) ([MattDelac](https://github.com/MattDelac))
+- Add Dockerfile for GCP CloudRun FeatureServer [\#1887](https://github.com/feast-dev/feast/pull/1887) ([judahrand](https://github.com/judahrand))
+
+**Fixed bugs:**
+
+- feast=0.14.0 `query_generator()` unecessary used twice [\#1978](https://github.com/feast-dev/feast/issues/1978)
+- get\_online\_features on demand transform bug fixes + local integration test mode [\#2004](https://github.com/feast-dev/feast/pull/2004) ([adchia](https://github.com/adchia))
+- Always pass full and partial feature names to ODFV [\#2003](https://github.com/feast-dev/feast/pull/2003) ([judahrand](https://github.com/judahrand))
+- Update bq\_to\_feast\_value\_type with BOOLEAN type as a legacy sql data type [\#1996](https://github.com/feast-dev/feast/pull/1996) ([mavysavydav](https://github.com/mavysavydav))
+- Fix bug where using some Pandas dtypes in the output of an ODFV fails [\#1994](https://github.com/feast-dev/feast/pull/1994) ([judahrand](https://github.com/judahrand))
+- Fix duplicate update infra [\#1990](https://github.com/feast-dev/feast/pull/1990) ([felixwang9817](https://github.com/felixwang9817))
+- Improve performance of \_convert\_arrow\_to\_proto [\#1984](https://github.com/feast-dev/feast/pull/1984) ([nossrannug](https://github.com/nossrannug))
+- Fix duplicate upload entity [\#1981](https://github.com/feast-dev/feast/pull/1981) ([achals](https://github.com/achals))
+- fix redis cluster materialization [\#1968](https://github.com/feast-dev/feast/pull/1968) ([qooba](https://github.com/qooba))
+- Allow plugin repos to actually overwrite repo configs [\#1966](https://github.com/feast-dev/feast/pull/1966) ([felixwang9817](https://github.com/felixwang9817))
+- Delete keys from Redis when tearing down online store [\#1965](https://github.com/feast-dev/feast/pull/1965) ([achals](https://github.com/achals))
+- Fix issues with lint test and upgrade pip version [\#1964](https://github.com/feast-dev/feast/pull/1964) ([felixwang9817](https://github.com/felixwang9817))
+- Move IntegrationTestRepoConfig class to another module [\#1962](https://github.com/feast-dev/feast/pull/1962) ([felixwang9817](https://github.com/felixwang9817))
+- Solve package conflict in \[gcp\] and \[ci\] [\#1955](https://github.com/feast-dev/feast/pull/1955) ([ysk24ok](https://github.com/ysk24ok))
+- Remove some paths from unit test cache [\#1944](https://github.com/feast-dev/feast/pull/1944) ([achals](https://github.com/achals))
+- Fix bug in feast alpha enable CLI command [\#1940](https://github.com/feast-dev/feast/pull/1940) ([felixwang9817](https://github.com/felixwang9817))
+- Fix conditional statements for if OnDemandFVs exist [\#1937](https://github.com/feast-dev/feast/pull/1937) ([codyjlin](https://github.com/codyjlin))
+- Fix \_\_getitem\_\_ return value for feature view and on-demand feature view [\#1936](https://github.com/feast-dev/feast/pull/1936) ([mavysavydav](https://github.com/mavysavydav))
+- Corrected setup.py BigQuery version that's needed for a contributor's merged PR 1844 [\#1934](https://github.com/feast-dev/feast/pull/1934) ([mavysavydav](https://github.com/mavysavydav))
+
+**Merged pull requests:**
+
+- Fix protobuf version conflict in \[gcp\] and \[ci\] packages [\#1992](https://github.com/feast-dev/feast/pull/1992) ([ysk24ok](https://github.com/ysk24ok))
+- Improve aws lambda deployment \(logging, idempotency, etc\) [\#1985](https://github.com/feast-dev/feast/pull/1985) ([tsotnet](https://github.com/tsotnet))
+- Extend context for usage statistics collection & add latencies for performance analysis [\#1983](https://github.com/feast-dev/feast/pull/1983) ([pyalex](https://github.com/pyalex))
+- Update CHANGELOG for Feast v0.14.1 [\#1982](https://github.com/feast-dev/feast/pull/1982) ([felixwang9817](https://github.com/felixwang9817))
+- Document AWS Lambda permissions [\#1970](https://github.com/feast-dev/feast/pull/1970) ([tsotnet](https://github.com/tsotnet))
+- Update online store helper docstring [\#1957](https://github.com/feast-dev/feast/pull/1957) ([amommendes](https://github.com/amommendes))
+- Add public docs for entity aliasing [\#1951](https://github.com/feast-dev/feast/pull/1951) ([codyjlin](https://github.com/codyjlin))
+- Updating roadmap + hero image [\#1950](https://github.com/feast-dev/feast/pull/1950) ([adchia](https://github.com/adchia))
+- Add David and Matt as approvers as well [\#1943](https://github.com/feast-dev/feast/pull/1943) ([achals](https://github.com/achals))
+- Add David and Matt as reviewers, and add actions for issue/PR assignment [\#1942](https://github.com/feast-dev/feast/pull/1942) ([achals](https://github.com/achals))
+- Simplify BigQuery load jobs [\#1935](https://github.com/feast-dev/feast/pull/1935) ([judahrand](https://github.com/judahrand))
+
 ## [v0.14.1](https://github.com/feast-dev/feast/tree/v0.14.1) (2021-10-28)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.14.0...v0.14.1)
@@ -339,7 +411,7 @@
 **Merged pull requests:**
 
 - Use drop\_duplicates\(\) instead of groupby \(about 1.5~2x faster\) [\#1617](https://github.com/feast-dev/feast/pull/1617) ([rightx2](https://github.com/rightx2))
-- Use CONCAT\(\) instead of ROW\_NUMBER\(\) [\#1601](https://github.com/feast-dev/feast/pull/1601) ([MattDelac](https://github.com/MattDelac))  
+- Use CONCAT\(\) instead of ROW\_NUMBER\(\) [\#1601](https://github.com/feast-dev/feast/pull/1601) ([MattDelac](https://github.com/MattDelac))
 - Minor doc fix in the code snippet: Fix to reference the right instance for the retrieved job instance object [\#1599](https://github.com/feast-dev/feast/pull/1599) ([dmatrix](https://github.com/dmatrix))
 - Append nanoseconds to dataset name in test\_historical\_retrival to prevent tests stomping over each other [\#1593](https://github.com/feast-dev/feast/pull/1593) ([achals](https://github.com/achals))
 - Make start and end timestamps tz aware in the CLI [\#1590](https://github.com/feast-dev/feast/pull/1590) ([achals](https://github.com/achals))
@@ -874,7 +946,7 @@
 - BQ sink produces sample of successful inserts [\#875](https://github.com/feast-dev/feast/pull/875) ([pyalex](https://github.com/pyalex))
 - Add Branch and RC Awareness to Version Lint & Fix Semver Regex [\#998](https://github.com/feast-dev/feast/pull/998) ([mrzzy](https://github.com/mrzzy))
 
-## [v0.6.2](https://github.com/feast-dev/feast/tree/v0.6.2) (2020-08-02)                                                                                                                                                                                                         
+## [v0.6.2](https://github.com/feast-dev/feast/tree/v0.6.2) (2020-08-02)
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.6.1...v0.6.2)
 
 **Implemented enhancements:**

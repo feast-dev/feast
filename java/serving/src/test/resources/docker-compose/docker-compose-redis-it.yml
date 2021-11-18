@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  redis:
+    image: redis:5-alpine
+    ports:
+      - "6379:6379"
+  materialize:
+    build: feast10
+    links:
+      - redis
+

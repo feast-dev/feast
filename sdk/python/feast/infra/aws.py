@@ -1,6 +1,8 @@
 import base64
+import hashlib
 import logging
 import os
+import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +12,7 @@ from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
+from feast import flags_helper
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
@@ -37,6 +40,7 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry import get_registry_store_class_from_scheme
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
+from feast.usage import log_exceptions_and_usage
 from feast.version import get_version
 
 try:
@@ -50,6 +54,7 @@ _logger = logging.getLogger(__name__)
 
 
 class AwsProvider(PassthroughProvider):
+    @log_exceptions_and_usage(provider="AwsProvider")
     def update_infra(
         self,
         project: str,
@@ -86,18 +91,18 @@ class AwsProvider(PassthroughProvider):
                 )
 
             ecr_client = boto3.client("ecr")
+            docker_image_version = _get_docker_image_version()
             repository_uri = self._create_or_get_repository_uri(ecr_client)
-            version = _get_version_for_aws()
             # Only download & upload the docker image if it doesn't already exist in ECR
             if not ecr_client.batch_get_image(
                 repositoryName=AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
-                imageIds=[{"imageTag": version}],
+                imageIds=[{"imageTag": docker_image_version}],
             ).get("images"):
                 image_uri = self._upload_docker_image(
-                    ecr_client, repository_uri, version
+                    ecr_client, repository_uri, docker_image_version
                 )
             else:
-                image_uri = f"{repository_uri}:{version}"
+                image_uri = f"{repository_uri}:{docker_image_version}"
 
             self._deploy_feature_server(project, image_uri)
 
@@ -152,11 +157,10 @@ class AwsProvider(PassthroughProvider):
                 # feature views, feature services, and other definitions does not update lambda).
                 _logger.info("  Updating AWS Lambda...")
 
-                lambda_client.update_function_configuration(
-                    FunctionName=resource_name,
-                    Environment={
-                        "Variables": {FEATURE_STORE_YAML_ENV_NAME: config_base64}
-                    },
+                aws_utils.update_lambda_function_environment(
+                    lambda_client,
+                    resource_name,
+                    {"Variables": {FEATURE_STORE_YAML_ENV_NAME: config_base64}},
                 )
 
         api = aws_utils.get_first_api_gateway(api_gateway_client, resource_name)
@@ -188,6 +192,7 @@ class AwsProvider(PassthroughProvider):
                 SourceArn=f"arn:aws:execute-api:{region}:{account_id}:{api_id}/*/*/get-online-features",
             )
 
+    @log_exceptions_and_usage(provider="AwsProvider")
     def teardown_infra(
         self,
         project: str,
@@ -216,6 +221,7 @@ class AwsProvider(PassthroughProvider):
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
+    @log_exceptions_and_usage(provider="AwsProvider")
     def get_feature_server_endpoint(self) -> Optional[str]:
         project = self.repo_config.project
         resource_name = _get_lambda_name(project)
@@ -231,7 +237,7 @@ class AwsProvider(PassthroughProvider):
         return f"https://{api_id}.execute-api.{region}.amazonaws.com"
 
     def _upload_docker_image(
-        self, ecr_client, repository_uri: str, version: str
+        self, ecr_client, repository_uri: str, docker_image_version: str
     ) -> str:
         """
         Pulls the AWS Lambda docker image from Dockerhub and uploads it to AWS ECR.
@@ -254,12 +260,11 @@ class AwsProvider(PassthroughProvider):
 
             raise DockerDaemonNotRunning()
 
+        dockerhub_image = f"{AWS_LAMBDA_FEATURE_SERVER_IMAGE}:{docker_image_version}"
         _logger.info(
-            f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{AWS_LAMBDA_FEATURE_SERVER_IMAGE}{Style.RESET_ALL}"
+            f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{dockerhub_image}{Style.RESET_ALL}"
         )
-        for line in docker_client.api.pull(
-            AWS_LAMBDA_FEATURE_SERVER_IMAGE, stream=True, decode=True
-        ):
+        for line in docker_client.api.pull(dockerhub_image, stream=True, decode=True):
             _logger.debug(f"  {line}")
 
         auth_token = ecr_client.get_authorization_token()["authorizationData"][0][
@@ -276,14 +281,14 @@ class AwsProvider(PassthroughProvider):
         )
         _logger.debug(f"  {login_status}")
 
-        image = docker_client.images.get(AWS_LAMBDA_FEATURE_SERVER_IMAGE)
-        image_remote_name = f"{repository_uri}:{version}"
+        image = docker_client.images.get(dockerhub_image)
+        image_remote_name = f"{repository_uri}:{docker_image_version}"
         _logger.info(
             f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}"
         )
         image.tag(image_remote_name)
         for line in docker_client.api.push(
-            repository_uri, tag=version, stream=True, decode=True
+            repository_uri, tag=docker_image_version, stream=True, decode=True
         ):
             _logger.debug(f"  {line}")
 
@@ -306,21 +311,53 @@ class AwsProvider(PassthroughProvider):
 
 def _get_lambda_name(project: str):
     lambda_prefix = AWS_LAMBDA_FEATURE_SERVER_REPOSITORY
-    lambda_suffix = f"{project}-{_get_version_for_aws()}"
+    lambda_suffix = f"{project}-{_get_docker_image_version()}"
     # AWS Lambda name can't have the length greater than 64 bytes.
-    # This usually occurs during integration tests or when feast is
-    # installed in editable mode (pip install -e), where feast version is long
+    # This usually occurs during integration tests where feast version is long
     if len(lambda_prefix) + len(lambda_suffix) >= 63:
-        lambda_suffix = base64.b64encode(lambda_suffix.encode()).decode()[:40]
+        lambda_suffix = hashlib.md5(lambda_suffix.encode()).hexdigest()
     return f"{lambda_prefix}-{lambda_suffix}"
 
 
-def _get_version_for_aws():
-    """Returns Feast version with certain characters replaced.
+def _get_docker_image_version() -> str:
+    """Returns a version for the feature server Docker image.
 
-    This allows the version to be included in names for AWS resources.
+    For public Feast releases this equals to the Feast SDK version modified by replacing "." with "_".
+    For example, Feast SDK version "0.14.1" would correspond to Docker image version "0_14_1".
+
+    For integration tests this equals to the git commit hash of HEAD. This is necessary,
+    because integration tests need to use images built from the same commit hash.
+
+    During development (when Feast is installed in editable mode) this equals to the Feast SDK version
+    modified by removing the "dev..." suffix and replacing "." with "_". For example, Feast SDK version
+    "0.14.1.dev41+g1cbfa225.d20211103" would correspond to Docker image version "0_14_1". This way,
+    Feast SDK will use an already existing Docker image built during the previous public release.
+
     """
-    return get_version().replace(".", "_").replace("+", "_")
+    if flags_helper.is_test():
+        # Note: this should be in sync with https://github.com/feast-dev/feast/blob/6fbe01b6e9a444dc77ec3328a54376f4d9387664/.github/workflows/pr_integration_tests.yml#L41
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent
+            )
+            .decode()
+            .strip()
+        )
+    else:
+        version = get_version()
+        if "dev" in version:
+            version = version[: version.find("dev") - 1].replace(".", "_")
+            _logger.warning(
+                "You are trying to use AWS Lambda feature server while Feast is in a development mode. "
+                f"Feast will use a docker image version {version} derived from Feast SDK "
+                f"version {get_version()}. If you want to update the Feast SDK version, make "
+                "sure to first fetch all new release tags from Github and then reinstall the library:\n"
+                "> git fetch --all --tags\n"
+                "> pip install -e sdk/python"
+            )
+        else:
+            version = version.replace(".", "_")
+        return version
 
 
 class S3RegistryStore(RegistryStore):
@@ -334,6 +371,7 @@ class S3RegistryStore(RegistryStore):
             "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
         )
 
+    @log_exceptions_and_usage(registry="s3")
     def get_registry_proto(self):
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
@@ -366,6 +404,7 @@ class S3RegistryStore(RegistryStore):
                 f"Error while trying to locate Registry at path {self._uri.geturl()}"
             ) from e
 
+    @log_exceptions_and_usage(registry="s3")
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
 

@@ -26,6 +26,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
+from ...usage import log_exceptions_and_usage
 from .bigquery_source import BigQuerySource
 
 try:
@@ -62,6 +63,7 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage(offline_store="bigquery")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -113,6 +115,7 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="bigquery")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -224,7 +227,7 @@ class BigQueryRetrievalJob(RetrievalJob):
 
     def _to_df_internal(self) -> pd.DataFrame:
         with self._query_generator() as query:
-            df = self.client.query(query).to_dataframe(create_bqstorage_client=True)
+            df = self._execute_query(query).to_dataframe(create_bqstorage_client=True)
             return df
 
     def to_sql(self) -> str:
@@ -268,24 +271,29 @@ class BigQueryRetrievalJob(RetrievalJob):
             return str(job_config.destination)
 
         with self._query_generator() as query:
-            bq_job = self.client.query(query, job_config=job_config)
-
-            if job_config.dry_run:
-                print(
-                    "This query will process {} bytes.".format(
-                        bq_job.total_bytes_processed
-                    )
-                )
-                return None
-
-            block_until_done(client=self.client, bq_job=bq_job, timeout=timeout)
+            self._execute_query(query, job_config, timeout)
 
             print(f"Done writing to '{job_config.destination}'.")
             return str(job_config.destination)
 
     def _to_arrow_internal(self) -> pyarrow.Table:
         with self._query_generator() as query:
-            return self.client.query(query).to_arrow()
+            return self._execute_query(query).to_arrow()
+
+    @log_exceptions_and_usage
+    def _execute_query(
+        self, query, job_config=None, timeout: int = 1800
+    ) -> bigquery.job.query.QueryJob:
+        bq_job = self.client.query(query, job_config=job_config)
+
+        if job_config and job_config.dry_run:
+            print(
+                "This query will process {} bytes.".format(bq_job.total_bytes_processed)
+            )
+            return None
+
+        block_until_done(client=self.client, bq_job=bq_job, timeout=timeout)
+        return bq_job
 
 
 def block_until_done(
