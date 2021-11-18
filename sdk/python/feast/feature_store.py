@@ -888,7 +888,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def write_to_online_store(
-        self, feature_view_name: str, df: pd.DataFrame,
+        self,
+        feature_view_name: str,
+        df: pd.DataFrame,
+        allow_registry_cache: bool = False,
     ):
         """
         ingests data directly into the Online store
@@ -899,7 +902,9 @@ class FeatureStore:
             )
 
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
-        feature_view = self._registry.get_feature_view(feature_view_name, self.project)
+        feature_view = self._registry.get_feature_view(
+            feature_view_name, self.project, allow_cache=allow_registry_cache
+        )
         entities = []
         for entity_name in feature_view.entities:
             entities.append(self._registry.get_entity(entity_name, self.project))

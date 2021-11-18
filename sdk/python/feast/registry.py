@@ -519,19 +519,22 @@ class Registry:
                 return FeatureTable.from_proto(feature_table_proto)
         raise FeatureTableNotFoundException(name, project)
 
-    def get_feature_view(self, name: str, project: str) -> FeatureView:
+    def get_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureView:
         """
         Retrieves a feature view.
 
         Args:
             name: Name of feature view
             project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
 
         Returns:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto()
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         for feature_view_proto in registry_proto.feature_views:
             if (
                 feature_view_proto.spec.name == name
