@@ -48,11 +48,7 @@ class Feature:
             self._labels = labels
 
     def __eq__(self, other):
-        if (
-            self.name != other.name
-            or self.dtype != other.dtype
-            or self.labels != other.labels
-        ):
+        if self.name != other.name or self.dtype != other.dtype:
             return False
         return True
 
