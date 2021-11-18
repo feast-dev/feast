@@ -78,6 +78,7 @@ GCP_REQUIRED = [
 
 REDIS_REQUIRED = [
     "redis-py-cluster==2.1.2",
+    "hiredis>=2.0.0",
 ]
 
 AWS_REQUIRED = [
