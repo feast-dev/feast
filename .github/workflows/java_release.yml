@@ -77,15 +77,18 @@ jobs:
           infra/scripts/download-maven-cache.sh \
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
-      - name: Build and push versioned images
+      - name: Build image
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
         env:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
-      - name: Build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
       - name: Push image
         run: make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
       - run: |
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
@@ -93,6 +96,10 @@ jobs:
             docker tag ${REGISTRY}/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} ${REGISTRY}/${{ matrix.component }}:latest
             docker push ${REGISTRY}/${{ matrix.component }}:latest
           fi
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
 
   publish-java-sdk:
     container: maven:3.6-jdk-11
