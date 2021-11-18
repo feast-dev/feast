@@ -12,9 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [core, serving]
+        component: [feature-server-java]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
+      REGISTRY: gcr.io/kf-feast
     steps:
       - uses: actions/checkout@v2
         with:
@@ -34,14 +35,14 @@ jobs:
       - name: Get version
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: Push image
-        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+        run: make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: Push development Docker image
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:develop
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:develop
+            docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
+            docker push ${REGISTRY}/${{ matrix.component }}:develop
           fi
 
   lint-java:

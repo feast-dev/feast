@@ -44,13 +44,14 @@ jobs:
           echo $HIGHEST_SEMVER_TAG
 
   build-publish-docker-images:
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     needs: get-version
     strategy:
       matrix:
-        component: [core, serving]
+        component: [feature-server]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
+      REGISTRY: feastdev
     steps:
       - uses: actions/checkout@v2
         with:
@@ -81,27 +82,21 @@ jobs:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
-        run: |
-          docker build --build-arg VERSION=$RELEASE_VERSION \
-            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} \
-            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
-            -t feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
-            -f infra/docker/${{ matrix.component }}/Dockerfile .
-          docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-          docker push feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-
+      - name: Build image
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+      - name: Push image
+        run: make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+      - run: |
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
-            docker tag feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/feast-${{ matrix.component }}:latest
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
-            docker push feastdev/feast-${{ matrix.component }}:latest
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
+            docker tag ${REGISTRY}/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} ${REGISTRY}/${{ matrix.component }}:latest
+            docker push ${REGISTRY}/${{ matrix.component }}:latest
           fi
 
   publish-java-sdk:
     container: maven:3.6-jdk-11
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     needs: get-version
     steps:
       - uses: actions/checkout@v2
@@ -135,27 +130,3 @@ jobs:
           mkdir -p /root/.m2/
           echo -n "$MAVEN_SETTINGS" > /root/.m2/settings.xml
           infra/scripts/publish-java-sdk.sh --revision ${VERSION_WITHOUT_PREFIX} --gpg-key-import-dir /root
-
-  publish-helm-charts:
-    runs-on:  ubuntu-latest
-    needs: get-version
-    env:
-      HELM_VERSION: v2.17.0
-      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-        with:
-          version: '290.0.1'
-          export_default_credentials: true
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-      - run: gcloud auth configure-docker --quiet
-      - name: Remove previous Helm
-        run: sudo rm -rf $(which helm)
-      - name: Install Helm
-        run: ./infra/scripts/install-helm.sh
-      - name: Validate all version consistency
-        run: ./infra/scripts/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
-      - name: Publish Helm charts
-        run: ./infra/scripts/push-helm-charts.sh $VERSION_WITHOUT_PREFIX

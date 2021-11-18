@@ -38,7 +38,7 @@
     </modules>
 
     <properties>
-        <revision>0.26.2</revision>
+        <revision>0.15.2-SNAPSHOT</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -103,16 +103,16 @@
     </properties>
 
     <organization>
-        <name>Gojek</name>
-        <url>https://www.gojek.com</url>
+        <name>Tecton</name>
+        <url>https://www.tecton.ai</url>
     </organization>
 
     <developers>
         <developer>
             <name>Feast Authors</name>
             <url>${github.url}</url>
-            <organization>Gojek</organization>
-            <organizationUrl>https://www.gojek.com</organizationUrl>
+            <organization>Tecton</organization>
+            <organizationUrl>https://www.tecton.ai</organizationUrl>
         </developer>
     </developers>
 
@@ -565,8 +565,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <!-- Our leaf applications target 11, except Ingestion and its deps remain on 8 for Beam -->
-                    <release>8</release>
+                    <release>11</release>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>com.google.auto.value</groupId>
@@ -648,7 +647,7 @@
                     <dependency>
                         <groupId>org.junit.vintage</groupId>
                         <artifactId>junit-vintage-engine</artifactId>
-                        <version>5.5.2</version>
+                        <version>5.6.3</version>
                     </dependency>
                 </dependencies>
             </plugin>
