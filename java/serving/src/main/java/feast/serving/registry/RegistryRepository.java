@@ -27,6 +27,14 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/*
+ *
+ * Read-only access to Feast registry.
+ * Registry is obtained by calling specific storage implementation: eg, Local, GCS, AWS S3.
+ * All data is being then cached.
+ * It is possible to refresh registry (reload from storage) on configured interval.
+ *
+ * */
 public class RegistryRepository {
   private Registry registry;
   private RegistryFile registryFile;

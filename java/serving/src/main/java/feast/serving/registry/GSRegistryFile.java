@@ -47,11 +47,12 @@ public class GSRegistryFile implements RegistryFile {
       this.blob = blob.reload(Blob.BlobSourceOption.generationNotMatch());
     } catch (StorageException e) {
       if (e.getCode() == 304) {
+        // Content not modified
         return Optional.empty();
       } else {
         throw new RuntimeException(
             String.format(
-                "Couldn't read remote registry: %s. Exception: %s",
+                "Couldn't read remote registry: %s. Error: %s",
                 blob.getBlobId().toGsUtilUri(), e.getMessage()));
       }
     }

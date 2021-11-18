@@ -20,25 +20,22 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.RegistryProto;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 
 public class LocalRegistryFile implements RegistryFile {
   private RegistryProto.Registry cachedRegistry;
 
-  public LocalRegistryFile(Path localRegistryPath) {
+  public LocalRegistryFile(String path) {
     try {
-      cachedRegistry = RegistryProto.Registry.parseFrom(Files.readAllBytes(localRegistryPath));
+      cachedRegistry = RegistryProto.Registry.parseFrom(Files.readAllBytes(Paths.get(path)));
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(
           String.format(
-              "Couldn't read remote registry: %s. Protobuf seems to be invalid: %s",
-              localRegistryPath, e.getMessage()));
+              "Couldn't read local registry: %s. Protobuf is invalid: %s", path, e.getMessage()));
     } catch (IOException e) {
       throw new RuntimeException(
-          String.format(
-              "Couldn't read local registry file: %s. Error: %s",
-              localRegistryPath, e.getMessage()));
+          String.format("Couldn't read local registry file: %s. Error: %s", path, e.getMessage()));
     }
   }
 
