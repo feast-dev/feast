@@ -186,3 +186,16 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
+
+
+# Java Docker
+
+build-push-java-docker:
+	@$(MAKE) build-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
+
+push-feature-server-java-docker:
+	docker push $(REGISTRY)/feature-server-java:$(VERSION)
+
+build-feature-server-java-docker:
+	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feature-server-java:$(VERSION) -f java/infra/docker/feature-server/Dockerfile .
