@@ -391,14 +391,13 @@ class FeatureStore:
             ]
         ] = [],
         partial: bool = True,
-        commit: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
 
         The apply method registers one or more definitions (e.g., Entity, FeatureView) and registers or updates these
-        objects in the Feast registry. Once the registry has been updated, the apply method will update related
-        infrastructure (e.g., create tables in an online store) in order to reflect these new definitions. All
-        operations are idempotent, meaning they can safely be rerun.
+        objects in the Feast registry. Once the apply method has updated the infrastructure (e.g., create tables in
+        an online store), it will commit the updated registry. All operations are idempotent, meaning they can safely
+        be rerun.
 
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
@@ -406,7 +405,6 @@ class FeatureStore:
                 provider's infrastructure. This deletion will only be performed if partial is set to False.
             partial: If True, apply will only handle the specified objects; if False, apply will also delete
                 all the objects in objects_to_delete, and tear down any associated cloud resources.
-            commit: whether to commit changes to the registry
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -501,9 +499,13 @@ class FeatureStore:
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
-            self._registry.apply_feature_service(feature_service, project=self.project)
+            self._registry.apply_feature_service(
+                feature_service, project=self.project, commit=False
+            )
         for table in tables_to_update:
-            self._registry.apply_feature_table(table, project=self.project)
+            self._registry.apply_feature_table(
+                table, project=self.project, commit=False
+            )
 
         if not partial:
             # Delete all registry objects that should not exist.
@@ -560,8 +562,7 @@ class FeatureStore:
             partial=partial,
         )
 
-        if commit:
-            self._registry.commit()
+        self._registry.commit()
 
     @log_exceptions_and_usage
     def teardown(self):

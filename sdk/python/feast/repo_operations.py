@@ -193,9 +193,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_delete.extend(odfvs_to_delete)
     all_to_delete.extend(tables_to_delete)
 
-    store.apply(
-        all_to_apply, objects_to_delete=all_to_delete, partial=False, commit=False
-    )
+    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
     for entity in entities_to_delete:
         click.echo(
@@ -260,9 +258,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
             f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
     # TODO: consider echoing also entities being deployed/removed
-
-    # Commit the update to the registry only after successful infra update
-    registry.commit()
 
 
 def _tag_registry_entities_for_keep_delete(
