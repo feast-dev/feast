@@ -133,7 +133,10 @@ class BigQueryOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
         table_reference = _get_table_reference_for_new_entity(
-            client, client.project, config.offline_store.dataset, config.offline_store.location
+            client,
+            client.project,
+            config.offline_store.dataset,
+            config.offline_store.location,
         )
 
         @contextlib.contextmanager
@@ -332,7 +335,10 @@ def block_until_done(
 
 
 def _get_table_reference_for_new_entity(
-    client: Client, dataset_project: str, dataset_name: str, dataset_location: Optional[str]
+    client: Client,
+    dataset_project: str,
+    dataset_name: str,
+    dataset_location: Optional[str],
 ) -> str:
     """Gets the table_id for the new entity to be uploaded."""
 
