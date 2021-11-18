@@ -16,9 +16,6 @@
 
     <modules>
         <module>redis</module>
-        <module>bigtable</module>
-        <module>cassandra</module>
-        <module>sstable</module>
     </modules>
 
     <build>

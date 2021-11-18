@@ -64,7 +64,6 @@ public class FeastClient implements AutoCloseable {
 
   /**
    * Create a authenticated client that can access Feast serving with authentication enabled.
-   * Supports the {@link CallCredentials} in the {@link feast.common.auth.credentials} package.
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server

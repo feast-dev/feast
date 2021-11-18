@@ -25,7 +25,6 @@ RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
 
 COPY java/ .
 COPY protos/feast datatypes/java/src/main/proto/feast
-COPY protos/tensorflow_metadata datatypes/java/src/main/proto/tensorflow_metadata
 
 ARG VERSION=dev
 RUN mvn --also-make --projects serving -Drevision=$VERSION \
