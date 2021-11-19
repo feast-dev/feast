@@ -133,29 +133,17 @@ def plan_total(
 ) -> Tuple[
     List[
         Union[
-            FeatureView,
-            OnDemandFeatureView,
-            RequestFeatureView,
-            Entity,
-            FeatureService,
-            FeatureTable,
+            BaseFeatureView, OnDemandFeatureView, Entity, FeatureService, FeatureTable,
         ],
     ],
     List[
         Union[
-            FeatureView,
-            OnDemandFeatureView,
-            RequestFeatureView,
-            Entity,
-            FeatureService,
-            FeatureTable,
+            BaseFeatureView, OnDemandFeatureView, Entity, FeatureService, FeatureTable,
         ]
     ],
     List[Union[FeatureView, FeatureTable]],
     List[Union[FeatureView, FeatureTable]],
 ]:
-    from colorama import Fore, Style
-
     os.chdir(repo_path)
     store = FeatureStore(repo_path=str(repo_path))
     project = store.project
@@ -198,7 +186,7 @@ def plan_total(
     # Apply all changes to the registry and infrastructure.
     all_to_apply: List[
         Union[
-            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
+            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable,
         ]
     ] = []
     all_to_apply.extend(entities_to_keep)
@@ -208,7 +196,7 @@ def plan_total(
     all_to_apply.extend(tables_to_keep)
     all_to_delete: List[
         Union[
-            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
+            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable,
         ]
     ] = []
     all_to_delete.extend(entities_to_delete)
@@ -219,10 +207,14 @@ def plan_total(
 
     store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
-    tables_to_keep_in_infra = list(tables_to_keep) + [
+    tables_to_keep_in_infra: List[Union[FeatureTable, FeatureView]] = []
+    tables_to_delete_from_infra: List[Union[FeatureTable, FeatureView]] = []
+    tables_to_keep_in_infra += list(tables_to_keep)
+    tables_to_keep_in_infra += [
         view for view in views_to_keep if isinstance(view, FeatureView)
     ]
-    tables_to_delete_from_infra = list(tables_to_delete) + [
+    tables_to_delete_from_infra += list(tables_to_delete)
+    tables_to_delete_from_infra += [
         view for view in views_to_delete if isinstance(view, FeatureView)
     ]
 
@@ -307,7 +299,7 @@ def print_plan(
 @log_exceptions_and_usage
 def apply_total(
     repo_config: RepoConfig,
-    repo_path: str,
+    repo_path: Path,
     all_to_apply: List[
         Union[
             FeatureView,
@@ -343,7 +335,6 @@ def apply_total(
     registry = store.registry
     registry._initialize_registry()
     sys.dont_write_bytecode = True
-    repo = parse_repo(repo_path)
 
     store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
