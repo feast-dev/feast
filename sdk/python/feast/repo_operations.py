@@ -299,7 +299,9 @@ def print_plan(
 
     click.echo("Infrastructure:")
     for table in tables_to_keep_in_infra:
-        click.echo(f"    {repo_config.online_store.type} table for {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}")
+        click.echo(
+            f"    {repo_config.online_store.type} table for {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
+        )
 
 
 @log_exceptions_and_usage
