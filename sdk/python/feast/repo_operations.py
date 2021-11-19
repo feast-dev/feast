@@ -128,6 +128,181 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 
 
 @log_exceptions_and_usage
+def plan_total(
+    repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool
+) -> Tuple[
+    List[
+        Union[
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            Entity,
+            FeatureService,
+            FeatureTable,
+        ],
+    ],
+    List[
+        Union[
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            Entity,
+            FeatureService,
+            FeatureTable,
+        ]
+    ],
+    List[Union[FeatureView, FeatureTable]],
+    List[Union[FeatureView, FeatureTable]],
+]:
+    from colorama import Fore, Style
+
+    os.chdir(repo_path)
+    store = FeatureStore(repo_path=str(repo_path))
+    project = store.project
+    if not is_valid_name(project):
+        print(
+            f"{project} is not valid. Project name should only have "
+            f"alphanumerical values and underscores but not start with an underscore."
+        )
+        sys.exit(1)
+    registry = store.registry
+    registry._initialize_registry()
+    repo = parse_repo(repo_path)
+
+    if not skip_source_validation:
+        data_sources = [t.batch_source for t in repo.feature_views]
+        # Make sure the data source used by this feature view is supported by Feast
+        for data_source in data_sources:
+            data_source.validate(store.config)
+
+    # For each object in the registry, determine whether it should be kept or deleted.
+    entities_to_keep, entities_to_delete = _tag_registry_entities_for_keep_delete(
+        project, registry, repo
+    )
+    views_to_keep, views_to_delete = _tag_registry_views_for_keep_delete(
+        project, registry, repo
+    )
+    (
+        odfvs_to_keep,
+        odfvs_to_delete,
+    ) = _tag_registry_on_demand_feature_views_for_keep_delete(project, registry, repo)
+    tables_to_keep, tables_to_delete = _tag_registry_tables_for_keep_delete(
+        project, registry, repo
+    )
+    services_to_keep, services_to_delete = _tag_registry_services_for_keep_delete(
+        project, registry, repo
+    )
+
+    sys.dont_write_bytecode = False
+
+    # Apply all changes to the registry and infrastructure.
+    all_to_apply: List[
+        Union[
+            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
+        ]
+    ] = []
+    all_to_apply.extend(entities_to_keep)
+    all_to_apply.extend(views_to_keep)
+    all_to_apply.extend(services_to_keep)
+    all_to_apply.extend(odfvs_to_keep)
+    all_to_apply.extend(tables_to_keep)
+    all_to_delete: List[
+        Union[
+            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
+        ]
+    ] = []
+    all_to_delete.extend(entities_to_delete)
+    all_to_delete.extend(views_to_delete)
+    all_to_delete.extend(services_to_delete)
+    all_to_delete.extend(odfvs_to_delete)
+    all_to_delete.extend(tables_to_delete)
+
+    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+
+    tables_to_keep_in_infra = list(tables_to_keep) + [
+        view for view in views_to_keep if isinstance(view, FeatureView)
+    ]
+    tables_to_delete_from_infra = list(tables_to_delete) + [
+        view for view in views_to_delete if isinstance(view, FeatureView)
+    ]
+
+    return (
+        all_to_apply,
+        all_to_delete,
+        tables_to_keep_in_infra,
+        tables_to_delete_from_infra,
+    )
+
+
+@log_exceptions_and_usage
+def print_plan(
+    repo_config: RepoConfig,
+    all_to_apply: List[
+        Union[
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            Entity,
+            FeatureService,
+            FeatureTable,
+        ],
+    ],
+    all_to_delete: List[
+        Union[
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            Entity,
+            FeatureService,
+            FeatureTable,
+        ]
+    ],
+    tables_to_keep_in_infra: List[Union[FeatureView, FeatureTable]],
+    tables_to_delete_from_infra: List[Union[FeatureView, FeatureTable]],
+):
+    from colorama import Fore, Style
+
+    entities_to_apply = [ob for ob in all_to_apply if isinstance(ob, Entity)]
+    views_to_apply = [ob for ob in all_to_apply if isinstance(ob, FeatureView)]
+    request_views_to_apply = [
+        ob for ob in all_to_apply if isinstance(ob, RequestFeatureView)
+    ]
+    odfvs_to_apply = [ob for ob in all_to_apply if isinstance(ob, OnDemandFeatureView)]
+    services_to_apply = [ob for ob in all_to_apply if isinstance(ob, FeatureService)]
+    tables_to_apply = [ob for ob in all_to_apply if isinstance(ob, FeatureTable)]
+
+    click.echo("Registry objects:")
+    for entity in entities_to_apply:
+        click.echo(
+            f"    entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
+        )
+    for view in views_to_apply:
+        click.echo(
+            f"    feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
+        )
+    for request_view in request_views_to_apply:
+        click.echo(
+            f"    request feature view {Style.BRIGHT + Fore.GREEN}{request_view.name}{Style.RESET_ALL}"
+        )
+    for odfv in odfvs_to_apply:
+        click.echo(
+            f"    on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL}"
+        )
+    for feature_service in services_to_apply:
+        click.echo(
+            f"    feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
+        )
+    for table in tables_to_apply:
+        click.echo(
+            f"    feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
+        )
+
+    click.echo("Infrastructure:")
+    for table in tables_to_keep_in_infra:
+        click.echo(f"    {repo_config.online_store.type} table for {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}")
+
+
+@log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     from colorama import Fore, Style
 
