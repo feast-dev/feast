@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
@@ -121,7 +120,6 @@ def python_type_to_feast_value_type(
         Feast Value Type
     """
     type_name = (type_name or type(value).__name__).lower()
-
     type_map = {
         "int": ValueType.INT64,
         "str": ValueType.STRING,
@@ -141,6 +139,7 @@ def python_type_to_feast_value_type(
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
+        "date": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
@@ -284,6 +283,19 @@ def _python_value_to_proto_value(feast_value_type: ValueType, value: Any) -> Pro
         if value is None:
             return ProtoValue()
 
+        if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
+            converted_value = []
+            for sub_value in value:
+                if isinstance(sub_value, datetime):
+                    converted_value.append(int(sub_value.timestamp()))
+                elif isinstance(sub_value, date):
+                    converted_value.append(int(datetime(*sub_value.timetuple()[:6]).timestamp()))
+                elif isinstance(sub_value, Timestamp):
+                    converted_value.append(int(sub_value.ToSeconds()))
+                else:
+                    converted_value.append(sub_value)
+            value = converted_value
+
         if feast_value_type in PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE:
             proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
                 feast_value_type
@@ -378,27 +390,30 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
 
 
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
-    if re.match(r"^timestamp", pa_type_as_str):
-        return ValueType.INT64
+    is_list = False
+    if pa_type_as_str.startswith("list<item: "):
+        is_list = True
+        pa_type_as_str = pa_type_as_str[11:-1]
 
-    type_map = {
-        "int32": ValueType.INT32,
-        "int64": ValueType.INT64,
-        "double": ValueType.DOUBLE,
-        "float": ValueType.FLOAT,
-        "string": ValueType.STRING,
-        "binary": ValueType.BYTES,
-        "bool": ValueType.BOOL,
-        "list<item: int32>": ValueType.INT32_LIST,
-        "list<item: int64>": ValueType.INT64_LIST,
-        "list<item: double>": ValueType.DOUBLE_LIST,
-        "list<item: float>": ValueType.FLOAT_LIST,
-        "list<item: string>": ValueType.STRING_LIST,
-        "list<item: binary>": ValueType.BYTES_LIST,
-        "list<item: bool>": ValueType.BOOL_LIST,
-        "null": ValueType.NULL,
-    }
-    return type_map[pa_type_as_str]
+    if pa_type_as_str.startswith("timestamp"):
+        value_type = ValueType.UNIX_TIMESTAMP
+    else:
+        type_map = {
+            "int32": ValueType.INT32,
+            "int64": ValueType.INT64,
+            "double": ValueType.DOUBLE,
+            "float": ValueType.FLOAT,
+            "string": ValueType.STRING,
+            "binary": ValueType.BYTES,
+            "bool": ValueType.BOOL,
+            "null": ValueType.NULL,
+        }
+        value_type = type_map[pa_type_as_str]
+
+    if is_list:
+        value_type = ValueType[value_type.name + "_LIST"]
+
+    return value_type
 
 
 def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
