@@ -285,7 +285,9 @@ def _run_field_mapping(
 
 
 def _convert_arrow_to_proto(
-    table: pyarrow.Table, feature_view: FeatureView, join_keys: List[str],
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view: FeatureView,
+    join_keys: List[str],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     rows_to_write = []
 
@@ -305,7 +307,7 @@ def _convert_arrow_to_proto(
         else:
             return ts
 
-    column_names_idx = {k: i for i, k in enumerate(table.column_names)}
+    column_names_idx = {field.name: i for i, field in enumerate(table.schema)}
     for row in zip(*table.to_pydict().values()):
         entity_key = EntityKeyProto()
         for join_key in join_keys:

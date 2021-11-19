@@ -23,6 +23,8 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
 
+DEFAULT_BATCH_SIZE = 10_000
+
 
 class PassthroughProvider(Provider):
     """
@@ -145,12 +147,16 @@ class PassthroughProvider(Provider):
             table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
 
         join_keys = [entity.join_key for entity in entities]
-        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        with tqdm_builder(len(rows_to_write)) as pbar:
-            self.online_write_batch(
-                self.repo_config, feature_view, rows_to_write, lambda x: pbar.update(x)
-            )
+        with tqdm_builder(table.num_rows) as pbar:
+            for batch in table.to_batches(DEFAULT_BATCH_SIZE):
+                rows_to_write = _convert_arrow_to_proto(batch, feature_view, join_keys)
+                self.online_write_batch(
+                    self.repo_config,
+                    feature_view,
+                    rows_to_write,
+                    lambda x: pbar.update(x),
+                )
 
     def get_historical_features(
         self,
