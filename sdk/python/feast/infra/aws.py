@@ -2,7 +2,6 @@ import base64
 import hashlib
 import logging
 import os
-import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -12,13 +11,12 @@ from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
-from feast import flags_helper
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
+    DOCKER_IMAGE_TAG_ENV_NAME,
     FEAST_USAGE,
     FEATURE_STORE_YAML_ENV_NAME,
-    DOCKER_IMAGE_TAG_ENV_NAME,
 )
 from feast.entity import Entity
 from feast.errors import (
