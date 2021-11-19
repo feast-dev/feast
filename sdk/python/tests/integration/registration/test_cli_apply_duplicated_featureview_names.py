@@ -85,7 +85,7 @@ def test_cli_apply_imported_featureview() -> None:
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
         assert rc == 0
-        assert b"Registered feature service driver_locations_service" in output
+        assert b"feature service driver_locations_service" in output
 
 
 def test_cli_apply_imported_featureview_with_duplication() -> None:
