@@ -11,9 +11,9 @@ Overview of typical production configuration is given below:
 
 **Important note:** Feast is flexible and doesn't require you to install unneeded parts.
 For example, you might not have a stream source and, thus, need to write features in real-time to Online Store. 
-Or you might be not needed online features. Feast is ready to adjust to your needs.
+Or you might not need retrieving online features. Feast is ready to adjust to your needs.
 
-Furthermore, there's no single "true" approach. As you will see in this guide, we usually provide several options for each problem.
+Furthermore, there's no single "true" approach. As you will see in this guide, Feast usually provides several options for each problem.
 It's totally up to you to pick a path that's better suited to your needs.
 
 In this guide we will show you how to:
@@ -131,7 +131,7 @@ materialize = BashOperator(
 ```
 
 {% hint style="success" %}
-Important note: Airflow worker must have read and write permissions to registry file on GS / S3
+Important note: Airflow worker must have read and write permissions to the registry file on GS / S3
 since it pulls configuration and updates materialization history.
 {% endhint %}
 
@@ -175,7 +175,7 @@ open('feature_refs.json', 'w') as f:
     json.dump(feature_refs, f)
 ```
 
-To test your model locally you can simply create a `FeatureStore` object (or use an already existing one), fetch online features, and then make a prediction:
+To test your model locally you can simply create a `FeatureStore` object, fetch online features, and then make a prediction:
 
 ```python
 # Load model
@@ -199,7 +199,7 @@ prediction = model.predict(feature_vector)
 ```
 
 {% hint style="success" %}
-It is important to note that both the training pipeline and model serving service only need read access to the feature registry and associated infrastructure. This prevents clients from accidentally making changes to the feature store.
+It is important to note that both the training pipeline and model serving service need only read access to the feature registry and associated infrastructure. This prevents clients from accidentally making changes to the feature store.
 {% endhint %}
 
 ## 4. Retrieving online features for prediction
@@ -293,11 +293,11 @@ streamingDF.writeStream.foreachBatch(feast_writer).start()
 ### 5.2. Push service *(still under development)*
 
 Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis) you can use "Push Service", which will write to Online Store on push call.
-This service will expose HTTP API or when deployed on Serverless platform as Lambda Function or Google Cloud Function,
+This service will expose an HTTP API or when deployed on Serverless platform as Lambda Function or Google Cloud Function,
 this service can be directly connected to Kinesis or PubSub.
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as middleware.
-In this case "Push Service" can be deployed in Kubernetes or as a Serverless function. 
+In this case "Push Service" can be deployed on Kubernetes or as a Serverless function. 
 
 
 ## 6. Monitoring
@@ -320,7 +320,7 @@ Summarizing it all together we want to show several options of architecture that
 * Airflow manages materialization jobs to ingest data from DWH to Online Store periodically
 * For stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
 * Online Features are served with high performant Java Feature Server
-* Both Java Feature Server and Transformation Service are deployed to Kubernetes cluster (via Helm Chart)
+* Both Java Feature Server and Transformation Service are deployed on Kubernetes cluster (via Helm Chart)
 * Feast Python SDK is called locally to generate a training dataset
 
 ![From Repository to Production: Feast Production Architecture](production-spark.png)
@@ -330,8 +330,8 @@ Summarizing it all together we want to show several options of architecture that
 
 Same as Option #1, except:
 * Push Service is deployed as AWS Lambda / Google Cloud Function and is configured as a sink for Kinesis or PubSub to ingest features directly from a stream broker.
-Lambda / Cloud function is being managed by Feast SDK (from CI environment).
-* Materialization jobs are managed inside Kubernetes via Kubernetes Job (currently not installed by Helm)
+Lambda / Cloud function is being managed by Feast SDK (from CI environment)
+* Materialization jobs are managed inside Kubernetes via Kubernetes Job (currently not managed by Helm)
 
 ![With Push Service as Lambda](production-lambda.png)
 
@@ -339,7 +339,7 @@ Lambda / Cloud function is being managed by Feast SDK (from CI environment).
 ### Option #3 *(still in development)*
 
 Same as Option #2, except:
-* Push Service is deployed in Kubernetes Cluster and exposes an HTTP API that can be used as a sink for Kafka (via kafka-http connector) or accessed directly
+* Push Service is deployed on Kubernetes Cluster and exposes an HTTP API that can be used as a sink for Kafka (via kafka-http connector) or accessed directly.
 
 ![With Push Service in Kubernetes](production-kube.png)
 
