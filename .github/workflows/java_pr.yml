@@ -13,7 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: 'true'
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
       - name: Lint java
         run: make lint-java
 
@@ -23,7 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: 'true'
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
       - name: Set up JDK 11
         uses: actions/setup-java@v1
         with:
@@ -52,7 +60,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: 'true'
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
       - name: Set up JDK 11
         uses: actions/setup-java@v1
         with:

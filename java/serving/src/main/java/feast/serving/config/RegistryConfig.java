@@ -22,7 +22,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import feast.serving.registry.*;
 import java.net.URI;
-import java.nio.file.Paths;
 import java.util.Optional;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -59,7 +58,7 @@ public class RegistryConfig {
         return new S3RegistryFile(context.getBean(AmazonS3.class), registryPath);
       case "":
       case "file":
-        return new LocalRegistryFile(Paths.get(registryPath));
+        return new LocalRegistryFile(registryPath);
       default:
         throw new RuntimeException("Registry storage %s is unsupported");
     }
