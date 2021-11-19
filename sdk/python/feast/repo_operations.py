@@ -303,9 +303,32 @@ def print_plan(
 
 
 @log_exceptions_and_usage
-def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
-    from colorama import Fore, Style
-
+def apply_total(
+    repo_config: RepoConfig,
+    repo_path: str,
+    all_to_apply: List[
+        Union[
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            Entity,
+            FeatureService,
+            FeatureTable,
+        ],
+    ],
+    all_to_delete: List[
+        Union[
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            Entity,
+            FeatureService,
+            FeatureTable,
+        ]
+    ],
+    tables_to_keep_in_infra: List[Union[FeatureView, FeatureTable]],
+    tables_to_delete_from_infra: List[Union[FeatureView, FeatureTable]],
+):
     os.chdir(repo_path)
     store = FeatureStore(repo_path=str(repo_path))
     project = store.project
@@ -320,119 +343,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
 
-    if not skip_source_validation:
-        data_sources = [t.batch_source for t in repo.feature_views]
-        # Make sure the data source used by this feature view is supported by Feast
-        for data_source in data_sources:
-            data_source.validate(store.config)
-
-    # For each object in the registry, determine whether it should be kept or deleted.
-    entities_to_keep, entities_to_delete = _tag_registry_entities_for_keep_delete(
-        project, registry, repo
-    )
-    views_to_keep, views_to_delete = _tag_registry_views_for_keep_delete(
-        project, registry, repo
-    )
-    (
-        odfvs_to_keep,
-        odfvs_to_delete,
-    ) = _tag_registry_on_demand_feature_views_for_keep_delete(project, registry, repo)
-    tables_to_keep, tables_to_delete = _tag_registry_tables_for_keep_delete(
-        project, registry, repo
-    )
-    services_to_keep, services_to_delete = _tag_registry_services_for_keep_delete(
-        project, registry, repo
-    )
-
-    sys.dont_write_bytecode = False
-
-    # Apply all changes to the registry and infrastructure.
-    all_to_apply: List[
-        Union[
-            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
-        ]
-    ] = []
-    all_to_apply.extend(entities_to_keep)
-    all_to_apply.extend(views_to_keep)
-    all_to_apply.extend(services_to_keep)
-    all_to_apply.extend(odfvs_to_keep)
-    all_to_apply.extend(tables_to_keep)
-    all_to_delete: List[
-        Union[
-            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
-        ]
-    ] = []
-    all_to_delete.extend(entities_to_delete)
-    all_to_delete.extend(views_to_delete)
-    all_to_delete.extend(services_to_delete)
-    all_to_delete.extend(odfvs_to_delete)
-    all_to_delete.extend(tables_to_delete)
-
     store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
-
-    for entity in entities_to_delete:
-        click.echo(
-            f"Deleted entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL} from registry"
-        )
-    for view in views_to_delete:
-        click.echo(
-            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL} from registry"
-        )
-    for odfv in odfvs_to_delete:
-        click.echo(
-            f"Deleted on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL} from registry"
-        )
-    for table in tables_to_delete:
-        click.echo(
-            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL} from registry"
-        )
-    for feature_service in services_to_delete:
-        click.echo(
-            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL} "
-            f"from registry"
-        )
-
-    for entity in entities_to_keep:
-        click.echo(
-            f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
-        )
-    for view in views_to_keep:
-        click.echo(
-            f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
-        )
-    for odfv in odfvs_to_keep:
-        click.echo(
-            f"Registered on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL}"
-        )
-    for feature_service in services_to_keep:
-        click.echo(
-            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
-        )
-    # Create tables that should exist
-    for table in tables_to_keep:
-        click.echo(
-            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
-        )
-
-    views_to_keep_in_infra = [
-        view for view in views_to_keep if isinstance(view, FeatureView)
-    ]
-    for name in [view.name for view in repo.feature_tables] + [
-        table.name for table in views_to_keep_in_infra
-    ]:
-        click.echo(
-            f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
-        )
-    views_to_delete_from_infra = [
-        view for view in views_to_delete if isinstance(view, FeatureView)
-    ]
-    for name in [view.name for view in views_to_delete_from_infra] + [
-        table.name for table in tables_to_delete
-    ]:
-        click.echo(
-            f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
-        )
-    # TODO: consider echoing also entities being deployed/removed
 
 
 def _tag_registry_entities_for_keep_delete(

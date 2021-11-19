@@ -400,7 +400,27 @@ def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
     try:
-        apply_total(repo_config, repo, skip_source_validation)
+        (
+            all_to_apply,
+            all_to_delete,
+            tables_to_keep_in_infra,
+            tables_to_delete_from_infra,
+        ) = plan_total(repo_config, repo, skip_source_validation)
+        print_plan(
+            repo_config,
+            all_to_apply,
+            all_to_delete,
+            tables_to_keep_in_infra,
+            tables_to_delete_from_infra,
+        )
+        apply_total(
+            repo_config,
+            repo,
+            all_to_apply,
+            all_to_delete,
+            tables_to_keep_in_infra,
+            tables_to_delete_from_infra,
+        )
     except FeastProviderLoginError as e:
         print(str(e))
 
