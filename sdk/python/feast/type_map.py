@@ -289,7 +289,9 @@ def _python_value_to_proto_value(feast_value_type: ValueType, value: Any) -> Pro
                 if isinstance(sub_value, datetime):
                     converted_value.append(int(sub_value.timestamp()))
                 elif isinstance(sub_value, date):
-                    converted_value.append(int(datetime(*sub_value.timetuple()[:6]).timestamp()))
+                    converted_value.append(
+                        int(datetime(*sub_value.timetuple()[:6]).timestamp())
+                    )
                 elif isinstance(sub_value, Timestamp):
                     converted_value.append(int(sub_value.ToSeconds()))
                 else:

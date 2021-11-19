@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import List
-import feast
 
 import numpy as np
 import pandas as pd
-import pytest
 import pyarrow as pa
 import pyarrow.types
+import pytest
 
+import feast
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
@@ -29,7 +29,7 @@ def populate_test_configs(offline: bool):
         (ValueType.STRING, "float"),
         (ValueType.STRING, "bool"),
         (ValueType.INT32, "datetime"),
-        (ValueType.INT32, "date")
+        (ValueType.INT32, "date"),
     ]
     configs: List[TypeTestConfig] = []
     for test_repo_config in FULL_REPO_CONFIGS:
@@ -156,11 +156,17 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
     environment, config, data_source, fv = offline_types_test_fixtures
 
     # TODO: improve how FileSource handles Arrow schema inference.
-    if config.feature_dtype == 'date' and config.feature_is_list and config.has_empty_list and isinstance(data_source, feast.FileSource):
+    if (
+        config.feature_dtype == "date"
+        and config.feature_is_list
+        and config.has_empty_list
+        and isinstance(data_source, feast.FileSource)
+    ):
         pytest.xfail(
             "`feast.FileSource` cannot deal with returning all empty "
             "`List[date]` features to Arrow as it infers the schema "
-            "from the Pandas Dataframe which does not have a dtype to represent `date`")
+            "from the Pandas Dataframe which does not have a dtype to represent `date`"
+        )
 
     fs = environment.feature_store
     fv = create_feature_view(
@@ -309,14 +315,8 @@ def assert_feature_list_types(
             bool,
             np.bool_,
         ),  # Can be `np.bool_` if from `np.array` rather that `list`
-        "datetime": (
-            datetime,
-            np.datetime64,
-        ),
-        "date": (
-            date,
-            np.datetime64
-        )
+        "datetime": (datetime, np.datetime64,),
+        "date": (date, np.datetime64),
     }
     expected_dtype = feature_list_dtype_to_expected_historical_feature_list_dtype[
         feature_dtype
