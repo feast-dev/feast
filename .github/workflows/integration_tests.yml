@@ -104,9 +104,9 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test python
         env:
-          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{needs.build-docker-image.outputs.DOCKER_IMAGE_TAG}}
-          FEAST_USAGE: False
-          IS_TEST: True
+          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
+          FEAST_USAGE: "False"
+          IS_TEST: "True"
         run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
