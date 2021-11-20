@@ -61,11 +61,11 @@ def get_app(store: "feast.FeatureStore"):
     return app
 
 
-def start_server(store: "feast.FeatureStore", port: int):
+def start_server(store: "feast.FeatureStore", host: str, port: int):
     app = get_app(store)
     click.echo(
         "This is an "
         + click.style("experimental", fg="yellow", bold=True, underline=True)
         + " feature. It's intended for early testing and feedback, and could change without warnings in future releases."
     )
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    uvicorn.run(app, host=host, port=port)

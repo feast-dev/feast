@@ -1360,12 +1360,12 @@ class FeatureStore:
         return views_to_use
 
     @log_exceptions_and_usage
-    def serve(self, port: int) -> None:
+    def serve(self, host: str, port: int) -> None:
         """Start the feature consumption server locally on a given port."""
         if not flags_helper.enable_python_feature_server(self.config):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
 
-        feature_server.start_server(self, port)
+        feature_server.start_server(self, host, port)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
