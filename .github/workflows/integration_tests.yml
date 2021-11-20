@@ -23,17 +23,21 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+      - name: Set ECR image tag
+        id: image-tag
+        run: echo '::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`'
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: feast-python-server
-        # Note: the image tags should be in sync with sdk/python/feast/infra/aws.py:_get_docker_image_version
         run: |
           docker build \
             --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY:`git rev-parse HEAD` \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }} \
             .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:`git rev-parse HEAD`
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
+    outputs:
+      DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
     needs: build-docker-image
     runs-on: ${{ matrix.os }}
@@ -99,7 +103,11 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
-        run: FEAST_USAGE=False IS_TEST=True pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
+        env:
+          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{needs.build-docker-image.outputs.DOCKER_IMAGE_TAG}}
+          FEAST_USAGE: False
+          IS_TEST: True
+        run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:

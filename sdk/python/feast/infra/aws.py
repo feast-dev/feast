@@ -2,7 +2,6 @@ import base64
 import hashlib
 import logging
 import os
-import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -12,10 +11,10 @@ from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
-from feast import flags_helper
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
+    DOCKER_IMAGE_TAG_ENV_NAME,
     FEAST_USAGE,
     FEATURE_STORE_YAML_ENV_NAME,
 )
@@ -322,11 +321,11 @@ def _get_lambda_name(project: str):
 def _get_docker_image_version() -> str:
     """Returns a version for the feature server Docker image.
 
+    If the feast.constants.DOCKER_IMAGE_TAG_ENV_NAME environment variable is set,
+    we return that (mostly used for integration tests, but can be used for local testing too).
+
     For public Feast releases this equals to the Feast SDK version modified by replacing "." with "_".
     For example, Feast SDK version "0.14.1" would correspond to Docker image version "0_14_1".
-
-    For integration tests this equals to the git commit hash of HEAD. This is necessary,
-    because integration tests need to use images built from the same commit hash.
 
     During development (when Feast is installed in editable mode) this equals to the Feast SDK version
     modified by removing the "dev..." suffix and replacing "." with "_". For example, Feast SDK version
@@ -334,15 +333,9 @@ def _get_docker_image_version() -> str:
     Feast SDK will use an already existing Docker image built during the previous public release.
 
     """
-    if flags_helper.is_test():
-        # Note: this should be in sync with https://github.com/feast-dev/feast/blob/6fbe01b6e9a444dc77ec3328a54376f4d9387664/.github/workflows/pr_integration_tests.yml#L41
-        return (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent
-            )
-            .decode()
-            .strip()
-        )
+    tag = os.environ.get(DOCKER_IMAGE_TAG_ENV_NAME)
+    if tag is not None:
+        return tag
     else:
         version = get_version()
         if "dev" in version:
