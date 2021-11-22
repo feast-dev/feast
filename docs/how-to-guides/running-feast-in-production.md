@@ -129,7 +129,7 @@ If you are using Airflow as a scheduler, Feast can be invoked through the [BashO
 ```python
 materialize = BashOperator(
     task_id='materialize',
-    bash_command='feast materialize-incremental',
+    bash_command=f'feast materialize-incremental {datetime.datetime.now().replace(microsecond=0).isoformat()}',
 )
 ```
 
@@ -245,11 +245,11 @@ This service will provide an HTTP API with JSON I/O, which can be easily used wi
 ### 4.3. Java based Feature Server deployed on Kubernetes
 
 For users with very latency-sensitive and high QPS use-cases, Feast offers a high-performance Java feature server.
-high performant Java implementation of Feature Server. Besides the benefits of running on JVM, this implementation also provides gRPC API, which guarantees good connection utilization and 
+high performant Java implementation of feature server. Besides the benefits of running on JVM, this implementation also provides gRPC API, which guarantees good connection utilization and 
 small request / response body size (in comparison to JSON). 
-You will probably need Feast Java SDK or Feast Go SDK to retrieve features from this service. Those SDKs will wrap all gRPC logic for you and instead will provide more convenient APIs. 
+You will probably need Feast Java SDK to retrieve features from this service. Those SDKs will wrap all gRPC logic for you and instead will provide more convenient APIs. 
 
-The Java based Feature Server can be deployed to Kubernetes cluster via Helm charts in a few simple steps:
+The Java based feature server can be deployed to Kubernetes cluster via Helm charts in a few simple steps:
 
 1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and [helm 3](https://helm.sh/)
 2. Add the Feast Helm repository and download the latest charts:
@@ -268,12 +268,16 @@ This chart will deploy two services: `feature-server` and `transformation-servic
 Both must have read access to the registry file on cloud storage. Both will keep a copy of the registry in their memory and periodically refresh it.
 , so expect some delays in update propagation in exchange for better performance.
 
-#### Load Balancing
+#### Load balancing
 
+<<<<<<< Updated upstream
 The next step would be to install an L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of the Java feature server.
+=======
+The next step would be to install L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of Java feature server.
+>>>>>>> Stashed changes
 For seamless integration with Kubernetes (including services created by Feast Helm chart) we recommend using [Istio](https://istio.io/) as Envoy's orchestrator.
 
-## 5. Ingesting features from a Stream Source
+## 5. Ingesting features from a stream source
 
 Recently Feast added functionality for [Stream Ingestion](../reference/alpha-stream-ingestion.md).
 Please note that this is still in an early phase and new incompatible changes may be introduced.
@@ -321,8 +325,8 @@ Summarizing it all together we want to show several options of architecture that
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from Repository to Feast Registry
 * Airflow manages materialization jobs to ingest data from DWH to Online Store periodically
 * For stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
-* Online Features are served via either a Python feature server or a high performance Java Feature Server
-* Both Java Feature Server and Transformation Service are deployed on Kubernetes cluster (via Helm Chart)
+* Online Features are served via either a Python feature server or a high performance Java feature server
+* Both Java feature server and Transformation Service are deployed on Kubernetes cluster (via Helm Chart)
 * Feast Python SDK is called locally to generate a training dataset
 
 ![From Repository to Production: Feast Production Architecture](production-spark.png)
