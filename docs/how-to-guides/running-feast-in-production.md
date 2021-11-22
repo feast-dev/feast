@@ -314,7 +314,7 @@ and metrics could be easily exported to Prometheus, InfluxDB, AWS CloudWatch, et
 
 Summarizing it all together we want to show several options of architecture that will be most frequently used in production:
 
-### Option #1 (currently preffered)
+### Option #1 (currently preferred)
 
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from Repository to Feast Registry
 * Airflow manages materialization jobs to ingest data from DWH to Online Store periodically
