@@ -138,7 +138,7 @@ Important note: Airflow worker must have read and write permissions to the regis
 since it pulls configuration and updates materialization history.
 {% endhint %}
 
-## 3. How to prepare data for model training
+## 3. How to use Feast for model training
 
 After we defined our features and data sources in the repository we can start working on training by generating a training dataset.
 
