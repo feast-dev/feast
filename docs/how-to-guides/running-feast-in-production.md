@@ -319,7 +319,7 @@ Summarizing it all together we want to show several options of architecture that
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from Repository to Feast Registry
 * Airflow manages materialization jobs to ingest data from DWH to Online Store periodically
 * For stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
-* Online Features are served with high performant Java Feature Server
+* Online Features are served via either a Python feature server or a high performance Java Feature Server
 * Both Java Feature Server and Transformation Service are deployed on Kubernetes cluster (via Helm Chart)
 * Feast Python SDK is called locally to generate a training dataset
 
