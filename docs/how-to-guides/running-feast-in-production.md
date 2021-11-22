@@ -296,7 +296,7 @@ streamingDF.writeStream.foreachBatch(feast_writer).start()
 ### 5.2. Push service *(still under development)*
 
 Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis) you can use "Push Service", which will write to Online Store on push call.
-This service will expose an HTTP API or when deployed on Serverless platform as Lambda Function or Google Cloud Function,
+This service will expose an HTTP API or when deployed on Serverless platforms like AWS Lambda or Google Cloud Function,
 this service can be directly connected to Kinesis or PubSub.
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as middleware.
