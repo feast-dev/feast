@@ -313,8 +313,9 @@ class FileOfflineStore(OfflineStore):
                         created_timestamp_column
                     ]
 
-                # df_to_join = df_to_join.sort_values(by=event_timestamp_column)
-                # df_to_join = df_to_join.persist()
+                df_to_join = df_to_join.sort_values(by=event_timestamp_column)
+                df_to_join = df_to_join.persist()
+
                 df_to_join = df_to_join.reset_index().drop_duplicates(
                     right_entity_key_sort_columns, keep="last", ignore_index=True,
                 )
@@ -455,7 +456,7 @@ class FileOfflineStore(OfflineStore):
                 else [event_timestamp_column]
             )
 
-            # source_df = source_df.sort_values(by=ts_columns[0])
+            source_df = source_df.sort_values(by=event_timestamp_column)
 
             source_df = source_df[
                 (source_df[event_timestamp_column] >= start_date)

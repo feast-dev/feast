@@ -66,6 +66,7 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0",
     "proto-plus<1.19.7",
     "tensorflow-metadata>=1.0.0,<2.0.0",
+    "dask==2021.9.1",
 ]
 
 GCP_REQUIRED = [
@@ -79,10 +80,6 @@ GCP_REQUIRED = [
 REDIS_REQUIRED = [
     "redis>=4.1.0",
     "hiredis>=2.0.0",
-]
-
-DASK_REQUIRED = [
-    "dask==2021.9.1",
 ]
 
 AWS_REQUIRED = [
