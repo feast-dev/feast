@@ -207,7 +207,7 @@ It is important to note that both the training pipeline and model serving servic
 
 ## 4. Retrieving online features for prediction
 
-Once you successfully loaded (or in Feast terminology materialized) your data from Batch Source into Online Store you can start consuming features for model inference.
+Once you have successfully loaded (or in Feast terminology materialized) your data from batch sources into the online store, you can start consuming features for model inference.
 There are three approaches for that purpose sorted from the most simple one (in an operational sense) to the most performant (benchmarks to be published soon):
 
 ### 4.1. Use the Python SDK within an existing Python service
