@@ -266,7 +266,7 @@ helm install feast-release feast-charts/feast \
 
 This chart will deploy two services: `feature-server` and `transformation-service`.
 Both must have read access to the registry file on cloud storage. Both will keep a copy of the registry in their memory and periodically refresh it.
-So expect some delays in updates propagation in trade of better performance.
+, so expect some delays in update propagation in exchange for better performance.
 
 #### Load Balancing
 
