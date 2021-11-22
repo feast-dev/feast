@@ -9,12 +9,14 @@ Overview of typical production configuration is given below:
 
 ![Overview](production-simple.png)
 
+{% hint style="success" %}
 **Important note:** Feast is flexible and doesn't require you to install unneeded parts.
 For example, you might not have a stream source and, thus, need to write features in real-time to Online Store. 
 Or you might not need retrieving online features. Feast is ready to adjust to your needs.
 
 Furthermore, there's no single "true" approach. As you will see in this guide, Feast usually provides several options for each problem.
 It's totally up to you to pick a path that's better suited to your needs.
+{% endhint %}
 
 In this guide we will show you how to:
 
@@ -53,7 +55,7 @@ The repository contains three sub-folders:
 * `production/`: This folder contains the production `feature_store.yaml` and Feast objects. Typically users would first test changes in staging before copying the feature definitions into the production folder, before committing the changes.
 * `.github`: This folder is an example of a CI system that applies the changes in either the `staging` or `production` repositories using `feast apply`. This operation saves your feature definitions to a shared registry \(for example, on GCS\) and configures your infrastructure for serving features.
 
-The `feature_store.yaml` contains the following?
+The `feature_store.yaml` contains the following:
 
 ```text
 project: staging
@@ -93,6 +95,7 @@ In summary, once you have set up a Git based repository with CI that runs `feast
 
 To keep your online store up to date, you need to run a job that loads feature data from your feature view sources into your online store. In Feast, this loading operation is called materialization.
 
+### 2.1. Manual materializations 
 The simplest way to schedule materialization is to run an **incremental** materialization using the Feast CLI:
 
 ```text
@@ -113,7 +116,7 @@ In the above example we are materializing the source data from the `driver_hourl
 
 The timestamps above should match the interval of data that has been computed by the data transformation system.
 
-### 2.1. Automate periodic materializations 
+### 2.2. Automate periodic materializations 
 
 It is up to you which orchestration/scheduler to use to periodically run `$ feast materialize`.
 Feast keeps the history of materialization in its registry, so the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron).
@@ -297,8 +300,7 @@ This service will expose an HTTP API or when deployed on Serverless platform as 
 this service can be directly connected to Kinesis or PubSub.
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as middleware.
-In this case "Push Service" can be deployed on Kubernetes or as a Serverless function. 
-
+In this case "Push Service" can be deployed on Kubernetes or as a Serverless function.
 
 ## 6. Monitoring
 
@@ -309,8 +311,8 @@ We use [InfluxDB-style extension](https://github.com/prometheus/statsd_exporter#
 We chose StatsD since it's de-facto a standard with various implementations (eg, [1](https://github.com/prometheus/statsd_exporter), [2](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/statsd/README.md))
 and metrics could be easily exported to Prometheus, InfluxDB, AWS CloudWatch, etc.
 
-
 ---
+## Summary
 
 Summarizing it all together we want to show several options of architecture that will be most frequently used in production:
 
