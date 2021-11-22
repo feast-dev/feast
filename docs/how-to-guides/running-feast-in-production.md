@@ -270,7 +270,7 @@ So expect some delays in updates propagation in trade of better performance.
 
 #### Load Balancing
 
-The next step would be to install L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of Java Feature Server.
+The next step would be to install an L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of the Java feature server.
 For seamless integration with Kubernetes (including services created by Feast Helm chart) we recommend using [Istio](https://istio.io/) as Envoy's orchestrator.
 
 ## 5. Ingesting features from a Stream Source
