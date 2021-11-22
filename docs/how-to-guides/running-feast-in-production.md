@@ -270,11 +270,7 @@ Both must have read access to the registry file on cloud storage. Both will keep
 
 #### Load balancing
 
-<<<<<<< Updated upstream
 The next step would be to install an L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of the Java feature server.
-=======
-The next step would be to install L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of Java feature server.
->>>>>>> Stashed changes
 For seamless integration with Kubernetes (including services created by Feast Helm chart) we recommend using [Istio](https://istio.io/) as Envoy's orchestrator.
 
 ## 5. Ingesting features from a stream source
