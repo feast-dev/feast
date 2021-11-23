@@ -284,56 +284,66 @@ def _run_field_mapping(
     return table
 
 
+def _coerce_datetime(ts):
+    """
+    Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
+    timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
+    (for microsecond resolution).
+    While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
+    same way. We convert it to normal datetime so that consumers downstream don't have to deal
+    with these quirks.
+    """
+
+    if isinstance(ts, pandas.Timestamp):
+        return ts.to_pydatetime()
+    else:
+        return ts
+
+
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view: FeatureView,
     join_keys: List[str],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    rows_to_write = []
-
-    def _coerce_datetime(ts):
-        """
-        Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
-        timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
-        (for microsecond resolution).
-
-        While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
-        same way. We convert it to normal datetime so that consumers downstream don't have to deal
-        with these quirks.
-        """
-
-        if isinstance(ts, pandas.Timestamp):
-            return ts.to_pydatetime()
-        else:
-            return ts
-
-    column_names_idx = {field.name: i for i, field in enumerate(table.schema)}
-    for row in zip(*table.to_pydict().values()):
-        entity_key = EntityKeyProto()
-        for join_key in join_keys:
-            entity_key.join_keys.append(join_key)
-            idx = column_names_idx[join_key]
-            value = python_value_to_proto_value(row[idx])
-            entity_key.entity_values.append(value)
-        feature_dict = {}
-        for feature in feature_view.features:
-            idx = column_names_idx[feature.name]
-            value = python_value_to_proto_value(row[idx], feature.dtype)
-            feature_dict[feature.name] = value
-        event_timestamp_idx = column_names_idx[
-            feature_view.batch_source.event_timestamp_column
-        ]
-        event_timestamp = _coerce_datetime(row[event_timestamp_idx])
-
-        if feature_view.batch_source.created_timestamp_column:
-            created_timestamp_idx = column_names_idx[
-                feature_view.batch_source.created_timestamp_column
-            ]
-            created_timestamp = _coerce_datetime(row[created_timestamp_idx])
-        else:
-            created_timestamp = None
-
-        rows_to_write.append(
-            (entity_key, feature_dict, event_timestamp, created_timestamp)
+    # Handle join keys
+    join_key_values = {k: table.column(k).to_pylist() for k in join_keys}
+    entity_keys = [
+        EntityKeyProto(
+            join_keys=join_keys,
+            entity_values=[
+                python_value_to_proto_value(join_key_values[k][idx]) for k in join_keys
+            ],
         )
-    return rows_to_write
+        for idx in range(table.num_rows)
+    ]
+
+    # Serialize the features per row
+    feature_dict = {
+        feature.name: [
+            python_value_to_proto_value(val, feature.dtype)
+            for val in table.column(feature.name).to_pylist()
+        ]
+        for feature in feature_view.features
+    }
+    features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
+
+    # Convert event_timestamps
+    event_timestamps = [
+        _coerce_datetime(val)
+        for val in table.column(
+            feature_view.batch_source.event_timestamp_column
+        ).to_pylist()
+    ]
+
+    # Convert created_timestamps if they exist
+    if feature_view.batch_source.created_timestamp_column:
+        created_timestamps = [
+            _coerce_datetime(val)
+            for val in table.column(
+                feature_view.batch_source.created_timestamp_column
+            ).to_pylist()
+        ]
+    else:
+        created_timestamps = [None] * table.num_rows
+
+    return list(zip(entity_keys, features, event_timestamps, created_timestamps))
