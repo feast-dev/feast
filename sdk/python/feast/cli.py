@@ -362,7 +362,9 @@ def on_demand_feature_view_list(ctx: click.Context):
 @click.pass_context
 def plan_total_command(ctx: click.Context, skip_source_validation: bool):
     """
+    
     Plan a feature store deployment
+    
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
