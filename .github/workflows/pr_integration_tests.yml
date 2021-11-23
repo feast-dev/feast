@@ -7,6 +7,10 @@ on:
       - synchronize
       - labeled
 
+concurrency:
+  group: pr-integration-tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   build-docker-image:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
