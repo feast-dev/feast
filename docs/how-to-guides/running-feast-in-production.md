@@ -247,7 +247,7 @@ This service will provide an HTTP API with JSON I/O, which can be easily used wi
 For users with very latency-sensitive and high QPS use-cases, Feast offers a high-performance Java feature server.
 high performant Java implementation of feature server. Besides the benefits of running on JVM, this implementation also provides gRPC API, which guarantees good connection utilization and 
 small request / response body size (in comparison to JSON). 
-You will probably need Feast Java SDK to retrieve features from this service. Those SDKs will wrap all gRPC logic for you and instead will provide more convenient APIs. 
+You will need the Feast Java SDK to retrieve features from this service. This SDK wraps all the gRPC logic for you and provides more convenient APIs. 
 
 The Java based feature server can be deployed to Kubernetes cluster via Helm charts in a few simple steps:
 
