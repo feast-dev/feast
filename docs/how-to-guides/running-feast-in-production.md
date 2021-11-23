@@ -265,8 +265,7 @@ helm install feast-release feast-charts/feast \
 ```
 
 This chart will deploy two services: `feature-server` and `transformation-service`.
-Both must have read access to the registry file on cloud storage. Both will keep a copy of the registry in their memory and periodically refresh it.
-, so expect some delays in update propagation in exchange for better performance.
+Both must have read access to the registry file on cloud storage. Both will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance.
 
 #### Load balancing
 
@@ -275,7 +274,7 @@ For seamless integration with Kubernetes (including services created by Feast He
 
 ## 5. Ingesting features from a stream source
 
-Recently Feast added functionality for [Stream Ingestion](../reference/alpha-stream-ingestion.md).
+Recently Feast added functionality for [stream ingestion](../reference/alpha-stream-ingestion.md).
 Please note that this is still in an early phase and new incompatible changes may be introduced.
 
 ### 5.1. Using Python SDK in your Apache Spark / Beam pipeline
@@ -295,12 +294,12 @@ streamingDF.writeStream.foreachBatch(feast_writer).start()
 
 ### 5.2. Push service *(still under development)*
 
-Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis) you can use "Push Service", which will write to Online Store on push call.
+Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis) you can use "push service", which will write to online store on push call.
 This service will expose an HTTP API or when deployed on Serverless platforms like AWS Lambda or Google Cloud Function,
 this service can be directly connected to Kinesis or PubSub.
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as middleware.
-In this case "Push Service" can be deployed on Kubernetes or as a Serverless function.
+In this case "push service" can be deployed on Kubernetes or as a Serverless function.
 
 ## 6. Monitoring
 
@@ -319,10 +318,10 @@ Summarizing it all together we want to show several options of architecture that
 ### Option #1 (currently preferred)
 
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from the feature repo to the Feast registry
-* Airflow manages materialization jobs to ingest data from DWH to Online Store periodically
+* Airflow manages materialization jobs to ingest data from DWH to online store periodically
 * For stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
-* Online Features are served via either a Python feature server or a high performance Java feature server
-* Both Java feature server and Transformation Service are deployed on Kubernetes cluster (via Helm Chart)
+* Online features are served via either a Python feature server or a high performance Java feature server
+  * Both Java feature server and transformation service are deployed on Kubernetes cluster (via Helm chart)
 * Feast Python SDK is called locally to generate a training dataset
 
 ![From Repository to Production: Feast Production Architecture](production-spark.png)
@@ -331,7 +330,7 @@ Summarizing it all together we want to show several options of architecture that
 ### Option #2 *(still in development)*
 
 Same as Option #1, except:
-* Push Service is deployed as AWS Lambda / Google Cloud Function and is configured as a sink for Kinesis or PubSub to ingest features directly from a stream broker.
+* Push service is deployed as AWS Lambda / Google Cloud Function and is configured as a sink for Kinesis or PubSub to ingest features directly from a stream broker.
 Lambda / Cloud function is being managed by Feast SDK (from CI environment)
 * Materialization jobs are managed inside Kubernetes via Kubernetes Job (currently not managed by Helm)
 
@@ -341,7 +340,7 @@ Lambda / Cloud function is being managed by Feast SDK (from CI environment)
 ### Option #3 *(still in development)*
 
 Same as Option #2, except:
-* Push Service is deployed on Kubernetes Cluster and exposes an HTTP API that can be used as a sink for Kafka (via kafka-http connector) or accessed directly.
+* Push service is deployed on Kubernetes cluster and exposes an HTTP API that can be used as a sink for Kafka (via kafka-http connector) or accessed directly.
 
 ![With Push Service in Kubernetes](production-kube.png)
 
