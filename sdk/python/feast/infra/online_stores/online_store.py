@@ -14,9 +14,9 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from feast import Entity, FeatureTable
+from feast import Entity
 from feast.feature_view import FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -33,7 +33,7 @@ class OnlineStore(ABC):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -47,7 +47,7 @@ class OnlineStore(ABC):
 
         Args:
             config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureTable or FeatureView
+            table: Feast FeatureView
             data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
             a dict containing feature values, an event timestamp for the row, and
             the created timestamp for the row if it exists.
@@ -60,7 +60,7 @@ class OnlineStore(ABC):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
@@ -70,7 +70,7 @@ class OnlineStore(ABC):
 
         Args:
             config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureTable or FeatureView
+            table: Feast FeatureView
             entity_keys: a list of entity keys that should be read from the FeatureStore.
             requested_features: (Optional) A subset of the features that should be read from the FeatureStore.
         Returns:
@@ -84,8 +84,8 @@ class OnlineStore(ABC):
     def update(
         self,
         config: RepoConfig,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -96,7 +96,7 @@ class OnlineStore(ABC):
     def teardown(
         self,
         config: RepoConfig,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
+        tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
         ...

@@ -153,7 +153,7 @@ class FeatureRef:
             proto.feature_table, proto.name = feature_ref_str.split(":")
         else:
             raise ValueError(
-                f"Unsupported feature reference: {feature_ref_str} - Feature reference string should be in the form [featuretable_name:featurename]"
+                f"Unsupported feature reference: {feature_ref_str} - Feature reference string should be in the form [featureview_name:featurename]"
             )
 
         return cls.from_proto(proto)

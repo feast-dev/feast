@@ -16,7 +16,6 @@ from feast.diff.FcoDiff import tag_objects_for_keep_delete_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
-from feast.feature_table import FeatureTable
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -35,7 +34,6 @@ def py_path_to_module(path: Path, repo_root: Path) -> str:
 
 
 class ParsedRepo(NamedTuple):
-    feature_tables: Set[FeatureTable]
     feature_views: Set[FeatureView]
     on_demand_feature_views: Set[OnDemandFeatureView]
     request_feature_views: Set[RequestFeatureView]
@@ -99,7 +97,6 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 def parse_repo(repo_root: Path) -> ParsedRepo:
     """ Collect feature table definitions from feature repo """
     res = ParsedRepo(
-        feature_tables=set(),
         entities=set(),
         feature_views=set(),
         feature_services=set(),
@@ -112,8 +109,6 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
         module = importlib.import_module(module_path)
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
-            if isinstance(obj, FeatureTable):
-                res.feature_tables.add(obj)
             if isinstance(obj, FeatureView):
                 res.feature_views.add(obj)
             elif isinstance(obj, Entity):
@@ -208,15 +203,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     odfvs_to_keep = odfvs_to_keep.union(odfvs_to_add)
 
     (
-        tables_to_keep,
-        tables_to_delete,
-        tables_to_add,
-    ) = tag_objects_for_keep_delete_add(
-        set(registry.list_feature_tables(project=project)), repo.feature_tables
-    )
-    tables_to_keep = tables_to_keep.union(tables_to_add)
-
-    (
         services_to_keep,
         services_to_delete,
         services_to_add,
@@ -229,25 +215,19 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     # Apply all changes to the registry and infrastructure.
     all_to_apply: List[
-        Union[
-            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
-        ]
+        Union[Entity, BaseFeatureView, FeatureService, OnDemandFeatureView]
     ] = []
     all_to_apply.extend(entities_to_keep)
     all_to_apply.extend(base_views_to_keep)
     all_to_apply.extend(services_to_keep)
     all_to_apply.extend(odfvs_to_keep)
-    all_to_apply.extend(tables_to_keep)
     all_to_delete: List[
-        Union[
-            Entity, BaseFeatureView, FeatureService, OnDemandFeatureView, FeatureTable
-        ]
+        Union[Entity, BaseFeatureView, FeatureService, OnDemandFeatureView]
     ] = []
     all_to_delete.extend(entities_to_delete)
     all_to_delete.extend(base_views_to_delete)
     all_to_delete.extend(services_to_delete)
     all_to_delete.extend(odfvs_to_delete)
-    all_to_delete.extend(tables_to_delete)
 
     store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
@@ -262,10 +242,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     for odfv in odfvs_to_delete:
         click.echo(
             f"Deleted on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL} from registry"
-        )
-    for table in tables_to_delete:
-        click.echo(
-            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL} from registry"
         )
     for feature_service in services_to_delete:
         click.echo(
@@ -290,27 +266,18 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
         )
-    # Create tables that should exist
-    for table in tables_to_keep:
-        click.echo(
-            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
-        )
 
     views_to_keep_in_infra = [
         view for view in views_to_keep if isinstance(view, FeatureView)
     ]
-    for name in [view.name for view in repo.feature_tables] + [
-        table.name for table in views_to_keep_in_infra
-    ]:
+    for name in [view.name for view in views_to_keep_in_infra]:
         click.echo(
             f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
     views_to_delete_from_infra = [
         view for view in views_to_delete if isinstance(view, FeatureView)
     ]
-    for name in [view.name for view in views_to_delete_from_infra] + [
-        table.name for table in tables_to_delete
-    ]:
+    for name in [view.name for view in views_to_delete_from_infra]:
         click.echo(
             f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
