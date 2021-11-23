@@ -306,7 +306,7 @@ In this case "Push Service" can be deployed on Kubernetes or as a Serverless fun
 
 Feast Services can report their metrics to a StatsD-compatible collector. To activate this function, you'll need to provide a StatsD IP address and a port when deploying the helm chart (in future will be added to `feature_store.yaml`).
 
-We use [InfluxDB-style extension](https://github.com/prometheus/statsd_exporter#tagging-extensions) for StatsD format to be able to send tags along with metrics. Keep that in mind while selecting the collector ([telegraph](https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd) will work for sure).
+We use an [InfluxDB-style extension](https://github.com/prometheus/statsd_exporter#tagging-extensions) for StatsD format to be able to send tags along with metrics. Keep that in mind while selecting the collector ([telegraph](https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd) will work for sure).
 
 We chose StatsD since it's de-facto a standard with various implementations (eg, [1](https://github.com/prometheus/statsd_exporter), [2](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/statsd/README.md))
 and metrics could be easily exported to Prometheus, InfluxDB, AWS CloudWatch, etc.
