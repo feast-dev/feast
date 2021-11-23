@@ -11,7 +11,7 @@ Overview of typical production configuration is given below:
 
 {% hint style="success" %}
 **Important note:** Feast is flexible and doesn't require you to install unneeded parts.
-For example, you might not have a stream source and, thus, need to write features in real-time to Online Store. 
+For example, you might not have a stream source and, thus, no need to write features in real-time to Online Store. 
 Or you might not need retrieving online features. Feast is ready to adjust to your needs.
 
 Furthermore, there's no single "true" approach. As you will see in this guide, Feast usually provides several options for each problem.
