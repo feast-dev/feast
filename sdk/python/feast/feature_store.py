@@ -1238,28 +1238,28 @@ class FeatureStore:
         self,
         feature_refs: List[str],
         requested_result_row_names: Set[str],
-        odfvs: List[OnDemandFeatureView],
+        requested_on_demand_feature_views: List[OnDemandFeatureView],
         full_feature_names: bool,
         initial_response: OnlineResponse,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
     ) -> OnlineResponse:
-        all_on_demand_feature_views = {view.name: view for view in odfvs}
-        all_odfv_feature_names = all_on_demand_feature_views.keys()
+        requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
+        requested_odfv_feature_names = requested_odfv_map.keys()
 
-        if len(all_on_demand_feature_views) == 0:
+        if len(requested_odfv_map) == 0:
             return initial_response
         initial_response_df = initial_response.to_df()
 
         odfv_feature_refs = defaultdict(list)
         for feature_ref in feature_refs:
             view_name, feature_name = feature_ref.split(":")
-            if view_name in all_odfv_feature_names:
+            if view_name in requested_odfv_feature_names:
                 odfv_feature_refs[view_name].append(feature_name)
 
         # Apply on demand transformations
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
-            odfv = all_on_demand_feature_views[odfv_name]
+            odfv = requested_odfv_map[odfv_name]
             transformed_features_df = odfv.get_transformed_features_df(
                 initial_response_df
             )
