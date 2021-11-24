@@ -4,20 +4,18 @@ import os
 import random
 import re
 import sys
-from collections import defaultdict
 from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Set, Tuple, Union, cast
 
 import click
 from click.exceptions import BadParameter
-from google.protobuf.json_format import MessageToDict
 
 from feast import Entity, FeatureTable
 from feast.base_feature_view import BaseFeatureView
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
@@ -267,7 +265,11 @@ def _tag_registry_entities_for_keep_delete(
     entities_to_delete: Set[Entity] = set()
     repo_entities_names = set([e.name for e in repo.entities])
     for registry_entity in registry.list_entities(project=project):
-        if registry_entity.name not in repo_entities_names:
+        # Do not delete dummy entity.
+        if (
+            registry_entity.name not in repo_entities_names
+            and registry_entity.name != DUMMY_ENTITY_NAME
+        ):
             entities_to_delete.add(registry_entity)
     return entities_to_keep, entities_to_delete
 
@@ -339,28 +341,8 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)
-    registry_dict = defaultdict(list)
+    registry_dict = registry.to_dict(project=project)
 
-    for entity in registry.list_entities(project=project):
-        registry_dict["entities"].append(MessageToDict(entity.to_proto()))
-    for feature_view in registry.list_feature_views(project=project):
-        registry_dict["featureViews"].append(MessageToDict(feature_view.to_proto()))
-    for feature_table in registry.list_feature_tables(project=project):
-        registry_dict["featureTables"].append(MessageToDict(feature_table.to_proto()))
-    for feature_service in registry.list_feature_services(project=project):
-        registry_dict["featureServices"].append(
-            MessageToDict(feature_service.to_proto())
-        )
-    for on_demand_feature_view in registry.list_on_demand_feature_views(
-        project=project
-    ):
-        registry_dict["onDemandFeatureViews"].append(
-            MessageToDict(on_demand_feature_view.to_proto())
-        )
-    for request_feature_view in registry.list_request_feature_views(project=project):
-        registry_dict["requestFeatureViews"].append(
-            MessageToDict(request_feature_view.to_proto())
-        )
     warning = (
         "Warning: The registry-dump command is for debugging only and may contain "
         "breaking changes in the future. No guarantees are made on this interface."
