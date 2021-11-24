@@ -178,7 +178,7 @@ open('feature_refs.json', 'w') as f:
     json.dump(feature_refs, f)
 ```
 
-To test your model locally you can simply create a `FeatureStore` object, fetch online features, and then make a prediction:
+To test your model locally, you can simply create a `FeatureStore` object, fetch online features, and then make a prediction:
 
 ```python
 # Load model
