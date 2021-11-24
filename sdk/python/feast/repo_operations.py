@@ -4,14 +4,12 @@ import os
 import random
 import re
 import sys
-from collections import defaultdict
 from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Set, Tuple, Union, cast
 
 import click
 from click.exceptions import BadParameter
-from google.protobuf.json_format import MessageToDict
 
 from feast import Entity, FeatureTable
 from feast.base_feature_view import BaseFeatureView
@@ -339,28 +337,8 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)
-    registry_dict = defaultdict(list)
+    registry_dict = registry.to_dict(project=project)
 
-    for entity in registry.list_entities(project=project):
-        registry_dict["entities"].append(MessageToDict(entity.to_proto()))
-    for feature_view in registry.list_feature_views(project=project):
-        registry_dict["featureViews"].append(MessageToDict(feature_view.to_proto()))
-    for feature_table in registry.list_feature_tables(project=project):
-        registry_dict["featureTables"].append(MessageToDict(feature_table.to_proto()))
-    for feature_service in registry.list_feature_services(project=project):
-        registry_dict["featureServices"].append(
-            MessageToDict(feature_service.to_proto())
-        )
-    for on_demand_feature_view in registry.list_on_demand_feature_views(
-        project=project
-    ):
-        registry_dict["onDemandFeatureViews"].append(
-            MessageToDict(on_demand_feature_view.to_proto())
-        )
-    for request_feature_view in registry.list_request_feature_views(project=project):
-        registry_dict["requestFeatureViews"].append(
-            MessageToDict(request_feature_view.to_proto())
-        )
     warning = (
         "Warning: The registry-dump command is for debugging only and may contain "
         "breaking changes in the future. No guarantees are made on this interface."

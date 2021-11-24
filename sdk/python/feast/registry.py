@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+from google.protobuf.json_format import MessageToDict
 from proto import Message
 
 from feast import importer
@@ -670,6 +672,38 @@ class Registry:
     def teardown(self):
         """Tears down (removes) the registry."""
         self._registry_store.teardown()
+
+    def to_dict(self, project: str) -> Dict[str, Any]:
+        """Returns a dictionary representation of the registry contents for the specified project.
+
+        Args:
+            project: Feast project to convert to a dict
+        """
+        registry_dict = defaultdict(list)
+
+        for entity in self.list_entities(project=project):
+            registry_dict["entities"].append(MessageToDict(entity.to_proto()))
+        for feature_view in self.list_feature_views(project=project):
+            registry_dict["featureViews"].append(MessageToDict(feature_view.to_proto()))
+        for feature_table in self.list_feature_tables(project=project):
+            registry_dict["featureTables"].append(
+                MessageToDict(feature_table.to_proto())
+            )
+        for feature_service in self.list_feature_services(project=project):
+            registry_dict["featureServices"].append(
+                MessageToDict(feature_service.to_proto())
+            )
+        for on_demand_feature_view in self.list_on_demand_feature_views(
+            project=project
+        ):
+            registry_dict["onDemandFeatureViews"].append(
+                MessageToDict(on_demand_feature_view.to_proto())
+            )
+        for request_feature_view in self.list_request_feature_views(project=project):
+            registry_dict["requestFeatureViews"].append(
+                MessageToDict(request_feature_view.to_proto())
+            )
+        return registry_dict
 
     def _prepare_registry_for_changes(self):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
