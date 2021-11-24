@@ -39,6 +39,10 @@ def test_universal_cli(test_repo_config) -> None:
         result = runner.run(["apply"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(0)
 
+        # Store registry contents, to be compared later.
+        fs = FeatureStore(repo_path=str(repo_path))
+        registry_dict = fs.registry.to_dict(project=project)
+
         # entity & feature view list commands should succeed
         result = runner.run(["entities", "list"], cwd=repo_path)
         assertpy.assert_that(result.returncode).is_equal_to(0)
@@ -58,8 +62,6 @@ def test_universal_cli(test_repo_config) -> None:
             ["feature-services", "describe", "driver_locations_service"], cwd=repo_path
         )
         assertpy.assert_that(result.returncode).is_equal_to(0)
-
-        fs = FeatureStore(repo_path=str(repo_path))
         assertpy.assert_that(fs.list_feature_views()).is_length(3)
 
         # entity & feature view describe commands should fail when objects don't exist
@@ -76,6 +78,11 @@ def test_universal_cli(test_repo_config) -> None:
         basic_rw_test(
             FeatureStore(repo_path=str(repo_path), config=None),
             view_name="driver_locations",
+        )
+
+        # Confirm that registry contents have not changed.
+        assertpy.assert_that(registry_dict).is_equal_to(
+            fs.registry.to_dict(project=project)
         )
 
         result = runner.run(["teardown"], cwd=repo_path)
