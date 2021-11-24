@@ -140,7 +140,7 @@ since it pulls configuration and updates materialization history.
 
 ## 3. How to use Feast for model training
 
-After we defined our features and data sources in the repository we can start working on training by generating a training dataset.
+After we've defined our features and data sources in the repository, we can generate training datasets.
 
 The first thing we need to do in our training code is to create a `FeatureStore` object with a path to the registry.
 
