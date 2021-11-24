@@ -15,7 +15,7 @@ from feast import Entity, FeatureTable
 from feast.base_feature_view import BaseFeatureView
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
@@ -265,7 +265,11 @@ def _tag_registry_entities_for_keep_delete(
     entities_to_delete: Set[Entity] = set()
     repo_entities_names = set([e.name for e in repo.entities])
     for registry_entity in registry.list_entities(project=project):
-        if registry_entity.name not in repo_entities_names:
+        # Do not delete dummy entity.
+        if (
+            registry_entity.name not in repo_entities_names
+            and registry_entity.name != DUMMY_ENTITY_NAME
+        ):
             entities_to_delete.add(registry_entity)
     return entities_to_keep, entities_to_delete
 
