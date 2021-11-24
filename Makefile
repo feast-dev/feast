@@ -55,6 +55,9 @@ install-python:
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
+benchmark-python-local:
+	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+
 test-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 sdk/python/tests
 
