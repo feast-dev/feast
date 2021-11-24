@@ -10,9 +10,9 @@ Overview of typical production configuration is given below:
 ![Overview](production-simple.png)
 
 {% hint style="success" %}
-**Important note:** Feast is flexible and doesn't require you to install unneeded parts.
+**Important note:** We're trying to keep Feast modular. With the exception of the core, most of the Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration. 
 For example, you might not have a stream source and, thus, no need to write features in real-time to an online store. 
-Or you might not need retrieving online features. Feast is ready to adjust to your needs.
+Or you might not need to retrieve online features.
 
 Furthermore, there's no single "true" approach. As you will see in this guide, Feast usually provides several options for each problem.
 It's totally up to you to pick a path that's better suited to your needs.
@@ -69,7 +69,7 @@ Notice how the registry has been configured to use a Google Cloud Storage bucket
 It is important to note that the CI system above must have access to create, modify, or remove infrastructure in your production environment. This is unlike clients of the feature store, who will only have read access.
 {% endhint %}
 
-If your organization consists of many independent data science teams, or a single team is working on several projects
+If your organization consists of many independent data science teams or a single group is working on several projects
 that could benefit from sharing features, entities, sources, and transformations, then we encourage you to utilize Python packages inside each environment:
 
 ```
@@ -119,10 +119,10 @@ The timestamps above should match the interval of data that has been computed by
 ### 2.2. Automate periodic materializations 
 
 It is up to you which orchestration/scheduler to use to periodically run `$ feast materialize`.
-Feast keeps the history of materialization in its registry, so the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron).
-However, with this option materialization work is not distributed, and you might end up limited by the resources of a single machine. 
-If you have just a few materialization jobs (usually it's one materialization job per feature view) and you don't run them very frequently, this is fine.
-Otherwise, you might want to use a job orchestrator to run multiple jobs in parallel using several workers.
+Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron).
+Cron util should be sufficient when you have just a few materialization jobs (it's usually one materialization job per feature view) triggered infrequently.
+However, the amount of work can quickly outgrow the resources of a single machine. That happens because the materialization job needs to repackage all rows before writing them to an online store. That leads to high utilization of CPU and memory.
+In this case, you might want to use a job orchestrator to run multiple jobs in parallel using several workers.
 Kubernetes Jobs or Airflow are good choices for more comprehensive job orchestration.
 
 If you are using Airflow as a scheduler, Feast can be invoked through the [BashOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/bash.html) after the [Python SDK](https://pypi.org/project/feast/) has been installed into a virtual environment and your feature repo has been synced:
@@ -212,10 +212,10 @@ There are three approaches for that purpose sorted from the most simple one (in 
 
 ### 4.1. Use the Python SDK within an existing Python service
 
-This approach is the most convenient if you want to keep your infrastructure as minimalistic as possible and avoid deploying extra services.
+This approach is the most convenient to keep your infrastructure as minimalistic as possible and avoid deploying extra services.
 The Feast Python SDK will connect directly to the online store (Redis, Datastore, etc), pull the feature data, and run transformations locally (if required).
 The obvious drawback is that your service must be written in Python to use the Feast Python SDK. 
-A benefit to using a Python stack, though, is that you can enjoy production-grade services with integrations with many existing data science tools.
+A benefit of using a Python stack is that you can enjoy production-grade services with integrations with many existing data science tools.
 
 To integrate online retrieval into your service use the following code:
 ```python
@@ -235,7 +235,7 @@ feature_vector = fs.get_online_features(
 
 ### 4.2. Consume features via HTTP API from Serverless Feature Server
 
-if you don't want to add the Feast Python SDK as a dependency, or your feature retrieval service is written in a non-Python language,
+If you don't want to add the Feast Python SDK as a dependency, or your feature retrieval service is written in a non-Python language,
 Feast can deploy a simple feature server
 on serverless infrastructure (eg, AWS Lambda, Google Cloud Function) for you.
 This service will provide an HTTP API with JSON I/O, which can be easily used with any programming language.
@@ -246,7 +246,7 @@ This service will provide an HTTP API with JSON I/O, which can be easily used wi
 
 For users with very latency-sensitive and high QPS use-cases, Feast offers a high-performance Java feature server.
 Besides the benefits of running on JVM, this implementation also provides a gRPC API, which guarantees good connection utilization and 
-small request / response body size (in comparison to JSON). 
+small request / response body size (compared to JSON). 
 You will need the Feast Java SDK to retrieve features from this service. This SDK wraps all the gRPC logic for you and provides more convenient APIs. 
 
 The Java based feature server can be deployed to Kubernetes cluster via Helm charts in a few simple steps:
@@ -294,11 +294,11 @@ streamingDF.writeStream.foreachBatch(feast_writer).start()
 
 ### 5.2. Push service *(still under development)*
 
-Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis), you can use the "push service", which will write to the online store.
+Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis), you can use the "push service", which will write to an online store.
 This service will expose an HTTP API or when deployed on Serverless platforms like AWS Lambda or Google Cloud Function,
 this service can be directly connected to Kinesis or PubSub.
 
-If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as middleware.
+If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as a middleware.
 In this case, the "push service" can be deployed on Kubernetes or as a Serverless function.
 
 ## 6. Monitoring
@@ -318,10 +318,10 @@ Summarizing it all together we want to show several options of architecture that
 ### Option #1 (currently preferred)
 
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from the feature repo to the Feast registry
-* Airflow manages materialization jobs to ingest data from DWH to online store periodically
-* For stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
+* Airflow manages materialization jobs to ingest data from DWH to the online store periodically
+* For the stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
 * Online features are served via either a Python feature server or a high performance Java feature server
-  * Both the Java feature server and the transformation server are deployed on Kubernetes cluster s (via Helm charts)
+  * Both the Java feature server and the transformation server are deployed on Kubernetes cluster (via Helm charts)
 * Feast Python SDK is called locally to generate a training dataset
 
 ![From Repository to Production: Feast Production Architecture](production-spark.png)
