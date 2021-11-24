@@ -299,7 +299,7 @@ This service will expose an HTTP API or when deployed on Serverless platforms li
 this service can be directly connected to Kinesis or PubSub.
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as middleware.
-In this case "push service" can be deployed on Kubernetes or as a Serverless function.
+In this case, the "push service" can be deployed on Kubernetes or as a Serverless function.
 
 ## 6. Monitoring
 
