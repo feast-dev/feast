@@ -279,7 +279,7 @@ Please note that this is still in an early phase and new incompatible changes ma
 
 ### 5.1. Using Python SDK in your Apache Spark / Beam pipeline
 
-The default option to write features from a stream is to add Python SDK into your existing PySpark / Beam pipeline.
+The default option to write features from a stream is to add the Python SDK into your existing PySpark / Beam pipeline.
 Feast SDK provides writer implementation that can be called from `foreachBatch` stream writer in PySpark like this:
 
 ```python
