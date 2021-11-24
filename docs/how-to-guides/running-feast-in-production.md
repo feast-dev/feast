@@ -213,7 +213,7 @@ There are three approaches for that purpose sorted from the most simple one (in 
 ### 4.1. Use the Python SDK within an existing Python service
 
 This approach is the most convenient if you want to keep your infrastructure as minimalistic as possible and avoid deploying extra services.
-Python SDK will connect directly to the Online Store (Redis, Datastore, etc), pull the raw data, and run transformations locally (if required).
+The Feast Python SDK will connect directly to the online store (Redis, Datastore, etc), pull the feature data, and run transformations locally (if required).
 The obvious drawback is that your service must be written in Python to use the Feast Python SDK. 
 A benefit to using a Python stack, though, is that you can enjoy production-grade services with integrations with many existing data science tools.
 
