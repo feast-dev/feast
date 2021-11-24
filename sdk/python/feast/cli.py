@@ -474,16 +474,27 @@ def init_command(project_directory, minimal: bool, template: str):
 
 @cli.command("serve")
 @click.option(
-    "--port", "-p", type=click.INT, default=6566, help="Specify a port for the server"
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="127.0.0.1",
+    help="Specify a host for the server [default: 127.0.0.1]",
+)
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=6566,
+    help="Specify a port for the server [default: 6566]",
 )
 @click.pass_context
-def serve_command(ctx: click.Context, port: int):
+def serve_command(ctx: click.Context, host: str, port: int):
     """[Experimental] Start a the feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
 
-    store.serve(port)
+    store.serve(host, port)
 
 
 @cli.command("serve_transformations")
