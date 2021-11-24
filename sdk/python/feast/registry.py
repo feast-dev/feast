@@ -673,33 +673,51 @@ class Registry:
         """Tears down (removes) the registry."""
         self._registry_store.teardown()
 
-    def to_dict(self, project: str) -> Dict[str, Any]:
+    def to_dict(self, project: str) -> Dict[str, List[Any]]:
         """Returns a dictionary representation of the registry contents for the specified project.
+
+        For each list in the dictionary, the elements are sorted by name, so this
+        method can be used to compare two registries.
 
         Args:
             project: Feast project to convert to a dict
         """
         registry_dict = defaultdict(list)
 
-        for entity in self.list_entities(project=project):
+        for entity in sorted(
+            self.list_entities(project=project), key=lambda entity: entity.name
+        ):
             registry_dict["entities"].append(MessageToDict(entity.to_proto()))
-        for feature_view in self.list_feature_views(project=project):
+        for feature_view in sorted(
+            self.list_feature_views(project=project),
+            key=lambda feature_view: feature_view.name,
+        ):
             registry_dict["featureViews"].append(MessageToDict(feature_view.to_proto()))
-        for feature_table in self.list_feature_tables(project=project):
+        for feature_table in sorted(
+            self.list_feature_tables(project=project),
+            key=lambda feature_table: feature_table.name,
+        ):
             registry_dict["featureTables"].append(
                 MessageToDict(feature_table.to_proto())
             )
-        for feature_service in self.list_feature_services(project=project):
+        for feature_service in sorted(
+            self.list_feature_services(project=project),
+            key=lambda feature_service: feature_service.name,
+        ):
             registry_dict["featureServices"].append(
                 MessageToDict(feature_service.to_proto())
             )
-        for on_demand_feature_view in self.list_on_demand_feature_views(
-            project=project
+        for on_demand_feature_view in sorted(
+            self.list_on_demand_feature_views(project=project),
+            key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             registry_dict["onDemandFeatureViews"].append(
                 MessageToDict(on_demand_feature_view.to_proto())
             )
-        for request_feature_view in self.list_request_feature_views(project=project):
+        for request_feature_view in sorted(
+            self.list_request_feature_views(project=project),
+            key=lambda request_feature_view: request_feature_view.name,
+        ):
             registry_dict["requestFeatureViews"].append(
                 MessageToDict(request_feature_view.to_proto())
             )
