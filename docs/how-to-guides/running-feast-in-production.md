@@ -3,7 +3,7 @@
 ## Overview
 
 After learning about Feast concepts and playing with Feast locally, you're now ready to use Feast in production.
-This guide aimed to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise. 
+This guide aims to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise. 
 
 Overview of typical production configuration is given below:
 
