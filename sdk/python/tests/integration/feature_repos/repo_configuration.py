@@ -3,7 +3,6 @@ import json
 import os
 import tempfile
 import uuid
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -235,7 +234,6 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
     return None
 
 
-@contextmanager
 def construct_test_environment(
     test_repo_config: IntegrationTestRepoConfig,
     test_suite_name: str = "integration_test",
@@ -254,49 +252,47 @@ def construct_test_environment(
     offline_store_config = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 
-    with tempfile.TemporaryDirectory() as repo_dir_name:
-        if test_repo_config.python_feature_server:
-            from feast.infra.feature_servers.aws_lambda.config import (
-                AwsLambdaFeatureServerConfig,
-            )
+    repo_dir_name = tempfile.mkdtemp()
 
-            feature_server = AwsLambdaFeatureServerConfig(
-                enabled=True,
-                execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
-            )
-
-            registry = f"s3://feast-integration-tests/registries/{project}/registry.db"
-        else:
-            feature_server = None
-            registry = str(Path(repo_dir_name) / "registry.db")
-
-        config = RepoConfig(
-            registry=registry,
-            project=project,
-            provider=test_repo_config.provider,
-            offline_store=offline_store_config,
-            online_store=online_store,
-            repo_path=repo_dir_name,
-            feature_server=feature_server,
+    if test_repo_config.python_feature_server:
+        from feast.infra.feature_servers.aws_lambda.config import (
+            AwsLambdaFeatureServerConfig,
         )
 
-        # Create feature_store.yaml out of the config
-        with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
-            yaml.safe_dump(json.loads(config.json()), f)
-
-        fs = FeatureStore(repo_dir_name)
-        # We need to initialize the registry, because if nothing is applied in the test before tearing down
-        # the feature store, that will cause the teardown method to blow up.
-        fs.registry._initialize_registry()
-        environment = Environment(
-            name=project,
-            test_repo_config=test_repo_config,
-            feature_store=fs,
-            data_source_creator=offline_creator,
-            python_feature_server=test_repo_config.python_feature_server,
+        feature_server = AwsLambdaFeatureServerConfig(
+            enabled=True,
+            execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
         )
 
-        try:
-            yield environment
-        finally:
-            fs.teardown()
+        registry = f"s3://feast-integration-tests/registries/{project}/registry.db"
+    else:
+        feature_server = None
+        registry = str(Path(repo_dir_name) / "registry.db")
+
+    config = RepoConfig(
+        registry=registry,
+        project=project,
+        provider=test_repo_config.provider,
+        offline_store=offline_store_config,
+        online_store=online_store,
+        repo_path=repo_dir_name,
+        feature_server=feature_server,
+    )
+
+    # Create feature_store.yaml out of the config
+    with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
+        yaml.safe_dump(json.loads(config.json()), f)
+
+    fs = FeatureStore(repo_dir_name)
+    # We need to initialize the registry, because if nothing is applied in the test before tearing down
+    # the feature store, that will cause the teardown method to blow up.
+    fs.registry._initialize_registry()
+    environment = Environment(
+        name=project,
+        test_repo_config=test_repo_config,
+        feature_store=fs,
+        data_source_creator=offline_creator,
+        python_feature_server=test_repo_config.python_feature_server,
+    )
+
+    return environment

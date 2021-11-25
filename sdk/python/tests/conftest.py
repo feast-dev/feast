@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 import multiprocessing
 from datetime import datetime, timedelta
 from sys import platform
@@ -33,6 +34,8 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_datasets,
     construct_universal_entities,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def pytest_configure(config):
@@ -137,21 +140,33 @@ def simple_dataset_2() -> pd.DataFrame:
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request):
-    with construct_test_environment(request.param) as e:
-        yield e
+def environment(request, tmp_path_factory, worker_id):
+    logger.info("Worker: %s, Request: %s", worker_id, request.param)
+    e = construct_test_environment(request.param)
+
+    def cleanup():
+        logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
+        e.feature_store.teardown()
+
+    request.addfinalizer(cleanup)
+    return e
 
 
 @pytest.fixture()
-def local_redis_environment():
-    with construct_test_environment(
-        IntegrationTestRepoConfig(online_store=REDIS_CONFIG)
-    ) as e:
-        yield e
+def local_redis_environment(request, worker_id):
+
+    e = construct_test_environment(IntegrationTestRepoConfig(online_store=REDIS_CONFIG))
+
+    def cleanup():
+        logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
+        e.feature_store.teardown()
+
+    request.addfinalizer(cleanup)
+    return e
 
 
 @pytest.fixture(scope="session")
-def universal_data_sources(environment):
+def universal_data_sources(request, environment, tmp_path_factory, worker_id):
     entities = construct_universal_entities()
     datasets = construct_universal_datasets(
         entities, environment.start_date, environment.end_date
@@ -160,18 +175,24 @@ def universal_data_sources(environment):
         datasets, environment.data_source_creator
     )
 
-    yield entities, datasets, datasources
+    def cleanup():
+        environment.data_source_creator.teardown()
 
-    environment.data_source_creator.teardown()
+    request.addfinalizer(cleanup)
+
+    return entities, datasets, datasources
 
 
 @pytest.fixture(scope="session")
-def e2e_data_sources(environment: Environment):
+def e2e_data_sources(environment: Environment, request):
     df = create_dataset()
     data_source = environment.data_source_creator.create_data_source(
         df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
-    yield df, data_source
+    def cleanup():
+        environment.data_source_creator.teardown()
 
-    environment.data_source_creator.teardown()
+    request.addfinalizer(cleanup)
+
+    return df, data_source
