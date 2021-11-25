@@ -1255,13 +1255,13 @@ class FeatureStore:
                 "customer_fv__daily_transactions").
             result_rows: List of result rows to be augmented with on demand feature values.
         """
+        if len(requested_on_demand_feature_views) == 0:
+            return
+
         requested_odfv_map = {
             odfv.name: odfv for odfv in requested_on_demand_feature_views
         }
         requested_odfv_feature_names = requested_odfv_map.keys()
-
-        if len(requested_odfv_map) == 0:
-            return
 
         odfv_feature_refs = defaultdict(list)
         for feature_ref in feature_refs:
