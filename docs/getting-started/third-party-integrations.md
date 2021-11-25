@@ -20,7 +20,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
 * [x] Kafka source (with [push support into the online store](../reference/alpha-stream-ingestion.md))
-* [ ] Snowflake source (Planned for Q4 2021)
+* [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
 * [ ] HTTP source
 
 ### Offline Stores
@@ -30,9 +30,9 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
+* [x] [Snowflake (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
 * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
 * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-* [ ] Snowflake (Planned for Q4 2021)
 * [ ] Trino (Planned for Q4 2021)
 
 ### Online Stores
