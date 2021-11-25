@@ -140,12 +140,10 @@ def simple_dataset_2() -> pd.DataFrame:
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request, tmp_path_factory, worker_id):
-    logger.info("Worker: %s, Request: %s", worker_id, request.param)
+def environment(request):
     e = construct_test_environment(request.param)
 
     def cleanup():
-        logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         e.feature_store.teardown()
 
     request.addfinalizer(cleanup)
@@ -158,7 +156,6 @@ def local_redis_environment(request, worker_id):
     e = construct_test_environment(IntegrationTestRepoConfig(online_store=REDIS_CONFIG))
 
     def cleanup():
-        logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         e.feature_store.teardown()
 
     request.addfinalizer(cleanup)
@@ -166,7 +163,7 @@ def local_redis_environment(request, worker_id):
 
 
 @pytest.fixture(scope="session")
-def universal_data_sources(request, environment, tmp_path_factory, worker_id):
+def universal_data_sources(request, environment):
     entities = construct_universal_entities()
     datasets = construct_universal_datasets(
         entities, environment.start_date, environment.end_date
@@ -176,10 +173,10 @@ def universal_data_sources(request, environment, tmp_path_factory, worker_id):
     )
 
     def cleanup():
+        # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         environment.data_source_creator.teardown()
 
     request.addfinalizer(cleanup)
-
     return entities, datasets, datasources
 
 
