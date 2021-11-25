@@ -86,12 +86,12 @@ from location_stats_feature_view import location_stats_fv
 temperatures_fs = FeatureService(
     name="temperatures",
     features=[
-        location_stats_feature_view
+        location_stats_fv
             .with_name("origin_stats")
             .with_join_key_map(
                 {"location_id": "origin_id"}
             ),
-        location_stats_feature_view
+        location_stats_fv
             .with_name("destination_stats")
             .with_join_key_map(
                 {"location_id": "destination_id"}
