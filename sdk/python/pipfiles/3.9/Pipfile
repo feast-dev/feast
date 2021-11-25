@@ -1,0 +1,13 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+feast = {editable = true, path = "../.."}
+
+[dev-packages]
+feast = {editable = true, extras = ["dev"], path = "../.."}
+
+[requires]
+python_version = "3.9"

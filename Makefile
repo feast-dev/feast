@@ -39,8 +39,18 @@ install-ci-dependencies: install-python-ci-dependencies install-java-ci-dependen
 
 # Python SDK
 
-install-python-ci-dependencies:
-	pip install -e "sdk/python[ci]"
+pipfile:
+	if [ ! -e sdk/python/Pipfile ]; then\
+		cd ${ROOT_DIR}/sdk/python;\
+		ln -s pipfiles/$(PYTHON)/Pipfile;\
+		ln -s pipfiles/$(PYTHON)/Pipfile.lock;\
+	fi
+
+install-python-ci-dependencies: pipfile
+	cd ${ROOT_DIR}/sdk/python; pipenv sync --dev
+
+update-lock: pipfile
+	cd ${ROOT_DIR}/sdk/python; pipenv update --dev
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -49,39 +59,39 @@ compile-protos-python:
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/feast/protos/ --python_out=../sdk/python/feast/protos/ --mypy_out=../sdk/python/feast/protos/ feast/$(dir)/*.proto;)
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -I@ sed -i.bak 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 
-install-python:
-	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
+install-python: pipfile
+	cd ${ROOT_DIR}/sdk/python; pipenv sync
 
 benchmark-python:
-	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python; FEAST_USAGE=False IS_TEST=True pipenv run python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data tests
 
 benchmark-python-local:
-	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python; FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True pipenv run python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data tests
 
 test-python:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python; FEAST_USAGE=False IS_TEST=True pipenv run python -m pytest -n 8 tests
 
 test-python-integration:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python; FEAST_USAGE=False IS_TEST=True pipenv run python -m pytest -n 8 --integration tests
 
 test-python-universal-local:
-	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python; FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True pipenv run python -m pytest -n 8 --integration --universal tests
 
 test-python-universal:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python; FEAST_USAGE=False IS_TEST=True pipenv run python -m pytest -n 8 --integration --universal tests
 
 format-python:
 	# Sort
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; pipenv run python -m isort feast/ tests/
 
 	# Format
-	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py37 feast tests
+	cd ${ROOT_DIR}/sdk/python; pipenv run python -m black --target-version py37 feast tests
 
 lint-python:
-	cd ${ROOT_DIR}/sdk/python; python -m mypy feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
-	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
+	cd ${ROOT_DIR}/sdk/python; pipenv run python -m mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; pipenv run python -m isort feast/ tests/ --check-only
+	cd ${ROOT_DIR}/sdk/python; pipenv run python -m flake8 feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; pipenv run python -m black --check feast tests
 
 # Java
 

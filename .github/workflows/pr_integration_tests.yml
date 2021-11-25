@@ -131,6 +131,8 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('**/setup.py') }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pipenv
+        run: pip install pipenv
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
@@ -138,7 +140,8 @@ jobs:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"
           IS_TEST: "True"
-        run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
+        run: pipenv run pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes tests --integration --durations=5
+        working-directory: sdk/python
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
@@ -153,6 +156,7 @@ jobs:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"
           IS_TEST: "True"
-        run: pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data --durations=5
+        run: pipenv run pytest --verbose --color=yes tests --integration --benchmark --benchmark-autosave --benchmark-save-data --durations=5
+        working-directory: sdk/python
       - name: Upload Benchmark Artifact to S3
         run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmarks

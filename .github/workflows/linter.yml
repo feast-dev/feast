@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   lint-python:
     runs-on: [ubuntu-latest]
+    env:
+      PYTHON: 3.7
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -27,9 +29,12 @@ jobs:
             ${{ steps.pip-cache.outputs.dir }}
             /opt/hostedtoolcache/Python
             /Users/runner/hostedtoolcache/Python
+            ~/.local/share/virtualenvs
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('**/setup.py') }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pipenv
+        run: pip install pipenv
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Lint python

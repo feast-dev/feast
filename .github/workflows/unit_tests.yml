@@ -34,15 +34,17 @@ jobs:
             ${{ steps.pip-cache.outputs.dir }}
             /opt/hostedtoolcache/Python
             /Users/runner/hostedtoolcache/Python
+            ~/.local/share/virtualenvs
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('**/setup.py') }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pipenv
+        run: pip install pipenv
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
-        run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests
-      - name: Ensure conflict-free dependencies
-        run: FEAST_USAGE=False pip-compile --dry-run sdk/python/setup.py --extra ci
+        run: FEAST_USAGE=False pipenv run pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes tests
+        working-directory: sdk/python
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
