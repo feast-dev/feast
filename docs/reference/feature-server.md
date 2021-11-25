@@ -1,9 +1,9 @@
-# \[Alpha\] Local feature server
+# \[Alpha] Local feature server
 
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
 {% hint style="info" %}
-To enable this feature, run**`feast alpha enable python_feature_server`**
+To enable this feature, run **`feast alpha enable python_feature_server`**
 {% endhint %}
 
 ## Overview
@@ -112,7 +112,7 @@ $  curl -X POST \
 
 It's also possible to specify a feature service name instead of the list of features:
 
-```text
+```
 curl -X POST \
   "http://localhost:6566/get-online-features" \
   -d '{
@@ -122,4 +122,3 @@ curl -X POST \
     }
   }' | jq
 ```
-

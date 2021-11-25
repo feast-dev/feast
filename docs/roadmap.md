@@ -14,7 +14,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] Kafka source (with [push support into the online store](reference/alpha-stream-ingestion.md))
-  * [ ] Snowflake source (Planned for Q4 2021)
+  * [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
@@ -22,9 +22,9 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
+  * [x] [Snowflake (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-  * [ ] Snowflake (Planned for Q4 2021)
   * [ ] Trino (Planned for Q4 2021)
 * **Online Stores**
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
@@ -70,6 +70,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [ ] REST API for browsing feature registry
-  * [ ] Feast Web UI (Planned for Q4 2021)
+  * [ ] Feast Web UI
   * [ ] Feature versioning
   * [ ] Amundsen integration
