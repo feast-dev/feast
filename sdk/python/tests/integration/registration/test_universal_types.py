@@ -71,7 +71,7 @@ ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=F
     ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
 )
 def offline_types_test_fixtures(request):
-    yield from get_fixtures(request)
+    return get_fixtures(request)
 
 
 @pytest.fixture(
@@ -80,7 +80,7 @@ def offline_types_test_fixtures(request):
     ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
 )
 def online_types_test_fixtures(request):
-    yield from get_fixtures(request)
+    return get_fixtures(request)
 
 
 def get_fixtures(request):
@@ -89,30 +89,36 @@ def get_fixtures(request):
     test_project_id = f"{config.entity_type}{config.feature_dtype}{config.feature_is_list}".replace(
         ".", ""
     ).lower()
-    with construct_test_environment(
+    type_test_environment = construct_test_environment(
         test_repo_config=config.test_repo_config,
         test_suite_name=f"test_{test_project_id}",
-    ) as type_test_environment:
-        config = request.param
-        df = create_dataset(
-            config.entity_type,
-            config.feature_dtype,
-            config.feature_is_list,
-            config.has_empty_list,
-        )
-        data_source = type_test_environment.data_source_creator.create_data_source(
-            df,
-            destination_name=type_test_environment.feature_store.project,
-            field_mapping={"ts_1": "ts"},
-        )
-        fv = create_feature_view(
-            config.feature_dtype,
-            config.feature_is_list,
-            config.has_empty_list,
-            data_source,
-        )
-        yield type_test_environment, config, data_source, fv
+    )
+    config = request.param
+    df = create_dataset(
+        config.entity_type,
+        config.feature_dtype,
+        config.feature_is_list,
+        config.has_empty_list,
+    )
+    data_source = type_test_environment.data_source_creator.create_data_source(
+        df,
+        destination_name=type_test_environment.feature_store.project,
+        field_mapping={"ts_1": "ts"},
+    )
+    fv = create_feature_view(
+        config.feature_dtype,
+        config.feature_is_list,
+        config.has_empty_list,
+        data_source,
+    )
+
+    def cleanup():
         type_test_environment.data_source_creator.teardown()
+        type_test_environment.feature_store.teardown()
+
+    request.addfinalizer(cleanup)
+
+    return type_test_environment, config, data_source, fv
 
 
 @pytest.mark.integration
