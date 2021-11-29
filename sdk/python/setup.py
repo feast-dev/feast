@@ -1,4 +1,4 @@
-# Copyright 2019 The Feast Authors
+  # Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ GCP_REQUIRED = [
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.34.*,<1.41",
-    "google-cloud-core==1.4.*",
+    "google-cloud-core>=1.4.0,<2.0.0",
 ]
 
 REDIS_REQUIRED = [
