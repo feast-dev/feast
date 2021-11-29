@@ -161,7 +161,7 @@ feature_refs = [
 
 training_df = fs.get_historical_features(
     entity_df=entity_df, 
-    feature_refs=feature_refs,
+    features=feature_refs,
 ).to_df()
 
 model = ml.fit(training_df)
@@ -193,7 +193,7 @@ fs = FeatureStore(repo_path="production/")
 
 # Read online features
 feature_vector = fs.get_online_features(
-    feature_refs=feature_refs,
+    features=feature_refs,
     entity_rows=[{"driver_id": 1001}]
 ).to_dict()
 
@@ -228,7 +228,7 @@ fs = FeatureStore(repo_path="production/")
 
 # Read online features
 feature_vector = fs.get_online_features(
-    feature_refs=feature_refs,
+    features=feature_refs,
     entity_rows=[{"driver_id": 1001}]
 ).to_dict()
 ```
@@ -237,7 +237,7 @@ feature_vector = fs.get_online_features(
 
 If you don't want to add the Feast Python SDK as a dependency, or your feature retrieval service is written in a non-Python language,
 Feast can deploy a simple feature server
-on serverless infrastructure (eg, AWS Lambda, Google Cloud Function) for you.
+on serverless infrastructure (eg, AWS Lambda, Google Cloud Run) for you.
 This service will provide an HTTP API with JSON I/O, which can be easily used with any programming language.
 
 [Read more about this feature](../reference/alpha-aws-lambda-feature-server.md)
@@ -295,7 +295,7 @@ streamingDF.writeStream.foreachBatch(feast_writer).start()
 ### 5.2. Push service *(still under development)*
 
 Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis), you can use the "push service", which will write to an online store.
-This service will expose an HTTP API or when deployed on Serverless platforms like AWS Lambda or Google Cloud Function,
+This service will expose an HTTP API or when deployed on Serverless platforms like AWS Lambda or Google Cloud Run,
 this service can be directly connected to Kinesis or PubSub.
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as a middleware.
@@ -330,8 +330,8 @@ Summarizing it all together we want to show several options of architecture that
 ### Option #2 *(still in development)*
 
 Same as Option #1, except:
-* Push service is deployed as AWS Lambda / Google Cloud Function and is configured as a sink for Kinesis or PubSub to ingest features directly from a stream broker.
-Lambda / Cloud function is being managed by Feast SDK (from CI environment)
+* Push service is deployed as AWS Lambda / Google Cloud Run and is configured as a sink for Kinesis or PubSub to ingest features directly from a stream broker.
+Lambda / Cloud Run is being managed by Feast SDK (from CI environment)
 * Materialization jobs are managed inside Kubernetes via Kubernetes Job (currently not managed by Helm)
 
 ![With Push Service as Lambda](production-lambda.png)
