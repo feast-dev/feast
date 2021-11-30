@@ -35,14 +35,16 @@ class FileRetrievalJob(RetrievalJob):
         self,
         evaluation_function: Callable,
         full_feature_names: bool,
-        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
     ):
         """Initialize a lazy historical retrieval job"""
 
         # The evaluation function executes a stored procedure to compute a historical retrieval.
         self.evaluation_function = evaluation_function
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = (
+            on_demand_feature_views if on_demand_feature_views else []
+        )
 
     @property
     def full_feature_names(self) -> bool:
@@ -333,7 +335,5 @@ class FileOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return FileRetrievalJob(
-            evaluation_function=evaluate_offline_job,
-            full_feature_names=False,
-            on_demand_feature_views=None,
+            evaluation_function=evaluate_offline_job, full_feature_names=False,
         )
