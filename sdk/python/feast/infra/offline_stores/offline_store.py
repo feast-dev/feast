@@ -41,7 +41,7 @@ class RetrievalJob(ABC):
     def to_df(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
         features_df = self._to_df_internal()
-        if self.on_demand_feature_views is None:
+        if not self.on_demand_feature_views:
             return features_df
 
         # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
@@ -63,7 +63,7 @@ class RetrievalJob(ABC):
 
     def to_arrow(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
-        if self.on_demand_feature_views is None:
+        if not self.on_demand_feature_views:
             return self._to_arrow_internal()
 
         features_df = self._to_df_internal()
