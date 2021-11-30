@@ -55,8 +55,8 @@ global_stats_fv = FeatureView(
 
 ## Feature inferencing
 
-If the `features` param is not specified in the FeatureView creation, Feast will infer the features during `feast apply` by creating a feature for each column in the
-underlying data source except the columns corresponding to the entities of the FeatureView or the columns corresponding to the timestamp columns of the FeatureView's
+If the `features` parameter is not specified in the feature view creation, Feast will infer the features during `feast apply` by creating a feature for each column in the
+underlying data source except the columns corresponding to the entities of the feature view or the columns corresponding to the timestamp columns of the feature view's
 data source. The names and value types of the inferred features will use the names and data types of the columns from which the features were inferred.
 
 ## Entity aliasing
