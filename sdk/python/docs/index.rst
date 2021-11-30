@@ -24,6 +24,27 @@ Data Source
     :members:
     :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource
 
+BigQuery Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.bigquery_source
+    :members:
+    :exclude-members: BigQueryOptions
+
+Redshift Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.redshift_source
+    :members:
+    :exclude-members: RedshiftOptions
+
+File Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.file_source
+    :members:
+    :exclude-members: FileOptions
+
 Entity
 ==================
 
