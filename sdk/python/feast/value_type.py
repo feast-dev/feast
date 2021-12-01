@@ -13,8 +13,6 @@
 # limitations under the License.
 import enum
 
-from tensorflow_metadata.proto.v0 import schema_pb2
-
 
 class ValueType(enum.Enum):
     """
@@ -39,29 +37,3 @@ class ValueType(enum.Enum):
     BOOL_LIST = 17
     UNIX_TIMESTAMP_LIST = 18
     NULL = 19
-
-    def to_tfx_schema_feature_type(self):
-        if self.value in [
-            ValueType.BYTES.value,
-            ValueType.STRING.value,
-            ValueType.BOOL.value,
-            ValueType.BYTES_LIST.value,
-            ValueType.STRING_LIST.value,
-            ValueType.INT32_LIST.value,
-            ValueType.INT64_LIST.value,
-            ValueType.DOUBLE_LIST.value,
-            ValueType.FLOAT_LIST.value,
-            ValueType.BOOL_LIST.value,
-            ValueType.UNIX_TIMESTAMP_LIST.value,
-        ]:
-            return schema_pb2.FeatureType.BYTES
-        elif self.value in [
-            ValueType.INT32.value,
-            ValueType.INT64.value,
-            ValueType.UNIX_TIMESTAMP.value,
-        ]:
-            return schema_pb2.FeatureType.INT
-        elif self.value in [ValueType.DOUBLE.value, ValueType.FLOAT.value]:
-            return schema_pb2.FeatureType.FLOAT
-        else:
-            return schema_pb2.FeatureType.TYPE_UNKNOWN
