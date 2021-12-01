@@ -130,7 +130,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     from colorama import Fore, Style
 
     os.chdir(repo_path)
-    store = FeatureStore(repo_path=str(repo_path))
+    store = FeatureStore(repo_config)
     project = store.project
     if not is_valid_name(project):
         print(
