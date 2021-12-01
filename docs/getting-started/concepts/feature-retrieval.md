@@ -32,7 +32,7 @@ Note, if you're using [Feature views without entities](feature-view.md#feature-v
 
 ## Event timestamp
 
-The timestamp on which an event occurred, as found in a feature view's data source. The entity timestamp describes the event time at which a feature was observed or generated.
+The timestamp on which an event occurred, as found in a feature view's data source. The event timestamp describes the event time at which a feature was observed or generated.
 
 Event timestamps are used during point-in-time joins to ensure that the latest feature values are joined from feature views onto entity rows. Event timestamps are also used to ensure that old feature values aren't served to models during online serving.
 
