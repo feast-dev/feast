@@ -1084,17 +1084,14 @@ class FeatureStore:
             union_of_entity_keys,
         )
 
-        initial_response = OnlineResponse(
-            GetOnlineFeaturesResponse(field_values=result_rows)
-        )
-        return self._augment_response_with_on_demand_transforms(
+        self._augment_response_with_on_demand_transforms(
             _feature_refs,
             requested_result_row_names,
             requested_on_demand_feature_views,
             full_feature_names,
-            initial_response,
             result_rows,
         )
+        return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
     def _get_requested_result_fields(
         self,
@@ -1238,28 +1235,49 @@ class FeatureStore:
         self,
         feature_refs: List[str],
         requested_result_row_names: Set[str],
-        odfvs: List[OnDemandFeatureView],
+        requested_on_demand_feature_views: List[OnDemandFeatureView],
         full_feature_names: bool,
-        initial_response: OnlineResponse,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
-    ) -> OnlineResponse:
-        all_on_demand_feature_views = {view.name: view for view in odfvs}
-        all_odfv_feature_names = all_on_demand_feature_views.keys()
+    ):
+        """Computes on demand feature values and adds them to the result rows.
 
-        if len(all_on_demand_feature_views) == 0:
-            return initial_response
-        initial_response_df = initial_response.to_df()
+        Assumes that 'result_rows' already contains the necessary request data and input feature
+        views for the on demand feature views. Unneeded feature values such as request data and
+        unrequested input feature views will be removed from 'result_rows'.
+
+        Args:
+            feature_refs: List of all feature references to be returned.
+            requested_result_row_names: Fields from 'result_rows' that have been requested, and
+                therefore should not be dropped.
+            requested_on_demand_feature_views: List of all odfvs that have been requested.
+            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
+                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
+                "customer_fv__daily_transactions").
+            result_rows: List of result rows to be augmented with on demand feature values.
+        """
+        if len(requested_on_demand_feature_views) == 0:
+            return
+
+        requested_odfv_map = {
+            odfv.name: odfv for odfv in requested_on_demand_feature_views
+        }
+        requested_odfv_feature_names = requested_odfv_map.keys()
 
         odfv_feature_refs = defaultdict(list)
         for feature_ref in feature_refs:
             view_name, feature_name = feature_ref.split(":")
-            if view_name in all_odfv_feature_names:
+            if view_name in requested_odfv_feature_names:
                 odfv_feature_refs[view_name].append(feature_name)
 
-        # Apply on demand transformations
+        initial_response = OnlineResponse(
+            GetOnlineFeaturesResponse(field_values=result_rows)
+        )
+        initial_response_df = initial_response.to_df()
+
+        # Apply on demand transformations and augment the result rows
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
-            odfv = all_on_demand_feature_views[odfv_name]
+            odfv = requested_odfv_map[odfv_name]
             transformed_features_df = odfv.get_transformed_features_df(
                 initial_response_df
             )
@@ -1296,8 +1314,6 @@ class FeatureStore:
             for unneeded_feature in unneeded_features:
                 result_row.fields.pop(unneeded_feature)
                 result_row.statuses.pop(unneeded_feature)
-
-        return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
     def _get_feature_views_to_use(
         self,
