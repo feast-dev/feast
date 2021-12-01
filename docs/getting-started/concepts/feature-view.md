@@ -53,6 +53,12 @@ global_stats_fv = FeatureView(
 {% endtab %}
 {% endtabs %}
 
+## Feature inferencing
+
+If the `features` parameter is not specified in the feature view creation, Feast will infer the features during `feast apply` by creating a feature for each column in the
+underlying data source except the columns corresponding to the entities of the feature view or the columns corresponding to the timestamp columns of the feature view's
+data source. The names and value types of the inferred features will use the names and data types of the columns from which the features were inferred.
+
 ## Entity aliasing
 
 "Entity aliases" can be specified to join `entity_dataframe` columns that do not match the column names in the source table of a FeatureView.
