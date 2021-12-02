@@ -16,14 +16,21 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 @pytest.mark.parametrize("infer_features", [True, False])
 def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     fs = environment.feature_store
-    fs.config.project = fs.config.project + str(infer_features)
     df, data_source = e2e_data_sources
-    fv = driver_feature_view(data_source=data_source, infer_features=infer_features)
+    fv = driver_feature_view(
+        name=f"test_consistency_{'with_inference' if infer_features else ''}",
+        data_source=data_source,
+        infer_features=infer_features,
+    )
 
     entity = driver()
     fs.apply([fv, entity])
 
-    run_offline_online_store_consistency_test(fs, fv)
+    # materialization is run in two steps and
+    # we use timestamp from generated dataframe as a split point
+    split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
+
+    run_offline_online_store_consistency_test(fs, fv, split_dt)
 
 
 def check_offline_and_online_features(
@@ -80,7 +87,7 @@ def check_offline_and_online_features(
 
 
 def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView
+    fs: FeatureStore, fv: FeatureView, split_dt: datetime
 ) -> None:
     now = datetime.utcnow()
 
@@ -90,7 +97,7 @@ def run_offline_online_store_consistency_test(
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
     start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
-    end_date = now - timedelta(hours=2)
+    end_date = split_dt
     fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
     # check result of materialize()
