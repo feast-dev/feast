@@ -107,11 +107,7 @@ class BigQueryOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return BigQueryRetrievalJob(
-            query=query,
-            client=client,
-            config=config,
-            full_feature_names=False,
-            on_demand_feature_views=None,
+            query=query, client=client, config=config, full_feature_names=False,
         )
 
     @staticmethod
@@ -200,7 +196,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         client: bigquery.Client,
         config: RepoConfig,
         full_feature_names: bool,
-        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
     ):
         if not isinstance(query, str):
             self._query_generator = query
@@ -215,7 +211,9 @@ class BigQueryRetrievalJob(RetrievalJob):
         self.client = client
         self.config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = (
+            on_demand_feature_views if on_demand_feature_views else []
+        )
 
     @property
     def full_feature_names(self) -> bool:

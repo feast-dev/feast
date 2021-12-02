@@ -101,7 +101,6 @@ class RedshiftOfflineStore(OfflineStore):
             s3_resource=s3_resource,
             config=config,
             full_feature_names=False,
-            on_demand_feature_views=None,
         )
 
     @staticmethod
@@ -189,7 +188,7 @@ class RedshiftRetrievalJob(RetrievalJob):
         s3_resource,
         config: RepoConfig,
         full_feature_names: bool,
-        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
     ):
         """Initialize RedshiftRetrievalJob object.
 
@@ -199,7 +198,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             s3_resource: boto3 s3 resource object
             config: Feast repo config
             full_feature_names: Whether to add the feature view prefixes to the feature names
-            on_demand_feature_views: A list of on demand transforms to apply at retrieval time
+            on_demand_feature_views (optional): A list of on demand transforms to apply at retrieval time
         """
         if not isinstance(query, str):
             self._query_generator = query
@@ -220,7 +219,9 @@ class RedshiftRetrievalJob(RetrievalJob):
             + str(uuid.uuid4())
         )
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = (
+            on_demand_feature_views if on_demand_feature_views else []
+        )
 
     @property
     def full_feature_names(self) -> bool:
@@ -346,7 +347,6 @@ def _upload_entity_df_and_get_entity_schema(
             s3_resource,
             config,
             full_feature_names=False,
-            on_demand_feature_views=None,
         ).to_df()
         return dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
     else:
