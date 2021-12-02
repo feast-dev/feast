@@ -758,9 +758,16 @@ class FeatureStore:
             feature_views_to_materialize = self._list_feature_views(
                 hide_dummy_entity=False
             )
+            feature_views_to_materialize = [
+                fv for fv in feature_views_to_materialize if fv.online
+            ]
         else:
             for name in feature_views:
                 feature_view = self._get_feature_view(name, hide_dummy_entity=False)
+                if not feature_view.online:
+                    raise ValueError(
+                        f"FeatureView {feature_view.name} is not configured to be served online."
+                    )
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
@@ -850,9 +857,16 @@ class FeatureStore:
             feature_views_to_materialize = self._list_feature_views(
                 hide_dummy_entity=False
             )
+            feature_views_to_materialize = [
+                fv for fv in feature_views_to_materialize if fv.online
+            ]
         else:
             for name in feature_views:
                 feature_view = self._get_feature_view(name, hide_dummy_entity=False)
+                if not feature_view.online:
+                    raise ValueError(
+                        f"FeatureView {feature_view.name} is not configured to be served online."
+                    )
                 feature_views_to_materialize.append(feature_view)
 
         _print_materialization_log(
