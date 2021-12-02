@@ -25,14 +25,16 @@ pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
 
-### Signing commits
-Use git signing to sign your commits. See 
+### Signing off commits
+Use git signoffs to sign your commits. See 
 https://docs.github.com/en/github/authenticating-to-github/managing-commit-signature-verification for details
 
-Then, you can sign commits with the `-s` flag:
+Then, you can sign off commits with the `-s` flag:
 ```
 git commit -s -m "My first commit"
 ```
+
+GPG-signing commits with `-S` is optional.
 
 ### Incorporating upstream changes from master
 Our preference is the use of `git rebase [master]` instead of `git merge` : `git pull -r`.
