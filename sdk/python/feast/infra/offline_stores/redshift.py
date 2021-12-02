@@ -8,6 +8,7 @@ import pandas as pd
 import pyarrow as pa
 from pydantic import StrictStr
 from pydantic.typing import Literal
+from pytz import utc
 
 from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
@@ -81,6 +82,9 @@ class RedshiftOfflineStore(OfflineStore):
             config.offline_store.region
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
+
+        start_date = start_date.astimezone(tz=utc)
+        end_date = end_date.astimezone(tz=utc)
 
         query = f"""
             SELECT
