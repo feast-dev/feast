@@ -106,6 +106,7 @@ def get_fixtures(request):
         field_mapping={"ts_1": "ts"},
     )
     fv = create_feature_view(
+        request.node.name,
         config.feature_dtype,
         config.feature_is_list,
         config.has_empty_list,
@@ -151,7 +152,11 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
     fv = create_feature_view(
-        config.feature_dtype, config.feature_is_list, config.has_empty_list, data_source
+        "get_historical_features_types_match",
+        config.feature_dtype,
+        config.feature_is_list,
+        config.has_empty_list,
+        data_source,
     )
     entity = driver()
     fs.apply([fv, entity])
@@ -197,7 +202,11 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
 def test_feature_get_online_features_types_match(online_types_test_fixtures):
     environment, config, data_source, fv = online_types_test_fixtures
     fv = create_feature_view(
-        config.feature_dtype, config.feature_is_list, config.has_empty_list, data_source
+        "get_online_features_types_match",
+        config.feature_dtype,
+        config.feature_is_list,
+        config.has_empty_list,
+        data_source,
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
@@ -230,7 +239,9 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
             assert isinstance(feature, expected_dtype)
 
 
-def create_feature_view(feature_dtype, feature_is_list, has_empty_list, data_source):
+def create_feature_view(
+    name, feature_dtype, feature_is_list, has_empty_list, data_source
+):
     if feature_is_list is True:
         if feature_dtype == "int32":
             value_type = ValueType.INT32_LIST
@@ -249,7 +260,8 @@ def create_feature_view(feature_dtype, feature_is_list, has_empty_list, data_sou
             value_type = ValueType.FLOAT
         elif feature_dtype == "bool":
             value_type = ValueType.BOOL
-    return driver_feature_view(data_source, value_type=value_type,)
+
+    return driver_feature_view(data_source, name=name, value_type=value_type,)
 
 
 def assert_expected_historical_feature_types(

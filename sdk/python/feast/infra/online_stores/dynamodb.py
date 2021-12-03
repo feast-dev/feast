@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -32,6 +33,9 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("aws", str(e))
+
+
+logger = logging.getLogger(__name__)
 
 
 class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
@@ -185,3 +189,8 @@ class DynamoDBOnlineStore(OnlineStore):
                 # Otherwise, re-raise the exception
                 if ce.response["Error"]["Code"] != "ResourceNotFoundException":
                     raise
+                else:
+                    logger.warning(
+                        f"Trying to delete table that doesn't exist:"
+                        f" {config.project}.{table_instance.name}"
+                    )
