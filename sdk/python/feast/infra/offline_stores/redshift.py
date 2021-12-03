@@ -1,11 +1,21 @@
 import contextlib
 import uuid
 from datetime import datetime
-from typing import Callable, ContextManager, Dict, Iterator, List, Optional, Union
+from typing import (
+    Callable,
+    ContextManager,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from dateutil import parser
 from pydantic import StrictStr
 from pydantic.typing import Literal
 from pytz import utc
@@ -145,9 +155,21 @@ class RedshiftOfflineStore(OfflineStore):
                 entity_schema, expected_join_keys, entity_df_event_timestamp_col
             )
 
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df,
+                entity_df_event_timestamp_col,
+                redshift_client,
+                config,
+                table_name,
+            )
+
             # Build a query context containing all information required to template the Redshift SQL query
             query_context = offline_utils.get_feature_view_query_context(
-                feature_refs, feature_views, registry, project,
+                feature_refs,
+                feature_views,
+                registry,
+                project,
+                entity_df_event_timestamp_range,
             )
 
             # Generate the Redshift SQL query from the query context
@@ -357,6 +379,48 @@ def _upload_entity_df_and_get_entity_schema(
         raise InvalidEntityType(type(entity_df))
 
 
+def _get_entity_df_event_timestamp_range(
+    entity_df: Union[pd.DataFrame, str],
+    entity_df_event_timestamp_col: str,
+    redshift_client,
+    config: RepoConfig,
+    table_name: str,
+) -> Tuple[datetime, datetime]:
+    if isinstance(entity_df, pd.DataFrame):
+        entity_df_event_timestamp = entity_df.loc[
+            :, entity_df_event_timestamp_col
+        ].infer_objects()
+        if pd.api.types.is_string_dtype(entity_df_event_timestamp):
+            entity_df_event_timestamp = pd.to_datetime(
+                entity_df_event_timestamp, utc=True
+            )
+        entity_df_event_timestamp_range = (
+            entity_df_event_timestamp.min(),
+            entity_df_event_timestamp.max(),
+        )
+    elif isinstance(entity_df, str):
+        # If the entity_df is a string (SQL query), determine range
+        # from table
+        statement_id = aws_utils.execute_redshift_statement(
+            redshift_client,
+            config.offline_store.cluster_id,
+            config.offline_store.database,
+            config.offline_store.user,
+            f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM {table_name}",
+        )
+        res = aws_utils.get_redshift_statement_result(redshift_client, statement_id)[
+            "Records"
+        ][0]
+        entity_df_event_timestamp_range = (
+            parser.parse(res[0]["stringValue"]),
+            parser.parse(res[1]["stringValue"]),
+        )
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+    return entity_df_event_timestamp_range
+
+
 # This query is based on sdk/python/feast/infra/offline_stores/bigquery.py:MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
 # There are couple of changes from BigQuery:
 # 1. Use VARCHAR instead of STRING type
@@ -428,9 +492,9 @@ WITH entity_dataframe AS (
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
+    WHERE {{ featureview.event_timestamp_column }} >= '{{ featureview.max_event_timestamp }}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= (SELECT MIN(entity_timestamp) FROM entity_dataframe) - {{ featureview.ttl }} * interval '1' second
+    AND {{ featureview.event_timestamp_column }} >= '{{ featureview.min_event_timestamp }}'
     {% endif %}
 ),
 
