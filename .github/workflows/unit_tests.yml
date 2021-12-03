@@ -49,7 +49,7 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: sdk/python/coverage.xml
+          files: ./coverage.xml
           flags: unittests
           env_vars: OS,PYTHON
           fail_ci_if_error: true
