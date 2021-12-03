@@ -130,8 +130,6 @@ jobs:
     container: python:3.7
     steps:
       - uses: actions/checkout@v2
-      - name: Install pipenv
-        run: pip install pipenv
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Publish Python Package

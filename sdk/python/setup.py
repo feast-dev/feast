@@ -116,6 +116,7 @@ CI_REQUIRED = [
     "firebase-admin==4.5.2",
     "pre-commit",
     "assertpy==1.1",
+    "pip-tools",
 ] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
 
 DEV_REQUIRED = ["mypy-protobuf==1.*", "grpcio-testing==1.*"] + CI_REQUIRED
