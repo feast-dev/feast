@@ -1,5 +1,6 @@
 import contextlib
 import os
+import random
 import tempfile
 import uuid
 from typing import Any, Dict, Iterator, Optional, Tuple
@@ -59,7 +60,7 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
 @retry(
     wait=wait_exponential(multiplier=1, max=4),
     retry=retry_if_exception_type(ConnectionClosedError),
-    stop=stop_after_attempt(5),
+    stop=stop_after_attempt(2),
     reraise=True,
 )
 def execute_redshift_statement_async(
@@ -79,6 +80,9 @@ def execute_redshift_statement_async(
     Returns: JSON response
 
     """
+    if random.random() < 0.5:
+        raise ConnectionClosedError()
+
     try:
         return redshift_data_client.execute_statement(
             ClusterIdentifier=cluster_id, Database=database, DbUser=user, Sql=query,

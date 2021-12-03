@@ -183,7 +183,9 @@ class DynamoDBOnlineStore(OnlineStore):
                     f"{config.project}.{table_instance.name}"
                 )
                 table.delete()
-                logger.info(f"Dynamo table {config.project}.{table_instance.name} was deleted")
+                logger.info(
+                    f"Dynamo table {config.project}.{table_instance.name} was deleted"
+                )
             except ClientError as ce:
                 # If the table deletion fails with ResourceNotFoundException,
                 # it means the table has already been deleted.
