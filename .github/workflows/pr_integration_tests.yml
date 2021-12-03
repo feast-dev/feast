@@ -41,13 +41,6 @@ jobs:
       - name: Set ECR image tag
         id: image-tag
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        # Ignore the failure of a step and avoid terminating the job.
-        continue-on-error: true
-        with:
-          key: docker-cache-{hash}
-          restore-keys: |
-            docker-cache-
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
