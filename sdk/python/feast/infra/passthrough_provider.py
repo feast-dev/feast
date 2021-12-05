@@ -87,7 +87,9 @@ class PassthroughProvider(Provider):
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         set_usage_attribute("provider", self.__class__.__name__)
-        result = self.online_store.online_read(config, table, entity_keys)
+        result = self.online_store.online_read(
+            config, table, entity_keys, requested_features
+        )
 
         return result
 
