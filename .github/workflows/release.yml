@@ -130,6 +130,8 @@ jobs:
     container: python:3.7
     steps:
       - uses: actions/checkout@v2
+      - name: Install pip-tools
+        run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Publish Python Package

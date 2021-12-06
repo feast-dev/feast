@@ -40,7 +40,11 @@ install-ci-dependencies: install-python-ci-dependencies install-java-ci-dependen
 # Python SDK
 
 install-python-ci-dependencies:
-	pip install -e "sdk/python[ci]"
+	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
+	cd sdk/python && python setup.py develop
+
+lock-python-ci-dependencies:
+	cd sdk/python && python -m piptools compile -U --extra ci --output-file requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -50,7 +54,11 @@ compile-protos-python:
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -I@ sed -i.bak 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 
 install-python:
-	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
+	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
+	cd sdk/python && python setup.py develop
+
+lock-python-dependencies:
+	cd sdk/python && python -m piptools compile -U --output-file requirements/py$(PYTHON)-requirements.txt
 
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
