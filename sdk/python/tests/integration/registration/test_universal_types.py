@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List
@@ -17,6 +18,8 @@ from tests.integration.feature_repos.repo_configuration import (
 )
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+
+logger = logging.getLogger(__name__)
 
 
 def populate_test_configs(offline: bool):
@@ -106,7 +109,7 @@ def get_fixtures(request):
         field_mapping={"ts_1": "ts"},
     )
     fv = create_feature_view(
-        request.node.name,
+        request.fixturename,
         config.feature_dtype,
         config.feature_is_list,
         config.has_empty_list,
@@ -114,7 +117,11 @@ def get_fixtures(request):
     )
 
     def cleanup():
-        type_test_environment.data_source_creator.teardown()
+        try:
+            type_test_environment.data_source_creator.teardown()
+        except Exception:  # noqa
+            logger.exception("DataSourceCreator teardown has failed")
+
         type_test_environment.feature_store.teardown()
 
     request.addfinalizer(cleanup)

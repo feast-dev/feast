@@ -18,8 +18,6 @@ def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     fs = environment.feature_store
     df, data_source = e2e_data_sources
 
-    # fs.config.project = fs.config.project + str(infer_features)
-
     fv = driver_feature_view(
         name=f"test_consistency_{'with_inference' if infer_features else ''}",
         data_source=data_source,
