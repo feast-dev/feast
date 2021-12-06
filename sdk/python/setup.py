@@ -117,16 +117,23 @@ CI_REQUIRED = [
     "pre-commit",
     "assertpy==1.1",
     "pip-tools",
-] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
+    *GCP_REQUIRED,
+    *REDIS_REQUIRED,
+    *AWS_REQUIRED,
+]
 
-DEV_REQUIRED = ["mypy-protobuf==1.*", "grpcio-testing==1.*"] + CI_REQUIRED
+DEV_REQUIRED = [
+    "mypy-protobuf==1.*",
+    "grpcio-testing==1.*",
+    *CI_REQUIRED,
+]
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
 
 # README file from Feast repo root directory
 README_FILE = os.path.join(repo_root, "README.md")
-with open(README_FILE, "r") as f:
+with open(README_FILE, "r", encoding="utf8") as f:
     LONG_DESCRIPTION = f.read()
 
 # Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
