@@ -104,6 +104,7 @@ jobs:
     needs: get-version
     env:
       HELM_VERSION: v2.17.0
+      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -113,14 +114,16 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - run: gcloud auth configure-docker --quiet
-      - name: Validate chart release versions
-        run: ./infra/scripts/validate-helm-chart-docker-image.sh
       - name: Remove previous Helm
         run: sudo rm -rf $(which helm)
       - name: Install Helm
-        run: ./infra/scripts/install-helm.sh
+        run: ./scripts/helm/install-helm.sh
+      - name: Validate Helm chart prior to publishing
+        run: ./scripts/helm/validate-helm-chart-publish.sh
+      - name: Validate all version consistency
+        run: ./scripts/helm/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
       - name: Publish Helm charts
-        run: ./infra/scripts/sync-helm-charts.sh
+        run: ./scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
 
   publish-python-sdk:
     runs-on: ubuntu-latest
