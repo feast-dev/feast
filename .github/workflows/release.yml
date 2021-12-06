@@ -90,7 +90,7 @@ jobs:
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
         run: |
-          make push-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+          make push-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION} GITHUB_SHA=${GITHUB_SHA}
 
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]

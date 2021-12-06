@@ -162,7 +162,6 @@ build-feature-server-aws-docker:
 
 push-feature-transformation-server-docker:
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
-    docker push gcr.io/kf-feast/feature-transformation-server:$(VERSION)
 
 build-feature-transformation-server-docker:
 	docker build --build-arg VERSION=$(VERSION) \
@@ -173,7 +172,6 @@ build-feature-transformation-server-docker:
 
 push-feature-server-java-docker:
 	docker push $(REGISTRY)/feature-server-java:$(VERSION)
-    docker push gcr.io/kf-feast/feature-server-java:$(VERSION)
 
 build-feature-server-java-docker:
 	docker build --build-arg VERSION=$(VERSION) \
