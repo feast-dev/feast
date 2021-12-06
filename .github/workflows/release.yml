@@ -13,44 +13,45 @@ jobs:
       version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Get release version
-      id: get_release_version
-      run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
-    - name: Get release version without prefix
-      id: get_release_version_without_prefix
-      env:
-        RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-      run: |
-        echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
-    - name: Get highest semver
-      id: get_highest_semver
-      env:
-        RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-      run: |
-        source infra/scripts/setup-common-functions.sh
-        SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-        if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-          echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
-        fi
-    - name: Check output
-      env:
-        RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-        HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-      run: |
-        echo $RELEASE_VERSION
-        echo $VERSION_WITHOUT_PREFIX
-        echo $HIGHEST_SEMVER_TAG
+      - uses: actions/checkout@v2
+      - name: Get release version
+        id: get_release_version
+        run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+      - name: Get release version without prefix
+        id: get_release_version_without_prefix
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        run: |
+          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
+      - name: Get highest semver
+        id: get_highest_semver
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        run: |
+          source infra/scripts/setup-common-functions.sh
+          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
+            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+          fi
+      - name: Check output
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+        run: |
+          echo $RELEASE_VERSION
+          echo $VERSION_WITHOUT_PREFIX
+          echo $HIGHEST_SEMVER_TAG
 
   build-publish-docker-images:
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     needs: get-version
     strategy:
       matrix:
-        component: [jupyter]
+        component: [feature-server-aws, feature-server-java, feature-transformation-server]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
+      REGISTRY: feastdev
     steps:
       - uses: actions/checkout@v2
       - name: Set up QEMU
@@ -58,7 +59,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: Login to DockerHub
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -76,27 +77,28 @@ jobs:
           infra/scripts/download-maven-cache.sh \
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
-      - name: Build and push versioned images
+      - name: Build image
+        run: |
+          make build-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION} GITHUB_SHA=${GITHUB_SHA}
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
+      - name: Push versioned images
         env:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
         run: |
-          docker build --build-arg VERSION=$RELEASE_VERSION \
-            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} \
-            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
-            -t feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
-            -f infra/docker/${{ matrix.component }}/Dockerfile .
-          docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-          docker push feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-          
+          make push-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
-            docker tag feastdev/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/feast-${{ matrix.component }}:latest
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
-            docker push feastdev/feast-${{ matrix.component }}:latest
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
+            docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/feast-${{ matrix.component }}:latest
+            docker tag gcr.io/kf-feast/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
+            docker push feastdev/${{ matrix.component }}:latest
+            docker push gcr.io/kf-feast/${{ matrix.component }}:latest
           fi
 
   publish-helm-charts:
@@ -143,3 +145,6 @@ jobs:
           python3 -m pip install --user --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel
           python3 -m twine upload --verbose dist/*
+
+    # TODO(adchia): publish java sdk + helm charts once maven repo is updated + helm charts moved back in
+    # See https://github.com/feast-dev/feast-java/blob/master/.github/workflows/release.yml#L104

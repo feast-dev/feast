@@ -137,34 +137,48 @@ lint-go:
 
 # Docker
 
-build-push-docker:
-	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
-
-build-docker: build-ci-docker build-core-docker build-serving-docker
+build-docker: build-ci-docker build-feature-server-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
+# TODO(adchia): consider removing. This doesn't run successfully right now
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
 
-build-local-test-docker:
-	docker build -t feast:local -f infra/docker/tests/Dockerfile .
+# TODO(adchia): push to ECR as well, replacing . with _
+# e.g. export ECR_VERSION = $(VERSION) | sed 's/[.]/_/g'
+push-feature-server-aws-docker:
+	docker push $(REGISTRY)/feature-server-aws:$(VERSION)
 
-push-core-docker:
-	docker push $(REGISTRY)/feast-core:$(VERSION)
+build-feature-server-aws-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server-aws:$(VERSION) \
+		-t gcr.io/kf-feast/feature-server-aws:$(VERSION) \
+		-t gcr.io/kf-feast/feature-server-aws:$(GITHUB_SHA) \
+		-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile .
 
-push-serving-docker:
-	docker push $(REGISTRY)/feast-serving:$(VERSION)
+push-feature-transformation-server-docker:
+	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
+    docker push gcr.io/kf-feast/feature-transformation-server:$(VERSION)
 
-build-core-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+build-feature-transformation-server-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-transformation-server:$(VERSION) \
+		-t gcr.io/kf-feast/feature-transformation-server:$(VERSION) \
+		-t gcr.io/kf-feast/feature-transformation-server:$(GITHUB_SHA) \
+		-f sdk/python/feast/infra/transformation_servers/Dockerfile .
 
-build-serving-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+push-feature-server-java-docker:
+	docker push $(REGISTRY)/feature-server-java:$(VERSION)
+    docker push gcr.io/kf-feast/feature-server-java:$(VERSION)
+
+build-feature-server-java-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server-java:$(VERSION) \
+		-t gcr.io/kf-feast/feature-server-java:$(VERSION) \
+		-t gcr.io/kf-feast/feature-server-java:$(GITHUB_SHA) \
+		-f java/infra/docker/feature-server/Dockerfile .
 
 # Documentation
 
@@ -195,16 +209,3 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
-
-
-# Java Docker
-
-build-push-java-docker:
-	@$(MAKE) build-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
-
-push-feature-server-java-docker:
-	docker push $(REGISTRY)/feature-server-java:$(VERSION)
-
-build-feature-server-java-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feature-server-java:$(VERSION) -f java/infra/docker/feature-server/Dockerfile .
