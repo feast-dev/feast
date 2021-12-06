@@ -79,7 +79,6 @@ def execute_redshift_statement_async(
     Returns: JSON response
 
     """
-
     try:
         return redshift_data_client.execute_statement(
             ClusterIdentifier=cluster_id, Database=database, DbUser=user, Sql=query,

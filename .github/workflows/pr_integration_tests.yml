@@ -128,6 +128,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"

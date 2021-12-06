@@ -17,7 +17,6 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     fs = environment.feature_store
     df, data_source = e2e_data_sources
-
     fv = driver_feature_view(
         name=f"test_consistency_{'with_inference' if infer_features else ''}",
         data_source=data_source,
