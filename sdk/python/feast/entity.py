@@ -28,7 +28,7 @@ from feast.value_type import ValueType
 
 class Entity:
     """
-    Represents a collection of entities and associated metadata.
+    Represents a collection of entities and associated metadata. Dummy Change
 
     Args:
         name: Name of the entity.
