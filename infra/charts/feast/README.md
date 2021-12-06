@@ -57,8 +57,8 @@ For more details, please see: https://docs.feast.dev/how-to-guides/running-feast
 | Repository | Name | Version |
 |------------|------|---------|
 | https://charts.helm.sh/stable | redis | 10.5.6 |
-| https://feast-helm-charts.storage.googleapis.com | feature-server(feature-server) | 0.15.0 |
-| https://feast-helm-charts.storage.googleapis.com | transformation-service(transformation-service) | 0.15.0 |
+| https://feast-helm-charts.storage.googleapis.com | feature-server(feature-server) | 0.101.0 |
+| https://feast-helm-charts.storage.googleapis.com | transformation-service(transformation-service) | 0.101.0 |
 
 ## Values
 
