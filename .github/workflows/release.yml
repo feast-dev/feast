@@ -79,7 +79,7 @@ jobs:
           --output-dir .
       - name: Build image
         run: |
-          make build-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION} GITHUB_SHA=${GITHUB_SHA}
+          make build-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
         env:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
@@ -90,15 +90,13 @@ jobs:
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
         run: |
-          make push-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION} GITHUB_SHA=${GITHUB_SHA}
+          make push-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
 
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
             docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/feast-${{ matrix.component }}:latest
-            docker tag gcr.io/kf-feast/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
             docker push feastdev/${{ matrix.component }}:latest
-            docker push gcr.io/kf-feast/${{ matrix.component }}:latest
           fi
 
   publish-helm-charts:
@@ -146,5 +144,5 @@ jobs:
           python3 setup.py sdist bdist_wheel
           python3 -m twine upload --verbose dist/*
 
-    # TODO(adchia): publish java sdk + helm charts once maven repo is updated + helm charts moved back in
+    # TODO(adchia): publish java sdk once maven repo is updated
     # See https://github.com/feast-dev/feast-java/blob/master/.github/workflows/release.yml#L104

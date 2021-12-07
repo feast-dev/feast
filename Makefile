@@ -156,8 +156,6 @@ build-feature-server-aws-docker:
 	ECR_VERSION=`echo "$(VERSION)" | sed 's/[.]/_/g'`
 	docker build --build-arg VERSION=${ECR_VERSION} \
 		-t $(REGISTRY)/feature-server-aws:${ECR_VERSION} \
-		-t gcr.io/kf-feast/feature-server-aws:${ECR_VERSION} \
-		-t gcr.io/kf-feast/feature-server-aws:$(GITHUB_SHA) \
 		-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile .
 
 push-feature-transformation-server-docker:
@@ -166,8 +164,6 @@ push-feature-transformation-server-docker:
 build-feature-transformation-server-docker:
 	docker build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-transformation-server:$(VERSION) \
-		-t gcr.io/kf-feast/feature-transformation-server:$(VERSION) \
-		-t gcr.io/kf-feast/feature-transformation-server:$(GITHUB_SHA) \
 		-f sdk/python/feast/infra/transformation_servers/Dockerfile .
 
 push-feature-server-java-docker:
@@ -176,8 +172,6 @@ push-feature-server-java-docker:
 build-feature-server-java-docker:
 	docker build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
-		-t gcr.io/kf-feast/feature-server-java:$(VERSION) \
-		-t gcr.io/kf-feast/feature-server-java:$(GITHUB_SHA) \
 		-f java/infra/docker/feature-server/Dockerfile .
 
 # Documentation
