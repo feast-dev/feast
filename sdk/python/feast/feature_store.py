@@ -332,12 +332,8 @@ class FeatureStore:
             """
         return self._registry.delete_feature_service(name, self.project)
 
-    def _get_features(
-        self,
-        features: Optional[Union[List[str], FeatureService]],
-        feature_refs: Optional[List[str]],
-    ) -> List[str]:
-        _features = features or feature_refs
+    def _get_features(self, features: Union[List[str], FeatureService],) -> List[str]:
+        _features = features
         if not _features:
             raise ValueError("No features specified for retrieval")
 
@@ -587,8 +583,7 @@ class FeatureStore:
     def get_historical_features(
         self,
         entity_df: Union[pd.DataFrame, str],
-        features: Optional[Union[List[str], FeatureService]] = None,
-        feature_refs: Optional[List[str]] = None,
+        features: Union[List[str], FeatureService],
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
@@ -647,23 +642,8 @@ class FeatureStore:
             ... )
             >>> feature_data = retrieval_job.to_df()
         """
-        if (features is not None and feature_refs is not None) or (
-            features is None and feature_refs is None
-        ):
-            raise ValueError(
-                "You must specify exactly one of features and feature_refs."
-            )
 
-        if feature_refs:
-            warnings.warn(
-                (
-                    "The argument 'feature_refs' is being deprecated. Please use 'features' "
-                    "instead. Feast 0.13 and onwards will not support the argument 'feature_refs'."
-                ),
-                DeprecationWarning,
-            )
-
-        _feature_refs = self._get_features(features, feature_refs)
+        _feature_refs = self._get_features(features)
         (
             all_feature_views,
             all_request_feature_views,
@@ -930,7 +910,6 @@ class FeatureStore:
         self,
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
-        feature_refs: Optional[List[str]] = None,
         full_feature_names: bool = False,
     ) -> OnlineResponse:
         """
@@ -974,7 +953,7 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
-        _feature_refs = self._get_features(features, feature_refs)
+        _feature_refs = self._get_features(features)
         (
             requested_feature_views,
             requested_request_feature_views,
