@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  build-docker-image:
+  build-lambda-docker-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -46,7 +46,7 @@ jobs:
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
-    needs: build-docker-image
+    needs: build-lambda-docker-image
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -113,7 +113,7 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test python
         env:
-          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
+          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-lambda-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"
           IS_TEST: "True"
         run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
@@ -128,14 +128,14 @@ jobs:
           verbose: true
       - name: Benchmark python
         env:
-          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
+          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-lambda-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"
           IS_TEST: "True"
         run: pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data --durations=5
       - name: Upload Benchmark Artifact to S3
         run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmarks
 
-  build-publish-docker-images:
+  build-all-docker-images:
     runs-on: ubuntu-latest
     strategy:
       matrix:
