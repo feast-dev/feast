@@ -117,16 +117,12 @@ CI_REQUIRED = [
     "pre-commit",
     "assertpy==1.1",
     "pip-tools",
-    *GCP_REQUIRED,
-    *REDIS_REQUIRED,
-    *AWS_REQUIRED,
-]
+] + GCP_REQUIRED + REDIS_REQUIRED + AWS_REQUIRED
 
 DEV_REQUIRED = [
     "mypy-protobuf==1.*",
     "grpcio-testing==1.*",
-    *CI_REQUIRED,
-]
+] + CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
