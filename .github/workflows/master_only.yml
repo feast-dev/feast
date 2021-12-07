@@ -171,6 +171,3 @@ jobs:
       - name: Build image
         run: |
           make build-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
-      - name: Push versioned images
-        run: |
-          make push-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
