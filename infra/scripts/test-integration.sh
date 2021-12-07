@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-python -m pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade pip setuptools wheel pip-tools
 make install-python
 python -m pip install -qr tests/requirements.txt
 
