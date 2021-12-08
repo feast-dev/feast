@@ -137,34 +137,42 @@ lint-go:
 
 # Docker
 
-build-push-docker:
-	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
-
-build-docker: build-ci-docker build-core-docker build-serving-docker
+build-docker: build-ci-docker build-feature-server-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
+# TODO(adchia): consider removing. This doesn't run successfully right now
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
 
-build-local-test-docker:
-	docker build -t feast:local -f infra/docker/tests/Dockerfile .
+# Note, we use underscores instead of periods in the version name since ECR doesn't support periods. We automatically
+# pull from Docker Hub and push to ECR.
+push-feature-server-aws-docker:
+	ECR_VERSION=`echo "$(VERSION)" | sed 's/[.]/_/g'`
+	docker push $(REGISTRY)/feature-server-aws:$(ECR_VERSION)
 
-push-core-docker:
-	docker push $(REGISTRY)/feast-core:$(VERSION)
+build-feature-server-aws-docker:
+	ECR_VERSION=`echo "$(VERSION)" | sed 's/[.]/_/g'`
+	docker build --build-arg VERSION=${ECR_VERSION} \
+		-t $(REGISTRY)/feature-server-aws:${ECR_VERSION} \
+		-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile .
 
-push-serving-docker:
-	docker push $(REGISTRY)/feast-serving:$(VERSION)
+push-feature-transformation-server-docker:
+	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
 
-build-core-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+build-feature-transformation-server-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-transformation-server:$(VERSION) \
+		-f sdk/python/feast/infra/transformation_servers/Dockerfile .
 
-build-serving-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+push-feature-server-java-docker:
+	docker push $(REGISTRY)/feature-server-java:$(VERSION)
+
+build-feature-server-java-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server-java:$(VERSION) \
+		-f java/infra/docker/feature-server/Dockerfile .
 
 # Documentation
 
@@ -195,16 +203,3 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
-
-
-# Java Docker
-
-build-push-java-docker:
-	@$(MAKE) build-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
-
-push-feature-server-java-docker:
-	docker push $(REGISTRY)/feature-server-java:$(VERSION)
-
-build-feature-server-java-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feature-server-java:$(VERSION) -f java/infra/docker/feature-server/Dockerfile .

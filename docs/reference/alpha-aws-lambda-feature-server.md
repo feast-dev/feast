@@ -114,7 +114,7 @@ After `feature_store.yaml` has been modified as described in the previous sectio
 
 ```bash
 $ feast apply
-10/07/2021 03:57:26 PM INFO:Pulling remote image feastdev/feature-server:aws:
+10/07/2021 03:57:26 PM INFO:Pulling remote image feastdev/feature-server-aws:aws:
 10/07/2021 03:57:28 PM INFO:Creating remote ECR repository feast-python-server-key_shark-0_13_1_dev23_gb3c08320:
 10/07/2021 03:57:29 PM INFO:Pushing local image to remote 402087665549.dkr.ecr.us-west-2.amazonaws.com/feast-python-server-key_shark-0_13_1_dev23_gb3c08320:0_13_1_dev23_gb3c08320:
 10/07/2021 03:58:44 PM INFO:Deploying feature server...
