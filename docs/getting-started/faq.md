@@ -16,6 +16,14 @@ Feature tables from Feast 0.9 have been renamed to feature views in Feast 0.10+.
 
 No, there are [feature views without entities](concepts/feature-view.md#feature-views-without-entities).
 
+### What is the difference between data sources and the offline store?
+
+The data source itself defines the underlying data warehouse table in which the features are stored. The offline store interface defines the APIs required to make an arbitrary compute layer work for Feast (e.g. pulling features given a set of feature views from their sources, exporting the data set results to different formats). Please see [data sources](concepts/data-source.md) and [offline store](architecture-and-components/offline-store.md) for more details.
+
+### Is it possible to have offline and online stores from different providers?
+
+Yes, this is possible. For example, you can use BigQuery as an offline store and Redis as an online store.
+
 ## Functionality
 
 ### Does Feast provide security or access control?
@@ -56,6 +64,10 @@ The list of supported offline and online stores can be found [here](../reference
 ### How can I add a custom online store?
 
 Please follow the instructions [here](../how-to-guides/adding-support-for-a-new-online-store.md).
+
+### Can the same storage engine be used for both the offline and online store?
+
+Yes. For example, the Postgres [connector](https://github.com/nossrannug/feast-postgres) can be used as both an offline and online store.
 
 ### Does Feast support S3 as a data source?
 
