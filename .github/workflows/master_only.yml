@@ -170,4 +170,4 @@ jobs:
           --output-dir .
       - name: Build image
         run: |
-          make build-${{ matrix.component }} REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
