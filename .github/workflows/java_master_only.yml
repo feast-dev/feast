@@ -1,4 +1,4 @@
-name: master only
+name: java-integration-tests-and-build
 
 on:
   push:
