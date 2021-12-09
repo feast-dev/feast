@@ -48,7 +48,7 @@ jobs:
     needs: get-version
     strategy:
       matrix:
-        component: [feature-server-aws, feature-server-java, feature-transformation-server]
+        component: [feature-server-python-aws, feature-server-java, feature-transformation-server]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev
