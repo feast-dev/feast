@@ -404,7 +404,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "INTEGER": ValueType.INT64,
         "INT64": ValueType.INT64,
         "STRING": ValueType.STRING,
-        "FLOAT": ValueType.DOUBLE,
+        "FLOAT": ValueType.FLOAT,
         "FLOAT64": ValueType.DOUBLE,
         "BYTES": ValueType.BYTES,
         "BOOL": ValueType.BOOL,
