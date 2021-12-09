@@ -16,33 +16,22 @@
  */
 package feast.serving.controller;
 
-import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
-import feast.serving.config.FeastProperties;
+import feast.serving.config.ApplicationProperties;
 import feast.serving.exception.SpecRetrievalException;
 import feast.serving.interceptors.GrpcMonitoringContext;
-import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import io.opentracing.contrib.grpc.TracingServerInterceptor;
-import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 
-@GrpcService(
-    interceptors = {
-      TracingServerInterceptor.class,
-      GrpcMessageInterceptor.class,
-      GrpcMonitoringInterceptor.class
-    })
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
@@ -51,11 +40,12 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   private final String version;
   private final Tracer tracer;
 
-  @Autowired
   public ServingServiceGRpcController(
-      ServingServiceV2 servingServiceV2, FeastProperties feastProperties, Tracer tracer) {
+      ServingServiceV2 servingServiceV2,
+      ApplicationProperties applicationProperties,
+      Tracer tracer) {
     this.servingServiceV2 = servingServiceV2;
-    this.version = feastProperties.getVersion();
+    this.version = applicationProperties.getFeast().getVersion();
     this.tracer = tracer;
   }
 

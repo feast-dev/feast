@@ -16,6 +16,8 @@
  */
 package feast.serving.config;
 
+import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
 import feast.serving.registry.*;
 import feast.serving.service.OnlineServingServiceV2;
 import feast.serving.service.OnlineTransformationService;
@@ -24,18 +26,17 @@ import feast.storage.api.retriever.OnlineRetrieverV2;
 import feast.storage.connectors.redis.retriever.*;
 import io.opentracing.Tracer;
 import org.slf4j.Logger;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
-public class ServingServiceConfigV2 {
+public class ServingServiceConfigV2 extends AbstractModule {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ServingServiceConfigV2.class);
 
-  @Bean
+  @Provides
   public ServingServiceV2 registryBasedServingServiceV2(
-      FeastProperties feastProperties, RegistryRepository registryRepository, Tracer tracer) {
+      ApplicationProperties applicationProperties,
+      RegistryRepository registryRepository,
+      Tracer tracer) {
     final ServingServiceV2 servingService;
-    final FeastProperties.Store store = feastProperties.getActiveStore();
+    final ApplicationProperties.Store store = applicationProperties.getFeast().getActiveStore();
 
     OnlineRetrieverV2 retrieverV2;
     // TODO: Support more store types, and potentially use a plugin model here.
@@ -59,7 +60,8 @@ public class ServingServiceConfigV2 {
 
     log.info("Working Directory = " + System.getProperty("user.dir"));
 
-    final String transformationServiceEndpoint = feastProperties.getTransformationServiceEndpoint();
+    final String transformationServiceEndpoint =
+        applicationProperties.getTransformationServiceEndpoint();
     final OnlineTransformationService onlineTransformationService =
         new OnlineTransformationService(transformationServiceEndpoint, registryRepository);
 

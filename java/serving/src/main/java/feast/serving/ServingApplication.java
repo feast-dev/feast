@@ -16,7 +16,7 @@
  */
 package feast.serving;
 
-import feast.serving.config.FeastProperties;
+import feast.serving.config.ApplicationProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -30,7 +30,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
       DataSourceTransactionManagerAutoConfiguration.class,
       HibernateJpaAutoConfiguration.class
     })
-@EnableConfigurationProperties(FeastProperties.class)
+@EnableConfigurationProperties(ApplicationProperties.class)
 public class ServingApplication {
   public static void main(String[] args) {
     SpringApplication.run(ServingApplication.class, args);

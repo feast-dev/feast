@@ -24,7 +24,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto.Value;
-import feast.serving.config.FeastProperties;
+import feast.serving.config.ApplicationProperties;
 import feast.serving.service.ServingServiceV2;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -74,9 +74,9 @@ public class ServingServiceGRpcControllerTest {
 
   private ServingServiceGRpcController getServingServiceGRpcController(boolean enableAuth) {
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
-    FeastProperties feastProperties = new FeastProperties();
+    ApplicationProperties applicationProperties = new ApplicationProperties();
 
-    return new ServingServiceGRpcController(mockServingServiceV2, feastProperties, tracer);
+    return new ServingServiceGRpcController(mockServingServiceV2, applicationProperties, tracer);
   }
 
   @Test

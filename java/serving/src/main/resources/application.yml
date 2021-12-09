@@ -1,10 +1,10 @@
 feast:
-  registry: ""
-  registry-refresh-interval: 0
+  registry: "prompt_dory/data/registry.db"
+  registryRefreshInterval: 0
 
   # Indicates the active store. Only a single store in the last can be active at one time. In the future this key
   # will be deprecated in order to allow multiple stores to be served from a single serving instance
-  active_store: online
+  activeStore: online
   
   # List of store configurations
   stores:
@@ -29,9 +29,9 @@ feast:
     enabled: false
     # Only Jaeger tracer is supported currently
     # https://opentracing.io/docs/supported-tracers/
-    tracer-name: jaeger
+    tracerName: jaeger
     # The service name identifier for the tracing data
-    service-name: feast_serving
+    serviceName: feast_serving
 
   logging:
     # Audit logging provides a machine readable structured JSON log that can give better 
@@ -54,14 +54,11 @@ grpc:
     # The port number Feast Serving GRPC service should listen on
     # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
     # which defaults to port 6565
-    port: ${GRPC_PORT:6566}
-    security:
-      enabled: false
-      certificateChain: server.crt
-      privateKey: server.key
+    port: 6566
 
-server:
-  # The port number on which the Tomcat webserver that serves REST API endpoints should listen
-  # It is set by default to 8081 so it does not conflict with Tomcat webserver on Feast Core
-  # if both Feast Core and Serving are running on the same machine
-  port: ${SERVER_PORT:8081}
+rest:
+  server:
+    # The port number on which the Tomcat webserver that serves REST API endpoints should listen
+    # It is set by default to 8081 so it does not conflict with Tomcat webserver on Feast Core
+    # if both Feast Core and Serving are running on the same machine
+    port: 8081
