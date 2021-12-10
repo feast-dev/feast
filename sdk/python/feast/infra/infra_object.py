@@ -16,8 +16,8 @@ from dataclasses import dataclass, field
 from typing import Any, List
 
 from feast.importer import get_class_from_type
-from feast.protos.feast.core.InfraObjects_pb2 import Infra as InfraProto
-from feast.protos.feast.core.InfraObjects_pb2 import InfraObject as InfraObjectProto
+from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
+from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 
 
 class InfraObject(ABC):

@@ -18,7 +18,7 @@ syntax = "proto3";
 
 package feast.core;
 option java_package = "feast.proto.core";
-option java_outer_classname = "InfraObjectsProto";
+option java_outer_classname = "InfraObjectProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 // Represents a set of infrastructure objects managed by Feast
