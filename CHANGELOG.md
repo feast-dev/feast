@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.16.1](https://github.com/feast-dev/feast/tree/v0.16.1) (2021-12-10)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.16.0...v0.16.1)
+
+**Fixed bugs:**
+
+- Bump log4j-api from 2.13.2 to 2.15.0 in /java [\#2133](https://github.com/feast-dev/feast/pull/2133) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Fix release workflow to use the new GCP action [\#2132](https://github.com/feast-dev/feast/pull/2132) ([adchia](https://github.com/adchia))
+- Fix Makefile to properly create the ECR\_VERSION [\#2123](https://github.com/feast-dev/feast/pull/2123) ([adchia](https://github.com/adchia))
+
+**Merged pull requests:**
+
+- Updating lambda docker image to feature-server-python-aws [\#2130](https://github.com/feast-dev/feast/pull/2130) ([adchia](https://github.com/adchia))
+- Fix README to reflect new integration test suites [\#2124](https://github.com/feast-dev/feast/pull/2124) ([adchia](https://github.com/adchia))
+- Remove  argument `feature_refs` [\#2115](https://github.com/feast-dev/feast/pull/2115) ([judahrand](https://github.com/judahrand))
+
 ## [v0.16.0](https://github.com/feast-dev/feast/tree/v0.16.0) (2021-12-08)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.15.1...v0.16.0)
@@ -15,6 +31,7 @@
 - requested\_features are not passed to online\_read\(\) from passthrough\_provider [\#2106](https://github.com/feast-dev/feast/issues/2106)
 - `feast apply` broken with 0.15.\* if the registry already exists [\#2086](https://github.com/feast-dev/feast/issues/2086)
 - Inconsistent logic with `on_demand_feature_views` [\#2072](https://github.com/feast-dev/feast/issues/2072)
+- Fix release workflow to pass the python version and docker build targets [\#2122](https://github.com/feast-dev/feast/pull/2122) ([adchia](https://github.com/adchia))
 - requested\_features is passed to online\_read from passthrough\_provider [\#2107](https://github.com/feast-dev/feast/pull/2107) ([aurobindoc](https://github.com/aurobindoc))
 - Don't materialize FeatureViews where `online is False` [\#2101](https://github.com/feast-dev/feast/pull/2101) ([judahrand](https://github.com/judahrand))
 - Have apply\_total use the repo\_config that's passed in as a parameter \(makes it more compatible with custom wrapper code\) [\#2099](https://github.com/feast-dev/feast/pull/2099) ([mavysavydav](https://github.com/mavysavydav))
@@ -41,6 +58,7 @@
 
 **Merged pull requests:**
 
+- Add changelog for v0.16.0 [\#2120](https://github.com/feast-dev/feast/pull/2120) ([adchia](https://github.com/adchia))
 - Update FAQ [\#2118](https://github.com/feast-dev/feast/pull/2118) ([felixwang9817](https://github.com/felixwang9817))
 - Move helm chart back to main repo [\#2113](https://github.com/feast-dev/feast/pull/2113) ([pyalex](https://github.com/pyalex))
 - Set package long description encoding to UTF-8 [\#2111](https://github.com/feast-dev/feast/pull/2111) ([danilopeixoto](https://github.com/danilopeixoto))
@@ -81,10 +99,6 @@
 - GitBook: \[\#1\] Plugin standards documentation [\#2011](https://github.com/feast-dev/feast/pull/2011) ([felixwang9817](https://github.com/felixwang9817))
 - Add changelog for v0.15.0 [\#2006](https://github.com/feast-dev/feast/pull/2006) ([adchia](https://github.com/adchia))
 - Add integration tests for AWS Lambda feature server [\#2001](https://github.com/feast-dev/feast/pull/2001) ([tsotnet](https://github.com/tsotnet))
-- Moving Feast Java back into main repo under java/ package [\#1997](https://github.com/feast-dev/feast/pull/1997) ([adchia](https://github.com/adchia))
-- Fix protobuf version conflict in \[gcp\] and \[ci\] packages [\#1992](https://github.com/feast-dev/feast/pull/1992) ([ysk24ok](https://github.com/ysk24ok))
-- Improve aws lambda deployment \(logging, idempotency, etc\) [\#1985](https://github.com/feast-dev/feast/pull/1985) ([tsotnet](https://github.com/tsotnet))
-- Extend context for usage statistics collection & add latencies for performance analysis [\#1983](https://github.com/feast-dev/feast/pull/1983) ([pyalex](https://github.com/pyalex))
 
 ## [v0.15.1](https://github.com/feast-dev/feast/tree/v0.15.1) (2021-11-13)
 
