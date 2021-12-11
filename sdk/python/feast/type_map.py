@@ -390,7 +390,7 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
     if pa_type_as_str.startswith("list<item: "):
         is_list = True
-        pa_type_as_str = pa_type_as_str.replace("list<item: ").replace(">", "")
+        pa_type_as_str = pa_type_as_str.replace("list<item: ", "").replace(">", "")
 
     if pa_type_as_str.startswith("timestamp"):
         value_type = ValueType.UNIX_TIMESTAMP
@@ -417,7 +417,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
     is_list = False
     if bq_type_as_str.startswith("ARRAY<"):
         is_list = True
-        bq_type_as_str = bq_type_as_str.replace("ARRAY<").replace(">", "")
+        bq_type_as_str = bq_type_as_str.replace("ARRAY<", "").replace(">", "")
 
     type_map: Dict[str, ValueType] = {
         "DATE": ValueType.UNIX_TIMESTAMP,
