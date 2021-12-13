@@ -385,7 +385,7 @@ def _upload_entity_df_and_get_entity_schema(
 ) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
 
-    if type(entity_df) is str:
+    if isinstance(entity_df, str):
         job = client.query(f"CREATE TABLE {table_name} AS ({entity_df})")
         block_until_done(client, job)
 
