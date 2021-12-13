@@ -15,6 +15,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -101,7 +102,6 @@ class Registry:
     cached_registry_proto: Optional[RegistryProto] = None
     cached_registry_proto_created: Optional[datetime] = None
     cached_registry_proto_ttl: timedelta
-    cache_being_updated: bool = False
 
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
@@ -114,6 +114,8 @@ class Registry:
             repo_path: Path to the base of the Feast repository
             or where it will be created if it does not exist yet.
         """
+
+        self._refresh_lock = Lock()
 
         if registry_config:
             registry_store_type = registry_config.registry_store_type
@@ -325,6 +327,7 @@ class Registry:
         Args:
             name: Name of feature service
             project: Feast project that this feature service belongs to
+            allow_cache: Whether to allow returning this feature service from a cached registry
 
         Returns:
             Returns either the specified feature service, or raises an exception if
@@ -347,6 +350,7 @@ class Registry:
         Args:
             name: Name of entity
             project: Feast project that this entity belongs to
+            allow_cache: Whether to allow returning this entity from a cached registry
 
         Returns:
             Returns either the specified entity, or raises an exception if
@@ -419,8 +423,8 @@ class Registry:
         Retrieve a list of on demand feature views from the registry
 
         Args:
-            allow_cache: Whether to allow returning on demand feature views from a cached registry
             project: Filter on demand feature views based on project name
+            allow_cache: Whether to allow returning on demand feature views from a cached registry
 
         Returns:
             List of on demand feature views
@@ -733,31 +737,31 @@ class Registry:
 
         Returns: Returns a RegistryProto object which represents the state of the registry
         """
-        expired = (
-            self.cached_registry_proto is None
-            or self.cached_registry_proto_created is None
-        ) or (
-            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
-            and (
-                datetime.now()
-                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
+        with self._refresh_lock:
+            expired = (
+                self.cached_registry_proto is None
+                or self.cached_registry_proto_created is None
+            ) or (
+                self.cached_registry_proto_ttl.total_seconds()
+                > 0  # 0 ttl means infinity
+                and (
+                    datetime.now()
+                    > (
+                        self.cached_registry_proto_created
+                        + self.cached_registry_proto_ttl
+                    )
+                )
             )
-        )
 
-        if allow_cache and (not expired or self.cache_being_updated):
-            assert isinstance(self.cached_registry_proto, RegistryProto)
-            return self.cached_registry_proto
+            if allow_cache and not expired:
+                assert isinstance(self.cached_registry_proto, RegistryProto)
+                return self.cached_registry_proto
 
-        try:
-            self.cache_being_updated = True
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.now()
-        except Exception as e:
-            raise e
-        finally:
-            self.cache_being_updated = False
-        return registry_proto
+
+            return registry_proto
 
     def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):
         name_to_fv_protos = self._existing_feature_view_names_to_fvs()
