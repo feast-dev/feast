@@ -18,7 +18,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-import pytz
 from pydantic import StrictStr
 from pydantic.schema import Literal
 
@@ -33,6 +32,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import log_exceptions_and_usage, tracing_span
+from feast.utils import to_naive_utc
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -95,9 +95,9 @@ class SqliteOnlineStore(OnlineStore):
         with conn:
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(entity_key)
-                timestamp = _to_naive_utc(timestamp)
+                timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
-                    created_ts = _to_naive_utc(created_ts)
+                    created_ts = to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
                     conn.execute(
@@ -220,13 +220,6 @@ def _initialize_conn(db_path: str):
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
-
-
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
 
 
 class SqliteTable(InfraObject):

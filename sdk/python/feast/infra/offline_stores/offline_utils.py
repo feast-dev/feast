@@ -17,10 +17,10 @@ from feast.errors import (
     FeastModuleImportError,
 )
 from feast.feature_view import FeatureView
-from feast.infra.local import _to_naive_utc
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
 from feast.registry import Registry
+from feast.utils import to_naive_utc
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -136,11 +136,11 @@ def get_feature_view_query_context(
 
         min_event_timestamp = None
         if feature_view.ttl:
-            min_event_timestamp = _to_naive_utc(
+            min_event_timestamp = to_naive_utc(
                 entity_df_timestamp_range[0] - feature_view.ttl
             ).isoformat()
 
-        max_event_timestamp = _to_naive_utc(entity_df_timestamp_range[1]).isoformat()
+        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
 
         context = FeatureViewQueryContext(
             name=feature_view.projection.name_to_use(),
