@@ -146,16 +146,12 @@ push-ci-docker:
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
 
-# Note, we use underscores instead of periods in the version name since ECR doesn't support periods. We automatically
-# pull from Docker Hub and push to ECR.
 push-feature-server-python-aws-docker:
-	ECR_VERSION=$(shell echo "$(VERSION)" | sed 's/[.]/_/g'); \
-		docker push $(REGISTRY)/feature-server-python-aws:$$ECR_VERSION
+		docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
 
 build-feature-server-python-aws-docker:
-	ECR_VERSION=$(shell echo "$(VERSION)" | sed 's/[.]/_/g'); \
-		docker build --build-arg VERSION=$$ECR_VERSION \
-			-t $(REGISTRY)/feature-server-python-aws:$$ECR_VERSION \
+		docker build --build-arg VERSION=$$VERSION \
+			-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
 			-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile .
 
 push-feature-transformation-server-docker:
