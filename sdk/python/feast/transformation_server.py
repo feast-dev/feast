@@ -47,7 +47,7 @@ class TransformationServer(TransformationServiceServicer):
 
         df = pa.ipc.open_file(request.transformation_input.arrow_value).read_pandas()
 
-        result_df = odfv.get_transformed_features_df(df)
+        result_df = odfv.get_transformed_features_df(df, True)
         result_arrow = pa.Table.from_pandas(result_df)
         sink = pa.BufferOutputStream()
         writer = pa.ipc.new_file(sink, result_arrow.schema)
