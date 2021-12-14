@@ -21,6 +21,8 @@ option java_package = "feast.proto.core";
 option java_outer_classname = "DatastoreTableProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
+import "google/protobuf/wrappers.proto";
+
 // Represents a Datastore table
 message DatastoreTable {
     // Feast project of the table
@@ -29,15 +31,9 @@ message DatastoreTable {
     // Name of the table
     string name = 2;
 
-    // GCP project id, which can be null
-    oneof project_id {
-        bool project_id_null = 3;
-        string project_id_value = 4;
-    }
+    // GCP project id
+    google.protobuf.StringValue project_id = 3;
 
-    // Datastore namespace, which can be null
-    oneof namespace {
-        bool namespace_null = 5;
-        string namespace_value = 6;
-    }
+    // Datastore namespace
+    google.protobuf.StringValue namespace = 4;
 }

@@ -307,8 +307,8 @@ class DatastoreTable(InfraObject):
         self,
         project: str,
         name: str,
-        project_id: Optional[str],
-        namespace: Optional[str],
+        project_id: Optional[str] = None,
+        namespace: Optional[str] = None,
     ):
         self.project = project
         self.name = name
@@ -319,14 +319,10 @@ class DatastoreTable(InfraObject):
         datastore_table_proto = DatastoreTableProto()
         datastore_table_proto.project = self.project
         datastore_table_proto.name = self.name
-        if self.project_id is None:
-            datastore_table_proto.project_id_null = True
-        else:
-            datastore_table_proto.project_id_value = self.project_id
-        if self.namespace is None:
-            datastore_table_proto.namespace_null = True
-        else:
-            datastore_table_proto.namespace_value = self.namespace
+        if self.project_id:
+            datastore_table_proto.project_id.FromString(bytes(self.project_id, "utf-8"))
+        if self.namespace:
+            datastore_table_proto.namespace.FromString(bytes(self.namespace, "utf-8"))
 
         return InfraObjectProto(
             infra_object_class_type="feast.infra.online_stores.datastore.DatastoreTable",
@@ -335,23 +331,21 @@ class DatastoreTable(InfraObject):
 
     @staticmethod
     def from_proto(infra_object_proto: InfraObjectProto) -> Any:
-        project_id_value = (
-            None
-            if infra_object_proto.datastore_table.project_id_null
-            else infra_object_proto.datastore_table.project_id_value
-        )
-        namespace_value = (
-            None
-            if infra_object_proto.datastore_table.namespace_null
-            else infra_object_proto.datastore_table.namespace_value
-        )
-
-        return DatastoreTable(
+        datastore_table = DatastoreTable(
             project=infra_object_proto.datastore_table.project,
             name=infra_object_proto.datastore_table.name,
-            project_id=project_id_value,
-            namespace=namespace_value,
         )
+
+        if infra_object_proto.datastore_table.HasField("project_id"):
+            datastore_table.project_id = (
+                infra_object_proto.datastore_table.project_id.SerializeToString()
+            ).decode("utf-8")
+        if infra_object_proto.datastore_table.HasField("namespace"):
+            datastore_table.namespace = (
+                infra_object_proto.datastore_table.namespace.SerializeToString()
+            ).decode("utf-8")
+
+        return datastore_table
 
     def update(self):
         client = _initialize_client(self.project_id, self.namespace)
