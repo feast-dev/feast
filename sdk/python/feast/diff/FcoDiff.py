@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Set, Tuple, Union
+from typing import Any, List, Set, Tuple, Union, TypeVar
+from unittest.mock import Base
 
+from feast.base_feature_view import BaseFeatureView
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
@@ -43,67 +45,21 @@ class RegistryDiff:
         self.fco_diffs.append(fco_diff)
 
 
-def _tag_registry_entities_for_keep_delete(
-    existing_entities: Set[Entity], desired_entities: Set[Entity]
-) -> Tuple[Set[Entity], Set[Entity], Set[Entity]]:
-    existing_entity_names = {e.name for e in existing_entities}
-    desired_entity_names = {e.name for e in desired_entities}
+T = TypeVar('T', Entity, BaseFeatureView, FeatureService, FeatureTable)
 
-    entities_to_add = {
-        e for e in desired_entities if e.name not in existing_entity_names
+
+def tag_objects_for_keep_delete_add(
+    existing_objs: Set[T], desired_objs: Set[T]
+) -> Tuple[Set[T], Set[T], Set[T]]:
+    existing_obj_names = {e.name for e in existing_objs}
+    desired_obj_names = {e.name for e in desired_objs}
+
+    objs_to_add = {
+        e for e in desired_objs if e.name not in existing_obj_names
     }
-    entities_to_keep = {e for e in desired_entities if e.name in existing_entity_names}
-    entities_to_delete = {
-        e for e in existing_entities if e.name not in desired_entity_names
+    objs_to_keep = {e for e in desired_objs if e.name in existing_obj_names}
+    objs_to_delete = {
+        e for e in existing_objs if e.name not in desired_obj_names
     }
 
-    return entities_to_keep, entities_to_delete, entities_to_add
-
-
-def _tag_registry_views_for_keep_delete(
-    existing_views: Union[
-        Set[FeatureView], Set[RequestFeatureView], Set[OnDemandFeatureView]
-    ],
-    desired_views: Union[
-        Set[FeatureView], Set[RequestFeatureView], Set[OnDemandFeatureView]
-    ],
-) -> Tuple[
-    Set[Union[FeatureView, RequestFeatureView, OnDemandFeatureView]],
-    Set[Union[FeatureView, RequestFeatureView, OnDemandFeatureView]],
-    Set[Union[FeatureView, RequestFeatureView, OnDemandFeatureView]],
-]:
-    existing_view_names = {v.name for v in existing_views}
-    desired_view_names = {v.name for v in desired_views}
-
-    views_to_add = {v for v in desired_views if v.name not in existing_view_names}
-    views_to_keep = {v for v in desired_views if v.name in existing_view_names}
-    views_to_delete = {v for v in existing_views if v.name not in desired_view_names}
-    return views_to_keep, views_to_delete, views_to_add
-
-
-def _tag_registry_tables_for_keep_delete(
-    existing_tables: Set[FeatureTable], desired_tables: Set[FeatureTable]
-) -> Tuple[Set[FeatureTable], Set[FeatureTable], Set[FeatureTable]]:
-    existing_table_names = {v.name for v in existing_tables}
-    desired_table_names = {v.name for v in desired_tables}
-
-    tables_to_add = {t for t in desired_tables if t.name not in existing_table_names}
-    tables_to_keep = {t for t in desired_tables if t.name in existing_table_names}
-    tables_to_delete = {t for t in existing_tables if t.name not in desired_table_names}
-    return tables_to_keep, tables_to_delete, tables_to_add
-
-
-def _tag_registry_services_for_keep_delete(
-    existing_service: Set[FeatureService], desired_service: Set[FeatureService]
-) -> Tuple[Set[FeatureService], Set[FeatureService], Set[FeatureService]]:
-    existing_service_names = {v.name for v in existing_service}
-    desired_service_names = {v.name for v in desired_service}
-
-    services_to_add = {
-        s for s in desired_service if s.name not in existing_service_names
-    }
-    services_to_delete = {
-        s for s in existing_service if s.name not in desired_service_names
-    }
-    services_to_keep = {s for s in desired_service if s.name in existing_service_names}
-    return services_to_keep, services_to_delete, services_to_add
+    return objs_to_keep, objs_to_delete, objs_to_add

@@ -12,12 +12,7 @@ import click
 from click.exceptions import BadParameter
 
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import (
-    _tag_registry_entities_for_keep_delete,
-    _tag_registry_services_for_keep_delete,
-    _tag_registry_tables_for_keep_delete,
-    _tag_registry_views_for_keep_delete,
-)
+from feast.diff.FcoDiff import tag_objects_for_keep_delete_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
@@ -162,13 +157,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         entities_to_keep,
         entities_to_delete,
         entities_to_add,
-    ) = _tag_registry_entities_for_keep_delete(
+    ) = tag_objects_for_keep_delete_add(
         set(registry.list_entities(project=project)), repo.entities
     )
     # TODO(achals): This code path should be refactored to handle added & kept entities separately.
     entities_to_keep = entities_to_keep.union(entities_to_add)
 
-    views = _tag_registry_views_for_keep_delete(
+    views = tag_objects_for_keep_delete_add(
         set(registry.list_feature_views(project=project)), repo.feature_views
     )
     views_to_keep, views_to_delete, views_to_add = (
@@ -177,7 +172,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         cast(Set[FeatureView], views[2]),
     )
 
-    request_views = _tag_registry_views_for_keep_delete(
+    request_views = tag_objects_for_keep_delete_add(
         set(registry.list_request_feature_views(project=project)),
         repo.request_feature_views,
     )
@@ -201,7 +196,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         *request_views_to_delete,
     }
 
-    odfvs = _tag_registry_views_for_keep_delete(
+    odfvs = tag_objects_for_keep_delete_add(
         set(registry.list_on_demand_feature_views(project=project)),
         repo.on_demand_feature_views,
     )
@@ -216,7 +211,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         tables_to_keep,
         tables_to_delete,
         tables_to_add,
-    ) = _tag_registry_tables_for_keep_delete(
+    ) = tag_objects_for_keep_delete_add(
         set(registry.list_feature_tables(project=project)), repo.feature_tables
     )
     tables_to_keep = tables_to_keep.union(tables_to_add)
@@ -225,7 +220,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         services_to_keep,
         services_to_delete,
         services_to_add,
-    ) = _tag_registry_services_for_keep_delete(
+    ) = tag_objects_for_keep_delete_add(
         set(registry.list_feature_services(project=project)), repo.feature_services
     )
     services_to_keep = services_to_keep.union(services_to_add)

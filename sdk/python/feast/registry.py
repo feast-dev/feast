@@ -28,7 +28,7 @@ from feast.diff.FcoDiff import (
     FcoDiff,
     RegistryDiff,
     TransitionType,
-    _tag_registry_entities_for_keep_delete,
+    tag_objects_for_keep_delete_add,
 )
 from feast.entity import Entity
 from feast.errors import (
@@ -151,7 +151,7 @@ class Registry:
             entities_to_keep,
             entities_to_delete,
             entities_to_add,
-        ) = _tag_registry_entities_for_keep_delete(
+        ) = tag_objects_for_keep_delete_add(
             set(current_registry.list_entities(project=project, allow_cache=True)),
             set(new_registry.list_entities(project=project, allow_cache=True)),
         )
