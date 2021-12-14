@@ -142,7 +142,7 @@ class FeatureView(BaseFeatureView):
 
     # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
-        return hash(self.name)
+        return super(FeatureView, self).__hash__()
 
     def __copy__(self):
         fv = FeatureView(

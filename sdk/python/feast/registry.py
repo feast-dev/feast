@@ -115,7 +115,7 @@ class Registry:
             or where it will be created if it does not exist yet.
         """
 
-        if registry_config and repo_path:
+        if registry_config:
             registry_store_type = registry_config.registry_store_type
             registry_path = registry_config.path
             if registry_store_type is None:
@@ -135,7 +135,8 @@ class Registry:
         registry = cls(None, None)
         registry.cached_registry_proto = regsitry_proto
         registry.cached_registry_proto_created = datetime.utcnow()
-        registry.cached_registry_proto_ttl = timedelta()
+        registry.cached_registry_proto_ttl = timedelta(days=1)
+        registry.cache_being_updated = True
         return registry
 
     # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
@@ -801,6 +802,7 @@ class Registry:
                 > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
             )
         )
+
         if allow_cache and (not expired or self.cache_being_updated):
             assert isinstance(self.cached_registry_proto, RegistryProto)
             return self.cached_registry_proto
