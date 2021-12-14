@@ -296,12 +296,14 @@ class DatastoreTable(InfraObject):
         name: The name of the table.
         project_id (optional): The GCP project id.
         namespace (optional): Datastore namespace.
+        client: Datastore client.
     """
 
     project: str
     name: str
     project_id: Optional[str]
     namespace: Optional[str]
+    client: datastore.Client
 
     def __init__(
         self,
@@ -314,6 +316,7 @@ class DatastoreTable(InfraObject):
         self.name = name
         self.project_id = project_id
         self.namespace = namespace
+        self.client = _initialize_client(self.project_id, self.namespace)
 
     def to_proto(self) -> InfraObjectProto:
         datastore_table_proto = DatastoreTableProto()
@@ -348,18 +351,16 @@ class DatastoreTable(InfraObject):
         return datastore_table
 
     def update(self):
-        client = _initialize_client(self.project_id, self.namespace)
-        key = client.key("Project", self.project, "Table", self.name)
+        key = self.client.key("Project", self.project, "Table", self.name)
         entity = datastore.Entity(
             key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
         )
         entity.update({"created_ts": datetime.utcnow()})
-        client.put(entity)
+        self.client.put(entity)
 
     def teardown(self):
-        client = _initialize_client(self.project_id, self.namespace)
-        key = client.key("Project", self.project, "Table", self.name)
-        _delete_all_values(client, key)
+        key = self.client.key("Project", self.project, "Table", self.name)
+        _delete_all_values(self.client, key)
 
         # Delete the table metadata datastore entity
-        client.delete(key)
+        self.client.delete(key)
