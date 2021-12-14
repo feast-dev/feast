@@ -26,13 +26,22 @@ jobs:
       - name: Set ECR image tag
         id: image-tag
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        # Ignore the failure of a step and avoid terminating the job.
-        continue-on-error: true
+      - name: Cache Public ECR Image
+        id: lambda_python_3_9
+        uses: actions/cache@v2
         with:
-          key: docker-cache-{hash}
-          restore-keys: |
-            docker-cache-
+          path: ~/cache
+          key: lambda_python_3_9
+      - name: Handle Cache Miss (pull public ECR image & save it to tar file)
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/cache
+          docker pull public.ecr.aws/lambda/python:3.9
+          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+      - name: Handle Cache Hit (load docker image from tar file)
+        if: steps.cache-primes.outputs.cache-hit == 'true'
+        run: |
+          docker load -i ~/cache/lambda_python_3_9.tar
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -139,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [ feature-server-aws, feature-server-java, feature-transformation-server ]
+        component: [ feature-server-python-aws, feature-server-java, feature-transformation-server ]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast

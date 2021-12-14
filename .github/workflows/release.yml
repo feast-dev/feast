@@ -48,7 +48,7 @@ jobs:
     needs: get-version
     strategy:
       matrix:
-        component: [feature-server-aws, feature-server-java, feature-transformation-server]
+        component: [feature-server-python-aws, feature-server-java, feature-transformation-server]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev
@@ -79,7 +79,7 @@ jobs:
           --output-dir .
       - name: Build image
         run: |
-          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
         env:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
@@ -90,7 +90,7 @@ jobs:
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
         run: |
-          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${RELEASE_VERSION}
+          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
 
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
@@ -107,7 +107,7 @@ jobs:
       VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
       - uses: actions/checkout@v2
-      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      - uses: google-github-actions/setup-gcloud@master
         with:
           version: '290.0.1'
           export_default_credentials: true
@@ -117,13 +117,13 @@ jobs:
       - name: Remove previous Helm
         run: sudo rm -rf $(which helm)
       - name: Install Helm
-        run: ./scripts/helm/install-helm.sh
+        run: ./infra/scripts/helm/install-helm.sh
       - name: Validate Helm chart prior to publishing
-        run: ./scripts/helm/validate-helm-chart-publish.sh
+        run: ./infra/scripts/helm/validate-helm-chart-publish.sh
       - name: Validate all version consistency
-        run: ./scripts/helm/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
+        run: ./infra/scripts/helm/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
       - name: Publish Helm charts
-        run: ./scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
+        run: ./infra/scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
 
   publish-python-sdk:
     runs-on: ubuntu-latest
