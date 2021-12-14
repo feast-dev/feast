@@ -379,16 +379,18 @@ class FeatureStore:
                 ]
             ],
         ],
-        objects_to_delete: List[
-            Union[
-                FeatureView,
-                OnDemandFeatureView,
-                RequestFeatureView,
-                Entity,
-                FeatureService,
-                FeatureTable,
+        objects_to_delete: Optional[
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                    FeatureTable,
+                ]
             ]
-        ] = [],
+        ] = None,
         partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
@@ -434,6 +436,9 @@ class FeatureStore:
             objects = [objects]
 
         assert isinstance(objects, list)
+
+        if not objects_to_delete:
+            objects_to_delete = []
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]

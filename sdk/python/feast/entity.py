@@ -75,7 +75,7 @@ class Entity:
         self._last_updated_timestamp: Optional[datetime] = None
 
     def __hash__(self) -> int:
-        return hash((id(self), self.name))
+        return hash(self.name)
 
     def __eq__(self, other):
         if not isinstance(other, Entity):

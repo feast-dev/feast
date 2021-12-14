@@ -21,6 +21,7 @@ from google.protobuf.duration_pb2 import Duration
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
+from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -42,6 +43,9 @@ warnings.simplefilter("once", DeprecationWarning)
 DUMMY_ENTITY_ID = "__dummy_id"
 DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
+DUMMY_ENTITY = Entity(
+    name=DUMMY_ENTITY_NAME, join_key=DUMMY_ENTITY_ID, value_type=ValueType.INT32,
+)
 
 
 class FeatureView(BaseFeatureView):
@@ -138,7 +142,7 @@ class FeatureView(BaseFeatureView):
 
     # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
-        return super().__hash__()
+        return hash(self.name)
 
     def __copy__(self):
         fv = FeatureView(
