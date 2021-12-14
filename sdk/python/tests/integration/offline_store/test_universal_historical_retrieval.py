@@ -227,16 +227,21 @@ def get_expected_training_df(
         expected_df[col] = expected_df[col].astype(typ)
 
     conv_feature_name = "driver_stats__conv_rate" if full_feature_names else "conv_rate"
-    expected_df["conv_rate_plus_100"] = expected_df[conv_feature_name] + 100
-    expected_df["conv_rate_plus_100_rounded"] = (
-        expected_df["conv_rate_plus_100"]
+    conv_plus_feature_name = response_feature_name(
+        "conv_rate_plus_100", full_feature_names
+    )
+    expected_df[conv_plus_feature_name] = expected_df[conv_feature_name] + 100
+    expected_df[
+        response_feature_name("conv_rate_plus_100_rounded", full_feature_names)
+    ] = (
+        expected_df[conv_plus_feature_name]
         .astype("float")
         .round()
         .astype(pd.Int32Dtype())
     )
-    expected_df["conv_rate_plus_val_to_add"] = (
-        expected_df[conv_feature_name] + expected_df["val_to_add"]
-    )
+    expected_df[
+        response_feature_name("conv_rate_plus_val_to_add", full_feature_names)
+    ] = (expected_df[conv_feature_name] + expected_df["val_to_add"])
 
     return expected_df
 
@@ -638,7 +643,15 @@ def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
         return f"driver_stats__{feature}"
 
-    if feature in {"conv_rate_plus_100"} and full_feature_names:
+    if (
+        feature
+        in {
+            "conv_rate_plus_100",
+            "conv_rate_plus_100_rounded",
+            "conv_rate_plus_val_to_add",
+        }
+        and full_feature_names
+    ):
         return f"conv_rate_plus_100__{feature}"
 
     return feature
@@ -670,7 +683,7 @@ def assert_feature_service_correctness(
             "driver_id",
             "customer_id",
             response_feature_name("conv_rate", full_feature_names),
-            "conv_rate_plus_100",
+            response_feature_name("conv_rate_plus_100", full_feature_names),
             "driver_age",
         ]
     ]
