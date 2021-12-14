@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Set, Tuple, Union, TypeVar
+from typing import Any, List, Set, Tuple, Union, TypeVar, Iterable
 from unittest.mock import Base
 
 from feast.base_feature_view import BaseFeatureView
@@ -9,6 +9,8 @@ from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.request_feature_view import RequestFeatureView
 
 
@@ -35,6 +37,7 @@ class FcoDiff:
     transition_type: TransitionType
 
 
+@dataclass
 class RegistryDiff:
     fco_diffs: List[FcoDiff]
 
@@ -49,8 +52,8 @@ T = TypeVar('T', Entity, BaseFeatureView, FeatureService, FeatureTable)
 
 
 def tag_objects_for_keep_delete_add(
-    existing_objs: Set[T], desired_objs: Set[T]
-) -> Tuple[Set[T], Set[T], Set[T]]:
+    existing_objs: Iterable[T], desired_objs: Iterable[T]
+) -> Tuple[Iterable[T], Iterable[T], Iterable[T]]:
     existing_obj_names = {e.name for e in existing_objs}
     desired_obj_names = {e.name for e in desired_objs}
 
@@ -61,5 +64,25 @@ def tag_objects_for_keep_delete_add(
     objs_to_delete = {
         e for e in existing_objs if e.name not in desired_obj_names
     }
+
+    return objs_to_keep, objs_to_delete, objs_to_add
+
+
+U = TypeVar('U', EntityProto, FeatureViewProto)
+
+
+def tag_proto_objects_for_keep_delete_add(
+        existing_objs: Iterable[U], desired_objs: Iterable[U]
+) -> Tuple[Iterable[U], Iterable[U], Iterable[U]]:
+    existing_obj_names = {e.spec.name for e in existing_objs}
+    desired_obj_names = {e.spec.name for e in desired_objs}
+
+    objs_to_add = [
+        e for e in desired_objs if e.spec.name not in existing_obj_names
+    ]
+    objs_to_keep = [e for e in desired_objs if e.spec.name in existing_obj_names]
+    objs_to_delete = [
+        e for e in existing_objs if e.spec.name not in desired_obj_names
+    ]
 
     return objs_to_keep, objs_to_delete, objs_to_add

@@ -28,7 +28,7 @@ from feast.diff.FcoDiff import (
     FcoDiff,
     RegistryDiff,
     TransitionType,
-    tag_objects_for_keep_delete_add,
+    tag_proto_objects_for_keep_delete_add,
 )
 from feast.entity import Entity
 from feast.errors import (
@@ -130,19 +130,10 @@ class Registry:
                 else 0
             )
 
-    @classmethod
-    def from_proto(cls, regsitry_proto: RegistryProto):
-        registry = cls(None, None)
-        registry.cached_registry_proto = regsitry_proto
-        registry.cached_registry_proto_created = datetime.utcnow()
-        registry.cached_registry_proto_ttl = timedelta(days=1)
-        registry.cache_being_updated = True
-        return registry
-
     # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
     @staticmethod
     def diff_between(
-        project: str, current_registry: "Registry", new_registry: "Registry"
+        current_registry: RegistryProto, new_registry: RegistryProto
     ) -> RegistryDiff:
         diff = RegistryDiff()
 
@@ -151,9 +142,9 @@ class Registry:
             entities_to_keep,
             entities_to_delete,
             entities_to_add,
-        ) = tag_objects_for_keep_delete_add(
-            set(current_registry.list_entities(project=project, allow_cache=True)),
-            set(new_registry.list_entities(project=project, allow_cache=True)),
+        ) = tag_proto_objects_for_keep_delete_add(
+            current_registry.entities,
+            new_registry.entities,
         )
 
         for e in entities_to_add:
