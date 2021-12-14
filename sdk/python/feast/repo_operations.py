@@ -161,7 +161,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         set(registry.list_entities(project=project)), repo.entities
     )
     # TODO(achals): This code path should be refactored to handle added & kept entities separately.
-    entities_to_keep = entities_to_keep.union(entities_to_add)
+    entities_to_keep = set(entities_to_keep).union(entities_to_add)
 
     views = tag_objects_for_keep_delete_add(
         set(registry.list_feature_views(project=project)), repo.feature_views

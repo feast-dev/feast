@@ -143,8 +143,7 @@ class Registry:
             entities_to_delete,
             entities_to_add,
         ) = tag_proto_objects_for_keep_delete_add(
-            current_registry.entities,
-            new_registry.entities,
+            current_registry.entities, new_registry.entities,
         )
 
         for e in entities_to_add:
