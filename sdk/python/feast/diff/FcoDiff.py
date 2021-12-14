@@ -46,27 +46,16 @@ class RegistryDiff:
 def _tag_registry_entities_for_keep_delete(
     existing_entities: Set[Entity], desired_entities: Set[Entity]
 ) -> Tuple[Set[Entity], Set[Entity], Set[Entity]]:
-    desired_entity_names = {e.name: e for e in desired_entities}
-    existing_entity_names = {e.name: e for e in existing_entities}
+    existing_entity_names = {e.name for e in existing_entities}
+    desired_entity_names = {e.name for e in desired_entities}
 
-    entities_to_add = set(
-        [
-            desired_entity_names[name]
-            for name in desired_entity_names.keys() - existing_entity_names.keys()
-        ]
-    )
-    entities_to_delete = set(
-        [
-            existing_entity_names[name]
-            for name in existing_entity_names.keys() - desired_entity_names.keys()
-        ]
-    )
-    entities_to_keep = set(
-        [
-            desired_entity_names[name]
-            for name in desired_entity_names.keys() & existing_entity_names.keys()
-        ]
-    )
+    entities_to_add = {
+        e for e in desired_entities if e.name not in existing_entity_names
+    }
+    entities_to_keep = {e for e in desired_entities if e.name in existing_entity_names}
+    entities_to_delete = {
+        e for e in existing_entities if e.name not in desired_entity_names
+    }
 
     return entities_to_keep, entities_to_delete, entities_to_add
 
@@ -83,83 +72,38 @@ def _tag_registry_views_for_keep_delete(
     Set[Union[FeatureView, RequestFeatureView, OnDemandFeatureView]],
     Set[Union[FeatureView, RequestFeatureView, OnDemandFeatureView]],
 ]:
+    existing_view_names = {v.name for v in existing_views}
+    desired_view_names = {v.name for v in desired_views}
 
-    existing_views_by_name = {v.name: v for v in existing_views}
-    desired_views_by_name = {v.name: v for v in desired_views}
-
-    views_to_add = set(
-        [
-            desired_views_by_name[name]
-            for name in desired_views_by_name.keys() - existing_views_by_name.keys()
-        ]
-    )
-    views_to_delete = set(
-        [
-            existing_views_by_name[name]
-            for name in existing_views_by_name.keys() - desired_views_by_name.keys()
-        ]
-    )
-    views_to_keep = set(
-        [
-            desired_views_by_name[name]
-            for name in desired_views_by_name.keys() & existing_views_by_name.keys()
-        ]
-    )
+    views_to_add = {v for v in desired_views if v.name not in existing_view_names}
+    views_to_keep = {v for v in desired_views if v.name in existing_view_names}
+    views_to_delete = {v for v in existing_views if v.name not in desired_view_names}
     return views_to_keep, views_to_delete, views_to_add
 
 
 def _tag_registry_tables_for_keep_delete(
     existing_tables: Set[FeatureTable], desired_tables: Set[FeatureTable]
 ) -> Tuple[Set[FeatureTable], Set[FeatureTable], Set[FeatureTable]]:
-    existing_tables_by_name = {v.name: v for v in existing_tables}
-    desired_tables_by_name = {v.name: v for v in desired_tables}
+    existing_table_names = {v.name for v in existing_tables}
+    desired_table_names = {v.name for v in desired_tables}
 
-    tables_to_add = set(
-        [
-            desired_tables_by_name[name]
-            for name in desired_tables_by_name.keys() - existing_tables_by_name.keys()
-        ]
-    )
-    tables_to_delete = set(
-        [
-            existing_tables_by_name[name]
-            for name in existing_tables_by_name.keys() - desired_tables_by_name.keys()
-        ]
-    )
-    tables_to_keep = set(
-        [
-            desired_tables_by_name[name]
-            for name in desired_tables_by_name.keys() & existing_tables_by_name.keys()
-        ]
-    )
+    tables_to_add = {t for t in desired_tables if t.name not in existing_table_names}
+    tables_to_keep = {t for t in desired_tables if t.name in existing_table_names}
+    tables_to_delete = {t for t in existing_tables if t.name not in desired_table_names}
     return tables_to_keep, tables_to_delete, tables_to_add
 
 
 def _tag_registry_services_for_keep_delete(
     existing_service: Set[FeatureService], desired_service: Set[FeatureService]
 ) -> Tuple[Set[FeatureService], Set[FeatureService], Set[FeatureService]]:
-    existing_services_by_name = {v.name: v for v in existing_service}
-    desired_services_by_name = {v.name: v for v in desired_service}
+    existing_service_names = {v.name for v in existing_service}
+    desired_service_names = {v.name for v in desired_service}
 
-    services_to_add = set(
-        [
-            desired_services_by_name[name]
-            for name in desired_services_by_name.keys()
-            - existing_services_by_name.keys()
-        ]
-    )
-    services_to_delete = set(
-        [
-            existing_services_by_name[name]
-            for name in existing_services_by_name.keys()
-            - desired_services_by_name.keys()
-        ]
-    )
-    services_to_keep = set(
-        [
-            desired_services_by_name[name]
-            for name in desired_services_by_name.keys()
-            & existing_services_by_name.keys()
-        ]
-    )
+    services_to_add = {
+        s for s in desired_service if s.name not in existing_service_names
+    }
+    services_to_delete = {
+        s for s in existing_service if s.name not in desired_service_names
+    }
+    services_to_keep = {s for s in desired_service if s.name in existing_service_names}
     return services_to_keep, services_to_delete, services_to_add
