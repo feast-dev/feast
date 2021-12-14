@@ -18,32 +18,26 @@ syntax = "proto3";
 
 package feast.core;
 option java_package = "feast.proto.core";
-option java_outer_classname = "InfraObjectProto";
+option java_outer_classname = "DatastoreTableProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
-import "feast/core/DynamoDBTable.proto";
-import "feast/core/DatastoreTable.proto";
+// Represents a Datastore table
+message DatastoreTable {
+    // Feast project of the table
+    string project = 1;
 
-// Represents a set of infrastructure objects managed by Feast
-message Infra {
-    // List of infrastructure objects managed by Feast
-    repeated InfraObject infra_objects = 1;
-}
+    // Name of the table
+    string name = 2;
 
-// Represents a single infrastructure object managed by Feast
-message InfraObject {
-    // Represents the Python class for the infrastructure object
-    string infra_object_class_type = 1;
-
-    // The infrastructure object
-    oneof infra_object {
-        DynamoDBTable dynamodb_table = 2;
-        DatastoreTable datastore_table = 3;
-        CustomInfra custom_infra = 100;
+    // GCP project id, which can be null
+    oneof project_id {
+        bool project_id_null = 3;
+        string project_id_value = 4;
     }
 
-    // Allows for custom infra objects to be added
-    message CustomInfra {
-        bytes field = 1;
+    // Datastore namespace, which can be null
+    oneof namespace {
+        bool namespace_null = 5;
+        string namespace_value = 6;
     }
 }
