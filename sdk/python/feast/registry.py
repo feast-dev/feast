@@ -42,6 +42,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 
@@ -137,7 +138,7 @@ class Registry:
             else RegistryProto()
         )
         new_registry.cached_registry_proto_created = datetime.utcnow()
-        new_registry._registry_store = None
+        new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
     # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.

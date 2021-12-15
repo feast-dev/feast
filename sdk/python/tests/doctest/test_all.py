@@ -96,8 +96,9 @@ def test_docstrings():
                         if not result.wasSuccessful():
                             successful = False
                             failed_cases.append(result.failures)
-                except Exception:
+                except Exception as e:
                     successful = False
+                    failed_cases.append((full_name, e))
                 finally:
                     if teardown_function:
                         teardown_function()

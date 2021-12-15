@@ -630,6 +630,7 @@ class FeatureStore:
         new_registry.cached_registry_proto_ttl = (
             self._registry.cached_registry_proto_ttl
         )
+        new_registry._registry_store = self._registry._registry_store
         self._registry = new_registry
 
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]

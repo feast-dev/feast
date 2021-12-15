@@ -36,3 +36,14 @@ class RegistryStore(ABC):
         Tear down the registry.
         """
         pass
+
+
+class NoopRegistryStore(RegistryStore):
+    def get_registry_proto(self) -> RegistryProto:
+        pass
+
+    def update_registry_proto(self, registry_proto: RegistryProto):
+        pass
+
+    def teardown(self):
+        pass
