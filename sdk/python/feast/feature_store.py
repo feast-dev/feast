@@ -38,6 +38,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
 from feast.feature_view import (
+    DUMMY_ENTITY,
     DUMMY_ENTITY_ID,
     DUMMY_ENTITY_NAME,
     DUMMY_ENTITY_VAL,
@@ -61,7 +62,6 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_value_to_proto_value
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
-from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -379,16 +379,18 @@ class FeatureStore:
                 ]
             ],
         ],
-        objects_to_delete: List[
-            Union[
-                FeatureView,
-                OnDemandFeatureView,
-                RequestFeatureView,
-                Entity,
-                FeatureService,
-                FeatureTable,
+        objects_to_delete: Optional[
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                    FeatureTable,
+                ]
             ]
-        ] = [],
+        ] = None,
         partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
@@ -434,6 +436,9 @@ class FeatureStore:
             objects = [objects]
 
         assert isinstance(objects, list)
+
+        if not objects_to_delete:
+            objects_to_delete = []
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
@@ -484,11 +489,6 @@ class FeatureStore:
             odfv.infer_features()
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
-        DUMMY_ENTITY = Entity(
-            name=DUMMY_ENTITY_NAME,
-            join_key=DUMMY_ENTITY_ID,
-            value_type=ValueType.INT32,
-        )
         entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
@@ -1560,7 +1560,9 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
         case_insensitive_fv_name = fv.name.lower()
         if case_insensitive_fv_name in fv_names:
             raise ValueError(
-                f"More than one feature view with name {case_insensitive_fv_name} found. Please ensure that all feature view names are case-insensitively unique. It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+                f"More than one feature view with name {case_insensitive_fv_name} found. "
+                f"Please ensure that all feature view names are case-insensitively unique. "
+                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
             )
         else:
             fv_names.add(case_insensitive_fv_name)

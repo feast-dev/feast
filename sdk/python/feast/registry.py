@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -24,6 +24,12 @@ from proto import Message
 
 from feast import importer
 from feast.base_feature_view import BaseFeatureView
+from feast.diff.FcoDiff import (
+    FcoDiff,
+    RegistryDiff,
+    TransitionType,
+    tag_proto_objects_for_keep_delete_add,
+)
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -56,6 +62,8 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "file": "LocalRegistryStore",
     "": "LocalRegistryStore",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def get_registry_store_class_from_type(registry_store_type: str):
@@ -95,7 +103,9 @@ class Registry:
     cached_registry_proto_ttl: timedelta
     cache_being_updated: bool = False
 
-    def __init__(self, registry_config: RegistryConfig, repo_path: Path):
+    def __init__(
+        self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
+    ):
         """
         Create the Registry object.
 
@@ -104,19 +114,49 @@ class Registry:
             repo_path: Path to the base of the Feast repository
             or where it will be created if it does not exist yet.
         """
-        registry_store_type = registry_config.registry_store_type
-        registry_path = registry_config.path
-        if registry_store_type is None:
-            cls = get_registry_store_class_from_scheme(registry_path)
-        else:
-            cls = get_registry_store_class_from_type(str(registry_store_type))
 
-        self._registry_store = cls(registry_config, repo_path)
-        self.cached_registry_proto_ttl = timedelta(
-            seconds=registry_config.cache_ttl_seconds
-            if registry_config.cache_ttl_seconds is not None
-            else 0
+        if registry_config:
+            registry_store_type = registry_config.registry_store_type
+            registry_path = registry_config.path
+            if registry_store_type is None:
+                cls = get_registry_store_class_from_scheme(registry_path)
+            else:
+                cls = get_registry_store_class_from_type(str(registry_store_type))
+
+            self._registry_store = cls(registry_config, repo_path)
+            self.cached_registry_proto_ttl = timedelta(
+                seconds=registry_config.cache_ttl_seconds
+                if registry_config.cache_ttl_seconds is not None
+                else 0
+            )
+
+    # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
+    @staticmethod
+    def diff_between(
+        current_registry: RegistryProto, new_registry: RegistryProto
+    ) -> RegistryDiff:
+        diff = RegistryDiff()
+
+        # Handle Entities
+        (
+            entities_to_keep,
+            entities_to_delete,
+            entities_to_add,
+        ) = tag_proto_objects_for_keep_delete_add(
+            current_registry.entities, new_registry.entities,
         )
+
+        for e in entities_to_add:
+            diff.add_fco_diff(FcoDiff(None, e, [], TransitionType.CREATE))
+        for e in entities_to_delete:
+            diff.add_fco_diff(FcoDiff(e, None, [], TransitionType.DELETE))
+
+        # Handle Feature Views
+        # Handle On Demand Feature Views
+        # Handle Request Feature Views
+        # Handle Feature Services
+        logger.info(f"Diff: {diff}")
+        return diff
 
     def _initialize_registry(self):
         """Explicitly initializes the registry with an empty proto if it doesn't exist."""
@@ -752,6 +792,7 @@ class Registry:
                 > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
             )
         )
+
         if allow_cache and (not expired or self.cache_being_updated):
             assert isinstance(self.cached_registry_proto, RegistryProto)
             return self.cached_registry_proto
