@@ -64,16 +64,6 @@ class RequestDataNotFoundInEntityRowsException(FeastObjectNotFoundException):
         )
 
 
-class FeatureTableNotFoundException(FeastObjectNotFoundException):
-    def __init__(self, name, project=None):
-        if project:
-            super().__init__(
-                f"Feature table {name} does not exist in project {project}"
-            )
-        else:
-            super().__init__(f"Feature table {name} does not exist")
-
-
 class S3RegistryBucketNotExist(FeastObjectNotFoundException):
     def __init__(self, bucket):
         super().__init__(f"S3 bucket {bucket} for the Feast registry does not exist")
