@@ -236,6 +236,11 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ),
     ValueType.INT32_LIST: (Int32List, "int32_list_val", [np.int32, int]),
     ValueType.INT64_LIST: (Int64List, "int64_list_val", [np.int64, np.int32, int]),
+    ValueType.UNIX_TIMESTAMP_LIST: (
+        Int64List,
+        "int64_list_val",
+        [np.int64, np.int32, int],
+    ),
     ValueType.STRING_LIST: (StringList, "string_list_val", [np.str_, str]),
     ValueType.BOOL_LIST: (BoolList, "bool_list_val", [np.bool_, bool]),
     ValueType.BYTES_LIST: (BytesList, "bytes_list_val", [np.bytes_, bytes]),
