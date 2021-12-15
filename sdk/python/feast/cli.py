@@ -34,8 +34,9 @@ from feast.repo_operations import (
     cli_check_repo,
     generate_project_name,
     init_repo,
+    plan,
     registry_dump,
-    teardown, plan,
+    teardown,
 )
 
 _logger = logging.getLogger(__name__)
@@ -369,7 +370,6 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
         plan(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
         print(str(e))
-
 
 
 @cli.command("apply", cls=NoOptionDefaultFormat)

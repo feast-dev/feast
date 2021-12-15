@@ -138,12 +138,12 @@ class Registry:
         diff = RegistryDiff()
 
         attribute_to_object_type_str = {
-            "entities": "Entity",
-            "feature_views": "Feature View",
-            "feature_tables": "Feature Table",
-            "on_demand_feature_views": "On Demand Feature View",
-            "request_feature_views": "Request Feature View",
-            "feature_services": "Feature Service",
+            "entities": "entity",
+            "feature_views": "feature view",
+            "feature_tables": "feature table",
+            "on_demand_feature_views": "on demand feature view",
+            "request_feature_views": "request feature view",
+            "feature_services": "feature service",
         }
 
         for object_type in [

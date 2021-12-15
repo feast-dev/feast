@@ -142,8 +142,13 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
 
     # For each object in the registry, determine whether it should be kept or deleted,
     # and whether new objects need to be added.
-    all_to_apply, all_to_delete, tables_to_delete, views_to_delete, views_to_keep = extract_objects_for_apply_delete(
-        project, registry, repo)
+    (
+        all_to_apply,
+        all_to_delete,
+        tables_to_delete,
+        views_to_delete,
+        views_to_keep,
+    ) = extract_objects_for_apply_delete(project, registry, repo)
 
     _, diff = store.plan(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
@@ -257,7 +262,6 @@ def extract_objects_for_apply_delete(project, registry, repo):
     return all_to_apply, all_to_delete, tables_to_delete, views_to_delete, views_to_keep
 
 
-
 @log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
 
@@ -271,8 +275,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
             data_source.validate(store.config)
 
     # For each object in the registry, determine whether it should be kept or deleted.
-    all_to_apply, all_to_delete, tables_to_delete, views_to_delete, views_to_keep = extract_objects_for_apply_delete(
-        project, registry, repo)
+    (
+        all_to_apply,
+        all_to_delete,
+        tables_to_delete,
+        views_to_delete,
+        views_to_keep,
+    ) = extract_objects_for_apply_delete(project, registry, repo)
 
     diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 

@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import RegistryDiff, TransitionType
+from feast.diff.FcoDiff import RegistryDiff
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -361,39 +361,76 @@ class FeatureStore:
         return _feature_refs
 
     @log_exceptions_and_usage
-    def plan(self,
-             objects: Union[
-                 Entity,
-                 FeatureView,
-                 OnDemandFeatureView,
-                 RequestFeatureView,
-                 FeatureService,
-                 FeatureTable,
-                 List[
-                     Union[
-                         FeatureView,
-                         OnDemandFeatureView,
-                         RequestFeatureView,
-                         Entity,
-                         FeatureService,
-                         FeatureTable,
-                     ]
-                 ],
-             ],
-             objects_to_delete: Optional[
-                 List[
-                     Union[
-                         FeatureView,
-                         OnDemandFeatureView,
-                         RequestFeatureView,
-                         Entity,
-                         FeatureService,
-                         FeatureTable,
-                     ]
-                 ]
-             ] = None,
-             partial: bool = True,
+    def plan(
+        self,
+        objects: Union[
+            Entity,
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            FeatureService,
+            FeatureTable,
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                    FeatureTable,
+                ]
+            ],
+        ],
+        objects_to_delete: Optional[
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                    FeatureTable,
+                ]
+            ]
+        ] = None,
+        partial: bool = True,
     ) -> Tuple[Registry, RegistryDiff]:
+        """Dry-run registering objects to metadata store.
+
+        The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
+        a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
+        command are for informational purpose, and are not actually applied to the registry.
+
+        Args:
+            objects: A single object, or a list of objects that are intended to be registered with the Feature Store.
+            objects_to_delete: A list of objects to be deleted from the registry.
+            partial: If True, apply will only handle the specified objects; if False, apply will also delete
+                all the objects in objects_to_delete.
+
+        Raises:
+            ValueError: The 'objects' parameter could not be parsed properly.
+
+        Examples:
+            Generate a plan adding an Entity and a FeatureView.
+
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
+            >>> from datetime import timedelta
+            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
+            >>> driver_hourly_stats = FileSource(
+            ...     path="feature_repo/data/driver_stats.parquet",
+            ...     event_timestamp_column="event_timestamp",
+            ...     created_timestamp_column="created",
+            ... )
+            >>> driver_hourly_stats_view = FeatureView(
+            ...     name="driver_hourly_stats",
+            ...     entities=["driver_id"],
+            ...     ttl=timedelta(seconds=86400 * 1),
+            ...     batch_source=driver_hourly_stats,
+            ... )
+            >>> fs.plan([driver_hourly_stats_view, driver]) # register entity and feature view
+        """
+
         if not isinstance(objects, Iterable):
             objects = [objects]
 
@@ -421,7 +458,7 @@ class FeatureStore:
         tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
 
         if len(entities_to_update) + len(views_to_update) + len(
-                request_views_to_update
+            request_views_to_update
         ) + len(odfvs_to_update) + len(services_to_update) + len(
             tables_to_update
         ) != len(
@@ -431,8 +468,8 @@ class FeatureStore:
 
         # Validate all types of feature views.
         if (
-                not flags_helper.enable_on_demand_feature_views(self.config)
-                and len(odfvs_to_update) > 0
+            not flags_helper.enable_on_demand_feature_views(self.config)
+            and len(odfvs_to_update) > 0
         ):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
@@ -473,9 +510,7 @@ class FeatureStore:
                 feature_service, project=self.project, commit=False
             )
         for table in tables_to_update:
-            new_registry.apply_feature_table(
-                table, project=self.project, commit=False
-            )
+            new_registry.apply_feature_table(table, project=self.project, commit=False)
 
         if not partial:
             # Delete all registry objects that should not exist.
@@ -529,28 +564,23 @@ class FeatureStore:
             else RegistryProto()
         )
 
-        return new_registry, Registry.diff_between(current_registry_proto, new_registry_proto)
+        return (
+            new_registry,
+            Registry.diff_between(current_registry_proto, new_registry_proto),
+        )
 
     @log_exceptions_and_usage
     def apply(
         self,
-        objects: Union[
-            Entity,
-            FeatureView,
-            OnDemandFeatureView,
-            RequestFeatureView,
-            FeatureService,
-            FeatureTable,
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                    FeatureTable,
-                ]
-            ],
+        objects: List[
+            Union[
+                FeatureView,
+                OnDemandFeatureView,
+                RequestFeatureView,
+                Entity,
+                FeatureService,
+                FeatureTable,
+            ]
         ],
         objects_to_delete: Optional[
             List[
@@ -604,8 +634,14 @@ class FeatureStore:
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
+
+        if not objects_to_delete:
+            objects_to_delete = []
+
         new_registry, diffs = self.plan(objects, objects_to_delete, partial)
-        new_registry.cached_registry_proto_ttl = self._registry.cached_registry_proto_ttl
+        new_registry.cached_registry_proto_ttl = (
+            self._registry.cached_registry_proto_ttl
+        )
         self._registry = new_registry
 
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
@@ -613,8 +649,12 @@ class FeatureStore:
         tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
 
         entities_to_delete = [ob for ob in objects_to_delete if isinstance(ob, Entity)]
-        views_to_delete = [ob for ob in objects_to_delete if isinstance(ob, FeatureView)]
-        tables_to_delete = [ob for ob in objects_to_delete if isinstance(ob, FeatureTable)]
+        views_to_delete = [
+            ob for ob in objects_to_delete if isinstance(ob, FeatureView)
+        ]
+        tables_to_delete = [
+            ob for ob in objects_to_delete if isinstance(ob, FeatureTable)
+        ]
 
         self._get_provider().update_infra(
             project=self.project,
@@ -626,7 +666,6 @@ class FeatureStore:
         )
 
         self._registry.commit()
-
 
     @log_exceptions_and_usage
     def teardown(self):
