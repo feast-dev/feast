@@ -667,6 +667,8 @@ class FeatureStore:
 
         self._registry.commit()
 
+        return diffs
+
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
