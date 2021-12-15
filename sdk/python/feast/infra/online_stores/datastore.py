@@ -14,12 +14,12 @@
 import itertools
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from pydantic import PositiveInt, StrictStr
 from pydantic.typing import Literal
 
-from feast import Entity, FeatureTable, utils
+from feast import Entity, utils
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
@@ -74,8 +74,8 @@ class DatastoreOnlineStore(OnlineStore):
     def update(
         self,
         config: RepoConfig,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -107,7 +107,7 @@ class DatastoreOnlineStore(OnlineStore):
     def teardown(
         self,
         config: RepoConfig,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
+        tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
         """
@@ -146,7 +146,7 @@ class DatastoreOnlineStore(OnlineStore):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -186,7 +186,7 @@ class DatastoreOnlineStore(OnlineStore):
     def _write_minibatch(
         client,
         project: str,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: Sequence[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -227,7 +227,7 @@ class DatastoreOnlineStore(OnlineStore):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:

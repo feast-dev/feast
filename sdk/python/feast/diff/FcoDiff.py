@@ -5,7 +5,6 @@ from typing import Any, Iterable, List, Set, Tuple, TypeVar
 from feast.base_feature_view import BaseFeatureView
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.feature_table import FeatureTable
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 
@@ -44,7 +43,7 @@ class RegistryDiff:
         self.fco_diffs.append(fco_diff)
 
 
-T = TypeVar("T", Entity, BaseFeatureView, FeatureService, FeatureTable)
+T = TypeVar("T", Entity, BaseFeatureView, FeatureService)
 
 
 def tag_objects_for_keep_delete_add(

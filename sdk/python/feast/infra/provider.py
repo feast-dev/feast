@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 from feast import errors, importer
 from feast.entity import Entity
-from feast.feature_table import FeatureTable
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -36,8 +35,8 @@ class Provider(abc.ABC):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -62,10 +61,7 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
-        entities: Sequence[Entity],
+        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ):
         """
         Tear down all cloud resources for a repo.
@@ -81,7 +77,7 @@ class Provider(abc.ABC):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -95,7 +91,7 @@ class Provider(abc.ABC):
 
         Args:
             config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureTable
+            table: Feast FeatureView
             data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
                 a dict containing feature values, an event timestamp for the row, and
                 the created timestamp for the row if it exists.
@@ -142,7 +138,7 @@ class Provider(abc.ABC):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:

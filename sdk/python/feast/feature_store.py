@@ -36,7 +36,6 @@ from feast.errors import (
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.feature_service import FeatureService
-from feast.feature_table import FeatureTable
 from feast.feature_view import (
     DUMMY_ENTITY,
     DUMMY_ENTITY_ID,
@@ -367,7 +366,6 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
-            FeatureTable,
             List[
                 Union[
                     FeatureView,
@@ -375,7 +373,6 @@ class FeatureStore:
                     RequestFeatureView,
                     Entity,
                     FeatureService,
-                    FeatureTable,
                 ]
             ],
         ],
@@ -387,7 +384,6 @@ class FeatureStore:
                     RequestFeatureView,
                     Entity,
                     FeatureService,
-                    FeatureTable,
                 ]
             ]
         ] = None,
@@ -448,15 +444,10 @@ class FeatureStore:
         ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
-        tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
 
         if len(entities_to_update) + len(views_to_update) + len(
             request_views_to_update
-        ) + len(odfvs_to_update) + len(services_to_update) + len(
-            tables_to_update
-        ) != len(
-            objects
-        ):
+        ) + len(odfvs_to_update) + len(services_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         # Validate all types of feature views.
@@ -502,10 +493,6 @@ class FeatureStore:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
             )
-        for table in tables_to_update:
-            self._registry.apply_feature_table(
-                table, project=self.project, commit=False
-            )
 
         if not partial:
             # Delete all registry objects that should not exist.
@@ -523,9 +510,6 @@ class FeatureStore:
             ]
             services_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, FeatureService)
-            ]
-            tables_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureTable)
             ]
 
             for entity in entities_to_delete:
@@ -548,15 +532,11 @@ class FeatureStore:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
                 )
-            for table in tables_to_delete:
-                self._registry.delete_feature_table(
-                    table.name, project=self.project, commit=False
-                )
 
         self._get_provider().update_infra(
             project=self.project,
-            tables_to_delete=views_to_delete + tables_to_delete if not partial else [],
-            tables_to_keep=views_to_update + tables_to_update,
+            tables_to_delete=views_to_delete if not partial else [],
+            tables_to_keep=views_to_update,
             entities_to_delete=entities_to_delete if not partial else [],
             entities_to_keep=entities_to_update,
             partial=partial,
@@ -567,12 +547,10 @@ class FeatureStore:
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
-        tables: List[Union[FeatureView, FeatureTable]] = []
+        tables: List[FeatureView] = []
         feature_views = self.list_feature_views()
-        feature_tables = self._registry.list_feature_tables(self.project)
 
         tables.extend(feature_views)
-        tables.extend(feature_tables)
 
         entities = self.list_entities()
 
@@ -926,8 +904,8 @@ class FeatureStore:
         Args:
             features: List of feature references that will be returned for each entity.
                 Each feature reference should have the following format:
-                "feature_table:feature" where "feature_table" & "feature" refer to
-                the feature and feature table names respectively.
+                "feature_view:feature" where "feature_view" & "feature" refer to
+                the Feature and FeatureView names respectively.
                 Only the feature name is required.
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
 

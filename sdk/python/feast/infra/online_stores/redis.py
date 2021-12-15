@@ -31,7 +31,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
-from feast import Entity, FeatureTable, FeatureView, RepoConfig, utils
+from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -72,9 +72,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
-    def delete_table_values(
-        self, config: RepoConfig, table: Union[FeatureTable, FeatureView]
-    ):
+    def delete_table_values(self, config: RepoConfig, table: FeatureView):
         client = self._get_client(config.online_store)
         deleted_count = 0
         pipeline = client.pipeline()
@@ -93,8 +91,8 @@ class RedisOnlineStore(OnlineStore):
     def update(
         self,
         config: RepoConfig,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -108,7 +106,7 @@ class RedisOnlineStore(OnlineStore):
     def teardown(
         self,
         config: RepoConfig,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
+        tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
         """
@@ -166,7 +164,7 @@ class RedisOnlineStore(OnlineStore):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -230,7 +228,7 @@ class RedisOnlineStore(OnlineStore):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
