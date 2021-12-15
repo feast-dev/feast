@@ -16,7 +16,7 @@ import itertools
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
@@ -444,8 +444,7 @@ class FeatureStore:
             if self._registry.cached_registry_proto
             else RegistryProto()
         )
-        new_registry = copy.deepcopy(self._registry)
-        new_registry.cached_registry_proto_ttl = timedelta()
+        new_registry = self._registry.clone()
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]

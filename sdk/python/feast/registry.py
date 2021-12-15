@@ -130,6 +130,18 @@ class Registry:
                 else 0
             )
 
+    def clone(self) -> "Registry":
+        new_registry = Registry(None, None)
+        new_registry.cached_registry_proto_ttl = timedelta(seconds=0)
+        new_registry.cached_registry_proto = (
+            self.cached_registry_proto.__deepcopy__()
+            if self.cached_registry_proto
+            else RegistryProto()
+        )
+        new_registry.cached_registry_proto_created = datetime.utcnow()
+        new_registry._registry_store = None
+        return new_registry
+
     # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
     @staticmethod
     def diff_between(
