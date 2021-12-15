@@ -12,7 +12,7 @@ import click
 from click.exceptions import BadParameter
 
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import tag_objects_for_keep_delete_add
+from feast.diff.FcoDiff import TransitionType, tag_objects_for_keep_delete_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
@@ -249,51 +249,20 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_delete.extend(odfvs_to_delete)
     all_to_delete.extend(tables_to_delete)
 
-    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+    diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
-    for entity in entities_to_delete:
-        click.echo(
-            f"Deleted entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL} from registry"
-        )
-    for view in base_views_to_delete:
-        click.echo(
-            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL} from registry"
-        )
-    for odfv in odfvs_to_delete:
-        click.echo(
-            f"Deleted on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL} from registry"
-        )
-    for table in tables_to_delete:
-        click.echo(
-            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL} from registry"
-        )
-    for feature_service in services_to_delete:
-        click.echo(
-            f"Deleted feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL} "
-            f"from registry"
-        )
+    message_action_map = {
+        TransitionType.CREATE: ("Created", Fore.GREEN),
+        TransitionType.DELETE: ("Deleted", Fore.RED),
+        TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
+    }
 
-    for entity in entities_to_keep:
-        if entity.name != DUMMY_ENTITY_NAME:
-            click.echo(
-                f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
-            )
-    for view in base_views_to_keep:
+    for fco_diff in diff.fco_diffs:
+        if fco_diff.name == DUMMY_ENTITY_NAME:
+            continue
+        action, color = message_action_map[fco_diff.transition_type]
         click.echo(
-            f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
-        )
-    for odfv in odfvs_to_keep:
-        click.echo(
-            f"Registered on demand feature view {Style.BRIGHT + Fore.GREEN}{odfv.name}{Style.RESET_ALL}"
-        )
-    for feature_service in services_to_keep:
-        click.echo(
-            f"Registered feature service {Style.BRIGHT + Fore.GREEN}{feature_service.name}{Style.RESET_ALL}"
-        )
-    # Create tables that should exist
-    for table in tables_to_keep:
-        click.echo(
-            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{table.name}{Style.RESET_ALL}"
+            f"{action} {fco_diff.fco_type} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}"
         )
 
     views_to_keep_in_infra = [

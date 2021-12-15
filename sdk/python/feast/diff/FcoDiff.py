@@ -27,6 +27,8 @@ class TransitionType(Enum):
 
 @dataclass
 class FcoDiff:
+    name: str
+    fco_type: str
     current_fco: Any
     new_fco: Any
     fco_property_diffs: List[PropertyDiff]

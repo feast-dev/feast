@@ -137,25 +137,66 @@ class Registry:
     ) -> RegistryDiff:
         diff = RegistryDiff()
 
-        # Handle Entities
-        (
-            entities_to_keep,
-            entities_to_delete,
-            entities_to_add,
-        ) = tag_proto_objects_for_keep_delete_add(
-            current_registry.entities, new_registry.entities,
-        )
+        attribute_to_object_type_str = {
+            "entities": "Entity",
+            "feature_views": "Feature View",
+            "feature_tables": "Feature Table",
+            "on_demand_feature_views": "On Demand Feature View",
+            "request_feature_views": "Request Feature View",
+            "feature_services": "Feature Service",
+        }
 
-        for e in entities_to_add:
-            diff.add_fco_diff(FcoDiff(None, e, [], TransitionType.CREATE))
-        for e in entities_to_delete:
-            diff.add_fco_diff(FcoDiff(e, None, [], TransitionType.DELETE))
+        for object_type in [
+            "entities",
+            "feature_views",
+            "feature_tables",
+            "on_demand_feature_views",
+            "request_feature_views",
+            "feature_services",
+        ]:
+            (
+                objects_to_keep,
+                objects_to_delete,
+                objects_to_add,
+            ) = tag_proto_objects_for_keep_delete_add(
+                getattr(current_registry, object_type),
+                getattr(new_registry, object_type),
+            )
 
-        # Handle Feature Views
-        # Handle On Demand Feature Views
-        # Handle Request Feature Views
-        # Handle Feature Services
-        logger.info(f"Diff: {diff}")
+            for e in objects_to_add:
+                diff.add_fco_diff(
+                    FcoDiff(
+                        e.spec.name,
+                        attribute_to_object_type_str[object_type],
+                        None,
+                        e,
+                        [],
+                        TransitionType.CREATE,
+                    )
+                )
+            for e in objects_to_delete:
+                diff.add_fco_diff(
+                    FcoDiff(
+                        e.spec.name,
+                        attribute_to_object_type_str[object_type],
+                        e,
+                        None,
+                        [],
+                        TransitionType.DELETE,
+                    )
+                )
+            for e in objects_to_keep:
+                diff.add_fco_diff(
+                    FcoDiff(
+                        e.spec.name,
+                        attribute_to_object_type_str[object_type],
+                        e,
+                        e,
+                        [],
+                        TransitionType.UNCHANGED,
+                    )
+                )
+
         return diff
 
     def _initialize_registry(self):

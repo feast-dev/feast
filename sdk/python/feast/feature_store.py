@@ -52,6 +52,7 @@ from feast.inference import (
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
@@ -440,6 +441,12 @@ class FeatureStore:
         if not objects_to_delete:
             objects_to_delete = []
 
+        current_registry_proto = (
+            self._registry.cached_registry_proto.__deepcopy__()
+            if self._registry.cached_registry_proto
+            else RegistryProto()
+        )
+
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
@@ -562,7 +569,15 @@ class FeatureStore:
             partial=partial,
         )
 
+        new_registry_proto = (
+            self._registry.cached_registry_proto
+            if self._registry.cached_registry_proto
+            else RegistryProto()
+        )
+
         self._registry.commit()
+
+        return Registry.diff_between(current_registry_proto, new_registry_proto)
 
     @log_exceptions_and_usage
     def teardown(self):
