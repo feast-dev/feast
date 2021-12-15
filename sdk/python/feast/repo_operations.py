@@ -281,7 +281,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         table.name for table in tables_to_delete
     ]:
         click.echo(
-            f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
+            f"Removing infrastructure for {Style.BRIGHT + Fore.RED}{name}{Style.RESET_ALL}"
         )
     # TODO: consider echoing also entities being deployed/removed
 
