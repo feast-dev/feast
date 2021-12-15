@@ -59,6 +59,7 @@ def test_docstrings():
     """
     successful = True
     current_packages = [feast]
+    failed_cases = []
 
     while current_packages:
         next_packages = []
@@ -94,6 +95,7 @@ def test_docstrings():
                         result = unittest.TextTestRunner(sys.stdout).run(test_suite)
                         if not result.wasSuccessful():
                             successful = False
+                            failed_cases.append(result.failures)
                 except Exception:
                     successful = False
                 finally:
@@ -103,4 +105,4 @@ def test_docstrings():
         current_packages = next_packages
 
     if not successful:
-        raise Exception("Docstring tests failed.")
+        raise Exception(f"Docstring tests failed. Failed results: {failed_cases}")

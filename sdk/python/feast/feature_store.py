@@ -428,7 +428,7 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> fs.plan([driver_hourly_stats_view, driver]) # register entity and feature view
+            >>> registry, diff = fs.plan([driver_hourly_stats_view, driver]) # register entity and feature view
         """
 
         if not isinstance(objects, Iterable):
@@ -572,15 +572,23 @@ class FeatureStore:
     @log_exceptions_and_usage
     def apply(
         self,
-        objects: List[
-            Union[
-                FeatureView,
-                OnDemandFeatureView,
-                RequestFeatureView,
-                Entity,
-                FeatureService,
-                FeatureTable,
-            ]
+        objects: Union[
+            Entity,
+            FeatureView,
+            OnDemandFeatureView,
+            RequestFeatureView,
+            FeatureService,
+            FeatureTable,
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                    FeatureTable,
+                ]
+            ],
         ],
         objects_to_delete: Optional[
             List[
@@ -631,9 +639,11 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
+            >>> diff = fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
+        if not isinstance(objects, Iterable):
+            objects = [objects]
 
         if not objects_to_delete:
             objects_to_delete = []
