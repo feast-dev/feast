@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Optional
 
 import pandas as pd
@@ -10,6 +11,8 @@ from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RedshiftDataSourceCreator(DataSourceCreator):
@@ -42,6 +45,9 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     ) -> DataSource:
 
         destination_name = self.get_prefixed_table_name(destination_name)
+        logger.info(
+            f"RedshiftDataSourceCreator:create_data_source | destination_name = {destination_name}"
+        )
 
         aws_utils.upload_df_to_redshift(
             self.client,
@@ -72,6 +78,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         return f"{self.project_name}_{suffix}"
 
     def teardown(self):
+        logger.info(f"RedshiftDataSourceCreator:teardown | self.tables = {self.tables}")
         for table in self.tables:
             aws_utils.execute_redshift_statement(
                 self.client,

@@ -1,3 +1,4 @@
+import logging
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
@@ -6,6 +7,8 @@ from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
+
+logger = logging.getLogger(__name__)
 
 
 class RedshiftSource(DataSource):
@@ -178,6 +181,9 @@ class RedshiftSource(DataSource):
 
             # The API returns valid JSON with empty column list when the table doesn't exist
             if len(table["ColumnList"]) == 0:
+                logger.info(
+                    f"RedshiftSource:get_table_column_names_and_types | describe table response = {table}"
+                )
                 raise DataSourceNotFoundException(self.table)
 
             columns = table["ColumnList"]
