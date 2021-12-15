@@ -63,47 +63,64 @@ class AwsProvider(PassthroughProvider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        self.online_store.update(
-            config=self.repo_config,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_keep=entities_to_keep,
-            entities_to_delete=entities_to_delete,
-            partial=partial,
-        )
-
-        if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
-            if not enable_aws_lambda_feature_server(self.repo_config):
-                raise ExperimentalFeatureNotEnabled(FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
-
-            # Since the AWS Lambda feature server will attempt to load the registry, we
-            # only allow the registry to be in S3.
-            registry_path = (
-                self.repo_config.registry
-                if isinstance(self.repo_config.registry, str)
-                else self.repo_config.registry.path
+        try:
+            self.online_store.update(
+                config=self.repo_config,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_keep=entities_to_keep,
+                entities_to_delete=entities_to_delete,
+                partial=partial,
             )
-            registry_store_class = get_registry_store_class_from_scheme(registry_path)
-            if registry_store_class != S3RegistryStore:
-                raise IncompatibleRegistryStoreClass(
-                    registry_store_class.__name__, S3RegistryStore.__name__
-                )
 
-            ecr_client = boto3.client("ecr")
-            docker_image_version = _get_docker_image_version()
-            repository_uri = self._create_or_get_repository_uri(ecr_client)
-            # Only download & upload the docker image if it doesn't already exist in ECR
-            if not ecr_client.batch_get_image(
-                repositoryName=AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
-                imageIds=[{"imageTag": docker_image_version}],
-            ).get("images"):
-                image_uri = self._upload_docker_image(
-                    ecr_client, repository_uri, docker_image_version
-                )
-            else:
-                image_uri = f"{repository_uri}:{docker_image_version}"
+            if (
+                self.repo_config.feature_server
+                and self.repo_config.feature_server.enabled
+            ):
+                if not enable_aws_lambda_feature_server(self.repo_config):
+                    raise ExperimentalFeatureNotEnabled(
+                        FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
+                    )
 
-            self._deploy_feature_server(project, image_uri)
+                # Since the AWS Lambda feature server will attempt to load the registry, we
+                # only allow the registry to be in S3.
+                registry_path = (
+                    self.repo_config.registry
+                    if isinstance(self.repo_config.registry, str)
+                    else self.repo_config.registry.path
+                )
+                registry_store_class = get_registry_store_class_from_scheme(
+                    registry_path
+                )
+                if registry_store_class != S3RegistryStore:
+                    raise IncompatibleRegistryStoreClass(
+                        registry_store_class.__name__, S3RegistryStore.__name__
+                    )
+
+                ecr_client = boto3.client("ecr")
+                docker_image_version = _get_docker_image_version()
+                repository_uri = self._create_or_get_repository_uri(ecr_client)
+                # Only download & upload the docker image if it doesn't already exist in ECR
+                if not ecr_client.batch_get_image(
+                    repositoryName=AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
+                    imageIds=[{"imageTag": docker_image_version}],
+                ).get("images"):
+                    image_uri = self._upload_docker_image(
+                        ecr_client, repository_uri, docker_image_version
+                    )
+                else:
+                    image_uri = f"{repository_uri}:{docker_image_version}"
+
+                self._deploy_feature_server(project, image_uri)
+        except Exception:
+            self.rollback_infra(
+                project=project,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_delete=entities_to_delete,
+                entities_to_keep=entities_to_keep,
+            )
+            raise
 
     def _deploy_feature_server(self, project: str, image_uri: str):
         _logger.info("Deploying feature server...")

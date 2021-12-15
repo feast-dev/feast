@@ -6,6 +6,11 @@ import pyarrow as pa
 from tqdm import tqdm
 
 from feast.entity import Entity
+from feast.errors import (
+    EntityNotFoundException,
+    FeatureTableNotFoundException,
+    FeatureViewNotFoundException,
+)
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -48,13 +53,70 @@ class PassthroughProvider(Provider):
         partial: bool,
     ):
         set_usage_attribute("provider", self.__class__.__name__)
+        try:
+            self.online_store.update(
+                config=self.repo_config,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_keep=entities_to_keep,
+                entities_to_delete=entities_to_delete,
+                partial=partial,
+            )
+        except Exception:
+            self.rollback_infra(
+                project=project,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_delete=entities_to_delete,
+                entities_to_keep=entities_to_keep,
+            )
+            raise
+
+    def rollback_infra(
+        self,
+        project: str,
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+    ):
+        set_usage_attribute("provider", self.__class__.__name__)
+        registry = self.repo_config.get_registry_config()
+
+        tables_to_recreate = list(tables_to_delete)
+        tables_to_revert: List[Union[FeatureTable, FeatureView]] = []
+        tables_to_remove: List[Union[FeatureTable, FeatureView]] = []
+        for table in tables_to_keep:
+            # Need to remove tables which didn't already exist and revert ones which
+            # might have been changed.
+            try:
+                tables_to_revert.append(registry.get_feature_view(table.name, project))
+            except FeatureViewNotFoundException:
+                try:
+                    tables_to_revert.append(
+                        registry.get_feature_table(table.name, project)
+                    )
+                except FeatureTableNotFoundException:
+                    tables_to_remove.append(table)
+
+        entities_to_recreate = list(entities_to_delete)
+        entities_to_revert: List[Entity] = []
+        entities_to_remove: List[Entity] = []
+        for entity in entities_to_keep:
+            # Need to remove entities which didn't already exist and revert ones which
+            # might have been changed.
+            try:
+                entities_to_revert.append(registry.get_entity(entity.name, project))
+            except EntityNotFoundException:
+                entities_to_remove.append(entity)
+
         self.online_store.update(
             config=self.repo_config,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_keep=entities_to_keep,
-            entities_to_delete=entities_to_delete,
-            partial=partial,
+            tables_to_delete=tables_to_remove,
+            tables_to_keep=tables_to_revert + tables_to_recreate,
+            entities_to_keep=entities_to_revert + entities_to_recreate,
+            entities_to_delete=entities_to_remove,
+            partial=False,
         )
 
     def teardown_infra(
