@@ -16,7 +16,7 @@ import itertools
 import os
 import warnings
 from collections import Counter, OrderedDict, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
+from feast.diff.FcoDiff import RegistryDiff, TransitionType
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -360,6 +361,177 @@ class FeatureStore:
         return _feature_refs
 
     @log_exceptions_and_usage
+    def plan(self,
+             objects: Union[
+                 Entity,
+                 FeatureView,
+                 OnDemandFeatureView,
+                 RequestFeatureView,
+                 FeatureService,
+                 FeatureTable,
+                 List[
+                     Union[
+                         FeatureView,
+                         OnDemandFeatureView,
+                         RequestFeatureView,
+                         Entity,
+                         FeatureService,
+                         FeatureTable,
+                     ]
+                 ],
+             ],
+             objects_to_delete: Optional[
+                 List[
+                     Union[
+                         FeatureView,
+                         OnDemandFeatureView,
+                         RequestFeatureView,
+                         Entity,
+                         FeatureService,
+                         FeatureTable,
+                     ]
+                 ]
+             ] = None,
+             partial: bool = True,
+    ) -> Tuple[Registry, RegistryDiff]:
+        if not isinstance(objects, Iterable):
+            objects = [objects]
+
+        assert isinstance(objects, list)
+
+        if not objects_to_delete:
+            objects_to_delete = []
+
+        current_registry_proto = (
+            self._registry.cached_registry_proto.__deepcopy__()
+            if self._registry.cached_registry_proto
+            else RegistryProto()
+        )
+        new_registry = copy.deepcopy(self._registry)
+        new_registry.cached_registry_proto_ttl = timedelta()
+
+        # Separate all objects into entities, feature services, and different feature view types.
+        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
+        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        request_views_to_update = [
+            ob for ob in objects if isinstance(ob, RequestFeatureView)
+        ]
+        odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
+        services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
+        tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
+
+        if len(entities_to_update) + len(views_to_update) + len(
+                request_views_to_update
+        ) + len(odfvs_to_update) + len(services_to_update) + len(
+            tables_to_update
+        ) != len(
+            objects
+        ):
+            raise ValueError("Unknown object type provided as part of apply() call")
+
+        # Validate all types of feature views.
+        if (
+                not flags_helper.enable_on_demand_feature_views(self.config)
+                and len(odfvs_to_update) > 0
+        ):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        set_usage_attribute("odfv", bool(odfvs_to_update))
+
+        _validate_feature_views(
+            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        )
+
+        # Make inferences
+        update_entities_with_inferred_types_from_feature_views(
+            entities_to_update, views_to_update, self.config
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in views_to_update], self.config
+        )
+
+        update_feature_views_with_inferred_features(
+            views_to_update, entities_to_update, self.config
+        )
+
+        for odfv in odfvs_to_update:
+            odfv.infer_features()
+
+        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
+        entities_to_update.append(DUMMY_ENTITY)
+
+        # Add all objects to the registry and update the provider's infrastructure.
+        for view in itertools.chain(
+            views_to_update, odfvs_to_update, request_views_to_update
+        ):
+            new_registry.apply_feature_view(view, project=self.project, commit=False)
+        for ent in entities_to_update:
+            new_registry.apply_entity(ent, project=self.project, commit=False)
+        for feature_service in services_to_update:
+            new_registry.apply_feature_service(
+                feature_service, project=self.project, commit=False
+            )
+        for table in tables_to_update:
+            new_registry.apply_feature_table(
+                table, project=self.project, commit=False
+            )
+
+        if not partial:
+            # Delete all registry objects that should not exist.
+            entities_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, Entity)
+            ]
+            views_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, FeatureView)
+            ]
+            request_views_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
+            ]
+            odfvs_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
+            ]
+            services_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, FeatureService)
+            ]
+            tables_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, FeatureTable)
+            ]
+
+            for entity in entities_to_delete:
+                new_registry.delete_entity(
+                    entity.name, project=self.project, commit=False
+                )
+            for view in views_to_delete:
+                new_registry.delete_feature_view(
+                    view.name, project=self.project, commit=False
+                )
+            for request_view in request_views_to_delete:
+                new_registry.delete_feature_view(
+                    request_view.name, project=self.project, commit=False
+                )
+            for odfv in odfvs_to_delete:
+                new_registry.delete_feature_view(
+                    odfv.name, project=self.project, commit=False
+                )
+            for service in services_to_delete:
+                new_registry.delete_feature_service(
+                    service.name, project=self.project, commit=False
+                )
+            for table in tables_to_delete:
+                new_registry.delete_feature_table(
+                    table.name, project=self.project, commit=False
+                )
+
+        new_registry_proto = (
+            new_registry.cached_registry_proto
+            if new_registry.cached_registry_proto
+            else RegistryProto()
+        )
+
+        return new_registry, Registry.diff_between(current_registry_proto, new_registry_proto)
+
+    @log_exceptions_and_usage
     def apply(
         self,
         objects: Union[
@@ -432,133 +604,17 @@ class FeatureStore:
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
+        new_registry, diffs = self.plan(objects, objects_to_delete, partial)
+        new_registry.cached_registry_proto_ttl = self._registry.cached_registry_proto_ttl
+        self._registry = new_registry
 
-        if not isinstance(objects, Iterable):
-            objects = [objects]
-
-        assert isinstance(objects, list)
-
-        if not objects_to_delete:
-            objects_to_delete = []
-
-        current_registry_proto = (
-            self._registry.cached_registry_proto.__deepcopy__()
-            if self._registry.cached_registry_proto
-            else RegistryProto()
-        )
-
-        # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
-        request_views_to_update = [
-            ob for ob in objects if isinstance(ob, RequestFeatureView)
-        ]
-        odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
-        services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
         tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
 
-        if len(entities_to_update) + len(views_to_update) + len(
-            request_views_to_update
-        ) + len(odfvs_to_update) + len(services_to_update) + len(
-            tables_to_update
-        ) != len(
-            objects
-        ):
-            raise ValueError("Unknown object type provided as part of apply() call")
-
-        # Validate all types of feature views.
-        if (
-            not flags_helper.enable_on_demand_feature_views(self.config)
-            and len(odfvs_to_update) > 0
-        ):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
-
-        set_usage_attribute("odfv", bool(odfvs_to_update))
-
-        _validate_feature_views(
-            [*views_to_update, *odfvs_to_update, *request_views_to_update]
-        )
-
-        # Make inferences
-        update_entities_with_inferred_types_from_feature_views(
-            entities_to_update, views_to_update, self.config
-        )
-
-        update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in views_to_update], self.config
-        )
-
-        update_feature_views_with_inferred_features(
-            views_to_update, entities_to_update, self.config
-        )
-
-        for odfv in odfvs_to_update:
-            odfv.infer_features()
-
-        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
-        entities_to_update.append(DUMMY_ENTITY)
-
-        # Add all objects to the registry and update the provider's infrastructure.
-        for view in itertools.chain(
-            views_to_update, odfvs_to_update, request_views_to_update
-        ):
-            self._registry.apply_feature_view(view, project=self.project, commit=False)
-        for ent in entities_to_update:
-            self._registry.apply_entity(ent, project=self.project, commit=False)
-        for feature_service in services_to_update:
-            self._registry.apply_feature_service(
-                feature_service, project=self.project, commit=False
-            )
-        for table in tables_to_update:
-            self._registry.apply_feature_table(
-                table, project=self.project, commit=False
-            )
-
-        if not partial:
-            # Delete all registry objects that should not exist.
-            entities_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, Entity)
-            ]
-            views_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureView)
-            ]
-            request_views_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
-            ]
-            odfvs_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
-            ]
-            services_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureService)
-            ]
-            tables_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureTable)
-            ]
-
-            for entity in entities_to_delete:
-                self._registry.delete_entity(
-                    entity.name, project=self.project, commit=False
-                )
-            for view in views_to_delete:
-                self._registry.delete_feature_view(
-                    view.name, project=self.project, commit=False
-                )
-            for request_view in request_views_to_delete:
-                self._registry.delete_feature_view(
-                    request_view.name, project=self.project, commit=False
-                )
-            for odfv in odfvs_to_delete:
-                self._registry.delete_feature_view(
-                    odfv.name, project=self.project, commit=False
-                )
-            for service in services_to_delete:
-                self._registry.delete_feature_service(
-                    service.name, project=self.project, commit=False
-                )
-            for table in tables_to_delete:
-                self._registry.delete_feature_table(
-                    table.name, project=self.project, commit=False
-                )
+        entities_to_delete = [ob for ob in objects_to_delete if isinstance(ob, Entity)]
+        views_to_delete = [ob for ob in objects_to_delete if isinstance(ob, FeatureView)]
+        tables_to_delete = [ob for ob in objects_to_delete if isinstance(ob, FeatureTable)]
 
         self._get_provider().update_infra(
             project=self.project,
@@ -569,15 +625,8 @@ class FeatureStore:
             partial=partial,
         )
 
-        new_registry_proto = (
-            self._registry.cached_registry_proto
-            if self._registry.cached_registry_proto
-            else RegistryProto()
-        )
-
         self._registry.commit()
 
-        return Registry.diff_between(current_registry_proto, new_registry_proto)
 
     @log_exceptions_and_usage
     def teardown(self):

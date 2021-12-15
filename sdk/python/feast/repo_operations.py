@@ -129,10 +129,28 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 
 
 @log_exceptions_and_usage
-def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
-    from colorama import Fore, Style
+def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
 
     os.chdir(repo_path)
+    project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
+
+    if not skip_source_validation:
+        data_sources = [t.batch_source for t in repo.feature_views]
+        # Make sure the data source used by this feature view is supported by Feast
+        for data_source in data_sources:
+            data_source.validate(store.config)
+
+    # For each object in the registry, determine whether it should be kept or deleted,
+    # and whether new objects need to be added.
+    all_to_apply, all_to_delete, tables_to_delete, views_to_delete, views_to_keep = extract_objects_for_apply_delete(
+        project, registry, repo)
+
+    _, diff = store.plan(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+
+    log_cli_output(diff, repo, tables_to_delete, views_to_delete, views_to_keep)
+
+
+def _prepare_registry_and_repo(repo_config, repo_path):
     store = FeatureStore(config=repo_config)
     project = store.project
     if not is_valid_name(project):
@@ -145,14 +163,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+    return project, registry, repo, store
 
-    if not skip_source_validation:
-        data_sources = [t.batch_source for t in repo.feature_views]
-        # Make sure the data source used by this feature view is supported by Feast
-        for data_source in data_sources:
-            data_source.validate(store.config)
 
-    # For each object in the registry, determine whether it should be kept or deleted.
+def extract_objects_for_apply_delete(project, registry, repo):
     (
         entities_to_keep,
         entities_to_delete,
@@ -162,7 +176,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     )
     # TODO(achals): This code path should be refactored to handle added & kept entities separately.
     entities_to_keep = set(entities_to_keep).union(entities_to_add)
-
     views = tag_objects_for_keep_delete_add(
         set(registry.list_feature_views(project=project)), repo.feature_views
     )
@@ -171,7 +184,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         cast(Set[FeatureView], views[1]),
         cast(Set[FeatureView], views[2]),
     )
-
     request_views = tag_objects_for_keep_delete_add(
         set(registry.list_request_feature_views(project=project)),
         repo.request_feature_views,
@@ -184,7 +196,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         cast(Set[RequestFeatureView], request_views[1]),
         cast(Set[RequestFeatureView], request_views[2]),
     )
-
     base_views_to_keep: Set[Union[RequestFeatureView, FeatureView]] = {
         *views_to_keep,
         *views_to_add,
@@ -195,7 +206,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         *views_to_delete,
         *request_views_to_delete,
     }
-
     odfvs = tag_objects_for_keep_delete_add(
         set(registry.list_on_demand_feature_views(project=project)),
         repo.on_demand_feature_views,
@@ -206,7 +216,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         cast(Set[OnDemandFeatureView], odfvs[2]),
     )
     odfvs_to_keep = odfvs_to_keep.union(odfvs_to_add)
-
     (
         tables_to_keep,
         tables_to_delete,
@@ -215,7 +224,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         set(registry.list_feature_tables(project=project)), repo.feature_tables
     )
     tables_to_keep = tables_to_keep.union(tables_to_add)
-
     (
         services_to_keep,
         services_to_delete,
@@ -224,9 +232,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         set(registry.list_feature_services(project=project)), repo.feature_services
     )
     services_to_keep = services_to_keep.union(services_to_add)
-
     sys.dont_write_bytecode = False
-
     # Apply all changes to the registry and infrastructure.
     all_to_apply: List[
         Union[
@@ -248,15 +254,39 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     all_to_delete.extend(services_to_delete)
     all_to_delete.extend(odfvs_to_delete)
     all_to_delete.extend(tables_to_delete)
+    return all_to_apply, all_to_delete, tables_to_delete, views_to_delete, views_to_keep
+
+
+
+@log_exceptions_and_usage
+def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+
+    os.chdir(repo_path)
+    project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
+
+    if not skip_source_validation:
+        data_sources = [t.batch_source for t in repo.feature_views]
+        # Make sure the data source used by this feature view is supported by Feast
+        for data_source in data_sources:
+            data_source.validate(store.config)
+
+    # For each object in the registry, determine whether it should be kept or deleted.
+    all_to_apply, all_to_delete, tables_to_delete, views_to_delete, views_to_keep = extract_objects_for_apply_delete(
+        project, registry, repo)
 
     diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+
+    log_cli_output(diff, repo, tables_to_delete, views_to_delete, views_to_keep)
+
+
+def log_cli_output(diff, repo, tables_to_delete, views_to_delete, views_to_keep):
+    from colorama import Fore, Style
 
     message_action_map = {
         TransitionType.CREATE: ("Created", Fore.GREEN),
         TransitionType.DELETE: ("Deleted", Fore.RED),
         TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
     }
-
     for fco_diff in diff.fco_diffs:
         if fco_diff.name == DUMMY_ENTITY_NAME:
             continue
@@ -264,7 +294,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"{action} {fco_diff.fco_type} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}"
         )
-
     views_to_keep_in_infra = [
         view for view in views_to_keep if isinstance(view, FeatureView)
     ]
@@ -283,7 +312,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         click.echo(
             f"Removing infrastructure for {Style.BRIGHT + Fore.RED}{name}{Style.RESET_ALL}"
         )
-    # TODO: consider echoing also entities being deployed/removed
 
 
 @log_exceptions_and_usage
