@@ -34,6 +34,7 @@ from feast.repo_operations import (
     cli_check_repo,
     generate_project_name,
     init_repo,
+    plan,
     registry_dump,
     teardown,
 )
@@ -349,6 +350,26 @@ def on_demand_feature_view_list(ctx: click.Context):
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.command("plan", cls=NoOptionDefaultFormat)
+@click.option(
+    "--skip-source-validation",
+    is_flag=True,
+    help="Don't validate the data sources by checking for that the tables exist.",
+)
+@click.pass_context
+def plan_command(ctx: click.Context, skip_source_validation: bool):
+    """
+    Create or update a feature store deployment
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_config = load_repo_config(repo)
+    try:
+        plan(repo_config, repo, skip_source_validation)
+    except FeastProviderLoginError as e:
+        print(str(e))
 
 
 @cli.command("apply", cls=NoOptionDefaultFormat)

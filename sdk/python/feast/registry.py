@@ -42,6 +42,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 
@@ -128,6 +129,18 @@ class Registry:
                 else 0
             )
 
+    def clone(self) -> "Registry":
+        new_registry = Registry(None, None)
+        new_registry.cached_registry_proto_ttl = timedelta(seconds=0)
+        new_registry.cached_registry_proto = (
+            self.cached_registry_proto.__deepcopy__()
+            if self.cached_registry_proto
+            else RegistryProto()
+        )
+        new_registry.cached_registry_proto_created = datetime.utcnow()
+        new_registry._registry_store = NoopRegistryStore()
+        return new_registry
+
     # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
     @staticmethod
     def diff_between(
@@ -135,25 +148,66 @@ class Registry:
     ) -> RegistryDiff:
         diff = RegistryDiff()
 
-        # Handle Entities
-        (
-            entities_to_keep,
-            entities_to_delete,
-            entities_to_add,
-        ) = tag_proto_objects_for_keep_delete_add(
-            current_registry.entities, new_registry.entities,
-        )
+        attribute_to_object_type_str = {
+            "entities": "entity",
+            "feature_views": "feature view",
+            "feature_tables": "feature table",
+            "on_demand_feature_views": "on demand feature view",
+            "request_feature_views": "request feature view",
+            "feature_services": "feature service",
+        }
 
-        for e in entities_to_add:
-            diff.add_fco_diff(FcoDiff(None, e, [], TransitionType.CREATE))
-        for e in entities_to_delete:
-            diff.add_fco_diff(FcoDiff(e, None, [], TransitionType.DELETE))
+        for object_type in [
+            "entities",
+            "feature_views",
+            "feature_tables",
+            "on_demand_feature_views",
+            "request_feature_views",
+            "feature_services",
+        ]:
+            (
+                objects_to_keep,
+                objects_to_delete,
+                objects_to_add,
+            ) = tag_proto_objects_for_keep_delete_add(
+                getattr(current_registry, object_type),
+                getattr(new_registry, object_type),
+            )
 
-        # Handle Feature Views
-        # Handle On Demand Feature Views
-        # Handle Request Feature Views
-        # Handle Feature Services
-        logger.info(f"Diff: {diff}")
+            for e in objects_to_add:
+                diff.add_fco_diff(
+                    FcoDiff(
+                        e.spec.name,
+                        attribute_to_object_type_str[object_type],
+                        None,
+                        e,
+                        [],
+                        TransitionType.CREATE,
+                    )
+                )
+            for e in objects_to_delete:
+                diff.add_fco_diff(
+                    FcoDiff(
+                        e.spec.name,
+                        attribute_to_object_type_str[object_type],
+                        e,
+                        None,
+                        [],
+                        TransitionType.DELETE,
+                    )
+                )
+            for e in objects_to_keep:
+                diff.add_fco_diff(
+                    FcoDiff(
+                        e.spec.name,
+                        attribute_to_object_type_str[object_type],
+                        e,
+                        e,
+                        [],
+                        TransitionType.UNCHANGED,
+                    )
+                )
+
         return diff
 
     def _initialize_registry(self):
