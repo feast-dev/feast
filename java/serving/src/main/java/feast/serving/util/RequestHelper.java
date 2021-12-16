@@ -16,18 +16,19 @@
  */
 package feast.serving.util;
 
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 
 public class RequestHelper {
 
-  public static void validateOnlineRequest(GetOnlineFeaturesRequestV2 request) {
+  public static void validateOnlineRequest(ServingAPIProto.GetOnlineFeaturesRequest request) {
     // All EntityRows should not be empty
-    if (request.getEntityRowsCount() <= 0) {
+    if (request.getEntitiesCount() <= 0) {
       throw new IllegalArgumentException("Entity value must be provided");
     }
     // All FeatureReferences should have FeatureTable name and Feature name
-    for (FeatureReferenceV2 featureReference : request.getFeaturesList()) {
+    for (FeatureReferenceV2 featureReference : request.getFeatures().getValList()) {
       validateOnlineRequestFeatureReference(featureReference);
     }
   }

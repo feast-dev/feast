@@ -54,5 +54,5 @@ public interface ServingServiceV2 {
    *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues} for each {@link
    *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow} supplied.
    */
-  GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequestV2 getFeaturesRequest);
+  ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(ServingAPIProto.GetOnlineFeaturesRequest getFeaturesRequest);
 }

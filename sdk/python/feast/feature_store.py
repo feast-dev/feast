@@ -65,6 +65,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
+    FieldStatus,
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
 )
@@ -1217,7 +1218,7 @@ class FeatureStore:
                 result_row.fields[feature_name].CopyFrom(proto_value)
                 result_row.statuses[
                     feature_name
-                ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                ] = FieldStatus.PRESENT
 
         # Add data if odfv requests specific feature views as dependencies
         if len(grouped_odfv_refs) > 0:
@@ -1303,9 +1304,7 @@ class FeatureStore:
                         if full_feature_names
                         else feature_name
                     )
-                    result_row.statuses[
-                        feature_ref
-                    ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
+                    result_row.statuses[feature_ref] = FieldStatus.NOT_FOUND
             else:
                 for feature_name in feature_data:
                     feature_ref = (
@@ -1317,9 +1316,7 @@ class FeatureStore:
                         result_row.fields[feature_ref].CopyFrom(
                             feature_data[feature_name]
                         )
-                        result_row.statuses[
-                            feature_ref
-                        ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                        result_row.statuses[feature_ref] = FieldStatus.PRESENT
 
     def _augment_response_with_on_demand_transforms(
         self,
@@ -1396,7 +1393,7 @@ class FeatureStore:
                     )
                     result_row.statuses[
                         transformed_feature
-                    ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                    ] = FieldStatus.PRESENT
 
         # Drop values that aren't needed
         unneeded_features = [
@@ -1507,7 +1504,7 @@ def _entity_row_to_field_values(
     result = GetOnlineFeaturesResponse.FieldValues()
     for k in row.fields:
         result.fields[k].CopyFrom(row.fields[k])
-        result.statuses[k] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+        result.statuses[k] = FieldStatus.PRESENT
 
     return result
 
