@@ -28,6 +28,7 @@ from feast.diff.FcoDiff import (
     FcoDiff,
     RegistryDiff,
     TransitionType,
+    diff_between,
     tag_proto_objects_for_keep_delete_add,
 )
 from feast.entity import Entity
@@ -197,14 +198,14 @@ class Registry:
                     )
                 )
             for e in objects_to_keep:
+                current_obj_proto = [
+                    _e
+                    for _e in getattr(current_registry, object_type)
+                    if _e.spec.name == e.spec.name
+                ][0]
                 diff.add_fco_diff(
-                    FcoDiff(
-                        e.spec.name,
-                        attribute_to_object_type_str[object_type],
-                        e,
-                        e,
-                        [],
-                        TransitionType.UNCHANGED,
+                    diff_between(
+                        current_obj_proto, e, attribute_to_object_type_str[object_type]
                     )
                 )
 
