@@ -79,7 +79,7 @@ class DynamoDBOnlineStore(OnlineStore):
         for table_instance in tables_to_keep:
             try:
                 dynamodb_resource.create_table(
-                    TableName=f"{config.project}.{table_instance.name}",
+                    TableName=_get_table_name(config, table_instance),
                     KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                     AttributeDefinitions=[
                         {"AttributeName": "entity_id", "AttributeType": "S"}
@@ -95,11 +95,13 @@ class DynamoDBOnlineStore(OnlineStore):
 
         for table_instance in tables_to_keep:
             dynamodb_client.get_waiter("table_exists").wait(
-                TableName=f"{config.project}.{table_instance.name}"
+                TableName=_get_table_name(config, table_instance)
             )
 
         for table_to_delete in tables_to_delete:
-            _delete_table_idempotent(dynamodb_resource, table_to_delete.name)
+            _delete_table_idempotent(
+                dynamodb_resource, _get_table_name(config, table_to_delete)
+            )
 
     def teardown(
         self,
@@ -112,7 +114,7 @@ class DynamoDBOnlineStore(OnlineStore):
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
 
         for table in tables:
-            _delete_table_idempotent(dynamodb_resource, table.name)
+            _delete_table_idempotent(dynamodb_resource, _get_table_name(config, table))
 
     @log_exceptions_and_usage(online_store="dynamodb")
     def online_write_batch(
@@ -128,7 +130,7 @@ class DynamoDBOnlineStore(OnlineStore):
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
 
-        table_instance = dynamodb_resource.Table(f"{config.project}.{table.name}")
+        table_instance = dynamodb_resource.Table(_get_table_name(config, table))
         with table_instance.batch_writer() as batch:
             for entity_key, features, timestamp, created_ts in data:
                 entity_id = compute_entity_id(entity_key)
@@ -159,7 +161,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            table_instance = dynamodb_resource.Table(f"{config.project}.{table.name}")
+            table_instance = dynamodb_resource.Table(_get_table_name(config, table))
             entity_id = compute_entity_id(entity_key)
             with tracing_span(name="remote_call"):
                 response = table_instance.get_item(Key={"entity_id": entity_id})
@@ -193,6 +195,10 @@ def _initialize_dynamodb_client(region: str):
 
 def _initialize_dynamodb_resource(region: str):
     return boto3.resource("dynamodb", region_name=region)
+
+
+def _get_table_name(config: RepoConfig, table: FeatureView) -> str:
+    return f"{config.project}.{table.name}"
 
 
 def _delete_table_idempotent(
