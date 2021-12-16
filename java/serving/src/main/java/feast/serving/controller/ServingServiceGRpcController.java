@@ -73,6 +73,8 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   public void getOnlineFeaturesV2(
       ServingAPIProto.GetOnlineFeaturesRequestV2 request,
       StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+    long start = System.currentTimeMillis();
+
     try {
       // authorize for the project in request object.
       if (request.getProject() != null && !request.getProject().isEmpty()) {
@@ -85,8 +87,11 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       if (span != null) {
         span.finish();
       }
+
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
+      System.out.printf("Total %d\n", System.currentTimeMillis() - start);
+
     } catch (SpecRetrievalException e) {
       log.error("Failed to retrieve specs from Registry", e);
       responseObserver.onError(
