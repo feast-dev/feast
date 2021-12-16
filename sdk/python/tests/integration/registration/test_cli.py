@@ -60,7 +60,8 @@ def test_universal_cli(test_repo_config) -> None:
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
             result = runner.run(
-                ["feature-services", "describe", "driver_locations_service"], cwd=repo_path
+                ["feature-services", "describe", "driver_locations_service"],
+                cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
             assertpy.assert_that(fs.list_feature_views()).is_length(3)
