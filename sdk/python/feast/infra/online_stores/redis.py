@@ -50,6 +50,15 @@ except ImportError as e:
 logger = logging.getLogger(__name__)
 
 
+MHMGET_SCRIPT = """
+    local r = {}
+    for _, v in pairs(KEYS) do
+    r[#r+1] = redis.call('HMGET', v, unpack(ARGV))
+    end
+    return r
+"""
+
+
 class RedisType(str, Enum):
     redis = "redis"
     redis_cluster = "redis_cluster"
@@ -158,6 +167,7 @@ class RedisOnlineStore(OnlineStore):
                 kwargs["host"] = startup_nodes[0]["host"]
                 kwargs["port"] = startup_nodes[0]["port"]
                 self._client = Redis(**kwargs)
+            setattr(self._client, "mhmget", self._client.register_script(MHMGET_SCRIPT))
         return self._client
 
     @log_exceptions_and_usage(online_store="redis")
@@ -254,11 +264,8 @@ class RedisOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
             keys.append(redis_key_bin)
-        with client.pipeline() as pipe:
-            for redis_key_bin in keys:
-                pipe.hmget(redis_key_bin, hset_keys)
-            with tracing_span(name="remote_call"):
-                redis_values = pipe.execute()
+        with tracing_span(name="remote_call"):
+            redis_values = client.mhmget(keys, hset_keys)
         for values in redis_values:
             features = self._get_features_for_entity(
                 values, feature_view, requested_features
