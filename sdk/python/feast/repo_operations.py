@@ -6,7 +6,7 @@ import re
 import sys
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Set, Union, cast
+from typing import List, Set, Union, cast
 
 import click
 from click.exceptions import BadParameter
@@ -15,7 +15,7 @@ from feast.base_feature_view import BaseFeatureView
 from feast.diff.FcoDiff import TransitionType, tag_objects_for_keep_delete_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.feature_store import FeatureStore
+from feast.feature_store import FeatureStore, RepoContents
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -31,14 +31,6 @@ def py_path_to_module(path: Path, repo_root: Path) -> str:
         .replace("./", "")
         .replace("/", ".")
     )
-
-
-class ParsedRepo(NamedTuple):
-    feature_views: Set[FeatureView]
-    on_demand_feature_views: Set[OnDemandFeatureView]
-    request_feature_views: Set[RequestFeatureView]
-    entities: Set[Entity]
-    feature_services: Set[FeatureService]
 
 
 def read_feastignore(repo_root: Path) -> List[str]:
@@ -94,9 +86,9 @@ def get_repo_files(repo_root: Path) -> List[Path]:
     return sorted(repo_files)
 
 
-def parse_repo(repo_root: Path) -> ParsedRepo:
+def parse_repo(repo_root: Path) -> RepoContents:
     """ Collect feature table definitions from feature repo """
-    res = ParsedRepo(
+    res = RepoContents(
         entities=set(),
         feature_views=set(),
         feature_services=set(),
@@ -135,16 +127,18 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    # For each object in the registry, determine whether it should be kept or deleted,
-    # and whether new objects need to be added.
-    (
-        all_to_apply,
-        all_to_delete,
-        views_to_delete,
-        views_to_keep,
-    ) = extract_objects_for_apply_delete(project, registry, repo)
-
-    _, diff = store.plan(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+    diff = store.plan(repo)
+    views_to_delete = [
+        v
+        for v in diff.fco_diffs
+        if v.fco_type == "feature view" and v.transition_type == TransitionType.DELETE
+    ]
+    views_to_keep = [
+        v
+        for v in diff.fco_diffs
+        if v.fco_type == "feature view"
+        and v.transition_type in {TransitionType.CREATE, TransitionType.UNCHANGED}
+    ]
 
     log_cli_output(diff, views_to_delete, views_to_keep)
 
