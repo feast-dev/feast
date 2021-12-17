@@ -80,7 +80,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     if (projectName.isEmpty()) {
       projectName = "default";
     }
-    
+
     // Split all feature references into non-ODFV (e.g. batch and stream) references and ODFV.
     List<FeatureReferenceV2> allFeatureReferences = request.getFeaturesList();
     List<FeatureReferenceV2> featureReferences =
