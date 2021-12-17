@@ -288,7 +288,9 @@ class FeatureStore:
         return self._registry.get_entity(name, self.project)
 
     @log_exceptions_and_usage
-    def get_feature_service(self, name: str) -> FeatureService:
+    def get_feature_service(
+        self, name: str, allow_cache: bool = False
+    ) -> FeatureService:
         """
         Retrieves a feature service.
 
@@ -301,7 +303,7 @@ class FeatureStore:
         Raises:
             FeatureServiceNotFoundException: The feature service could not be found.
         """
-        return self._registry.get_feature_service(name, self.project)
+        return self._registry.get_feature_service(name, self.project, allow_cache)
 
     @log_exceptions_and_usage
     def get_feature_view(self, name: str) -> FeatureView:
@@ -369,14 +371,19 @@ class FeatureStore:
             """
         return self._registry.delete_feature_service(name, self.project)
 
-    def _get_features(self, features: Union[List[str], FeatureService],) -> List[str]:
+    def _get_features(
+        self, features: Union[List[str], FeatureService], allow_cache: bool = False,
+    ) -> List[str]:
         _features = features
+
         if not _features:
             raise ValueError("No features specified for retrieval")
 
         _feature_refs = []
         if isinstance(_features, FeatureService):
-            feature_service_from_registry = self.get_feature_service(_features.name)
+            feature_service_from_registry = self.get_feature_service(
+                _features.name, allow_cache
+            )
             if feature_service_from_registry != _features:
                 warnings.warn(
                     "The FeatureService object that has been passed in as an argument is"
@@ -1040,7 +1047,7 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
-        _feature_refs = self._get_features(features)
+        _feature_refs = self._get_features(features, allow_cache=True)
         (
             requested_feature_views,
             requested_request_feature_views,
@@ -1455,12 +1462,12 @@ class FeatureStore:
         return views_to_use
 
     @log_exceptions_and_usage
-    def serve(self, host: str, port: int) -> None:
+    def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
         if not flags_helper.enable_python_feature_server(self.config):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
 
-        feature_server.start_server(self, host, port)
+        feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
