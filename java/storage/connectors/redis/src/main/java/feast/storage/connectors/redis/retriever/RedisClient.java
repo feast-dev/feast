@@ -46,9 +46,6 @@ public class RedisClient implements RedisClientAdapter {
 
   private RedisClient(StatefulRedisConnection<byte[], byte[]> connection) {
     this.asyncCommands = connection.async();
-
-    // Disable auto-flushing
-    // this.asyncCommands.setAutoFlushCommands(false);
   }
 
   public static RedisClientAdapter create(RedisStoreConfig config) {

@@ -63,9 +63,6 @@ public class RedisClusterClient implements RedisClientAdapter {
 
     // allows reading from replicas
     this.asyncCommands.readOnly();
-
-    // Disable auto-flushing
-    this.asyncCommands.setAutoFlushCommands(false);
   }
 
   public static RedisClientAdapter create(RedisClusterStoreConfig config) {
