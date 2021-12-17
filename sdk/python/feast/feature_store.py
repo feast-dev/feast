@@ -1347,7 +1347,11 @@ class FeatureStore:
         for feature_ref in feature_refs:
             view_name, feature_name = feature_ref.split(":")
             if view_name in requested_odfv_feature_names:
-                odfv_feature_refs[view_name].append(feature_name)
+                odfv_feature_refs[view_name].append(
+                    f"{requested_odfv_map[view_name].projection.name_to_use()}__{feature_name}"
+                    if full_feature_names
+                    else feature_name
+                )
 
         initial_response = OnlineResponse(
             GetOnlineFeaturesResponse(field_values=result_rows)
@@ -1359,7 +1363,7 @@ class FeatureStore:
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
             transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df
+                initial_response_df, full_feature_names,
             )
             for row_idx in range(len(result_rows)):
                 result_row = result_rows[row_idx]
@@ -1369,18 +1373,13 @@ class FeatureStore:
                 ]
 
                 for transformed_feature in selected_subset:
-                    transformed_feature_name = (
-                        f"{odfv.projection.name_to_use()}__{transformed_feature}"
-                        if full_feature_names
-                        else transformed_feature
-                    )
-                    odfv_result_names.add(transformed_feature_name)
+                    odfv_result_names.add(transformed_feature)
                     proto_value = python_value_to_proto_value(
                         transformed_features_df[transformed_feature].values[row_idx]
                     )
-                    result_row.fields[transformed_feature_name].CopyFrom(proto_value)
+                    result_row.fields[transformed_feature].CopyFrom(proto_value)
                     result_row.statuses[
-                        transformed_feature_name
+                        transformed_feature
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
         # Drop values that aren't needed
