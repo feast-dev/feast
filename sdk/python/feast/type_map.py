@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
@@ -61,7 +62,9 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
         if k == "int64Val":
             return int(val)
         if k == "bytesVal":
-            return bytes(val)
+            # MessageToDict converts the bytes object to base64 encoded string:
+            # https://developers.google.com/protocol-buffers/docs/proto3#json
+            return base64.b64decode(val)
         if (k == "int64ListVal") or (k == "int32ListVal"):
             return [int(item) for item in val]
         if (k == "floatListVal") or (k == "doubleListVal"):
@@ -69,7 +72,9 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
         if k == "stringListVal":
             return [str(item) for item in val]
         if k == "bytesListVal":
-            return [bytes(item) for item in val]
+            # MessageToDict converts the bytes object to base64 encoded string:
+            # https://developers.google.com/protocol-buffers/docs/proto3#json
+            return [base64.b64decode(val) for item in val]
         if k == "boolListVal":
             return [bool(item) for item in val]
 

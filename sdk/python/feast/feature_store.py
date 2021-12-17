@@ -18,7 +18,18 @@ import warnings
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 import pandas as pd
 from colorama import Fore, Style
@@ -26,6 +37,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
+from feast.diff.FcoDiff import RegistryDiff
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -36,8 +48,8 @@ from feast.errors import (
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.feature_service import FeatureService
-from feast.feature_table import FeatureTable
 from feast.feature_view import (
+    DUMMY_ENTITY,
     DUMMY_ENTITY_ID,
     DUMMY_ENTITY_NAME,
     DUMMY_ENTITY_VAL,
@@ -51,6 +63,7 @@ from feast.inference import (
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
@@ -61,10 +74,34 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_value_to_proto_value
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
-from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
+
+
+class RepoContents(NamedTuple):
+    feature_views: Set[FeatureView]
+    on_demand_feature_views: Set[OnDemandFeatureView]
+    request_feature_views: Set[RequestFeatureView]
+    entities: Set[Entity]
+    feature_services: Set[FeatureService]
+
+    def to_registry_proto(self) -> RegistryProto:
+        registry_proto = RegistryProto()
+        registry_proto.entities.extend([e.to_proto() for e in self.entities])
+        registry_proto.feature_views.extend(
+            [fv.to_proto() for fv in self.feature_views]
+        )
+        registry_proto.on_demand_feature_views.extend(
+            [fv.to_proto() for fv in self.on_demand_feature_views]
+        )
+        registry_proto.request_feature_views.extend(
+            [fv.to_proto() for fv in self.request_feature_views]
+        )
+        registry_proto.feature_services.extend(
+            [fs.to_proto() for fs in self.feature_services]
+        )
+        return registry_proto
 
 
 class FeatureStore:
@@ -359,6 +396,55 @@ class FeatureStore:
         return _feature_refs
 
     @log_exceptions_and_usage
+    def plan(self, desired_repo_objects: RepoContents) -> RegistryDiff:
+        """Dry-run registering objects to metadata store.
+
+        The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
+        a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
+        command are for informational purpose, and are not actually applied to the registry.
+
+        Args:
+            objects: A single object, or a list of objects that are intended to be registered with the Feature Store.
+            objects_to_delete: A list of objects to be deleted from the registry.
+            partial: If True, apply will only handle the specified objects; if False, apply will also delete
+                all the objects in objects_to_delete.
+
+        Raises:
+            ValueError: The 'objects' parameter could not be parsed properly.
+
+        Examples:
+            Generate a plan adding an Entity and a FeatureView.
+
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
+            >>> from feast.feature_store import RepoContents
+            >>> from datetime import timedelta
+            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
+            >>> driver_hourly_stats = FileSource(
+            ...     path="feature_repo/data/driver_stats.parquet",
+            ...     event_timestamp_column="event_timestamp",
+            ...     created_timestamp_column="created",
+            ... )
+            >>> driver_hourly_stats_view = FeatureView(
+            ...     name="driver_hourly_stats",
+            ...     entities=["driver_id"],
+            ...     ttl=timedelta(seconds=86400 * 1),
+            ...     batch_source=driver_hourly_stats,
+            ... )
+            >>> diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
+        """
+
+        current_registry_proto = (
+            self._registry.cached_registry_proto.__deepcopy__()
+            if self._registry.cached_registry_proto
+            else RegistryProto()
+        )
+
+        desired_registry_proto = desired_repo_objects.to_registry_proto()
+        diffs = Registry.diff_between(current_registry_proto, desired_registry_proto)
+        return diffs
+
+    @log_exceptions_and_usage
     def apply(
         self,
         objects: Union[
@@ -367,7 +453,6 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
-            FeatureTable,
             List[
                 Union[
                     FeatureView,
@@ -375,22 +460,22 @@ class FeatureStore:
                     RequestFeatureView,
                     Entity,
                     FeatureService,
-                    FeatureTable,
                 ]
             ],
         ],
-        objects_to_delete: List[
-            Union[
-                FeatureView,
-                OnDemandFeatureView,
-                RequestFeatureView,
-                Entity,
-                FeatureService,
-                FeatureTable,
+        objects_to_delete: Optional[
+            List[
+                Union[
+                    FeatureView,
+                    OnDemandFeatureView,
+                    RequestFeatureView,
+                    Entity,
+                    FeatureService,
+                ]
             ]
-        ] = [],
+        ] = None,
         partial: bool = True,
-    ):
+    ) -> RegistryDiff:
         """Register objects to metadata store and update related infrastructure.
 
         The apply method registers one or more definitions (e.g., Entity, FeatureView) and registers or updates these
@@ -426,14 +511,21 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
+            >>> diff = fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
-
         if not isinstance(objects, Iterable):
             objects = [objects]
-
         assert isinstance(objects, list)
+
+        if not objects_to_delete:
+            objects_to_delete = []
+
+        current_registry_proto = (
+            self._registry.cached_registry_proto.__deepcopy__()
+            if self._registry.cached_registry_proto
+            else RegistryProto()
+        )
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
@@ -443,15 +535,10 @@ class FeatureStore:
         ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
-        tables_to_update = [ob for ob in objects if isinstance(ob, FeatureTable)]
 
         if len(entities_to_update) + len(views_to_update) + len(
             request_views_to_update
-        ) + len(odfvs_to_update) + len(services_to_update) + len(
-            tables_to_update
-        ) != len(
-            objects
-        ):
+        ) + len(odfvs_to_update) + len(services_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         # Validate all types of feature views.
@@ -484,11 +571,6 @@ class FeatureStore:
             odfv.infer_features()
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
-        DUMMY_ENTITY = Entity(
-            name=DUMMY_ENTITY_NAME,
-            join_key=DUMMY_ENTITY_ID,
-            value_type=ValueType.INT32,
-        )
         entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
@@ -501,10 +583,6 @@ class FeatureStore:
         for feature_service in services_to_update:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
-            )
-        for table in tables_to_update:
-            self._registry.apply_feature_table(
-                table, project=self.project, commit=False
             )
 
         if not partial:
@@ -523,9 +601,6 @@ class FeatureStore:
             ]
             services_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, FeatureService)
-            ]
-            tables_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureTable)
             ]
 
             for entity in entities_to_delete:
@@ -548,15 +623,27 @@ class FeatureStore:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
                 )
-            for table in tables_to_delete:
-                self._registry.delete_feature_table(
-                    table.name, project=self.project, commit=False
-                )
+
+        new_registry_proto = (
+            self._registry.cached_registry_proto
+            if self._registry.cached_registry_proto
+            else RegistryProto()
+        )
+
+        diffs = Registry.diff_between(current_registry_proto, new_registry_proto)
+
+        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
+        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+
+        entities_to_delete = [ob for ob in objects_to_delete if isinstance(ob, Entity)]
+        views_to_delete = [
+            ob for ob in objects_to_delete if isinstance(ob, FeatureView)
+        ]
 
         self._get_provider().update_infra(
             project=self.project,
-            tables_to_delete=views_to_delete + tables_to_delete if not partial else [],
-            tables_to_keep=views_to_update + tables_to_update,
+            tables_to_delete=views_to_delete if not partial else [],
+            tables_to_keep=views_to_update,
             entities_to_delete=entities_to_delete if not partial else [],
             entities_to_keep=entities_to_update,
             partial=partial,
@@ -564,15 +651,15 @@ class FeatureStore:
 
         self._registry.commit()
 
+        return diffs
+
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
-        tables: List[Union[FeatureView, FeatureTable]] = []
+        tables: List[FeatureView] = []
         feature_views = self.list_feature_views()
-        feature_tables = self._registry.list_feature_tables(self.project)
 
         tables.extend(feature_views)
-        tables.extend(feature_tables)
 
         entities = self.list_entities()
 
@@ -926,8 +1013,8 @@ class FeatureStore:
         Args:
             features: List of feature references that will be returned for each entity.
                 Each feature reference should have the following format:
-                "feature_table:feature" where "feature_table" & "feature" refer to
-                the feature and feature table names respectively.
+                "feature_view:feature" where "feature_view" & "feature" refer to
+                the Feature and FeatureView names respectively.
                 Only the feature name is required.
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
 
@@ -1560,7 +1647,9 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
         case_insensitive_fv_name = fv.name.lower()
         if case_insensitive_fv_name in fv_names:
             raise ValueError(
-                f"More than one feature view with name {case_insensitive_fv_name} found. Please ensure that all feature view names are case-insensitively unique. It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+                f"More than one feature view with name {case_insensitive_fv_name} found. "
+                f"Please ensure that all feature view names are case-insensitively unique. "
+                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
             )
         else:
             fv_names.add(case_insensitive_fv_name)

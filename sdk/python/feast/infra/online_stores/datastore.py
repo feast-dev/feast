@@ -14,15 +14,20 @@
 import itertools
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from pydantic import PositiveInt, StrictStr
 from pydantic.typing import Literal
 
-from feast import Entity, FeatureTable, utils
+from feast import Entity, utils
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import InfraObject
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.core.DatastoreTable_pb2 import (
+    DatastoreTable as DatastoreTableProto,
+)
+from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -74,14 +79,12 @@ class DatastoreOnlineStore(OnlineStore):
     def update(
         self,
         config: RepoConfig,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        """
-        """
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
@@ -107,12 +110,9 @@ class DatastoreOnlineStore(OnlineStore):
     def teardown(
         self,
         config: RepoConfig,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
+        tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        """
-        There's currently no teardown done for Datastore.
-        """
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
@@ -128,25 +128,17 @@ class DatastoreOnlineStore(OnlineStore):
             client.delete(key)
 
     def _get_client(self, online_config: DatastoreOnlineStoreConfig):
-
         if not self._client:
-            try:
-                self._client = datastore.Client(
-                    project=online_config.project_id, namespace=online_config.namespace,
-                )
-            except DefaultCredentialsError as e:
-                raise FeastProviderLoginError(
-                    str(e)
-                    + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
-                    "local Google Cloud account "
-                )
+            self._client = _initialize_client(
+                online_config.project_id, online_config.namespace
+            )
         return self._client
 
     @log_exceptions_and_usage(online_store="datastore")
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -186,7 +178,7 @@ class DatastoreOnlineStore(OnlineStore):
     def _write_minibatch(
         client,
         project: str,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: Sequence[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -227,7 +219,7 @@ class DatastoreOnlineStore(OnlineStore):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
@@ -267,7 +259,7 @@ class DatastoreOnlineStore(OnlineStore):
         return result
 
 
-def _delete_all_values(client, key) -> None:
+def _delete_all_values(client, key):
     """
     Delete all data under the key path in datastore.
     """
@@ -279,3 +271,96 @@ def _delete_all_values(client, key) -> None:
 
         for entity in entities:
             client.delete(entity.key)
+
+
+def _initialize_client(
+    project_id: Optional[str], namespace: Optional[str]
+) -> datastore.Client:
+    try:
+        client = datastore.Client(project=project_id, namespace=namespace,)
+        return client
+    except DefaultCredentialsError as e:
+        raise FeastProviderLoginError(
+            str(e)
+            + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
+            "local Google Cloud account "
+        )
+
+
+class DatastoreTable(InfraObject):
+    """
+    A Datastore table managed by Feast.
+
+    Attributes:
+        project: The Feast project of the table.
+        name: The name of the table.
+        project_id (optional): The GCP project id.
+        namespace (optional): Datastore namespace.
+        client: Datastore client.
+    """
+
+    project: str
+    name: str
+    project_id: Optional[str]
+    namespace: Optional[str]
+    client: datastore.Client
+
+    def __init__(
+        self,
+        project: str,
+        name: str,
+        project_id: Optional[str] = None,
+        namespace: Optional[str] = None,
+    ):
+        self.project = project
+        self.name = name
+        self.project_id = project_id
+        self.namespace = namespace
+        self.client = _initialize_client(self.project_id, self.namespace)
+
+    def to_proto(self) -> InfraObjectProto:
+        datastore_table_proto = DatastoreTableProto()
+        datastore_table_proto.project = self.project
+        datastore_table_proto.name = self.name
+        if self.project_id:
+            datastore_table_proto.project_id.FromString(bytes(self.project_id, "utf-8"))
+        if self.namespace:
+            datastore_table_proto.namespace.FromString(bytes(self.namespace, "utf-8"))
+
+        return InfraObjectProto(
+            infra_object_class_type="feast.infra.online_stores.datastore.DatastoreTable",
+            datastore_table=datastore_table_proto,
+        )
+
+    @staticmethod
+    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+        datastore_table = DatastoreTable(
+            project=infra_object_proto.datastore_table.project,
+            name=infra_object_proto.datastore_table.name,
+        )
+
+        if infra_object_proto.datastore_table.HasField("project_id"):
+            datastore_table.project_id = (
+                infra_object_proto.datastore_table.project_id.SerializeToString()
+            ).decode("utf-8")
+        if infra_object_proto.datastore_table.HasField("namespace"):
+            datastore_table.namespace = (
+                infra_object_proto.datastore_table.namespace.SerializeToString()
+            ).decode("utf-8")
+
+        return datastore_table
+
+    def update(self):
+        key = self.client.key("Project", self.project, "Table", self.name)
+        entity = datastore.Entity(
+            key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+        )
+        entity.update({"created_ts": datetime.utcnow()})
+        self.client.put(entity)
+
+    def teardown(self):
+        key = self.client.key("Project", self.project, "Table", self.name)
+        _delete_all_values(self.client, key)
+
+        # Delete the table metadata datastore entity
+        self.client.delete(key)

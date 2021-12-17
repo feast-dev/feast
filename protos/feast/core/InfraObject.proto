@@ -22,6 +22,7 @@ option java_outer_classname = "InfraObjectProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 import "feast/core/DynamoDBTable.proto";
+import "feast/core/DatastoreTable.proto";
 
 // Represents a set of infrastructure objects managed by Feast
 message Infra {
@@ -37,6 +38,7 @@ message InfraObject {
     // The infrastructure object
     oneof infra_object {
         DynamoDBTable dynamodb_table = 2;
+        DatastoreTable datastore_table = 3;
         CustomInfra custom_infra = 100;
     }
 
