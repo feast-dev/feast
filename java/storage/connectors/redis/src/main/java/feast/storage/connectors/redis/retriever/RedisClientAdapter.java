@@ -22,6 +22,7 @@ import java.util.Map;
 
 public interface RedisClientAdapter {
   RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields);
+
   RedisFuture<Map<byte[], byte[]>> hgetall(byte[] key);
 
   void flushCommands();

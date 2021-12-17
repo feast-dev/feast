@@ -23,11 +23,10 @@ import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.ValueProto;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.ProtoFeature;
-import io.lettuce.core.KeyValue;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class RedisHashDecoder {
 
@@ -37,56 +36,54 @@ public class RedisHashDecoder {
    * @param redisHashValues retrieved Redis Hash values based on EntityRows
    * @param byteToFeatureReferenceMap map to decode bytes back to FeatureReference
    * @param timestampPrefix timestamp prefix
-   * @return List of {@link Feature}
-   * @throws InvalidProtocolBufferException if a protocol buffer exception occurs
+   * @return Map of {@link ServingAPIProto.FeatureReferenceV2} to {@link Feature}
    */
-  public static List<Feature> retrieveFeature(
+  public static Map<ServingAPIProto.FeatureReferenceV2, Feature> retrieveFeature(
       Map<byte[], byte[]> redisHashValues,
       Map<ByteBuffer, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap,
-      String timestampPrefix)
-      throws InvalidProtocolBufferException {
-    List<Feature> allFeatures = new ArrayList<>();
-    HashMap<ServingAPIProto.FeatureReferenceV2, ValueProto.Value> featureMap = new HashMap<>();
-    Map<String, Timestamp> featureTableTimestampMap = new HashMap<>();
+      String timestampPrefix) {
+    Map<String, Timestamp> featureTableTimestampMap =
+        redisHashValues.entrySet().stream()
+            .filter(e -> new String(e.getKey()).startsWith(timestampPrefix))
+            .collect(
+                Collectors.toMap(
+                    e -> new String(e.getKey()).substring(timestampPrefix.length() + 1),
+                    e -> {
+                      try {
+                        return Timestamp.parseFrom(e.getValue());
+                      } catch (InvalidProtocolBufferException ex) {
+                        throw new RuntimeException(
+                            "Couldn't parse timestamp proto while pulling data from Redis");
+                      }
+                    }));
+    Map<ServingAPIProto.FeatureReferenceV2, Feature> results =
+        new HashMap<>(byteToFeatureReferenceMap.size(), 1);
 
-    for (Map.Entry<byte[], byte[]> entity : redisHashValues.entrySet()) {
-      //if (entity.getValue()) {
-        byte[] redisValueK = entity.getKey();
-        byte[] redisValueV = entity.getValue();
+    redisHashValues.entrySet().stream()
+        .filter(e -> !(new String(e.getKey()).startsWith(timestampPrefix)))
+        .map(
+            e ->
+                Map.entry(byteToFeatureReferenceMap.get(ByteBuffer.wrap(e.getKey())), e.getValue()))
+        .filter(e -> e.getKey() != null)
+        .forEach(
+            e -> {
+              ValueProto.Value v;
+              try {
+                v = ValueProto.Value.parseFrom(e.getValue());
+              } catch (InvalidProtocolBufferException ex) {
+                throw new RuntimeException(
+                    "Couldn't parse feature value proto while pulling data from Redis");
+              }
+              results.put(
+                  e.getKey(),
+                  new ProtoFeature(
+                      e.getKey(), featureTableTimestampMap.get(e.getKey().getFeatureTable()), v));
+            });
 
-        // Decode data from Redis into Feature object fields
-        if (new String(redisValueK).startsWith(timestampPrefix)) {
-          Timestamp eventTimestamp = Timestamp.parseFrom(redisValueV);
-          featureTableTimestampMap.put(new String(redisValueK), eventTimestamp);
-        } else {
-          ServingAPIProto.FeatureReferenceV2 featureReference =
-              byteToFeatureReferenceMap.get(ByteBuffer.wrap(redisValueK));
-          if (featureReference != null) {
-            ValueProto.Value featureValue = ValueProto.Value.parseFrom(redisValueV);
-
-            featureMap.put(featureReference, featureValue);
-          }
-
-        }
-      //}
-    }
-
-    // Add timestamp to features
-    for (Map.Entry<ServingAPIProto.FeatureReferenceV2, ValueProto.Value> entry :
-        featureMap.entrySet()) {
-      String timestampRedisHashKeyStr = timestampPrefix + ":" + entry.getKey().getFeatureTable();
-      Timestamp curFeatureTimestamp = featureTableTimestampMap.get(timestampRedisHashKeyStr);
-
-      ProtoFeature curFeature =
-          new ProtoFeature(entry.getKey(), curFeatureTimestamp, entry.getValue());
-      allFeatures.add(curFeature);
-    }
-
-    return allFeatures;
+    return results;
   }
 
-  public static byte[] getTimestampRedisHashKeyBytes(
-      String featureTable, String timestampPrefix) {
+  public static byte[] getTimestampRedisHashKeyBytes(String featureTable, String timestampPrefix) {
     String timestampRedisHashKeyStr = timestampPrefix + ":" + featureTable;
     return timestampRedisHashKeyStr.getBytes();
   }

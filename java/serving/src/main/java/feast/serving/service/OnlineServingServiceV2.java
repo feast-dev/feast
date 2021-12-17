@@ -80,7 +80,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     if (projectName.isEmpty()) {
       projectName = "default";
     }
-    long pre = System.currentTimeMillis();
     // Split all feature references into non-ODFV (e.g. batch and stream) references and ODFV.
     List<FeatureReferenceV2> allFeatureReferences = request.getFeaturesList();
     List<FeatureReferenceV2> featureReferences =
@@ -161,15 +160,13 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                       }
                     }));
 
-    System.out.printf("Preprocessing %d\n", System.currentTimeMillis() - pre);
-
     Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.setTag("entities", entityRows.size());
       storageRetrievalSpan.setTag("features", featureReferences.size());
     }
     long s = System.currentTimeMillis();
-    List<List<Feature>> entityRowsFeatures =
+    List<Map<FeatureReferenceV2, Feature>> features =
         retriever.getOnlineFeatures(projectName, entityRows, featureReferences, entityNames);
     System.out.printf("GetOnlineFeatures %d\n", System.currentTimeMillis() - s);
 
@@ -177,7 +174,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       storageRetrievalSpan.finish();
     }
 
-    if (entityRowsFeatures.size() != entityRows.size()) {
+    if (features.size() != entityRows.size()) {
       throw Status.INTERNAL
           .withDescription(
               "The no. of FeatureRow obtained from OnlineRetriever"
@@ -187,42 +184,32 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     Span postProcessingSpan = tracer.buildSpan("postProcessing").start();
 
-    ValueProto.Value v = ValueProto.Value.newBuilder().setInt64Val(1).build();
-
-    long post = System.currentTimeMillis();
     for (int i = 0; i < entityRows.size(); i++) {
       GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
-
-      List<Feature> curEntityRowFeatures = entityRowsFeatures.get(i);
-
-      Map<FeatureReferenceV2, Feature> featureReferenceFeatureMap =
-          getFeatureRefFeatureMap(curEntityRowFeatures);
+      Map<FeatureReferenceV2, Feature> featureRow = features.get(i);
 
       Map<String, ValueProto.Value> rowValues = values.get(i);
       Map<String, GetOnlineFeaturesResponse.FieldStatus> rowStatuses = statuses.get(i);
 
       for (FeatureReferenceV2 featureReference : featureReferences) {
-        if (featureReferenceFeatureMap.containsKey(featureReference)) {
-          Feature feature = featureReferenceFeatureMap.get(featureReference);
+        if (featureRow.containsKey(featureReference)) {
+          Feature feature = featureRow.get(featureReference);
 
-          ValueProto.Value value =
-              feature.getFeatureValue(featureValueTypes.get(feature.getFeatureReference()));
+          ValueProto.Value value = feature.getFeatureValue(featureValueTypes.get(featureReference));
 
           Boolean isOutsideMaxAge =
-              checkOutsideMaxAge(
-                  feature, entityRow, featureMaxAges.get(feature.getFeatureReference()));
+              checkOutsideMaxAge(feature, entityRow, featureMaxAges.get(featureReference));
 
           if (value != null) {
-            rowValues.put(FeatureV2.getFeatureStringRef(feature.getFeatureReference()), value);
+            rowValues.put(FeatureV2.getFeatureStringRef(featureReference), value);
           } else {
             rowValues.put(
-                FeatureV2.getFeatureStringRef(feature.getFeatureReference()),
+                FeatureV2.getFeatureStringRef(featureReference),
                 ValueProto.Value.newBuilder().build());
           }
 
           rowStatuses.put(
-              FeatureV2.getFeatureStringRef(feature.getFeatureReference()),
-              getMetadata(value, isOutsideMaxAge));
+              FeatureV2.getFeatureStringRef(featureReference), getMetadata(value, isOutsideMaxAge));
         } else {
           rowValues.put(
               FeatureV2.getFeatureStringRef(featureReference),
@@ -233,15 +220,15 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
         }
       }
       // Populate metrics/log request
-       //populateCountMetrics(rowStatuses, projectName);
+      populateCountMetrics(rowStatuses, projectName);
     }
 
     if (postProcessingSpan != null) {
       postProcessingSpan.finish();
     }
 
-    // populateHistogramMetrics(entityRows, featureReferences, projectName);
-    // populateFeatureCountMetrics(featureReferences, projectName);
+    populateHistogramMetrics(entityRows, featureReferences, projectName);
+    populateFeatureCountMetrics(featureReferences, projectName);
 
     // Handle ODFVs. For each ODFV reference, we send a TransformFeaturesRequest to the FTS.
     // The request should contain the entity data, the retrieved features, and the request data.
@@ -308,9 +295,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       }
     }
 
-    System.out.printf("PostProcessing %d\n", System.currentTimeMillis() - post);
-
-    long build = System.currentTimeMillis();
     // Build response field values from entityValuesMap and entityStatusesMap
     // Response field values should be in the same order as the entityRows provided by the user.
     List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
@@ -322,14 +306,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                         .putAllStatuses(statuses.get(entityRowIdx))
                         .build())
             .collect(Collectors.toList());
-    System.out.printf("Build %d\n", System.currentTimeMillis() - build);
 
     return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
-  }
-
-  private static Map<FeatureReferenceV2, Feature> getFeatureRefFeatureMap(List<Feature> features) {
-    return features.stream()
-        .collect(Collectors.toMap(Feature::getFeatureReference, Function.identity()));
   }
 
   /**
