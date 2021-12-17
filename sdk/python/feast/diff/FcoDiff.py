@@ -75,3 +75,28 @@ def tag_proto_objects_for_keep_delete_add(
     objs_to_delete = [e for e in existing_objs if e.spec.name not in desired_obj_names]
 
     return objs_to_keep, objs_to_delete, objs_to_add
+
+
+FIELDS_TO_IGNORE = {"project"}
+
+
+def diff_between(current: U, new: U, object_type: str) -> FcoDiff:
+    assert current.DESCRIPTOR.full_name == new.DESCRIPTOR.full_name
+    property_diffs = []
+    transition: TransitionType = TransitionType.UNCHANGED
+    if current.spec != new.spec:
+        for _field in current.spec.DESCRIPTOR.fields:
+            if _field.name in FIELDS_TO_IGNORE:
+                continue
+            if getattr(current.spec, _field.name) != getattr(new.spec, _field.name):
+                transition = TransitionType.UPDATE
+                property_diffs.append(
+                    PropertyDiff(
+                        _field.name,
+                        getattr(current.spec, _field.name),
+                        getattr(new.spec, _field.name),
+                    )
+                )
+    return FcoDiff(
+        new.spec.name, object_type, current, new, property_diffs, transition,
+    )

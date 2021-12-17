@@ -269,6 +269,7 @@ def log_cli_output(diff, views_to_delete, views_to_keep):
         TransitionType.CREATE: ("Created", Fore.GREEN),
         TransitionType.DELETE: ("Deleted", Fore.RED),
         TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
+        TransitionType.UPDATE: ("Updated", Fore.YELLOW),
     }
     for fco_diff in diff.fco_diffs:
         if fco_diff.name == DUMMY_ENTITY_NAME:
@@ -277,6 +278,12 @@ def log_cli_output(diff, views_to_delete, views_to_keep):
         click.echo(
             f"{action} {fco_diff.fco_type} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}"
         )
+        if fco_diff.transition_type == TransitionType.UPDATE:
+            for _p in fco_diff.fco_property_diffs:
+                click.echo(
+                    f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}"
+                )
+
     views_to_keep_in_infra = [
         view for view in views_to_keep if isinstance(view, FeatureView)
     ]
