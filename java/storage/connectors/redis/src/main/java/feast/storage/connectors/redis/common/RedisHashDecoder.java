@@ -60,26 +60,28 @@ public class RedisHashDecoder {
     Map<ServingAPIProto.FeatureReferenceV2, Feature> results =
         Maps.newHashMapWithExpectedSize(byteToFeatureReferenceMap.size());
 
-    redisHashValues.entrySet().stream()
-        .filter(e -> !(new String(e.getKey()).startsWith(timestampPrefix)))
-        .map(
-            e ->
-                Map.entry(byteToFeatureReferenceMap.get(ByteBuffer.wrap(e.getKey())), e.getValue()))
-        .filter(e -> e.getKey() != null)
-        .forEach(
-            e -> {
-              ValueProto.Value v;
-              try {
-                v = ValueProto.Value.parseFrom(e.getValue());
-              } catch (InvalidProtocolBufferException ex) {
-                throw new RuntimeException(
-                    "Couldn't parse feature value proto while pulling data from Redis");
-              }
-              results.put(
-                  e.getKey(),
-                  new ProtoFeature(
-                      e.getKey(), featureTableTimestampMap.get(e.getKey().getFeatureTable()), v));
-            });
+    for (Map.Entry<byte[], byte[]> entry : redisHashValues.entrySet()) {
+      ServingAPIProto.FeatureReferenceV2 featureReference =
+          byteToFeatureReferenceMap.get(ByteBuffer.wrap(entry.getKey()));
+
+      if (featureReference == null) {
+        continue;
+      }
+
+      ValueProto.Value v;
+      try {
+        v = ValueProto.Value.parseFrom(entry.getValue());
+      } catch (InvalidProtocolBufferException ex) {
+        throw new RuntimeException(
+            "Couldn't parse feature value proto while pulling data from Redis");
+      }
+      results.put(
+          featureReference,
+          new ProtoFeature(
+              featureReference,
+              featureTableTimestampMap.get(featureReference.getFeatureTable()),
+              v));
+    }
 
     return results;
   }

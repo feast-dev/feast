@@ -125,7 +125,7 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
         results.add(
             RedisHashDecoder.retrieveFeature(f.get(), byteToFeatureReferenceMap, timestampPrefix));
       } catch (InterruptedException | ExecutionException e) {
-        throw new RuntimeException();
+        throw new RuntimeException("Unexpected error when pulling data from Redis");
       }
     }
 
