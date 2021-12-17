@@ -39,6 +39,9 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
   private final RedisClientAdapter redisClientAdapter;
   private final EntityKeySerializer keySerializer;
 
+  // Number of fields in request to Redis which requires using HGETALL instead of HMGET
+  public static final int HGETALL_NUMBER_OF_FIELDS_THRESHOLD = 50;
+
   public OnlineRetriever(RedisClientAdapter redisClientAdapter, EntityKeySerializer keySerializer) {
     this.redisClientAdapter = redisClientAdapter;
     this.keySerializer = keySerializer;
@@ -96,7 +99,7 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
 
     // Number of fields that controls whether to use hmget or hgetall was discovered empirically
     // Could be potentially tuned further
-    if (retrieveFields.size() < 50) {
+    if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
       byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
 
       for (byte[] binaryRedisKey : binaryRedisKeys) {
