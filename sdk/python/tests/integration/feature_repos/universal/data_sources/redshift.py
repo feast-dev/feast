@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -17,13 +17,14 @@ logger = logging.getLogger(__name__)
 
 class RedshiftDataSourceCreator(DataSourceCreator):
 
-    tables = []
+    tables: List[str]
 
     def __init__(self, project_name: str):
         super().__init__()
         self.project_name = project_name
         self.client = aws_utils.get_redshift_data_client("us-west-2")
         self.s3 = aws_utils.get_s3_resource("us-west-2")
+        self.tables = []
 
         self.offline_store_config = RedshiftOfflineStoreConfig(
             cluster_id="feast-integration-tests",
