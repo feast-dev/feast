@@ -165,11 +165,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       storageRetrievalSpan.setTag("entities", entityRows.size());
       storageRetrievalSpan.setTag("features", featureReferences.size());
     }
-    long s = System.currentTimeMillis();
     List<Map<FeatureReferenceV2, Feature>> features =
         retriever.getOnlineFeatures(projectName, entityRows, featureReferences, entityNames);
-    System.out.printf("GetOnlineFeatures %d\n", System.currentTimeMillis() - s);
-
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
     }

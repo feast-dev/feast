@@ -16,6 +16,7 @@
  */
 package feast.storage.connectors.redis.common;
 
+import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -57,7 +58,7 @@ public class RedisHashDecoder {
                       }
                     }));
     Map<ServingAPIProto.FeatureReferenceV2, Feature> results =
-        new HashMap<>(byteToFeatureReferenceMap.size(), 1);
+        Maps.newHashMapWithExpectedSize(byteToFeatureReferenceMap.size());
 
     redisHashValues.entrySet().stream()
         .filter(e -> !(new String(e.getKey()).startsWith(timestampPrefix)))

@@ -91,7 +91,8 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
               retrieveFields.add(featureTableTsBytes);
             });
 
-    List<Future<Map<byte[], byte[]>>> futures = Lists.newArrayList();
+    List<Future<Map<byte[], byte[]>>> futures =
+        Lists.newArrayListWithExpectedSize(binaryRedisKeys.size());
 
     // Number of fields that controls whether to use hmget or hgetall was discovered empirically
     // Could be potentially tuned further
@@ -117,16 +118,17 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
       }
     }
 
-    return futures.stream()
-        .map(
-            f -> {
-              try {
-                return RedisHashDecoder.retrieveFeature(
-                    f.get(), byteToFeatureReferenceMap, timestampPrefix);
-              } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException();
-              }
-            })
-        .collect(Collectors.toList());
+    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> results =
+        Lists.newArrayListWithExpectedSize(futures.size());
+    for (Future<Map<byte[], byte[]>> f : futures) {
+      try {
+        results.add(
+            RedisHashDecoder.retrieveFeature(f.get(), byteToFeatureReferenceMap, timestampPrefix));
+      } catch (InterruptedException | ExecutionException e) {
+        throw new RuntimeException();
+      }
+    }
+
+    return results;
   }
 }
