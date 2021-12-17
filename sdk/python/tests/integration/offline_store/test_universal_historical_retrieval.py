@@ -385,10 +385,10 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         # Not requesting the on demand transform with an entity_df query (can't add request data in them)
         expected_df_query = expected_df.drop(
             columns=[
-                "conv_rate_plus_100",
-                "conv_rate_plus_100_rounded",
+                response_feature_name("conv_rate_plus_100", full_feature_names),
+                response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
+                response_feature_name("conv_rate_plus_val_to_add", full_feature_names),
                 "val_to_add",
-                "conv_rate_plus_val_to_add",
                 "driver_age",
             ]
         )
