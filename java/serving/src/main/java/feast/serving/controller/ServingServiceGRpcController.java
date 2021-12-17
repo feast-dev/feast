@@ -85,7 +85,6 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       if (span != null) {
         span.finish();
       }
-
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
     } catch (SpecRetrievalException e) {
