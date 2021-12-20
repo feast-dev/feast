@@ -18,9 +18,12 @@ package feast.storage.connectors.redis.retriever;
 
 import io.lettuce.core.*;
 import java.util.List;
+import java.util.Map;
 
 public interface RedisClientAdapter {
   RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields);
+
+  RedisFuture<Map<byte[], byte[]>> hgetall(byte[] key);
 
   void flushCommands();
 }

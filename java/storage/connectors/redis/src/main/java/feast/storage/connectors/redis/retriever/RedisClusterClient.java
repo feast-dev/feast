@@ -24,6 +24,7 @@ import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class RedisClusterClient implements RedisClientAdapter {
@@ -33,6 +34,11 @@ public class RedisClusterClient implements RedisClientAdapter {
   @Override
   public RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields) {
     return asyncCommands.hmget(key, fields);
+  }
+
+  @Override
+  public RedisFuture<Map<byte[], byte[]>> hgetall(byte[] key) {
+    return asyncCommands.hgetall(key);
   }
 
   @Override
@@ -57,9 +63,6 @@ public class RedisClusterClient implements RedisClientAdapter {
 
     // allows reading from replicas
     this.asyncCommands.readOnly();
-
-    // Disable auto-flushing
-    this.asyncCommands.setAutoFlushCommands(false);
   }
 
   public static RedisClientAdapter create(RedisClusterStoreConfig config) {
