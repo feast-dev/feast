@@ -1,7 +1,7 @@
 import importlib
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, KeysView, List, Optional, Set, Tuple
 
 import numpy as np
@@ -20,6 +20,7 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
 from feast.registry import Registry
+from feast.utils import to_naive_utc
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -90,6 +91,8 @@ class FeatureViewQueryContext:
     created_timestamp_column: Optional[str]
     table_subquery: str
     entity_selections: List[str]
+    min_event_timestamp: Optional[str]
+    max_event_timestamp: str
 
 
 def get_feature_view_query_context(
@@ -97,6 +100,7 @@ def get_feature_view_query_context(
     feature_views: List[FeatureView],
     registry: Registry,
     project: str,
+    entity_df_timestamp_range: Tuple[datetime, datetime],
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a BigQuery and Redshift point-in-time SQL query"""
 
@@ -130,6 +134,14 @@ def get_feature_view_query_context(
         event_timestamp_column = feature_view.input.event_timestamp_column
         created_timestamp_column = feature_view.input.created_timestamp_column
 
+        min_event_timestamp = None
+        if feature_view.ttl:
+            min_event_timestamp = to_naive_utc(
+                entity_df_timestamp_range[0] - feature_view.ttl
+            ).isoformat()
+
+        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
+
         context = FeatureViewQueryContext(
             name=feature_view.projection.name_to_use(),
             ttl=ttl_seconds,
@@ -144,6 +156,8 @@ def get_feature_view_query_context(
             # TODO: Make created column optional and not hardcoded
             table_subquery=feature_view.input.get_table_query_string(),
             entity_selections=entity_selections,
+            min_event_timestamp=min_event_timestamp,
+            max_event_timestamp=max_event_timestamp,
         )
         query_context.append(context)
     return query_context

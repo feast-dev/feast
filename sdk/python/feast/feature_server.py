@@ -2,6 +2,7 @@ import click
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.logger import logger
+from fastapi.params import Depends
 from google.protobuf.json_format import MessageToDict, Parse
 
 import feast
@@ -15,17 +16,21 @@ def get_app(store: "feast.FeatureStore"):
 
     app = FastAPI()
 
+    async def get_body(request: Request):
+        return await request.body()
+
     @app.post("/get-online-features")
-    async def get_online_features(request: Request):
+    def get_online_features(body=Depends(get_body)):
         try:
             # Validate and parse the request data into GetOnlineFeaturesRequest Protobuf object
-            body = await request.body()
             request_proto = GetOnlineFeaturesRequest()
             Parse(body, request_proto)
 
             # Initialize parameters for FeatureStore.get_online_features(...) call
             if request_proto.HasField("feature_service"):
-                features = store.get_feature_service(request_proto.feature_service)
+                features = store.get_feature_service(
+                    request_proto.feature_service, allow_cache=True
+                )
             else:
                 features = list(request_proto.features.val)
 
@@ -61,11 +66,13 @@ def get_app(store: "feast.FeatureStore"):
     return app
 
 
-def start_server(store: "feast.FeatureStore", host: str, port: int):
+def start_server(
+    store: "feast.FeatureStore", host: str, port: int, no_access_log: bool
+):
     app = get_app(store)
     click.echo(
         "This is an "
         + click.style("experimental", fg="yellow", bold=True, underline=True)
         + " feature. It's intended for early testing and feedback, and could change without warnings in future releases."
     )
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))

@@ -164,7 +164,7 @@ class OnDemandFeatureView(BaseFeatureView):
         return schema
 
     def get_transformed_features_df(
-        self, df_with_features: pd.DataFrame
+        self, df_with_features: pd.DataFrame, full_feature_names: bool = False,
     ) -> pd.DataFrame:
         # Apply on demand transformations
         columns_to_cleanup = []
@@ -183,9 +183,23 @@ class OnDemandFeatureView(BaseFeatureView):
         # Compute transformed values and apply to each result row
         df_with_transformed_features = self.udf.__call__(df_with_features)
 
+        # Work out whether the correct columns names are used.
+        rename_columns: Dict[str, str] = {}
+        for feature in self.features:
+            short_name = feature.name
+            long_name = f"{self.projection.name_to_use()}__{feature.name}"
+            if (
+                short_name in df_with_transformed_features.columns
+                and full_feature_names
+            ):
+                rename_columns[short_name] = long_name
+            elif not full_feature_names:
+                # Long name must be in dataframe.
+                rename_columns[long_name] = short_name
+
         # Cleanup extra columns used for transformation
         df_with_features.drop(columns=columns_to_cleanup, inplace=True)
-        return df_with_transformed_features
+        return df_with_transformed_features.rename(columns=rename_columns)
 
     def infer_features(self):
         """

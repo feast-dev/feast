@@ -18,6 +18,7 @@ package feast.storage.api.retriever;
 
 import feast.proto.serving.ServingAPIProto;
 import java.util.List;
+import java.util.Map;
 
 public interface OnlineRetrieverV2 {
   /**
@@ -37,7 +38,7 @@ public interface OnlineRetrieverV2 {
    * @return list of {@link Feature}s corresponding to data retrieved for each entity row from
    *     FeatureTable specified in FeatureTable request.
    */
-  List<List<Feature>> getOnlineFeatures(
+  List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> getOnlineFeatures(
       String project,
       List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,

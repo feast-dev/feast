@@ -18,18 +18,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-import pytz
 from pydantic import StrictStr
 from pydantic.schema import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import InfraObject
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import log_exceptions_and_usage, tracing_span
+from feast.utils import to_naive_utc
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -48,6 +51,9 @@ class SqliteOnlineStore(OnlineStore):
     """
     OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
     features.
+
+    Attributes:
+        _conn: SQLite connection.
     """
 
     _conn: Optional[sqlite3.Connection] = None
@@ -68,10 +74,7 @@ class SqliteOnlineStore(OnlineStore):
     def _get_conn(self, config: RepoConfig):
         if not self._conn:
             db_path = self._get_db_path(config)
-            Path(db_path).parent.mkdir(exist_ok=True)
-            self._conn = sqlite3.connect(
-                db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-            )
+            self._conn = _initialize_conn(db_path)
         return self._conn
 
     @log_exceptions_and_usage(online_store="sqlite")
@@ -92,9 +95,9 @@ class SqliteOnlineStore(OnlineStore):
         with conn:
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(entity_key)
-                timestamp = _to_naive_utc(timestamp)
+                timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
-                    created_ts = _to_naive_utc(created_ts)
+                    created_ts = to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
                     conn.execute(
@@ -208,12 +211,60 @@ class SqliteOnlineStore(OnlineStore):
             pass
 
 
+def _initialize_conn(db_path: str):
+    Path(db_path).parent.mkdir(exist_ok=True)
+    return sqlite3.connect(
+        db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+    )
+
+
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
+class SqliteTable(InfraObject):
+    """
+    A Sqlite table managed by Feast.
+
+    Attributes:
+        path: The absolute path of the Sqlite file.
+        name: The name of the table.
+        conn: SQLite connection.
+    """
+
+    path: str
+    name: str
+    conn: sqlite3.Connection
+
+    def __init__(self, path: str, name: str):
+        self.path = path
+        self.name = name
+        self.conn = _initialize_conn(path)
+
+    def to_proto(self) -> InfraObjectProto:
+        sqlite_table_proto = SqliteTableProto()
+        sqlite_table_proto.path = self.path
+        sqlite_table_proto.name = self.name
+
+        return InfraObjectProto(
+            infra_object_class_type="feast.infra.online_store.sqlite.SqliteTable",
+            sqlite_table=sqlite_table_proto,
+        )
+
+    @staticmethod
+    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+        return SqliteTable(
+            path=infra_object_proto.sqlite_table.path,
+            name=infra_object_proto.sqlite_table.name,
+        )
+
+    def update(self):
+        self.conn.execute(
+            f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+        )
+        self.conn.execute(
+            f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"
+        )
+
+    def teardown(self):
+        self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
