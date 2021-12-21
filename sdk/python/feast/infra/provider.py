@@ -301,8 +301,14 @@ def _convert_arrow_to_proto(
     feature_view: FeatureView,
     join_keys: List[str],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+    # Avoid ChunkedArrays which guarentees `zero_copy_only` availiable.
+    if isinstance(table, pyarrow.Table):
+        table = table.to_batches()[0]
+
     # Handle join keys
-    join_key_values = {k: table.column(k).to_pylist() for k in join_keys}
+    join_key_values = {
+        k: table.column(k).to_numpy(zero_copy_only=False) for k in join_keys
+    }
     entity_keys = [
         EntityKeyProto(
             join_keys=join_keys,
@@ -317,7 +323,7 @@ def _convert_arrow_to_proto(
     feature_dict = {
         feature.name: [
             python_value_to_proto_value(val, feature.dtype)
-            for val in table.column(feature.name).to_pylist()
+            for val in table.column(feature.name).to_numpy(zero_copy_only=False)
         ]
         for feature in feature_view.features
     }
@@ -326,18 +332,22 @@ def _convert_arrow_to_proto(
     # Convert event_timestamps
     event_timestamps = [
         _coerce_datetime(val)
-        for val in table.column(
-            feature_view.batch_source.event_timestamp_column
-        ).to_pylist()
+        for val in pandas.to_datetime(
+            table.column(feature_view.batch_source.event_timestamp_column).to_numpy(
+                zero_copy_only=False
+            )
+        )
     ]
 
     # Convert created_timestamps if they exist
     if feature_view.batch_source.created_timestamp_column:
         created_timestamps = [
             _coerce_datetime(val)
-            for val in table.column(
-                feature_view.batch_source.created_timestamp_column
-            ).to_pylist()
+            for val in pandas.to_datetime(
+                table.column(
+                    feature_view.batch_source.created_timestamp_column
+                ).to_numpy(zero_copy_only=False)
+            )
         ]
     else:
         created_timestamps = [None] * table.num_rows

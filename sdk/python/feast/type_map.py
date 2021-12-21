@@ -207,7 +207,7 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
         "double_list_val",
         [np.float64, np.float32, float],
     ),
-    ValueType.INT32_LIST: (Int32List, "int32_list_val", [np.int32, int]),
+    ValueType.INT32_LIST: (Int32List, "int32_list_val", [np.int64, np.int32, int]),
     ValueType.INT64_LIST: (Int64List, "int64_list_val", [np.int64, np.int32, int]),
     ValueType.UNIX_TIMESTAMP_LIST: (
         Int64List,
@@ -234,7 +234,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
-    ValueType.BOOL: ("bool_val", lambda x: x, {bool}),
+    ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_}),
 }
 
 
