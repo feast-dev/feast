@@ -23,6 +23,7 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.List;
+import java.util.Map;
 
 public class RedisClient implements RedisClientAdapter {
 
@@ -34,15 +35,17 @@ public class RedisClient implements RedisClientAdapter {
   }
 
   @Override
+  public RedisFuture<Map<byte[], byte[]>> hgetall(byte[] key) {
+    return asyncCommands.hgetall(key);
+  }
+
+  @Override
   public void flushCommands() {
     asyncCommands.flushCommands();
   }
 
   private RedisClient(StatefulRedisConnection<byte[], byte[]> connection) {
     this.asyncCommands = connection.async();
-
-    // Disable auto-flushing
-    this.asyncCommands.setAutoFlushCommands(false);
   }
 
   public static RedisClientAdapter create(RedisStoreConfig config) {

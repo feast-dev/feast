@@ -1,11 +1,9 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Union
 
 import pytz
 
-from feast import FeatureTable
 from feast.feature_view import FeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -22,7 +20,7 @@ class LocalProvider(PassthroughProvider):
     pass
 
 
-def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
+def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 

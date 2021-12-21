@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence
 from urllib.parse import urlparse
 
 from colorama import Fore, Style
@@ -28,7 +28,6 @@ from feast.errors import (
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
-from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.flags import FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
 from feast.flags_helper import enable_aws_lambda_feature_server
@@ -57,8 +56,8 @@ class AwsProvider(PassthroughProvider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -193,10 +192,7 @@ class AwsProvider(PassthroughProvider):
 
     @log_exceptions_and_usage(provider="AwsProvider")
     def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
-        entities: Sequence[Entity],
+        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
         self.online_store.teardown(self.repo_config, tables, entities)
 

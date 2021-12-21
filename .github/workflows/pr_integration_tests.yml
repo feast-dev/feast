@@ -42,6 +42,22 @@ jobs:
       - name: Set ECR image tag
         id: image-tag
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
+      - name: Cache Public ECR Image
+        id: lambda_python_3_9
+        uses: actions/cache@v2
+        with:
+          path: ~/cache
+          key: lambda_python_3_9
+      - name: Handle Cache Miss (pull public ECR image & save it to tar file)
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/cache
+          docker pull public.ecr.aws/lambda/python:3.9
+          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+      - name: Handle Cache Hit (load docker image from tar file)
+        if: steps.cache-primes.outputs.cache-hit == 'true'
+        run: |
+          docker load -i ~/cache/lambda_python_3_9.tar
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -63,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ 3.7 ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -122,12 +138,15 @@ jobs:
             ${{ steps.pip-cache.outputs.dir }}
             /opt/hostedtoolcache/Python
             /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('**/setup.py') }}
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"
@@ -142,11 +161,3 @@ jobs:
           env_vars: OS,PYTHON
           fail_ci_if_error: true
           verbose: true
-      - name: Benchmark python
-        env:
-          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
-          FEAST_USAGE: "False"
-          IS_TEST: "True"
-        run: pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data --durations=5
-      - name: Upload Benchmark Artifact to S3
-        run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmarks

@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import pandas
 from tqdm import tqdm
 
-from feast import Entity, FeatureTable, FeatureView, RepoConfig
+from feast import Entity, FeatureView, RepoConfig
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -19,8 +19,8 @@ class FooProvider(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -28,17 +28,14 @@ class FooProvider(Provider):
         pass
 
     def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[Union[FeatureTable, FeatureView]],
-        entities: Sequence[Entity],
+        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ):
         pass
 
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -73,7 +70,7 @@ class FooProvider(Provider):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureTable, FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:

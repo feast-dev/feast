@@ -59,7 +59,7 @@
         <!-- OpenCensus is used in grpc and Google's HTTP client libs in Cloud SDKs -->
         <opencensus.version>0.26.0</opencensus.version>
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
-        <log4jVersion>2.13.2</log4jVersion>
+        <log4jVersion>2.17.0</log4jVersion>
         <joda.time.version>2.9.9</joda.time.version>
         <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
         <spring.security.oauth2.version>2.5.0.RELEASE</spring.security.oauth2.version>
@@ -577,6 +577,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
+                    <source>11</source>
+                    <target>11</target>
                     <release>11</release>
                     <annotationProcessorPaths>
                         <path>

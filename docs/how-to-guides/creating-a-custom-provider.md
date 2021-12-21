@@ -123,7 +123,7 @@ It may also be necessary to add the module root path to your `PYTHONPATH` as fol
 PYTHONPATH=$PYTHONPATH:/home/my_user/my_custom_provider feast apply
 ```
 
-That's it. You should not have a fully functional custom provider!
+That's it. You should now have a fully functional custom provider!
 
 ### Next steps
 

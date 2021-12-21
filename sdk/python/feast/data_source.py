@@ -331,7 +331,7 @@ class DataSource(ABC):
     @abstractmethod
     def from_proto(data_source: DataSourceProto) -> Any:
         """
-        Converts data source config in FeatureTable spec to a DataSource class object.
+        Converts data source config in protobuf spec to a DataSource class object.
 
         Args:
             data_source: A protobuf representation of a DataSource.

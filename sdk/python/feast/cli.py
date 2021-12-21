@@ -34,6 +34,7 @@ from feast.repo_operations import (
     cli_check_repo,
     generate_project_name,
     init_repo,
+    plan,
     registry_dump,
     teardown,
 )
@@ -351,6 +352,26 @@ def on_demand_feature_view_list(ctx: click.Context):
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
+@cli.command("plan", cls=NoOptionDefaultFormat)
+@click.option(
+    "--skip-source-validation",
+    is_flag=True,
+    help="Don't validate the data sources by checking for that the tables exist.",
+)
+@click.pass_context
+def plan_command(ctx: click.Context, skip_source_validation: bool):
+    """
+    Create or update a feature store deployment
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    repo_config = load_repo_config(repo)
+    try:
+        plan(repo_config, repo, skip_source_validation)
+    except FeastProviderLoginError as e:
+        print(str(e))
+
+
 @cli.command("apply", cls=NoOptionDefaultFormat)
 @click.option(
     "--skip-source-validation",
@@ -487,14 +508,17 @@ def init_command(project_directory, minimal: bool, template: str):
     default=6566,
     help="Specify a port for the server [default: 6566]",
 )
+@click.option(
+    "--no-access-log", is_flag=True, help="Disable the Uvicorn access log.",
+)
 @click.pass_context
-def serve_command(ctx: click.Context, host: str, port: int):
+def serve_command(ctx: click.Context, host: str, port: int, no_access_log: bool):
     """[Experimental] Start a the feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
 
-    store.serve(host, port)
+    store.serve(host, port, no_access_log)
 
 
 @cli.command("serve_transformations")

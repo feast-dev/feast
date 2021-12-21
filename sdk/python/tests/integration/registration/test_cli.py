@@ -25,68 +25,72 @@ def test_universal_cli(test_repo_config) -> None:
     runner = CliRunner()
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
-        feature_store_yaml = make_feature_store_yaml(
-            project, test_repo_config, repo_dir_name
-        )
-        repo_path = Path(repo_dir_name)
+        try:
+            feature_store_yaml = make_feature_store_yaml(
+                project, test_repo_config, repo_dir_name
+            )
+            repo_path = Path(repo_dir_name)
 
-        repo_config = repo_path / "feature_store.yaml"
+            repo_config = repo_path / "feature_store.yaml"
 
-        repo_config.write_text(dedent(feature_store_yaml))
+            repo_config.write_text(dedent(feature_store_yaml))
 
-        repo_example = repo_path / "example.py"
-        repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
-        result = runner.run(["apply"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
+            repo_example = repo_path / "example.py"
+            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+            result = runner.run(["apply"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
 
-        # Store registry contents, to be compared later.
-        fs = FeatureStore(repo_path=str(repo_path))
-        registry_dict = fs.registry.to_dict(project=project)
+            # Store registry contents, to be compared later.
+            fs = FeatureStore(repo_path=str(repo_path))
+            registry_dict = fs.registry.to_dict(project=project)
 
-        # entity & feature view list commands should succeed
-        result = runner.run(["entities", "list"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-        result = runner.run(["feature-views", "list"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-        result = runner.run(["feature-services", "list"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
+            # entity & feature view list commands should succeed
+            result = runner.run(["entities", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(["feature-views", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(["feature-services", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
 
-        # entity & feature view describe commands should succeed when objects exist
-        result = runner.run(["entities", "describe", "driver"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-        result = runner.run(
-            ["feature-views", "describe", "driver_locations"], cwd=repo_path
-        )
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-        result = runner.run(
-            ["feature-services", "describe", "driver_locations_service"], cwd=repo_path
-        )
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-        assertpy.assert_that(fs.list_feature_views()).is_length(3)
+            # entity & feature view describe commands should succeed when objects exist
+            result = runner.run(["entities", "describe", "driver"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(
+                ["feature-views", "describe", "driver_locations"], cwd=repo_path
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(
+                ["feature-services", "describe", "driver_locations_service"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(fs.list_feature_views()).is_length(3)
 
-        # entity & feature view describe commands should fail when objects don't exist
-        result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(1)
-        result = runner.run(["feature-views", "describe", "foo"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(1)
-        result = runner.run(["feature-services", "describe", "foo"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(1)
+            # entity & feature view describe commands should fail when objects don't exist
+            result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            result = runner.run(["feature-views", "describe", "foo"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            result = runner.run(["feature-services", "describe", "foo"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
 
-        # Doing another apply should be a no op, and should not cause errors
-        result = runner.run(["apply"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
-        basic_rw_test(
-            FeatureStore(repo_path=str(repo_path), config=None),
-            view_name="driver_locations",
-        )
+            # Doing another apply should be a no op, and should not cause errors
+            result = runner.run(["apply"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            basic_rw_test(
+                FeatureStore(repo_path=str(repo_path), config=None),
+                view_name="driver_locations",
+            )
 
-        # Confirm that registry contents have not changed.
-        assertpy.assert_that(registry_dict).is_equal_to(
-            fs.registry.to_dict(project=project)
-        )
+            # Confirm that registry contents have not changed.
+            assertpy.assert_that(registry_dict).is_equal_to(
+                fs.registry.to_dict(project=project)
+            )
 
-        result = runner.run(["teardown"], cwd=repo_path)
-        assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(["teardown"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+        finally:
+            runner.run(["teardown"], cwd=repo_path)
 
 
 def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath):

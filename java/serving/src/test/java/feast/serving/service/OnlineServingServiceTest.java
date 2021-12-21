@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
@@ -42,6 +43,7 @@ import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -151,14 +153,14 @@ public class OnlineServingServiceTest {
         List.of(featureReference1, featureReference2);
     GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
 
-    List<Feature> entityKeyList1 = new ArrayList<>();
-    List<Feature> entityKeyList2 = new ArrayList<>();
-    entityKeyList1.add(mockedFeatureRows.get(0));
-    entityKeyList1.add(mockedFeatureRows.get(1));
-    entityKeyList2.add(mockedFeatureRows.get(2));
-    entityKeyList2.add(mockedFeatureRows.get(3));
-
-    List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
+    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> featureRows =
+        List.of(
+            ImmutableMap.of(
+                mockedFeatureRows.get(0).getFeatureReference(), mockedFeatureRows.get(0),
+                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)),
+            ImmutableMap.of(
+                mockedFeatureRows.get(2).getFeatureReference(), mockedFeatureRows.get(2),
+                mockedFeatureRows.get(3).getFeatureReference(), mockedFeatureRows.get(3)));
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any(), any())).thenReturn(getFeatureViewSpec());
@@ -225,7 +227,13 @@ public class OnlineServingServiceTest {
     entityKeyList1.add(mockedFeatureRows.get(1));
     entityKeyList2.add(mockedFeatureRows.get(4));
 
-    List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
+    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> featureRows =
+        List.of(
+            ImmutableMap.of(
+                mockedFeatureRows.get(0).getFeatureReference(), mockedFeatureRows.get(0),
+                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)),
+            ImmutableMap.of(
+                mockedFeatureRows.get(4).getFeatureReference(), mockedFeatureRows.get(4)));
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any(), any())).thenReturn(getFeatureViewSpec());
@@ -282,14 +290,14 @@ public class OnlineServingServiceTest {
         List.of(featureReference1, featureReference2);
     GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
 
-    List<Feature> entityKeyList1 = new ArrayList<>();
-    List<Feature> entityKeyList2 = new ArrayList<>();
-    entityKeyList1.add(mockedFeatureRows.get(5));
-    entityKeyList1.add(mockedFeatureRows.get(1));
-    entityKeyList2.add(mockedFeatureRows.get(5));
-    entityKeyList2.add(mockedFeatureRows.get(1));
-
-    List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
+    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> featureRows =
+        List.of(
+            ImmutableMap.of(
+                mockedFeatureRows.get(5).getFeatureReference(), mockedFeatureRows.get(5),
+                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)),
+            ImmutableMap.of(
+                mockedFeatureRows.get(5).getFeatureReference(), mockedFeatureRows.get(5),
+                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)));
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any(), any()))

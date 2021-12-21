@@ -166,13 +166,13 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       storageRetrievalSpan.setTag("entities", entityRows.size());
       storageRetrievalSpan.setTag("features", featureReferences.size());
     }
-    List<List<Feature>> entityRowsFeatures =
+    List<Map<FeatureReferenceV2, Feature>> features =
         retriever.getOnlineFeatures(projectName, entityRows, featureReferences, entityNames);
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
     }
 
-    if (entityRowsFeatures.size() != entityRows.size()) {
+    if (features.size() != entityRows.size()) {
       throw Status.INTERNAL
           .withDescription(
               "The no. of FeatureRow obtained from OnlineRetriever"
@@ -184,36 +184,30 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     for (int i = 0; i < entityRows.size(); i++) {
       GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
-      List<Feature> curEntityRowFeatures = entityRowsFeatures.get(i);
-
-      Map<FeatureReferenceV2, Feature> featureReferenceFeatureMap =
-          getFeatureRefFeatureMap(curEntityRowFeatures);
+      Map<FeatureReferenceV2, Feature> featureRow = features.get(i);
 
       Map<String, ValueProto.Value> rowValues = values.get(i);
       Map<String, GetOnlineFeaturesResponse.FieldStatus> rowStatuses = statuses.get(i);
 
       for (FeatureReferenceV2 featureReference : featureReferences) {
-        if (featureReferenceFeatureMap.containsKey(featureReference)) {
-          Feature feature = featureReferenceFeatureMap.get(featureReference);
+        if (featureRow.containsKey(featureReference)) {
+          Feature feature = featureRow.get(featureReference);
 
-          ValueProto.Value value =
-              feature.getFeatureValue(featureValueTypes.get(feature.getFeatureReference()));
+          ValueProto.Value value = feature.getFeatureValue(featureValueTypes.get(featureReference));
 
           Boolean isOutsideMaxAge =
-              checkOutsideMaxAge(
-                  feature, entityRow, featureMaxAges.get(feature.getFeatureReference()));
+              checkOutsideMaxAge(feature, entityRow, featureMaxAges.get(featureReference));
 
           if (value != null) {
-            rowValues.put(FeatureV2.getFeatureStringRef(feature.getFeatureReference()), value);
+            rowValues.put(FeatureV2.getFeatureStringRef(featureReference), value);
           } else {
             rowValues.put(
-                FeatureV2.getFeatureStringRef(feature.getFeatureReference()),
+                FeatureV2.getFeatureStringRef(featureReference),
                 ValueProto.Value.newBuilder().build());
           }
 
           rowStatuses.put(
-              FeatureV2.getFeatureStringRef(feature.getFeatureReference()),
-              getMetadata(value, isOutsideMaxAge));
+              FeatureV2.getFeatureStringRef(featureReference), getMetadata(value, isOutsideMaxAge));
         } else {
           rowValues.put(
               FeatureV2.getFeatureStringRef(featureReference),
@@ -312,11 +306,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .collect(Collectors.toList());
 
     return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
-  }
-
-  private static Map<FeatureReferenceV2, Feature> getFeatureRefFeatureMap(List<Feature> features) {
-    return features.stream()
-        .collect(Collectors.toMap(Feature::getFeatureReference, Function.identity()));
   }
 
   /**

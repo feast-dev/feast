@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Union
 from google.protobuf.json_format import MessageToJson
 
 from feast.base_feature_view import BaseFeatureView
-from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -42,7 +41,7 @@ class FeatureService:
     def __init__(
         self,
         name: str,
-        features: List[Union[FeatureTable, FeatureView, OnDemandFeatureView]],
+        features: List[Union[FeatureView, OnDemandFeatureView]],
         tags: Optional[Dict[str, str]] = None,
         description: Optional[str] = None,
     ):
@@ -56,11 +55,7 @@ class FeatureService:
         self.feature_view_projections = []
 
         for feature_grouping in features:
-            if isinstance(feature_grouping, FeatureTable):
-                self.feature_view_projections.append(
-                    FeatureViewProjection.from_definition(feature_grouping)
-                )
-            elif isinstance(feature_grouping, BaseFeatureView):
+            if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(

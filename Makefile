@@ -40,7 +40,11 @@ install-ci-dependencies: install-python-ci-dependencies install-java-ci-dependen
 # Python SDK
 
 install-python-ci-dependencies:
-	pip install -e "sdk/python[ci]"
+	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
+	cd sdk/python && python setup.py develop
+
+lock-python-ci-dependencies:
+	cd sdk/python && python -m piptools compile -U --extra ci --output-file requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -50,7 +54,11 @@ compile-protos-python:
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -I@ sed -i.bak 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 
 install-python:
-	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
+	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
+	cd sdk/python && python setup.py develop
+
+lock-python-dependencies:
+	cd sdk/python && python -m piptools compile -U --output-file requirements/py$(PYTHON)-requirements.txt
 
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
@@ -129,34 +137,38 @@ lint-go:
 
 # Docker
 
-build-push-docker:
-	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
-
-build-docker: build-ci-docker build-core-docker build-serving-docker
+build-docker: build-ci-docker build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
+# TODO(adchia): consider removing. This doesn't run successfully right now
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
 
-build-local-test-docker:
-	docker build -t feast:local -f infra/docker/tests/Dockerfile .
+push-feature-server-python-aws-docker:
+		docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
 
-push-core-docker:
-	docker push $(REGISTRY)/feast-core:$(VERSION)
+build-feature-server-python-aws-docker:
+		docker build --build-arg VERSION=$$VERSION \
+			-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
+			-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile .
 
-push-serving-docker:
-	docker push $(REGISTRY)/feast-serving:$(VERSION)
+push-feature-transformation-server-docker:
+	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
 
-build-core-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+build-feature-transformation-server-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-transformation-server:$(VERSION) \
+		-f sdk/python/feast/infra/transformation_servers/Dockerfile .
 
-build-serving-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+push-feature-server-java-docker:
+	docker push $(REGISTRY)/feature-server-java:$(VERSION)
+
+build-feature-server-java-docker:
+	docker build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server-java:$(VERSION) \
+		-f java/infra/docker/feature-server/Dockerfile .
 
 # Documentation
 
@@ -187,16 +199,3 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
-
-
-# Java Docker
-
-build-push-java-docker:
-	@$(MAKE) build-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-feature-server-java-docker registry=$(REGISTRY) version=$(VERSION)
-
-push-feature-server-java-docker:
-	docker push $(REGISTRY)/feature-server-java:$(VERSION)
-
-build-feature-server-java-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feature-server-java:$(VERSION) -f java/infra/docker/feature-server/Dockerfile .
