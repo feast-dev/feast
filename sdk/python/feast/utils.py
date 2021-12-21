@@ -9,3 +9,10 @@ def make_tzaware(t: datetime) -> datetime:
         return t.replace(tzinfo=utc)
     else:
         return t
+
+
+def to_naive_utc(ts: datetime) -> datetime:
+    if ts.tzinfo is None:
+        return ts
+    else:
+        return ts.astimezone(utc).replace(tzinfo=None)

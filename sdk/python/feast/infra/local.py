@@ -2,8 +2,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-import pytz
-
 from feast.feature_view import FeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -22,13 +20,6 @@ class LocalProvider(PassthroughProvider):
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
-
-
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
 
 
 class LocalRegistryStore(RegistryStore):

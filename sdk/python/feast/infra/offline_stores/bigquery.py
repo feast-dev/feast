@@ -1,7 +1,16 @@
 import contextlib
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Callable, ContextManager, Dict, Iterator, List, Optional, Union
+from typing import (
+    Callable,
+    ContextManager,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import pandas as pd
@@ -156,9 +165,17 @@ class BigQueryOfflineStore(OfflineStore):
                 entity_schema, expected_join_keys, entity_df_event_timestamp_col
             )
 
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df, entity_df_event_timestamp_col, client, table_reference,
+            )
+
             # Build a query context containing all information required to template the BigQuery SQL query
             query_context = offline_utils.get_feature_view_query_context(
-                feature_refs, feature_views, registry, project,
+                feature_refs,
+                feature_views,
+                registry,
+                project,
+                entity_df_event_timestamp_range,
             )
 
             # Generate the BigQuery SQL query from the query context
@@ -368,7 +385,7 @@ def _upload_entity_df_and_get_entity_schema(
 ) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
 
-    if type(entity_df) is str:
+    if isinstance(entity_df, str):
         job = client.query(f"CREATE TABLE {table_name} AS ({entity_df})")
         block_until_done(client, job)
 
@@ -392,6 +409,39 @@ def _upload_entity_df_and_get_entity_schema(
     client.update_table(table, ["expires"])
 
     return entity_schema
+
+
+def _get_entity_df_event_timestamp_range(
+    entity_df: Union[pd.DataFrame, str],
+    entity_df_event_timestamp_col: str,
+    client: Client,
+    table_name: str,
+) -> Tuple[datetime, datetime]:
+    if type(entity_df) is str:
+        job = client.query(
+            f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM {table_name}"
+        )
+        res = next(job.result())
+        entity_df_event_timestamp_range = (
+            res.get("min"),
+            res.get("max"),
+        )
+    elif isinstance(entity_df, pd.DataFrame):
+        entity_df_event_timestamp = entity_df.loc[
+            :, entity_df_event_timestamp_col
+        ].infer_objects()
+        if pd.api.types.is_string_dtype(entity_df_event_timestamp):
+            entity_df_event_timestamp = pd.to_datetime(
+                entity_df_event_timestamp, utc=True
+            )
+        entity_df_event_timestamp_range = (
+            entity_df_event_timestamp.min(),
+            entity_df_event_timestamp.max(),
+        )
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+    return entity_df_event_timestamp_range
 
 
 def _get_bigquery_client(project: Optional[str] = None, location: Optional[str] = None):
@@ -484,9 +534,9 @@ WITH entity_dataframe AS (
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
+    WHERE {{ featureview.event_timestamp_column }} <= '{{ featureview.max_event_timestamp }}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= Timestamp_sub((SELECT MIN(entity_timestamp) FROM entity_dataframe), interval {{ featureview.ttl }} second)
+    AND {{ featureview.event_timestamp_column }} >= '{{ featureview.min_event_timestamp }}'
     {% endif %}
 ),
 
