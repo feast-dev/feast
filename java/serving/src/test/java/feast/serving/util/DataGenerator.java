@@ -260,7 +260,7 @@ public class DataGenerator {
   public static ServingAPIProto.FeatureReferenceV2 createFeatureReference(
       String featureTableName, String featureName) {
     return ServingAPIProto.FeatureReferenceV2.newBuilder()
-        .setFeatureTable(featureTableName)
+        .setFeatureViewName(featureTableName)
         .setName(featureName)
         .build();
   }

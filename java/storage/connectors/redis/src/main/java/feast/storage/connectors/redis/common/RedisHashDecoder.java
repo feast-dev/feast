@@ -16,7 +16,6 @@
  */
 package feast.storage.connectors.redis.common;
 
-import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -58,7 +57,7 @@ public class RedisHashDecoder {
                             "Couldn't parse timestamp proto while pulling data from Redis");
                       }
                     }));
-    List<Feature> results = Lists.newArrayListWithExpectedSize(byteToFeatureIdxMap.size());
+    List<Feature> results = new ArrayList<>(Collections.nCopies(featureReferences.size(), null));
 
     for (Map.Entry<byte[], byte[]> entry : redisHashValues.entrySet()) {
       Integer featureIdx = byteToFeatureIdxMap.get(ByteBuffer.wrap(entry.getKey()));

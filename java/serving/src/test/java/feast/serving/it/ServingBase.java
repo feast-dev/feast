@@ -24,11 +24,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.*;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
-import com.google.protobuf.Timestamp;
+import com.google.common.collect.ImmutableMap;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
 import feast.serving.config.*;
@@ -44,6 +45,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.DockerComposeContainer;
@@ -139,7 +142,7 @@ abstract class ServingBase {
 
     servingStub =
         ServingServiceGrpc.newBlockingStub(channel)
-            .withDeadlineAfter(5, TimeUnit.SECONDS)
+            .withDeadlineAfter(1, TimeUnit.SECONDS)
             .withWaitForReady();
   }
 
@@ -159,18 +162,18 @@ abstract class ServingBase {
     }
   }
 
-  protected ServingAPIProto.GetOnlineFeaturesRequestV2 buildOnlineRequest(int driverId) {
+  protected ServingAPIProto.GetOnlineFeaturesRequest buildOnlineRequest(int driverId) {
     // getOnlineFeatures Information
     String projectName = "feast_project";
     String entityName = "driver_id";
 
     // Instantiate EntityRows
-    final Timestamp timestamp = Timestamp.getDefaultInstance();
-    ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
-        DataGenerator.createEntityRow(
-            entityName, DataGenerator.createInt64Value(driverId), timestamp.getSeconds());
-    ImmutableList<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows =
-        ImmutableList.of(entityRow1);
+    Map<String, ValueProto.RepeatedValue> entityRows =
+        ImmutableMap.of(
+            entityName,
+            ValueProto.RepeatedValue.newBuilder()
+                .addVal(DataGenerator.createInt64Value(driverId))
+                .build());
 
     // Instantiate FeatureReferences
     ServingAPIProto.FeatureReferenceV2 feature1Reference =
@@ -199,72 +202,61 @@ abstract class ServingBase {
 
   @Test
   public void shouldGetOnlineFeatures() {
-    ServingAPIProto.GetOnlineFeaturesRequestV2 req = buildOnlineRequest(1005);
-    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
-        servingStub.withDeadlineAfter(1000, TimeUnit.MILLISECONDS).getOnlineFeaturesV2(req);
+    ServingAPIProto.GetOnlineFeaturesResponseV2 featureResponse =
+        servingStub.getOnlineFeatures(buildOnlineRequest(1005));
 
-    assertEquals(1, featureResponse.getFieldValuesCount());
+    assertEquals(2, featureResponse.getResultsCount());
+    assertEquals(1, featureResponse.getEntitiesCount());
+    assertEquals(1, featureResponse.getResults(0).getValuesCount());
 
-    final ServingAPIProto.GetOnlineFeaturesResponse.FieldValues fieldValue =
-        featureResponse.getFieldValues(0);
-    for (final String key :
-        ImmutableList.of(
-            "driver_hourly_stats:avg_daily_trips", "driver_hourly_stats:conv_rate", "driver_id")) {
-      assertTrue(fieldValue.containsFields(key));
-      assertTrue(fieldValue.containsStatuses(key));
+    assertEquals(
+        ImmutableList.of("driver_hourly_stats:conv_rate", "driver_hourly_stats:avg_daily_trips"),
+        featureResponse.getMetadata().getFeatureNames().getValList());
+    assertEquals(featureResponse.getMetadata().getEntityNamesList(), ImmutableList.of("driver_id"));
+
+    for (int featureIdx : List.of(0, 1)) {
       assertEquals(
-          ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-          fieldValue.getStatusesOrThrow(key));
+          featureResponse.getResults(featureIdx).getStatusesList(),
+          List.of(ServingAPIProto.FieldStatus.PRESENT));
     }
 
-    assertEquals(
-        500, fieldValue.getFieldsOrThrow("driver_hourly_stats:avg_daily_trips").getInt64Val());
-    assertEquals(1005, fieldValue.getFieldsOrThrow("driver_id").getInt64Val());
-    assertEquals(
-        0.5, fieldValue.getFieldsOrThrow("driver_hourly_stats:conv_rate").getDoubleVal(), 0.0001);
+    assertEquals(1005, featureResponse.getEntities(0).getVal(0).getInt64Val());
+
+    assertEquals(0.5, featureResponse.getResults(0).getValues(0).getDoubleVal(), 0.0001);
+    assertEquals(500, featureResponse.getResults(1).getValues(0).getInt64Val());
   }
 
   @Test
   public void shouldGetOnlineFeaturesWithOutsideMaxAgeStatus() {
-    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
-        servingStub.getOnlineFeaturesV2(buildOnlineRequest(1001));
+    ServingAPIProto.GetOnlineFeaturesResponseV2 featureResponse =
+        servingStub.getOnlineFeatures(buildOnlineRequest(1001));
 
-    assertEquals(1, featureResponse.getFieldValuesCount());
+    assertEquals(2, featureResponse.getResultsCount());
+    assertEquals(1, featureResponse.getEntitiesCount());
+    assertEquals(1, featureResponse.getResults(0).getValuesCount());
 
-    final ServingAPIProto.GetOnlineFeaturesResponse.FieldValues fieldValue =
-        featureResponse.getFieldValues(0);
-    for (final String key :
-        ImmutableList.of("driver_hourly_stats:avg_daily_trips", "driver_hourly_stats:conv_rate")) {
-      assertTrue(fieldValue.containsFields(key));
-      assertTrue(fieldValue.containsStatuses(key));
+    for (int featureIdx : List.of(0, 1)) {
       assertEquals(
-          ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE,
-          fieldValue.getStatusesOrThrow(key));
+          FieldStatus.OUTSIDE_MAX_AGE, featureResponse.getResults(featureIdx).getStatuses(0));
     }
 
-    assertEquals(
-        100, fieldValue.getFieldsOrThrow("driver_hourly_stats:avg_daily_trips").getInt64Val());
-    assertEquals(1001, fieldValue.getFieldsOrThrow("driver_id").getInt64Val());
-    assertEquals(
-        0.1, fieldValue.getFieldsOrThrow("driver_hourly_stats:conv_rate").getDoubleVal(), 0.0001);
+    assertEquals(1001, featureResponse.getEntities(0).getVal(0).getInt64Val());
+
+    assertEquals(0.1, featureResponse.getResults(0).getValues(0).getDoubleVal(), 0.0001);
+    assertEquals(100, featureResponse.getResults(1).getValues(0).getInt64Val());
   }
 
   @Test
   public void shouldGetOnlineFeaturesWithNotFoundStatus() {
-    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
-        servingStub.getOnlineFeaturesV2(buildOnlineRequest(-1));
+    ServingAPIProto.GetOnlineFeaturesResponseV2 featureResponse =
+        servingStub.getOnlineFeatures(buildOnlineRequest(-1));
 
-    assertEquals(1, featureResponse.getFieldValuesCount());
+    assertEquals(2, featureResponse.getResultsCount());
+    assertEquals(1, featureResponse.getEntitiesCount());
+    assertEquals(1, featureResponse.getResults(0).getValuesCount());
 
-    final ServingAPIProto.GetOnlineFeaturesResponse.FieldValues fieldValue =
-        featureResponse.getFieldValues(0);
-    for (final String key :
-        ImmutableList.of("driver_hourly_stats:avg_daily_trips", "driver_hourly_stats:conv_rate")) {
-      assertTrue(fieldValue.containsFields(key));
-      assertTrue(fieldValue.containsStatuses(key));
-      assertEquals(
-          ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND,
-          fieldValue.getStatusesOrThrow(key));
+    for (final int featureIdx : List.of(0, 1)) {
+      assertEquals(FieldStatus.NOT_FOUND, featureResponse.getResults(featureIdx).getStatuses(0));
     }
   }
 
@@ -285,16 +277,20 @@ abstract class ServingBase {
                                     .setValueType(ValueProto.ValueType.Enum.BOOL))))
             .build());
 
-    ServingAPIProto.GetOnlineFeaturesRequestV2 request =
-        buildOnlineRequest(1005)
+    ServingAPIProto.GetOnlineFeaturesRequest request = buildOnlineRequest(1005);
+
+    ServingAPIProto.GetOnlineFeaturesRequest requestWithNewFeature =
+        request
             .toBuilder()
-            .addFeatures(DataGenerator.createFeatureReference("new_view", "new_feature"))
+            .setFeatures(request.getFeatures().toBuilder().addVal("new_view:new_feature"))
             .build();
 
     await()
         .ignoreException(StatusRuntimeException.class)
         .atMost(5, TimeUnit.SECONDS)
-        .until(() -> servingStub.getOnlineFeaturesV2(request).getFieldValuesCount(), equalTo(1));
+        .until(
+            () -> servingStub.getOnlineFeatures(requestWithNewFeature).getResultsCount(),
+            equalTo(3));
   }
 
   abstract ApplicationProperties.FeastProperties createFeastProperties();

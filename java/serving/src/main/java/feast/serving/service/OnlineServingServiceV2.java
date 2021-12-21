@@ -157,6 +157,12 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
       for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
         feast.storage.api.retriever.Feature feature = features.get(rowIdx).get(featureIdx);
+        if (feature == null) {
+          vectorBuilder.addValues(nullValue);
+          vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
+          vectorBuilder.addEventTimestamps(nullTimestamp);
+          continue;
+        }
 
         ValueProto.Value featureValue = feature.getFeatureValue(valueType);
         if (featureValue == null) {
@@ -247,8 +253,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     for (Map.Entry<String, ValueProto.RepeatedValue> entity : request.getEntitiesMap().entrySet()) {
       for (int i = 0; i < rowsCount; i++) {
-        if (entityRows.get(i) == null) {
-          entityRows.set(i, Maps.newHashMapWithExpectedSize(entityNames.size()));
+        if (entityRows.size() < i + 1) {
+          entityRows.add(i, Maps.newHashMapWithExpectedSize(entityNames.size()));
         }
 
         entityRows.get(i).put(entity.getKey(), entity.getValue().getVal(i));
