@@ -17,10 +17,7 @@
 package feast.serving.registry;
 
 import com.google.protobuf.Duration;
-import feast.proto.core.FeatureProto;
-import feast.proto.core.FeatureViewProto;
-import feast.proto.core.OnDemandFeatureViewProto;
-import feast.proto.core.RegistryProto;
+import feast.proto.core.*;
 import feast.proto.serving.ServingAPIProto;
 import java.util.List;
 import java.util.Optional;
@@ -73,21 +70,25 @@ public class RegistryRepository {
 
   public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return this.registry.getFeatureViewSpec(projectName, featureReference);
+    return this.registry.getFeatureViewSpec(featureReference);
   }
 
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return this.registry.getFeatureSpec(projectName, featureReference);
+    return this.registry.getFeatureSpec(featureReference);
   }
 
   public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return this.registry.getOnDemandFeatureViewSpec(projectName, featureReference);
+    return this.registry.getOnDemandFeatureViewSpec(featureReference);
   }
 
   public boolean isOnDemandFeatureReference(ServingAPIProto.FeatureReferenceV2 featureReference) {
     return this.registry.isOnDemandFeatureReference(featureReference);
+  }
+
+  public FeatureServiceProto.FeatureServiceSpec getFeatureServiceSpec(String name) {
+    return this.registry.getFeatureServiceSpec(name);
   }
 
   public Duration getMaxAge(

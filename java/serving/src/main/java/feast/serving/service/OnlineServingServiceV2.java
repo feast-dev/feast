@@ -16,32 +16,30 @@
  */
 package feast.serving.service;
 
-import static feast.common.models.FeatureTable.getFeatureTableStringRef;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
-import feast.common.models.FeatureV2;
-import feast.proto.serving.ServingAPIProto.FeastServingType;
+import com.google.protobuf.Timestamp;
+import feast.common.models.Feature;
+import feast.proto.core.FeatureServiceProto;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRequest;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
 import feast.proto.types.ValueProto;
-import feast.serving.exception.SpecRetrievalException;
 import feast.serving.registry.RegistryRepository;
 import feast.serving.util.Metrics;
-import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
@@ -68,13 +66,12 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
-    return GetFeastServingInfoResponse.newBuilder()
-        .setType(FeastServingType.FEAST_SERVING_TYPE_ONLINE)
-        .build();
+    return GetFeastServingInfoResponse.newBuilder().build();
   }
 
   @Override
-  public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequestV2 request) {
+  public ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(
+      ServingAPIProto.GetOnlineFeaturesRequest request) {
     // Autofill default project if project is not specified
     String projectName = request.getProject();
     if (projectName.isEmpty()) {
@@ -82,96 +79,54 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
 
     // Split all feature references into non-ODFV (e.g. batch and stream) references and ODFV.
-    List<FeatureReferenceV2> allFeatureReferences = request.getFeaturesList();
-    List<FeatureReferenceV2> featureReferences =
+    List<FeatureReferenceV2> allFeatureReferences = getFeaturesList(request);
+    List<FeatureReferenceV2> retrievedFeatureReferences =
         allFeatureReferences.stream()
             .filter(r -> !this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
+    int userRequestedFeaturesSize = retrievedFeatureReferences.size();
+
     List<FeatureReferenceV2> onDemandFeatureReferences =
         allFeatureReferences.stream()
             .filter(r -> this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
 
     // Get the set of request data feature names and feature inputs from the ODFV references.
-    Pair<Set<String>, List<FeatureReferenceV2>> pair =
-        this.onlineTransformationService.extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-            onDemandFeatureReferences, projectName);
-    Set<String> requestDataFeatureNames = pair.getLeft();
-    List<FeatureReferenceV2> onDemandFeatureInputs = pair.getRight();
+    List<FeatureReferenceV2> onDemandFeatureInputs =
+        this.onlineTransformationService
+            .extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
+                onDemandFeatureReferences, projectName)
+            .getRight();
 
     // Add on demand feature inputs to list of feature references to retrieve.
-    Set<FeatureReferenceV2> addedFeatureReferences = new HashSet<FeatureReferenceV2>();
     for (FeatureReferenceV2 onDemandFeatureInput : onDemandFeatureInputs) {
-      if (!featureReferences.contains(onDemandFeatureInput)) {
-        featureReferences.add(onDemandFeatureInput);
-        addedFeatureReferences.add(onDemandFeatureInput);
+      if (!retrievedFeatureReferences.contains(onDemandFeatureInput)) {
+        retrievedFeatureReferences.add(onDemandFeatureInput);
       }
     }
 
-    // Separate entity rows into entity data and request feature data.
-    Pair<List<GetOnlineFeaturesRequestV2.EntityRow>, Map<String, List<ValueProto.Value>>>
-        entityRowsAndRequestDataFeatures =
-            this.onlineTransformationService.separateEntityRows(requestDataFeatureNames, request);
-    List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
-        entityRowsAndRequestDataFeatures.getLeft();
-    Map<String, List<ValueProto.Value>> requestDataFeatures =
-        entityRowsAndRequestDataFeatures.getRight();
-    // TODO: error checking on lengths of lists in entityRows and requestDataFeatures
+    List<Map<String, ValueProto.Value>> entityRows = getEntityRows(request);
 
-    // Extract values and statuses to be used later in constructing FieldValues for the response.
-    // The online features retrieved will augment these two data structures.
-    List<Map<String, ValueProto.Value>> values =
-        entityRows.stream().map(r -> new HashMap<>(r.getFieldsMap())).collect(Collectors.toList());
-    List<Map<String, GetOnlineFeaturesResponse.FieldStatus>> statuses =
-        entityRows.stream()
-            .map(
-                r ->
-                    r.getFieldsMap().entrySet().stream()
-                        .map(entry -> Pair.of(entry.getKey(), getMetadata(entry.getValue(), false)))
-                        .collect(Collectors.toMap(Pair::getLeft, Pair::getRight)))
-            .collect(Collectors.toList());
-
-    String finalProjectName = projectName;
-    Map<FeatureReferenceV2, Duration> featureMaxAges =
-        featureReferences.stream()
-            .distinct()
-            .collect(
-                Collectors.toMap(
-                    Function.identity(),
-                    ref -> this.registryRepository.getMaxAge(finalProjectName, ref)));
-    List<String> entityNames =
-        featureReferences.stream()
-            .map(ref -> this.registryRepository.getEntitiesList(finalProjectName, ref))
-            .findFirst()
-            .get();
-
-    Map<FeatureReferenceV2, ValueProto.ValueType.Enum> featureValueTypes =
-        featureReferences.stream()
-            .distinct()
-            .collect(
-                Collectors.toMap(
-                    Function.identity(),
-                    ref -> {
-                      try {
-                        return this.registryRepository
-                            .getFeatureSpec(finalProjectName, ref)
-                            .getValueType();
-                      } catch (SpecRetrievalException e) {
-                        return ValueProto.ValueType.Enum.INVALID;
-                      }
-                    }));
+    List<String> entityNames;
+    if (retrievedFeatureReferences.size() > 0) {
+      entityNames =
+          this.registryRepository.getEntitiesList(projectName, retrievedFeatureReferences.get(0));
+    } else {
+      throw new RuntimeException("Requested features list must not be empty");
+    }
 
     Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.setTag("entities", entityRows.size());
-      storageRetrievalSpan.setTag("features", featureReferences.size());
+      storageRetrievalSpan.setTag("features", retrievedFeatureReferences.size());
     }
-    List<Map<FeatureReferenceV2, Feature>> features =
-        retriever.getOnlineFeatures(projectName, entityRows, featureReferences, entityNames);
+    List<List<feast.storage.api.retriever.Feature>> features =
+        retriever.getOnlineFeatures(
+            projectName, entityRows, retrievedFeatureReferences, entityNames);
+
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
     }
-
     if (features.size() != entityRows.size()) {
       throw Status.INTERNAL
           .withDescription(
@@ -182,132 +137,187 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     Span postProcessingSpan = tracer.buildSpan("postProcessing").start();
 
-    for (int i = 0; i < entityRows.size(); i++) {
-      GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
-      Map<FeatureReferenceV2, Feature> featureRow = features.get(i);
+    ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder =
+        ServingAPIProto.GetOnlineFeaturesResponseV2.newBuilder();
 
-      Map<String, ValueProto.Value> rowValues = values.get(i);
-      Map<String, GetOnlineFeaturesResponse.FieldStatus> rowStatuses = statuses.get(i);
+    Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
+    Timestamp nullTimestamp = Timestamp.newBuilder().build();
+    ValueProto.Value nullValue = ValueProto.Value.newBuilder().build();
 
-      for (FeatureReferenceV2 featureReference : featureReferences) {
-        if (featureRow.containsKey(featureReference)) {
-          Feature feature = featureRow.get(featureReference);
+    for (int featureIdx = 0; featureIdx < userRequestedFeaturesSize; featureIdx++) {
+      FeatureReferenceV2 featureReference = retrievedFeatureReferences.get(featureIdx);
 
-          ValueProto.Value value = feature.getFeatureValue(featureValueTypes.get(featureReference));
+      ValueProto.ValueType.Enum valueType =
+          this.registryRepository.getFeatureSpec(projectName, featureReference).getValueType();
 
-          Boolean isOutsideMaxAge =
-              checkOutsideMaxAge(feature, entityRow, featureMaxAges.get(featureReference));
+      Duration maxAge = this.registryRepository.getMaxAge(projectName, featureReference);
 
-          if (value != null) {
-            rowValues.put(FeatureV2.getFeatureStringRef(featureReference), value);
-          } else {
-            rowValues.put(
-                FeatureV2.getFeatureStringRef(featureReference),
-                ValueProto.Value.newBuilder().build());
-          }
+      ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector.Builder vectorBuilder =
+          responseBuilder.addResultsBuilder();
 
-          rowStatuses.put(
-              FeatureV2.getFeatureStringRef(featureReference), getMetadata(value, isOutsideMaxAge));
-        } else {
-          rowValues.put(
-              FeatureV2.getFeatureStringRef(featureReference),
-              ValueProto.Value.newBuilder().build());
+      for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
+        feast.storage.api.retriever.Feature feature = features.get(rowIdx).get(featureIdx);
 
-          rowStatuses.put(
-              FeatureV2.getFeatureStringRef(featureReference), getMetadata(null, false));
+        ValueProto.Value featureValue = feature.getFeatureValue(valueType);
+        if (featureValue == null) {
+          vectorBuilder.addValues(nullValue);
+          vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
+          vectorBuilder.addEventTimestamps(nullTimestamp);
+          continue;
         }
+
+        vectorBuilder.addValues(featureValue);
+        vectorBuilder.addStatuses(
+            getFeatureStatus(featureValue, checkOutsideMaxAge(feature, now, maxAge)));
+        vectorBuilder.addEventTimestamps(feature.getEventTimestamp());
       }
-      // Populate metrics/log request
-      populateCountMetrics(rowStatuses, projectName);
     }
+    for (String entityName : entityNames) {
+      responseBuilder.addEntities(request.getEntitiesMap().get(entityName));
+    }
+
+    responseBuilder.setMetadata(
+        ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+            .setFeatureNames(
+                ServingAPIProto.FeatureList.newBuilder()
+                    .addAllVal(
+                        retrievedFeatureReferences.stream()
+                            .map(Feature::getFeatureReference)
+                            .collect(Collectors.toList())))
+            .addAllEntityNames(entityNames));
 
     if (postProcessingSpan != null) {
       postProcessingSpan.finish();
     }
 
-    populateHistogramMetrics(entityRows, featureReferences, projectName);
-    populateFeatureCountMetrics(featureReferences, projectName);
-
-    // Handle ODFVs. For each ODFV reference, we send a TransformFeaturesRequest to the FTS.
-    // The request should contain the entity data, the retrieved features, and the request data.
     if (!onDemandFeatureReferences.isEmpty()) {
-      // Augment values, which contains the entity data and retrieved features, with the request
-      // data. Also augment statuses.
-      for (int i = 0; i < values.size(); i++) {
-        Map<String, ValueProto.Value> rowValues = values.get(i);
-        Map<String, GetOnlineFeaturesResponse.FieldStatus> rowStatuses = statuses.get(i);
+      // Handle ODFVs. For each ODFV reference, we send a TransformFeaturesRequest to the FTS.
+      // The request should contain the entity data, the retrieved features, and the request context
+      // data.
+      this.populateOnDemandFeatures(
+          projectName,
+          onDemandFeatureReferences,
+          onDemandFeatureInputs,
+          retrievedFeatureReferences,
+          request,
+          features,
+          responseBuilder);
+    }
 
-        for (Map.Entry<String, List<ValueProto.Value>> entry : requestDataFeatures.entrySet()) {
-          String key = entry.getKey();
-          List<ValueProto.Value> fieldValues = entry.getValue();
-          rowValues.put(key, fieldValues.get(i));
-          rowStatuses.put(key, GetOnlineFeaturesResponse.FieldStatus.PRESENT);
+    // populateHistogramMetrics(entityRows, featureReferences, projectName);
+    // populateFeatureCountMetrics(featureReferences, projectName);
+
+    return responseBuilder.build();
+  }
+
+  private List<FeatureReferenceV2> getFeaturesList(
+      ServingAPIProto.GetOnlineFeaturesRequest request) {
+    if (request.getFeatures().getValCount() > 0) {
+      return request.getFeatures().getValList().stream()
+          .map(Feature::parseFeatureReference)
+          .collect(Collectors.toList());
+    }
+
+    FeatureServiceProto.FeatureServiceSpec featureServiceSpec =
+        this.registryRepository.getFeatureServiceSpec(request.getFeatureService());
+
+    return featureServiceSpec.getFeaturesList().stream()
+        .flatMap(
+            featureViewProjection ->
+                featureViewProjection.getFeatureColumnsList().stream()
+                    .map(
+                        f ->
+                            FeatureReferenceV2.newBuilder()
+                                .setFeatureViewName(featureViewProjection.getFeatureViewName())
+                                .setName(f.getName())
+                                .build()))
+        .collect(Collectors.toList());
+  }
+
+  private List<Map<String, ValueProto.Value>> getEntityRows(
+      ServingAPIProto.GetOnlineFeaturesRequest request) {
+    if (request.getEntitiesCount() == 0) {
+      throw new RuntimeException("Entities map shouldn't be empty");
+    }
+
+    Set<String> entityNames = request.getEntitiesMap().keySet();
+    String firstEntity = entityNames.stream().findFirst().get();
+    int rowsCount = request.getEntitiesMap().get(firstEntity).getValCount();
+    List<Map<String, ValueProto.Value>> entityRows = Lists.newArrayListWithExpectedSize(rowsCount);
+
+    for (Map.Entry<String, ValueProto.RepeatedValue> entity : request.getEntitiesMap().entrySet()) {
+      for (int i = 0; i < rowsCount; i++) {
+        if (entityRows.get(i) == null) {
+          entityRows.set(i, Maps.newHashMapWithExpectedSize(entityNames.size()));
         }
-      }
 
-      // Serialize the augmented values.
-      ValueType transformationInput =
-          this.onlineTransformationService.serializeValuesIntoArrowIPC(values);
-
-      // Send out requests to the FTS and process the responses.
-      Set<String> onDemandFeatureStringReferences =
-          onDemandFeatureReferences.stream()
-              .map(r -> FeatureV2.getFeatureStringRef(r))
-              .collect(Collectors.toSet());
-      for (FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
-        String onDemandFeatureViewName = featureReference.getFeatureTable();
-        TransformFeaturesRequest transformFeaturesRequest =
-            TransformFeaturesRequest.newBuilder()
-                .setOnDemandFeatureViewName(onDemandFeatureViewName)
-                .setProject(projectName)
-                .setTransformationInput(transformationInput)
-                .build();
-
-        TransformFeaturesResponse transformFeaturesResponse =
-            this.onlineTransformationService.transformFeatures(transformFeaturesRequest);
-
-        this.onlineTransformationService.processTransformFeaturesResponse(
-            transformFeaturesResponse,
-            onDemandFeatureViewName,
-            onDemandFeatureStringReferences,
-            values,
-            statuses);
-      }
-
-      // Remove all features that were added as inputs for ODFVs.
-      Set<String> addedFeatureStringReferences =
-          addedFeatureReferences.stream()
-              .map(r -> FeatureV2.getFeatureStringRef(r))
-              .collect(Collectors.toSet());
-      for (int i = 0; i < values.size(); i++) {
-        Map<String, ValueProto.Value> rowValues = values.get(i);
-        Map<String, GetOnlineFeaturesResponse.FieldStatus> rowStatuses = statuses.get(i);
-        List<String> keysToRemove =
-            rowValues.keySet().stream()
-                .filter(k -> addedFeatureStringReferences.contains(k))
-                .collect(Collectors.toList());
-        for (String key : keysToRemove) {
-          rowValues.remove(key);
-          rowStatuses.remove(key);
-        }
+        entityRows.get(i).put(entity.getKey(), entity.getValue().getVal(i));
       }
     }
 
-    // Build response field values from entityValuesMap and entityStatusesMap
-    // Response field values should be in the same order as the entityRows provided by the user.
-    List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
-        IntStream.range(0, entityRows.size())
-            .mapToObj(
-                entityRowIdx ->
-                    GetOnlineFeaturesResponse.FieldValues.newBuilder()
-                        .putAllFields(values.get(entityRowIdx))
-                        .putAllStatuses(statuses.get(entityRowIdx))
-                        .build())
-            .collect(Collectors.toList());
-
-    return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
+    return entityRows;
   }
 
+  private void populateOnDemandFeatures(
+      String projectName,
+      List<FeatureReferenceV2> onDemandFeatureReferences,
+      List<FeatureReferenceV2> onDemandFeatureInputs,
+      List<FeatureReferenceV2> retrievedFeatureReferences,
+      ServingAPIProto.GetOnlineFeaturesRequest request,
+      List<List<feast.storage.api.retriever.Feature>> features,
+      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder) {
+
+    List<Pair<String, List<ValueProto.Value>>> onDemandContext =
+        request.getRequestContextMap().entrySet().stream()
+            .map(e -> Pair.of(e.getKey(), e.getValue().getValList()))
+            .collect(Collectors.toList());
+
+    for (int featureIdx = 0; featureIdx < retrievedFeatureReferences.size(); featureIdx++) {
+      FeatureReferenceV2 featureReference = retrievedFeatureReferences.get(featureIdx);
+
+      if (!onDemandFeatureInputs.contains(featureReference)) {
+        continue;
+      }
+
+      ValueProto.ValueType.Enum valueType =
+          this.registryRepository.getFeatureSpec(projectName, featureReference).getValueType();
+
+      List<ValueProto.Value> valueList = Lists.newArrayListWithExpectedSize(features.size());
+      for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
+        valueList.add(features.get(rowIdx).get(featureIdx).getFeatureValue(valueType));
+      }
+
+      onDemandContext.add(Pair.of(Feature.getFeatureReference(featureReference), valueList));
+    }
+    // Serialize the augmented values.
+    ValueType transformationInput =
+        this.onlineTransformationService.serializeValuesIntoArrowIPC(onDemandContext);
+
+    // Send out requests to the FTS and process the responses.
+    Set<String> onDemandFeatureStringReferences =
+        onDemandFeatureReferences.stream()
+            .map(r -> Feature.getFeatureReference(r))
+            .collect(Collectors.toSet());
+
+    for (FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
+      String onDemandFeatureViewName = featureReference.getFeatureViewName();
+      TransformFeaturesRequest transformFeaturesRequest =
+          TransformFeaturesRequest.newBuilder()
+              .setOnDemandFeatureViewName(onDemandFeatureViewName)
+              .setProject(projectName)
+              .setTransformationInput(transformationInput)
+              .build();
+
+      TransformFeaturesResponse transformFeaturesResponse =
+          this.onlineTransformationService.transformFeatures(transformFeaturesRequest);
+
+      this.onlineTransformationService.processTransformFeaturesResponse(
+          transformFeaturesResponse,
+          onDemandFeatureViewName,
+          onDemandFeatureStringReferences,
+          responseBuilder);
+    }
+  }
   /**
    * Generate Field level Status metadata for the given valueMap.
    *
@@ -317,17 +327,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    * @return a 1:1 map keyed by field name containing field status metadata instead of values in the
    *     given valueMap.
    */
-  private static GetOnlineFeaturesResponse.FieldStatus getMetadata(
-      ValueProto.Value value, boolean isOutsideMaxAge) {
+  private static FieldStatus getFeatureStatus(ValueProto.Value value, boolean isOutsideMaxAge) {
 
     if (value == null) {
-      return GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND;
+      return FieldStatus.NOT_FOUND;
     } else if (isOutsideMaxAge) {
-      return GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE;
+      return FieldStatus.OUTSIDE_MAX_AGE;
     } else if (value.getValCase().equals(ValueProto.Value.ValCase.VAL_NOT_SET)) {
-      return GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE;
+      return FieldStatus.NULL_VALUE;
     }
-    return GetOnlineFeaturesResponse.FieldStatus.PRESENT;
+    return FieldStatus.PRESENT;
   }
 
   /**
@@ -336,17 +345,17 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    * in entity row exceeds FeatureTable max age.
    *
    * @param feature contains the ingestion timing and feature data.
-   * @param entityRow contains the retrieval timing of when features are pulled.
+   * @param entityTimestamp contains the retrieval timing of when features are pulled.
    * @param maxAge feature's max age.
    */
   private static boolean checkOutsideMaxAge(
-      Feature feature, GetOnlineFeaturesRequestV2.EntityRow entityRow, Duration maxAge) {
+      feast.storage.api.retriever.Feature feature, Timestamp entityTimestamp, Duration maxAge) {
 
     if (maxAge.equals(Duration.getDefaultInstance())) { // max age is not set
       return false;
     }
 
-    long givenTimestamp = entityRow.getTimestamp().getSeconds();
+    long givenTimestamp = entityTimestamp.getSeconds();
     if (givenTimestamp == 0) {
       givenTimestamp = System.currentTimeMillis() / 1000;
     }
@@ -373,10 +382,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
         .observe(Double.valueOf(featureReferences.size()));
 
     long countDistinctFeatureTables =
-        featureReferences.stream()
-            .map(featureReference -> getFeatureTableStringRef(project, featureReference))
-            .distinct()
-            .count();
+        featureReferences.stream().map(Feature::getFeatureReference).distinct().count();
     Metrics.requestFeatureTableCountDistribution
         .labels(project)
         .observe(Double.valueOf(countDistinctFeatureTables));
@@ -388,14 +394,13 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    * @param statusMap Statuses of features which have been requested
    * @param project Project where request for features was called from
    */
-  private void populateCountMetrics(
-      Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap, String project) {
+  private void populateCountMetrics(Map<String, FieldStatus> statusMap, String project) {
     statusMap.forEach(
         (featureRefString, status) -> {
-          if (status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND) {
+          if (status == FieldStatus.NOT_FOUND) {
             Metrics.notFoundKeyCount.labels(project, featureRefString).inc();
           }
-          if (status == GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE) {
+          if (status == FieldStatus.OUTSIDE_MAX_AGE) {
             Metrics.staleKeyCount.labels(project, featureRefString).inc();
           }
         });
@@ -406,7 +411,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     featureReferences.forEach(
         featureReference ->
             Metrics.requestFeatureCount
-                .labels(project, FeatureV2.getFeatureStringRef(featureReference))
+                .labels(project, Feature.getFeatureReference(featureReference))
                 .inc());
   }
 }

@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
-import feast.common.models.FeatureV2;
+import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -68,7 +68,7 @@ class RequestUtilTest {
       List<String> expected, List<FeatureReferenceV2> input) {
     input = input.stream().map(ref -> ref.toBuilder().build()).collect(Collectors.toList());
     List<String> actual =
-        input.stream().map(ref -> FeatureV2.getFeatureStringRef(ref)).collect(Collectors.toList());
+        input.stream().map(ref -> Feature.getFeatureReference(ref)).collect(Collectors.toList());
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       assertEquals(expected.get(i), actual.get(i));

@@ -19,7 +19,6 @@ package feast.serving.controller;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.config.ApplicationProperties;
 import feast.serving.exception.SpecRetrievalException;
@@ -60,7 +59,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   }
 
   @Override
-  public void getOnlineFeaturesV2(
+  public void getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest request,
       StreamObserver<ServingAPIProto.GetOnlineFeaturesResponseV2> responseObserver) {
     long start = System.currentTimeMillis();
@@ -74,7 +73,8 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       }
       RequestHelper.validateOnlineRequest(request);
       Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
-      GetOnlineFeaturesResponse onlineFeatures = servingServiceV2.getOnlineFeatures(request);
+      ServingAPIProto.GetOnlineFeaturesResponseV2 onlineFeatures =
+          servingServiceV2.getOnlineFeatures(request);
       if (span != null) {
         span.finish();
       }

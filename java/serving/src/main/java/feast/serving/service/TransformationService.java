@@ -18,7 +18,6 @@ package feast.serving.service;
 
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRequest;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
@@ -75,8 +74,7 @@ public interface TransformationService {
       TransformFeaturesResponse transformFeaturesResponse,
       String onDemandFeatureViewName,
       Set<String> onDemandFeatureStringReferences,
-      List<Map<String, ValueProto.Value>> values,
-      List<Map<String, GetOnlineFeaturesResponse.FieldStatus>> statuses);
+      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder);
 
   /**
    * Serialize data into Arrow IPC format, to be sent to the Python feature transformation server.
@@ -84,5 +82,5 @@ public interface TransformationService {
    * @param values list of field maps to be serialized
    * @return the data packaged into a ValueType proto object
    */
-  ValueType serializeValuesIntoArrowIPC(List<Map<String, ValueProto.Value>> values);
+  ValueType serializeValuesIntoArrowIPC(List<Pair<String, List<ValueProto.Value>>> values);
 }

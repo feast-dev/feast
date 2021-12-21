@@ -38,7 +38,7 @@ public class FeaturesTest {
 
   @Test
   public void shouldReturnFeatureStringRef() {
-    String actualFeatureStringRef = FeatureV2.getFeatureStringRef(featureReference);
+    String actualFeatureStringRef = Feature.getFeatureReference(featureReference);
     String expectedFeatureStringRef = "featuretable_1:feature1";
 
     assertThat(actualFeatureStringRef, equalTo(expectedFeatureStringRef));

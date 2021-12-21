@@ -41,8 +41,8 @@ message GetFeastServingInfoResponse {
 }
 
 message FeatureReferenceV2 {
-    // Name of the Feature Table to retrieve the feature from.
-    string feature_table = 1;
+    // Name of the Feature View to retrieve the feature from.
+    string feature_view_name = 1;
 
     // Name of the Feature to retrieve the feature from.
     string name = 2;
@@ -106,21 +106,20 @@ message GetOnlineFeaturesResponse {
 }
 
 message GetOnlineFeaturesResponseV2 {
+    GetOnlineFeaturesResponseMetadata metadata = 1;
+    repeated FeatureVector results = 2;
+    repeated feast.types.RepeatedValue entities = 3;
+
+    message FeatureVector {
+        repeated feast.types.Value values = 1;
+        repeated FieldStatus statuses = 2;
+        repeated google.protobuf.Timestamp event_timestamps = 3;
+    }
+}
+
+message GetOnlineFeaturesResponseMetadata {
     FeatureList feature_names = 1;
     repeated string entity_names = 2;
-
-    repeated Row results = 3;
-
-    message Row {
-        repeated FeatureValue features = 1;
-        repeated feast.types.Value entities = 2;
-    }
-
-    message FeatureValue {
-        feast.types.Value value = 1;
-        FieldStatus status = 2;
-        google.protobuf.Timestamp event_timestamp = 3;
-    }
 }
 
 enum FieldStatus {

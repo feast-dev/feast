@@ -18,10 +18,9 @@ package feast.serving.controller;
 
 import static feast.serving.util.mappers.ResponseJSONMapper.mapGetOnlineFeaturesResponse;
 
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.config.ApplicationProperties;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
@@ -53,9 +52,10 @@ public class ServingServiceRestController {
       produces = "application/json",
       consumes = "application/json")
   public List<Map<String, Object>> getOnlineFeatures(
-      @RequestBody GetOnlineFeaturesRequestV2 request) {
+      @RequestBody ServingAPIProto.GetOnlineFeaturesRequest request) {
     RequestHelper.validateOnlineRequest(request);
-    GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
+    ServingAPIProto.GetOnlineFeaturesResponseV2 onlineFeatures =
+        servingService.getOnlineFeatures(request);
     return mapGetOnlineFeaturesResponse(onlineFeatures);
   }
 }
