@@ -97,7 +97,7 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
         ValueType.DOUBLE: "float",
         ValueType.BYTES: "bytes",
         ValueType.BOOL: "bool",
-        ValueType.UNIX_TIMESTAMP: "datetime",
+        ValueType.UNIX_TIMESTAMP: "datetime64[ns]",
     }
     if value_type.name.endswith("_LIST"):
         return "object"

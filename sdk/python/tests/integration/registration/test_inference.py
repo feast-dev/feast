@@ -1,12 +1,15 @@
+import pandas as pd
 import pytest
 
-from feast import Entity, RepoConfig, ValueType
+from feast import Entity, Feature, RepoConfig, ValueType
+from feast.data_source import RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
 )
+from feast.on_demand_feature_view import on_demand_feature_view
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -81,3 +84,21 @@ def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1)
             update_data_sources_with_inferred_event_timestamp_col(
                 [file_source], RepoConfig(provider="local", project="test")
             )
+
+
+def test_modify_feature_views_success():
+    # Create Feature Views
+    date_request = RequestDataSource(
+        name="date_request", schema={"some_date": ValueType.UNIX_TIMESTAMP}
+    )
+
+    @on_demand_feature_view(
+        inputs={"date_request": date_request},
+        features=[Feature("output", ValueType.UNIX_TIMESTAMP)],
+    )
+    def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["output"] = features_df["some_date"]
+        return data
+
+    test_view.infer_features()

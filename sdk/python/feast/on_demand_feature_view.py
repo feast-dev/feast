@@ -259,7 +259,9 @@ class OnDemandFeatureView(BaseFeatureView):
         return requested_on_demand_feature_views
 
 
-def on_demand_feature_view(features: List[Feature], inputs: Dict[str, FeatureView]):
+def on_demand_feature_view(
+    features: List[Feature], inputs: Dict[str, Union[FeatureView, RequestDataSource]]
+):
     """
     Declare an on-demand feature view
 
