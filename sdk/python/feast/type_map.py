@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
@@ -20,7 +19,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type
 import numpy as np
 import pandas as pd
 import pyarrow
-from google.protobuf.json_format import MessageToDict
 from google.protobuf.pyext.cpp_message import GeneratedProtocolMessageType
 from google.protobuf.timestamp_pb2 import Timestamp
 
@@ -48,44 +46,13 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     Returns:
         Python native type representation/version of the given field_value_proto
     """
-    field_value_dict = MessageToDict(field_value_proto, float_precision=18)  # type: ignore
-
-    # This can happen when proto_json.patch() has been called before this call, which is true for a feature server
-    if not isinstance(field_value_dict, dict):
-        return field_value_dict
-
-    for k, v in field_value_dict.items():
-        if "List" in k:
-            val = v.get("val", [])
-        else:
-            val = v
-
-        if k == "int64Val":
-            return int(val)
-        if k == "bytesVal":
-            # MessageToDict converts the bytes object to base64 encoded string:
-            # https://developers.google.com/protocol-buffers/docs/proto3#json
-            return base64.b64decode(val)
-        if (k == "int64ListVal") or (k == "int32ListVal"):
-            return [int(item) for item in val]
-        if (k == "floatListVal") or (k == "doubleListVal"):
-            return [float(item) for item in val]
-        if k == "stringListVal":
-            return [str(item) for item in val]
-        if k == "bytesListVal":
-            # MessageToDict converts the bytes object to base64 encoded string:
-            # https://developers.google.com/protocol-buffers/docs/proto3#json
-            return [base64.b64decode(val) for item in val]
-        if k == "boolListVal":
-            return [bool(item) for item in val]
-
-        if k in ["int32Val", "floatVal", "doubleVal", "stringVal", "boolVal"]:
-            return val
-        else:
-            raise TypeError(
-                f"Casting to Python native type for type {k} failed. "
-                f"Type {k} not found"
-            )
+    val_attr = field_value_proto.WhichOneof("val")
+    if val_attr is None:
+        return None
+    val = getattr(field_value_proto, val_attr)
+    if hasattr(val, "val"):
+        val = list(val.val)
+    return val
 
 
 def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
