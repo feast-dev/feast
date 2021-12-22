@@ -33,17 +33,24 @@ func TestGetOnlineFeatures(t *testing.T) {
 				Project: "driver_project",
 			},
 			want: OnlineFeaturesResponse{
-				RawResponse: &serving.GetOnlineFeaturesResponse{
-					FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
+				RawResponse: &serving.GetOnlineFeaturesResponseV2{
+					Results: []*serving.GetOnlineFeaturesResponseV2_FeatureVector{
 						{
-							Fields: map[string]*types.Value{
-								"driver:rating":     Int64Val(1),
-								"driver:null_value": {},
+							Values: []*types.Value{Int64Val(1)},
+							Statuses: []serving.FieldStatus{
+								serving.FieldStatus_PRESENT,
 							},
-							Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
-								"driver:rating":     serving.GetOnlineFeaturesResponse_PRESENT,
-								"driver:null_value": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+						},
+						{
+							Values: []*types.Value{{}},
+							Statuses: []serving.FieldStatus{
+								serving.FieldStatus_NULL_VALUE,
 							},
+						},
+					},
+					Metadata: &serving.GetOnlineFeaturesResponseMetadata{
+						FeatureNames: &serving.FeatureList{
+							Val: []string{"driver:rating", "driver:null_value"},
 						},
 					},
 				},
@@ -60,7 +67,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 			ctx := context.Background()
 			rawRequest, _ := tc.req.buildRequest()
 			resp := tc.want.RawResponse
-			cli.EXPECT().GetOnlineFeaturesV2(ctx, rawRequest).Return(resp, nil).Times(1)
+			cli.EXPECT().GetOnlineFeatures(ctx, rawRequest).Return(resp, nil).Times(1)
 
 			client := &GrpcClient{
 				cli: cli,

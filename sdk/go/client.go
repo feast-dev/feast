@@ -110,7 +110,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 	if err != nil {
 		return nil, err
 	}
-	resp, err := fc.cli.GetOnlineFeaturesV2(ctx, featuresRequest)
+	resp, err := fc.cli.GetOnlineFeatures(ctx, featuresRequest)
 
 	// collect unqiue entity refs from entity rows
 	entityRefs := make(map[string]struct{})

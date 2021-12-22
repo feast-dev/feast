@@ -13,7 +13,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 	tt := []struct {
 		name    string
 		req     OnlineFeaturesRequest
-		want    *serving.GetOnlineFeaturesRequestV2
+		want    *serving.GetOnlineFeaturesRequest
 		wantErr bool
 		err     error
 	}{
@@ -30,34 +30,24 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 				},
 				Project: "driver_project",
 			},
-			want: &serving.GetOnlineFeaturesRequestV2{
-				Features: []*serving.FeatureReferenceV2{
-					{
-						FeatureTable: "driver",
-						Name:         "driver_id",
+			want: &serving.GetOnlineFeaturesRequest{
+				Kind: &serving.GetOnlineFeaturesRequest_Features{
+					Features: &serving.FeatureList{
+						Val: []string{"driver:driver_id"},
 					},
 				},
-				EntityRows: []*serving.GetOnlineFeaturesRequestV2_EntityRow{
-					{
-						Fields: map[string]*types.Value{
-							"entity1": Int64Val(1),
-							"entity2": StrVal("bob"),
+				Entities: map[string]*types.RepeatedValue{
+					"entity1": &types.RepeatedValue{
+						Val: []*types.Value{
+							Int64Val(1), Int64Val(1), Int64Val(1),
 						},
 					},
-					{
-						Fields: map[string]*types.Value{
-							"entity1": Int64Val(1),
-							"entity2": StrVal("annie"),
-						},
-					},
-					{
-						Fields: map[string]*types.Value{
-							"entity1": Int64Val(1),
-							"entity2": StrVal("jane"),
+					"entity2": &types.RepeatedValue{
+						Val: []*types.Value{
+							StrVal("bob"), StrVal("annie"), StrVal("jane"),
 						},
 					},
 				},
-				Project: "driver_project",
 			},
 			wantErr: false,
 			err:     nil,
