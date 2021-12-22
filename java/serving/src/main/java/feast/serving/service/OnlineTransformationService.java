@@ -84,13 +84,13 @@ public class OnlineTransformationService implements TransformationService {
   @Override
   public Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>
       extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences, String projectName) {
+          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences) {
     Set<String> requestDataFeatureNames = new HashSet<String>();
     List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureInputs =
         new ArrayList<ServingAPIProto.FeatureReferenceV2>();
     for (ServingAPIProto.FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
       OnDemandFeatureViewProto.OnDemandFeatureViewSpec onDemandFeatureViewSpec =
-          this.registryRepository.getOnDemandFeatureViewSpec(projectName, featureReference);
+          this.registryRepository.getOnDemandFeatureViewSpec(featureReference);
       Map<String, OnDemandFeatureViewProto.OnDemandInput> inputs =
           onDemandFeatureViewSpec.getInputsMap();
 

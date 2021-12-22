@@ -41,13 +41,12 @@ public interface TransformationService {
    * list of ODFV references.
    *
    * @param onDemandFeatureReferences list of ODFV references to be parsed
-   * @param projectName project name
    * @return a pair containing the set of request data feature names and list of on demand feature
    *     inputs
    */
   Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>
       extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences, String projectName);
+          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences);
 
   /**
    * Separate the entity rows of a request into entity data and request feature data.

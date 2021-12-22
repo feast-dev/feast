@@ -152,15 +152,14 @@ public class OnlineServingServiceTest {
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
-    ServingAPIProto.GetOnlineFeaturesRequest request =
-        getOnlineFeaturesRequest(projectName, featureReferences);
+    ServingAPIProto.GetOnlineFeaturesRequest request = getOnlineFeaturesRequest(featureReferences);
 
     List<List<Feature>> featureRows =
         List.of(
             List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
             List.of(mockedFeatureRows.get(2), mockedFeatureRows.get(3)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
@@ -191,19 +190,8 @@ public class OnlineServingServiceTest {
                     .addStatuses(FieldStatus.PRESENT)
                     .addEventTimestamps(now)
                     .addEventTimestamps(now))
-            .addAllEntities(
-                List.of(
-                    ValueProto.RepeatedValue.newBuilder()
-                        .addVal(createInt64Value(1))
-                        .addVal(createInt64Value(2))
-                        .build(),
-                    ValueProto.RepeatedValue.newBuilder()
-                        .addVal(createStrValue("a"))
-                        .addVal(createStrValue("b"))
-                        .build()))
             .setMetadata(
                 ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
-                    .addAllEntityNames(List.of("entity1", "entity2"))
                     .setFeatureNames(
                         ServingAPIProto.FeatureList.newBuilder()
                             .addVal("featureview_1:feature_1")
@@ -229,8 +217,7 @@ public class OnlineServingServiceTest {
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
-    ServingAPIProto.GetOnlineFeaturesRequest request =
-        getOnlineFeaturesRequest(projectName, featureReferences);
+    ServingAPIProto.GetOnlineFeaturesRequest request = getOnlineFeaturesRequest(featureReferences);
 
     List<Feature> entityKeyList1 = new ArrayList<>();
     List<Feature> entityKeyList2 = new ArrayList<>();
@@ -243,7 +230,7 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
             Arrays.asList(null, mockedFeatureRows.get(4)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
@@ -270,19 +257,8 @@ public class OnlineServingServiceTest {
                     .addStatuses(FieldStatus.PRESENT)
                     .addEventTimestamps(now)
                     .addEventTimestamps(now))
-            .addAllEntities(
-                List.of(
-                    ValueProto.RepeatedValue.newBuilder()
-                        .addVal(createInt64Value(1))
-                        .addVal(createInt64Value(2))
-                        .build(),
-                    ValueProto.RepeatedValue.newBuilder()
-                        .addVal(createStrValue("a"))
-                        .addVal(createStrValue("b"))
-                        .build()))
             .setMetadata(
                 ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
-                    .addAllEntityNames(List.of("entity1", "entity2"))
                     .setFeatureNames(
                         ServingAPIProto.FeatureList.newBuilder()
                             .addVal("featureview_1:feature_1")
@@ -307,15 +283,14 @@ public class OnlineServingServiceTest {
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
-    ServingAPIProto.GetOnlineFeaturesRequest request =
-        getOnlineFeaturesRequest(projectName, featureReferences);
+    ServingAPIProto.GetOnlineFeaturesRequest request = getOnlineFeaturesRequest(featureReferences);
 
     List<List<Feature>> featureRows =
         List.of(
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)),
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any()))
         .thenReturn(
             FeatureViewProto.FeatureViewSpec.newBuilder()
@@ -359,18 +334,8 @@ public class OnlineServingServiceTest {
                     .addStatuses(FieldStatus.PRESENT)
                     .addEventTimestamps(now)
                     .addEventTimestamps(now))
-            .addEntities(
-                ValueProto.RepeatedValue.newBuilder()
-                    .addVal(createInt64Value(1))
-                    .addVal(createInt64Value(2)))
-            .addEntities(
-                ValueProto.RepeatedValue.newBuilder()
-                    .addVal(createStrValue("a"))
-                    .addVal(createStrValue("b")))
             .setMetadata(
                 ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
-                    .addEntityNames("entity1")
-                    .addEntityNames("entity2")
                     .setFeatureNames(
                         ServingAPIProto.FeatureList.newBuilder()
                             .addVal("featureview_1:feature_1")
@@ -400,9 +365,8 @@ public class OnlineServingServiceTest {
   }
 
   private ServingAPIProto.GetOnlineFeaturesRequest getOnlineFeaturesRequest(
-      String projectName, List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
+      List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
     return ServingAPIProto.GetOnlineFeaturesRequest.newBuilder()
-        .setProject(projectName)
         .setFeatures(
             ServingAPIProto.FeatureList.newBuilder()
                 .addAllVal(

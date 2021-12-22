@@ -72,12 +72,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   @Override
   public ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest request) {
-    // Autofill default project if project is not specified
-    String projectName = request.getProject();
-    if (projectName.isEmpty()) {
-      projectName = "default";
-    }
-
     // Split all feature references into non-ODFV (e.g. batch and stream) references and ODFV.
     List<FeatureReferenceV2> allFeatureReferences = getFeaturesList(request);
     List<FeatureReferenceV2> retrievedFeatureReferences =
@@ -94,8 +88,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     // Get the set of request data feature names and feature inputs from the ODFV references.
     List<FeatureReferenceV2> onDemandFeatureInputs =
         this.onlineTransformationService
-            .extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-                onDemandFeatureReferences, projectName)
+            .extractRequestDataFeatureNamesAndOnDemandFeatureInputs(onDemandFeatureReferences)
             .getRight();
 
     // Add on demand feature inputs to list of feature references to retrieve.
@@ -109,8 +102,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     List<String> entityNames;
     if (retrievedFeatureReferences.size() > 0) {
-      entityNames =
-          this.registryRepository.getEntitiesList(projectName, retrievedFeatureReferences.get(0));
+      entityNames = this.registryRepository.getEntitiesList(retrievedFeatureReferences.get(0));
     } else {
       throw new RuntimeException("Requested features list must not be empty");
     }
@@ -121,8 +113,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       storageRetrievalSpan.setTag("features", retrievedFeatureReferences.size());
     }
     List<List<feast.storage.api.retriever.Feature>> features =
-        retriever.getOnlineFeatures(
-            projectName, entityRows, retrievedFeatureReferences, entityNames);
+        retriever.getOnlineFeatures(entityRows, retrievedFeatureReferences, entityNames);
 
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
@@ -148,9 +139,9 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       FeatureReferenceV2 featureReference = retrievedFeatureReferences.get(featureIdx);
 
       ValueProto.ValueType.Enum valueType =
-          this.registryRepository.getFeatureSpec(projectName, featureReference).getValueType();
+          this.registryRepository.getFeatureSpec(featureReference).getValueType();
 
-      Duration maxAge = this.registryRepository.getMaxAge(projectName, featureReference);
+      Duration maxAge = this.registryRepository.getMaxAge(featureReference);
 
       ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector.Builder vectorBuilder =
           responseBuilder.addResultsBuilder();
@@ -178,9 +169,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
         vectorBuilder.addEventTimestamps(feature.getEventTimestamp());
       }
     }
-    for (String entityName : entityNames) {
-      responseBuilder.addEntities(request.getEntitiesMap().get(entityName));
-    }
 
     responseBuilder.setMetadata(
         ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
@@ -189,8 +177,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                     .addAllVal(
                         retrievedFeatureReferences.stream()
                             .map(Feature::getFeatureReference)
-                            .collect(Collectors.toList())))
-            .addAllEntityNames(entityNames));
+                            .collect(Collectors.toList()))));
 
     if (postProcessingSpan != null) {
       postProcessingSpan.finish();
@@ -201,7 +188,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       // The request should contain the entity data, the retrieved features, and the request context
       // data.
       this.populateOnDemandFeatures(
-          projectName,
           onDemandFeatureReferences,
           onDemandFeatureInputs,
           retrievedFeatureReferences,
@@ -265,7 +251,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   private void populateOnDemandFeatures(
-      String projectName,
       List<FeatureReferenceV2> onDemandFeatureReferences,
       List<FeatureReferenceV2> onDemandFeatureInputs,
       List<FeatureReferenceV2> retrievedFeatureReferences,
@@ -286,7 +271,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       }
 
       ValueProto.ValueType.Enum valueType =
-          this.registryRepository.getFeatureSpec(projectName, featureReference).getValueType();
+          this.registryRepository.getFeatureSpec(featureReference).getValueType();
 
       List<ValueProto.Value> valueList = Lists.newArrayListWithExpectedSize(features.size());
       for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
@@ -310,7 +295,6 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       TransformFeaturesRequest transformFeaturesRequest =
           TransformFeaturesRequest.newBuilder()
               .setOnDemandFeatureViewName(onDemandFeatureViewName)
-              .setProject(projectName)
               .setTransformationInput(transformationInput)
               .build();
 

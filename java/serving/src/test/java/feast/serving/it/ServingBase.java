@@ -206,21 +206,17 @@ abstract class ServingBase {
         servingStub.getOnlineFeatures(buildOnlineRequest(1005));
 
     assertEquals(2, featureResponse.getResultsCount());
-    assertEquals(1, featureResponse.getEntitiesCount());
     assertEquals(1, featureResponse.getResults(0).getValuesCount());
 
     assertEquals(
         ImmutableList.of("driver_hourly_stats:conv_rate", "driver_hourly_stats:avg_daily_trips"),
         featureResponse.getMetadata().getFeatureNames().getValList());
-    assertEquals(featureResponse.getMetadata().getEntityNamesList(), ImmutableList.of("driver_id"));
 
     for (int featureIdx : List.of(0, 1)) {
       assertEquals(
           featureResponse.getResults(featureIdx).getStatusesList(),
           List.of(ServingAPIProto.FieldStatus.PRESENT));
     }
-
-    assertEquals(1005, featureResponse.getEntities(0).getVal(0).getInt64Val());
 
     assertEquals(0.5, featureResponse.getResults(0).getValues(0).getDoubleVal(), 0.0001);
     assertEquals(500, featureResponse.getResults(1).getValues(0).getInt64Val());
@@ -232,15 +228,12 @@ abstract class ServingBase {
         servingStub.getOnlineFeatures(buildOnlineRequest(1001));
 
     assertEquals(2, featureResponse.getResultsCount());
-    assertEquals(1, featureResponse.getEntitiesCount());
     assertEquals(1, featureResponse.getResults(0).getValuesCount());
 
     for (int featureIdx : List.of(0, 1)) {
       assertEquals(
           FieldStatus.OUTSIDE_MAX_AGE, featureResponse.getResults(featureIdx).getStatuses(0));
     }
-
-    assertEquals(1001, featureResponse.getEntities(0).getVal(0).getInt64Val());
 
     assertEquals(0.1, featureResponse.getResults(0).getValues(0).getDoubleVal(), 0.0001);
     assertEquals(100, featureResponse.getResults(1).getValues(0).getInt64Val());
@@ -252,7 +245,6 @@ abstract class ServingBase {
         servingStub.getOnlineFeatures(buildOnlineRequest(-1));
 
     assertEquals(2, featureResponse.getResultsCount());
-    assertEquals(1, featureResponse.getEntitiesCount());
     assertEquals(1, featureResponse.getResults(0).getValuesCount());
 
     for (final int featureIdx : List.of(0, 1)) {

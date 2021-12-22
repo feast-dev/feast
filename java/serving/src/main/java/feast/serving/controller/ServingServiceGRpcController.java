@@ -22,7 +22,6 @@ import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.config.ApplicationProperties;
 import feast.serving.exception.SpecRetrievalException;
-import feast.serving.interceptors.GrpcMonitoringContext;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
@@ -66,11 +65,6 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
 
     try {
       // authorize for the project in request object.
-      request.getProject();
-      if (!request.getProject().isEmpty()) {
-        // update monitoring context
-        GrpcMonitoringContext.getInstance().setProject(request.getProject());
-      }
       RequestHelper.validateOnlineRequest(request);
       Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
       ServingAPIProto.GetOnlineFeaturesResponseV2 onlineFeatures =

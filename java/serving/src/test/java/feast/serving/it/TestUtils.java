@@ -41,7 +41,6 @@ public class TestUtils {
       List<FeatureReferenceV2> featureReferences,
       Map<String, ValueProto.RepeatedValue> entityRows) {
     return GetOnlineFeaturesRequest.newBuilder()
-        .setProject(projectName)
         .setFeatures(
             ServingAPIProto.FeatureList.newBuilder()
                 .addAllVal(

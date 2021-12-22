@@ -40,7 +40,6 @@ public interface OnlineRetrieverV2 {
    *     FeatureTable specified in FeatureTable request.
    */
   List<List<Feature>> getOnlineFeatures(
-      String project,
       List<Map<String, ValueProto.Value>> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
       List<String> entityNames);

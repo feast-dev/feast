@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast;
+package dev.feast;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,7 +41,7 @@ class RequestUtilTest {
             Arrays.asList("driver:driver_id"),
             Arrays.asList(
                 FeatureReferenceV2.newBuilder()
-                    .setFeatureTable("driver")
+                    .setFeatureViewName("driver")
                     .setName("driver_id")
                     .build())));
   }

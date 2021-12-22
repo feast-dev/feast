@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast;
+package dev.feast;
 
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import java.util.List;
@@ -71,7 +71,7 @@ public class RequestUtil {
     String[] featureReferenceParts = featureRefString.split(":");
     FeatureReferenceV2 featureRef =
         FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureReferenceParts[0])
+            .setFeatureViewName(featureReferenceParts[0])
             .setName(featureReferenceParts[1])
             .build();
 

@@ -14,16 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast;
+package dev.feast;
 
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import com.google.common.collect.Lists;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
+import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -32,11 +33,9 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.opentracing.contrib.grpc.TracingClientInterceptor;
 import io.opentracing.util.GlobalTracer;
 import java.io.File;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,11 +117,56 @@ public class FeastClient implements AutoCloseable {
    * @param featureRefs list of string feature references to retrieve in the following format
    *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
    *     Feature names respectively. Only the Feature name is required.
-   * @param rows list of {@link Row} to select the entities to retrieve the features for.
+   * @param entities list of {@link Row} to select the entities to retrieve the features for.
    * @return list of {@link Row} containing retrieved data fields.
    */
-  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows) {
-    return getOnlineFeatures(featureRefs, rows, "");
+  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> entities) {
+    GetOnlineFeaturesRequest.Builder requestBuilder = GetOnlineFeaturesRequest.newBuilder();
+
+    requestBuilder.setFeatures(
+        ServingAPIProto.FeatureList.newBuilder().addAllVal(featureRefs).build());
+
+    Map<String, ValueProto.RepeatedValue.Builder> columnarEntities = new HashMap<>();
+    for (Row row : entities) {
+      for (Map.Entry<String, ValueProto.Value> field : row.getFields().entrySet()) {
+        if (!columnarEntities.containsKey(field.getKey())) {
+          columnarEntities.put(field.getKey(), ValueProto.RepeatedValue.newBuilder());
+        }
+        columnarEntities.get(field.getKey()).addVal(field.getValue());
+      }
+    }
+
+    for (Map.Entry<String, ValueProto.RepeatedValue.Builder> entity : columnarEntities.entrySet()) {
+      requestBuilder.putEntities(entity.getKey(), entity.getValue().build());
+    }
+
+    GetOnlineFeaturesResponseV2 response = stub.getOnlineFeatures(requestBuilder.build());
+
+    List<Row> results = Lists.newArrayList();
+    if (response.getResultsCount() == 0) {
+      return results;
+    }
+
+    for (int rowIdx = 0; rowIdx < response.getResults(0).getValuesCount(); rowIdx++) {
+      Row row = Row.create();
+      for (int featureIdx = 0; featureIdx < response.getResultsCount(); featureIdx++) {
+        row.set(
+            response.getMetadata().getFeatureNames().getVal(featureIdx),
+            response.getResults(featureIdx).getValues(rowIdx),
+            response.getResults(featureIdx).getStatuses(rowIdx));
+
+        row.setEntityTimestamp(
+            Instant.ofEpochSecond(
+                response.getResults(featureIdx).getEventTimestamps(rowIdx).getSeconds()));
+      }
+      for (Map.Entry<String, ValueProto.Value> entry :
+          entities.get(rowIdx).getFields().entrySet()) {
+        row.set(entry.getKey(), entry.getValue());
+      }
+
+      results.add(row);
+    }
+    return results;
   }
 
   /**
@@ -149,42 +193,7 @@ public class FeastClient implements AutoCloseable {
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
-    List<FeatureReferenceV2> features = RequestUtil.createFeatureRefs(featureRefs);
-    // build entity rows and collect entity references
-    HashSet<String> entityRefs = new HashSet<>();
-    List<EntityRow> entityRows =
-        rows.stream()
-            .map(
-                row -> {
-                  entityRefs.addAll(row.getFields().keySet());
-                  return EntityRow.newBuilder()
-                      .setTimestamp(row.getEntityTimestamp())
-                      .putAllFields(row.getFields())
-                      .build();
-                })
-            .collect(Collectors.toList());
-
-    GetOnlineFeaturesResponse response =
-        stub.getOnlineFeaturesV2(
-            GetOnlineFeaturesRequestV2.newBuilder()
-                .addAllFeatures(features)
-                .addAllEntityRows(entityRows)
-                .setProject(project)
-                .build());
-
-    return response.getFieldValuesList().stream()
-        .map(
-            fieldValues -> {
-              Row row = Row.create();
-              for (String fieldName : fieldValues.getFieldsMap().keySet()) {
-                row.set(
-                    fieldName,
-                    fieldValues.getFieldsMap().get(fieldName),
-                    fieldValues.getStatusesMap().get(fieldName));
-              }
-              return row;
-            })
-        .collect(Collectors.toList());
+    return getOnlineFeatures(featureRefs, rows);
   }
 
   protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {

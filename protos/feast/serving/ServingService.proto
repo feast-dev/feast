@@ -89,7 +89,6 @@ message GetOnlineFeaturesRequest {
     bool full_feature_names = 4;
 
     map<string, feast.types.RepeatedValue> request_context = 5;
-    string project = 6;
 }
 
 message GetOnlineFeaturesResponse {
@@ -108,7 +107,6 @@ message GetOnlineFeaturesResponse {
 message GetOnlineFeaturesResponseV2 {
     GetOnlineFeaturesResponseMetadata metadata = 1;
     repeated FeatureVector results = 2;
-    repeated feast.types.RepeatedValue entities = 3;
 
     message FeatureVector {
         repeated feast.types.Value values = 1;
@@ -119,7 +117,6 @@ message GetOnlineFeaturesResponseV2 {
 
 message GetOnlineFeaturesResponseMetadata {
     FeatureList feature_names = 1;
-    repeated string entity_names = 2;
 }
 
 enum FieldStatus {

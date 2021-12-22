@@ -39,31 +39,33 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
   private static final String timestampPrefix = "_ts";
   private final RedisClientAdapter redisClientAdapter;
   private final EntityKeySerializer keySerializer;
+  private final String project;
 
   // Number of fields in request to Redis which requires using HGETALL instead of HMGET
   public static final int HGETALL_NUMBER_OF_FIELDS_THRESHOLD = 50;
 
-  public OnlineRetriever(RedisClientAdapter redisClientAdapter, EntityKeySerializer keySerializer) {
+  public OnlineRetriever(
+      String project, RedisClientAdapter redisClientAdapter, EntityKeySerializer keySerializer) {
+    this.project = project;
     this.redisClientAdapter = redisClientAdapter;
     this.keySerializer = keySerializer;
   }
 
   @Override
   public List<List<Feature>> getOnlineFeatures(
-      String project,
       List<Map<String, ValueProto.Value>> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
       List<String> entityNames) {
 
-    List<RedisProto.RedisKeyV2> redisKeys = RedisKeyGenerator.buildRedisKeys(project, entityRows);
+    List<RedisProto.RedisKeyV2> redisKeys =
+        RedisKeyGenerator.buildRedisKeys(this.project, entityRows);
     return getFeaturesFromRedis(redisKeys, featureReferences);
   }
 
   private List<List<Feature>> getFeaturesFromRedis(
       List<RedisProto.RedisKeyV2> redisKeys,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
-    List<List<Feature>> features = new ArrayList<>();
-    // To decode bytes back to Feature Reference
+    // To decode bytes back to Feature
     Map<ByteBuffer, Integer> byteToFeatureIdxMap = new HashMap<>();
 
     // Serialize using proto

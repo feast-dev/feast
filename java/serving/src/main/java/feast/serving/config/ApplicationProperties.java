@@ -42,20 +42,30 @@ public class ApplicationProperties {
       this.registry = registry;
     }
 
-    public void setRegistryRefreshInterval(int registryRefreshInterval) {
-      this.registryRefreshInterval = registryRefreshInterval;
-    }
-
     @NotBlank private String registry;
 
     public String getRegistry() {
       return registry;
     }
 
+    @NotBlank private String project;
+
+    public String getProject() {
+    return project;
+  }
+
+    public void setProject(final String project) {
+    this.project = project;
+  }
+
     private int registryRefreshInterval;
 
     public int getRegistryRefreshInterval() {
       return registryRefreshInterval;
+    }
+
+    public void setRegistryRefreshInterval(int registryRefreshInterval) {
+      this.registryRefreshInterval = registryRefreshInterval;
     }
 
     /**

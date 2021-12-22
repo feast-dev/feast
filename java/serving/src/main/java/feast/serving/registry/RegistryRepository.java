@@ -69,17 +69,17 @@ public class RegistryRepository {
   }
 
   public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
     return this.registry.getFeatureViewSpec(featureReference);
   }
 
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
     return this.registry.getFeatureSpec(featureReference);
   }
 
   public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
     return this.registry.getOnDemandFeatureViewSpec(featureReference);
   }
 
@@ -91,13 +91,11 @@ public class RegistryRepository {
     return this.registry.getFeatureServiceSpec(name);
   }
 
-  public Duration getMaxAge(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return getFeatureViewSpec(projectName, featureReference).getTtl();
+  public Duration getMaxAge(ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return getFeatureViewSpec(featureReference).getTtl();
   }
 
-  public List<String> getEntitiesList(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return getFeatureViewSpec(projectName, featureReference).getEntitiesList();
+  public List<String> getEntitiesList(ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return getFeatureViewSpec(featureReference).getEntitiesList();
   }
 }
