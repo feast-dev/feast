@@ -189,16 +189,28 @@ class FileOfflineStore(OfflineStore):
 
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
-
-                entity_name = feature_view.entities[0]
-                entity_df_with_features = entity_df_with_features.set_index(entity_name)
-
                 event_timestamp_column = (
                     feature_view.batch_source.event_timestamp_column
                 )
                 created_timestamp_column = (
                     feature_view.batch_source.created_timestamp_column
                 )
+
+                # Build a list of entity columns to join on (from the right table)
+                join_keys = []
+                for entity_name in feature_view.entities:
+                    entity = registry.get_entity(entity_name, project)
+                    join_key = feature_view.projection.join_key_map.get(
+                        entity.join_key, entity.join_key
+                    )
+                    join_keys.append(join_key)
+                right_entity_columns = join_keys
+                right_entity_key_columns = [
+                    event_timestamp_column
+                ] + right_entity_columns
+
+                entity_name = join_keys[0]
+                # entity_df_with_features = entity_df_with_features.set_index(entity_name)
 
                 storage_options = (
                     {
@@ -213,15 +225,22 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = dd.read_parquet(
                     feature_view.batch_source.path,
                     storage_options=storage_options,
-                    index=[entity_name],
+                    # index=[entity_name],
                 )
 
                 # Get only data with requested entities
+                __entity_df_event_timestamp_col = f"__{entity_df_event_timestamp_col}"
                 df_to_join = dd.merge(
                     df_to_join,
-                    entity_df_with_features.drop(entity_df_event_timestamp_col, axis=1),
-                    left_index=True,
-                    right_index=True,
+                    entity_df_with_features[
+                        join_keys + [entity_df_event_timestamp_col]
+                    ].rename(
+                        columns={
+                            entity_df_event_timestamp_col: __entity_df_event_timestamp_col
+                        }
+                    ),
+                    left_on=join_keys,
+                    right_on=join_keys,
                     suffixes=("", "__"),
                 )
                 df_to_join = df_to_join.persist()
@@ -272,6 +291,22 @@ class FileOfflineStore(OfflineStore):
                         meta=(event_timestamp_column, "datetime64[ns, UTC]"),
                     )
 
+                # Filter rows by defined timestamp tolerance
+                df_to_join = df_to_join[
+                    (
+                        df_to_join[event_timestamp_column]
+                        >= df_to_join[__entity_df_event_timestamp_col]
+                        - feature_view.ttl
+                    )
+                    & (
+                        df_to_join[event_timestamp_column]
+                        <= df_to_join[__entity_df_event_timestamp_col]
+                    )
+                ]
+                df_to_join = df_to_join.persist()
+                df_to_join = df_to_join.drop([__entity_df_event_timestamp_col], axis=1)
+                df_to_join = df_to_join.persist()
+
                 # Build a list of all the features we should select from this source
                 feature_names = []
                 columns_map = {}
@@ -292,19 +327,6 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = df_to_join.rename(columns=columns_map)
                 df_to_join = df_to_join.persist()
 
-                # Build a list of entity columns to join on (from the right table)
-                join_keys = []
-                for entity_name in feature_view.entities:
-                    entity = registry.get_entity(entity_name, project)
-                    join_key = feature_view.projection.join_key_map.get(
-                        entity.join_key, entity.join_key
-                    )
-                    join_keys.append(join_key)
-                right_entity_columns = join_keys
-                right_entity_key_columns = [
-                    event_timestamp_column
-                ] + right_entity_columns
-
                 # Remove all duplicate entity keys (using created timestamp)
                 right_entity_key_sort_columns = right_entity_key_columns
                 if created_timestamp_column:
@@ -317,7 +339,7 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = df_to_join.persist()
 
                 df_to_join = df_to_join.reset_index().drop_duplicates(
-                    right_entity_key_sort_columns, keep="last", ignore_index=True,
+                    join_keys, keep="last", ignore_index=True,
                 )
                 df_to_join = df_to_join.persist()
 
@@ -325,46 +347,14 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
                 df_to_join = df_to_join.persist()
 
-                # Do point in-time-join between entity_df and feature dataframe
-
-                if not isinstance(entity_df_with_features, dd.DataFrame):
-                    entity_df_with_features = dd.from_pandas(
-                        entity_df_with_features, npartitions=1
-                    )
-
-                df_to_join = df_to_join.sort_values(event_timestamp_column)
-                entity_df_with_features = entity_df_with_features.reset_index().sort_values(
-                    entity_df_event_timestamp_col
-                )
-
-                entity_df_with_features = dd.merge_asof(
-                    entity_df_with_features,
-                    df_to_join,
-                    left_on=entity_df_event_timestamp_col,
-                    right_on=event_timestamp_column,
-                    by=right_entity_columns or None,
-                    tolerance=feature_view.ttl,
-                )
-
-                # Remove right (feature table/view) event_timestamp column.
-                entity_df_with_features = (
-                    entity_df_with_features.drop(columns=[event_timestamp_column])
-                    if event_timestamp_column != entity_df_event_timestamp_col
-                    and event_timestamp_column in entity_df_with_features.columns
-                    else entity_df_with_features
-                )
-
                 # Ensure that we delete dataframes to free up memory
-                del df_to_join
+                del entity_df_with_features
 
-            # Move "event_timestamp" column to front
-            current_cols = entity_df_with_features.columns.tolist()
-            current_cols.remove(entity_df_event_timestamp_col)
-            entity_df_with_features = entity_df_with_features[
-                [entity_df_event_timestamp_col] + current_cols
-            ]
+            df_to_join = df_to_join.rename(
+                columns={event_timestamp_column: entity_df_event_timestamp_col}
+            )
 
-            return entity_df_with_features.persist()
+            return df_to_join.persist()
 
         job = FileRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
