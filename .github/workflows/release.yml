@@ -95,7 +95,7 @@ jobs:
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
-            docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/feast-${{ matrix.component }}:latest
+            docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/${{ matrix.component }}:latest
             docker push feastdev/${{ matrix.component }}:latest
           fi
 

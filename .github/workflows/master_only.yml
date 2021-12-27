@@ -180,3 +180,9 @@ jobs:
       - name: Build image
         run: |
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+      - name: Push image
+        run: |
+          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+
+          docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
+          docker push ${REGISTRY}/${{ matrix.component }}:develop
