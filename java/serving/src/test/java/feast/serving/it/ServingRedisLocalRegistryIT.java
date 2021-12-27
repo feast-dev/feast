@@ -19,9 +19,10 @@ package feast.serving.it;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import feast.proto.core.RegistryProto;
+
 import feast.serving.config.ApplicationProperties;
 
-public class ServingRedisLocalRegistryIT extends ServingBase {
+public class ServingRedisLocalRegistryIT extends ServingBaseTests {
   @Override
   ApplicationProperties.FeastProperties createFeastProperties() {
     final ApplicationProperties.FeastProperties feastProperties =

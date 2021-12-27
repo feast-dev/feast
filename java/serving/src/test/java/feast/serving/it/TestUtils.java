@@ -16,16 +16,13 @@
  */
 package feast.serving.it;
 
-import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class TestUtils {
 
@@ -37,16 +34,17 @@ public class TestUtils {
   }
 
   public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
-      String projectName,
-      List<FeatureReferenceV2> featureReferences,
-      Map<String, ValueProto.RepeatedValue> entityRows) {
+      List<String> featureReferences, Map<String, ValueProto.RepeatedValue> entityRows) {
     return GetOnlineFeaturesRequest.newBuilder()
-        .setFeatures(
-            ServingAPIProto.FeatureList.newBuilder()
-                .addAllVal(
-                    featureReferences.stream()
-                        .map(Feature::getFeatureReference)
-                        .collect(Collectors.toList())))
+        .setFeatures(ServingAPIProto.FeatureList.newBuilder().addAllVal(featureReferences))
+        .putAllEntities(entityRows)
+        .build();
+  }
+
+  public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
+      String featureService, Map<String, ValueProto.RepeatedValue> entityRows) {
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatureService(featureService)
         .putAllEntities(entityRows)
         .build();
   }

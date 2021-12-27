@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
-public class ServingRedisGSRegistryIT extends ServingBase {
+public class ServingRedisGSRegistryIT extends ServingBaseTests {
   static Storage storage =
       RemoteStorageHelper.create()
           .getOptions()

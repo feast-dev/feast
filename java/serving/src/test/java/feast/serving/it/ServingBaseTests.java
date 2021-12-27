@@ -21,150 +21,28 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.collect.ImmutableList;
-import com.google.inject.*;
-import com.google.inject.Module;
-import com.google.inject.util.Modules;
 import com.google.common.collect.ImmutableMap;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
-import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
-import feast.serving.config.*;
-import feast.serving.grpc.OnlineServingGrpcServiceV2;
 import feast.serving.util.DataGenerator;
-import io.grpc.*;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.protobuf.services.ProtoReflectionService;
-import io.grpc.util.MutableHandlerRegistry;
-import java.io.File;
+import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
-import org.testcontainers.containers.DockerComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
-abstract class ServingBase {
-  static DockerComposeContainer environment;
 
-  ServingServiceGrpc.ServingServiceBlockingStub servingStub;
-  Injector injector;
-  String serverName;
-  ManagedChannel channel;
-  Server server;
-  MutableHandlerRegistry serviceRegistry;
-
-  @BeforeAll
-  static void globalSetup() {
-    environment =
-        new DockerComposeContainer(
-                new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
-            .withExposedService("redis", 6379)
-            .withOptions()
-            .waitingFor(
-                "materialize",
-                Wait.forLogMessage(".*Materialization finished.*\\n", 1)
-                    .withStartupTimeout(Duration.ofMinutes(5)));
-    environment.start();
-  }
-
-  @AfterAll
-  static void globalTeardown() {
-    environment.stop();
-  }
-
-  @BeforeEach
-  public void envSetUp() throws Exception {
-
-    AbstractModule appPropertiesModule =
-        new AbstractModule() {
-          @Override
-          protected void configure() {
-            bind(OnlineServingGrpcServiceV2.class);
-          }
-
-          @Provides
-          ApplicationProperties applicationProperties() {
-            final ApplicationProperties p = new ApplicationProperties();
-            p.setAwsRegion("us-east-1");
-
-            final ApplicationProperties.FeastProperties feastProperties = createFeastProperties();
-            p.setFeast(feastProperties);
-
-            final ApplicationProperties.TracingProperties tracingProperties =
-                new ApplicationProperties.TracingProperties();
-            feastProperties.setTracing(tracingProperties);
-
-            tracingProperties.setEnabled(false);
-            return p;
-          }
-        };
-
-    Module overrideConfig = registryConfig();
-    Module registryConfig;
-    if (overrideConfig != null) {
-      registryConfig = Modules.override(new RegistryConfig()).with(registryConfig());
-    } else {
-      registryConfig = new RegistryConfig();
-    }
-
-    injector =
-        Guice.createInjector(
-            new ServingServiceConfigV2(),
-            registryConfig,
-            new InstrumentationConfig(),
-            appPropertiesModule);
-
-    OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2 =
-        injector.getInstance(OnlineServingGrpcServiceV2.class);
-
-    serverName = InProcessServerBuilder.generateName();
-
-    server =
-        InProcessServerBuilder.forName(serverName)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .addService(onlineServingGrpcServiceV2)
-            .addService(ProtoReflectionService.newInstance())
-            .build();
-    server.start();
-
-    channel = InProcessChannelBuilder.forName(serverName).usePlaintext().directExecutor().build();
-
-    servingStub =
-        ServingServiceGrpc.newBlockingStub(channel)
-            .withDeadlineAfter(1, TimeUnit.SECONDS)
-            .withWaitForReady();
-  }
-
-  @AfterEach
-  public void envTeardown() throws Exception {
-    // assume channel and server are not null
-    channel.shutdown();
-    server.shutdown();
-    // fail the test if cannot gracefully shutdown
-    try {
-      assert channel.awaitTermination(5, TimeUnit.SECONDS)
-          : "channel cannot be gracefully shutdown";
-      assert server.awaitTermination(5, TimeUnit.SECONDS) : "server cannot be gracefully shutdown";
-    } finally {
-      channel.shutdownNow();
-      server.shutdownNow();
-    }
-  }
+abstract class ServingBaseTests extends ServingEnvironment {
 
   protected ServingAPIProto.GetOnlineFeaturesRequest buildOnlineRequest(int driverId) {
     // getOnlineFeatures Information
-    String projectName = "feast_project";
     String entityName = "driver_id";
 
     // Instantiate EntityRows
@@ -175,16 +53,11 @@ abstract class ServingBase {
                 .addVal(DataGenerator.createInt64Value(driverId))
                 .build());
 
-    // Instantiate FeatureReferences
-    ServingAPIProto.FeatureReferenceV2 feature1Reference =
-        DataGenerator.createFeatureReference("driver_hourly_stats", "conv_rate");
-    ServingAPIProto.FeatureReferenceV2 feature2Reference =
-        DataGenerator.createFeatureReference("driver_hourly_stats", "avg_daily_trips");
-    ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
-        ImmutableList.of(feature1Reference, feature2Reference);
+    ImmutableList<String> featureReferences =
+        ImmutableList.of("driver_hourly_stats:conv_rate", "driver_hourly_stats:avg_daily_trips");
 
     // Build GetOnlineFeaturesRequestV2
-    return TestUtils.createOnlineFeatureRequest(projectName, featureReferences, entityRows);
+    return TestUtils.createOnlineFeatureRequest(featureReferences, entityRows);
   }
 
   static RegistryProto.Registry registryProto = readLocalRegistry();
@@ -283,12 +156,6 @@ abstract class ServingBase {
         .until(
             () -> servingStub.getOnlineFeatures(requestWithNewFeature).getResultsCount(),
             equalTo(3));
-  }
-
-  abstract ApplicationProperties.FeastProperties createFeastProperties();
-
-  AbstractModule registryConfig() {
-    return null;
   }
 
   abstract void updateRegistryFile(RegistryProto.Registry registry);

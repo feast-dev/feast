@@ -31,7 +31,7 @@ import java.io.ByteArrayInputStream;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.junit.jupiter.Container;
 
-public class ServingRedisS3RegistryIT extends ServingBase {
+public class ServingRedisS3RegistryIT extends ServingBaseTests {
   @Container static final S3MockContainer s3Mock = new S3MockContainer("2.2.3");
 
   private static AmazonS3 createClient() {
