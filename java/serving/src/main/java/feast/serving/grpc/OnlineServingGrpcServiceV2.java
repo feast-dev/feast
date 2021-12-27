@@ -21,8 +21,11 @@ import feast.proto.serving.ServingServiceGrpc;
 import feast.serving.service.ServingServiceV2;
 import io.grpc.stub.StreamObserver;
 import javax.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OnlineServingGrpcServiceV2 extends ServingServiceGrpc.ServingServiceImplBase {
+  public static final Logger logger = LoggerFactory.getLogger(OnlineServingGrpcServiceV2.class);
 
   private final ServingServiceV2 servingServiceV2;
 
@@ -36,12 +39,15 @@ public class OnlineServingGrpcServiceV2 extends ServingServiceGrpc.ServingServic
       ServingAPIProto.GetFeastServingInfoRequest request,
       StreamObserver<ServingAPIProto.GetFeastServingInfoResponse> responseObserver) {
     responseObserver.onNext(this.servingServiceV2.getFeastServingInfo(request));
+    responseObserver.onCompleted();
   }
 
   @Override
   public void getOnlineFeaturesV2(
       ServingAPIProto.GetOnlineFeaturesRequestV2 request,
       StreamObserver<ServingAPIProto.GetOnlineFeaturesResponse> responseObserver) {
+    logger.info("In the getOnlineFeaturesV2");
     responseObserver.onNext(this.servingServiceV2.getOnlineFeatures(request));
+    responseObserver.onCompleted();
   }
 }

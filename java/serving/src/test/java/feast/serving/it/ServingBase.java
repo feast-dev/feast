@@ -18,10 +18,11 @@ package feast.serving.it;
 
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.*;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
@@ -29,49 +30,45 @@ import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
+import feast.serving.config.*;
+import feast.serving.grpc.OnlineServingGrpcServiceV2;
+import feast.serving.registry.RegistryFile;
+import feast.serving.service.ServingServiceV2;
 import feast.serving.util.DataGenerator;
-import io.grpc.ManagedChannel;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.protobuf.services.ProtoReflectionService;
+import io.grpc.util.MutableHandlerRegistry;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@ActiveProfiles("it")
 @Testcontainers
-@SpringBootTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 abstract class ServingBase {
-  static ServingServiceGrpc.ServingServiceBlockingStub servingStub;
-
-  static final int FEAST_SERVING_PORT = 6568;
-
-  @DynamicPropertySource
-  static void initialize(DynamicPropertyRegistry registry) {
-    registry.add("grpc.server.port", () -> FEAST_SERVING_PORT);
-
-    registry.add("feast.stores[0].name", () -> "online");
-    registry.add("feast.stores[0].type", () -> "REDIS");
-    registry.add("feast.stores[0].config.host", () -> environment.getServiceHost("redis", 6379));
-    registry.add("feast.stores[0].config.port", () -> environment.getServicePort("redis", 6379));
-  }
+  public static final Logger logger = LoggerFactory.getLogger(ServingBase.class);
 
   static DockerComposeContainer environment;
 
-  static {
+  ServingServiceGrpc.ServingServiceBlockingStub servingStub;
+  Injector injector;
+  String serverName;
+  ManagedChannel channel;
+  Server server;
+  MutableHandlerRegistry serviceRegistry;
+
+  @BeforeAll
+  static void globalSetup() {
     environment =
         new DockerComposeContainer(
                 new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
@@ -84,14 +81,114 @@ abstract class ServingBase {
     environment.start();
   }
 
-  @BeforeAll
-  static void globalSetup() {
-    servingStub = TestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
+  @AfterAll
+  static void globalTeardown() {
+    environment.stop();
   }
 
-  @AfterAll
-  static void tearDown() throws Exception {
-    ((ManagedChannel) servingStub.getChannel()).shutdown().awaitTermination(10, TimeUnit.SECONDS);
+  @BeforeEach
+  public void envSetUp() throws Exception {
+
+    AbstractModule appPropertiesModule =
+        new AbstractModule() {
+          @Override
+          protected void configure() {
+            bind(OnlineServingGrpcServiceV2.class);
+          }
+
+          @Provides
+          ApplicationProperties applicationProperties() {
+            final ApplicationProperties p = new ApplicationProperties();
+            final ApplicationProperties.FeastProperties feastProperties =
+                new ApplicationProperties.FeastProperties();
+            p.setFeast(feastProperties);
+
+            feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
+            feastProperties.setRegistryRefreshInterval(0);
+
+            feastProperties.setActiveStore("online");
+
+            feastProperties.setStores(
+                ImmutableList.of(
+                    new ApplicationProperties.Store(
+                        "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
+
+            final ApplicationProperties.TracingProperties tracingProperties =
+                new ApplicationProperties.TracingProperties();
+            feastProperties.setTracing(tracingProperties);
+
+            tracingProperties.setEnabled(false);
+            return p;
+          }
+        };
+
+    injector =
+        Guice.createInjector(
+            new ServingServiceConfigV2(),
+            new RegistryConfig(),
+            new InstrumentationConfig(),
+            appPropertiesModule);
+
+    logger.info("Created Injector");
+
+    OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2 =
+        injector.getInstance(OnlineServingGrpcServiceV2.class);
+
+    for (final Map.Entry<Key<?>, Binding<?>> e : injector.getAllBindings().entrySet()) {
+      logger.info("{}: {}", e.getKey(), e.getValue());
+    }
+    logger.info("OnlineServingGrpcService: {}", onlineServingGrpcServiceV2);
+    logger.info("ServingService: {}", injector.getInstance(ServingServiceV2.class));
+
+    serverName = InProcessServerBuilder.generateName();
+    logger.info("Using server name: {}", serverName);
+
+    RegistryFile registryFile = injector.getInstance(RegistryFile.class);
+    logger.info("Registry File contents: {}", registryFile.getContent());
+
+    server =
+        InProcessServerBuilder.forName(serverName)
+            .fallbackHandlerRegistry(serviceRegistry)
+            .addService(onlineServingGrpcServiceV2)
+            .addService(ProtoReflectionService.newInstance())
+            .build();
+    server.start();
+
+    for (final ServerServiceDefinition def : server.getServices()) {
+      logger.info("Service Descriptor: {}", def.getServiceDescriptor().getName());
+    }
+
+    logger.info("Registered InProcess Server");
+
+    channel = InProcessChannelBuilder.forName(serverName).usePlaintext().directExecutor().build();
+
+    servingStub =
+        ServingServiceGrpc.newBlockingStub(channel)
+            .withDeadlineAfter(5, TimeUnit.SECONDS)
+            .withWaitForReady();
+    logger.info("Created Serving Stub: {}", servingStub);
+
+    ServingAPIProto.GetFeastServingInfoRequest req =
+        ServingAPIProto.GetFeastServingInfoRequest.newBuilder().build();
+    ServingAPIProto.GetFeastServingInfoResponse servingInfoResponse =
+        servingStub.getFeastServingInfo(req);
+    logger.info("Got servingInfoResponse: {}", servingInfoResponse);
+  }
+
+  @AfterEach
+  public void envTeardown() throws Exception {
+    // assume channel and server are not null
+    channel.shutdown();
+    server.shutdown();
+    // fail the test if cannot gracefully shutdown
+    try {
+      assert channel.awaitTermination(5, TimeUnit.SECONDS)
+          : "channel cannot be gracefully shutdown";
+      assert server.awaitTermination(5, TimeUnit.SECONDS) : "server cannot be gracefully shutdown";
+    } finally {
+      channel.shutdownNow();
+      server.shutdownNow();
+    }
   }
 
   protected ServingAPIProto.GetOnlineFeaturesRequestV2 buildOnlineRequest(int driverId) {
@@ -134,8 +231,9 @@ abstract class ServingBase {
 
   @Test
   public void shouldGetOnlineFeatures() {
+    ServingAPIProto.GetOnlineFeaturesRequestV2 req = buildOnlineRequest(1005);
     ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
-        servingStub.getOnlineFeaturesV2(buildOnlineRequest(1005));
+        servingStub.withDeadlineAfter(100, TimeUnit.MILLISECONDS).getOnlineFeaturesV2(req);
 
     assertEquals(1, featureResponse.getFieldValuesCount());
 
@@ -159,7 +257,6 @@ abstract class ServingBase {
   }
 
   @Test
-  @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
   public void shouldGetOnlineFeaturesWithOutsideMaxAgeStatus() {
     ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
         servingStub.getOnlineFeaturesV2(buildOnlineRequest(1001));
@@ -203,7 +300,7 @@ abstract class ServingBase {
     }
   }
 
-  @Test
+  @Disabled
   public void shouldRefreshRegistryAndServeNewFeatures() throws InterruptedException {
     updateRegistryFile(
         registryProto

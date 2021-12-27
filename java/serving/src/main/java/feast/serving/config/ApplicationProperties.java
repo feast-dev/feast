@@ -38,6 +38,14 @@ public class ApplicationProperties {
     /* Feast Serving build version */
     @NotBlank private String version = "unknown";
 
+    public void setRegistry(String registry) {
+      this.registry = registry;
+    }
+
+    public void setRegistryRefreshInterval(int registryRefreshInterval) {
+      this.registryRefreshInterval = registryRefreshInterval;
+    }
+
     @NotBlank private String registry;
 
     public String getRegistry() {
@@ -65,6 +73,10 @@ public class ApplicationProperties {
           String.format("Active store is misconfigured. Could not find store: %s.", activeStore));
     }
 
+    public void setActiveStore(String activeStore) {
+      this.activeStore = activeStore;
+    }
+
     /** Name of the active store configuration (only one store can be active at a time). */
     @NotBlank private String activeStore;
 
@@ -78,6 +90,10 @@ public class ApplicationProperties {
 
     /* Feast Audit Logging properties */
     @NotNull private LoggingProperties logging;
+
+    public void setStores(List<Store> stores) {
+      this.stores = stores;
+    }
 
     /**
      * Gets Serving store configuration as a list of {@link Store}.
@@ -95,6 +111,10 @@ public class ApplicationProperties {
      */
     public String getVersion() {
       return version;
+    }
+
+    public void setTracing(TracingProperties tracing) {
+      this.tracing = tracing;
     }
 
     /**
@@ -117,6 +137,10 @@ public class ApplicationProperties {
   }
 
   private FeastProperties feast;
+
+  public void setFeast(FeastProperties feast) {
+    this.feast = feast;
+  }
 
   public FeastProperties getFeast() {
     return feast;
@@ -148,6 +172,12 @@ public class ApplicationProperties {
     private String type;
 
     private Map<String, String> config = new HashMap<>();
+
+    public Store(String name, String type, Map<String, String> config) {
+      this.name = name;
+      this.type = type;
+      this.config = config;
+    }
 
     /**
      * Gets name of this store. This is unique to this specific instance.

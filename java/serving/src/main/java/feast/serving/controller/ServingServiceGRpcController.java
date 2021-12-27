@@ -65,7 +65,8 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
     try {
       // authorize for the project in request object.
-      if (request.getProject() != null && !request.getProject().isEmpty()) {
+      request.getProject();
+      if (!request.getProject().isEmpty()) {
         // update monitoring context
         GrpcMonitoringContext.getInstance().setProject(request.getProject());
       }

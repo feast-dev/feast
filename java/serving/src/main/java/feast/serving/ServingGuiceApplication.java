@@ -40,7 +40,8 @@ public class ServingGuiceApplication {
             new ServingServiceConfigV2(),
             new RegistryConfig(),
             new InstrumentationConfig(),
-            new ServerModule(args));
+            new ServerModule(),
+            new ApplicationPropertiesModule(args));
 
     Server server = i.getInstance(Server.class);
 
