@@ -14,7 +14,7 @@
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple, Type
+from typing import Any, Dict, List, Optional, Set, Sized, Tuple, Type
 
 import numpy as np
 import pandas as pd
@@ -253,8 +253,8 @@ def _python_value_to_proto_value(
         List of Feast Value Proto
     """
     # ToDo: make a better sample for type checks (more than one element)
-    sample = next(filter(np.any, values), None)  # first not empty value
-    if not sample:
+    sample = next(filter(_non_empty_value, values), None)  # first not empty value
+    if sample is None:
         # all input values are None or empty lists
         return [ProtoValue()] * len(values)
 
@@ -315,8 +315,8 @@ def python_values_to_proto_values(
     values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
 ) -> List[ProtoValue]:
     value_type = feature_type
-    if len(values) and feature_type == ValueType.UNKNOWN:
-        sample = next(filter(np.any, values), None)  # first not empty value
+    sample = next(filter(_non_empty_value, values), None)  # first not empty value
+    if sample is not None and feature_type == ValueType.UNKNOWN:
         if isinstance(sample, (list, np.ndarray)):
             value_type = (
                 feature_type
@@ -325,6 +325,10 @@ def python_values_to_proto_values(
             )
         else:
             value_type = python_type_to_feast_value_type("", sample)
+
+    if value_type == ValueType.UNKNOWN:
+        raise TypeError("Couldn't infer value type from empty value")
+
     return _python_value_to_proto_value(value_type, values)
 
 
@@ -468,3 +472,15 @@ def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
     }
 
     return type_map[pa_type_as_str]
+
+
+def _non_empty_value(value: Any) -> bool:
+    """
+        Check that there's enough data we can use for type inference.
+        If primitive type - just checking that it's not None
+        If iterable - checking that there's some elements (len > 0)
+        String is special case: "" - empty string is considered non empty
+    """
+    return value is not None and (
+        not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
+    )
