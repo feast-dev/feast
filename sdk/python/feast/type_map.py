@@ -252,6 +252,12 @@ def _python_value_to_proto_value(
     Returns:
         List of Feast Value Proto
     """
+    # ToDo: make a better sample for type checks (more than one element)
+    sample = next(filter(None, values), None)  # first not empty value
+    if not sample:
+        # all input values are None or empty lists
+        return [ProtoValue()] * len(values)
+
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
         # Feature can be list but None is still valid
@@ -259,16 +265,13 @@ def _python_value_to_proto_value(
             proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
                 feast_value_type
             ]
-            # f = {
-            #     field_name: proto_type(
-            #         val=[
-            #             item
-            #             if type(item) in valid_types
-            #             else _type_err(item, valid_types[0])
-            #             for item in value
-            #         ]
-            #     )
-            # }
+
+            if not all(type(item) in valid_types for item in sample):
+                first_invalid = next(
+                    item for item in sample if type(item) not in valid_types
+                )
+                raise _type_err(first_invalid, valid_types[0])
+
             return [
                 ProtoValue(**{field_name: proto_type(val=value)})
                 if value is not None
@@ -278,7 +281,6 @@ def _python_value_to_proto_value(
 
     # Handle scalar types below
     else:
-        sample = values[0]
         if feast_value_type == ValueType.UNIX_TIMESTAMP:
             if isinstance(sample, datetime):
                 return [
@@ -314,7 +316,7 @@ def python_values_to_proto_values(
 ) -> List[ProtoValue]:
     value_type = feature_type
     if len(values) and feature_type == ValueType.UNKNOWN:
-        sample = values[0]
+        sample = next(filter(None, values), None)  # first not empty value
         if isinstance(sample, (list, np.ndarray)):
             value_type = (
                 feature_type
