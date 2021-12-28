@@ -21,8 +21,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.*;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
@@ -92,19 +93,10 @@ abstract class ServingBase {
           @Provides
           ApplicationProperties applicationProperties() {
             final ApplicationProperties p = new ApplicationProperties();
-            final ApplicationProperties.FeastProperties feastProperties =
-                new ApplicationProperties.FeastProperties();
+            p.setAwsRegion("us-east-1");
+
+            final ApplicationProperties.FeastProperties feastProperties = createFeastProperties();
             p.setFeast(feastProperties);
-
-            feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
-            feastProperties.setRegistryRefreshInterval(0);
-
-            feastProperties.setActiveStore("online");
-
-            feastProperties.setStores(
-                ImmutableList.of(
-                    new ApplicationProperties.Store(
-                        "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
 
             final ApplicationProperties.TracingProperties tracingProperties =
                 new ApplicationProperties.TracingProperties();
@@ -115,10 +107,18 @@ abstract class ServingBase {
           }
         };
 
+    Module overrideConfig = registryConfig();
+    Module registryConfig;
+    if (overrideConfig != null) {
+      registryConfig = Modules.override(new RegistryConfig()).with(registryConfig());
+    } else {
+      registryConfig = new RegistryConfig();
+    }
+
     injector =
         Guice.createInjector(
             new ServingServiceConfigV2(),
-            new RegistryConfig(),
+            registryConfig,
             new InstrumentationConfig(),
             appPropertiesModule);
 
@@ -201,7 +201,7 @@ abstract class ServingBase {
   public void shouldGetOnlineFeatures() {
     ServingAPIProto.GetOnlineFeaturesRequestV2 req = buildOnlineRequest(1005);
     ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
-        servingStub.withDeadlineAfter(100, TimeUnit.MILLISECONDS).getOnlineFeaturesV2(req);
+        servingStub.withDeadlineAfter(1000, TimeUnit.MILLISECONDS).getOnlineFeaturesV2(req);
 
     assertEquals(1, featureResponse.getFieldValuesCount());
 
@@ -295,6 +295,12 @@ abstract class ServingBase {
         .ignoreException(StatusRuntimeException.class)
         .atMost(5, TimeUnit.SECONDS)
         .until(() -> servingStub.getOnlineFeaturesV2(request).getFieldValuesCount(), equalTo(1));
+  }
+
+  abstract ApplicationProperties.FeastProperties createFeastProperties();
+
+  AbstractModule registryConfig() {
+    return null;
   }
 
   abstract void updateRegistryFile(RegistryProto.Registry registry);

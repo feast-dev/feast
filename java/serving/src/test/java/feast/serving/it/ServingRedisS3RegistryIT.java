@@ -21,14 +21,18 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
 import feast.proto.core.RegistryProto;
+import feast.serving.config.ApplicationProperties;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.junit.jupiter.Container;
 
 public class ServingRedisS3RegistryIT extends ServingBase {
-  @Container private static final S3MockContainer s3Mock = new S3MockContainer("2.2.3");
+  @Container static final S3MockContainer s3Mock = new S3MockContainer("2.2.3");
 
   private static AmazonS3 createClient() {
     return AmazonS3ClientBuilder.standard()
@@ -50,7 +54,7 @@ public class ServingRedisS3RegistryIT extends ServingBase {
   }
 
   @BeforeAll
-  static void setUp() throws IOException {
+  static void setUp() {
     AmazonS3 s3Client = createClient();
     s3Client.createBucket("test-bucket");
 
@@ -58,7 +62,39 @@ public class ServingRedisS3RegistryIT extends ServingBase {
   }
 
   @Override
+  ApplicationProperties.FeastProperties createFeastProperties() {
+    final ApplicationProperties.FeastProperties feastProperties =
+        new ApplicationProperties.FeastProperties();
+    feastProperties.setRegistry("s3://test-bucket/registry.db");
+    feastProperties.setRegistryRefreshInterval(1);
+
+    feastProperties.setActiveStore("online");
+
+    feastProperties.setStores(
+        ImmutableList.of(
+            new ApplicationProperties.Store(
+                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
+
+    return feastProperties;
+  }
+
+  @Override
   void updateRegistryFile(RegistryProto.Registry registry) {
     putToStorage(registry);
+  }
+
+  @Override
+  AbstractModule registryConfig() {
+    return new AbstractModule() {
+      @Provides
+      public AmazonS3 awsStorage() {
+        return AmazonS3ClientBuilder.standard()
+            .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration(
+                    String.format("http://localhost:%d", s3Mock.getHttpServerPort()), "us-east-1"))
+            .enablePathStyleAccess()
+            .build();
+      }
+    };
   }
 }

@@ -152,6 +152,10 @@ public class ApplicationProperties {
     return gcpProject;
   }
 
+  public void setAwsRegion(String awsRegion) {
+    this.awsRegion = awsRegion;
+  }
+
   private String awsRegion;
 
   public String getAwsRegion() {

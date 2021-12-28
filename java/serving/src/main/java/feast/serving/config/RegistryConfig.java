@@ -37,7 +37,7 @@ public class RegistryConfig extends AbstractModule {
   }
 
   @Provides
-  AmazonS3 awsStorage(ApplicationProperties applicationProperties) {
+  public AmazonS3 awsStorage(ApplicationProperties applicationProperties) {
     return AmazonS3ClientBuilder.standard()
         .withRegion(applicationProperties.getAwsRegion())
         .build();

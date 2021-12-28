@@ -20,7 +20,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.storage.*;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import feast.proto.core.RegistryProto;
+import feast.serving.config.ApplicationProperties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
@@ -37,18 +40,20 @@ public class ServingRedisGSRegistryIT extends ServingBase {
 
   static final String bucket = RemoteStorageHelper.generateBucketName();
 
-  static void putToStorage(RegistryProto.Registry registry) {
-    BlobId blobId = BlobId.of(bucket, "registry.db");
+  static void putToStorage(BlobId blobId, RegistryProto.Registry registry) {
     storage.create(BlobInfo.newBuilder(blobId).build(), registry.toByteArray());
 
     assertArrayEquals(storage.get(blobId).getContent(), registry.toByteArray());
   }
 
+  static BlobId blobId;
+
   @BeforeAll
   static void setUp() {
     storage.create(BucketInfo.of(bucket));
+    blobId = BlobId.of(bucket, "registry.db");
 
-    putToStorage(registryProto);
+    putToStorage(blobId, registryProto);
   }
 
   @AfterAll
@@ -57,7 +62,24 @@ public class ServingRedisGSRegistryIT extends ServingBase {
   }
 
   @Override
+  ApplicationProperties.FeastProperties createFeastProperties() {
+    final ApplicationProperties.FeastProperties feastProperties =
+        new ApplicationProperties.FeastProperties();
+    feastProperties.setRegistry(blobId.toGsUtilUri());
+    feastProperties.setRegistryRefreshInterval(1);
+
+    feastProperties.setActiveStore("online");
+
+    feastProperties.setStores(
+        ImmutableList.of(
+            new ApplicationProperties.Store(
+                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
+
+    return feastProperties;
+  }
+
+  @Override
   void updateRegistryFile(RegistryProto.Registry registry) {
-    putToStorage(registry);
+    putToStorage(blobId, registry);
   }
 }
