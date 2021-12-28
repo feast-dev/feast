@@ -1214,7 +1214,7 @@ class FeatureStore:
 
             for row_idx, proto_value in enumerate(proto_values):
                 result_row = result_rows[row_idx]
-                result_row.fields[feature_name] = proto_value
+                result_row.fields[feature_name].CopyFrom(proto_value)
                 result_row.statuses[
                     feature_name
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
@@ -1391,9 +1391,9 @@ class FeatureStore:
 
                 for transformed_feature in selected_subset:
                     odfv_result_names.add(transformed_feature)
-                    result_row.fields[transformed_feature] = proto_values_by_column[
-                        transformed_feature
-                    ][row_idx]
+                    result_row.fields[transformed_feature].CopyFrom(
+                        proto_values_by_column[transformed_feature][row_idx]
+                    )
                     result_row.statuses[
                         transformed_feature
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
