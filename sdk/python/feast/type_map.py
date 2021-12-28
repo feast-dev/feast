@@ -253,7 +253,7 @@ def _python_value_to_proto_value(
         List of Feast Value Proto
     """
     # ToDo: make a better sample for type checks (more than one element)
-    sample = next(filter(None, values), None)  # first not empty value
+    sample = next(filter(np.any, values), None)  # first not empty value
     if not sample:
         # all input values are None or empty lists
         return [ProtoValue()] * len(values)
@@ -316,7 +316,7 @@ def python_values_to_proto_values(
 ) -> List[ProtoValue]:
     value_type = feature_type
     if len(values) and feature_type == ValueType.UNKNOWN:
-        sample = next(filter(None, values), None)  # first not empty value
+        sample = next(filter(np.any, values), None)  # first not empty value
         if isinstance(sample, (list, np.ndarray)):
             value_type = (
                 feature_type
