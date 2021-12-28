@@ -238,50 +238,57 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
 }
 
 
-def _python_value_to_proto_value(feast_value_type: ValueType, value: Any) -> ProtoValue:
+def _python_value_to_proto_value(
+    feast_value_type: ValueType, values: List[Any]
+) -> List[ProtoValue]:
     """
     Converts a Python (native, pandas) value to a Feast Proto Value based
     on a provided value type
 
     Args:
         feast_value_type: The target value type
-        value: Value that will be converted
+        values: List of Values that will be converted
 
     Returns:
-        Feast Value Proto
+        List of Feast Value Proto
     """
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
         # Feature can be list but None is still valid
-        if value is None:
-            return ProtoValue()
-
         if feast_value_type in PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE:
             proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
                 feast_value_type
             ]
-            f = {
-                field_name: proto_type(
-                    val=[
-                        item
-                        if type(item) in valid_types
-                        else _type_err(item, valid_types[0])
-                        for item in value
-                    ]
-                )
-            }
-            return ProtoValue(**f)
+            # f = {
+            #     field_name: proto_type(
+            #         val=[
+            #             item
+            #             if type(item) in valid_types
+            #             else _type_err(item, valid_types[0])
+            #             for item in value
+            #         ]
+            #     )
+            # }
+            return [
+                ProtoValue(**{field_name: proto_type(val=value)})
+                if value is not None
+                else ProtoValue()
+                for value in values
+            ]
+
     # Handle scalar types below
     else:
-        if pd.isnull(value):
-            return ProtoValue()
-
+        sample = values[0]
         if feast_value_type == ValueType.UNIX_TIMESTAMP:
-            if isinstance(value, datetime):
-                return ProtoValue(int64_val=int(value.timestamp()))
-            elif isinstance(value, Timestamp):
-                return ProtoValue(int64_val=int(value.ToSeconds()))
-            return ProtoValue(int64_val=int(value))
+            if isinstance(sample, datetime):
+                return [
+                    ProtoValue(int64_val=int(value.timestamp())) for value in values
+                ]
+            elif isinstance(sample, Timestamp):
+                return [
+                    ProtoValue(int64_val=int(value.ToSeconds())) for value in values
+                ]
+            return [ProtoValue(int64_val=int(value)) for value in values]
 
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
             (
@@ -290,27 +297,33 @@ def _python_value_to_proto_value(feast_value_type: ValueType, value: Any) -> Pro
                 valid_scalar_types,
             ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
             if valid_scalar_types:
-                assert type(value) in valid_scalar_types
-            kwargs = {field_name: func(value)}
-            return ProtoValue(**kwargs)
+                assert type(sample) in valid_scalar_types
 
-    raise Exception(f"Unsupported data type: ${str(type(value))}")
+            return [
+                ProtoValue(**{field_name: func(value)})
+                if not pd.isnull(value)
+                else ProtoValue()
+                for value in values
+            ]
+
+    raise Exception(f"Unsupported data type: ${str(type(values[0]))}")
 
 
-def python_value_to_proto_value(
-    value: Any, feature_type: ValueType = ValueType.UNKNOWN
-) -> ProtoValue:
+def python_values_to_proto_values(
+    values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
+) -> List[ProtoValue]:
     value_type = feature_type
-    if value is not None and feature_type == ValueType.UNKNOWN:
-        if isinstance(value, (list, np.ndarray)):
+    if len(values) and feature_type == ValueType.UNKNOWN:
+        sample = values[0]
+        if isinstance(sample, (list, np.ndarray)):
             value_type = (
                 feature_type
-                if len(value) == 0
-                else python_type_to_feast_value_type("", value)
+                if len(sample) == 0
+                else python_type_to_feast_value_type("", sample)
             )
         else:
-            value_type = python_type_to_feast_value_type("", value)
-    return _python_value_to_proto_value(value_type, value)
+            value_type = python_type_to_feast_value_type("", sample)
+    return _python_value_to_proto_value(value_type, values)
 
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:

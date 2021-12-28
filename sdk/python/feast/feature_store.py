@@ -72,8 +72,9 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
-from feast.type_map import python_value_to_proto_value
+from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
+from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1207,11 +1208,13 @@ class FeatureStore:
     ):
         # Add more feature values to the existing result rows for the request data features
         for feature_name, feature_values in request_data_features.items():
-            for row_idx, feature_value in enumerate(feature_values):
+            proto_values = python_values_to_proto_values(
+                feature_values, ValueType.UNKNOWN
+            )
+
+            for row_idx, proto_value in enumerate(proto_values):
                 result_row = result_rows[row_idx]
-                result_row.fields[feature_name].CopyFrom(
-                    python_value_to_proto_value(feature_value)
-                )
+                result_row.fields[feature_name] = proto_value
                 result_row.statuses[
                     feature_name
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
@@ -1372,19 +1375,25 @@ class FeatureStore:
             transformed_features_df = odfv.get_transformed_features_df(
                 initial_response_df, full_feature_names,
             )
+            selected_subset = [
+                f for f in transformed_features_df.columns if f in _feature_refs
+            ]
+
+            proto_values_by_column = {
+                feature: python_values_to_proto_values(
+                    transformed_features_df[feature].values, ValueType.UNKNOWN
+                )
+                for feature in selected_subset
+            }
+
             for row_idx in range(len(result_rows)):
                 result_row = result_rows[row_idx]
 
-                selected_subset = [
-                    f for f in transformed_features_df.columns if f in _feature_refs
-                ]
-
                 for transformed_feature in selected_subset:
                     odfv_result_names.add(transformed_feature)
-                    proto_value = python_value_to_proto_value(
-                        transformed_features_df[transformed_feature].values[row_idx]
-                    )
-                    result_row.fields[transformed_feature].CopyFrom(proto_value)
+                    result_row.fields[transformed_feature] = proto_values_by_column[
+                        transformed_feature
+                    ][row_idx]
                     result_row.statuses[
                         transformed_feature
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
