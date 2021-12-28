@@ -21,15 +21,10 @@ import com.google.inject.Injector;
 import feast.serving.config.*;
 import io.grpc.Server;
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ServingGuiceApplication {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ServingGuiceApplication.class);
 
   public static void main(String[] args) throws InterruptedException, IOException {
-
-    LOGGER.info("Args: {}", args);
     if (args.length == 0) {
       throw new RuntimeException(
           "Path to application configuration file needs to be specifed via CLI");

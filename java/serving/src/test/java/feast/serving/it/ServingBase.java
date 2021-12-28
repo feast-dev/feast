@@ -32,8 +32,6 @@ import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
 import feast.serving.config.*;
 import feast.serving.grpc.OnlineServingGrpcServiceV2;
-import feast.serving.registry.RegistryFile;
-import feast.serving.service.ServingServiceV2;
 import feast.serving.util.DataGenerator;
 import io.grpc.*;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -45,19 +43,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 abstract class ServingBase {
-  public static final Logger logger = LoggerFactory.getLogger(ServingBase.class);
-
   static DockerComposeContainer environment;
 
   ServingServiceGrpc.ServingServiceBlockingStub servingStub;
@@ -129,22 +122,10 @@ abstract class ServingBase {
             new InstrumentationConfig(),
             appPropertiesModule);
 
-    logger.info("Created Injector");
-
     OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2 =
         injector.getInstance(OnlineServingGrpcServiceV2.class);
 
-    for (final Map.Entry<Key<?>, Binding<?>> e : injector.getAllBindings().entrySet()) {
-      logger.info("{}: {}", e.getKey(), e.getValue());
-    }
-    logger.info("OnlineServingGrpcService: {}", onlineServingGrpcServiceV2);
-    logger.info("ServingService: {}", injector.getInstance(ServingServiceV2.class));
-
     serverName = InProcessServerBuilder.generateName();
-    logger.info("Using server name: {}", serverName);
-
-    RegistryFile registryFile = injector.getInstance(RegistryFile.class);
-    logger.info("Registry File contents: {}", registryFile.getContent());
 
     server =
         InProcessServerBuilder.forName(serverName)
@@ -154,25 +135,12 @@ abstract class ServingBase {
             .build();
     server.start();
 
-    for (final ServerServiceDefinition def : server.getServices()) {
-      logger.info("Service Descriptor: {}", def.getServiceDescriptor().getName());
-    }
-
-    logger.info("Registered InProcess Server");
-
     channel = InProcessChannelBuilder.forName(serverName).usePlaintext().directExecutor().build();
 
     servingStub =
         ServingServiceGrpc.newBlockingStub(channel)
             .withDeadlineAfter(5, TimeUnit.SECONDS)
             .withWaitForReady();
-    logger.info("Created Serving Stub: {}", servingStub);
-
-    ServingAPIProto.GetFeastServingInfoRequest req =
-        ServingAPIProto.GetFeastServingInfoRequest.newBuilder().build();
-    ServingAPIProto.GetFeastServingInfoResponse servingInfoResponse =
-        servingStub.getFeastServingInfo(req);
-    logger.info("Got servingInfoResponse: {}", servingInfoResponse);
   }
 
   @AfterEach
@@ -300,7 +268,7 @@ abstract class ServingBase {
     }
   }
 
-  @Disabled
+  @Test
   public void shouldRefreshRegistryAndServeNewFeatures() throws InterruptedException {
     updateRegistryFile(
         registryProto
