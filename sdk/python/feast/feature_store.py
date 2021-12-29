@@ -69,6 +69,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
@@ -1005,6 +1006,7 @@ class FeatureStore:
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         full_feature_names: bool = False,
+        include_event_ts: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -1024,6 +1026,7 @@ class FeatureStore:
                 the Feature and FeatureView names respectively.
                 Only the feature name is required.
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+            include_event_ts: bool include the feature view event timestamp in the response
 
         Returns:
             OnlineResponse containing the feature data in records.
@@ -1156,6 +1159,7 @@ class FeatureStore:
                 result_rows,
                 table,
                 union_of_entity_keys,
+                include_event_ts
             )
 
         requested_result_row_names = self._get_requested_result_fields(
@@ -1278,6 +1282,7 @@ class FeatureStore:
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
         table: FeatureView,
         union_of_entity_keys: List[EntityKeyProto],
+        include_event_ts: bool = False,
     ):
         entity_keys = _get_table_entity_keys(
             table, union_of_entity_keys, table_join_keys
@@ -1292,6 +1297,14 @@ class FeatureStore:
         for row_idx, read_row in enumerate(read_rows):
             row_ts, feature_data = read_row
             result_row = result_rows[row_idx]
+
+            if include_event_ts:
+                event_time_seconds = int(row_ts.timestamp())
+                val = ValueProto(int64_val=int(event_time_seconds))
+
+                ts_ref = f"{table.projection.name_to_use()}__ts"
+                result_row.fields[ts_ref].CopyFrom(val)
+                result_row.statuses[ts_ref] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
             if feature_data is None:
                 for feature_name in requested_features:
