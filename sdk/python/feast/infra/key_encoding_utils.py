@@ -1,5 +1,5 @@
 import struct
-from typing import List, Tuple
+from typing import Any, ByteString, List, Tuple
 
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -62,3 +62,27 @@ def serialize_entity_key(entity_key: EntityKeyProto) -> bytes:
         output.append(val_bytes)
 
     return b"".join(output)
+
+
+def deserialize_entity_values(entity_values: ByteString) -> List[Any]:
+    deserialized_entity_values = []
+    while entity_values:
+        value_type = struct.unpack("<I", entity_values[0:4])[0]
+        val_bytes = struct.unpack("<I", entity_values[4:8])[0]
+        end = 8 + val_bytes
+        if value_type == ValueType.STRING:
+            deserialized_entity_values.append(entity_values[8:end].decode("utf8"))
+        elif value_type == ValueType.BYTES:
+            deserialized_entity_values.append(entity_values[8:end])
+        elif value_type == ValueType.INT32:
+            deserialized_entity_values.append(
+                struct.unpack("<i", entity_values[8:end])[0]
+            )
+        elif value_type == ValueType.INT64:
+            deserialized_entity_values.append(
+                struct.unpack("<i", entity_values[8:end])[0]
+            )
+        else:
+            raise ValueError(f"Value type not supported {value_type}")
+        entity_values = entity_values[end:]
+    return deserialized_entity_values

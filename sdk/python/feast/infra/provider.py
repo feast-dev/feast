@@ -157,6 +157,14 @@ class Provider(abc.ABC):
         """Returns endpoint for the feature server, if it exists."""
         return None
 
+    def get_entity_rows(
+        self, config: RepoConfig, entity_keys: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        get available entity rows for specified entities
+        """
+        pass
+
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if "." not in config.provider:

@@ -32,6 +32,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig, utils
+from feast.infra.key_encoding_utils import deserialize_entity_values
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -291,3 +292,33 @@ class RedisOnlineStore(OnlineStore):
         else:
             timestamp = datetime.fromtimestamp(res_ts.seconds)
             return timestamp, res
+
+    @log_exceptions_and_usage(online_store="redis")
+    def get_entity_rows(
+        self, config: RepoConfig, entity_keys: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        get available entity rows for specified entities
+        """
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = self._get_client(online_store_config)
+
+        # TODO: this is not a great access pattern for Redis and may be slow if there are lots of keys
+        # consider client.scan_inter if tough to load all the keys into memory or defaulting to some limit
+        prefix = _redis_key_prefix(entity_keys)
+        pattern = b"".join([prefix, b"*", config.project.encode("utf8")])
+
+        keys = client.keys(pattern=pattern)
+        entity_rows = []
+
+        sorted_keys = sorted(entity_keys)
+
+        for key in keys:
+            values = deserialize_entity_values(
+                key.replace(prefix, b"").rstrip(config.project.encode("utf8"))
+            )
+            entity_row = dict(zip(sorted_keys, values))
+            entity_rows.append(entity_row)
+        return entity_rows

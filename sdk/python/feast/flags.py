@@ -3,6 +3,7 @@ FLAG_ON_DEMAND_TRANSFORM_NAME = "on_demand_transforms"
 FLAG_PYTHON_FEATURE_SERVER_NAME = "python_feature_server"
 FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME = "aws_lambda_feature_server"
 FLAG_DIRECT_INGEST_TO_ONLINE_STORE = "direct_ingest_to_online_store"
+FLAG_GET_ALL_ENTITY_ROWS = "get_all_entity_rows"
 ENV_FLAG_IS_TEST = "IS_TEST"
 
 FLAG_NAMES = {

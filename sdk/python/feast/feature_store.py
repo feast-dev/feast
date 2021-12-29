@@ -1102,6 +1102,12 @@ class FeatureStore:
             grouped_odfv_refs, grouped_request_fv_refs
         )
 
+        if entity_rows is None and flags_helper.enable_get_all_entity_rows(self.config):
+            entity_keys = set()
+            for feature_view in requested_feature_views:
+                entity_keys.update(feature_view.entities)
+            entity_rows = provider.get_entity_rows(self.config, list(entity_keys))
+
         join_key_rows = []
         request_data_features: Dict[str, List[Any]] = {}
         # Entity rows may be either entities or request data.

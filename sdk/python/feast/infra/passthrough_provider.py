@@ -178,3 +178,10 @@ class PassthroughProvider(Provider):
             full_feature_names=full_feature_names,
         )
         return job
+
+    def get_entity_rows(
+        self, config: RepoConfig, entities: List[str]
+    ) -> List[Dict[str, Any]]:
+        result = self.online_store.get_entity_rows(config, entities)
+
+        return result

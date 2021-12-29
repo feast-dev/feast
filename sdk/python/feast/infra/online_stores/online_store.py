@@ -100,3 +100,8 @@ class OnlineStore(ABC):
         entities: Sequence[Entity],
     ):
         ...
+
+    def get_entity_rows(
+        self, config: RepoConfig, entity_keys: List[str]
+    ) -> List[Dict[str, Any]]:
+        raise Exception("get_entity_rows(..) not implemented in this online_store")
