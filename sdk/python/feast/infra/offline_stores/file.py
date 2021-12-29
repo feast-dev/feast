@@ -204,13 +204,12 @@ class FileOfflineStore(OfflineStore):
                         entity.join_key, entity.join_key
                     )
                     join_keys.append(join_key)
-                right_entity_columns = join_keys
-                right_entity_key_columns = [
-                    event_timestamp_column
-                ] + right_entity_columns
 
-                entity_name = join_keys[0]
-                # entity_df_with_features = entity_df_with_features.set_index(entity_name)
+                right_entity_key_columns = [
+                    event_timestamp_column,
+                    created_timestamp_column,
+                ] + join_keys
+                right_entity_key_columns = [c for c in right_entity_key_columns if c]
 
                 storage_options = (
                     {
@@ -223,25 +222,41 @@ class FileOfflineStore(OfflineStore):
                 )
 
                 df_to_join = dd.read_parquet(
-                    feature_view.batch_source.path,
-                    storage_options=storage_options,
-                    # index=[entity_name],
+                    feature_view.batch_source.path, storage_options=storage_options,
                 )
 
+                # Build a list of all the features we should select from this source
+                feature_names = []
+                columns_map = {}
+                for feature in features:
+                    # Modify the separator for feature refs in column names to double underscore. We are using
+                    # double underscore as separator for consistency with other databases like BigQuery,
+                    # where there are very few characters available for use as separators
+                    if full_feature_names:
+                        formatted_feature_name = (
+                            f"{feature_view.projection.name_to_use()}__{feature}"
+                        )
+                    else:
+                        formatted_feature_name = feature
+                    # Add the feature name to the list of columns
+                    feature_names.append(formatted_feature_name)
+
+                # Ensure that the source dataframe feature column includes the feature view name as a prefix
+                df_to_join = df_to_join.rename(columns=columns_map)
+                df_to_join = df_to_join.persist()
+
+                # Select only the columns we need to join from the feature dataframe
+                df_to_join = df_to_join[right_entity_key_columns + feature_names]
+                df_to_join = df_to_join.persist()
+
                 # Get only data with requested entities
-                __entity_df_event_timestamp_col = f"__{entity_df_event_timestamp_col}"
                 df_to_join = dd.merge(
+                    entity_df_with_features,
                     df_to_join,
-                    entity_df_with_features[
-                        join_keys + [entity_df_event_timestamp_col]
-                    ].rename(
-                        columns={
-                            entity_df_event_timestamp_col: __entity_df_event_timestamp_col
-                        }
-                    ),
                     left_on=join_keys,
                     right_on=join_keys,
                     suffixes=("", "__"),
+                    how="left",
                 )
                 df_to_join = df_to_join.persist()
 
@@ -295,66 +310,31 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = df_to_join[
                     (
                         df_to_join[event_timestamp_column]
-                        >= df_to_join[__entity_df_event_timestamp_col]
-                        - feature_view.ttl
+                        >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
                     )
                     & (
                         df_to_join[event_timestamp_column]
-                        <= df_to_join[__entity_df_event_timestamp_col]
+                        <= df_to_join[entity_df_event_timestamp_col]
                     )
                 ]
                 df_to_join = df_to_join.persist()
-                df_to_join = df_to_join.drop([__entity_df_event_timestamp_col], axis=1)
-                df_to_join = df_to_join.persist()
-
-                # Build a list of all the features we should select from this source
-                feature_names = []
-                columns_map = {}
-                for feature in features:
-                    # Modify the separator for feature refs in column names to double underscore. We are using
-                    # double underscore as separator for consistency with other databases like BigQuery,
-                    # where there are very few characters available for use as separators
-                    if full_feature_names:
-                        formatted_feature_name = (
-                            f"{feature_view.projection.name_to_use()}__{feature}"
-                        )
-                    else:
-                        formatted_feature_name = feature
-                    # Add the feature name to the list of columns
-                    feature_names.append(formatted_feature_name)
-
-                    # Ensure that the source dataframe feature column includes the feature view name as a prefix
-                df_to_join = df_to_join.rename(columns=columns_map)
-                df_to_join = df_to_join.persist()
-
-                # Remove all duplicate entity keys (using created timestamp)
-                right_entity_key_sort_columns = right_entity_key_columns
-                if created_timestamp_column:
-                    # If created_timestamp is available, use it to dedupe deterministically
-                    right_entity_key_sort_columns = right_entity_key_sort_columns + [
-                        created_timestamp_column
-                    ]
 
                 df_to_join = df_to_join.sort_values(by=event_timestamp_column)
                 df_to_join = df_to_join.persist()
 
-                df_to_join = df_to_join.reset_index().drop_duplicates(
+                df_to_join = df_to_join.drop_duplicates(
                     join_keys, keep="last", ignore_index=True,
                 )
                 df_to_join = df_to_join.persist()
 
-                # Select only the columns we need to join from the feature dataframe
-                df_to_join = df_to_join[right_entity_key_columns + feature_names]
-                df_to_join = df_to_join.persist()
+                entity_df_with_features = df_to_join.drop(
+                    [event_timestamp_column], axis=1
+                ).persist()
 
                 # Ensure that we delete dataframes to free up memory
-                del entity_df_with_features
+                del df_to_join
 
-            df_to_join = df_to_join.rename(
-                columns={event_timestamp_column: entity_df_event_timestamp_col}
-            )
-
-            return df_to_join.persist()
+            return entity_df_with_features.persist()
 
         job = FileRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
