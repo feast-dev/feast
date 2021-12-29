@@ -66,8 +66,7 @@ public interface TransformationService {
    * @param transformFeaturesResponse response to be processed
    * @param onDemandFeatureViewName name of ODFV to which the response corresponds
    * @param onDemandFeatureStringReferences set of all ODFV references that should be kept
-   * @param values list of field maps to be augmented with additional fields from the response
-   * @param statuses list of status maps to be augmented
+   * @param responseBuilder {@link ServingAPIProto.GetOnlineFeaturesResponseV2.Builder}
    */
   void processTransformFeaturesResponse(
       TransformFeaturesResponse transformFeaturesResponse,

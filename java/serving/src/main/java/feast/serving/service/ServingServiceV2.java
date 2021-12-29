@@ -35,14 +35,13 @@ public interface ServingServiceV2 {
   /**
    * Get features from an online serving store, given a list of {@link
    * feast.proto.serving.ServingAPIProto.FeatureReferenceV2}s to retrieve or name of the feature
-   * service, and vectorized entities Map<String, {@link
-   * feast.proto.types.ValueProto.RepeatedValue}> to join the retrieved values to.
+   * service, and vectorized entities Map&lt;String, {@link
+   * feast.proto.types.ValueProto.RepeatedValue}&gt; to join the retrieved values to.
    *
    * <p>This request is fulfilled synchronously.
    *
    * @return {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2} with list of
-   *     {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2.Row} for each entity
-   *     supplied.
+   *     {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector}.
    */
   ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest getFeaturesRequest);

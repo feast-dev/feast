@@ -32,7 +32,6 @@ public interface OnlineRetrieverV2 {
    * Feature} returned should match the no. of given {@link
    * ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow}s
    *
-   * @param project name of project to request features from.
    * @param entityRows list of entity rows to request features for.
    * @param featureReferences specifies the FeatureTable to retrieve data from
    * @param entityNames name of entities
