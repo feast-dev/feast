@@ -14,7 +14,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] Kafka source (with [push support into the online store](reference/alpha-stream-ingestion.md))
-  * [ ] Snowflake source (Planned for Q4 2021)
+  * [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
@@ -24,8 +24,8 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-  * [ ] Snowflake (Planned for Q4 2021)
-  * [ ] Trino (Planned for Q4 2021)
+  * [x] [Snowflake (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
+  * [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
 * **Online Stores**
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
@@ -43,12 +43,12 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Streaming ingestion on GCP
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
-  * [ ] Batch transformation (SQL)
+  * [ ] Batch transformation (SQL. In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
   * [ ] Streaming transformation
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
+  * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
   * [ ] Cloud Run
-  * [ ] Kubernetes
   * [ ] KNative
 * **Feature Serving**
   * [x] Python Client
@@ -59,17 +59,16 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Go Client
   * [ ] Delete API
   * [ ] Feature Logging (for training)
-* **Data Quality Management**
-  * [ ] Data profiling and validation (Great Expectations) (Planned for Q4 2021)
+* **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
+  * [ ] Data profiling and validation (Great Expectations) (Planned for Q1 2022)
   * [ ] Metric production
   * [ ] Training-serving skew detection
   * [ ] Drift detection
-  * [ ] Alerting
 * **Feature Discovery and Governance**
   * [x] Python SDK for browsing feature registry
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [ ] REST API for browsing feature registry
-  * [ ] Feast Web UI (Planned for Q4 2021)
+  * [ ] Feast Web UI
   * [ ] Feature versioning
   * [ ] Amundsen integration
