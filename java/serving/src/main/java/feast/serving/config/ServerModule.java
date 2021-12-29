@@ -32,11 +32,12 @@ public class ServerModule extends AbstractModule {
 
   //  @Provides
   public Server provideGrpcServer(
+      ApplicationProperties applicationProperties,
       OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2,
       TracingServerInterceptor tracingServerInterceptor) {
-    ServerBuilder<?> serverBuilder = ServerBuilder.forPort(6566);
+    ServerBuilder<?> serverBuilder =
+        ServerBuilder.forPort(applicationProperties.getGrpc().getServer().getPort());
     serverBuilder
-        .addService(onlineServingGrpcServiceV2)
         .addService(ProtoReflectionService.newInstance())
         .addService(tracingServerInterceptor.intercept(onlineServingGrpcServiceV2));
 
