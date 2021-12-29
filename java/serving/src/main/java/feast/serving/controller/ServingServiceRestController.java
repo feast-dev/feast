@@ -22,27 +22,23 @@ import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.config.FeastProperties;
+import feast.serving.config.ApplicationProperties;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-@RestController
 public class ServingServiceRestController {
 
   private final ServingServiceV2 servingService;
   private final String version;
 
-  @Autowired
   public ServingServiceRestController(
-      ServingServiceV2 servingService, FeastProperties feastProperties) {
+      ServingServiceV2 servingService, ApplicationProperties applicationProperties) {
     this.servingService = servingService;
-    this.version = feastProperties.getVersion();
+    this.version = applicationProperties.getFeast().getVersion();
   }
 
   @RequestMapping(value = "/api/v1/info", produces = "application/json")

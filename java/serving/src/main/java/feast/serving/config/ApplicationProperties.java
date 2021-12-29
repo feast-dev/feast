@@ -31,51 +31,119 @@ import javax.annotation.PostConstruct;
 import javax.validation.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.info.BuildProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 
 /** Feast Serving properties. */
-@ComponentScan("feast.common.logging")
-@ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
-public class FeastProperties {
+public class ApplicationProperties {
+  public static class FeastProperties {
+    /* Feast Serving build version */
+    @NotBlank private String version = "unknown";
 
-  /**
-   * Instantiates a new Feast Serving properties.
-   *
-   * @param buildProperties the build properties
-   */
-  @Autowired
-  public FeastProperties(BuildProperties buildProperties) {
-    setVersion(buildProperties.getVersion());
+    public void setRegistry(String registry) {
+      this.registry = registry;
+    }
+
+    public void setRegistryRefreshInterval(int registryRefreshInterval) {
+      this.registryRefreshInterval = registryRefreshInterval;
+    }
+
+    @NotBlank private String registry;
+
+    public String getRegistry() {
+      return registry;
+    }
+
+    private int registryRefreshInterval;
+
+    public int getRegistryRefreshInterval() {
+      return registryRefreshInterval;
+    }
+
+    /**
+     * Finds and returns the active store
+     *
+     * @return Returns the {@link Store} model object
+     */
+    public Store getActiveStore() {
+      for (Store store : getStores()) {
+        if (activeStore.equals(store.getName())) {
+          return store;
+        }
+      }
+      throw new RuntimeException(
+          String.format("Active store is misconfigured. Could not find store: %s.", activeStore));
+    }
+
+    public void setActiveStore(String activeStore) {
+      this.activeStore = activeStore;
+    }
+
+    /** Name of the active store configuration (only one store can be active at a time). */
+    @NotBlank private String activeStore;
+
+    /**
+     * Collection of store configurations. The active store is selected by the "activeStore" field.
+     */
+    private List<Store> stores = new ArrayList<>();
+
+    /* Metric tracing properties. */
+    private TracingProperties tracing;
+
+    /* Feast Audit Logging properties */
+    @NotNull private LoggingProperties logging;
+
+    public void setStores(List<Store> stores) {
+      this.stores = stores;
+    }
+
+    /**
+     * Gets Serving store configuration as a list of {@link Store}.
+     *
+     * @return List of stores objects
+     */
+    public List<Store> getStores() {
+      return stores;
+    }
+
+    /**
+     * Gets Feast Serving build version.
+     *
+     * @return the build version
+     */
+    public String getVersion() {
+      return version;
+    }
+
+    public void setTracing(TracingProperties tracing) {
+      this.tracing = tracing;
+    }
+
+    /**
+     * Gets tracing properties
+     *
+     * @return tracing properties
+     */
+    public TracingProperties getTracing() {
+      return tracing;
+    }
+
+    /**
+     * Gets logging properties
+     *
+     * @return logging properties
+     */
+    public LoggingProperties getLogging() {
+      return logging;
+    }
   }
 
-  /** Instantiates a new Feast class. */
-  public FeastProperties() {}
+  private FeastProperties feast;
 
-  /* Feast Serving build version */
-  @NotBlank private String version = "unknown";
-
-  @NotBlank private String registry;
-
-  public String getRegistry() {
-    return registry;
+  public void setFeast(FeastProperties feast) {
+    this.feast = feast;
   }
 
-  public void setRegistry(final String registry) {
-    this.registry = registry;
-  }
-
-  private int registryRefreshInterval;
-
-  public int getRegistryRefreshInterval() {
-    return registryRefreshInterval;
-  }
-
-  public void setRegistryRefreshInterval(final int registryRefreshInterval) {
-    this.registryRefreshInterval = registryRefreshInterval;
+  public FeastProperties getFeast() {
+    return feast;
   }
 
   private String gcpProject;
@@ -84,8 +152,8 @@ public class FeastProperties {
     return gcpProject;
   }
 
-  public void setGcpProject(final String gcpProject) {
-    this.gcpProject = gcpProject;
+  public void setAwsRegion(String awsRegion) {
+    this.awsRegion = awsRegion;
   }
 
   private String awsRegion;
@@ -94,97 +162,10 @@ public class FeastProperties {
     return awsRegion;
   }
 
-  public void setAwsRegion(final String awsRegion) {
-    this.awsRegion = awsRegion;
-  }
-
   private String transformationServiceEndpoint;
 
   public String getTransformationServiceEndpoint() {
     return transformationServiceEndpoint;
-  }
-
-  public void setTransformationServiceEndpoint(final String transformationServiceEndpoint) {
-    this.transformationServiceEndpoint = transformationServiceEndpoint;
-  }
-
-  /**
-   * Finds and returns the active store
-   *
-   * @return Returns the {@link Store} model object
-   */
-  public Store getActiveStore() {
-    for (Store store : getStores()) {
-      if (activeStore.equals(store.getName())) {
-        return store;
-      }
-    }
-    throw new RuntimeException(
-        String.format("Active store is misconfigured. Could not find store: %s.", activeStore));
-  }
-
-  /**
-   * Set the name of the active store found in the "stores" configuration list
-   *
-   * @param activeStore String name to active store
-   */
-  public void setActiveStore(String activeStore) {
-    this.activeStore = activeStore;
-  }
-
-  /** Name of the active store configuration (only one store can be active at a time). */
-  @NotBlank private String activeStore;
-
-  /**
-   * Collection of store configurations. The active store is selected by the "activeStore" field.
-   */
-  private List<Store> stores = new ArrayList<>();
-
-  /* Metric tracing properties. */
-  private TracingProperties tracing;
-
-  /* Feast Audit Logging properties */
-  @NotNull private LoggingProperties logging;
-
-  @Bean
-  LoggingProperties loggingProperties() {
-    return getLogging();
-  }
-
-  /**
-   * Gets Serving store configuration as a list of {@link Store}.
-   *
-   * @return List of stores objects
-   */
-  public List<Store> getStores() {
-    return stores;
-  }
-
-  /**
-   * Gets Feast Serving build version.
-   *
-   * @return the build version
-   */
-  public String getVersion() {
-    return version;
-  }
-
-  /**
-   * Sets build version
-   *
-   * @param version the build version
-   */
-  public void setVersion(String version) {
-    this.version = version;
-  }
-
-  /**
-   * Sets the collection of configured stores.
-   *
-   * @param stores List of {@link Store}
-   */
-  public void setStores(List<Store> stores) {
-    this.stores = stores;
   }
 
   /** Store configuration class for database that this Feast Serving uses. */
@@ -195,6 +176,12 @@ public class FeastProperties {
     private String type;
 
     private Map<String, String> config = new HashMap<>();
+
+    public Store(String name, String type, Map<String, String> config) {
+      this.name = name;
+      this.type = type;
+      this.config = config;
+    }
 
     /**
      * Gets name of this store. This is unique to this specific instance.
@@ -224,15 +211,6 @@ public class FeastProperties {
     }
 
     /**
-     * Sets the store type
-     *
-     * @param type the type
-     */
-    public void setType(String type) {
-      this.type = type;
-    }
-
-    /**
      * Gets the configuration to this specific store. This is a map of strings. These options are
      * unique to the store. Please see protos/feast/core/Store.proto for the store specific
      * configuration options
@@ -257,57 +235,46 @@ public class FeastProperties {
           Boolean.valueOf(this.config.getOrDefault("ssl", "false")),
           this.config.getOrDefault("password", ""));
     }
+  }
 
-    /**
-     * Sets the store config. Please protos/feast/core/Store.proto for the specific options for each
-     * store.
-     *
-     * @param config the config map
-     */
-    public void setConfig(Map<String, String> config) {
-      this.config = config;
+  public static class Server {
+    private int port;
+
+    public int getPort() {
+      return port;
     }
+  }
+
+  public static class GrpcServer {
+    private Server server;
+
+    public Server getServer() {
+      return server;
+    }
+  }
+
+  public static class RestServer {
+    private Server server;
+
+    public Server getServer() {
+      return server;
+    }
+  }
+
+  private GrpcServer grpc;
+  private RestServer rest;
+
+  public GrpcServer getGrpc() {
+    return grpc;
+  }
+
+  public RestServer getRest() {
+    return rest;
   }
 
   public enum StoreType {
     REDIS,
     REDIS_CLUSTER;
-  }
-
-  /**
-   * Gets tracing properties
-   *
-   * @return tracing properties
-   */
-  public TracingProperties getTracing() {
-    return tracing;
-  }
-
-  /**
-   * Sets the tracing configuration.
-   *
-   * @param tracing the tracing
-   */
-  public void setTracing(TracingProperties tracing) {
-    this.tracing = tracing;
-  }
-
-  /**
-   * Gets logging properties
-   *
-   * @return logging properties
-   */
-  public LoggingProperties getLogging() {
-    return logging;
-  }
-
-  /**
-   * Sets logging properties
-   *
-   * @param logging the logging properties
-   */
-  public void setLogging(LoggingProperties logging) {
-    this.logging = logging;
   }
 
   /** Trace metric collection properties */
@@ -387,7 +354,7 @@ public class FeastProperties {
     Validator validator = factory.getValidator();
 
     // Validate root fields in FeastProperties
-    Set<ConstraintViolation<FeastProperties>> violations = validator.validate(this);
+    Set<ConstraintViolation<ApplicationProperties>> violations = validator.validate(this);
     if (!violations.isEmpty()) {
       throw new ConstraintViolationException(violations);
     }

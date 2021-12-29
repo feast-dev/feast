@@ -53,7 +53,12 @@ public class RegistryRepository {
   }
 
   private void setupPeriodicalRefresh(int seconds) {
-    Executors.newSingleThreadScheduledExecutor()
+    Executors.newSingleThreadScheduledExecutor(
+            r -> {
+              Thread t = Executors.defaultThreadFactory().newThread(r);
+              t.setDaemon(true);
+              return t;
+            })
         .scheduleWithFixedDelay(this::refresh, seconds, seconds, TimeUnit.SECONDS);
   }
 

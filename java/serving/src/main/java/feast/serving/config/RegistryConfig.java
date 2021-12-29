@@ -20,42 +20,43 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.inject.AbstractModule;
+import com.google.inject.Provider;
+import com.google.inject.Provides;
 import feast.serving.registry.*;
 import java.net.URI;
 import java.util.Optional;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 
-@Configuration
-public class RegistryConfig {
-  @Bean
-  @Lazy
-  Storage googleStorage(FeastProperties feastProperties) {
+public class RegistryConfig extends AbstractModule {
+  @Provides
+  Storage googleStorage(ApplicationProperties applicationProperties) {
     return StorageOptions.newBuilder()
-        .setProjectId(feastProperties.getGcpProject())
+        .setProjectId(applicationProperties.getGcpProject())
         .build()
         .getService();
   }
 
-  @Bean
-  @Lazy
-  AmazonS3 awsStorage(FeastProperties feastProperties) {
-    return AmazonS3ClientBuilder.standard().withRegion(feastProperties.getAwsRegion()).build();
+  @Provides
+  public AmazonS3 awsStorage(ApplicationProperties applicationProperties) {
+    return AmazonS3ClientBuilder.standard()
+        .withRegion(applicationProperties.getAwsRegion())
+        .build();
   }
 
-  @Bean
-  RegistryFile registryFile(FeastProperties feastProperties, ApplicationContext context) {
+  @Provides
+  RegistryFile registryFile(
+      ApplicationProperties applicationProperties,
+      Provider<Storage> storageProvider,
+      Provider<AmazonS3> amazonS3Provider) {
 
-    String registryPath = feastProperties.getRegistry();
+    String registryPath = applicationProperties.getFeast().getRegistry();
     Optional<String> scheme = Optional.ofNullable(URI.create(registryPath).getScheme());
 
-    switch (scheme.orElseGet(() -> "")) {
+    switch (scheme.orElse("")) {
       case "gs":
-        return new GSRegistryFile(context.getBean(Storage.class), registryPath);
+        return new GSRegistryFile(storageProvider.get(), registryPath);
       case "s3":
-        return new S3RegistryFile(context.getBean(AmazonS3.class), registryPath);
+        return new S3RegistryFile(amazonS3Provider.get(), registryPath);
       case "":
       case "file":
         return new LocalRegistryFile(registryPath);
@@ -64,9 +65,10 @@ public class RegistryConfig {
     }
   }
 
-  @Bean
+  @Provides
   RegistryRepository registryRepository(
-      RegistryFile registryFile, FeastProperties feastProperties) {
-    return new RegistryRepository(registryFile, feastProperties.getRegistryRefreshInterval());
+      RegistryFile registryFile, ApplicationProperties applicationProperties) {
+    return new RegistryRepository(
+        registryFile, applicationProperties.getFeast().getRegistryRefreshInterval());
   }
 }

@@ -16,47 +16,32 @@
  */
 package feast.serving.it;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import feast.proto.core.RegistryProto;
-import java.io.IOException;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.server.LocalServerPort;
+import feast.serving.config.ApplicationProperties;
 
-@SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = {
-      "feast.registry:src/test/resources/docker-compose/feast10/registry.db",
-    })
 public class ServingRedisLocalRegistryIT extends ServingBase {
+  @Override
+  ApplicationProperties.FeastProperties createFeastProperties() {
+    final ApplicationProperties.FeastProperties feastProperties =
+        new ApplicationProperties.FeastProperties();
+    feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
+    feastProperties.setRegistryRefreshInterval(1);
 
-  public static final Logger log = LoggerFactory.getLogger(ServingRedisLocalRegistryIT.class);
+    feastProperties.setActiveStore("online");
 
-  @LocalServerPort private int metricsPort;
+    feastProperties.setStores(
+        ImmutableList.of(
+            new ApplicationProperties.Store(
+                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
+
+    return feastProperties;
+  }
 
   @Override
   void updateRegistryFile(RegistryProto.Registry registry) {}
 
-  @Disabled
   @Override
   public void shouldRefreshRegistryAndServeNewFeatures() throws InterruptedException {}
-
-  @Test
-  public void shouldAllowUnauthenticatedAccessToMetricsEndpoint() throws IOException {
-    Request request =
-        new Request.Builder()
-            .url(String.format("http://localhost:%d/metrics", metricsPort))
-            .get()
-            .build();
-    Response response = new OkHttpClient().newCall(request).execute();
-    assertTrue(response.isSuccessful());
-    assertFalse(response.body().string().isEmpty());
-  }
 }
