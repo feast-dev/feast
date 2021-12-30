@@ -17,7 +17,8 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
-from feast.type_map import python_value_to_proto_value
+from feast.type_map import python_values_to_proto_values
+from feast.value_type import ValueType
 
 PROVIDERS_CLASS_FOR_TYPE = {
     "gcp": "feast.infra.gcp.GcpProvider",
@@ -305,26 +306,28 @@ def _convert_arrow_to_proto(
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
-    # Handle join keys
-    join_key_values = {
-        k: table.column(k).to_numpy(zero_copy_only=False) for k in join_keys
+    columns = [(f.name, f.dtype) for f in feature_view.features] + [
+        (key, ValueType.UNKNOWN) for key in join_keys
+    ]
+
+    proto_values_by_column = {
+        column: python_values_to_proto_values(
+            table.column(column).to_numpy(zero_copy_only=False), dtype
+        )
+        for column, dtype in columns
     }
+
     entity_keys = [
         EntityKeyProto(
             join_keys=join_keys,
-            entity_values=[
-                python_value_to_proto_value(join_key_values[k][idx]) for k in join_keys
-            ],
+            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
         )
         for idx in range(table.num_rows)
     ]
 
     # Serialize the features per row
     feature_dict = {
-        feature.name: [
-            python_value_to_proto_value(val, feature.dtype)
-            for val in table.column(feature.name).to_numpy(zero_copy_only=False)
-        ]
+        feature.name: proto_values_by_column[feature.name]
         for feature in feature_view.features
     }
     features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]

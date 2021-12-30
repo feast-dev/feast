@@ -136,7 +136,9 @@ def _infer_online_entity_rows(
             if isinstance(value, Value):
                 proto_value = value
             else:
-                proto_value = _python_value_to_proto_value(entity_type_map[key], value)
+                proto_value = _python_value_to_proto_value(
+                    entity_type_map[key], [value]
+                )[0]
             fields[key] = proto_value
         entity_row_list.append(GetOnlineFeaturesRequestV2.EntityRow(fields=fields))
     return entity_row_list
