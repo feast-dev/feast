@@ -106,6 +106,9 @@ message GetOnlineFeaturesResponse {
 
 message GetOnlineFeaturesResponseV2 {
     GetOnlineFeaturesResponseMetadata metadata = 1;
+
+    // Length of "results" array should match length of requested features.
+    // We also preserve the same order of features here as in metadata.feature_names
     repeated FeatureVector results = 2;
 
     message FeatureVector {

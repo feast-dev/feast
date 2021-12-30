@@ -58,7 +58,8 @@ driver_hourly_stats_view = FeatureView(
 
 
 # For Benchmarks
-
+# Please read more in Feast RFC-031 (link https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)
+# about this benchmark setup
 def generate_data(num_rows: int, num_features: int, key_space: int, destination: str) -> pd.DataFrame:
     features = [f"feature_{i}" for i in range(num_features)]
     columns = ["entity", "event_timestamp"] + features
