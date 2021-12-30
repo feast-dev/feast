@@ -101,7 +101,7 @@ func parseFeatureRef(featureRefStr string) (*serving.FeatureReferenceV2, error) 
 		refSplit := strings.Split(featureRefStr, ":")
 		featureRef.FeatureViewName, featureRefStr = refSplit[0], refSplit[1]
 	}
-	featureRef.Name = featureRefStr
+	featureRef.FeatureName = featureRefStr
 
 	return &featureRef, nil
 }
