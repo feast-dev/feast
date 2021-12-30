@@ -66,12 +66,6 @@ class FileRetrievalJob(RetrievalJob):
     @log_exceptions_and_usage
     def _to_df_internal(self) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
-        df = self.evaluation_function()
-        return df
-
-    @log_exceptions_and_usage
-    def _to_dask_df_internal(self) -> dd.DataFrame:
-        # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function().compute()
         return df
 
