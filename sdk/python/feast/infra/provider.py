@@ -312,6 +312,7 @@ def _run_field_mapping(
     table = table.rename_columns(mapped_cols)
     return table
 
+
 def _run_dask_field_mapping(
     table: dd.DataFrame, field_mapping: Dict[str, str],
 ):
@@ -319,6 +320,7 @@ def _run_dask_field_mapping(
         # run field mapping in the forward direction
         table = table.rename(field_mapping)
         table = table.persist()
+
 
 def _coerce_datetime(ts):
     """
@@ -333,6 +335,7 @@ def _coerce_datetime(ts):
         return ts.to_pydatetime()
     else:
         return ts
+
 
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
