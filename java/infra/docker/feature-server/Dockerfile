@@ -43,7 +43,7 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
 
 FROM amazoncorretto:11 as production
 ARG VERSION=dev
-COPY --from=builder /build/serving/target/feast-serving-$VERSION-exec.jar /opt/feast/feast-serving.jar
+COPY --from=builder /build/serving/target/feast-serving-$VERSION-jar-with-dependencies.jar /opt/feast/feast-serving.jar
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 CMD ["java",\
      "-Xms1g",\
