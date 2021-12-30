@@ -36,6 +36,7 @@ import java.io.File;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,19 +127,7 @@ public class FeastClient implements AutoCloseable {
     requestBuilder.setFeatures(
         ServingAPIProto.FeatureList.newBuilder().addAllVal(featureRefs).build());
 
-    Map<String, ValueProto.RepeatedValue.Builder> columnarEntities = new HashMap<>();
-    for (Row row : entities) {
-      for (Map.Entry<String, ValueProto.Value> field : row.getFields().entrySet()) {
-        if (!columnarEntities.containsKey(field.getKey())) {
-          columnarEntities.put(field.getKey(), ValueProto.RepeatedValue.newBuilder());
-        }
-        columnarEntities.get(field.getKey()).addVal(field.getValue());
-      }
-    }
-
-    for (Map.Entry<String, ValueProto.RepeatedValue.Builder> entity : columnarEntities.entrySet()) {
-      requestBuilder.putEntities(entity.getKey(), entity.getValue().build());
-    }
+    requestBuilder.putAllEntities(getEntityValuesMap(entities));
 
     GetOnlineFeaturesResponseV2 response = stub.getOnlineFeatures(requestBuilder.build());
 
@@ -167,6 +156,22 @@ public class FeastClient implements AutoCloseable {
       results.add(row);
     }
     return results;
+  }
+
+  private Map<String, ValueProto.RepeatedValue> getEntityValuesMap(List<Row> entities) {
+    Map<String, ValueProto.RepeatedValue.Builder> columnarEntities = new HashMap<>();
+    for (Row row : entities) {
+      for (Map.Entry<String, ValueProto.Value> field : row.getFields().entrySet()) {
+        if (!columnarEntities.containsKey(field.getKey())) {
+          columnarEntities.put(field.getKey(), ValueProto.RepeatedValue.newBuilder());
+        }
+        columnarEntities.get(field.getKey()).addVal(field.getValue());
+      }
+    }
+
+    return columnarEntities.entrySet().stream()
+        .map((e) -> Map.entry(e.getKey(), e.getValue().build()))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   /**
