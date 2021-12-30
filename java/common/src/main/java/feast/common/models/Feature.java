@@ -28,7 +28,7 @@ public class Feature {
    * @return String format of FeatureReferenceV2
    */
   public static String getFeatureReference(FeatureReferenceV2 featureReference) {
-    String ref = featureReference.getName();
+    String ref = featureReference.getFeatureName();
     if (!featureReference.getFeatureViewName().isEmpty()) {
       ref = featureReference.getFeatureViewName() + ":" + ref;
     }
@@ -50,6 +50,9 @@ public class Feature {
 
   public static FeatureReferenceV2 parseFeatureReference(String featureReference) {
     String[] tokens = featureReference.split(":", 2);
-    return FeatureReferenceV2.newBuilder().setFeatureViewName(tokens[0]).setName(tokens[1]).build();
+    return FeatureReferenceV2.newBuilder()
+        .setFeatureViewName(tokens[0])
+        .setFeatureName(tokens[1])
+        .build();
   }
 }

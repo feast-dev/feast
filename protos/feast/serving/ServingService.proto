@@ -45,7 +45,7 @@ message FeatureReferenceV2 {
     string feature_view_name = 1;
 
     // Name of the Feature to retrieve the feature from.
-    string name = 2;
+    string feature_name = 2;
 }
 
 // ToDo (oleksii): remove this message (since it's not used) and move EntityRow on package level

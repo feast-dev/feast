@@ -79,7 +79,7 @@ public class OnlineServingServiceTest {
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
                 .setFeatureViewName("featureview_1")
-                .setName("feature_1")
+                .setFeatureName("feature_1")
                 .build(),
             now,
             createStrValue("1")));
@@ -87,7 +87,7 @@ public class OnlineServingServiceTest {
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
                 .setFeatureViewName("featureview_1")
-                .setName("feature_2")
+                .setFeatureName("feature_2")
                 .build(),
             now,
             createStrValue("2")));
@@ -95,7 +95,7 @@ public class OnlineServingServiceTest {
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
                 .setFeatureViewName("featureview_1")
-                .setName("feature_1")
+                .setFeatureName("feature_1")
                 .build(),
             now,
             createStrValue("3")));
@@ -103,7 +103,7 @@ public class OnlineServingServiceTest {
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
                 .setFeatureViewName("featureview_1")
-                .setName("feature_2")
+                .setFeatureName("feature_2")
                 .build(),
             now,
             createStrValue("4")));
@@ -111,7 +111,7 @@ public class OnlineServingServiceTest {
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
                 .setFeatureViewName("featureview_1")
-                .setName("feature_3")
+                .setFeatureName("feature_3")
                 .build(),
             now,
             createStrValue("5")));
@@ -119,7 +119,7 @@ public class OnlineServingServiceTest {
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
                 .setFeatureViewName("featureview_1")
-                .setName("feature_1")
+                .setFeatureName("feature_1")
                 .build(),
             Timestamp.newBuilder().setSeconds(1).build(),
             createStrValue("6")));
@@ -143,12 +143,12 @@ public class OnlineServingServiceTest {
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featureview_1")
-            .setName("feature_1")
+            .setFeatureName("feature_1")
             .build();
     ServingAPIProto.FeatureReferenceV2 featureReference2 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featureview_1")
-            .setName("feature_2")
+            .setFeatureName("feature_2")
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
@@ -208,12 +208,12 @@ public class OnlineServingServiceTest {
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featureview_1")
-            .setName("feature_1")
+            .setFeatureName("feature_1")
             .build();
     ServingAPIProto.FeatureReferenceV2 featureReference2 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featureview_1")
-            .setName("feature_2")
+            .setFeatureName("feature_2")
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
@@ -274,12 +274,12 @@ public class OnlineServingServiceTest {
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featureview_1")
-            .setName("feature_1")
+            .setFeatureName("feature_1")
             .build();
     ServingAPIProto.FeatureReferenceV2 featureReference2 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featureview_1")
-            .setName("feature_2")
+            .setFeatureName("feature_2")
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);

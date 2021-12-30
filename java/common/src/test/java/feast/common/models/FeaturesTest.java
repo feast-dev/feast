@@ -32,7 +32,7 @@ public class FeaturesTest {
     featureReference =
         FeatureReferenceV2.newBuilder()
             .setFeatureViewName("featuretable_1")
-            .setName("feature1")
+            .setFeatureName("feature1")
             .build();
   }
 

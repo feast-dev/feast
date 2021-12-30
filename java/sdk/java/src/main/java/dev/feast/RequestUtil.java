@@ -72,7 +72,7 @@ public class RequestUtil {
     FeatureReferenceV2 featureRef =
         FeatureReferenceV2.newBuilder()
             .setFeatureViewName(featureReferenceParts[0])
-            .setName(featureReferenceParts[1])
+            .setFeatureName(featureReferenceParts[1])
             .build();
 
     return featureRef;

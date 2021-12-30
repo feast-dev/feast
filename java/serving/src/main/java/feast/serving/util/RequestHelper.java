@@ -37,7 +37,7 @@ public class RequestHelper {
     if (featureReference.getFeatureViewName().isEmpty()) {
       throw new IllegalArgumentException("FeatureTable name must be provided in FeatureReference");
     }
-    if (featureReference.getName().isEmpty()) {
+    if (featureReference.getFeatureName().isEmpty()) {
       throw new IllegalArgumentException("Feature name must be provided in FeatureReference");
     }
   }

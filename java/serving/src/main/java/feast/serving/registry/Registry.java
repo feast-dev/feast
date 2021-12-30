@@ -77,7 +77,7 @@ public class Registry {
       ServingAPIProto.FeatureReferenceV2 featureReference) {
     final FeatureViewProto.FeatureViewSpec spec = this.getFeatureViewSpec(featureReference);
     for (final FeatureProto.FeatureSpecV2 featureSpec : spec.getFeaturesList()) {
-      if (featureSpec.getName().equals(featureReference.getName())) {
+      if (featureSpec.getName().equals(featureReference.getFeatureName())) {
         return featureSpec;
       }
     }
@@ -85,7 +85,7 @@ public class Registry {
     throw new SpecRetrievalException(
         String.format(
             "Unable to find feature with name: %s in feature view: %s",
-            featureReference.getName(), featureReference.getFeatureViewName()));
+            featureReference.getFeatureName(), featureReference.getFeatureViewName()));
   }
 
   public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(

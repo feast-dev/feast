@@ -113,7 +113,7 @@ public class OnlineTransformationService implements TransformationService {
               ServingAPIProto.FeatureReferenceV2 onDemandFeatureInput =
                   ServingAPIProto.FeatureReferenceV2.newBuilder()
                       .setFeatureViewName(featureViewName)
-                      .setName(featureName)
+                      .setFeatureName(featureName)
                       .build();
               onDemandFeatureInputs.add(onDemandFeatureInput);
             }

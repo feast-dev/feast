@@ -42,7 +42,7 @@ class RequestUtilTest {
             Arrays.asList(
                 FeatureReferenceV2.newBuilder()
                     .setFeatureViewName("driver")
-                    .setName("driver_id")
+                    .setFeatureName("driver_id")
                     .build())));
   }
 
@@ -52,8 +52,8 @@ class RequestUtilTest {
       List<String> input, List<FeatureReferenceV2> expected) {
     List<FeatureReferenceV2> actual = RequestUtil.createFeatureRefs(input);
     // Order of the actual and expected FeatureTables do no not matter
-    actual.sort(Comparator.comparing(FeatureReferenceV2::getName));
-    expected.sort(Comparator.comparing(FeatureReferenceV2::getName));
+    actual.sort(Comparator.comparing(FeatureReferenceV2::getFeatureName));
+    expected.sort(Comparator.comparing(FeatureReferenceV2::getFeatureName));
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       String expectedString = TextFormat.printer().printToString(expected.get(i));

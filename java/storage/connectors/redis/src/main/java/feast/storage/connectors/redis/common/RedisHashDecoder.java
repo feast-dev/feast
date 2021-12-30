@@ -91,7 +91,7 @@ public class RedisHashDecoder {
   public static byte[] getFeatureReferenceRedisHashKeyBytes(
       ServingAPIProto.FeatureReferenceV2 featureReference) {
     String delimitedFeatureReference =
-        featureReference.getFeatureViewName() + ":" + featureReference.getName();
+        featureReference.getFeatureViewName() + ":" + featureReference.getFeatureName();
     return Hashing.murmur3_32()
         .hashString(delimitedFeatureReference, StandardCharsets.UTF_8)
         .asBytes();

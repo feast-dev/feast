@@ -261,7 +261,7 @@ public class DataGenerator {
       String featureTableName, String featureName) {
     return ServingAPIProto.FeatureReferenceV2.newBuilder()
         .setFeatureViewName(featureTableName)
-        .setName(featureName)
+        .setFeatureName(featureName)
         .build();
   }
 

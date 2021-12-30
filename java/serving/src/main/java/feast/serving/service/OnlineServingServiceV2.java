@@ -221,7 +221,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                         f ->
                             FeatureReferenceV2.newBuilder()
                                 .setFeatureViewName(featureViewProjection.getFeatureViewName())
-                                .setName(f.getName())
+                                .setFeatureName(f.getName())
                                 .build()))
         .collect(Collectors.toList());
   }
