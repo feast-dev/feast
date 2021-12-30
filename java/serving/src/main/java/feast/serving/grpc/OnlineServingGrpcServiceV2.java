@@ -39,9 +39,9 @@ public class OnlineServingGrpcServiceV2 extends ServingServiceGrpc.ServingServic
   }
 
   @Override
-  public void getOnlineFeaturesV2(
-      ServingAPIProto.GetOnlineFeaturesRequestV2 request,
-      StreamObserver<ServingAPIProto.GetOnlineFeaturesResponse> responseObserver) {
+  public void getOnlineFeatures(
+      ServingAPIProto.GetOnlineFeaturesRequest request,
+      StreamObserver<ServingAPIProto.GetOnlineFeaturesResponseV2> responseObserver) {
     responseObserver.onNext(this.servingServiceV2.getOnlineFeatures(request));
     responseObserver.onCompleted();
   }

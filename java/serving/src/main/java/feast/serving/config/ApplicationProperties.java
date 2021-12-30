@@ -51,12 +51,12 @@ public class ApplicationProperties {
     @NotBlank private String project;
 
     public String getProject() {
-    return project;
-  }
+      return project;
+    }
 
     public void setProject(final String project) {
-    this.project = project;
-  }
+      this.project = project;
+    }
 
     private int registryRefreshInterval;
 

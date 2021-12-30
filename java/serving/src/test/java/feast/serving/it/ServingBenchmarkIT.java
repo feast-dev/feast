@@ -18,7 +18,6 @@ package feast.serving.it;
 
 import com.google.api.client.util.Lists;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.math.Quantiles;
 import feast.proto.serving.ServingAPIProto;
@@ -36,7 +35,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class ServingBenchmarkIT extends ServingEnvironment {
   private Random rand = new Random();
   public static final Logger log = LoggerFactory.getLogger(ServingBenchmarkIT.class);
@@ -45,19 +43,8 @@ public class ServingBenchmarkIT extends ServingEnvironment {
 
   @Override
   ApplicationProperties.FeastProperties createFeastProperties() {
-    final ApplicationProperties.FeastProperties feastProperties =
-        new ApplicationProperties.FeastProperties();
-    feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
-    feastProperties.setRegistryRefreshInterval(1);
-
-    feastProperties.setActiveStore("online");
-
-    feastProperties.setStores(
-        ImmutableList.of(
-            new ApplicationProperties.Store(
-                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
-
-    return feastProperties;
+    return TestUtils.createBasicFeastProperties(
+        environment.getServiceHost("redis", 6379), environment.getServicePort("redis", 6379));
   }
 
   protected ServingAPIProto.GetOnlineFeaturesRequest buildOnlineRequest(
@@ -96,28 +83,40 @@ public class ServingBenchmarkIT extends ServingEnvironment {
   public void benchmarkServing100rows10features() {
     ServingAPIProto.GetOnlineFeaturesRequest req = buildOnlineRequest(100, 10);
 
-    measure(() -> servingStub.getOnlineFeatures(req), "100 rows; 10 features", 1000);
+    measure(
+        () -> servingStub.withDeadlineAfter(1, TimeUnit.SECONDS).getOnlineFeatures(req),
+        "100 rows; 10 features",
+        1000);
   }
 
   @Test
   public void benchmarkServing100rows50features() {
     ServingAPIProto.GetOnlineFeaturesRequest req = buildOnlineRequest(100, 50);
 
-    measure(() -> servingStub.getOnlineFeatures(req), "100 rows; 50 features", 1000);
+    measure(
+        () -> servingStub.withDeadlineAfter(1, TimeUnit.SECONDS).getOnlineFeatures(req),
+        "100 rows; 50 features",
+        1000);
   }
 
   @Test
   public void benchmarkServing100rows100features() {
     ServingAPIProto.GetOnlineFeaturesRequest req = buildOnlineRequest(100, 100);
 
-    measure(() -> servingStub.getOnlineFeatures(req), "100 rows; 100 features", 1000);
+    measure(
+        () -> servingStub.withDeadlineAfter(1, TimeUnit.SECONDS).getOnlineFeatures(req),
+        "100 rows; 100 features",
+        1000);
   }
 
   @Test
   public void benchmarkServing100rowsFullFeatureService() {
     ServingAPIProto.GetOnlineFeaturesRequest req = buildOnlineRequest(100);
 
-    measure(() -> servingStub.getOnlineFeatures(req), "100 rows; Full FS", 1000);
+    measure(
+        () -> servingStub.withDeadlineAfter(1, TimeUnit.SECONDS).getOnlineFeatures(req),
+        "100 rows; Full FS",
+        1000);
   }
 
   private void measure(Runnable target, String name, int runs) {

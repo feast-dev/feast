@@ -16,10 +16,13 @@
  */
 package feast.serving.it;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
+import feast.serving.config.ApplicationProperties;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;
@@ -47,5 +50,25 @@ public class TestUtils {
         .setFeatureService(featureService)
         .putAllEntities(entityRows)
         .build();
+  }
+
+  public static ApplicationProperties.FeastProperties createBasicFeastProperties(
+      String redisHost, Integer redisPort) {
+    final ApplicationProperties.FeastProperties feastProperties =
+        new ApplicationProperties.FeastProperties();
+    feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
+    feastProperties.setRegistryRefreshInterval(1);
+
+    feastProperties.setActiveStore("online");
+    feastProperties.setProject("feast_project");
+
+    feastProperties.setStores(
+        ImmutableList.of(
+            new ApplicationProperties.Store(
+                "online",
+                "REDIS",
+                ImmutableMap.of("host", redisHost, "port", redisPort.toString()))));
+
+    return feastProperties;
   }
 }

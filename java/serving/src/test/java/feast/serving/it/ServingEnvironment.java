@@ -26,15 +26,14 @@ import feast.serving.config.RegistryConfig;
 import feast.serving.config.ServingServiceConfigV2;
 import feast.serving.grpc.OnlineServingGrpcServiceV2;
 import io.grpc.ManagedChannel;
-import java.io.File;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
 import io.grpc.util.MutableHandlerRegistry;
+import java.io.File;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,7 +45,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 abstract class ServingEnvironment {
   static DockerComposeContainer environment;
-  static final int FEAST_SERVING_PORT = 6568;
 
   ServingServiceGrpc.ServingServiceBlockingStub servingStub;
   Injector injector;
@@ -59,7 +57,7 @@ abstract class ServingEnvironment {
   static void globalSetup() {
     environment =
         new DockerComposeContainer(
-            new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
+                new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
             .withExposedService("redis", 6379)
             .withOptions()
             .waitingFor(
@@ -133,7 +131,7 @@ abstract class ServingEnvironment {
 
     servingStub =
         ServingServiceGrpc.newBlockingStub(channel)
-            .withDeadlineAfter(1, TimeUnit.SECONDS)
+            .withDeadlineAfter(5, TimeUnit.SECONDS)
             .withWaitForReady();
   }
 
@@ -152,7 +150,6 @@ abstract class ServingEnvironment {
       server.shutdownNow();
     }
   }
-
 
   abstract ApplicationProperties.FeastProperties createFeastProperties();
 

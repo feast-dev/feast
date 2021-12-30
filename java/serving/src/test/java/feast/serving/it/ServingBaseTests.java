@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 
-
 abstract class ServingBaseTests extends ServingEnvironment {
 
   protected ServingAPIProto.GetOnlineFeaturesRequest buildOnlineRequest(int driverId) {
@@ -87,8 +86,8 @@ abstract class ServingBaseTests extends ServingEnvironment {
 
     for (int featureIdx : List.of(0, 1)) {
       assertEquals(
-          featureResponse.getResults(featureIdx).getStatusesList(),
-          List.of(ServingAPIProto.FieldStatus.PRESENT));
+          List.of(ServingAPIProto.FieldStatus.PRESENT),
+          featureResponse.getResults(featureIdx).getStatusesList());
     }
 
     assertEquals(0.5, featureResponse.getResults(0).getValues(0).getDoubleVal(), 0.0001);
