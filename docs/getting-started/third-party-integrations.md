@@ -3,7 +3,7 @@
 We integrate with a wide set of tools and technologies so you can make Feast work in your existing stack. Many of these integrations are maintained as plugins to the main Feast repo.
 
 {% hint style="info" %}
-Don't see your offline store or online store of choice here? Check our our guides to make a custom one!
+Don't see your offline store or online store of choice here? Check out our guides to make a custom one!
 
 * [Adding a new offline store](../how-to-guides/adding-a-new-offline-store.md)
 * [Adding a new online store](../how-to-guides/adding-support-for-a-new-online-store.md)
@@ -20,7 +20,7 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
 * [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
-* [ ] Snowflake source (Planned for Q4 2021)
+* [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
 * [ ] HTTP source
 
 ### Offline Stores
@@ -32,8 +32,8 @@ Don't see your offline store or online store of choice here? Check our our guide
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
 * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
 * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-* [ ] Snowflake (Planned for Q4 2021)
-* [ ] Trino (Planned for Q4 2021)
+* [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
+* [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
 
 ### Online Stores
 
@@ -50,10 +50,9 @@ Don't see your offline store or online store of choice here? Check our our guide
 ### **Deployments**
 
 * [x] AWS Lambda (Alpha release. See [guide](../reference/alpha-aws-lambda-feature-server.md) and [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
+* [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
 * [ ] Cloud Run
-* [ ] Kubernetes
 * [ ] KNative
-
 
 
 ## Standards

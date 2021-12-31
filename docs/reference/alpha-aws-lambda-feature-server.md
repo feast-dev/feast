@@ -3,7 +3,7 @@
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
 {% hint style="info" %}
-To enable this feature, run**`feast alpha enable aws_lambda_feature_server`**
+To enable this feature, run **`feast alpha enable aws_lambda_feature_server`**
 {% endhint %}
 
 ## Overview
