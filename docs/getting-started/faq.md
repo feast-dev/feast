@@ -1,5 +1,11 @@
 # FAQ
 
+{% hint style="info" %}
+**Don't see your question?**
+
+We encourage you to ask questions on [Slack](https://slack.feast.dev) or [Github](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
+{% endhint %}
+
 ## Getting started
 
 ### Do you have any examples of how Feast should be used?
@@ -44,7 +50,7 @@ Please see a detailed comparison of Feast vs. Tecton [here](https://www.tecton.a
 
 ### What are the performance/latency characteristics of Feast?
 
-Feast is designed to work at scale and support low latency online serving. Benchmarks to be released soon, and active work is underway to support very latency sensitive use cases.
+Feast is designed to work at scale and support low latency online serving. Benchmarks ([RFC](https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)) will be released soon, and active work is underway to support very latency sensitive use cases.
 
 ### Does Feast support embeddings and list features?
 
@@ -60,6 +66,10 @@ Yes. Specifically:
 ### Does Feast support X storage engine?
 
 The list of supported offline and online stores can be found [here](../reference/offline-stores/) and [here](../reference/online-stores/), respectively. The [roadmap](../roadmap.md) indicates the stores for which we are planning to add support. Finally, our Provider abstraction is built to be extensible, so you can plug in your own implementations of offline and online stores. Please see more details about custom providers [here](../how-to-guides/creating-a-custom-provider.md).
+
+### Does Feast support using different clouds for offline vs online stores?
+
+Yes. Using a GCP or AWS provider in `feature_store.yaml` primarily sets default offline / online stores and configures where the remote registry file can live (Using the AWS provider also allows for deployment to AWS Lambda). You can override the offline and online stores to be in different clouds if you wish.
 
 ### How can I add a custom online store?
 
@@ -101,9 +111,3 @@ For more details on contributing to the Feast community, see [here](../community
 ### What are the plans for Feast Core, Feast Serving, and Feast Spark?
 
 Feast Core and Feast Serving were both part of Feast Java. We plan to support Feast Serving. We will not support Feast Core; instead we will support our object store based registry. We will not support Feast Spark. For more details on what we plan on supporting, please see the [roadmap](../roadmap.md).
-
-{% hint style="info" %}
-**Don't see your question?**
-
-We encourage you to ask questions on [Slack](https://slack.feast.dev) or [Github](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
-{% endhint %}
