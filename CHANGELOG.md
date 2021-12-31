@@ -1,5 +1,68 @@
 # Changelog
 
+## [v0.17.0](https://github.com/feast-dev/feast/tree/v0.17.0) (2021-12-31)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.16.1...v0.17.0)
+
+**Implemented enhancements:**
+
+- Add feast-python-server helm chart [\#2177](https://github.com/feast-dev/feast/pull/2177) ([michelle-rascati-sp](https://github.com/michelle-rascati-sp))
+- Add SqliteTable as an InfraObject [\#2157](https://github.com/feast-dev/feast/pull/2157) ([felixwang9817](https://github.com/felixwang9817))
+- Compute property-level diffs for repo objects [\#2156](https://github.com/feast-dev/feast/pull/2156) ([achals](https://github.com/achals))
+- Add a feast plan command, and have CLI output differentiates between created, deleted and unchanged objects [\#2147](https://github.com/feast-dev/feast/pull/2147) ([achals](https://github.com/achals))
+- Refactor tag methods to infer created, deleted, and kept repo objects  [\#2142](https://github.com/feast-dev/feast/pull/2142) ([achals](https://github.com/achals))
+- Add DatastoreTable infra object [\#2140](https://github.com/feast-dev/feast/pull/2140) ([felixwang9817](https://github.com/felixwang9817))
+- Dynamodb infra object [\#2131](https://github.com/feast-dev/feast/pull/2131) ([felixwang9817](https://github.com/felixwang9817))
+- Add Infra and InfraObjects classes [\#2125](https://github.com/feast-dev/feast/pull/2125) ([felixwang9817](https://github.com/felixwang9817))
+- Pre compute the timestamp range for feature views [\#2103](https://github.com/feast-dev/feast/pull/2103) ([judahrand](https://github.com/judahrand))
+
+**Fixed bugs:**
+
+- Fix issues with java docker building [\#2178](https://github.com/feast-dev/feast/pull/2178) ([achals](https://github.com/achals))
+- unpin boto dependency in setup [\#2168](https://github.com/feast-dev/feast/pull/2168) ([fengyu05](https://github.com/fengyu05))
+- Fix issue with numpy datetimes in feast\_value\_type\_to\_pandas\_type [\#2167](https://github.com/feast-dev/feast/pull/2167) ([achals](https://github.com/achals))
+- Fix `BYTES` and `BYTES_LIST` type conversion [\#2158](https://github.com/feast-dev/feast/pull/2158) ([judahrand](https://github.com/judahrand))
+- Use correct name when deleting dynamo table [\#2154](https://github.com/feast-dev/feast/pull/2154) ([pyalex](https://github.com/pyalex))
+- Bump log4j-core from 2.15.0 to 2.16.0 in /java [\#2146](https://github.com/feast-dev/feast/pull/2146) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump log4j-api from 2.15.0 to 2.16.0 in /java [\#2145](https://github.com/feast-dev/feast/pull/2145) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Respect `full_feature_names` for ODFVs [\#2144](https://github.com/feast-dev/feast/pull/2144) ([judahrand](https://github.com/judahrand))
+- Cache dynamodb client and resource in DynamoDB online store implement… [\#2138](https://github.com/feast-dev/feast/pull/2138) ([felixwang9817](https://github.com/felixwang9817))
+- Bump log4j-api from 2.13.2 to 2.15.0 in /java [\#2133](https://github.com/feast-dev/feast/pull/2133) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Fix release workflow to use the new GCP action [\#2132](https://github.com/feast-dev/feast/pull/2132) ([adchia](https://github.com/adchia))
+- Remove spring-boot from the feast serving application [\#2127](https://github.com/feast-dev/feast/pull/2127) ([achals](https://github.com/achals))
+- Fix Makefile to properly create the ECR\_VERSION [\#2123](https://github.com/feast-dev/feast/pull/2123) ([adchia](https://github.com/adchia))
+
+**Closed issues:**
+
+- In GH workflow docker images are being built but not published [\#2152](https://github.com/feast-dev/feast/issues/2152)
+- Any plan to make Feast 0.10+ support docker [\#2148](https://github.com/feast-dev/feast/issues/2148)
+- ODFVs don't respect `full_feature_names` [\#2143](https://github.com/feast-dev/feast/issues/2143)
+- Release workflow does not work [\#2136](https://github.com/feast-dev/feast/issues/2136)
+- Redis Online Store - Truncate and Load [\#2129](https://github.com/feast-dev/feast/issues/2129)
+
+**Merged pull requests:**
+
+- Update roadmap to include Snowflake + Trino. Also fix docs + update FAQ [\#2175](https://github.com/feast-dev/feast/pull/2175) ([adchia](https://github.com/adchia))
+- Convert python values into proto values in bulk [\#2172](https://github.com/feast-dev/feast/pull/2172) ([pyalex](https://github.com/pyalex))
+- Push docker image after build in GH workflow [\#2171](https://github.com/feast-dev/feast/pull/2171) ([pyalex](https://github.com/pyalex))
+- Improve serialization performance [\#2165](https://github.com/feast-dev/feast/pull/2165) ([judahrand](https://github.com/judahrand))
+- Improve online deserialization latency [\#2164](https://github.com/feast-dev/feast/pull/2164) ([judahrand](https://github.com/judahrand))
+- Add a unit test for the tag\_proto\_objects method [\#2163](https://github.com/feast-dev/feast/pull/2163) ([achals](https://github.com/achals))
+- Bump log4j-core from 2.16.0 to 2.17.0 in /java [\#2161](https://github.com/feast-dev/feast/pull/2161) ([dependabot[bot]](https://github.com/apps/dependabot))
+- \[Java Feature Server\] Use hgetall in redis connector when number of retrieved fields is big enough [\#2159](https://github.com/feast-dev/feast/pull/2159) ([pyalex](https://github.com/pyalex))
+- Do not run benchmarks on pull requests [\#2155](https://github.com/feast-dev/feast/pull/2155) ([felixwang9817](https://github.com/felixwang9817))
+- Ensure that universal CLI test tears down infrastructure [\#2151](https://github.com/feast-dev/feast/pull/2151) ([felixwang9817](https://github.com/felixwang9817))
+- Remove underscores from ECR docker versions [\#2139](https://github.com/feast-dev/feast/pull/2139) ([achals](https://github.com/achals))
+- Run PR integration tests only on python 3.7 [\#2137](https://github.com/feast-dev/feast/pull/2137) ([achals](https://github.com/achals))
+- Update changelog for 0.16.1 and update helm charts [\#2135](https://github.com/feast-dev/feast/pull/2135) ([adchia](https://github.com/adchia))
+- Bump log4j-core from 2.13.2 to 2.15.0 in /java [\#2134](https://github.com/feast-dev/feast/pull/2134) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Updating lambda docker image to feature-server-python-aws [\#2130](https://github.com/feast-dev/feast/pull/2130) ([adchia](https://github.com/adchia))
+- Fix README to reflect new integration test suites [\#2124](https://github.com/feast-dev/feast/pull/2124) ([adchia](https://github.com/adchia))
+- Change the feast serve endpoint to be sync rather than async. [\#2119](https://github.com/feast-dev/feast/pull/2119) ([nossrannug](https://github.com/nossrannug))
+- Remove  argument `feature_refs` [\#2115](https://github.com/feast-dev/feast/pull/2115) ([judahrand](https://github.com/judahrand))
+- Fix leaking dynamodb tables in integration tests [\#2104](https://github.com/feast-dev/feast/pull/2104) ([pyalex](https://github.com/pyalex))
+- Remove untested and undocumented interfaces [\#2084](https://github.com/feast-dev/feast/pull/2084) ([judahrand](https://github.com/judahrand))
+- Update creating-a-custom-provider.md [\#2070](https://github.com/feast-dev/feast/pull/2070) ([ChaitanyaKN](https://github.com/ChaitanyaKN))
 ## [v0.16.1](https://github.com/feast-dev/feast/tree/v0.16.1) (2021-12-10)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.16.0...v0.16.1)
