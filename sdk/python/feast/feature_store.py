@@ -1233,12 +1233,16 @@ class FeatureStore:
         if len(grouped_odfv_refs) > 0:
             for odfv, _ in grouped_odfv_refs:
                 for fv in odfv.input_feature_views.values():
-                    feature_deps = [
+                    # Find the set of required Features which have not yet
+                    # been retrieved.
+                    not_yet_retrieved = {
                         feature.name
-                        for feature in fv.features
+                        for feature in fv.projection.features
                         if f"{fv.name}:{feature.name}" not in retrieved_feature_refs
-                    ]
-                    if feature_deps:
+                    }
+                    # If there are required Features which have not yet been retrieved
+                    # retrieve them.
+                    if not_yet_retrieved:
                         table_join_keys = [
                             entity_name_to_join_key_map[entity_name]
                             for entity_name in fv.entities
@@ -1247,11 +1251,14 @@ class FeatureStore:
                             table_join_keys,
                             full_feature_names,
                             provider,
-                            feature_deps,
+                            list(not_yet_retrieved),
                             result_rows,
                             fv,
                             union_of_entity_keys,
                         )
+                    # Update the set of retrieved Features with any newly retrieved
+                    # Features.
+                    retrieved_feature_refs |= not_yet_retrieved
 
     def get_needed_request_data(
         self,
