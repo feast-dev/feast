@@ -17,6 +17,7 @@
 package feast.serving.config;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
 import feast.serving.grpc.OnlineServingGrpcServiceV2;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -30,7 +31,7 @@ public class ServerModule extends AbstractModule {
     bind(OnlineServingGrpcServiceV2.class);
   }
 
-  //  @Provides
+  @Provides
   public Server provideGrpcServer(
       ApplicationProperties applicationProperties,
       OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2,

@@ -27,7 +27,7 @@ public class ServingGuiceApplication {
   public static void main(String[] args) throws InterruptedException, IOException {
     if (args.length == 0) {
       throw new RuntimeException(
-          "Path to application configuration file needs to be specifed via CLI");
+          "Path to application configuration file needs to be specified via CLI");
     }
 
     final Injector i =

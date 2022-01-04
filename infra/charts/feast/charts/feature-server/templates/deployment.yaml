@@ -89,8 +89,7 @@ spec:
         - java
         - -jar
         - /opt/feast/feast-serving.jar
-        - --spring.config.location=
-          {{- if index .Values "application.yaml" "enabled" -}}
+        - {{- if index .Values "application.yaml" "enabled" -}}
           classpath:/application.yml
           {{- end }}
           {{- if index .Values "application-generated.yaml" "enabled" -}}
