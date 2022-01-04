@@ -17,7 +17,11 @@
 package feast.serving.registry;
 
 import com.google.protobuf.Duration;
-import feast.proto.core.*;
+import feast.proto.core.FeatureProto;
+import feast.proto.core.FeatureServiceProto;
+import feast.proto.core.FeatureViewProto;
+import feast.proto.core.OnDemandFeatureViewProto;
+import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
 import java.util.List;
 import java.util.Optional;

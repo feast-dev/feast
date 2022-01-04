@@ -72,7 +72,8 @@ public class OnlineServingServiceTest {
     OnlineTransformationService onlineTransformationService =
         new OnlineTransformationService(transformationServiceEndpoint, registryRepo);
     onlineServingServiceV2 =
-        new OnlineServingServiceV2(retrieverV2, tracer, registryRepo, onlineTransformationService);
+        new OnlineServingServiceV2(
+            retrieverV2, tracer, registryRepo, onlineTransformationService, "feast_project");
 
     mockedFeatureRows = new ArrayList<>();
     mockedFeatureRows.add(

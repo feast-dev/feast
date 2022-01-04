@@ -27,7 +27,6 @@ import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRequest;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
@@ -50,16 +49,19 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   private final OnlineRetrieverV2 retriever;
   private final RegistryRepository registryRepository;
   private final OnlineTransformationService onlineTransformationService;
+  private final String project;
 
   public OnlineServingServiceV2(
       OnlineRetrieverV2 retriever,
       Tracer tracer,
       RegistryRepository registryRepository,
-      OnlineTransformationService onlineTransformationService) {
+      OnlineTransformationService onlineTransformationService,
+      String project) {
     this.retriever = retriever;
     this.tracer = tracer;
     this.registryRepository = registryRepository;
     this.onlineTransformationService = onlineTransformationService;
+    this.project = project;
   }
 
   /** {@inheritDoc} */
@@ -168,6 +170,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             getFeatureStatus(featureValue, checkOutsideMaxAge(feature, now, maxAge)));
         vectorBuilder.addEventTimestamps(feature.getEventTimestamp());
       }
+
+      populateCountMetrics(featureReference, vectorBuilder);
     }
 
     responseBuilder.setMetadata(
@@ -196,8 +200,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           responseBuilder);
     }
 
-    // populateHistogramMetrics(entityRows, featureReferences, projectName);
-    // populateFeatureCountMetrics(featureReferences, projectName);
+    populateHistogramMetrics(entityRows, retrievedFeatureReferences);
+    populateFeatureCountMetrics(retrievedFeatureReferences);
 
     return responseBuilder.build();
   }
@@ -358,46 +362,41 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    *
    * @param entityRows entity rows provided in request
    * @param featureReferences feature references provided in request
-   * @param project project name provided in request
    */
   private void populateHistogramMetrics(
-      List<GetOnlineFeaturesRequestV2.EntityRow> entityRows,
-      List<FeatureReferenceV2> featureReferences,
-      String project) {
+      List<Map<String, ValueProto.Value>> entityRows, List<FeatureReferenceV2> featureReferences) {
     Metrics.requestEntityCountDistribution
-        .labels(project)
+        .labels(this.project)
         .observe(Double.valueOf(entityRows.size()));
     Metrics.requestFeatureCountDistribution
-        .labels(project)
+        .labels(this.project)
         .observe(Double.valueOf(featureReferences.size()));
-
-    long countDistinctFeatureTables =
-        featureReferences.stream().map(Feature::getFeatureReference).distinct().count();
-    Metrics.requestFeatureTableCountDistribution
-        .labels(project)
-        .observe(Double.valueOf(countDistinctFeatureTables));
   }
 
   /**
    * Populate count metrics that can be used for analysing online retrieval calls
    *
-   * @param statusMap Statuses of features which have been requested
-   * @param project Project where request for features was called from
+   * @param featureRef singe Feature Reference
+   * @param featureVector Feature Vector built for this requested feature
    */
-  private void populateCountMetrics(Map<String, FieldStatus> statusMap, String project) {
-    statusMap.forEach(
-        (featureRefString, status) -> {
-          if (status == FieldStatus.NOT_FOUND) {
-            Metrics.notFoundKeyCount.labels(project, featureRefString).inc();
-          }
-          if (status == FieldStatus.OUTSIDE_MAX_AGE) {
-            Metrics.staleKeyCount.labels(project, featureRefString).inc();
-          }
-        });
+  private void populateCountMetrics(
+      FeatureReferenceV2 featureRef,
+      ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVectorOrBuilder featureVector) {
+    String featureRefString = Feature.getFeatureReference(featureRef);
+    featureVector
+        .getStatusesList()
+        .forEach(
+            (status) -> {
+              if (status == FieldStatus.NOT_FOUND) {
+                Metrics.notFoundKeyCount.labels(this.project, featureRefString).inc();
+              }
+              if (status == FieldStatus.OUTSIDE_MAX_AGE) {
+                Metrics.staleKeyCount.labels(this.project, featureRefString).inc();
+              }
+            });
   }
 
-  private void populateFeatureCountMetrics(
-      List<FeatureReferenceV2> featureReferences, String project) {
+  private void populateFeatureCountMetrics(List<FeatureReferenceV2> featureReferences) {
     featureReferences.forEach(
         featureReference ->
             Metrics.requestFeatureCount

@@ -35,9 +35,15 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	if err != nil {
 		return nil, err
 	}
+    if len(r.Entities) == 0 {
+        return nil, fmt.Errorf("Entities must be provided")
+    }
+
+    firstRow := r.Entities[0]
+    columnSize := len(firstRow)
 
 	// build request entity rows from native entities
-	entityColumns := make(map[string][]*types.Value, len(r.Entities[0]))
+	entityColumns := make(map[string][]*types.Value, columnSize)
 	for rowIdx, entityRow := range r.Entities {
 		for name, val := range entityRow {
 			if _, ok := entityColumns[name]; !ok {

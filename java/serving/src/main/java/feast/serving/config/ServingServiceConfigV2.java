@@ -75,7 +75,11 @@ public class ServingServiceConfigV2 extends AbstractModule {
 
     servingService =
         new OnlineServingServiceV2(
-            retrieverV2, tracer, registryRepository, onlineTransformationService);
+            retrieverV2,
+            tracer,
+            registryRepository,
+            onlineTransformationService,
+            applicationProperties.getFeast().getProject());
 
     return servingService;
   }
