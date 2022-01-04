@@ -1231,7 +1231,7 @@ class FeatureStore:
                         table_join_keys,
                         full_feature_names,
                         provider,
-                        [feature.name for feature in fv.features],
+                        [feature.name for feature in fv.projection.features],
                         result_rows,
                         fv,
                         union_of_entity_keys,

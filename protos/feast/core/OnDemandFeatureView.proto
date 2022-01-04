@@ -23,6 +23,7 @@ option java_outer_classname = "OnDemandFeatureViewProto";
 option java_package = "feast.proto.core";
 
 import "feast/core/FeatureView.proto";
+import "feast/core/FeatureViewProjection.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 
@@ -41,8 +42,12 @@ message OnDemandFeatureViewSpec {
     // List of features specifications for each feature defined with this feature view.
     repeated FeatureSpecV2 features = 3;
 
-    // List of features specifications for each feature defined with this feature view.
+    // Map of inputs for this feature view.
     map<string, OnDemandInput> inputs = 4;
+
+    // Map of projections for the inputs of this feature view.
+    // Keys must also be present in `inputs`
+    map<string, FeatureViewProjection> projections = 6;
 
     UserDefinedFunction user_defined_function = 5;
 }

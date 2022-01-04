@@ -1,7 +1,7 @@
 import copy
 import functools
 from types import MethodType
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Set, Type, Union
 
 import dill
 import pandas as pd
@@ -62,8 +62,8 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         super().__init__(name, features)
         self.inputs = inputs
-        self.input_feature_views = {}
-        self.input_request_data_sources = {}
+        self.input_feature_views: Set[FeatureView] = {}
+        self.input_request_data_sources: Set[RequestDataSource] = {}
         for input_ref, odfv_input in inputs.items():
             if isinstance(odfv_input, RequestDataSource):
                 self.input_request_data_sources[input_ref] = odfv_input
@@ -83,6 +83,21 @@ class OnDemandFeatureView(BaseFeatureView):
         fv.projection = copy.copy(self.projection)
         return fv
 
+    def __eq__(self, other):
+        if not super().__eq__(other):
+            return False
+
+        if not self.inputs == other.inputs:
+            return False
+
+        if not self.udf.__code__.co_code == other.udf.__code__.co_code:
+            return False
+
+        return True
+
+    def __hash__(self):
+        return super().__hash__()
+
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
         Converts an on demand feature view object to its protobuf representation.
@@ -91,8 +106,10 @@ class OnDemandFeatureView(BaseFeatureView):
             A OnDemandFeatureViewProto protobuf.
         """
         inputs = {}
+        projections = {}
         for input_ref, fv in self.input_feature_views.items():
             inputs[input_ref] = OnDemandInput(feature_view=fv.to_proto())
+            projections[input_ref] = fv.projection.to_proto()
         for input_ref, request_data_source in self.input_request_data_sources.items():
             inputs[input_ref] = OnDemandInput(
                 request_data_source=request_data_source.to_proto()
@@ -102,6 +119,7 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             inputs=inputs,
+            projections=projections,
             user_defined_function=UserDefinedFunctionProto(
                 name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
             ),
@@ -129,6 +147,13 @@ class OnDemandFeatureView(BaseFeatureView):
                 inputs[input_name] = FeatureView.from_proto(
                     on_demand_input.feature_view
                 )
+
+                # If projection is present in Proto then use that rather than default.
+                if input_name in on_demand_feature_view_proto.spec.projections:
+                    inputs[input_name].projection = FeatureViewProjection.from_proto(
+                        on_demand_feature_view_proto.spec.projections[input_name]
+                    )
+
             else:
                 inputs[input_name] = RequestDataSource.from_proto(
                     on_demand_input.request_data_source
@@ -169,8 +194,10 @@ class OnDemandFeatureView(BaseFeatureView):
         # Apply on demand transformations
         columns_to_cleanup = []
         for input_fv in self.input_feature_views.values():
-            for feature in input_fv.features:
-                full_feature_ref = f"{input_fv.name}__{feature.name}"
+            # Use projection in case a subset of features are required.
+            projection = input_fv.projection
+            for feature in projection.features:
+                full_feature_ref = f"{projection.name}__{feature.name}"
                 if full_feature_ref in df_with_features.keys():
                     # Make sure the partial feature name is always present
                     df_with_features[feature.name] = df_with_features[full_feature_ref]
@@ -210,9 +237,10 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         df = pd.DataFrame()
         for feature_view in self.input_feature_views.values():
-            for feature in feature_view.features:
+            projection = feature_view.projection
+            for feature in projection.features:
                 dtype = feast_value_type_to_pandas_type(feature.dtype)
-                df[f"{feature_view.name}__{feature.name}"] = pd.Series(dtype=dtype)
+                df[f"{projection.name}__{feature.name}"] = pd.Series(dtype=dtype)
                 df[f"{feature.name}"] = pd.Series(dtype=dtype)
         for request_data in self.input_request_data_sources.values():
             for feature_name, feature_type in request_data.schema.items():
