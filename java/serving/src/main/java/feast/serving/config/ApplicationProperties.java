@@ -180,7 +180,7 @@ public class ApplicationProperties {
 
     private Map<String, String> config = new HashMap<>();
 
-    // empty construct for deserialization
+    // default construct for deserialization
     public Store() {}
 
     public Store(String name, String type, Map<String, String> config) {
