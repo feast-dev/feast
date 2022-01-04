@@ -21,6 +21,8 @@ package feast.serving.config;
 // https://www.baeldung.com/configuration-properties-in-spring-boot
 // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html#boot-features-external-config-typesafe-configuration-properties
 
+import com.fasterxml.jackson.annotation.JsonMerge;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import feast.common.logging.config.LoggingProperties;
 import feast.storage.connectors.redis.retriever.RedisClusterStoreConfig;
 import feast.storage.connectors.redis.retriever.RedisStoreConfig;
@@ -83,6 +85,7 @@ public class ApplicationProperties {
     /**
      * Collection of store configurations. The active store is selected by the "activeStore" field.
      */
+    @JsonMerge(OptBoolean.FALSE)
     private List<Store> stores = new ArrayList<>();
 
     /* Metric tracing properties. */
@@ -177,6 +180,9 @@ public class ApplicationProperties {
 
     private Map<String, String> config = new HashMap<>();
 
+    // empty construct for deserialization
+    public Store() {}
+
     public Store(String name, String type, Map<String, String> config) {
       this.name = name;
       this.type = type;
@@ -210,6 +216,10 @@ public class ApplicationProperties {
       return StoreType.valueOf(this.type);
     }
 
+    public void setType(String type) {
+      this.type = type;
+    }
+
     /**
      * Gets the configuration to this specific store. This is a map of strings. These options are
      * unique to the store. Please see protos/feast/core/Store.proto for the store specific
@@ -217,10 +227,6 @@ public class ApplicationProperties {
      *
      * @return Returns the store specific configuration
      */
-    public Map<String, String> getConfig() {
-      return config;
-    }
-
     public RedisClusterStoreConfig getRedisClusterConfig() {
       return new RedisClusterStoreConfig(
           this.config.get("connection_string"),
@@ -234,6 +240,10 @@ public class ApplicationProperties {
           Integer.valueOf(this.config.get("port")),
           Boolean.valueOf(this.config.getOrDefault("ssl", "false")),
           this.config.getOrDefault("password", ""));
+    }
+
+    public void setConfig(Map<String, String> config) {
+      this.config = config;
     }
   }
 

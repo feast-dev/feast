@@ -16,7 +16,7 @@ services:
       - java
       - -jar
       - /opt/feast/feast-core.jar
-      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
+      - classpath:/application.yml,file:/etc/feast/application.yml
 
   jobservice:
     image: gcr.io/kf-feast/feast-jobservice:${FEAST_VERSION}
@@ -104,7 +104,7 @@ services:
       - java
       - -jar
       - /opt/feast/feast-serving.jar
-      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
+      - classpath:/application.yml,file:/etc/feast/application.yml
 
   redis:
     image: redis:5-alpine
