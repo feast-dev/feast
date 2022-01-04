@@ -282,7 +282,7 @@ def _delete_all_values(client, key):
             with self.lock:
                 self.value += 1
 
-    BATCH_SIZE = 500  # Dec 2021: delete_multi has a max size of 500
+    BATCH_SIZE = 500  # Dec 2021: delete_multi has a max size of 500: https://cloud.google.com/datastore/docs/concepts/limits
     NUM_THREADS = 3
     deletion_queue = Queue()
     status_info_counter = AtomicCounter()
