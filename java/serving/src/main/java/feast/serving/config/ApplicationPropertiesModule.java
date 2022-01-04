@@ -17,12 +17,15 @@
 package feast.serving.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.io.Resources;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class ApplicationPropertiesModule extends AbstractModule {
   private final String[] args;
@@ -36,9 +39,37 @@ public class ApplicationPropertiesModule extends AbstractModule {
   public ApplicationProperties provideApplicationProperties() throws IOException {
     ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     mapper.findAndRegisterModules();
-    ApplicationProperties properties =
-        mapper.readValue(new File(this.args[0]), ApplicationProperties.class);
+    mapper.setDefaultMergeable(Boolean.TRUE);
+
+    ApplicationProperties properties = new ApplicationProperties();
+    ObjectReader objectReader = mapper.readerForUpdating(properties);
+
+    String[] filePaths = this.args[0].split(",");
+    for (String filePath : filePaths) {
+      objectReader.readValue(readPropertiesFile(filePath));
+    }
 
     return properties;
+  }
+
+  /**
+   * Read file path in spring compatible format, eg classpath:/application.yml or
+   * file:/path/application.yml
+   */
+  private byte[] readPropertiesFile(String filePath) throws IOException {
+    if (filePath.startsWith("classpath:")) {
+      filePath = filePath.substring("classpath:".length());
+      if (filePath.startsWith("/")) {
+        filePath = filePath.substring(1);
+      }
+
+      return Resources.toByteArray(Resources.getResource(filePath));
+    }
+
+    if (filePath.startsWith("file")) {
+      filePath = filePath.substring("file:".length());
+    }
+
+    return Files.readAllBytes(Path.of(filePath));
   }
 }

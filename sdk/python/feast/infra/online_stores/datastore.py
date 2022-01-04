@@ -196,18 +196,18 @@ class DatastoreOnlineStore(OnlineStore):
                 key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
             )
 
-            entity.update(
-                dict(
-                    key=entity_key.SerializeToString(),
-                    values={k: v.SerializeToString() for k, v in features.items()},
-                    event_ts=utils.make_tzaware(timestamp),
-                    created_ts=(
-                        utils.make_tzaware(created_ts)
-                        if created_ts is not None
-                        else None
-                    ),
-                )
+            content_entity = datastore.Entity(
+                exclude_from_indexes=tuple(features.keys())
             )
+            for k, v in features.items():
+                content_entity[k] = v.SerializeToString()
+            entity["key"] = entity_key.SerializeToString()
+            entity["values"] = content_entity
+            entity["event_ts"] = utils.make_tzaware(timestamp)
+            entity["created_ts"] = (
+                utils.make_tzaware(created_ts) if created_ts is not None else None
+            )
+
             entities.append(entity)
         with client.transaction():
             client.put_multi(entities)
