@@ -88,6 +88,9 @@ message GetOnlineFeaturesRequest {
     map<string, feast.types.RepeatedValue> entities = 3;
     bool full_feature_names = 4;
 
+    // Context for OnDemand Feature Transformation
+    // (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
+    // A map of variable name -> list of values
     map<string, feast.types.RepeatedValue> request_context = 5;
 }
 
