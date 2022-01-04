@@ -68,7 +68,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
-    return GetFeastServingInfoResponse.newBuilder().build();
+    return GetFeastServingInfoResponse.getDefaultInstance();
   }
 
   @Override
@@ -87,7 +87,9 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .filter(r -> this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
 
-    // Get the set of request data feature names and feature inputs from the ODFV references.
+    // ToDo (pyalex): refactor transformation service to delete unused left part of the returned
+    // Pair from extractRequestDataFeatureNamesAndOnDemandFeatureInputs.
+    // Currently, we can retrieve context variables directly from GetOnlineFeaturesRequest.
     List<FeatureReferenceV2> onDemandFeatureInputs =
         this.onlineTransformationService
             .extractRequestDataFeatureNamesAndOnDemandFeatureInputs(onDemandFeatureReferences)
