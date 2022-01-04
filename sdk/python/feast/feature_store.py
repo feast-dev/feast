@@ -1216,9 +1216,7 @@ class FeatureStore:
             for row_idx, proto_value in enumerate(proto_values):
                 result_row = result_rows[row_idx]
                 result_row.fields[feature_name].CopyFrom(proto_value)
-                result_row.statuses[
-                    feature_name
-                ] = FieldStatus.PRESENT
+                result_row.statuses[feature_name] = FieldStatus.PRESENT
 
         # Add data if odfv requests specific feature views as dependencies
         if len(grouped_odfv_refs) > 0:
@@ -1391,9 +1389,7 @@ class FeatureStore:
                     result_row.fields[transformed_feature].CopyFrom(
                         proto_values_by_column[transformed_feature][row_idx]
                     )
-                    result_row.statuses[
-                        transformed_feature
-                    ] = FieldStatus.PRESENT
+                    result_row.statuses[transformed_feature] = FieldStatus.PRESENT
 
         # Drop values that aren't needed
         unneeded_features = [
