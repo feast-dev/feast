@@ -1144,6 +1144,9 @@ class FeatureStore:
             # Also create entity values to append to the result
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
+        # Keep track of what has been requested from the OnlineStore
+        # to avoid requesting the same thing twice for ODFVs.
+        retrieved_feature_refs: Set[str] = set()
         for table, requested_features in grouped_refs:
             table_join_keys = [
                 entity_name_to_join_key_map[entity_name]
@@ -1158,6 +1161,11 @@ class FeatureStore:
                 table,
                 union_of_entity_keys,
             )
+            table_feature_names = {feature.name for feature in table.features}
+            retrieved_feature_refs |= {
+                f"{table.name}:{feature}" if feature in table_feature_names else feature
+                for feature in requested_features
+            }
 
         requested_result_row_names = self._get_requested_result_fields(
             result_rows, needed_request_fv_features
@@ -1170,6 +1178,7 @@ class FeatureStore:
             request_data_features,
             result_rows,
             union_of_entity_keys,
+            retrieved_feature_refs,
         )
 
         self._augment_response_with_on_demand_transforms(
@@ -1205,6 +1214,7 @@ class FeatureStore:
         request_data_features: Dict[str, List[Any]],
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
         union_of_entity_keys: List[EntityKeyProto],
+        retrieved_feature_refs: Set[str],
     ):
         # Add more feature values to the existing result rows for the request data features
         for feature_name, feature_values in request_data_features.items():
@@ -1223,19 +1233,25 @@ class FeatureStore:
         if len(grouped_odfv_refs) > 0:
             for odfv, _ in grouped_odfv_refs:
                 for fv in odfv.input_feature_views.values():
-                    table_join_keys = [
-                        entity_name_to_join_key_map[entity_name]
-                        for entity_name in fv.entities
+                    feature_deps = [
+                        feature.name
+                        for feature in fv.features
+                        if f"{fv.name}:{feature.name}" not in retrieved_feature_refs
                     ]
-                    self._populate_result_rows_from_feature_view(
-                        table_join_keys,
-                        full_feature_names,
-                        provider,
-                        [feature.name for feature in fv.features],
-                        result_rows,
-                        fv,
-                        union_of_entity_keys,
-                    )
+                    if feature_deps:
+                        table_join_keys = [
+                            entity_name_to_join_key_map[entity_name]
+                            for entity_name in fv.entities
+                        ]
+                        self._populate_result_rows_from_feature_view(
+                            table_join_keys,
+                            full_feature_names,
+                            provider,
+                            feature_deps,
+                            result_rows,
+                            fv,
+                            union_of_entity_keys,
+                        )
 
     def get_needed_request_data(
         self,
