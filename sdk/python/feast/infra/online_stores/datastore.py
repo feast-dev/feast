@@ -15,8 +15,8 @@ import itertools
 import logging
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
-from threading import Thread
 from queue import Queue
+from threading import Thread
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from pydantic import PositiveInt, StrictStr
@@ -281,7 +281,9 @@ def _delete_all_values(client, key):
         while True:
             client.delete_multi(deletion_queue.get())
             shared_counter.increment()
-            LOGGER.info(f"batch deletions completed: {shared_counter.value} ({shared_counter.value * BATCH_SIZE} total entries) & outstanding queue size: {deletion_queue.qsize()}")
+            LOGGER.info(
+                f"batch deletions completed: {shared_counter.value} ({shared_counter.value * BATCH_SIZE} total entries) & outstanding queue size: {deletion_queue.qsize()}"
+            )
             deletion_queue.task_done()
 
     for _ in range(NUM_THREADS):
