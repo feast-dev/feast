@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, List
 
-from feast.diff.utils import PropertyDiff, TransitionType
+from feast.diff.property_diff import PropertyDiff, TransitionType
 
 
 @dataclass

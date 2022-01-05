@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, List, Set, Tuple, TypeVar
 
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.utils import PropertyDiff, TransitionType
+from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
