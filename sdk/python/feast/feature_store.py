@@ -15,7 +15,7 @@ import copy
 import itertools
 import os
 import warnings
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -1626,37 +1626,32 @@ def _get_table_entity_keys(
     reverse_join_key_map = {
         alias: original for original, alias in table.projection.join_key_map.items()
     }
-    required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
-    entity_key_protos = []
-    for entity_key in entity_keys:
-        required_entities_to_values = required_entities.copy()
-        for i in range(len(entity_key.join_keys)):
-            entity_name = reverse_join_key_map.get(
-                entity_key.join_keys[i], entity_key.join_keys[i]
-            )
-            entity_value = entity_key.entity_values[i]
 
-            if entity_name in required_entities_to_values:
-                if required_entities_to_values[entity_name] is not None:
-                    raise ValueError(
-                        f"Duplicate entity keys detected. Table {table.name} expects {table_join_keys}. The entity "
-                        f"{entity_name} was provided at least twice"
-                    )
-                required_entities_to_values[entity_name] = entity_value
+    entity_key_protos: List[EntityKeyProto] = [EntityKeyProto() for _ in entity_keys]
+    for old, new in zip(entity_keys, entity_key_protos):
+        new.CopyFrom(old)
 
-        entity_names = []
-        entity_values = []
-        for entity_name, entity_value in required_entities_to_values.items():
-            if entity_value is None:
-                raise ValueError(
-                    f"Table {table.name} expects entity field {table_join_keys}. No entity value was found for "
-                    f"{entity_name}"
-                )
-            entity_names.append(entity_name)
-            entity_values.append(entity_value)
-        entity_key_protos.append(
-            EntityKeyProto(join_keys=entity_names, entity_values=entity_values)
-        )
+    for each in entity_key_protos:
+        remove_idxs = []
+        for idx, join_key in enumerate(each.join_keys):
+            if join_key in table_join_keys:
+                # No changes needed.
+                continue
+            elif join_key in reverse_join_key_map:
+                if reverse_join_key_map[join_key] in table_join_keys:
+                    # Key needs renaming.
+                    each.join_keys[idx] = reverse_join_key_map[join_key]
+                else:
+                    # Key needs removing.
+                    remove_idxs.append(idx)
+            else:
+                # Key needs removing.
+                remove_idxs.append(idx)
+        for idx in reversed(remove_idxs):
+            # Delete indexes from largest to smallest.
+            del each.join_keys[idx]
+            del each.entity_values[idx]
+
     return entity_key_protos
 
 
