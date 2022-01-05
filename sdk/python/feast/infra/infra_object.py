@@ -17,9 +17,6 @@ from typing import Any, List
 
 from feast.errors import FeastInvalidInfraObjectType
 from feast.importer import import_class
-from feast.infra.datastore import DatastoreTable
-from feast.infra.dynamodb import DynamoDBTable
-from feast.infra.sqlite import SqliteTable
 from feast.protos.feast.core.DatastoreTable_pb2 import (
     DatastoreTable as DatastoreTableProto,
 )
@@ -82,13 +79,16 @@ class InfraObject(ABC):
             FeastInvalidInfraObjectType: The type of InfraObject could not be identified.
         """
         if isinstance(infra_object_proto, DatastoreTableProto):
-            DatastoreTable.from_proto(infra_object_proto)
+            infra_object_class_type = DATASTORE_INFRA_OBJECT_CLASS_TYPE
         elif isinstance(infra_object_proto, DynamoDBTableProto):
-            DynamoDBTable.from_proto(infra_object_proto)
+            infra_object_class_type = DYNAMODB_INFRA_OBJECT_CLASS_TYPE
         elif isinstance(infra_object_proto, SqliteTableProto):
-            SqliteTable.from_proto(infra_object_proto)
+            infra_object_class_type = SQLITE_INFRA_OBJECT_CLASS_TYPE
         else:
             raise FeastInvalidInfraObjectType()
+
+        cls = _get_infra_object_class_from_type(infra_object_class_type)
+        return cls.from_proto(infra_object_proto)
 
     @abstractmethod
     def update(self):

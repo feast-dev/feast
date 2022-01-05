@@ -127,20 +127,20 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    diff = store.plan(repo)
+    registry_diff, _ = store.plan(repo)
     views_to_delete = [
         v
-        for v in diff.fco_diffs
+        for v in registry_diff.fco_diffs
         if v.fco_type == "feature view" and v.transition_type == TransitionType.DELETE
     ]
     views_to_keep = [
         v
-        for v in diff.fco_diffs
+        for v in registry_diff.fco_diffs
         if v.fco_type == "feature view"
         and v.transition_type in {TransitionType.CREATE, TransitionType.UNCHANGED}
     ]
 
-    log_cli_output(diff, views_to_delete, views_to_keep)
+    log_cli_output(registry_diff, views_to_delete, views_to_keep)
 
 
 def _prepare_registry_and_repo(repo_config, repo_path):
