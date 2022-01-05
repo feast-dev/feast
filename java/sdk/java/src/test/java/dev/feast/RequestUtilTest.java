@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast;
+package dev.feast;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
-import feast.common.models.FeatureV2;
+import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -41,8 +41,8 @@ class RequestUtilTest {
             Arrays.asList("driver:driver_id"),
             Arrays.asList(
                 FeatureReferenceV2.newBuilder()
-                    .setFeatureTable("driver")
-                    .setName("driver_id")
+                    .setFeatureViewName("driver")
+                    .setFeatureName("driver_id")
                     .build())));
   }
 
@@ -52,8 +52,8 @@ class RequestUtilTest {
       List<String> input, List<FeatureReferenceV2> expected) {
     List<FeatureReferenceV2> actual = RequestUtil.createFeatureRefs(input);
     // Order of the actual and expected FeatureTables do no not matter
-    actual.sort(Comparator.comparing(FeatureReferenceV2::getName));
-    expected.sort(Comparator.comparing(FeatureReferenceV2::getName));
+    actual.sort(Comparator.comparing(FeatureReferenceV2::getFeatureName));
+    expected.sort(Comparator.comparing(FeatureReferenceV2::getFeatureName));
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       String expectedString = TextFormat.printer().printToString(expected.get(i));
@@ -68,7 +68,7 @@ class RequestUtilTest {
       List<String> expected, List<FeatureReferenceV2> input) {
     input = input.stream().map(ref -> ref.toBuilder().build()).collect(Collectors.toList());
     List<String> actual =
-        input.stream().map(ref -> FeatureV2.getFeatureStringRef(ref)).collect(Collectors.toList());
+        input.stream().map(ref -> Feature.getFeatureReference(ref)).collect(Collectors.toList());
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       assertEquals(expected.get(i), actual.get(i));

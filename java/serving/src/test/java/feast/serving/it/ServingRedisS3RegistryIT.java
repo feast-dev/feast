@@ -21,8 +21,6 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import feast.proto.core.RegistryProto;
@@ -31,7 +29,7 @@ import java.io.ByteArrayInputStream;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.junit.jupiter.Container;
 
-public class ServingRedisS3RegistryIT extends ServingBase {
+public class ServingRedisS3RegistryIT extends ServingBaseTests {
   @Container static final S3MockContainer s3Mock = new S3MockContainer("2.2.3");
 
   private static AmazonS3 createClient() {
@@ -64,16 +62,9 @@ public class ServingRedisS3RegistryIT extends ServingBase {
   @Override
   ApplicationProperties.FeastProperties createFeastProperties() {
     final ApplicationProperties.FeastProperties feastProperties =
-        new ApplicationProperties.FeastProperties();
+        TestUtils.createBasicFeastProperties(
+            environment.getServiceHost("redis", 6379), environment.getServicePort("redis", 6379));
     feastProperties.setRegistry("s3://test-bucket/registry.db");
-    feastProperties.setRegistryRefreshInterval(1);
-
-    feastProperties.setActiveStore("online");
-
-    feastProperties.setStores(
-        ImmutableList.of(
-            new ApplicationProperties.Store(
-                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
 
     return feastProperties;
   }

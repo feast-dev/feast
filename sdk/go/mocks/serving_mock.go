@@ -57,21 +57,21 @@ func (mr *MockServingServiceClientMockRecorder) GetFeastServingInfo(arg0, arg1 i
 }
 
 // GetOnlineFeaturesV2 mocks base method
-func (m *MockServingServiceClient) GetOnlineFeaturesV2(arg0 context.Context, arg1 *serving.GetOnlineFeaturesRequestV2, arg2 ...grpc.CallOption) (*serving.GetOnlineFeaturesResponse, error) {
+func (m *MockServingServiceClient) GetOnlineFeatures(arg0 context.Context, arg1 *serving.GetOnlineFeaturesRequest, arg2 ...grpc.CallOption) (*serving.GetOnlineFeaturesResponseV2, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetOnlineFeaturesV2", varargs...)
-	ret0, _ := ret[0].(*serving.GetOnlineFeaturesResponse)
+	ret := m.ctrl.Call(m, "GetOnlineFeatures", varargs...)
+	ret0, _ := ret[0].(*serving.GetOnlineFeaturesResponseV2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOnlineFeaturesV2 indicates an expected call of GetOnlineFeaturesV2
-func (mr *MockServingServiceClientMockRecorder) GetOnlineFeaturesV2(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockServingServiceClientMockRecorder) GetOnlineFeatures(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOnlineFeaturesV2", reflect.TypeOf((*MockServingServiceClient)(nil).GetOnlineFeaturesV2), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOnlineFeatures", reflect.TypeOf((*MockServingServiceClient)(nil).GetOnlineFeatures), varargs...)
 }

@@ -18,6 +18,7 @@ package feast.serving.registry;
 
 import com.google.protobuf.Duration;
 import feast.proto.core.FeatureProto;
+import feast.proto.core.FeatureServiceProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.core.OnDemandFeatureViewProto;
 import feast.proto.core.RegistryProto;
@@ -72,31 +73,33 @@ public class RegistryRepository {
   }
 
   public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return this.registry.getFeatureViewSpec(projectName, featureReference);
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.getFeatureViewSpec(featureReference);
   }
 
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return this.registry.getFeatureSpec(projectName, featureReference);
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.getFeatureSpec(featureReference);
   }
 
   public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return this.registry.getOnDemandFeatureViewSpec(projectName, featureReference);
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return this.registry.getOnDemandFeatureViewSpec(featureReference);
   }
 
   public boolean isOnDemandFeatureReference(ServingAPIProto.FeatureReferenceV2 featureReference) {
     return this.registry.isOnDemandFeatureReference(featureReference);
   }
 
-  public Duration getMaxAge(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return getFeatureViewSpec(projectName, featureReference).getTtl();
+  public FeatureServiceProto.FeatureServiceSpec getFeatureServiceSpec(String name) {
+    return this.registry.getFeatureServiceSpec(name);
   }
 
-  public List<String> getEntitiesList(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    return getFeatureViewSpec(projectName, featureReference).getEntitiesList();
+  public Duration getMaxAge(ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return getFeatureViewSpec(featureReference).getTtl();
+  }
+
+  public List<String> getEntitiesList(ServingAPIProto.FeatureReferenceV2 featureReference) {
+    return getFeatureViewSpec(featureReference).getEntitiesList();
   }
 }

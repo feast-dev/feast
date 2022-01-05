@@ -16,8 +16,10 @@
  */
 package feast.serving.service;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
-import feast.common.models.FeatureV2;
+import com.google.protobuf.Timestamp;
+import feast.common.models.Feature;
 import feast.proto.core.DataSourceProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
@@ -82,13 +84,13 @@ public class OnlineTransformationService implements TransformationService {
   @Override
   public Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>
       extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences, String projectName) {
+          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences) {
     Set<String> requestDataFeatureNames = new HashSet<String>();
     List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureInputs =
         new ArrayList<ServingAPIProto.FeatureReferenceV2>();
     for (ServingAPIProto.FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
       OnDemandFeatureViewProto.OnDemandFeatureViewSpec onDemandFeatureViewSpec =
-          this.registryRepository.getOnDemandFeatureViewSpec(projectName, featureReference);
+          this.registryRepository.getOnDemandFeatureViewSpec(featureReference);
       Map<String, OnDemandFeatureViewProto.OnDemandInput> inputs =
           onDemandFeatureViewSpec.getInputsMap();
 
@@ -110,8 +112,8 @@ public class OnlineTransformationService implements TransformationService {
               String featureName = featureSpec.getName();
               ServingAPIProto.FeatureReferenceV2 onDemandFeatureInput =
                   ServingAPIProto.FeatureReferenceV2.newBuilder()
-                      .setFeatureTable(featureViewName)
-                      .setName(featureName)
+                      .setFeatureViewName(featureViewName)
+                      .setFeatureName(featureName)
                       .build();
               onDemandFeatureInputs.add(onDemandFeatureInput);
             }
@@ -187,8 +189,7 @@ public class OnlineTransformationService implements TransformationService {
           transformFeaturesResponse,
       String onDemandFeatureViewName,
       Set<String> onDemandFeatureStringReferences,
-      List<Map<String, ValueProto.Value>> values,
-      List<Map<String, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus>> statuses) {
+      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder) {
     try {
       BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
       ArrowFileReader reader =
@@ -203,6 +204,7 @@ public class OnlineTransformationService implements TransformationService {
       VectorSchemaRoot readBatch = reader.getVectorSchemaRoot();
       Schema responseSchema = readBatch.getSchema();
       List<Field> responseFields = responseSchema.getFields();
+      Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
 
       for (Field field : responseFields) {
         String columnName = field.getName();
@@ -217,6 +219,9 @@ public class OnlineTransformationService implements TransformationService {
 
         FieldVector fieldVector = readBatch.getVector(field);
         int valueCount = fieldVector.getValueCount();
+        ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector.Builder vectorBuilder =
+            responseBuilder.addResultsBuilder();
+        List<ValueProto.Value> valueList = Lists.newArrayListWithExpectedSize(valueCount);
 
         // TODO: support all Feast types
         // TODO: clean up the switch statement
@@ -226,27 +231,13 @@ public class OnlineTransformationService implements TransformationService {
             case INT64_BITWIDTH:
               for (int i = 0; i < valueCount; i++) {
                 long int64Value = ((BigIntVector) fieldVector).get(i);
-                Map<String, ValueProto.Value> rowValues = values.get(i);
-                Map<String, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus> rowStatuses =
-                    statuses.get(i);
-                ValueProto.Value value =
-                    ValueProto.Value.newBuilder().setInt64Val(int64Value).build();
-                rowValues.put(fullFeatureName, value);
-                rowStatuses.put(
-                    fullFeatureName, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.PRESENT);
+                valueList.add(ValueProto.Value.newBuilder().setInt64Val(int64Value).build());
               }
               break;
             case INT32_BITWIDTH:
               for (int i = 0; i < valueCount; i++) {
-                int intValue = ((IntVector) fieldVector).get(i);
-                Map<String, ValueProto.Value> rowValues = values.get(i);
-                Map<String, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus> rowStatuses =
-                    statuses.get(i);
-                ValueProto.Value value =
-                    ValueProto.Value.newBuilder().setInt32Val(intValue).build();
-                rowValues.put(fullFeatureName, value);
-                rowStatuses.put(
-                    fullFeatureName, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.PRESENT);
+                int int32Value = ((IntVector) fieldVector).get(i);
+                valueList.add(ValueProto.Value.newBuilder().setInt32Val(int32Value).build());
               }
               break;
             default:
@@ -265,27 +256,13 @@ public class OnlineTransformationService implements TransformationService {
             case DOUBLE:
               for (int i = 0; i < valueCount; i++) {
                 double doubleValue = ((Float8Vector) fieldVector).get(i);
-                Map<String, ValueProto.Value> rowValues = values.get(i);
-                Map<String, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus> rowStatuses =
-                    statuses.get(i);
-                ValueProto.Value value =
-                    ValueProto.Value.newBuilder().setDoubleVal(doubleValue).build();
-                rowValues.put(fullFeatureName, value);
-                rowStatuses.put(
-                    fullFeatureName, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.PRESENT);
+                valueList.add(ValueProto.Value.newBuilder().setDoubleVal(doubleValue).build());
               }
               break;
             case SINGLE:
               for (int i = 0; i < valueCount; i++) {
                 float floatValue = ((Float4Vector) fieldVector).get(i);
-                Map<String, ValueProto.Value> rowValues = values.get(i);
-                Map<String, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus> rowStatuses =
-                    statuses.get(i);
-                ValueProto.Value value =
-                    ValueProto.Value.newBuilder().setFloatVal(floatValue).build();
-                rowValues.put(fullFeatureName, value);
-                rowStatuses.put(
-                    fullFeatureName, ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus.PRESENT);
+                valueList.add(ValueProto.Value.newBuilder().setFloatVal(floatValue).build());
               }
               break;
             default:
@@ -299,6 +276,14 @@ public class OnlineTransformationService implements TransformationService {
                   .asRuntimeException();
           }
         }
+
+        for (ValueProto.Value v : valueList) {
+          vectorBuilder.addValues(v);
+          vectorBuilder.addStatuses(ServingAPIProto.FieldStatus.PRESENT);
+          vectorBuilder.addEventTimestamps(now);
+        }
+
+        responseBuilder.getMetadataBuilder().getFeatureNamesBuilder().addVal(fullFeatureName);
       }
     } catch (IOException e) {
       log.info(e.toString());
@@ -310,30 +295,52 @@ public class OnlineTransformationService implements TransformationService {
   }
 
   /** {@inheritDoc} */
-  public ValueType serializeValuesIntoArrowIPC(List<Map<String, ValueProto.Value>> values) {
+  public ValueType serializeValuesIntoArrowIPC(List<Pair<String, List<ValueProto.Value>>> values) {
     // In order to be serialized correctly, the data must be packaged in a VectorSchemaRoot.
     // We first construct all the columns.
     Map<String, FieldVector> columnNameToColumn = new HashMap<String, FieldVector>();
     BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-    Map<String, ValueProto.Value> firstAugmentedRowValues = values.get(0);
-    for (Map.Entry<String, ValueProto.Value> entry : firstAugmentedRowValues.entrySet()) {
+
+    List<Field> columnFields = new ArrayList<Field>();
+    List<FieldVector> columns = new ArrayList<FieldVector>();
+
+    for (Pair<String, List<ValueProto.Value>> columnEntry : values) {
       // The Python FTS does not expect full feature names, so we extract the feature name.
-      String columnName = FeatureV2.getFeatureName(entry.getKey());
-      ValueProto.Value.ValCase valCase = entry.getValue().getValCase();
+      String columnName = Feature.getFeatureName(columnEntry.getKey());
+
+      List<ValueProto.Value> columnValues = columnEntry.getValue();
       FieldVector column;
+      ValueProto.Value.ValCase valCase = columnValues.get(0).getValCase();
       // TODO: support all Feast types
       switch (valCase) {
         case INT32_VAL:
           column = new IntVector(columnName, allocator);
+          column.setValueCount(columnValues.size());
+          for (int idx = 0; idx < columnValues.size(); idx++) {
+            ((IntVector) column).set(idx, columnValues.get(idx).getInt32Val());
+          }
           break;
         case INT64_VAL:
           column = new BigIntVector(columnName, allocator);
+          column.setValueCount(columnValues.size());
+          for (int idx = 0; idx < columnValues.size(); idx++) {
+            ((BigIntVector) column).set(idx, columnValues.get(idx).getInt64Val());
+          }
+
           break;
         case DOUBLE_VAL:
           column = new Float8Vector(columnName, allocator);
+          column.setValueCount(columnValues.size());
+          for (int idx = 0; idx < columnValues.size(); idx++) {
+            ((Float8Vector) column).set(idx, columnValues.get(idx).getInt64Val());
+          }
           break;
         case FLOAT_VAL:
           column = new Float4Vector(columnName, allocator);
+          column.setValueCount(columnValues.size());
+          for (int idx = 0; idx < columnValues.size(); idx++) {
+            ((Float4Vector) column).set(idx, columnValues.get(idx).getInt64Val());
+          }
           break;
         default:
           throw Status.INTERNAL
@@ -341,53 +348,11 @@ public class OnlineTransformationService implements TransformationService {
                   "Column " + columnName + " has a type that is currently not handled: " + valCase)
               .asRuntimeException();
       }
-      column.allocateNew();
-      columnNameToColumn.put(columnName, column);
-    }
 
-    // Add the data, row by row.
-    for (int i = 0; i < values.size(); i++) {
-      Map<String, ValueProto.Value> augmentedRowValues = values.get(i);
-
-      for (Map.Entry<String, ValueProto.Value> entry : augmentedRowValues.entrySet()) {
-        String columnName = FeatureV2.getFeatureName(entry.getKey());
-        ValueProto.Value value = entry.getValue();
-        ValueProto.Value.ValCase valCase = value.getValCase();
-        FieldVector column = columnNameToColumn.get(columnName);
-        // TODO: support all Feast types
-        switch (valCase) {
-          case INT32_VAL:
-            ((IntVector) column).setSafe(i, value.getInt32Val());
-            break;
-          case INT64_VAL:
-            ((BigIntVector) column).setSafe(i, value.getInt64Val());
-            break;
-          case DOUBLE_VAL:
-            ((Float8Vector) column).setSafe(i, value.getDoubleVal());
-            break;
-          case FLOAT_VAL:
-            ((Float4Vector) column).setSafe(i, value.getFloatVal());
-            break;
-          default:
-            throw Status.INTERNAL
-                .withDescription(
-                    "Column "
-                        + columnName
-                        + " has a type that is currently not handled: "
-                        + valCase)
-                .asRuntimeException();
-        }
-      }
-    }
-
-    // Construct the VectorSchemaRoot.
-    List<Field> columnFields = new ArrayList<Field>();
-    List<FieldVector> columns = new ArrayList<FieldVector>();
-    for (FieldVector column : columnNameToColumn.values()) {
-      column.setValueCount(values.size());
-      columnFields.add(column.getField());
       columns.add(column);
+      columnFields.add(column.getField());
     }
+
     VectorSchemaRoot schemaRoot = new VectorSchemaRoot(columnFields, columns);
 
     // Serialize the VectorSchemaRoot into Arrow IPC format.

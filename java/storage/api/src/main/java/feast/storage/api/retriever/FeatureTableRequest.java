@@ -56,6 +56,7 @@ public abstract class FeatureTableRequest {
   public Map<String, FeatureReferenceV2> getFeatureRefsByName() {
     return getFeatureReferences().stream()
         .collect(
-            Collectors.toMap(FeatureReferenceV2::getName, featureReference -> featureReference));
+            Collectors.toMap(
+                FeatureReferenceV2::getFeatureName, featureReference -> featureReference));
   }
 }

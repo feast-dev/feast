@@ -18,7 +18,6 @@ package feast.serving.service;
 
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRequest;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
@@ -42,13 +41,12 @@ public interface TransformationService {
    * list of ODFV references.
    *
    * @param onDemandFeatureReferences list of ODFV references to be parsed
-   * @param projectName project name
    * @return a pair containing the set of request data feature names and list of on demand feature
    *     inputs
    */
   Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>
       extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences, String projectName);
+          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences);
 
   /**
    * Separate the entity rows of a request into entity data and request feature data.
@@ -68,15 +66,13 @@ public interface TransformationService {
    * @param transformFeaturesResponse response to be processed
    * @param onDemandFeatureViewName name of ODFV to which the response corresponds
    * @param onDemandFeatureStringReferences set of all ODFV references that should be kept
-   * @param values list of field maps to be augmented with additional fields from the response
-   * @param statuses list of status maps to be augmented
+   * @param responseBuilder {@link ServingAPIProto.GetOnlineFeaturesResponseV2.Builder}
    */
   void processTransformFeaturesResponse(
       TransformFeaturesResponse transformFeaturesResponse,
       String onDemandFeatureViewName,
       Set<String> onDemandFeatureStringReferences,
-      List<Map<String, ValueProto.Value>> values,
-      List<Map<String, GetOnlineFeaturesResponse.FieldStatus>> statuses);
+      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder);
 
   /**
    * Serialize data into Arrow IPC format, to be sent to the Python feature transformation server.
@@ -84,5 +80,5 @@ public interface TransformationService {
    * @param values list of field maps to be serialized
    * @return the data packaged into a ValueType proto object
    */
-  ValueType serializeValuesIntoArrowIPC(List<Map<String, ValueProto.Value>> values);
+  ValueType serializeValuesIntoArrowIPC(List<Pair<String, List<ValueProto.Value>>> values);
 }

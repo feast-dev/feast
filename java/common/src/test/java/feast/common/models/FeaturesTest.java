@@ -31,14 +31,14 @@ public class FeaturesTest {
   public void setUp() {
     featureReference =
         FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature1")
+            .setFeatureViewName("featuretable_1")
+            .setFeatureName("feature1")
             .build();
   }
 
   @Test
   public void shouldReturnFeatureStringRef() {
-    String actualFeatureStringRef = FeatureV2.getFeatureStringRef(featureReference);
+    String actualFeatureStringRef = Feature.getFeatureReference(featureReference);
     String expectedFeatureStringRef = "featuretable_1:feature1";
 
     assertThat(actualFeatureStringRef, equalTo(expectedFeatureStringRef));

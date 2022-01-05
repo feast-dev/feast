@@ -16,10 +16,7 @@
  */
 package feast.serving.registry;
 
-import feast.proto.core.FeatureProto;
-import feast.proto.core.FeatureViewProto;
-import feast.proto.core.OnDemandFeatureViewProto;
-import feast.proto.core.RegistryProto;
+import feast.proto.core.*;
 import feast.proto.serving.ServingAPIProto;
 import feast.serving.exception.SpecRetrievalException;
 import java.util.List;
@@ -32,6 +29,7 @@ public class Registry {
   private Map<String, FeatureViewProto.FeatureViewSpec> featureViewNameToSpec;
   private Map<String, OnDemandFeatureViewProto.OnDemandFeatureViewSpec>
       onDemandFeatureViewNameToSpec;
+  private Map<String, FeatureServiceProto.FeatureServiceSpec> featureServiceNameToSpec;
 
   Registry(RegistryProto.Registry registry) {
     this.registry = registry;
@@ -53,6 +51,12 @@ public class Registry {
                 Collectors.toMap(
                     OnDemandFeatureViewProto.OnDemandFeatureViewSpec::getName,
                     Function.identity()));
+    this.featureServiceNameToSpec =
+        registry.getFeatureServicesList().stream()
+            .map(fs -> fs.getSpec())
+            .collect(
+                Collectors.toMap(
+                    FeatureServiceProto.FeatureServiceSpec::getName, Function.identity()));
   }
 
   public RegistryProto.Registry getRegistry() {
@@ -60,8 +64,8 @@ public class Registry {
   }
 
   public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    String featureViewName = featureReference.getFeatureTable();
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    String featureViewName = featureReference.getFeatureViewName();
     if (featureViewNameToSpec.containsKey(featureViewName)) {
       return featureViewNameToSpec.get(featureViewName);
     }
@@ -70,11 +74,10 @@ public class Registry {
   }
 
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    final FeatureViewProto.FeatureViewSpec spec =
-        this.getFeatureViewSpec(projectName, featureReference);
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    final FeatureViewProto.FeatureViewSpec spec = this.getFeatureViewSpec(featureReference);
     for (final FeatureProto.FeatureSpecV2 featureSpec : spec.getFeaturesList()) {
-      if (featureSpec.getName().equals(featureReference.getName())) {
+      if (featureSpec.getName().equals(featureReference.getFeatureName())) {
         return featureSpec;
       }
     }
@@ -82,12 +85,12 @@ public class Registry {
     throw new SpecRetrievalException(
         String.format(
             "Unable to find feature with name: %s in feature view: %s",
-            featureReference.getName(), featureReference.getFeatureTable()));
+            featureReference.getFeatureName(), featureReference.getFeatureViewName()));
   }
 
   public OnDemandFeatureViewProto.OnDemandFeatureViewSpec getOnDemandFeatureViewSpec(
-      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    String onDemandFeatureViewName = featureReference.getFeatureTable();
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    String onDemandFeatureViewName = featureReference.getFeatureViewName();
     if (onDemandFeatureViewNameToSpec.containsKey(onDemandFeatureViewName)) {
       return onDemandFeatureViewNameToSpec.get(onDemandFeatureViewName);
     }
@@ -97,7 +100,16 @@ public class Registry {
   }
 
   public boolean isOnDemandFeatureReference(ServingAPIProto.FeatureReferenceV2 featureReference) {
-    String onDemandFeatureViewName = featureReference.getFeatureTable();
+    String onDemandFeatureViewName = featureReference.getFeatureViewName();
     return onDemandFeatureViewNameToSpec.containsKey(onDemandFeatureViewName);
+  }
+
+  public FeatureServiceProto.FeatureServiceSpec getFeatureServiceSpec(String name) {
+    FeatureServiceProto.FeatureServiceSpec spec = featureServiceNameToSpec.get(name);
+    if (spec == null) {
+      throw new SpecRetrievalException(
+          String.format("Unable to find feature service with name: %s", name));
+    }
+    return spec;
   }
 }

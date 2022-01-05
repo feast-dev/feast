@@ -18,7 +18,7 @@ package feast.common.models;
 
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 
-public class FeatureV2 {
+public class Feature {
 
   /**
    * Accepts FeatureReferenceV2 object and returns its reference in String
@@ -27,10 +27,10 @@ public class FeatureV2 {
    * @param featureReference {@link FeatureReferenceV2}
    * @return String format of FeatureReferenceV2
    */
-  public static String getFeatureStringRef(FeatureReferenceV2 featureReference) {
-    String ref = featureReference.getName();
-    if (!featureReference.getFeatureTable().isEmpty()) {
-      ref = featureReference.getFeatureTable() + ":" + ref;
+  public static String getFeatureReference(FeatureReferenceV2 featureReference) {
+    String ref = featureReference.getFeatureName();
+    if (!featureReference.getFeatureViewName().isEmpty()) {
+      ref = featureReference.getFeatureViewName() + ":" + ref;
     }
     return ref;
   }
@@ -46,5 +46,13 @@ public class FeatureV2 {
   public static String getFeatureName(String featureReference) {
     String[] tokens = featureReference.split(":", 2);
     return tokens[tokens.length - 1];
+  }
+
+  public static FeatureReferenceV2 parseFeatureReference(String featureReference) {
+    String[] tokens = featureReference.split(":", 2);
+    return FeatureReferenceV2.newBuilder()
+        .setFeatureViewName(tokens[0])
+        .setFeatureName(tokens[1])
+        .build();
   }
 }

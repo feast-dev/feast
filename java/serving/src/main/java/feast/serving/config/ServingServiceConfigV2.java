@@ -44,12 +44,20 @@ public class ServingServiceConfigV2 extends AbstractModule {
       case REDIS_CLUSTER:
         RedisClientAdapter redisClusterClient =
             RedisClusterClient.create(store.getRedisClusterConfig());
-        retrieverV2 = new OnlineRetriever(redisClusterClient, new EntityKeySerializerV2());
+        retrieverV2 =
+            new OnlineRetriever(
+                applicationProperties.getFeast().getProject(),
+                redisClusterClient,
+                new EntityKeySerializerV2());
         break;
       case REDIS:
         RedisClientAdapter redisClient = RedisClient.create(store.getRedisConfig());
         log.info("Created EntityKeySerializerV2");
-        retrieverV2 = new OnlineRetriever(redisClient, new EntityKeySerializerV2());
+        retrieverV2 =
+            new OnlineRetriever(
+                applicationProperties.getFeast().getProject(),
+                redisClient,
+                new EntityKeySerializerV2());
         break;
       default:
         throw new RuntimeException(
@@ -67,7 +75,11 @@ public class ServingServiceConfigV2 extends AbstractModule {
 
     servingService =
         new OnlineServingServiceV2(
-            retrieverV2, tracer, registryRepository, onlineTransformationService);
+            retrieverV2,
+            tracer,
+            registryRepository,
+            onlineTransformationService,
+            applicationProperties.getFeast().getProject());
 
     return servingService;
   }

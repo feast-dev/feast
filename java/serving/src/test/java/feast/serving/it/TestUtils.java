@@ -16,9 +16,13 @@
  */
 package feast.serving.it;
 
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingServiceGrpc;
+import feast.proto.types.ValueProto;
+import feast.serving.config.ApplicationProperties;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;
@@ -32,14 +36,39 @@ public class TestUtils {
     return ServingServiceGrpc.newBlockingStub(secureChannel);
   }
 
-  public static GetOnlineFeaturesRequestV2 createOnlineFeatureRequest(
-      String projectName,
-      List<FeatureReferenceV2> featureReferences,
-      List<GetOnlineFeaturesRequestV2.EntityRow> entityRows) {
-    return GetOnlineFeaturesRequestV2.newBuilder()
-        .setProject(projectName)
-        .addAllFeatures(featureReferences)
-        .addAllEntityRows(entityRows)
+  public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
+      List<String> featureReferences, Map<String, ValueProto.RepeatedValue> entityRows) {
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatures(ServingAPIProto.FeatureList.newBuilder().addAllVal(featureReferences))
+        .putAllEntities(entityRows)
         .build();
+  }
+
+  public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
+      String featureService, Map<String, ValueProto.RepeatedValue> entityRows) {
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatureService(featureService)
+        .putAllEntities(entityRows)
+        .build();
+  }
+
+  public static ApplicationProperties.FeastProperties createBasicFeastProperties(
+      String redisHost, Integer redisPort) {
+    final ApplicationProperties.FeastProperties feastProperties =
+        new ApplicationProperties.FeastProperties();
+    feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
+    feastProperties.setRegistryRefreshInterval(1);
+
+    feastProperties.setActiveStore("online");
+    feastProperties.setProject("feast_project");
+
+    feastProperties.setStores(
+        ImmutableList.of(
+            new ApplicationProperties.Store(
+                "online",
+                "REDIS",
+                ImmutableMap.of("host", redisHost, "port", redisPort.toString()))));
+
+    return feastProperties;
   }
 }

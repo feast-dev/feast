@@ -29,10 +29,8 @@ import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.proto.serving.ServingAPIProto.FieldStatus;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2;
 import feast.proto.types.ValueProto;
 import feast.serving.registry.Registry;
 import feast.serving.registry.RegistryRepository;
@@ -42,8 +40,9 @@ import feast.storage.connectors.redis.retriever.OnlineRetriever;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -62,6 +61,8 @@ public class OnlineServingServiceTest {
   List<Feature> mockedFeatureRows;
   List<FeatureProto.FeatureSpecV2> featureSpecs;
 
+  Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
+
   @Before
   public void setUp() {
     initMocks(this);
@@ -71,56 +72,57 @@ public class OnlineServingServiceTest {
     OnlineTransformationService onlineTransformationService =
         new OnlineTransformationService(transformationServiceEndpoint, registryRepo);
     onlineServingServiceV2 =
-        new OnlineServingServiceV2(retrieverV2, tracer, registryRepo, onlineTransformationService);
+        new OnlineServingServiceV2(
+            retrieverV2, tracer, registryRepo, onlineTransformationService, "feast_project");
 
     mockedFeatureRows = new ArrayList<>();
     mockedFeatureRows.add(
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_1")
+                .setFeatureViewName("featureview_1")
+                .setFeatureName("feature_1")
                 .build(),
-            Timestamp.newBuilder().setSeconds(100).build(),
+            now,
             createStrValue("1")));
     mockedFeatureRows.add(
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_2")
+                .setFeatureViewName("featureview_1")
+                .setFeatureName("feature_2")
                 .build(),
-            Timestamp.newBuilder().setSeconds(100).build(),
+            now,
             createStrValue("2")));
     mockedFeatureRows.add(
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_1")
+                .setFeatureViewName("featureview_1")
+                .setFeatureName("feature_1")
                 .build(),
-            Timestamp.newBuilder().setSeconds(100).build(),
+            now,
             createStrValue("3")));
     mockedFeatureRows.add(
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_2")
+                .setFeatureViewName("featureview_1")
+                .setFeatureName("feature_2")
                 .build(),
-            Timestamp.newBuilder().setSeconds(100).build(),
+            now,
             createStrValue("4")));
     mockedFeatureRows.add(
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_3")
+                .setFeatureViewName("featureview_1")
+                .setFeatureName("feature_3")
                 .build(),
-            Timestamp.newBuilder().setSeconds(100).build(),
+            now,
             createStrValue("5")));
     mockedFeatureRows.add(
         new ProtoFeature(
             ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_1")
+                .setFeatureViewName("featureview_1")
+                .setFeatureName("feature_1")
                 .build(),
-            Timestamp.newBuilder().setSeconds(50).build(),
+            Timestamp.newBuilder().setSeconds(1).build(),
             createStrValue("6")));
 
     featureSpecs = new ArrayList<>();
@@ -141,66 +143,63 @@ public class OnlineServingServiceTest {
     String projectName = "default";
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature_1")
+            .setFeatureViewName("featureview_1")
+            .setFeatureName("feature_1")
             .build();
     ServingAPIProto.FeatureReferenceV2 featureReference2 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature_2")
+            .setFeatureViewName("featureview_1")
+            .setFeatureName("feature_2")
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
-    GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
+    ServingAPIProto.GetOnlineFeaturesRequest request = getOnlineFeaturesRequest(featureReferences);
 
-    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> featureRows =
+    List<List<Feature>> featureRows =
         List.of(
-            ImmutableMap.of(
-                mockedFeatureRows.get(0).getFeatureReference(), mockedFeatureRows.get(0),
-                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)),
-            ImmutableMap.of(
-                mockedFeatureRows.get(2).getFeatureReference(), mockedFeatureRows.get(2),
-                mockedFeatureRows.get(3).getFeatureReference(), mockedFeatureRows.get(3)));
+            List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
+            List.of(mockedFeatureRows.get(2), mockedFeatureRows.get(3)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(registry.getFeatureViewSpec(any(), any())).thenReturn(getFeatureViewSpec());
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(0).getFeatureReference()))
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
+    when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
+    when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
+    when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(2).getFeatureReference()))
+    when(registry.getFeatureSpec(mockedFeatureRows.get(2).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(3).getFeatureReference()))
+    when(registry.getFeatureSpec(mockedFeatureRows.get(3).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected =
-        GetOnlineFeaturesResponse.newBuilder()
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", createInt64Value(1))
-                    .putStatuses("entity1", FieldStatus.PRESENT)
-                    .putFields("entity2", createStrValue("a"))
-                    .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createStrValue("1"))
-                    .putStatuses("featuretable_1:feature_1", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_2", createStrValue("2"))
-                    .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
-                    .build())
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", createInt64Value(2))
-                    .putStatuses("entity1", FieldStatus.PRESENT)
-                    .putFields("entity2", createStrValue("b"))
-                    .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createStrValue("3"))
-                    .putStatuses("featuretable_1:feature_1", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_2", createStrValue("4"))
-                    .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
-                    .build())
+    GetOnlineFeaturesResponseV2 expected =
+        GetOnlineFeaturesResponseV2.newBuilder()
+            .addResults(
+                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                    .addValues(createStrValue("1"))
+                    .addValues(createStrValue("3"))
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addEventTimestamps(now)
+                    .addEventTimestamps(now))
+            .addResults(
+                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                    .addValues(createStrValue("2"))
+                    .addValues(createStrValue("4"))
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addEventTimestamps(now)
+                    .addEventTimestamps(now))
+            .setMetadata(
+                ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+                    .setFeatureNames(
+                        ServingAPIProto.FeatureList.newBuilder()
+                            .addVal("featureview_1:feature_1")
+                            .addVal("featureview_1:feature_2")))
             .build();
-    GetOnlineFeaturesResponse actual = onlineServingServiceV2.getOnlineFeatures(request);
+    ServingAPIProto.GetOnlineFeaturesResponseV2 actual =
+        onlineServingServiceV2.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
   }
 
@@ -209,17 +208,17 @@ public class OnlineServingServiceTest {
     String projectName = "default";
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature_1")
+            .setFeatureViewName("featureview_1")
+            .setFeatureName("feature_1")
             .build();
     ServingAPIProto.FeatureReferenceV2 featureReference2 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature_2")
+            .setFeatureViewName("featureview_1")
+            .setFeatureName("feature_2")
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
-    GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
+    ServingAPIProto.GetOnlineFeaturesRequest request = getOnlineFeaturesRequest(featureReferences);
 
     List<Feature> entityKeyList1 = new ArrayList<>();
     List<Feature> entityKeyList2 = new ArrayList<>();
@@ -227,49 +226,46 @@ public class OnlineServingServiceTest {
     entityKeyList1.add(mockedFeatureRows.get(1));
     entityKeyList2.add(mockedFeatureRows.get(4));
 
-    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> featureRows =
+    List<List<Feature>> featureRows =
         List.of(
-            ImmutableMap.of(
-                mockedFeatureRows.get(0).getFeatureReference(), mockedFeatureRows.get(0),
-                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)),
-            ImmutableMap.of(
-                mockedFeatureRows.get(4).getFeatureReference(), mockedFeatureRows.get(4)));
+            List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
+            Arrays.asList(null, mockedFeatureRows.get(4)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(registry.getFeatureViewSpec(any(), any())).thenReturn(getFeatureViewSpec());
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(0).getFeatureReference()))
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
+    when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
+    when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
+    when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected =
-        GetOnlineFeaturesResponse.newBuilder()
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", createInt64Value(1))
-                    .putStatuses("entity1", FieldStatus.PRESENT)
-                    .putFields("entity2", createStrValue("a"))
-                    .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createStrValue("1"))
-                    .putStatuses("featuretable_1:feature_1", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_2", createStrValue("2"))
-                    .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
-                    .build())
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", createInt64Value(2))
-                    .putStatuses("entity1", FieldStatus.PRESENT)
-                    .putFields("entity2", createStrValue("b"))
-                    .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createEmptyValue())
-                    .putStatuses("featuretable_1:feature_1", FieldStatus.NOT_FOUND)
-                    .putFields("featuretable_1:feature_2", createEmptyValue())
-                    .putStatuses("featuretable_1:feature_2", FieldStatus.NOT_FOUND)
-                    .build())
+    GetOnlineFeaturesResponseV2 expected =
+        GetOnlineFeaturesResponseV2.newBuilder()
+            .addResults(
+                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                    .addValues(createStrValue("1"))
+                    .addValues(createEmptyValue())
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addStatuses(FieldStatus.NOT_FOUND)
+                    .addEventTimestamps(now)
+                    .addEventTimestamps(Timestamp.newBuilder().build()))
+            .addResults(
+                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                    .addValues(createStrValue("2"))
+                    .addValues(createStrValue("5"))
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addEventTimestamps(now)
+                    .addEventTimestamps(now))
+            .setMetadata(
+                ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+                    .setFeatureNames(
+                        ServingAPIProto.FeatureList.newBuilder()
+                            .addVal("featureview_1:feature_1")
+                            .addVal("featureview_1:feature_2")))
             .build();
-    GetOnlineFeaturesResponse actual = onlineServingServiceV2.getOnlineFeatures(request);
+    GetOnlineFeaturesResponseV2 actual = onlineServingServiceV2.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
   }
 
@@ -278,32 +274,28 @@ public class OnlineServingServiceTest {
     String projectName = "default";
     ServingAPIProto.FeatureReferenceV2 featureReference1 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature_1")
+            .setFeatureViewName("featureview_1")
+            .setFeatureName("feature_1")
             .build();
     ServingAPIProto.FeatureReferenceV2 featureReference2 =
         ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretable_1")
-            .setName("feature_2")
+            .setFeatureViewName("featureview_1")
+            .setFeatureName("feature_2")
             .build();
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         List.of(featureReference1, featureReference2);
-    GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
+    ServingAPIProto.GetOnlineFeaturesRequest request = getOnlineFeaturesRequest(featureReferences);
 
-    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> featureRows =
+    List<List<Feature>> featureRows =
         List.of(
-            ImmutableMap.of(
-                mockedFeatureRows.get(5).getFeatureReference(), mockedFeatureRows.get(5),
-                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)),
-            ImmutableMap.of(
-                mockedFeatureRows.get(5).getFeatureReference(), mockedFeatureRows.get(5),
-                mockedFeatureRows.get(1).getFeatureReference(), mockedFeatureRows.get(1)));
+            List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)),
+            List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(registry.getFeatureViewSpec(any(), any()))
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
+    when(registry.getFeatureViewSpec(any()))
         .thenReturn(
             FeatureViewProto.FeatureViewSpec.newBuilder()
-                .setName("featuretable_1")
+                .setName("featureview_1")
                 .addEntities("entity1")
                 .addEntities("entity2")
                 .addFeatures(
@@ -316,47 +308,47 @@ public class OnlineServingServiceTest {
                         .setName("feature_2")
                         .setValueType(ValueProto.ValueType.Enum.STRING)
                         .build())
-                .setTtl(Duration.newBuilder().setSeconds(1))
+                .setTtl(Duration.newBuilder().setSeconds(3600))
                 .build());
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(1).getFeatureReference()))
+    when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
-    when(registry.getFeatureSpec(projectName, mockedFeatureRows.get(5).getFeatureReference()))
+    when(registry.getFeatureSpec(mockedFeatureRows.get(5).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected =
-        GetOnlineFeaturesResponse.newBuilder()
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", createInt64Value(1))
-                    .putStatuses("entity1", FieldStatus.PRESENT)
-                    .putFields("entity2", createStrValue("a"))
-                    .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createStrValue("6"))
-                    .putStatuses("featuretable_1:feature_1", FieldStatus.OUTSIDE_MAX_AGE)
-                    .putFields("featuretable_1:feature_2", createStrValue("2"))
-                    .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
-                    .build())
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", createInt64Value(2))
-                    .putStatuses("entity1", FieldStatus.PRESENT)
-                    .putFields("entity2", createStrValue("b"))
-                    .putStatuses("entity2", FieldStatus.PRESENT)
-                    .putFields("featuretable_1:feature_1", createStrValue("6"))
-                    .putStatuses("featuretable_1:feature_1", FieldStatus.OUTSIDE_MAX_AGE)
-                    .putFields("featuretable_1:feature_2", createStrValue("2"))
-                    .putStatuses("featuretable_1:feature_2", FieldStatus.PRESENT)
-                    .build())
+    GetOnlineFeaturesResponseV2 expected =
+        GetOnlineFeaturesResponseV2.newBuilder()
+            .addResults(
+                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                    .addValues(createStrValue("6"))
+                    .addValues(createStrValue("6"))
+                    .addStatuses(FieldStatus.OUTSIDE_MAX_AGE)
+                    .addStatuses(FieldStatus.OUTSIDE_MAX_AGE)
+                    .addEventTimestamps(Timestamp.newBuilder().setSeconds(1).build())
+                    .addEventTimestamps(Timestamp.newBuilder().setSeconds(1).build()))
+            .addResults(
+                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                    .addValues(createStrValue("2"))
+                    .addValues(createStrValue("2"))
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addStatuses(FieldStatus.PRESENT)
+                    .addEventTimestamps(now)
+                    .addEventTimestamps(now))
+            .setMetadata(
+                ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+                    .setFeatureNames(
+                        ServingAPIProto.FeatureList.newBuilder()
+                            .addVal("featureview_1:feature_1")
+                            .addVal("featureview_1:feature_2")))
             .build();
-    GetOnlineFeaturesResponse actual = onlineServingServiceV2.getOnlineFeatures(request);
+    GetOnlineFeaturesResponseV2 actual = onlineServingServiceV2.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
   }
 
   private FeatureViewProto.FeatureViewSpec getFeatureViewSpec() {
     return FeatureViewProto.FeatureViewSpec.newBuilder()
-        .setName("featuretable_1")
+        .setName("featureview_1")
         .addEntities("entity1")
         .addEntities("entity2")
         .addFeatures(
@@ -373,31 +365,26 @@ public class OnlineServingServiceTest {
         .build();
   }
 
-  private GetOnlineFeaturesRequestV2 getOnlineFeaturesRequestV2(
-      String projectName, List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
-    return GetOnlineFeaturesRequestV2.newBuilder()
-        .setProject(projectName)
-        .addAllFeatures(featureReferences)
-        .addEntityRows(
-            GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
-                .setTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .putFields("entity1", createInt64Value(1))
-                .putFields("entity2", createStrValue("a")))
-        .addEntityRows(
-            GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
-                .setTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .putFields("entity1", createInt64Value(2))
-                .putFields("entity2", createStrValue("b")))
-        .addFeatures(
-            ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_1")
+  private ServingAPIProto.GetOnlineFeaturesRequest getOnlineFeaturesRequest(
+      List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
+    return ServingAPIProto.GetOnlineFeaturesRequest.newBuilder()
+        .setFeatures(
+            ServingAPIProto.FeatureList.newBuilder()
+                .addAllVal(
+                    featureReferences.stream()
+                        .map(feast.common.models.Feature::getFeatureReference)
+                        .collect(Collectors.toList()))
                 .build())
-        .addFeatures(
-            ServingAPIProto.FeatureReferenceV2.newBuilder()
-                .setFeatureTable("featuretable_1")
-                .setName("feature_2")
-                .build())
+        .putAllEntities(
+            ImmutableMap.of(
+                "entity1",
+                    ValueProto.RepeatedValue.newBuilder()
+                        .addAllVal(List.of(createInt64Value(1), createInt64Value(2)))
+                        .build(),
+                "entity2",
+                    ValueProto.RepeatedValue.newBuilder()
+                        .addAllVal(List.of(createStrValue("a"), createStrValue("b")))
+                        .build()))
         .build();
   }
 }
