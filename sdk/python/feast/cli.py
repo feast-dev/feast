@@ -284,9 +284,8 @@ def feature_view_list(ctx: click.Context):
         if isinstance(feature_view, FeatureView):
             entities.update(feature_view.entities)
         elif isinstance(feature_view, OnDemandFeatureView):
-            for backing_fv in feature_view.inputs.values():
-                if isinstance(backing_fv, FeatureView):
-                    entities.update(backing_fv.entities)
+            for backing_fv in feature_view.input_feature_view_projections.values():
+                entities.update(store.get_feature_view(backing_fv.name).entities)
         table.append(
             [
                 feature_view.name,

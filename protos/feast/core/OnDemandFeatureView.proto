@@ -45,16 +45,13 @@ message OnDemandFeatureViewSpec {
     // Map of inputs for this feature view.
     map<string, OnDemandInput> inputs = 4;
 
-    // Map of projections for the inputs of this feature view.
-    // Keys must also be present in `inputs`
-    map<string, FeatureViewProjection> projections = 6;
-
     UserDefinedFunction user_defined_function = 5;
 }
 
 message OnDemandInput {
     oneof input {
         FeatureView feature_view = 1;
+        FeatureViewProjection feature_view_projection = 3;
         DataSource request_data_source = 2;
     }
 }

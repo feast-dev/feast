@@ -1072,6 +1072,15 @@ class FeatureStore:
         set_usage_attribute("odfv", bool(grouped_odfv_refs))
         set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
 
+        # All requested features should be present in the result.
+        requested_result_row_names = {
+            feat_ref.replace(":", "__") for feat_ref in _feature_refs
+        }
+        if not full_feature_names:
+            requested_result_row_names = {
+                name.rpartition("__")[-1] for name in requested_result_row_names
+            }
+
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [
             entity_name
@@ -1104,7 +1113,7 @@ class FeatureStore:
         )
 
         join_key_rows = []
-        request_data_features: Dict[str, List[Any]] = {}
+        request_data_features: Dict[str, List[Any]] = defaultdict(list)
         # Entity rows may be either entities or request data.
         for row in entity_rows:
             join_key_row = {}
@@ -1114,17 +1123,21 @@ class FeatureStore:
                     entity_name in needed_request_data
                     or entity_name in needed_request_fv_features
                 ):
-                    if entity_name not in request_data_features:
-                        request_data_features[entity_name] = []
+                    if entity_name in needed_request_fv_features:
+                        # If the data was requested as a feature then
+                        # make sure it appears in the result.
+                        requested_result_row_names.add(entity_name)
                     request_data_features[entity_name].append(entity_value)
-                    continue
-                try:
-                    join_key = entity_name_to_join_key_map[entity_name]
-                except KeyError:
-                    raise EntityNotFoundException(entity_name, self.project)
-                join_key_row[join_key] = entity_value
-                if entityless_case:
-                    join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                else:
+                    try:
+                        join_key = entity_name_to_join_key_map[entity_name]
+                    except KeyError:
+                        raise EntityNotFoundException(entity_name, self.project)
+                    # All join keys should be returned in the result.
+                    requested_result_row_names.add(join_key)
+                    join_key_row[join_key] = entity_value
+                    if entityless_case:
+                        join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
             if len(join_key_row) > 0:
                 # May be empty if this entity row was request data
                 join_key_rows.append(join_key_row)
@@ -1144,9 +1157,6 @@ class FeatureStore:
             # Also create entity values to append to the result
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
-        # Keep track of what has been requested from the OnlineStore
-        # to avoid requesting the same thing twice for ODFVs.
-        retrieved_feature_refs: Set[str] = set()
         for table, requested_features in grouped_refs:
             table_join_keys = [
                 entity_name_to_join_key_map[entity_name]
@@ -1161,60 +1171,27 @@ class FeatureStore:
                 table,
                 union_of_entity_keys,
             )
-            table_feature_names = {feature.name for feature in table.features}
-            retrieved_feature_refs |= {
-                f"{table.name}:{feature}" if feature in table_feature_names else feature
-                for feature in requested_features
-            }
 
-        requested_result_row_names = self._get_requested_result_fields(
-            result_rows, needed_request_fv_features
-        )
-        self._populate_odfv_dependencies(
-            entity_name_to_join_key_map,
-            full_feature_names,
-            grouped_odfv_refs,
-            provider,
-            request_data_features,
-            result_rows,
-            union_of_entity_keys,
-            retrieved_feature_refs,
+        self._populate_request_data_features(
+            request_data_features, result_rows,
         )
 
         self._augment_response_with_on_demand_transforms(
             _feature_refs,
-            requested_result_row_names,
             requested_on_demand_feature_views,
             full_feature_names,
             result_rows,
         )
+
+        self._drop_unneeded_columns(
+            requested_result_row_names, result_rows,
+        )
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
-    def _get_requested_result_fields(
-        self,
-        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
-        needed_request_fv_features: Set[str],
-    ):
-        # Get requested feature values so we can drop odfv dependencies that aren't requested
-        requested_result_row_names: Set[str] = set()
-        for result_row in result_rows:
-            for feature_name in result_row.fields.keys():
-                requested_result_row_names.add(feature_name)
-        # Request feature view values are also request data features that should be in the
-        # final output
-        requested_result_row_names.update(needed_request_fv_features)
-        return requested_result_row_names
-
-    def _populate_odfv_dependencies(
-        self,
-        entity_name_to_join_key_map: Dict[str, str],
-        full_feature_names: bool,
-        grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
-        provider: Provider,
+    @staticmethod
+    def _populate_request_data_features(
         request_data_features: Dict[str, List[Any]],
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
-        union_of_entity_keys: List[EntityKeyProto],
-        retrieved_feature_refs: Set[str],
     ):
         # Add more feature values to the existing result rows for the request data features
         for feature_name, feature_values in request_data_features.items():
@@ -1229,39 +1206,8 @@ class FeatureStore:
                     feature_name
                 ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
-        # Add data if odfv requests specific feature views as dependencies
-        if len(grouped_odfv_refs) > 0:
-            for odfv, _ in grouped_odfv_refs:
-                for fv in odfv.input_feature_views.values():
-                    # Find the set of required Features which have not yet
-                    # been retrieved.
-                    not_yet_retrieved = {
-                        feature.name
-                        for feature in fv.projection.features
-                        if f"{fv.name}:{feature.name}" not in retrieved_feature_refs
-                    }
-                    # If there are required Features which have not yet been retrieved
-                    # retrieve them.
-                    if not_yet_retrieved:
-                        table_join_keys = [
-                            entity_name_to_join_key_map[entity_name]
-                            for entity_name in fv.entities
-                        ]
-                        self._populate_result_rows_from_feature_view(
-                            table_join_keys,
-                            full_feature_names,
-                            provider,
-                            list(not_yet_retrieved),
-                            result_rows,
-                            fv,
-                            union_of_entity_keys,
-                        )
-                    # Update the set of retrieved Features with any newly retrieved
-                    # Features.
-                    retrieved_feature_refs |= not_yet_retrieved
-
+    @staticmethod
     def get_needed_request_data(
-        self,
         grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
         grouped_request_fv_refs: List[Tuple[RequestFeatureView, List[str]]],
     ) -> Tuple[Set[str], Set[str]]:
@@ -1275,8 +1221,8 @@ class FeatureStore:
                 needed_request_fv_features.add(feature.name)
         return needed_request_data, needed_request_fv_features
 
+    @staticmethod
     def ensure_request_data_values_exist(
-        self,
         needed_request_data: Set[str],
         needed_request_fv_features: Set[str],
         request_data_features: Dict[str, List[Any]],
@@ -1344,10 +1290,9 @@ class FeatureStore:
                             feature_ref
                         ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
+    @staticmethod
     def _augment_response_with_on_demand_transforms(
-        self,
         feature_refs: List[str],
-        requested_result_row_names: Set[str],
         requested_on_demand_feature_views: List[OnDemandFeatureView],
         full_feature_names: bool,
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
@@ -1355,13 +1300,11 @@ class FeatureStore:
         """Computes on demand feature values and adds them to the result rows.
 
         Assumes that 'result_rows' already contains the necessary request data and input feature
-        views for the on demand feature views. Unneeded feature values such as request data and
-        unrequested input feature views will be removed from 'result_rows'.
+        views for the on demand feature views.
 
         Args:
             feature_refs: List of all feature references to be returned.
-            requested_result_row_names: Fields from 'result_rows' that have been requested, and
-                therefore should not be dropped.
+
             requested_on_demand_feature_views: List of all odfvs that have been requested.
             full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
                 changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
@@ -1421,11 +1364,25 @@ class FeatureStore:
                         transformed_feature
                     ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
+    @staticmethod
+    def _drop_unneeded_columns(
+        requested_result_row_names: Set[str],
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues],
+    ):
+        """
+        Unneeded feature values such as request data and unrequested input feature views will
+        be removed from 'result_rows'.
+
+        Args:
+            requested_result_row_names: Fields from 'result_rows' that have been requested, and
+                    therefore should not be dropped.
+            result_rows: List of result rows to be editted inplace.
+        """
         # Drop values that aren't needed
         unneeded_features = [
             val
             for val in result_rows[0].fields
-            if val not in requested_result_row_names and val not in odfv_result_names
+            if val not in requested_result_row_names
         ]
         for row_idx in range(len(result_rows)):
             result_row = result_rows[row_idx]
@@ -1474,9 +1431,13 @@ class FeatureStore:
                         request_fvs[fv_name].with_projection(copy.copy(projection))
                     )
                 elif fv_name in od_fvs:
-                    od_fvs_to_use.append(
-                        od_fvs[fv_name].with_projection(copy.copy(projection))
-                    )
+                    odfv = od_fvs[fv_name].with_projection(copy.copy(projection))
+                    od_fvs_to_use.append(odfv)
+                    # Let's make sure to include an FVs which the ODFV requires Features from.
+                    for projection in odfv.input_feature_view_projections.values():
+                        fv = fvs[projection.name].with_projection(copy.copy(projection))
+                        if fv not in fvs_to_use:
+                            fvs_to_use.append(fv)
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
@@ -1588,21 +1549,27 @@ def _group_feature_refs(
     }
 
     # view name to feature names
-    views_features = defaultdict(list)
-    request_views_features = defaultdict(list)
+    views_features = defaultdict(set)
+    request_views_features = defaultdict(set)
     request_view_refs = set()
 
     # on demand view name to feature names
-    on_demand_view_features = defaultdict(list)
+    on_demand_view_features = defaultdict(set)
 
     for ref in features:
         view_name, feat_name = ref.split(":")
         if view_name in view_index:
-            views_features[view_name].append(feat_name)
+            views_features[view_name].add(feat_name)
         elif view_name in on_demand_view_index:
-            on_demand_view_features[view_name].append(feat_name)
+            on_demand_view_features[view_name].add(feat_name)
+            # Let's also add in any FV Feature dependencies here.
+            for input_fv_projection in on_demand_view_index[
+                view_name
+            ].input_feature_view_projections.values():
+                for input_feat in input_fv_projection.features:
+                    views_features[input_fv_projection.name].add(input_feat.name)
         elif view_name in request_view_index:
-            request_views_features[view_name].append(feat_name)
+            request_views_features[view_name].add(feat_name)
             request_view_refs.add(ref)
         else:
             raise FeatureViewNotFoundException(view_name)
@@ -1612,11 +1579,11 @@ def _group_feature_refs(
     request_fvs_result: List[Tuple[RequestFeatureView, List[str]]] = []
 
     for view_name, feature_names in views_features.items():
-        fvs_result.append((view_index[view_name], feature_names))
+        fvs_result.append((view_index[view_name], list(feature_names)))
     for view_name, feature_names in request_views_features.items():
-        request_fvs_result.append((request_view_index[view_name], feature_names))
+        request_fvs_result.append((request_view_index[view_name], list(feature_names)))
     for view_name, feature_names in on_demand_view_features.items():
-        odfvs_result.append((on_demand_view_index[view_name], feature_names))
+        odfvs_result.append((on_demand_view_index[view_name], list(feature_names)))
     return fvs_result, odfvs_result, request_fvs_result, request_view_refs
 
 
