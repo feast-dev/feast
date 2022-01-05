@@ -1,27 +1,12 @@
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Iterable, List, Set, Tuple, TypeVar
 
 from feast.base_feature_view import BaseFeatureView
+from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-
-
-@dataclass
-class PropertyDiff:
-    property_name: str
-    val_existing: str
-    val_declared: str
-
-
-class TransitionType(Enum):
-    UNKNOWN = 0
-    CREATE = 1
-    DELETE = 2
-    UPDATE = 3
-    UNCHANGED = 4
 
 
 @dataclass
