@@ -15,7 +15,7 @@ import copy
 import itertools
 import os
 import warnings
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -62,13 +62,11 @@ from feast.inference import (
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.protos.feast.serving.ServingService_pb2 import (
-    GetOnlineFeaturesRequestV2,
-    GetOnlineFeaturesResponse,
-)
+from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
@@ -1091,8 +1089,10 @@ class FeatureStore:
         provider = self._get_provider()
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
+        join_key_to_entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
+            join_key_to_entity_type_map[entity.join_key] = entity.value_type
         for feature_view in requested_feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
@@ -1107,6 +1107,7 @@ class FeatureStore:
                     entity.join_key, entity.join_key
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
+                join_key_to_entity_type_map[join_key] = entity.value_type
 
         needed_request_data, needed_request_fv_features = self.get_needed_request_data(
             grouped_odfv_refs, grouped_request_fv_refs
@@ -1146,30 +1147,49 @@ class FeatureStore:
             needed_request_data, needed_request_fv_features, request_data_features
         )
 
-        entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
+        # Convert join_key_rows from rowise to columnar.
+        join_key_python_values: Dict[str, List[Value]] = defaultdict(list)
+        for join_key_row in join_key_rows:
+            for join_key, value in join_key_row.items():
+                join_key_python_values[join_key].append(value)
 
-        union_of_entity_keys: List[EntityKeyProto] = []
-        result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
+        # Convert all join key values to Protobuf Values
+        join_key_proto_values = {
+            k: python_values_to_proto_values(v, join_key_to_entity_type_map[k])
+            for k, v in join_key_python_values.items()
+        }
 
-        for entity_row_proto in entity_row_proto_list:
-            # Create a list of entity keys to filter down for each feature view at lookup time.
-            union_of_entity_keys.append(_entity_row_to_key(entity_row_proto))
-            # Also create entity values to append to the result
-            result_rows.append(_entity_row_to_field_values(entity_row_proto))
+        # Populate result rows with join keys
+        result_rows = [
+            GetOnlineFeaturesResponse.FieldValues() for _ in range(len(entity_rows))
+        ]
+        for key, values in join_key_proto_values.items():
+            for row_idx, result_row in enumerate(result_rows):
+                result_row.fields[key].CopyFrom(values[row_idx])
+                result_row.statuses[key] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
+        # Initialize the set of EntityKeyProtos once and reuse them for each FeatureView
+        # to avoid initialization overhead.
+        entity_keys = [EntityKeyProto() for _ in range(len(join_key_rows))]
         for table, requested_features in grouped_refs:
-            table_join_keys = [
-                entity_name_to_join_key_map[entity_name]
-                for entity_name in table.entities
-            ]
+            # Get the correct set of entity values with the correct join keys.
+            entity_values = self._get_table_entity_values(
+                table, entity_name_to_join_key_map, join_key_proto_values,
+            )
+
+            # Set the EntityKeyProtos inplace.
+            self._set_table_entity_keys(
+                entity_values, entity_keys,
+            )
+
+            # Populate the result_rows with the Features from the OnlineStore inplace.
             self._populate_result_rows_from_feature_view(
-                table_join_keys,
+                entity_keys,
                 full_feature_names,
                 provider,
                 requested_features,
                 result_rows,
                 table,
-                union_of_entity_keys,
             )
 
         self._populate_request_data_features(
@@ -1187,6 +1207,43 @@ class FeatureStore:
             requested_result_row_names, result_rows,
         )
         return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
+
+    @staticmethod
+    def _get_table_entity_values(
+        table: FeatureView,
+        entity_name_to_join_key_map: Dict[str, str],
+        join_key_proto_values: Dict[str, List[Value]],
+    ) -> Dict[str, List[Value]]:
+        # The correct join_keys expected by the OnlineStore for this Feature View.
+        table_join_keys = [
+            entity_name_to_join_key_map[entity_name] for entity_name in table.entities
+        ]
+
+        # If the FeatureView has a Projection then the join keys may be aliased.
+        alias_to_join_key_map = {v: k for k, v in table.projection.join_key_map.items()}
+
+        # Subset to columns which are relevant to this FeatureView and
+        # give them the correct names.
+        entity_values = {
+            alias_to_join_key_map.get(k, k): v
+            for k, v in join_key_proto_values.items()
+            if alias_to_join_key_map.get(k, k) in table_join_keys
+        }
+        return entity_values
+
+    @staticmethod
+    def _set_table_entity_keys(
+        entity_values: Dict[str, List[Value]], entity_keys: List[EntityKeyProto],
+    ):
+        """
+        This method sets the a list of EntityKeyProtos inplace.
+        """
+        for row_idx, entity_key in enumerate(entity_keys):
+            # Make sure entity_keys are empty before setting.
+            entity_key.Clear()
+            entity_key.join_keys.extend(entity_values.keys())
+            for values in entity_values.values():
+                entity_key.entity_values.append(values[row_idx])
 
     @staticmethod
     def _populate_request_data_features(
@@ -1243,17 +1300,13 @@ class FeatureStore:
 
     def _populate_result_rows_from_feature_view(
         self,
-        table_join_keys: List[str],
+        entity_keys: List[EntityKeyProto],
         full_feature_names: bool,
         provider: Provider,
         requested_features: List[str],
         result_rows: List[GetOnlineFeaturesResponse.FieldValues],
         table: FeatureView,
-        union_of_entity_keys: List[EntityKeyProto],
     ):
-        entity_keys = _get_table_entity_keys(
-            table, union_of_entity_keys, table_join_keys
-        )
         read_rows = provider.online_read(
             config=self.config,
             table=table,
@@ -1480,22 +1533,6 @@ class FeatureStore:
         transformation_server.start_server(self, port)
 
 
-def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
-    names, values = zip(*row.fields.items())
-    return EntityKeyProto(join_keys=names, entity_values=values)
-
-
-def _entity_row_to_field_values(
-    row: GetOnlineFeaturesRequestV2.EntityRow,
-) -> GetOnlineFeaturesResponse.FieldValues:
-    result = GetOnlineFeaturesResponse.FieldValues()
-    for k in row.fields:
-        result.fields[k].CopyFrom(row.fields[k])
-        result.statuses[k] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
-
-    return result
-
-
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     collided_feature_refs = []
 
@@ -1585,46 +1622,6 @@ def _group_feature_refs(
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], list(feature_names)))
     return fvs_result, odfvs_result, request_fvs_result, request_view_refs
-
-
-def _get_table_entity_keys(
-    table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
-) -> List[EntityKeyProto]:
-    reverse_join_key_map = {
-        alias: original for original, alias in table.projection.join_key_map.items()
-    }
-    required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
-    entity_key_protos = []
-    for entity_key in entity_keys:
-        required_entities_to_values = required_entities.copy()
-        for i in range(len(entity_key.join_keys)):
-            entity_name = reverse_join_key_map.get(
-                entity_key.join_keys[i], entity_key.join_keys[i]
-            )
-            entity_value = entity_key.entity_values[i]
-
-            if entity_name in required_entities_to_values:
-                if required_entities_to_values[entity_name] is not None:
-                    raise ValueError(
-                        f"Duplicate entity keys detected. Table {table.name} expects {table_join_keys}. The entity "
-                        f"{entity_name} was provided at least twice"
-                    )
-                required_entities_to_values[entity_name] = entity_value
-
-        entity_names = []
-        entity_values = []
-        for entity_name, entity_value in required_entities_to_values.items():
-            if entity_value is None:
-                raise ValueError(
-                    f"Table {table.name} expects entity field {table_join_keys}. No entity value was found for "
-                    f"{entity_name}"
-                )
-            entity_names.append(entity_name)
-            entity_values.append(entity_value)
-        entity_key_protos.append(
-            EntityKeyProto(join_keys=entity_names, entity_values=entity_values)
-        )
-    return entity_key_protos
 
 
 def _print_materialization_log(
