@@ -26,7 +26,6 @@ from feast.protos.feast.types.Value_pb2 import Value as Value
 from feast.type_map import (
     _proto_value_to_value_type,
     _python_value_to_proto_value,
-    feast_value_type_to_python_type,
     python_values_to_feast_value_type,
 )
 from feast.value_type import ValueType
@@ -63,14 +62,34 @@ class OnlineResponse:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
+        # Status for every Feature should be present in every record.
         features_dict: Dict[str, List[Any]] = {
-            k: list() for row in self.field_values for k, _ in row.statuses.items()
+            k: list() for k in self.field_values[0].statuses.keys()
         }
+        rows = [record.fields for record in self.field_values]
 
-        for row in self.field_values:
-            for feature in features_dict.keys():
-                native_type_value = feast_value_type_to_python_type(row.fields[feature])
-                features_dict[feature].append(native_type_value)
+        # Find the first non-null instance of each Feature to determine
+        # which ValueType.
+        val_types = {k: None for k in features_dict.keys()}
+        for feature in features_dict.keys():
+            for row in rows:
+                try:
+                    val_types[feature] = row[feature].WhichOneof("val")
+                except KeyError:
+                    continue
+                if val_types[feature] is not None:
+                    break
+
+        # Now we know what attribute to fetch.
+        for feature, val_type in val_types.items():
+            if val_type is None:
+                features_dict[feature] = [None] * len(rows)
+            else:
+                for row in rows:
+                    val = getattr(row[feature], val_type)
+                    if "_list_" in val_type:
+                        val = list(val.val)
+                    features_dict[feature].append(val)
 
         return features_dict
 
