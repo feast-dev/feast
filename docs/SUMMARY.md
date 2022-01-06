@@ -16,6 +16,7 @@
   * [Feature service](getting-started/concepts/feature-service.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
+  * [Dataset](getting-started/concepts/dataset.md)
 * [Architecture](getting-started/architecture-and-components/README.md)
   * [Overview](getting-started/architecture-and-components/overview.md)
   * [Feature repository](getting-started/architecture-and-components/feature-repository.md)

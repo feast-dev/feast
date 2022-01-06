@@ -30,19 +30,24 @@ from feast.errors import (
 )
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
-from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.offline_stores.offline_store import (
+    OfflineStore,
+    RetrievalJob,
+    RetrievalMetadata,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
+from ...saved_dataset import SavedDatasetStorage
 from ...usage import log_exceptions_and_usage
-from .bigquery_source import BigQuerySource
+from .bigquery_source import BigQuerySource, SavedDatasetBigQueryStorage
 
 try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
-    from google.cloud.bigquery import Client
+    from google.cloud.bigquery import Client, Table
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -121,6 +126,36 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     @log_exceptions_and_usage(offline_store="bigquery")
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        event_timestamp_column: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> RetrievalJob:
+        assert isinstance(data_source, BigQuerySource)
+        from_expression = data_source.get_table_query_string()
+
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
+        field_string = ", ".join(
+            join_key_columns + feature_name_columns + [event_timestamp_column]
+        )
+        query = f"""
+            SELECT {field_string}
+            FROM {from_expression}
+            WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+        """
+        return BigQueryRetrievalJob(
+            query=query, client=client, config=config, full_feature_names=False,
+        )
+
+    @staticmethod
+    @log_exceptions_and_usage(offline_store="bigquery")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -147,14 +182,20 @@ class BigQueryOfflineStore(OfflineStore):
             config.offline_store.location,
         )
 
+        entity_schema = _get_entity_schema(client=client, entity_df=entity_df,)
+
+        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+            entity_schema
+        )
+
+        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+            entity_df, entity_df_event_timestamp_col, client,
+        )
+
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
-            entity_schema = _upload_entity_df_and_get_entity_schema(
+            _upload_entity_df(
                 client=client, table_name=table_reference, entity_df=entity_df,
-            )
-
-            entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-                entity_schema
             )
 
             expected_join_keys = offline_utils.get_expected_join_keys(
@@ -163,10 +204,6 @@ class BigQueryOfflineStore(OfflineStore):
 
             offline_utils.assert_expected_columns_in_entity_df(
                 entity_schema, expected_join_keys, entity_df_event_timestamp_col
-            )
-
-            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-                entity_df, entity_df_event_timestamp_col, client, table_reference,
             )
 
             # Build a query context containing all information required to template the BigQuery SQL query
@@ -203,6 +240,12 @@ class BigQueryOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
+            metadata=RetrievalMetadata(
+                features=feature_refs,
+                keys=list(entity_schema.keys() - {entity_df_event_timestamp_col}),
+                min_event_timestamp=entity_df_event_timestamp_range[0],
+                max_event_timestamp=entity_df_event_timestamp_range[1],
+            ),
         )
 
 
@@ -214,6 +257,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         config: RepoConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        metadata: Optional[RetrievalMetadata] = None,
     ):
         if not isinstance(query, str):
             self._query_generator = query
@@ -231,6 +275,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         self._on_demand_feature_views = (
             on_demand_feature_views if on_demand_feature_views else []
         )
+        self._metadata = metadata
 
     @property
     def full_feature_names(self) -> bool:
@@ -310,6 +355,17 @@ class BigQueryRetrievalJob(RetrievalJob):
         block_until_done(client=self.client, bq_job=bq_job, timeout=timeout)
         return bq_job
 
+    def persist(self, storage: SavedDatasetStorage):
+        assert isinstance(storage, SavedDatasetBigQueryStorage)
+
+        self.to_bigquery(
+            bigquery.QueryJobConfig(destination=storage.bigquery_options.table_ref)
+        )
+
+    @property
+    def metadata(self) -> Optional[RetrievalMetadata]:
+        return self._metadata
+
 
 def block_until_done(
     client: Client,
@@ -380,33 +436,44 @@ def _get_table_reference_for_new_entity(
     return f"{dataset_project}.{dataset_name}.{table_name}"
 
 
-def _upload_entity_df_and_get_entity_schema(
+def _upload_entity_df(
     client: Client, table_name: str, entity_df: Union[pd.DataFrame, str],
-) -> Dict[str, np.dtype]:
+) -> Table:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
 
     if isinstance(entity_df, str):
         job = client.query(f"CREATE TABLE {table_name} AS ({entity_df})")
-        block_until_done(client, job)
 
-        limited_entity_df = (
-            client.query(f"SELECT * FROM {table_name} LIMIT 1").result().to_dataframe()
-        )
-
-        entity_schema = dict(zip(limited_entity_df.columns, limited_entity_df.dtypes))
     elif isinstance(entity_df, pd.DataFrame):
-        # Drop the index so that we dont have unnecessary columns
+        # Drop the index so that we don't have unnecessary columns
         entity_df.reset_index(drop=True, inplace=True)
         job = client.load_table_from_dataframe(entity_df, table_name)
-        block_until_done(client, job)
-        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
     else:
         raise InvalidEntityType(type(entity_df))
+
+    block_until_done(client, job)
 
     # Ensure that the table expires after some time
     table = client.get_table(table=table_name)
     table.expires = datetime.utcnow() + timedelta(minutes=30)
     client.update_table(table, ["expires"])
+
+    return table
+
+
+def _get_entity_schema(
+    client: Client, entity_df: Union[pd.DataFrame, str]
+) -> Dict[str, np.dtype]:
+    if isinstance(entity_df, str):
+        entity_df_sample = (
+            client.query(f"SELECT * FROM ({entity_df}) LIMIT 1").result().to_dataframe()
+        )
+
+        entity_schema = dict(zip(entity_df_sample.columns, entity_df_sample.dtypes))
+    elif isinstance(entity_df, pd.DataFrame):
+        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+    else:
+        raise InvalidEntityType(type(entity_df))
 
     return entity_schema
 
@@ -415,11 +482,11 @@ def _get_entity_df_event_timestamp_range(
     entity_df: Union[pd.DataFrame, str],
     entity_df_event_timestamp_col: str,
     client: Client,
-    table_name: str,
 ) -> Tuple[datetime, datetime]:
     if type(entity_df) is str:
         job = client.query(
-            f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM {table_name}"
+            f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max "
+            f"FROM ({entity_df})"
         )
         res = next(job.result())
         entity_df_event_timestamp_range = (
@@ -435,8 +502,8 @@ def _get_entity_df_event_timestamp_range(
                 entity_df_event_timestamp, utc=True
             )
         entity_df_event_timestamp_range = (
-            entity_df_event_timestamp.min(),
-            entity_df_event_timestamp.max(),
+            entity_df_event_timestamp.min().to_pydatetime(),
+            entity_df_event_timestamp.max().to_pydatetime(),
         )
     else:
         raise InvalidEntityType(type(entity_df))

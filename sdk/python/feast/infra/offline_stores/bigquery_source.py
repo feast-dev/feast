@@ -4,7 +4,11 @@ from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.SavedDataset_pb2 import (
+    SavedDatasetStorage as SavedDatasetStorageProto,
+)
 from feast.repo_config import RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
 from feast.value_type import ValueType
 
 
@@ -204,3 +208,28 @@ class BigQueryOptions:
         )
 
         return bigquery_options_proto
+
+
+class SavedDatasetBigQueryStorage(SavedDatasetStorage):
+    _proto_attr_name = "bigquery_storage"
+
+    bigquery_options: BigQueryOptions
+
+    def __init__(self, table_ref: str):
+        self.bigquery_options = BigQueryOptions(table_ref=table_ref, query=None)
+
+    @staticmethod
+    def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
+        return SavedDatasetBigQueryStorage(
+            table_ref=BigQueryOptions.from_proto(
+                storage_proto.bigquery_storage
+            ).table_ref
+        )
+
+    def to_proto(self) -> SavedDatasetStorageProto:
+        return SavedDatasetStorageProto(
+            bigquery_storage=self.bigquery_options.to_proto()
+        )
+
+    def to_data_source(self) -> DataSource:
+        return BigQuerySource(table_ref=self.bigquery_options.table_ref)

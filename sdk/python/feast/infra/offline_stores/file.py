@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -10,7 +10,12 @@ from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
-from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.infra.offline_stores.offline_store import (
+    OfflineStore,
+    RetrievalJob,
+    RetrievalMetadata,
+)
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
@@ -20,6 +25,7 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
 
 
@@ -36,6 +42,7 @@ class FileRetrievalJob(RetrievalJob):
         evaluation_function: Callable,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        metadata: Optional[RetrievalMetadata] = None,
     ):
         """Initialize a lazy historical retrieval job"""
 
@@ -45,6 +52,7 @@ class FileRetrievalJob(RetrievalJob):
         self._on_demand_feature_views = (
             on_demand_feature_views if on_demand_feature_views else []
         )
+        self._metadata = metadata
 
     @property
     def full_feature_names(self) -> bool:
@@ -65,6 +73,27 @@ class FileRetrievalJob(RetrievalJob):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return pyarrow.Table.from_pandas(df)
+
+    def persist(self, storage: SavedDatasetStorage):
+        assert isinstance(storage, SavedDatasetFileStorage)
+
+        filesystem, path = FileSource.create_filesystem_and_path(
+            storage.file_options.file_url, storage.file_options.s3_endpoint_override,
+        )
+
+        if path.endswith(".parquet"):
+            pyarrow.parquet.write_table(
+                self._to_arrow_internal(), where=path, filesystem=filesystem
+            )
+        else:
+            # otherwise assume destination is directory
+            pyarrow.parquet.write_to_dataset(
+                self._to_arrow_internal(), root_path=path, filesystem=filesystem
+            )
+
+    @property
+    def metadata(self) -> Optional[RetrievalMetadata]:
+        return self._metadata
 
 
 class FileOfflineStore(OfflineStore):
@@ -104,6 +133,10 @@ class FileOfflineStore(OfflineStore):
             feature_refs,
             feature_views,
             registry.list_on_demand_feature_views(config.project),
+        )
+
+        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+            entity_df, entity_df_event_timestamp_col
         )
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -266,6 +299,12 @@ class FileOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
+            metadata=RetrievalMetadata(
+                features=feature_refs,
+                keys=list(set(entity_df.columns) - {entity_df_event_timestamp_col}),
+                min_event_timestamp=entity_df_event_timestamp_range[0],
+                max_event_timestamp=entity_df_event_timestamp_range[1],
+            ),
         )
         return job
 
@@ -337,3 +376,46 @@ class FileOfflineStore(OfflineStore):
         return FileRetrievalJob(
             evaluation_function=evaluate_offline_job, full_feature_names=False,
         )
+
+    @staticmethod
+    @log_exceptions_and_usage(offline_store="file")
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        event_timestamp_column: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> RetrievalJob:
+        return FileOfflineStore.pull_latest_from_table_or_query(
+            config=config,
+            data_source=data_source,
+            join_key_columns=join_key_columns
+            + [event_timestamp_column],  # avoid deduplication
+            feature_name_columns=feature_name_columns,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=None,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+
+def _get_entity_df_event_timestamp_range(
+    entity_df: Union[pd.DataFrame, str], entity_df_event_timestamp_col: str,
+) -> Tuple[datetime, datetime]:
+    if not isinstance(entity_df, pd.DataFrame):
+        raise ValueError(
+            f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
+        )
+
+    entity_df_event_timestamp = entity_df.loc[
+        :, entity_df_event_timestamp_col
+    ].infer_objects()
+    if pd.api.types.is_string_dtype(entity_df_event_timestamp):
+        entity_df_event_timestamp = pd.to_datetime(entity_df_event_timestamp, utc=True)
+
+    return (
+        entity_df_event_timestamp.min().to_pydatetime(),
+        entity_df_event_timestamp.max().to_pydatetime(),
+    )

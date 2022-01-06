@@ -77,6 +77,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
+from feast.saved_dataset import SavedDataset, SavedDatasetStorage
 from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
@@ -763,6 +764,93 @@ class FeatureStore:
         )
 
         return job
+
+    @log_exceptions_and_usage
+    def create_saved_dataset(
+        self,
+        from_: RetrievalJob,
+        name: str,
+        storage: SavedDatasetStorage,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> SavedDataset:
+        """
+            Execute provided retrieval job and persist its outcome in given storage.
+            Storage type (eg, BigQuery or Redshift) must be the same as globally configured offline store.
+            After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
+            Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
+            with the same name.
+
+            Returns:
+                SavedDataset object with attached RetrievalJob
+
+            Raises:
+                ValueError if given retrieval job doesn't have metadata
+        """
+        warnings.warn(
+            "Saving dataset is an experimental feature. "
+            "This API is unstable and it could and most probably will be changed in the future. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
+
+        if not from_.metadata:
+            raise ValueError(
+                "RetrievalJob must contains metadata. "
+                "Use RetrievalJob produced by get_historical_features"
+            )
+
+        dataset = SavedDataset(
+            name=name,
+            features=from_.metadata.features,
+            join_keys=from_.metadata.keys,
+            full_feature_names=from_.full_feature_names,
+            storage=storage,
+            tags=tags,
+        )
+
+        dataset.min_event_timestamp = from_.metadata.min_event_timestamp
+        dataset.max_event_timestamp = from_.metadata.max_event_timestamp
+
+        from_.persist(storage)
+
+        self._registry.apply_saved_dataset(dataset, self.project, commit=True)
+
+        return dataset.with_retrieval_job(
+            self._get_provider().retrieve_saved_dataset(
+                config=self.config, dataset=dataset
+            )
+        )
+
+    @log_exceptions_and_usage
+    def get_saved_dataset(self, name: str) -> SavedDataset:
+        """
+        Find a saved dataset in the registry by provided name and
+        create a retrieval job to pull whole dataset from storage (offline store).
+
+        If dataset couldn't be found by provided name SavedDatasetNotFound exception will be raised.
+
+        Data will be retrieved from globally configured offline store.
+
+        Returns:
+            SavedDataset with RetrievalJob attached
+
+        Raises:
+            SavedDatasetNotFound
+        """
+        warnings.warn(
+            "Retrieving datasets is an experimental feature. "
+            "This API is unstable and it could and most probably will be changed in the future. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
+
+        dataset = self._registry.get_saved_dataset(name, self.project)
+        provider = self._get_provider()
+
+        retrieval_job = provider.retrieve_saved_dataset(
+            config=self.config, dataset=dataset
+        )
+        return dataset.with_retrieval_job(retrieval_job)
 
     @log_exceptions_and_usage
     def materialize_incremental(
