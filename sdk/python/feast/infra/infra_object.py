@@ -26,13 +26,18 @@ class InfraObject(ABC):
     """
 
     @abstractmethod
-    def to_proto(self) -> InfraObjectProto:
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        """Converts an InfraObject to its protobuf representation, wrapped in an InfraObjectProto."""
+        pass
+
+    @abstractmethod
+    def to_proto(self) -> Any:
         """Converts an InfraObject to its protobuf representation."""
         pass
 
     @staticmethod
     @abstractmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> Any:
         """
         Returns an InfraObject created from a protobuf representation.
 
@@ -97,7 +102,7 @@ class Infra:
         """
         infra = cls()
         cls.infra_objects += [
-            InfraObject.from_proto(infra_object_proto)
+            InfraObject.from_infra_object_proto(infra_object_proto)
             for infra_object_proto in infra_proto.infra_objects
         ]
 

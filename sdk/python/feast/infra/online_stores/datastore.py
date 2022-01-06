@@ -354,7 +354,14 @@ class DatastoreTable(InfraObject):
         self.namespace = namespace
         self.client = _initialize_client(self.project_id, self.namespace)
 
-    def to_proto(self) -> InfraObjectProto:
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        datastore_table_proto = self.to_proto()
+        return InfraObjectProto(
+            infra_object_class_type="feast.infra.online_stores.datastore.DatastoreTable",
+            datastore_table=datastore_table_proto,
+        )
+
+    def to_proto(self) -> Any:
         datastore_table_proto = DatastoreTableProto()
         datastore_table_proto.project = self.project
         datastore_table_proto.name = self.name
@@ -362,14 +369,10 @@ class DatastoreTable(InfraObject):
             datastore_table_proto.project_id.FromString(bytes(self.project_id, "utf-8"))
         if self.namespace:
             datastore_table_proto.namespace.FromString(bytes(self.namespace, "utf-8"))
-
-        return InfraObjectProto(
-            infra_object_class_type="feast.infra.online_stores.datastore.DatastoreTable",
-            datastore_table=datastore_table_proto,
-        )
+        return datastore_table_proto
 
     @staticmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> DatastoreTable:
         datastore_table = DatastoreTable(
             project=infra_object_proto.datastore_table.project,
             name=infra_object_proto.datastore_table.name,

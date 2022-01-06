@@ -234,18 +234,21 @@ class DynamoDBTable(InfraObject):
         self.name = name
         self.region = region
 
-    def to_proto(self) -> InfraObjectProto:
-        dynamodb_table_proto = DynamoDBTableProto()
-        dynamodb_table_proto.name = self.name
-        dynamodb_table_proto.region = self.region
-
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        dynamodb_table_proto = self.to_proto()
         return InfraObjectProto(
             infra_object_class_type="feast.infra.online_stores.dynamodb.DynamoDBTable",
             dynamodb_table=dynamodb_table_proto,
         )
 
+    def to_proto(self) -> Any:
+        dynamodb_table_proto = DynamoDBTableProto()
+        dynamodb_table_proto.name = self.name
+        dynamodb_table_proto.region = self.region
+        return dynamodb_table_proto
+
     @staticmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> DynamoDBTable:
         return DynamoDBTable(
             name=infra_object_proto.dynamodb_table.name,
             region=infra_object_proto.dynamodb_table.region,

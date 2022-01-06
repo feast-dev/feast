@@ -241,18 +241,21 @@ class SqliteTable(InfraObject):
         self.name = name
         self.conn = _initialize_conn(path)
 
-    def to_proto(self) -> InfraObjectProto:
-        sqlite_table_proto = SqliteTableProto()
-        sqlite_table_proto.path = self.path
-        sqlite_table_proto.name = self.name
-
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        sqlite_table_proto = self.to_proto()
         return InfraObjectProto(
             infra_object_class_type="feast.infra.online_store.sqlite.SqliteTable",
             sqlite_table=sqlite_table_proto,
         )
 
+    def to_proto(self) -> Any:
+        sqlite_table_proto = SqliteTableProto()
+        sqlite_table_proto.path = self.path
+        sqlite_table_proto.name = self.name
+        return sqlite_table_proto
+
     @staticmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> SqliteTable:
         return SqliteTable(
             path=infra_object_proto.sqlite_table.path,
             name=infra_object_proto.sqlite_table.name,
