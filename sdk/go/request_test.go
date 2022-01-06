@@ -37,12 +37,12 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 					},
 				},
 				Entities: map[string]*types.RepeatedValue{
-					"entity1": &types.RepeatedValue{
+					"entity1": {
 						Val: []*types.Value{
 							Int64Val(1), Int64Val(1), Int64Val(1),
 						},
 					},
-					"entity2": &types.RepeatedValue{
+					"entity2": {
 						Val: []*types.Value{
 							StrVal("bob"), StrVal("annie"), StrVal("jane"),
 						},
