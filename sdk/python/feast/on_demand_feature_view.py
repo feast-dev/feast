@@ -17,6 +17,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureViewMeta,
     OnDemandFeatureViewSpec,
     OnDemandInput,
 )
@@ -90,6 +91,9 @@ class OnDemandFeatureView(BaseFeatureView):
         Returns:
             A OnDemandFeatureViewProto protobuf.
         """
+        meta = OnDemandFeatureViewMeta()
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
         inputs = {}
         for input_ref, fv in self.input_feature_views.items():
             inputs[input_ref] = OnDemandInput(feature_view=fv.to_proto())
@@ -107,7 +111,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ),
         )
 
-        return OnDemandFeatureViewProto(spec=spec)
+        return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
     def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto):
@@ -154,6 +158,11 @@ class OnDemandFeatureView(BaseFeatureView):
         on_demand_feature_view_obj.projection = FeatureViewProjection.from_definition(
             on_demand_feature_view_obj
         )
+
+        if on_demand_feature_view_proto.meta.HasField("created_timestamp"):
+            on_demand_feature_view_obj.created_timestamp = (
+                on_demand_feature_view_proto.meta.created_timestamp.ToDatetime()
+            )
 
         return on_demand_feature_view_obj
 

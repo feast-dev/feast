@@ -75,7 +75,6 @@ class FeatureView(BaseFeatureView):
     input: DataSource
     batch_source: DataSource
     stream_source: Optional[DataSource] = None
-    created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
 

@@ -22,6 +22,7 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "OnDemandFeatureViewProto";
 option java_package = "feast.proto.core";
 
+import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
@@ -29,6 +30,7 @@ import "feast/core/DataSource.proto";
 message OnDemandFeatureView {
     // User-specified specifications of this feature view.
     OnDemandFeatureViewSpec spec = 1;
+    OnDemandFeatureViewMeta meta = 2;
 }
 
 message OnDemandFeatureViewSpec {
@@ -45,6 +47,13 @@ message OnDemandFeatureViewSpec {
     map<string, OnDemandInput> inputs = 4;
 
     UserDefinedFunction user_defined_function = 5;
+
+
+}
+
+message OnDemandFeatureViewMeta {
+    // Time where this Feature View is created
+    google.protobuf.Timestamp created_timestamp = 1;
 }
 
 message OnDemandInput {
