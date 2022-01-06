@@ -1199,12 +1199,13 @@ class FeatureStore:
             request_data_features, result_rows,
         )
 
-        self._augment_response_with_on_demand_transforms(
-            _feature_refs,
-            requested_on_demand_feature_views,
-            full_feature_names,
-            result_rows,
-        )
+        if grouped_odfv_refs:
+            self._augment_response_with_on_demand_transforms(
+                _feature_refs,
+                requested_on_demand_feature_views,
+                full_feature_names,
+                result_rows,
+            )
 
         self._drop_unneeded_columns(
             requested_result_row_names, result_rows,
@@ -1363,9 +1364,6 @@ class FeatureStore:
                 "customer_fv__daily_transactions").
             result_rows: List of result rows to be augmented with on demand feature values.
         """
-        if len(requested_on_demand_feature_views) == 0:
-            return
-
         requested_odfv_map = {
             odfv.name: odfv for odfv in requested_on_demand_feature_views
         }
