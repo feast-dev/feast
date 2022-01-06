@@ -19,6 +19,10 @@ from feast.importer import import_class
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 
+DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
+DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
+SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_store.sqlite.SqliteTable"
+
 
 class InfraObject(ABC):
     """
@@ -51,7 +55,7 @@ class InfraObject(ABC):
             cls = _get_infra_object_class_from_type(
                 infra_object_proto.infra_object_class_type
             )
-            return cls.from_proto(infra_object_proto)
+            return cls.from_infra_object_proto(infra_object_proto)
 
         raise ValueError("Could not identify the type of the InfraObject.")
 

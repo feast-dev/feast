@@ -24,7 +24,7 @@ from pydantic.typing import Literal
 
 from feast import Entity, utils
 from feast.feature_view import FeatureView
-from feast.infra.infra_object import InfraObject
+from feast.infra.infra_object import DATASTORE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.core.DatastoreTable_pb2 import (
@@ -357,7 +357,7 @@ class DatastoreTable(InfraObject):
     def to_infra_object_proto(self) -> InfraObjectProto:
         datastore_table_proto = self.to_proto()
         return InfraObjectProto(
-            infra_object_class_type="feast.infra.online_stores.datastore.DatastoreTable",
+            infra_object_class_type=DATASTORE_INFRA_OBJECT_CLASS_TYPE,
             datastore_table=datastore_table_proto,
         )
 
@@ -366,13 +366,13 @@ class DatastoreTable(InfraObject):
         datastore_table_proto.project = self.project
         datastore_table_proto.name = self.name
         if self.project_id:
-            datastore_table_proto.project_id.FromString(bytes(self.project_id, "utf-8"))
+            datastore_table_proto.project_id.value = self.project_id
         if self.namespace:
-            datastore_table_proto.namespace.FromString(bytes(self.namespace, "utf-8"))
+            datastore_table_proto.namespace.value = self.namespace
         return datastore_table_proto
 
     @staticmethod
-    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> DatastoreTable:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> Any:
         datastore_table = DatastoreTable(
             project=infra_object_proto.datastore_table.project,
             name=infra_object_proto.datastore_table.name,
@@ -380,12 +380,12 @@ class DatastoreTable(InfraObject):
 
         if infra_object_proto.datastore_table.HasField("project_id"):
             datastore_table.project_id = (
-                infra_object_proto.datastore_table.project_id.SerializeToString()
-            ).decode("utf-8")
+                infra_object_proto.datastore_table.project_id.value
+            )
         if infra_object_proto.datastore_table.HasField("namespace"):
             datastore_table.namespace = (
-                infra_object_proto.datastore_table.namespace.SerializeToString()
-            ).decode("utf-8")
+                infra_object_proto.datastore_table.namespace.value
+            )
 
         return datastore_table
 
