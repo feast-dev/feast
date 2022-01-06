@@ -16,27 +16,14 @@
  */
 package feast.serving.it;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import feast.proto.core.RegistryProto;
 import feast.serving.config.ApplicationProperties;
 
-public class ServingRedisLocalRegistryIT extends ServingBase {
+public class ServingRedisLocalRegistryIT extends ServingBaseTests {
   @Override
   ApplicationProperties.FeastProperties createFeastProperties() {
-    final ApplicationProperties.FeastProperties feastProperties =
-        new ApplicationProperties.FeastProperties();
-    feastProperties.setRegistry("src/test/resources/docker-compose/feast10/registry.db");
-    feastProperties.setRegistryRefreshInterval(1);
-
-    feastProperties.setActiveStore("online");
-
-    feastProperties.setStores(
-        ImmutableList.of(
-            new ApplicationProperties.Store(
-                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
-
-    return feastProperties;
+    return TestUtils.createBasicFeastProperties(
+        environment.getServiceHost("redis", 6379), environment.getServicePort("redis", 6379));
   }
 
   @Override

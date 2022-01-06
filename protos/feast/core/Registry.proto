@@ -25,6 +25,7 @@ import "feast/core/Entity.proto";
 import "feast/core/FeatureService.proto";
 import "feast/core/FeatureTable.proto";
 import "feast/core/FeatureView.proto";
+import "feast/core/InfraObject.proto";
 import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/RequestFeatureView.proto";
 import "google/protobuf/timestamp.proto";
@@ -36,6 +37,7 @@ message Registry {
     repeated OnDemandFeatureView on_demand_feature_views = 8;
     repeated RequestFeatureView request_feature_views = 9;
     repeated FeatureService feature_services = 7;
+    Infra infra = 10;
 
     string registry_schema_version = 3; // to support migrations; incremented when schema is changed
     string version_id = 4; // version id, random string generated on each update of the data; now used only for debugging purposes

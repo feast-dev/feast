@@ -3,6 +3,7 @@ package feast
 import (
 	"fmt"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"strings"
 )
 
@@ -29,24 +30,44 @@ type OnlineFeaturesRequest struct {
 }
 
 // Builds the feast-specified request payload from the wrapper.
-func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequestV2, error) {
-	featureRefs, err := buildFeatureRefs(r.Features)
+func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest, error) {
+	_, err := buildFeatureRefs(r.Features)
 	if err != nil {
 		return nil, err
 	}
+    if len(r.Entities) == 0 {
+        return nil, fmt.Errorf("Entities must be provided")
+    }
+
+    firstRow := r.Entities[0]
+    columnSize := len(firstRow)
 
 	// build request entity rows from native entities
-	entityRows := make([]*serving.GetOnlineFeaturesRequestV2_EntityRow, len(r.Entities))
-	for i, entity := range r.Entities {
-		entityRows[i] = &serving.GetOnlineFeaturesRequestV2_EntityRow{
-			Fields: entity,
+	entityColumns := make(map[string][]*types.Value, columnSize)
+	for rowIdx, entityRow := range r.Entities {
+		for name, val := range entityRow {
+			if _, ok := entityColumns[name]; !ok {
+				entityColumns[name] = make([]*types.Value, len(r.Entities))
+			}
+
+			entityColumns[name][rowIdx] = val
 		}
 	}
 
-	return &serving.GetOnlineFeaturesRequestV2{
-		Features:   featureRefs,
-		EntityRows: entityRows,
-		Project:    r.Project,
+	entities := make(map[string]*types.RepeatedValue, len(entityColumns))
+	for column, values := range entityColumns {
+		entities[column] = &types.RepeatedValue{
+			Val: values,
+		}
+	}
+
+	return &serving.GetOnlineFeaturesRequest{
+		Kind: &serving.GetOnlineFeaturesRequest_Features{
+			Features: &serving.FeatureList{
+				Val: r.Features,
+			},
+		},
+		Entities: entities,
 	}, nil
 }
 
@@ -84,9 +105,9 @@ func parseFeatureRef(featureRefStr string) (*serving.FeatureReferenceV2, error) 
 	// parse featuretable if specified
 	if strings.Contains(featureRefStr, ":") {
 		refSplit := strings.Split(featureRefStr, ":")
-		featureRef.FeatureTable, featureRefStr = refSplit[0], refSplit[1]
+		featureRef.FeatureViewName, featureRefStr = refSplit[0], refSplit[1]
 	}
-	featureRef.Name = featureRefStr
+	featureRef.FeatureName = featureRefStr
 
 	return &featureRef, nil
 }

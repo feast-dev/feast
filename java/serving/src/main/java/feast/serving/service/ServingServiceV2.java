@@ -17,8 +17,6 @@
 package feast.serving.service;
 
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 
 public interface ServingServiceV2 {
   /**
@@ -36,23 +34,15 @@ public interface ServingServiceV2 {
 
   /**
    * Get features from an online serving store, given a list of {@link
-   * feast.proto.serving.ServingAPIProto.FeatureReferenceV2}s to retrieve, and list of {@link
-   * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow}s to join the
-   * retrieved values to.
-   *
-   * <p>Features can be queried across feature tables, but each {@link
-   * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow} must contain all
-   * entities for all feature tables included in the request.
+   * feast.proto.serving.ServingAPIProto.FeatureReferenceV2}s to retrieve or name of the feature
+   * service, and vectorized entities Map&lt;String, {@link
+   * feast.proto.types.ValueProto.RepeatedValue}&gt; to join the retrieved values to.
    *
    * <p>This request is fulfilled synchronously.
    *
-   * @param getFeaturesRequest {@link GetOnlineFeaturesRequestV2} containing list of {@link
-   *     feast.proto.serving.ServingAPIProto.FeatureReferenceV2}s to retrieve and list of {@link
-   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow}s to join the
-   *     retrieved values to.
-   * @return {@link GetOnlineFeaturesResponse} with list of {@link
-   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues} for each {@link
-   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow} supplied.
+   * @return {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2} with list of
+   *     {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector}.
    */
-  GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequestV2 getFeaturesRequest);
+  ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(
+      ServingAPIProto.GetOnlineFeaturesRequest getFeaturesRequest);
 }

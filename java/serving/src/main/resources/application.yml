@@ -1,4 +1,5 @@
 feast:
+  project: ""
   registry: "prompt_dory/data/registry.db"
   registryRefreshInterval: 0
 

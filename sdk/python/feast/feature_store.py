@@ -64,7 +64,10 @@ from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FieldStatus,
+    GetOnlineFeaturesResponse,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value
 from feast.registry import Registry
@@ -1166,7 +1169,7 @@ class FeatureStore:
         for key, values in join_key_proto_values.items():
             for row_idx, result_row in enumerate(result_rows):
                 result_row.fields[key].CopyFrom(values[row_idx])
-                result_row.statuses[key] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                result_row.statuses[key] = FieldStatus.PRESENT
 
         # Initialize the set of EntityKeyProtos once and reuse them for each FeatureView
         # to avoid initialization overhead.
@@ -1259,9 +1262,7 @@ class FeatureStore:
             for row_idx, proto_value in enumerate(proto_values):
                 result_row = result_rows[row_idx]
                 result_row.fields[feature_name].CopyFrom(proto_value)
-                result_row.statuses[
-                    feature_name
-                ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                result_row.statuses[feature_name] = FieldStatus.PRESENT
 
     @staticmethod
     def get_needed_request_data(
@@ -1325,9 +1326,7 @@ class FeatureStore:
                         if full_feature_names
                         else feature_name
                     )
-                    result_row.statuses[
-                        feature_ref
-                    ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
+                    result_row.statuses[feature_ref] = FieldStatus.NOT_FOUND
             else:
                 for feature_name in feature_data:
                     feature_ref = (
@@ -1339,9 +1338,7 @@ class FeatureStore:
                         result_row.fields[feature_ref].CopyFrom(
                             feature_data[feature_name]
                         )
-                        result_row.statuses[
-                            feature_ref
-                        ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                        result_row.statuses[feature_ref] = FieldStatus.PRESENT
 
     @staticmethod
     def _augment_response_with_on_demand_transforms(
@@ -1413,9 +1410,7 @@ class FeatureStore:
                     result_row.fields[transformed_feature].CopyFrom(
                         proto_values_by_column[transformed_feature][row_idx]
                     )
-                    result_row.statuses[
-                        transformed_feature
-                    ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                    result_row.statuses[transformed_feature] = FieldStatus.PRESENT
 
     @staticmethod
     def _drop_unneeded_columns(

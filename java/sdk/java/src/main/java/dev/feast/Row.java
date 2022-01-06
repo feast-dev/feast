@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast;
+package dev.feast;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
+import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.Value.ValCase;
 import java.time.Instant;

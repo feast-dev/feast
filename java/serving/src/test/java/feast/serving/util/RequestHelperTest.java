@@ -16,39 +16,40 @@
  */
 package feast.serving.util;
 
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
+import feast.proto.serving.ServingAPIProto;
 import org.junit.Test;
 
 public class RequestHelperTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldErrorIfEntityRowEmpty() {
-    FeatureReferenceV2 featureReference =
-        FeatureReferenceV2.newBuilder()
-            .setFeatureTable("featuretablename")
-            .setName("featurename")
+
+    ServingAPIProto.GetOnlineFeaturesRequest getOnlineFeaturesRequest =
+        ServingAPIProto.GetOnlineFeaturesRequest.newBuilder()
+            .setFeatures(
+                ServingAPIProto.FeatureList.newBuilder().addVal("view:featurename").build())
             .build();
-    GetOnlineFeaturesRequestV2 getOnlineFeaturesRequestV2 =
-        GetOnlineFeaturesRequestV2.newBuilder().addFeatures(featureReference).build();
-    RequestHelper.validateOnlineRequest(getOnlineFeaturesRequestV2);
+
+    RequestHelper.validateOnlineRequest(getOnlineFeaturesRequest);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldErrorIfFeatureReferenceTableEmpty() {
-    FeatureReferenceV2 featureReference =
-        FeatureReferenceV2.newBuilder().setName("featurename").build();
-    GetOnlineFeaturesRequestV2 getOnlineFeaturesRequestV2 =
-        GetOnlineFeaturesRequestV2.newBuilder().addFeatures(featureReference).build();
-    RequestHelper.validateOnlineRequest(getOnlineFeaturesRequestV2);
+    ServingAPIProto.GetOnlineFeaturesRequest getOnlineFeaturesRequest =
+        ServingAPIProto.GetOnlineFeaturesRequest.newBuilder()
+            .setFeatures(ServingAPIProto.FeatureList.newBuilder().addVal("featurename").build())
+            .build();
+
+    RequestHelper.validateOnlineRequest(getOnlineFeaturesRequest);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldErrorIfFeatureReferenceNameEmpty() {
-    FeatureReferenceV2 featureReference =
-        FeatureReferenceV2.newBuilder().setFeatureTable("featuretablename").build();
-    GetOnlineFeaturesRequestV2 getOnlineFeaturesRequestV2 =
-        GetOnlineFeaturesRequestV2.newBuilder().addFeatures(featureReference).build();
-    RequestHelper.validateOnlineRequest(getOnlineFeaturesRequestV2);
+    ServingAPIProto.GetOnlineFeaturesRequest getOnlineFeaturesRequest =
+        ServingAPIProto.GetOnlineFeaturesRequest.newBuilder()
+            .setFeatures(ServingAPIProto.FeatureList.newBuilder().addVal("view").build())
+            .build();
+
+    RequestHelper.validateOnlineRequest(getOnlineFeaturesRequest);
   }
 }

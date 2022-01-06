@@ -42,6 +42,7 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
@@ -222,6 +223,36 @@ class Registry:
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
             self._registry_store.update_registry_proto(registry_proto)
 
+    def update_infra(self, infra: Infra, project: str, commit: bool = True):
+        """
+        Updates the stored Infra object.
+
+        Args:
+            infra: The new Infra object to be stored.
+            project: Feast project that the Infra object refers to
+            commit: Whether the change should be persisted immediately
+        """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        self.cached_registry_proto.infra.CopyFrom(infra.to_proto())
+        if commit:
+            self.commit()
+
+    def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
+        """
+        Retrieves the stored Infra object.
+
+        Args:
+            project: Feast project that the Infra object refers to
+            allow_cache: Whether to allow returning this entity from a cached registry
+
+        Returns:
+            The stored Infra object.
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        return Infra.from_proto(registry_proto.infra)
+
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         """
         Registers a single entity with Feast
@@ -374,6 +405,8 @@ class Registry:
             commit: Whether the change should be persisted immediately
         """
         feature_view.ensure_valid()
+        if not feature_view.created_timestamp:
+            feature_view.created_timestamp = datetime.now()
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()

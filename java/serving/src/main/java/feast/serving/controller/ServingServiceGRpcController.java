@@ -19,11 +19,9 @@ package feast.serving.controller;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.config.ApplicationProperties;
 import feast.serving.exception.SpecRetrievalException;
-import feast.serving.interceptors.GrpcMonitoringContext;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
@@ -60,22 +58,19 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   }
 
   @Override
-  public void getOnlineFeaturesV2(
-      ServingAPIProto.GetOnlineFeaturesRequestV2 request,
-      StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+  public void getOnlineFeatures(
+      ServingAPIProto.GetOnlineFeaturesRequest request,
+      StreamObserver<ServingAPIProto.GetOnlineFeaturesResponseV2> responseObserver) {
     try {
       // authorize for the project in request object.
-      request.getProject();
-      if (!request.getProject().isEmpty()) {
-        // update monitoring context
-        GrpcMonitoringContext.getInstance().setProject(request.getProject());
-      }
       RequestHelper.validateOnlineRequest(request);
       Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
-      GetOnlineFeaturesResponse onlineFeatures = servingServiceV2.getOnlineFeatures(request);
+      ServingAPIProto.GetOnlineFeaturesResponseV2 onlineFeatures =
+          servingServiceV2.getOnlineFeatures(request);
       if (span != null) {
         span.finish();
       }
+
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
     } catch (SpecRetrievalException e) {

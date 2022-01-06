@@ -56,8 +56,56 @@ driver_hourly_stats_view = FeatureView(
     tags={},
 )
 
+
+# For Benchmarks
+# Please read more in Feast RFC-031 (link https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)
+# about this benchmark setup
+def generate_data(num_rows: int, num_features: int, key_space: int, destination: str) -> pd.DataFrame:
+    features = [f"feature_{i}" for i in range(num_features)]
+    columns = ["entity", "event_timestamp"] + features
+    df = pd.DataFrame(0, index=np.arange(num_rows), columns=columns)
+    df["event_timestamp"] = datetime.utcnow()
+    for column in ["entity"] + features:
+        df[column] = np.random.randint(1, key_space, num_rows)
+
+    df.to_parquet(destination)
+
+generate_data(10**3, 250, 10**3, "benchmark_data.parquet")
+
+generated_data_source = FileSource(
+    path="benchmark_data.parquet",
+    event_timestamp_column="event_timestamp",
+)
+
+entity = Entity(
+    name="entity",
+    value_type=ValueType.INT64,
+)
+
+benchmark_feature_views = [
+    FeatureView(
+        name=f"feature_view_{i}",
+        entities=["entity"],
+        ttl=Duration(seconds=86400),
+        features=[
+            Feature(name=f"feature_{10 * i + j}", dtype=ValueType.INT64)
+            for j in range(10)
+        ],
+        online=True,
+        batch_source=generated_data_source,
+    )
+    for i in range(25)
+]
+
+benchmark_feature_service = FeatureService(
+    name=f"benchmark_feature_service",
+    features=benchmark_feature_views,
+)
+
+
 fs = FeatureStore(".")
-fs.apply([driver_hourly_stats_view, driver])
+fs.apply([driver_hourly_stats_view, driver,
+          entity, benchmark_feature_service, *benchmark_feature_views])
 
 now = datetime.now()
 fs.materialize(start, now)

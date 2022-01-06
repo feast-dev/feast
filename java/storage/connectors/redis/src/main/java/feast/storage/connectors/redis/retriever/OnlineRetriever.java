@@ -19,6 +19,7 @@ package feast.storage.connectors.redis.retriever;
 import com.google.common.collect.Lists;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.storage.RedisProto;
+import feast.proto.types.ValueProto;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import feast.storage.connectors.redis.common.RedisHashDecoder;
@@ -38,52 +39,52 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
   private static final String timestampPrefix = "_ts";
   private final RedisClientAdapter redisClientAdapter;
   private final EntityKeySerializer keySerializer;
+  private final String project;
 
   // Number of fields in request to Redis which requires using HGETALL instead of HMGET
   public static final int HGETALL_NUMBER_OF_FIELDS_THRESHOLD = 50;
 
-  public OnlineRetriever(RedisClientAdapter redisClientAdapter, EntityKeySerializer keySerializer) {
+  public OnlineRetriever(
+      String project, RedisClientAdapter redisClientAdapter, EntityKeySerializer keySerializer) {
+    this.project = project;
     this.redisClientAdapter = redisClientAdapter;
     this.keySerializer = keySerializer;
   }
 
   @Override
-  public List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> getOnlineFeatures(
-      String project,
-      List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows,
+  public List<List<Feature>> getOnlineFeatures(
+      List<Map<String, ValueProto.Value>> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
       List<String> entityNames) {
 
-    List<RedisProto.RedisKeyV2> redisKeys = RedisKeyGenerator.buildRedisKeys(project, entityRows);
+    List<RedisProto.RedisKeyV2> redisKeys =
+        RedisKeyGenerator.buildRedisKeys(this.project, entityRows);
     return getFeaturesFromRedis(redisKeys, featureReferences);
   }
 
-  private List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> getFeaturesFromRedis(
+  private List<List<Feature>> getFeaturesFromRedis(
       List<RedisProto.RedisKeyV2> redisKeys,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
-    List<List<Feature>> features = new ArrayList<>();
-    // To decode bytes back to Feature Reference
-    Map<ByteBuffer, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap = new HashMap<>();
+    // To decode bytes back to Feature
+    Map<ByteBuffer, Integer> byteToFeatureIdxMap = new HashMap<>();
 
     // Serialize using proto
     List<byte[]> binaryRedisKeys =
         redisKeys.stream().map(this.keySerializer::serialize).collect(Collectors.toList());
 
     List<byte[]> retrieveFields = new ArrayList<>();
-    featureReferences.stream()
-        .forEach(
-            featureReference -> {
+    for (int idx = 0;
+        idx < featureReferences.size();
+        idx++) { // eg. murmur(<featuretable_name:feature_name>)
+      byte[] featureReferenceBytes =
+          RedisHashDecoder.getFeatureReferenceRedisHashKeyBytes(featureReferences.get(idx));
+      retrieveFields.add(featureReferenceBytes);
 
-              // eg. murmur(<featuretable_name:feature_name>)
-              byte[] featureReferenceBytes =
-                  RedisHashDecoder.getFeatureReferenceRedisHashKeyBytes(featureReference);
-              retrieveFields.add(featureReferenceBytes);
-              byteToFeatureReferenceMap.put(
-                  ByteBuffer.wrap(featureReferenceBytes), featureReference);
-            });
+      byteToFeatureIdxMap.put(ByteBuffer.wrap(featureReferenceBytes), idx);
+    }
 
     featureReferences.stream()
-        .map(ServingAPIProto.FeatureReferenceV2::getFeatureTable)
+        .map(ServingAPIProto.FeatureReferenceV2::getFeatureViewName)
         .distinct()
         .forEach(
             table -> {
@@ -121,12 +122,12 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
       }
     }
 
-    List<Map<ServingAPIProto.FeatureReferenceV2, Feature>> results =
-        Lists.newArrayListWithExpectedSize(futures.size());
+    List<List<Feature>> results = Lists.newArrayListWithExpectedSize(futures.size());
     for (Future<Map<byte[], byte[]>> f : futures) {
       try {
         results.add(
-            RedisHashDecoder.retrieveFeature(f.get(), byteToFeatureReferenceMap, timestampPrefix));
+            RedisHashDecoder.retrieveFeature(
+                f.get(), byteToFeatureIdxMap, featureReferences, timestampPrefix));
       } catch (InterruptedException | ExecutionException e) {
         throw new RuntimeException("Unexpected error when pulling data from Redis");
       }

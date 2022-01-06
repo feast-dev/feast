@@ -39,12 +39,12 @@ public class AuditLogEntryTest {
             .addAllFeatures(
                 Arrays.asList(
                     FeatureReferenceV2.newBuilder()
-                        .setFeatureTable("featuretable_1")
-                        .setName("feature1")
+                        .setFeatureViewName("featuretable_1")
+                        .setFeatureName("feature1")
                         .build(),
                     FeatureReferenceV2.newBuilder()
-                        .setFeatureTable("featuretable_1")
-                        .setName("feature2")
+                        .setFeatureViewName("featuretable_1")
+                        .setFeatureName("feature2")
                         .build()))
             .build();
 

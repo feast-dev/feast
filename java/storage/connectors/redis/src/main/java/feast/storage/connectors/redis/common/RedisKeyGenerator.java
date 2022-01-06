@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class RedisKeyGenerator {
 
   public static List<RedisProto.RedisKeyV2> buildRedisKeys(
-      String project, List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows) {
+      String project, List<Map<String, ValueProto.Value>> entityRows) {
     List<RedisProto.RedisKeyV2> redisKeys =
         entityRows.stream()
             .map(entityRow -> makeRedisKey(project, entityRow))
@@ -45,17 +45,16 @@ public class RedisKeyGenerator {
    * @return {@link RedisProto.RedisKeyV2}
    */
   private static RedisProto.RedisKeyV2 makeRedisKey(
-      String project, ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow entityRow) {
+      String project, Map<String, ValueProto.Value> entityRow) {
     RedisProto.RedisKeyV2.Builder builder = RedisProto.RedisKeyV2.newBuilder().setProject(project);
-    Map<String, ValueProto.Value> fieldsMap = entityRow.getFieldsMap();
-    List<String> entityNames = new ArrayList<>(new HashSet<>(fieldsMap.keySet()));
+    List<String> entityNames = new ArrayList<>(new HashSet<>(entityRow.keySet()));
 
     // Sort entity names by alphabetical order
     entityNames.sort(String::compareTo);
 
     for (String entityName : entityNames) {
       builder.addEntityNames(entityName);
-      builder.addEntityValues(fieldsMap.get(entityName));
+      builder.addEntityValues(entityRow.get(entityName));
     }
     return builder.build();
   }

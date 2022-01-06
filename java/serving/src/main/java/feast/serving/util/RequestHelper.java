@@ -16,27 +16,28 @@
  */
 package feast.serving.util;
 
+import feast.common.models.Feature;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 
 public class RequestHelper {
 
-  public static void validateOnlineRequest(GetOnlineFeaturesRequestV2 request) {
+  public static void validateOnlineRequest(ServingAPIProto.GetOnlineFeaturesRequest request) {
     // All EntityRows should not be empty
-    if (request.getEntityRowsCount() <= 0) {
+    if (request.getEntitiesCount() <= 0) {
       throw new IllegalArgumentException("Entity value must be provided");
     }
     // All FeatureReferences should have FeatureTable name and Feature name
-    for (FeatureReferenceV2 featureReference : request.getFeaturesList()) {
-      validateOnlineRequestFeatureReference(featureReference);
+    for (String featureReference : request.getFeatures().getValList()) {
+      validateOnlineRequestFeatureReference(Feature.parseFeatureReference(featureReference));
     }
   }
 
   public static void validateOnlineRequestFeatureReference(FeatureReferenceV2 featureReference) {
-    if (featureReference.getFeatureTable().isEmpty()) {
+    if (featureReference.getFeatureViewName().isEmpty()) {
       throw new IllegalArgumentException("FeatureTable name must be provided in FeatureReference");
     }
-    if (featureReference.getName().isEmpty()) {
+    if (featureReference.getFeatureName().isEmpty()) {
       throw new IllegalArgumentException("Feature name must be provided in FeatureReference");
     }
   }

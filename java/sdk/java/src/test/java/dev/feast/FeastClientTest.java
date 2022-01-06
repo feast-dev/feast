@@ -14,20 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast;
+package dev.feast;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.Timestamp;
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.FieldStatus;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.*;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -56,9 +55,9 @@ public class FeastClientTest {
           delegatesTo(
               new ServingServiceImplBase() {
                 @Override
-                public void getOnlineFeaturesV2(
-                    GetOnlineFeaturesRequestV2 request,
-                    StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+                public void getOnlineFeatures(
+                    GetOnlineFeaturesRequest request,
+                    StreamObserver<GetOnlineFeaturesResponseV2> responseObserver) {
                   if (!request.equals(FeastClientTest.getFakeRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
@@ -125,35 +124,46 @@ public class FeastClientTest {
         });
   }
 
-  private static GetOnlineFeaturesRequestV2 getFakeRequest() {
+  private static GetOnlineFeaturesRequest getFakeRequest() {
     // setup mock serving service stub
-    return GetOnlineFeaturesRequestV2.newBuilder()
-        .addFeatures(
-            FeatureReferenceV2.newBuilder().setFeatureTable("driver").setName("name").build())
-        .addFeatures(
-            FeatureReferenceV2.newBuilder().setFeatureTable("driver").setName("rating").build())
-        .addFeatures(
-            FeatureReferenceV2.newBuilder().setFeatureTable("driver").setName("null_value").build())
-        .addEntityRows(
-            EntityRow.newBuilder()
-                .setTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .putFields("driver_id", intValue(1)))
-        .setProject("driver_project")
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatures(
+            ServingAPIProto.FeatureList.newBuilder()
+                .addVal("driver:name")
+                .addVal("driver:rating")
+                .addVal("driver:null_value")
+                .build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
         .build();
   }
 
-  private static GetOnlineFeaturesResponse getFakeResponse() {
-    return GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(
-            FieldValues.newBuilder()
-                .putFields("driver_id", intValue(1))
-                .putStatuses("driver_id", FieldStatus.PRESENT)
-                .putFields("driver:name", strValue("david"))
-                .putStatuses("driver:name", FieldStatus.PRESENT)
-                .putFields("driver:rating", intValue(3))
-                .putStatuses("driver:rating", FieldStatus.PRESENT)
-                .putFields("driver:null_value", Value.newBuilder().build())
-                .putStatuses("driver:null_value", FieldStatus.NULL_VALUE)
+  private static GetOnlineFeaturesResponseV2 getFakeResponse() {
+    return GetOnlineFeaturesResponseV2.newBuilder()
+        .addResults(
+            GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                .addValues(strValue("david"))
+                .addStatuses(FieldStatus.PRESENT)
+                .addEventTimestamps(Timestamp.newBuilder())
+                .build())
+        .addResults(
+            GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                .addValues(intValue(3))
+                .addStatuses(FieldStatus.PRESENT)
+                .addEventTimestamps(Timestamp.newBuilder())
+                .build())
+        .addResults(
+            GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                .addValues(Value.newBuilder().build())
+                .addStatuses(FieldStatus.NULL_VALUE)
+                .addEventTimestamps(Timestamp.newBuilder())
+                .build())
+        .setMetadata(
+            ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+                .setFeatureNames(
+                    ServingAPIProto.FeatureList.newBuilder()
+                        .addVal("driver:name")
+                        .addVal("driver:rating")
+                        .addVal("driver:null_value"))
                 .build())
         .build();
   }

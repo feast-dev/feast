@@ -20,8 +20,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.storage.*;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import feast.proto.core.RegistryProto;
 import feast.serving.config.ApplicationProperties;
 import java.util.concurrent.ExecutionException;
@@ -29,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
-public class ServingRedisGSRegistryIT extends ServingBase {
+public class ServingRedisGSRegistryIT extends ServingBaseTests {
   static Storage storage =
       RemoteStorageHelper.create()
           .getOptions()
@@ -64,16 +62,9 @@ public class ServingRedisGSRegistryIT extends ServingBase {
   @Override
   ApplicationProperties.FeastProperties createFeastProperties() {
     final ApplicationProperties.FeastProperties feastProperties =
-        new ApplicationProperties.FeastProperties();
+        TestUtils.createBasicFeastProperties(
+            environment.getServiceHost("redis", 6379), environment.getServicePort("redis", 6379));
     feastProperties.setRegistry(blobId.toGsUtilUri());
-    feastProperties.setRegistryRefreshInterval(1);
-
-    feastProperties.setActiveStore("online");
-
-    feastProperties.setStores(
-        ImmutableList.of(
-            new ApplicationProperties.Store(
-                "online", "REDIS", ImmutableMap.of("host", "localhost", "port", "6379"))));
 
     return feastProperties;
   }

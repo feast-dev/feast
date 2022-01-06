@@ -29,8 +29,8 @@ service ServingService {
     // Get information about this Feast serving.
     rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
 
-    // Get online features (v2) synchronously.
-    rpc GetOnlineFeaturesV2 (GetOnlineFeaturesRequestV2) returns (GetOnlineFeaturesResponse);
+    // Get online features synchronously.
+    rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponseV2);
 }
 
 message GetFeastServingInfoRequest {}
@@ -38,24 +38,17 @@ message GetFeastServingInfoRequest {}
 message GetFeastServingInfoResponse {
     // Feast version of this serving deployment.
     string version = 1;
-
-    // Type of serving deployment, either ONLINE or BATCH. Different store types support different
-    // feature retrieval methods.
-    FeastServingType type = 2;
-
-    // Note: Batch specific options start from 10.
-    // Staging location for this serving store, if any.
-    string job_staging_location = 10;
 }
 
 message FeatureReferenceV2 {
-    // Name of the Feature Table to retrieve the feature from.
-    string feature_table = 1;
+    // Name of the Feature View to retrieve the feature from.
+    string feature_view_name = 1;
 
     // Name of the Feature to retrieve the feature from.
-    string name = 2;
+    string feature_name = 2;
 }
 
+// ToDo (oleksii): remove this message (since it's not used) and move EntityRow on package level
 message GetOnlineFeaturesRequestV2 {
     // List of features that are being retrieved
     repeated FeatureReferenceV2 features = 4;
@@ -94,6 +87,11 @@ message GetOnlineFeaturesRequest {
     // A map of entity name -> list of values
     map<string, feast.types.RepeatedValue> entities = 3;
     bool full_feature_names = 4;
+
+    // Context for OnDemand Feature Transformation
+    // (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
+    // A map of variable name -> list of values
+    map<string, feast.types.RepeatedValue> request_context = 5;
 }
 
 message GetOnlineFeaturesResponse {
@@ -107,35 +105,43 @@ message GetOnlineFeaturesResponse {
         // Map of feature or entity name to feature/entity statuses/metadata.
         map<string, FieldStatus> statuses = 2;
     }
-   
-    enum FieldStatus {
-        // Status is unset for this field.
-        INVALID = 0;
+}
 
-        // Field value is present for this field and age is within max age.
-        PRESENT = 1;
+message GetOnlineFeaturesResponseV2 {
+    GetOnlineFeaturesResponseMetadata metadata = 1;
 
-        // Values could be found for entity key and age is within max age, but
-        // this field value is assigned a value on ingestion into feast.
-        NULL_VALUE = 2;
+    // Length of "results" array should match length of requested features.
+    // We also preserve the same order of features here as in metadata.feature_names
+    repeated FeatureVector results = 2;
 
-        // Entity key did not return any values as they do not exist in Feast.
-        // This could suggest that the feature values have not yet been ingested
-        // into feast or the ingestion failed.
-        NOT_FOUND = 3;
-
-        // Values could be found for entity key, but field values are outside the maximum 
-        // allowable range.
-        OUTSIDE_MAX_AGE = 4;
+    message FeatureVector {
+        repeated feast.types.Value values = 1;
+        repeated FieldStatus statuses = 2;
+        repeated google.protobuf.Timestamp event_timestamps = 3;
     }
 }
 
-enum FeastServingType {
-    FEAST_SERVING_TYPE_INVALID = 0;
-    // Online serving receives entity data directly and synchronously and will
-    // respond immediately.
-    FEAST_SERVING_TYPE_ONLINE = 1;
-    // Batch serving receives entity data asynchronously and orchestrates the
-    // retrieval through a staging location.
-    FEAST_SERVING_TYPE_BATCH = 2;
+message GetOnlineFeaturesResponseMetadata {
+    FeatureList feature_names = 1;
+}
+
+enum FieldStatus {
+    // Status is unset for this field.
+    INVALID = 0;
+
+    // Field value is present for this field and age is within max age.
+    PRESENT = 1;
+
+    // Values could be found for entity key and age is within max age, but
+    // this field value is assigned a value on ingestion into feast.
+    NULL_VALUE = 2;
+
+    // Entity key did not return any values as they do not exist in Feast.
+    // This could suggest that the feature values have not yet been ingested
+    // into feast or the ingestion failed.
+    NOT_FOUND = 3;
+
+    // Values could be found for entity key, but field values are outside the maximum
+    // allowable range.
+    OUTSIDE_MAX_AGE = 4;
 }
