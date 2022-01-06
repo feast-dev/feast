@@ -7,6 +7,7 @@ import pyarrow
 from google.protobuf.json_format import MessageToJson
 
 from feast.data_source import DataSource
+from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -60,6 +61,8 @@ class SavedDataset:
     min_event_timestamp: Optional[datetime] = None
     max_event_timestamp: Optional[datetime] = None
 
+    _retrieval_job: Optional["RetrievalJob"] = None
+
     def __init__(
         self,
         name: str,
@@ -75,6 +78,8 @@ class SavedDataset:
         self.storage = storage
         self.full_feature_names = full_feature_names
         self.tags = tags or {}
+
+        self._retrieval_job = None
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -183,3 +188,18 @@ class SavedDataset:
             )
 
         return self._retrieval_job.to_arrow()
+
+    def as_reference(self, profiler: "Profiler") -> "ValidationReference":
+        return ValidationReference(profiler=profiler, dataset=self)
+
+    def get_profile(self, profiler: Profiler) -> Profile:
+        return profiler.analyze_dataset(self.to_df())
+
+
+class ValidationReference:
+    dataset: SavedDataset
+    profiler: Profiler
+
+    def __init__(self, dataset: SavedDataset, profiler: Profiler):
+        self.dataset = dataset
+        self.profiler = profiler

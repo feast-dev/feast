@@ -41,6 +41,7 @@ from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
+from feast.dqm.utils import RetrievalJobWithValidation
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -78,7 +79,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
-from feast.saved_dataset import SavedDataset, SavedDatasetStorage
+from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
@@ -709,6 +710,7 @@ class FeatureStore:
         entity_df: Union[pd.DataFrame, str],
         features: Union[List[str], FeatureService],
         full_feature_names: bool = False,
+        validation_reference: Optional[ValidationReference] = None,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -734,6 +736,7 @@ class FeatureStore:
             full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
                 changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
                 "customer_fv__daily_transactions"). By default, this value is set to False.
+            validation_reference: If provided resulting dataset will be validated against this reference profile.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -822,6 +825,11 @@ class FeatureStore:
             self.project,
             full_feature_names,
         )
+
+        if validation_reference:
+            job = RetrievalJobWithValidation(
+                job, validation_reference, feature_store=self
+            )
 
         return job
 

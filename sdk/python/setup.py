@@ -90,6 +90,10 @@ SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3",
 ]
 
+DQM_REQUIRED = [
+    "great_expectations>=0.14.0"
+]
+
 CI_REQUIRED = (
     [
         "cryptography==3.3.2",
@@ -135,6 +139,7 @@ CI_REQUIRED = (
     + REDIS_REQUIRED
     + AWS_REQUIRED
     + SNOWFLAKE_REQUIRED
+    + DQM_REQUIRED
 )
 
 DEV_REQUIRED = ["mypy-protobuf>=3.1.0", "grpcio-testing==1.*"] + CI_REQUIRED
@@ -236,7 +241,8 @@ setup(
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
-        "snowflake": SNOWFLAKE_REQUIRED
+        "snowflake": SNOWFLAKE_REQUIRED,
+        "dqm": DQM_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
