@@ -1241,12 +1241,14 @@ class FeatureStore:
         """
         This method sets the a list of EntityKeyProtos inplace.
         """
-        for row_idx, entity_key in enumerate(entity_keys):
+        keys = entity_values.keys()
+        # Columar to rowise (dict keys and values are guaranteed to have the same order).
+        rowise_values = zip(*entity_values.values())
+        for entity_key in entity_keys:
             # Make sure entity_keys are empty before setting.
             entity_key.Clear()
-            entity_key.join_keys.extend(entity_values.keys())
-            for values in entity_values.values():
-                entity_key.entity_values.append(values[row_idx])
+            entity_key.join_keys.extend(keys)
+            entity_key.entity_values.extend(next(rowise_values))
 
     @staticmethod
     def _populate_request_data_features(
