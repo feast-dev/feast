@@ -200,7 +200,6 @@ googleapis-common-protos==1.52.0
     #   tensorflow-metadata
 grpcio==1.42.0
     # via
-    #   feast (setup.py)
     #   google-api-core
     #   google-cloud-bigquery
     #   grpcio-reflection
