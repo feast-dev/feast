@@ -211,14 +211,14 @@ def test_3rd_party_providers() -> None:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import Provider module 'feast_foo'"
+            b"Could not import module 'feast_foo' while attempting to load class 'Provider'"
         )
     # Check with incorrect third-party provider name (with dots)
     with setup_third_party_provider_repo("foo.FooProvider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import Provider 'FooProvider' from module 'foo'"
+            b"Could not import class 'FooProvider' from module 'foo'"
         )
     # Check with correct third-party provider name
     with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:
@@ -243,14 +243,14 @@ def test_3rd_party_registry_store() -> None:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import RegistryStore module 'feast_foo'"
+            b"Could not import module 'feast_foo' while attempting to load class 'RegistryStore'"
         )
     # Check with incorrect third-party registry store name (with dots)
     with setup_third_party_registry_store_repo("foo.FooRegistryStore") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(1)
         assertpy.assert_that(output).contains(
-            b"Could not import RegistryStore 'FooRegistryStore' from module 'foo'"
+            b"Could not import class 'FooRegistryStore' from module 'foo'"
         )
     # Check with correct third-party registry store name
     with setup_third_party_registry_store_repo(
