@@ -14,7 +14,7 @@ from feast.errors import (
     FeastEntityDFMissingColumnsError,
 )
 from feast.feature_view import FeatureView
-from feast.importer import get_class_from_module
+from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
 from feast.registry import Registry
@@ -207,7 +207,7 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
     module_name = offline_store_config.__module__
     qualified_name = type(offline_store_config).__name__
     class_name = qualified_name.replace("Config", "")
-    offline_store_class = get_class_from_module(
+    offline_store_class = import_class(
         module_name, class_name, class_type="OfflineStore"
     )
     return offline_store_class()

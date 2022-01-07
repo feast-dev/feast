@@ -3,7 +3,7 @@ from typing import Any, List
 
 import mmh3
 
-from feast.importer import get_class_from_module
+from feast.importer import import_class
 from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_entity_key_prefix,
@@ -17,9 +17,7 @@ def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
     module_name = online_store_config.__module__
     qualified_name = type(online_store_config).__name__
     class_name = qualified_name.replace("Config", "")
-    online_store_class = get_class_from_module(
-        module_name, class_name, class_type="OnlineStore"
-    )
+    online_store_class = import_class(module_name, class_name, class_type="OnlineStore")
     return online_store_class()
 
 

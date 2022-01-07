@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, List
 
-from feast.importer import get_class_from_module
+from feast.importer import import_class
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 
@@ -106,4 +106,4 @@ class Infra:
 
 def _get_infra_object_class_from_type(infra_object_class_type: str):
     module_name, infra_object_class_name = infra_object_class_type.rsplit(".", 1)
-    return get_class_from_module(module_name, infra_object_class_name, "Object")
+    return import_class(module_name, infra_object_class_name, "Object")

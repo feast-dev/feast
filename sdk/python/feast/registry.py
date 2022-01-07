@@ -41,7 +41,7 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
-from feast.importer import get_class_from_module
+from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -75,9 +75,7 @@ def get_registry_store_class_from_type(registry_store_type: str):
         registry_store_type = REGISTRY_STORE_CLASS_FOR_TYPE[registry_store_type]
     module_name, registry_store_class_name = registry_store_type.rsplit(".", 1)
 
-    return get_class_from_module(
-        module_name, registry_store_class_name, "RegistryStore"
-    )
+    return import_class(module_name, registry_store_class_name, "RegistryStore")
 
 
 def get_registry_store_class_from_scheme(registry_path: str):

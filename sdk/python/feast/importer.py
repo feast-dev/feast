@@ -8,9 +8,7 @@ from feast.errors import (
 )
 
 
-def get_class_from_module(
-    module_name: str, class_name: str, class_type: Optional[str] = None
-):
+def import_class(module_name: str, class_name: str, class_type: Optional[str] = None):
     """
     Dynamically loads and returns a class from a module.
 
