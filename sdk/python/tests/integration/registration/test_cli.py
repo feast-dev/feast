@@ -42,7 +42,7 @@ def test_universal_cli(test_repo_config) -> None:
 
             # Store registry contents, to be compared later.
             fs = FeatureStore(repo_path=str(repo_path))
-            registry_dict = fs.registry.to_dict(project=project)
+            registry_dict = fs.registry.to_dict(project=project, spec_only=True)
 
             # entity & feature view list commands should succeed
             result = runner.run(["entities", "list"], cwd=repo_path)
@@ -84,7 +84,7 @@ def test_universal_cli(test_repo_config) -> None:
 
             # Confirm that registry contents have not changed.
             assertpy.assert_that(registry_dict).is_equal_to(
-                fs.registry.to_dict(project=project)
+                fs.registry.to_dict(project=project, spec_only=True)
             )
 
             result = runner.run(["teardown"], cwd=repo_path)
