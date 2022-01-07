@@ -207,7 +207,5 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
     module_name = offline_store_config.__module__
     qualified_name = type(offline_store_config).__name__
     class_name = qualified_name.replace("Config", "")
-    offline_store_class = import_class(
-        module_name, class_name, class_type="OfflineStore"
-    )
+    offline_store_class = import_class(module_name, class_name, "OfflineStore")
     return offline_store_class()

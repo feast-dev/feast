@@ -302,7 +302,7 @@ class FeastConfigError(Exception):
 
 def get_data_source_class_from_type(data_source_type: str):
     module_name, config_class_name = data_source_type.rsplit(".", 1)
-    return import_class(module_name, config_class_name, "Source")
+    return import_class(module_name, config_class_name, "DataSource")
 
 
 def get_online_config_from_type(online_store_type: str):

@@ -17,7 +17,7 @@ def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
     module_name = online_store_config.__module__
     qualified_name = type(online_store_config).__name__
     class_name = qualified_name.replace("Config", "")
-    online_store_class = import_class(module_name, class_name, class_type="OnlineStore")
+    online_store_class = import_class(module_name, class_name, "OnlineStore")
     return online_store_class()
 
 
