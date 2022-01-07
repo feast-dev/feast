@@ -2,7 +2,7 @@ import importlib
 
 from feast.errors import (
     FeastClassImportError,
-    FeastClassInvalidName,
+    FeastInvalidBaseClass,
     FeastModuleImportError,
 )
 
@@ -17,7 +17,7 @@ def import_class(module_name: str, class_name: str, class_type: str = None):
         class_type: Optional name of a base class of the class.
 
     Raises:
-        FeastClassInvalidName: If the class name does not end with the specified suffix.
+        FeastInvalidBaseClass: If the class name does not end with the specified suffix.
         FeastModuleImportError: If the module cannot be imported.
         FeastClassImportError: If the class cannot be imported.
     """
@@ -42,6 +42,6 @@ def import_class(module_name: str, class_name: str, class_type: str = None):
     if class_type and not any(
         base_class.__name__ == class_type for base_class in _class.mro()
     ):
-        raise FeastClassInvalidName(class_name, class_type)
+        raise FeastInvalidBaseClass(class_name, class_type)
 
     return _class

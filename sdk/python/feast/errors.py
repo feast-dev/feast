@@ -170,11 +170,10 @@ class FeastOnlineStoreInvalidName(Exception):
         )
 
 
-class FeastClassInvalidName(Exception):
+class FeastInvalidBaseClass(Exception):
     def __init__(self, class_name: str, class_type: str):
         super().__init__(
-            f"Config Class '{class_name}' "
-            f"should end with the string `{class_type}`.'"
+            f"Class '{class_name}' should have `{class_type}` as a base class."
         )
 
 
