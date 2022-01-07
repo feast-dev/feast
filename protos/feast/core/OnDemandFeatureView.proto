@@ -24,6 +24,7 @@ option java_package = "feast.proto.core";
 
 import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureView.proto";
+import "feast/core/FeatureViewProjection.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 
@@ -43,7 +44,7 @@ message OnDemandFeatureViewSpec {
     // List of features specifications for each feature defined with this feature view.
     repeated FeatureSpecV2 features = 3;
 
-    // List of features specifications for each feature defined with this feature view.
+    // Map of inputs for this feature view.
     map<string, OnDemandInput> inputs = 4;
 
     UserDefinedFunction user_defined_function = 5;
@@ -59,6 +60,7 @@ message OnDemandFeatureViewMeta {
 message OnDemandInput {
     oneof input {
         FeatureView feature_view = 1;
+        FeatureViewProjection feature_view_projection = 3;
         DataSource request_data_source = 2;
     }
 }

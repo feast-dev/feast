@@ -300,21 +300,21 @@ def _coerce_datetime(ts):
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view: FeatureView,
-    join_keys: List[str],
+    join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # Avoid ChunkedArrays which guarentees `zero_copy_only` availiable.
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
-    columns = [(f.name, f.dtype) for f in feature_view.features] + [
-        (key, ValueType.UNKNOWN) for key in join_keys
-    ]
+    columns = [(f.name, f.dtype) for f in feature_view.features] + list(
+        join_keys.items()
+    )
 
     proto_values_by_column = {
         column: python_values_to_proto_values(
-            table.column(column).to_numpy(zero_copy_only=False), dtype
+            table.column(column).to_numpy(zero_copy_only=False), value_type
         )
-        for column, dtype in columns
+        for column, value_type in columns
     }
 
     entity_keys = [
