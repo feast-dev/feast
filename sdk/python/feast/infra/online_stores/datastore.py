@@ -23,6 +23,7 @@ from pydantic import PositiveInt, StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, utils
+from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import DATASTORE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.online_stores.helpers import compute_entity_id
@@ -43,7 +44,7 @@ try:
     from google.cloud import datastore
     from google.cloud.datastore.client import Key
 except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError, FeastProviderLoginError
+    from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("gcp", str(e))
 
@@ -332,14 +333,12 @@ class DatastoreTable(InfraObject):
         name: The name of the table.
         project_id (optional): The GCP project id.
         namespace (optional): Datastore namespace.
-        client: Datastore client.
     """
 
     project: str
     name: str
     project_id: Optional[str]
     namespace: Optional[str]
-    client: datastore.Client
 
     def __init__(
         self,
@@ -352,7 +351,6 @@ class DatastoreTable(InfraObject):
         self.name = name
         self.project_id = project_id
         self.namespace = namespace
-        self.client = _initialize_client(self.project_id, self.namespace)
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         datastore_table_proto = self.to_proto()
@@ -390,16 +388,18 @@ class DatastoreTable(InfraObject):
         return datastore_table
 
     def update(self):
-        key = self.client.key("Project", self.project, "Table", self.name)
+        client = _initialize_client(self.project_id, self.namespace)
+        key = client.key("Project", self.project, "Table", self.name)
         entity = datastore.Entity(
             key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
         )
         entity.update({"created_ts": datetime.utcnow()})
-        self.client.put(entity)
+        client.put(entity)
 
     def teardown(self):
-        key = self.client.key("Project", self.project, "Table", self.name)
-        _delete_all_values(self.client, key)
+        client = _initialize_client(self.project_id, self.namespace)
+        key = client.key("Project", self.project, "Table", self.name)
+        _delete_all_values(client, key)
 
         # Delete the table metadata datastore entity
-        self.client.delete(key)
+        client.delete(key)
