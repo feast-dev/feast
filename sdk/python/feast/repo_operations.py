@@ -127,7 +127,7 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, _ = store.plan(repo)
+    registry_diff, _ = store._plan(repo)
     views_to_delete = [
         v
         for v in registry_diff.fco_diffs

@@ -65,6 +65,14 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "": "LocalRegistryStore",
 }
 
+ENTITY_TYPE_STR = "entity"
+FEATURE_VIEW_TYPE_STR = "feature view"
+FEATURE_TABLE_TYPE_STR = "feature table"
+ON_DEMAND_FEATURE_VIEW_TYPE_STR = "on demand feature view"
+REQUEST_FEATURE_VIEW_TYPE_STR = "request feature view"
+FEATURE_SERVICE_TYPE_STR = "feature service"
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -151,12 +159,12 @@ class Registry:
         diff = RegistryDiff()
 
         attribute_to_object_type_str = {
-            "entities": "entity",
-            "feature_views": "feature view",
-            "feature_tables": "feature table",
-            "on_demand_feature_views": "on demand feature view",
-            "request_feature_views": "request feature view",
-            "feature_services": "feature service",
+            "entities": ENTITY_TYPE_STR,
+            "feature_views": FEATURE_VIEW_TYPE_STR,
+            "feature_tables": FEATURE_TABLE_TYPE_STR,
+            "on_demand_feature_views": ON_DEMAND_FEATURE_VIEW_TYPE_STR,
+            "request_feature_views": REQUEST_FEATURE_VIEW_TYPE_STR,
+            "feature_services": FEATURE_SERVICE_TYPE_STR,
         }
 
         for object_type in [
@@ -211,6 +219,78 @@ class Registry:
                 )
 
         return diff
+
+    def _apply_diff(self, registry_diff: RegistryDiff, commit: bool = True):
+        """
+        Applies the given diff to the registry.
+
+        Args:
+            registry_diff: The diff to apply.
+            commit: Whether the change should be persisted immediately
+        """
+        for fco_diff in registry_diff.fco_diffs:
+            # There is no need to delete the FCO on an update, since applying the new FCO
+            # will automatically delete the existing FCO.
+            if fco_diff.transition_type == TransitionType.DELETE:
+                if fco_diff.fco_type == ENTITY_TYPE_STR:
+                    entity_proto_spec = fco_diff.current_fco.spec
+                    self.delete_entity(
+                        entity_proto_spec.name, entity_proto_spec.project, False
+                    )
+                elif fco_diff.fco_type == FEATURE_SERVICE_TYPE_STR:
+                    feature_service_proto_spec = fco_diff.current_fco.spec
+                    self.delete_feature_service(
+                        feature_service_proto_spec.name,
+                        feature_service_proto_spec.project,
+                        False,
+                    )
+                elif fco_diff.fco_type == FEATURE_TABLE_TYPE_STR:
+                    # Skip this case since the registry does not support feature tables.
+                    pass
+                elif fco_diff.fco_type in [
+                    FEATURE_VIEW_TYPE_STR,
+                    ON_DEMAND_FEATURE_VIEW_TYPE_STR,
+                    REQUEST_FEATURE_VIEW_TYPE_STR,
+                ]:
+                    feature_view_proto_spec = fco_diff.current_fco.spec
+                    self.delete_feature_view(
+                        feature_view_proto_spec.name,
+                        feature_view_proto_spec.project,
+                        False,
+                    )
+
+            if fco_diff.transition_type in [
+                TransitionType.CREATE,
+                TransitionType.UPDATE,
+            ]:
+                if fco_diff.fco_type == ENTITY_TYPE_STR:
+                    self.apply_entity(
+                        Entity.from_proto(fco_diff.new_fco),
+                        fco_diff.new_fco.spec.project,
+                        False,
+                    )
+                elif fco_diff.fco_type == FEATURE_SERVICE_TYPE_STR:
+                    self.apply_feature_service(
+                        FeatureService.from_proto(fco_diff.new_fco),
+                        fco_diff.new_fco.spec.project,
+                        False,
+                    )
+                elif fco_diff.fco_type == FEATURE_TABLE_TYPE_STR:
+                    # Skip this case since the registry does not support feature tables.
+                    pass
+                elif fco_diff.fco_type in [
+                    FEATURE_VIEW_TYPE_STR,
+                    ON_DEMAND_FEATURE_VIEW_TYPE_STR,
+                    REQUEST_FEATURE_VIEW_TYPE_STR,
+                ]:
+                    self.apply_feature_view(
+                        FeatureView.from_proto(fco_diff.new_fco),
+                        fco_diff.new_fco.spec.project,
+                        False,
+                    )
+
+        if commit:
+            self.commit()
 
     def _initialize_registry(self):
         """Explicitly initializes the registry with an empty proto if it doesn't exist."""

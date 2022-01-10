@@ -39,6 +39,7 @@ from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.FcoDiff import RegistryDiff
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
+from feast.diff.property_diff import TransitionType
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -72,7 +73,13 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value
-from feast.registry import Registry
+from feast.registry import (
+    ENTITY_TYPE_STR,
+    FEATURE_VIEW_TYPE_STR,
+    ON_DEMAND_FEATURE_VIEW_TYPE_STR,
+    REQUEST_FEATURE_VIEW_TYPE_STR,
+    Registry,
+)
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_values_to_proto_values
@@ -407,7 +414,7 @@ class FeatureStore:
         return _feature_refs
 
     @log_exceptions_and_usage
-    def plan(
+    def _plan(
         self, desired_repo_objects: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff]:
         """Dry-run registering objects to metadata store.
@@ -446,7 +453,6 @@ class FeatureStore:
             ... )
             >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
-
         current_registry_proto = (
             self._registry.cached_registry_proto.__deepcopy__()
             if self._registry.cached_registry_proto
@@ -469,6 +475,78 @@ class FeatureStore:
         infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
 
         return (registry_diff, infra_diff)
+
+    @log_exceptions_and_usage
+    def _apply_diffs(
+        self, registry_diff: RegistryDiff, infra_diff: InfraDiff,
+    ):
+        """Applies the given diffs to the metadata store and infrastructure.
+
+        Args:
+            registry_diff: The diff between the current registry and the desired registry.
+            infra_diff: The diff between the current infra and the desired infra.
+        """
+        entities_to_update = [
+            Entity.from_proto(fco_diff.new_fco)
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == ENTITY_TYPE_STR
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+        views_to_update = [
+            FeatureView.from_proto(fco_diff.new_fco)
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == FEATURE_VIEW_TYPE_STR
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+        odfvs_to_update = [
+            OnDemandFeatureView.from_proto(fco_diff.new_fco)
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == ON_DEMAND_FEATURE_VIEW_TYPE_STR
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+        request_views_to_update = [
+            RequestFeatureView.from_proto(fco_diff.new_fco)
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == REQUEST_FEATURE_VIEW_TYPE_STR
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+
+        # Validate all types of feature views.
+        if (
+            not flags_helper.enable_on_demand_feature_views(self.config)
+            and len(odfvs_to_update) > 0
+        ):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        set_usage_attribute("odfv", bool(odfvs_to_update))
+
+        _validate_feature_views(
+            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        )
+
+        # Make inferences
+        update_entities_with_inferred_types_from_feature_views(
+            entities_to_update, views_to_update, self.config
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in views_to_update], self.config
+        )
+
+        update_feature_views_with_inferred_features(
+            views_to_update, entities_to_update, self.config
+        )
+
+        for odfv in odfvs_to_update:
+            odfv.infer_features()
+
+        # Apply infra and registry changes.
+        infra_diff.update()
+        self._registry._apply_diff(registry_diff, commit=True)
 
     @log_exceptions_and_usage
     def apply(
@@ -547,6 +625,7 @@ class FeatureStore:
         if not objects_to_delete:
             objects_to_delete = []
 
+        # TODO: remove this useless stuff (no need to return diffs)
         current_registry_proto = (
             self._registry.cached_registry_proto.__deepcopy__()
             if self._registry.cached_registry_proto
@@ -579,6 +658,11 @@ class FeatureStore:
         _validate_feature_views(
             [*views_to_update, *odfvs_to_update, *request_views_to_update]
         )
+
+        # TODO: check if any of these functions require all FVs to be run
+        # or if they can be run with each FV at a time
+        # actually don't think we need to do this...
+        # we can pretty easily aggregate all the FVs?
 
         # Make inferences
         update_entities_with_inferred_types_from_feature_views(
