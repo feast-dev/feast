@@ -261,6 +261,10 @@ class SqliteTable(InfraObject):
             name=infra_object_proto.sqlite_table.name,
         )
 
+    @staticmethod
+    def from_proto(sqlite_table_proto: SqliteTableProto) -> Any:
+        return SqliteTable(path=sqlite_table_proto.path, name=sqlite_table_proto.name,)
+
     def update(self):
         self.conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"

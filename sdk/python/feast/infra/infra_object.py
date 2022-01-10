@@ -15,9 +15,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, List
 
+from feast.errors import FeastInvalidInfraObjectType
 from feast.importer import import_class
+from feast.infra.datastore import DatastoreTable
+from feast.infra.dynamodb import DynamoDBTable
+from feast.infra.sqlite import SqliteTable
+from feast.protos.feast.core.DatastoreTable_pb2 import (
+    DatastoreTable as DatastoreTableProto,
+)
+from feast.protos.feast.core.DynamoDBTable_pb2 import (
+    DynamoDBTable as DynamoDBTableProto,
+)
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
 DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
 DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
@@ -49,7 +60,7 @@ class InfraObject(ABC):
             infra_object_proto: A protobuf representation of an InfraObject.
 
         Raises:
-            ValueError: The type of InfraObject could not be identified.
+            FeastInvalidInfraObjectType: The type of InfraObject could not be identified.
         """
         if infra_object_proto.infra_object_class_type:
             cls = _get_infra_object_class_from_type(
@@ -57,7 +68,27 @@ class InfraObject(ABC):
             )
             return cls.from_infra_object_proto(infra_object_proto)
 
-        raise ValueError("Could not identify the type of the InfraObject.")
+        raise FeastInvalidInfraObjectType()
+
+    @staticmethod
+    def from_proto(infra_object_proto: Any) -> Any:
+        """
+        Converts a protobuf representation of a subclass to an object of that subclass.
+
+        Args:
+            infra_object_proto: A protobuf representation of an InfraObject.
+
+        Raises:
+            FeastInvalidInfraObjectType: The type of InfraObject could not be identified.
+        """
+        if isinstance(infra_object_proto, DatastoreTableProto):
+            DatastoreTable.from_proto(infra_object_proto)
+        elif isinstance(infra_object_proto, DynamoDBTableProto):
+            DynamoDBTable.from_proto(infra_object_proto)
+        elif isinstance(infra_object_proto, SqliteTableProto):
+            SqliteTable.from_proto(infra_object_proto)
+        else:
+            raise FeastInvalidInfraObjectType()
 
     @abstractmethod
     def update(self):

@@ -387,6 +387,19 @@ class DatastoreTable(InfraObject):
 
         return datastore_table
 
+    @staticmethod
+    def from_proto(datastore_table_proto: DatastoreTableProto) -> Any:
+        datastore_table = DatastoreTable(
+            project=datastore_table_proto.project, name=datastore_table_proto.name,
+        )
+
+        if datastore_table_proto.HasField("project_id"):
+            datastore_table.project_id = datastore_table_proto.project_id.value
+        if datastore_table_proto.HasField("namespace"):
+            datastore_table.namespace = datastore_table_proto.namespace.value
+
+        return datastore_table
+
     def update(self):
         client = _initialize_client(self.project_id, self.namespace)
         key = client.key("Project", self.project, "Table", self.name)
