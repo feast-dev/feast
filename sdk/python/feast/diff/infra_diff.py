@@ -36,7 +36,24 @@ class InfraDiff:
         self.infra_object_diffs = []
 
     def update(self):
-        pass
+        """Apply the infrastructure changes specified in this object."""
+        for infra_object_diff in self.infra_object_diffs:
+            if infra_object_diff.transition_type in [
+                TransitionType.DELETE,
+                TransitionType.UPDATE,
+            ]:
+                infra_object = InfraObject.from_proto(
+                    infra_object_diff.current_infra_object
+                )
+                infra_object.teardown()
+            elif infra_object_diff.transition_type in [
+                TransitionType.CREATE,
+                TransitionType.UPDATE,
+            ]:
+                infra_object = InfraObject.from_proto(
+                    infra_object_diff.new_infra_object
+                )
+                infra_object.update()
 
     def to_string(self):
         pass
