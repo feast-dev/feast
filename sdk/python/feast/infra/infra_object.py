@@ -19,6 +19,10 @@ from feast.importer import import_class
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 
+DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
+DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
+SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_store.sqlite.SqliteTable"
+
 
 class InfraObject(ABC):
     """
@@ -26,13 +30,18 @@ class InfraObject(ABC):
     """
 
     @abstractmethod
-    def to_proto(self) -> InfraObjectProto:
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        """Converts an InfraObject to its protobuf representation, wrapped in an InfraObjectProto."""
+        pass
+
+    @abstractmethod
+    def to_proto(self) -> Any:
         """Converts an InfraObject to its protobuf representation."""
         pass
 
     @staticmethod
     @abstractmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> Any:
         """
         Returns an InfraObject created from a protobuf representation.
 
@@ -46,7 +55,7 @@ class InfraObject(ABC):
             cls = _get_infra_object_class_from_type(
                 infra_object_proto.infra_object_class_type
             )
-            return cls.from_proto(infra_object_proto)
+            return cls.from_infra_object_proto(infra_object_proto)
 
         raise ValueError("Could not identify the type of the InfraObject.")
 
@@ -97,7 +106,7 @@ class Infra:
         """
         infra = cls()
         cls.infra_objects += [
-            InfraObject.from_proto(infra_object_proto)
+            InfraObject.from_infra_object_proto(infra_object_proto)
             for infra_object_proto in infra_proto.infra_objects
         ]
 

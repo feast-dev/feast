@@ -23,7 +23,7 @@ from pydantic.schema import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.infra_object import InfraObject
+from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
@@ -241,18 +241,21 @@ class SqliteTable(InfraObject):
         self.name = name
         self.conn = _initialize_conn(path)
 
-    def to_proto(self) -> InfraObjectProto:
-        sqlite_table_proto = SqliteTableProto()
-        sqlite_table_proto.path = self.path
-        sqlite_table_proto.name = self.name
-
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        sqlite_table_proto = self.to_proto()
         return InfraObjectProto(
-            infra_object_class_type="feast.infra.online_store.sqlite.SqliteTable",
+            infra_object_class_type=SQLITE_INFRA_OBJECT_CLASS_TYPE,
             sqlite_table=sqlite_table_proto,
         )
 
+    def to_proto(self) -> Any:
+        sqlite_table_proto = SqliteTableProto()
+        sqlite_table_proto.path = self.path
+        sqlite_table_proto.name = self.name
+        return sqlite_table_proto
+
     @staticmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> Any:
         return SqliteTable(
             path=infra_object_proto.sqlite_table.path,
             name=infra_object_proto.sqlite_table.name,
