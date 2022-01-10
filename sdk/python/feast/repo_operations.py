@@ -136,20 +136,9 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, _ = store.plan(repo)
-    views_to_delete = [
-        v
-        for v in registry_diff.fco_diffs
-        if v.fco_type == "feature view" and v.transition_type == TransitionType.DELETE
-    ]
-    views_to_keep = [
-        v
-        for v in registry_diff.fco_diffs
-        if v.fco_type == "feature view"
-        and v.transition_type in {TransitionType.CREATE, TransitionType.UNCHANGED}
-    ]
-
-    log_cli_output(registry_diff, views_to_delete, views_to_keep)
+    registry_diff, infra_diff, _ = store._plan(repo)
+    click.echo(registry_diff.to_string())
+    click.echo(infra_diff.to_string())
 
 
 def _prepare_registry_and_repo(repo_config, repo_path):
@@ -219,7 +208,7 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, _ = store.plan(repo)
+    registry_diff, infra_diff, new_infra = store._plan(repo)
 
     # For each object in the registry, determine whether it should be kept or deleted.
     (
@@ -229,7 +218,10 @@ def apply_total_with_repo_instance(
         views_to_keep,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+    if store._should_use_plan():
+        store._apply_diffs(registry_diff, infra_diff, new_infra)
+    else:
+        store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
     log_cli_output(registry_diff, views_to_delete, views_to_keep)
 

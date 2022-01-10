@@ -39,8 +39,9 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import RegistryDiff, diff_between
+from feast.diff.FcoDiff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
+from feast.diff.property_diff import TransitionType
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -63,6 +64,7 @@ from feast.inference import (
     update_entities_with_inferred_types_from_feature_views,
     update_feature_views_with_inferred_features,
 )
+from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
@@ -73,7 +75,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import Registry
+from feast.registry import FeastObjectType, Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -388,10 +390,15 @@ class FeatureStore:
             _feature_refs = _features
         return _feature_refs
 
+    def _should_use_plan(self):
+        """Returns True if _plan and _apply_diffs should be used, False otherwise."""
+        # Currently only the local provider supports _plan and _apply_diffs.
+        return self.config.provider == "local"
+
     @log_exceptions_and_usage
-    def plan(
+    def _plan(
         self, desired_repo_contents: RepoContents
-    ) -> Tuple[RegistryDiff, InfraDiff]:
+    ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
         The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
@@ -426,24 +433,100 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
+            >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
         registry_diff = diff_between(
             self._registry, self.project, desired_repo_contents
         )
 
+        self._registry.refresh()
         current_infra_proto = (
             self._registry.cached_registry_proto.infra.__deepcopy__()
             if self._registry.cached_registry_proto
             else InfraProto()
         )
         desired_registry_proto = desired_repo_contents.to_registry_proto()
-        new_infra_proto = self._provider.plan_infra(
-            self.config, desired_registry_proto
-        ).to_proto()
+        new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
+        new_infra_proto = new_infra.to_proto()
         infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
 
-        return (registry_diff, infra_diff)
+        return (registry_diff, infra_diff, new_infra)
+
+    @log_exceptions_and_usage
+    def _apply_diffs(
+        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
+    ):
+        """Applies the given diffs to the metadata store and infrastructure.
+
+        Args:
+            registry_diff: The diff between the current registry and the desired registry.
+            infra_diff: The diff between the current infra and the desired infra.
+            new_infra: The desired infra.
+        """
+        entities_to_update = [
+            fco_diff.new_fco
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == FeastObjectType.ENTITY
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+        views_to_update = [
+            fco_diff.new_fco
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == FeastObjectType.FEATURE_VIEW
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+        odfvs_to_update = [
+            fco_diff.new_fco
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == FeastObjectType.ON_DEMAND_FEATURE_VIEW
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+        request_views_to_update = [
+            fco_diff.new_fco
+            for fco_diff in registry_diff.fco_diffs
+            if fco_diff.fco_type == FeastObjectType.REQUEST_FEATURE_VIEW
+            and fco_diff.transition_type
+            in [TransitionType.CREATE, TransitionType.UPDATE]
+        ]
+
+        # Validate all types of feature views.
+        if (
+            not flags_helper.enable_on_demand_feature_views(self.config)
+            and len(odfvs_to_update) > 0
+        ):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        set_usage_attribute("odfv", bool(odfvs_to_update))
+
+        _validate_feature_views(
+            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        )
+
+        # Make inferences
+        update_entities_with_inferred_types_from_feature_views(
+            entities_to_update, views_to_update, self.config
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in views_to_update], self.config
+        )
+
+        update_feature_views_with_inferred_features(
+            views_to_update, entities_to_update, self.config
+        )
+
+        for odfv in odfvs_to_update:
+            odfv.infer_features()
+
+        # Apply infra and registry changes.
+        infra_diff.update()
+        apply_diff_to_registry(
+            self._registry, registry_diff, self.project, commit=False
+        )
+        self._registry.update_infra(new_infra, self.project, commit=True)
 
     @log_exceptions_and_usage
     def apply(
