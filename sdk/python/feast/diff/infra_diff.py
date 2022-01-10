@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Tuple, TypeVar
+from typing import Generic, Iterable, List, Tuple, TypeVar
 
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.infra.infra_object import (
@@ -17,13 +17,15 @@ from feast.protos.feast.core.DynamoDBTable_pb2 import (
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
+U = TypeVar("U", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto)
+
 
 @dataclass
-class InfraObjectDiff:
+class InfraObjectDiff(Generic[U]):
     name: str
     infra_object_type: str
-    current_infra_object: Any
-    new_infra_object: Any
+    current_infra_object: U
+    new_infra_object: U
     infra_object_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
@@ -57,9 +59,6 @@ class InfraDiff:
 
     def to_string(self):
         pass
-
-
-U = TypeVar("U", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto)
 
 
 def tag_infra_proto_objects_for_keep_delete_add(

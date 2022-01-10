@@ -1,20 +1,40 @@
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Set, Tuple, TypeVar
+from typing import Generic, Iterable, List, Set, Tuple, TypeVar
 
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    FeatureService as FeatureServiceProto,
+)
+from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
+from feast.protos.feast.core.RequestFeatureView_pb2 import (
+    RequestFeatureView as RequestFeatureViewProto,
+)
+
+U = TypeVar(
+    "U",
+    EntityProto,
+    FeatureViewProto,
+    FeatureServiceProto,
+    FeatureTableProto,
+    OnDemandFeatureViewProto,
+    RequestFeatureViewProto,
+)
 
 
 @dataclass
-class FcoDiff:
+class FcoDiff(Generic[U]):
     name: str
     fco_type: str
-    current_fco: Any
-    new_fco: Any
+    current_fco: U
+    new_fco: U
     fco_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
@@ -44,9 +64,6 @@ def tag_objects_for_keep_delete_add(
     objs_to_delete = {e for e in existing_objs if e.name not in desired_obj_names}
 
     return objs_to_keep, objs_to_delete, objs_to_add
-
-
-U = TypeVar("U", EntityProto, FeatureViewProto)
 
 
 def tag_proto_objects_for_keep_delete_add(
