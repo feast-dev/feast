@@ -29,7 +29,7 @@ from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTablePr
 
 DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
 DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
-SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_store.sqlite.SqliteTable"
+SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.sqlite.SqliteTable"
 
 
 class InfraObject(ABC):
@@ -125,7 +125,7 @@ class Infra:
         """
         infra_proto = InfraProto()
         for infra_object in self.infra_objects:
-            infra_object_proto = infra_object.to_proto()
+            infra_object_proto = infra_object.to_infra_object_proto()
             infra_proto.infra_objects.append(infra_object_proto)
 
         return infra_proto
