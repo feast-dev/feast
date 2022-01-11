@@ -9,7 +9,6 @@ from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
-from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
@@ -23,7 +22,6 @@ FcoProto = TypeVar(
     EntityProto,
     FeatureViewProto,
     FeatureServiceProto,
-    FeatureTableProto,
     OnDemandFeatureViewProto,
     RequestFeatureViewProto,
 )
