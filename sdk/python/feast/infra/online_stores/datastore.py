@@ -376,6 +376,7 @@ class DatastoreTable(InfraObject):
             name=infra_object_proto.datastore_table.name,
         )
 
+        # Distinguish between null and empty string, since project_id and namespace are StringValues.
         if infra_object_proto.datastore_table.HasField("project_id"):
             datastore_table.project_id = (
                 infra_object_proto.datastore_table.project_id.value
@@ -393,6 +394,7 @@ class DatastoreTable(InfraObject):
             project=datastore_table_proto.project, name=datastore_table_proto.name,
         )
 
+        # Distinguish between null and empty string, since project_id and namespace are StringValues.
         if datastore_table_proto.HasField("project_id"):
             datastore_table.project_id = datastore_table_proto.project_id.value
         if datastore_table_proto.HasField("namespace"):
