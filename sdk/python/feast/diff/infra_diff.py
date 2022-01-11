@@ -17,15 +17,17 @@ from feast.protos.feast.core.DynamoDBTable_pb2 import (
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
-U = TypeVar("U", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto)
+InfraObjectProto = TypeVar(
+    "InfraObjectProto", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto
+)
 
 
 @dataclass
-class InfraObjectDiff(Generic[U]):
+class InfraObjectDiff(Generic[InfraObjectProto]):
     name: str
     infra_object_type: str
-    current_infra_object: U
-    new_infra_object: U
+    current_infra_object: InfraObjectProto
+    new_infra_object: InfraObjectProto
     infra_object_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
@@ -62,8 +64,10 @@ class InfraDiff:
 
 
 def tag_infra_proto_objects_for_keep_delete_add(
-    existing_objs: Iterable[U], desired_objs: Iterable[U]
-) -> Tuple[Iterable[U], Iterable[U], Iterable[U]]:
+    existing_objs: Iterable[InfraObjectProto], desired_objs: Iterable[InfraObjectProto]
+) -> Tuple[
+    Iterable[InfraObjectProto], Iterable[InfraObjectProto], Iterable[InfraObjectProto]
+]:
     existing_obj_names = {e.name for e in existing_objs}
     desired_obj_names = {e.name for e in desired_objs}
 
@@ -139,7 +143,7 @@ def diff_infra_protos(
 
 def get_infra_object_protos_by_type(
     infra_proto: InfraProto, infra_object_class_type: str
-) -> List[U]:
+) -> List[InfraObjectProto]:
     return [
         InfraObject.from_infra_object_proto(infra_object).to_proto()
         for infra_object in infra_proto.infra_objects
@@ -150,7 +154,9 @@ def get_infra_object_protos_by_type(
 FIELDS_TO_IGNORE = {"project"}
 
 
-def diff_between(current: U, new: U, infra_object_type: str) -> InfraObjectDiff:
+def diff_between(
+    current: InfraObjectProto, new: InfraObjectProto, infra_object_type: str
+) -> InfraObjectDiff:
     assert current.DESCRIPTOR.full_name == new.DESCRIPTOR.full_name
     property_diffs = []
     transition: TransitionType = TransitionType.UNCHANGED
