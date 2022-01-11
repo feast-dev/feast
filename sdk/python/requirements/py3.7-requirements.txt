@@ -18,7 +18,7 @@ certifi==2021.10.8
     # via requests
 charset-normalizer==2.0.8
     # via requests
-click==7.1.2
+click==8.0.3
     # via
     #   feast (setup.py)
     #   uvicorn
