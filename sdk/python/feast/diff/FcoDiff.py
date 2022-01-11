@@ -5,6 +5,7 @@ from feast.base_feature_view import BaseFeatureView
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
+from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -51,6 +52,28 @@ class RegistryDiff:
 
     def add_fco_diff(self, fco_diff: FcoDiff):
         self.fco_diffs.append(fco_diff)
+
+    def to_string(self):
+        from colorama import Fore, Style
+
+        log_string = ""
+
+        message_action_map = {
+            TransitionType.CREATE: ("Created", Fore.GREEN),
+            TransitionType.DELETE: ("Deleted", Fore.RED),
+            TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
+            TransitionType.UPDATE: ("Updated", Fore.YELLOW),
+        }
+        for fco_diff in self.fco_diffs:
+            if fco_diff.name == DUMMY_ENTITY_NAME:
+                continue
+            action, color = message_action_map[fco_diff.transition_type]
+            log_string += f"{action} {FEAST_OBJECT_TYPE_TO_STR[fco_diff.fco_type]} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}\n"
+            if fco_diff.transition_type == TransitionType.UPDATE:
+                for _p in fco_diff.fco_property_diffs:
+                    log_string += f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}\n"
+
+        return log_string
 
 
 def tag_objects_for_keep_delete_update_add(
