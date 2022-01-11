@@ -38,6 +38,7 @@ from tqdm import tqdm
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.FcoDiff import RegistryDiff
+from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -63,6 +64,7 @@ from feast.inference import (
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
+from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -405,7 +407,9 @@ class FeatureStore:
         return _feature_refs
 
     @log_exceptions_and_usage
-    def plan(self, desired_repo_objects: RepoContents) -> RegistryDiff:
+    def plan(
+        self, desired_repo_objects: RepoContents
+    ) -> Tuple[RegistryDiff, InfraDiff]:
         """Dry-run registering objects to metadata store.
 
         The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
@@ -440,7 +444,7 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
+            >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
 
         current_registry_proto = (
@@ -450,8 +454,21 @@ class FeatureStore:
         )
 
         desired_registry_proto = desired_repo_objects.to_registry_proto()
-        diffs = Registry.diff_between(current_registry_proto, desired_registry_proto)
-        return diffs
+        registry_diff = Registry.diff_between(
+            current_registry_proto, desired_registry_proto
+        )
+
+        current_infra_proto = (
+            self._registry.cached_registry_proto.infra.__deepcopy__()
+            if self._registry.cached_registry_proto
+            else InfraProto()
+        )
+        new_infra_proto = self._provider.plan_infra(
+            self.config, desired_registry_proto
+        ).to_proto()
+        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
+
+        return (registry_diff, infra_diff)
 
     @log_exceptions_and_usage
     def apply(

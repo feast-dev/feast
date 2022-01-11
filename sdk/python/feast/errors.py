@@ -293,3 +293,8 @@ class IncompatibleRegistryStoreClass(Exception):
         super().__init__(
             f"The registry store class was expected to be {expected_class}, but was instead {actual_class}."
         )
+
+
+class FeastInvalidInfraObjectType(Exception):
+    def __init__(self):
+        super().__init__("Could not identify the type of the InfraObject.")

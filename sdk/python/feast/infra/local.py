@@ -1,12 +1,13 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
-from feast.feature_view import FeatureView
+from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
-from feast.repo_config import RegistryConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 from feast.usage import log_exceptions_and_usage
 
 
@@ -15,11 +16,15 @@ class LocalProvider(PassthroughProvider):
     This class only exists for backwards compatibility.
     """
 
-    pass
-
-
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+    def plan_infra(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> Infra:
+        infra_objects: List[InfraObject] = self.online_store.plan(
+            config, desired_registry_proto
+        )
+        infra = Infra()
+        infra.infra_objects += infra_objects
+        return infra
 
 
 class LocalRegistryStore(RegistryStore):

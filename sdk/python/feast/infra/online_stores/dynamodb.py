@@ -254,6 +254,12 @@ class DynamoDBTable(InfraObject):
             region=infra_object_proto.dynamodb_table.region,
         )
 
+    @staticmethod
+    def from_proto(dynamodb_table_proto: DynamoDBTableProto) -> Any:
+        return DynamoDBTable(
+            name=dynamodb_table_proto.name, region=dynamodb_table_proto.region,
+        )
+
     def update(self):
         dynamodb_client = _initialize_dynamodb_client(region=self.region)
         dynamodb_resource = _initialize_dynamodb_resource(region=self.region)

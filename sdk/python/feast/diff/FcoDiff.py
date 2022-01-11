@@ -1,20 +1,38 @@
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Set, Tuple, TypeVar
+from typing import Generic, Iterable, List, Set, Tuple, TypeVar
 
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    FeatureService as FeatureServiceProto,
+)
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
+from feast.protos.feast.core.RequestFeatureView_pb2 import (
+    RequestFeatureView as RequestFeatureViewProto,
+)
+
+FcoProto = TypeVar(
+    "FcoProto",
+    EntityProto,
+    FeatureViewProto,
+    FeatureServiceProto,
+    OnDemandFeatureViewProto,
+    RequestFeatureViewProto,
+)
 
 
 @dataclass
-class FcoDiff:
+class FcoDiff(Generic[FcoProto]):
     name: str
     fco_type: str
-    current_fco: Any
-    new_fco: Any
+    current_fco: FcoProto
+    new_fco: FcoProto
     fco_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
@@ -30,12 +48,12 @@ class RegistryDiff:
         self.fco_diffs.append(fco_diff)
 
 
-T = TypeVar("T", Entity, BaseFeatureView, FeatureService)
+Fco = TypeVar("Fco", Entity, BaseFeatureView, FeatureService)
 
 
 def tag_objects_for_keep_delete_add(
-    existing_objs: Iterable[T], desired_objs: Iterable[T]
-) -> Tuple[Set[T], Set[T], Set[T]]:
+    existing_objs: Iterable[Fco], desired_objs: Iterable[Fco]
+) -> Tuple[Set[Fco], Set[Fco], Set[Fco]]:
     existing_obj_names = {e.name for e in existing_objs}
     desired_obj_names = {e.name for e in desired_objs}
 
@@ -46,12 +64,9 @@ def tag_objects_for_keep_delete_add(
     return objs_to_keep, objs_to_delete, objs_to_add
 
 
-U = TypeVar("U", EntityProto, FeatureViewProto)
-
-
 def tag_proto_objects_for_keep_delete_add(
-    existing_objs: Iterable[U], desired_objs: Iterable[U]
-) -> Tuple[Iterable[U], Iterable[U], Iterable[U]]:
+    existing_objs: Iterable[FcoProto], desired_objs: Iterable[FcoProto]
+) -> Tuple[Iterable[FcoProto], Iterable[FcoProto], Iterable[FcoProto]]:
     existing_obj_names = {e.spec.name for e in existing_objs}
     desired_obj_names = {e.spec.name for e in desired_objs}
 
@@ -65,7 +80,7 @@ def tag_proto_objects_for_keep_delete_add(
 FIELDS_TO_IGNORE = {"project"}
 
 
-def diff_between(current: U, new: U, object_type: str) -> FcoDiff:
+def diff_between(current: FcoProto, new: FcoProto, object_type: str) -> FcoDiff:
     assert current.DESCRIPTOR.full_name == new.DESCRIPTOR.full_name
     property_diffs = []
     transition: TransitionType = TransitionType.UNCHANGED

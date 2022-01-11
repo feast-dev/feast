@@ -27,6 +27,7 @@ from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -199,6 +200,21 @@ class SqliteOnlineStore(OnlineStore):
         for table in tables_to_delete:
             conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
+    @log_exceptions_and_usage(online_store="sqlite")
+    def plan(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> List[InfraObject]:
+        project = config.project
+
+        infra_objects: List[InfraObject] = [
+            SqliteTable(
+                path=self._get_db_path(config),
+                name=_table_id(project, FeatureView.from_proto(view)),
+            )
+            for view in desired_registry_proto.feature_views
+        ]
+        return infra_objects
+
     def teardown(
         self,
         config: RepoConfig,
@@ -260,6 +276,10 @@ class SqliteTable(InfraObject):
             path=infra_object_proto.sqlite_table.path,
             name=infra_object_proto.sqlite_table.name,
         )
+
+    @staticmethod
+    def from_proto(sqlite_table_proto: SqliteTableProto) -> Any:
+        return SqliteTable(path=sqlite_table_proto.path, name=sqlite_table_proto.name,)
 
     def update(self):
         self.conn.execute(

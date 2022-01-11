@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Tuple, TypeVar
+from typing import Generic, Iterable, List, Tuple, TypeVar
 
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.infra.infra_object import (
@@ -17,13 +17,17 @@ from feast.protos.feast.core.DynamoDBTable_pb2 import (
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
+InfraObjectProto = TypeVar(
+    "InfraObjectProto", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto
+)
+
 
 @dataclass
-class InfraObjectDiff:
+class InfraObjectDiff(Generic[InfraObjectProto]):
     name: str
     infra_object_type: str
-    current_infra_object: Any
-    new_infra_object: Any
+    current_infra_object: InfraObjectProto
+    new_infra_object: InfraObjectProto
     infra_object_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
@@ -36,18 +40,34 @@ class InfraDiff:
         self.infra_object_diffs = []
 
     def update(self):
-        pass
+        """Apply the infrastructure changes specified in this object."""
+        for infra_object_diff in self.infra_object_diffs:
+            if infra_object_diff.transition_type in [
+                TransitionType.DELETE,
+                TransitionType.UPDATE,
+            ]:
+                infra_object = InfraObject.from_proto(
+                    infra_object_diff.current_infra_object
+                )
+                infra_object.teardown()
+            elif infra_object_diff.transition_type in [
+                TransitionType.CREATE,
+                TransitionType.UPDATE,
+            ]:
+                infra_object = InfraObject.from_proto(
+                    infra_object_diff.new_infra_object
+                )
+                infra_object.update()
 
     def to_string(self):
         pass
 
 
-U = TypeVar("U", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto)
-
-
 def tag_infra_proto_objects_for_keep_delete_add(
-    existing_objs: Iterable[U], desired_objs: Iterable[U]
-) -> Tuple[Iterable[U], Iterable[U], Iterable[U]]:
+    existing_objs: Iterable[InfraObjectProto], desired_objs: Iterable[InfraObjectProto]
+) -> Tuple[
+    Iterable[InfraObjectProto], Iterable[InfraObjectProto], Iterable[InfraObjectProto]
+]:
     existing_obj_names = {e.name for e in existing_objs}
     desired_obj_names = {e.name for e in desired_objs}
 
@@ -123,7 +143,7 @@ def diff_infra_protos(
 
 def get_infra_object_protos_by_type(
     infra_proto: InfraProto, infra_object_class_type: str
-) -> List[U]:
+) -> List[InfraObjectProto]:
     return [
         InfraObject.from_infra_object_proto(infra_object).to_proto()
         for infra_object in infra_proto.infra_objects
@@ -134,7 +154,9 @@ def get_infra_object_protos_by_type(
 FIELDS_TO_IGNORE = {"project"}
 
 
-def diff_between(current: U, new: U, infra_object_type: str) -> InfraObjectDiff:
+def diff_between(
+    current: InfraObjectProto, new: InfraObjectProto, infra_object_type: str
+) -> InfraObjectDiff:
     assert current.DESCRIPTOR.full_name == new.DESCRIPTOR.full_name
     property_diffs = []
     transition: TransitionType = TransitionType.UNCHANGED
