@@ -456,14 +456,13 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
+            >>> registry_diff, infra_diff = fs._plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
         current_registry_proto = (
             self._registry.cached_registry_proto.__deepcopy__()
             if self._registry.cached_registry_proto
             else RegistryProto()
         )
-
         desired_registry_proto = desired_repo_objects.to_registry_proto()
         registry_diff = Registry.diff_between(
             current_registry_proto, desired_registry_proto
