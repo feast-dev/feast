@@ -16,7 +16,7 @@ from feast.diff.FcoDiff import TransitionType, tag_objects_for_keep_delete_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore, RepoContents
-from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
@@ -250,9 +250,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
             data_source.validate(store.config)
 
     if store._should_use_plan():
-        # TODO(felixwang9817): Add logging
         registry_diff, infra_diff = store._plan(repo)
         store._apply_diffs(registry_diff, infra_diff)
+        log_string = registry_diff.to_string()
+        click.echo(log_string)
     else:
         # For each object in the registry, determine whether it should be kept or deleted.
         (
@@ -270,24 +271,8 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 def log_cli_output(diff, views_to_delete, views_to_keep):
     from colorama import Fore, Style
 
-    message_action_map = {
-        TransitionType.CREATE: ("Created", Fore.GREEN),
-        TransitionType.DELETE: ("Deleted", Fore.RED),
-        TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
-        TransitionType.UPDATE: ("Updated", Fore.YELLOW),
-    }
-    for fco_diff in diff.fco_diffs:
-        if fco_diff.name == DUMMY_ENTITY_NAME:
-            continue
-        action, color = message_action_map[fco_diff.transition_type]
-        click.echo(
-            f"{action} {fco_diff.fco_type} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}"
-        )
-        if fco_diff.transition_type == TransitionType.UPDATE:
-            for _p in fco_diff.fco_property_diffs:
-                click.echo(
-                    f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}"
-                )
+    log_string = diff.to_string()
+    click.echo(log_string)
 
     views_to_keep_in_infra = [
         view for view in views_to_keep if isinstance(view, FeatureView)
