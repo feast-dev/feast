@@ -237,6 +237,8 @@ def extract_objects_for_apply_delete(project, registry, repo):
     return all_to_apply, all_to_delete, views_to_delete, views_to_keep
 
 
+def apply_total_with_repo_instance(repo_contents: RepoContents, )
+
 @log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
 
