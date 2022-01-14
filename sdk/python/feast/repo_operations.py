@@ -249,17 +249,22 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    # For each object in the registry, determine whether it should be kept or deleted.
-    (
-        all_to_apply,
-        all_to_delete,
-        views_to_delete,
-        views_to_keep,
-    ) = extract_objects_for_apply_delete(project, registry, repo)
+    if store._should_use_plan():
+        # TODO(felixwang9817): Add logging
+        registry_diff, infra_diff = store._plan(repo)
+        store._apply_diffs(registry_diff, infra_diff)
+    else:
+        # For each object in the registry, determine whether it should be kept or deleted.
+        (
+            all_to_apply,
+            all_to_delete,
+            views_to_delete,
+            views_to_keep,
+        ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+        diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
-    log_cli_output(diff, views_to_delete, views_to_keep)
+        log_cli_output(diff, views_to_delete, views_to_keep)
 
 
 def log_cli_output(diff, views_to_delete, views_to_keep):

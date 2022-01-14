@@ -220,12 +220,15 @@ class Registry:
 
         return diff
 
-    def _apply_diff(self, registry_diff: RegistryDiff, commit: bool = True):
+    def _apply_diff(
+        self, registry_diff: RegistryDiff, project: str, commit: bool = True
+    ):
         """
         Applies the given diff to the registry.
 
         Args:
             registry_diff: The diff to apply.
+            project: Feast project that this entity belongs to
             commit: Whether the change should be persisted immediately
         """
         for fco_diff in registry_diff.fco_diffs:
@@ -233,16 +236,10 @@ class Registry:
             # will automatically delete the existing FCO.
             if fco_diff.transition_type == TransitionType.DELETE:
                 if fco_diff.fco_type == ENTITY_TYPE_STR:
-                    entity_proto_spec = fco_diff.current_fco.spec
-                    self.delete_entity(
-                        entity_proto_spec.name, entity_proto_spec.project, False
-                    )
+                    self.delete_entity(fco_diff.current_fco.spec.name, project, False)
                 elif fco_diff.fco_type == FEATURE_SERVICE_TYPE_STR:
-                    feature_service_proto_spec = fco_diff.current_fco.spec
                     self.delete_feature_service(
-                        feature_service_proto_spec.name,
-                        feature_service_proto_spec.project,
-                        False,
+                        fco_diff.current_fco.spec.name, project, False,
                     )
                 elif fco_diff.fco_type == FEATURE_TABLE_TYPE_STR:
                     # Skip this case since the registry does not support feature tables.
@@ -252,11 +249,8 @@ class Registry:
                     ON_DEMAND_FEATURE_VIEW_TYPE_STR,
                     REQUEST_FEATURE_VIEW_TYPE_STR,
                 ]:
-                    feature_view_proto_spec = fco_diff.current_fco.spec
                     self.delete_feature_view(
-                        feature_view_proto_spec.name,
-                        feature_view_proto_spec.project,
-                        False,
+                        fco_diff.current_fco.spec.name, project, False,
                     )
 
             if fco_diff.transition_type in [
@@ -265,15 +259,11 @@ class Registry:
             ]:
                 if fco_diff.fco_type == ENTITY_TYPE_STR:
                     self.apply_entity(
-                        Entity.from_proto(fco_diff.new_fco),
-                        fco_diff.new_fco.spec.project,
-                        False,
+                        Entity.from_proto(fco_diff.new_fco), project, False,
                     )
                 elif fco_diff.fco_type == FEATURE_SERVICE_TYPE_STR:
                     self.apply_feature_service(
-                        FeatureService.from_proto(fco_diff.new_fco),
-                        fco_diff.new_fco.spec.project,
-                        False,
+                        FeatureService.from_proto(fco_diff.new_fco), project, False,
                     )
                 elif fco_diff.fco_type == FEATURE_TABLE_TYPE_STR:
                     # Skip this case since the registry does not support feature tables.
@@ -284,9 +274,7 @@ class Registry:
                     REQUEST_FEATURE_VIEW_TYPE_STR,
                 ]:
                     self.apply_feature_view(
-                        FeatureView.from_proto(fco_diff.new_fco),
-                        fco_diff.new_fco.spec.project,
-                        False,
+                        FeatureView.from_proto(fco_diff.new_fco), project, False,
                     )
 
         if commit:

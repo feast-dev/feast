@@ -413,6 +413,11 @@ class FeatureStore:
             _feature_refs = _features
         return _feature_refs
 
+    def _should_use_plan(self):
+        """Returns True if _plan and _apply_diffs should be used, False otherwise."""
+        # Currently only the local provider supports _plan and _apply_diffs.
+        return self.config.provider == "local"
+
     @log_exceptions_and_usage
     def _plan(
         self, desired_repo_objects: RepoContents
@@ -546,7 +551,7 @@ class FeatureStore:
 
         # Apply infra and registry changes.
         infra_diff.update()
-        self._registry._apply_diff(registry_diff, commit=True)
+        self._registry._apply_diff(registry_diff, self.project, commit=True)
 
     @log_exceptions_and_usage
     def apply(
