@@ -40,9 +40,9 @@ public interface ServingServiceV2 {
    *
    * <p>This request is fulfilled synchronously.
    *
-   * @return {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2} with list of
-   *     {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector}.
+   * @return {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse} with list of
+   *     {@link feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector}.
    */
-  ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(
+  ServingAPIProto.GetOnlineFeaturesResponse getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest getFeaturesRequest);
 }

@@ -173,7 +173,7 @@ class DynamoDBOnlineStore(OnlineStore):
                     val = ValueProto()
                     val.ParseFromString(value_bin.value)
                     res[feature_name] = val
-                result.append((value["event_ts"], res))
+                result.append((datetime.fromisoformat(value["event_ts"]), res))
             else:
                 result.append((None, None))
         return result

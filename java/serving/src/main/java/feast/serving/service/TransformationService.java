@@ -66,13 +66,13 @@ public interface TransformationService {
    * @param transformFeaturesResponse response to be processed
    * @param onDemandFeatureViewName name of ODFV to which the response corresponds
    * @param onDemandFeatureStringReferences set of all ODFV references that should be kept
-   * @param responseBuilder {@link ServingAPIProto.GetOnlineFeaturesResponseV2.Builder}
+   * @param responseBuilder {@link ServingAPIProto.GetOnlineFeaturesResponse.Builder}
    */
   void processTransformFeaturesResponse(
       TransformFeaturesResponse transformFeaturesResponse,
       String onDemandFeatureViewName,
       Set<String> onDemandFeatureStringReferences,
-      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder);
+      ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder);
 
   /**
    * Serialize data into Arrow IPC format, to be sent to the Python feature transformation server.

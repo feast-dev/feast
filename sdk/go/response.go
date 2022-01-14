@@ -19,7 +19,7 @@ var (
 
 // OnlineFeaturesResponse is a wrapper around serving.GetOnlineFeaturesResponse.
 type OnlineFeaturesResponse struct {
-	RawResponse *serving.GetOnlineFeaturesResponseV2
+	RawResponse *serving.GetOnlineFeaturesResponse
 }
 
 // Rows retrieves the result of the request as a list of Rows.
