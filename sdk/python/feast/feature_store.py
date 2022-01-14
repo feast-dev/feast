@@ -629,7 +629,6 @@ class FeatureStore:
         if not objects_to_delete:
             objects_to_delete = []
 
-        # TODO: remove this useless stuff (no need to return diffs)
         current_registry_proto = (
             self._registry.cached_registry_proto.__deepcopy__()
             if self._registry.cached_registry_proto
@@ -662,11 +661,6 @@ class FeatureStore:
         _validate_feature_views(
             [*views_to_update, *odfvs_to_update, *request_views_to_update]
         )
-
-        # TODO: check if any of these functions require all FVs to be run
-        # or if they can be run with each FV at a time
-        # actually don't think we need to do this...
-        # we can pretty easily aggregate all the FVs?
 
         # Make inferences
         update_entities_with_inferred_types_from_feature_views(
@@ -745,14 +739,6 @@ class FeatureStore:
         )
 
         diffs = Registry.diff_between(current_registry_proto, new_registry_proto)
-
-        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
-
-        entities_to_delete = [ob for ob in objects_to_delete if isinstance(ob, Entity)]
-        views_to_delete = [
-            ob for ob in objects_to_delete if isinstance(ob, FeatureView)
-        ]
 
         self._get_provider().update_infra(
             project=self.project,
