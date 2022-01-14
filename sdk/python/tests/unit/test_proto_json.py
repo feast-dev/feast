@@ -30,13 +30,12 @@ def test_feature_vector_values(proto_json_patch):
             [1, 2, 3],
             [2.0, 3.0, 4.0, null],
             [true, false, true],
-            ["foo", "bar", "foobar"],
-            null
+            ["foo", "bar", "foobar"]
         ]
     }"""
     feature_vector_proto = FeatureVector()
     Parse(feature_vector_str, feature_vector_proto)
-    assertpy.assert_that(len(feature_vector_proto.values)).is_equal_to(9)
+    assertpy.assert_that(len(feature_vector_proto.values)).is_equal_to(8)
     assertpy.assert_that(feature_vector_proto.values[0].int64_val).is_equal_to(1)
     assertpy.assert_that(feature_vector_proto.values[1].double_val).is_equal_to(2.0)
     assertpy.assert_that(feature_vector_proto.values[2].bool_val).is_equal_to(True)
@@ -55,11 +54,10 @@ def test_feature_vector_values(proto_json_patch):
     assertpy.assert_that(
         feature_vector_proto.values[7].string_list_val.val
     ).is_equal_to(["foo", "bar", "foobar"])
-    assertpy.assert_that(feature_vector_proto.values[8].null_val).is_equal_to(0)
 
     # Now convert protobuf back to json and check that
     feature_vector_json = MessageToDict(feature_vector_proto)
-    assertpy.assert_that(len(feature_vector_json["values"])).is_equal_to(9)
+    assertpy.assert_that(len(feature_vector_json["values"])).is_equal_to(8)
     assertpy.assert_that(feature_vector_json["values"][0]).is_equal_to(1)
     assertpy.assert_that(feature_vector_json["values"][1]).is_equal_to(2.0)
     assertpy.assert_that(feature_vector_json["values"][2]).is_equal_to(True)
@@ -76,7 +74,6 @@ def test_feature_vector_values(proto_json_patch):
     assertpy.assert_that(feature_vector_json["values"][7]).is_equal_to(
         ["foo", "bar", "foobar"]
     )
-    assertpy.assert_that(feature_vector_json["values"][8]).is_equal_to(None)
 
 
 def test_feast_repeated_value(proto_json_patch):
