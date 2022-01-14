@@ -415,8 +415,8 @@ class FeatureStore:
 
     def _should_use_plan(self):
         """Returns True if _plan and _apply_diffs should be used, False otherwise."""
-        # Currently only the local provider supports _plan and _apply_diffs.
-        return self.config.provider == "local"
+        # Currently only the local and gcp providers support _plan and _apply_diffs.
+        return self.config.provider in ["local", "gcp"]
 
     @log_exceptions_and_usage
     def _plan(
