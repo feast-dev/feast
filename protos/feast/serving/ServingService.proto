@@ -30,7 +30,7 @@ service ServingService {
     rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
 
     // Get online features synchronously.
-    rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponseV2);
+    rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
 }
 
 message GetFeastServingInfoRequest {}
@@ -95,19 +95,6 @@ message GetOnlineFeaturesRequest {
 }
 
 message GetOnlineFeaturesResponse {
-    // Feature values retrieved from feast.
-    repeated FieldValues field_values = 1;
-
-    message FieldValues {
-        // Map of feature or entity name to feature/entity values.
-        // Timestamps are not returned in this response.
-        map<string, feast.types.Value> fields = 1;
-        // Map of feature or entity name to feature/entity statuses/metadata.
-        map<string, FieldStatus> statuses = 2;
-    }
-}
-
-message GetOnlineFeaturesResponseV2 {
     GetOnlineFeaturesResponseMetadata metadata = 1;
 
     // Length of "results" array should match length of requested features.

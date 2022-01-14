@@ -57,14 +57,14 @@ func (mr *MockServingServiceClientMockRecorder) GetFeastServingInfo(arg0, arg1 i
 }
 
 // GetOnlineFeaturesV2 mocks base method
-func (m *MockServingServiceClient) GetOnlineFeatures(arg0 context.Context, arg1 *serving.GetOnlineFeaturesRequest, arg2 ...grpc.CallOption) (*serving.GetOnlineFeaturesResponseV2, error) {
+func (m *MockServingServiceClient) GetOnlineFeatures(arg0 context.Context, arg1 *serving.GetOnlineFeaturesRequest, arg2 ...grpc.CallOption) (*serving.GetOnlineFeaturesResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetOnlineFeatures", varargs...)
-	ret0, _ := ret[0].(*serving.GetOnlineFeaturesResponseV2)
+	ret0, _ := ret[0].(*serving.GetOnlineFeaturesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

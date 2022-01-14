@@ -74,7 +74,7 @@ abstract class ServingBaseTests extends ServingEnvironment {
 
   @Test
   public void shouldGetOnlineFeatures() {
-    ServingAPIProto.GetOnlineFeaturesResponseV2 featureResponse =
+    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
         servingStub.getOnlineFeatures(buildOnlineRequest(1005));
 
     assertEquals(2, featureResponse.getResultsCount());
@@ -96,7 +96,7 @@ abstract class ServingBaseTests extends ServingEnvironment {
 
   @Test
   public void shouldGetOnlineFeaturesWithOutsideMaxAgeStatus() {
-    ServingAPIProto.GetOnlineFeaturesResponseV2 featureResponse =
+    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
         servingStub.getOnlineFeatures(buildOnlineRequest(1001));
 
     assertEquals(2, featureResponse.getResultsCount());
@@ -113,7 +113,7 @@ abstract class ServingBaseTests extends ServingEnvironment {
 
   @Test
   public void shouldGetOnlineFeaturesWithNotFoundStatus() {
-    ServingAPIProto.GetOnlineFeaturesResponseV2 featureResponse =
+    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
         servingStub.getOnlineFeatures(buildOnlineRequest(-1));
 
     assertEquals(2, featureResponse.getResultsCount());

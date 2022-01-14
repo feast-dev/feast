@@ -21,7 +21,7 @@ import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto;
@@ -129,7 +129,7 @@ public class FeastClient implements AutoCloseable {
 
     requestBuilder.putAllEntities(getEntityValuesMap(entities));
 
-    GetOnlineFeaturesResponseV2 response = stub.getOnlineFeatures(requestBuilder.build());
+    GetOnlineFeaturesResponse response = stub.getOnlineFeatures(requestBuilder.build());
 
     List<Row> results = Lists.newArrayList();
     if (response.getResultsCount() == 0) {

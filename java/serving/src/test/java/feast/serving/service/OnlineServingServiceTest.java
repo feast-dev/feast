@@ -30,7 +30,7 @@ import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto;
 import feast.serving.registry.Registry;
 import feast.serving.registry.RegistryRepository;
@@ -173,10 +173,10 @@ public class OnlineServingServiceTest {
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponseV2 expected =
-        GetOnlineFeaturesResponseV2.newBuilder()
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
             .addResults(
-                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                     .addValues(createStrValue("1"))
                     .addValues(createStrValue("3"))
                     .addStatuses(FieldStatus.PRESENT)
@@ -184,7 +184,7 @@ public class OnlineServingServiceTest {
                     .addEventTimestamps(now)
                     .addEventTimestamps(now))
             .addResults(
-                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                     .addValues(createStrValue("2"))
                     .addValues(createStrValue("4"))
                     .addStatuses(FieldStatus.PRESENT)
@@ -198,7 +198,7 @@ public class OnlineServingServiceTest {
                             .addVal("featureview_1:feature_1")
                             .addVal("featureview_1:feature_2")))
             .build();
-    ServingAPIProto.GetOnlineFeaturesResponseV2 actual =
+    ServingAPIProto.GetOnlineFeaturesResponse actual =
         onlineServingServiceV2.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
   }
@@ -240,10 +240,10 @@ public class OnlineServingServiceTest {
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponseV2 expected =
-        GetOnlineFeaturesResponseV2.newBuilder()
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
             .addResults(
-                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                     .addValues(createStrValue("1"))
                     .addValues(createEmptyValue())
                     .addStatuses(FieldStatus.PRESENT)
@@ -251,7 +251,7 @@ public class OnlineServingServiceTest {
                     .addEventTimestamps(now)
                     .addEventTimestamps(Timestamp.newBuilder().build()))
             .addResults(
-                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                     .addValues(createStrValue("2"))
                     .addValues(createStrValue("5"))
                     .addStatuses(FieldStatus.PRESENT)
@@ -265,7 +265,7 @@ public class OnlineServingServiceTest {
                             .addVal("featureview_1:feature_1")
                             .addVal("featureview_1:feature_2")))
             .build();
-    GetOnlineFeaturesResponseV2 actual = onlineServingServiceV2.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingServiceV2.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
   }
 
@@ -317,10 +317,10 @@ public class OnlineServingServiceTest {
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponseV2 expected =
-        GetOnlineFeaturesResponseV2.newBuilder()
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
             .addResults(
-                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                     .addValues(createStrValue("6"))
                     .addValues(createStrValue("6"))
                     .addStatuses(FieldStatus.OUTSIDE_MAX_AGE)
@@ -328,7 +328,7 @@ public class OnlineServingServiceTest {
                     .addEventTimestamps(Timestamp.newBuilder().setSeconds(1).build())
                     .addEventTimestamps(Timestamp.newBuilder().setSeconds(1).build()))
             .addResults(
-                GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+                GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                     .addValues(createStrValue("2"))
                     .addValues(createStrValue("2"))
                     .addStatuses(FieldStatus.PRESENT)
@@ -342,7 +342,7 @@ public class OnlineServingServiceTest {
                             .addVal("featureview_1:feature_1")
                             .addVal("featureview_1:feature_2")))
             .build();
-    GetOnlineFeaturesResponseV2 actual = onlineServingServiceV2.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingServiceV2.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
   }
 

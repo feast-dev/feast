@@ -45,34 +45,31 @@ class OnlineResponse:
         online_response_proto: GetOnlineResponse proto object to construct from.
         """
         self.proto = online_response_proto
-        # Delete DUMMY_ENTITY_ID from proto if it exists
-        for item in self.proto.field_values:
-            if DUMMY_ENTITY_ID in item.statuses:
-                del item.statuses[DUMMY_ENTITY_ID]
-            if DUMMY_ENTITY_ID in item.fields:
-                del item.fields[DUMMY_ENTITY_ID]
-
-    @property
-    def field_values(self):
-        """
-        Getter for GetOnlineResponse's field_values.
-        """
-        return self.proto.field_values
+        if DUMMY_ENTITY_ID in self.proto.metadata.feature_names.val:
+            for idx, val in enumerate(self.proto.metadata.feature_names.val):
+                if val == DUMMY_ENTITY_ID:
+                    del self.proto.metadata.feature_names.val[idx]
+                    for result in self.proto.results:
+                        del result.values[idx]
+                        del result.statuses[idx]
+                        del result.event_timestamps[idx]
+                    break
 
     def to_dict(self) -> Dict[str, Any]:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
-        features_dict: Dict[str, List[Any]] = {
-            k: list() for row in self.field_values for k, _ in row.statuses.items()
-        }
+        response: Dict[str, List[Any]] = {}
 
-        for row in self.field_values:
-            for feature in features_dict.keys():
-                native_type_value = feast_value_type_to_python_type(row.fields[feature])
-                features_dict[feature].append(native_type_value)
+        for result in self.proto.results:
+            for idx, feature_ref in enumerate(self.proto.metadata.feature_names.val):
+                native_type_value = feast_value_type_to_python_type(result.values[idx])
+                if feature_ref not in response:
+                    response[feature_ref] = [native_type_value]
+                else:
+                    response[feature_ref].append(native_type_value)
 
-        return features_dict
+        return response
 
     def to_df(self) -> pd.DataFrame:
         """

@@ -189,7 +189,7 @@ public class OnlineTransformationService implements TransformationService {
           transformFeaturesResponse,
       String onDemandFeatureViewName,
       Set<String> onDemandFeatureStringReferences,
-      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder) {
+      ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder) {
     try {
       BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
       ArrowFileReader reader =
@@ -219,7 +219,7 @@ public class OnlineTransformationService implements TransformationService {
 
         FieldVector fieldVector = readBatch.getVector(field);
         int valueCount = fieldVector.getValueCount();
-        ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector.Builder vectorBuilder =
+        ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector.Builder vectorBuilder =
             responseBuilder.addResultsBuilder();
         List<ValueProto.Value> valueList = Lists.newArrayListWithExpectedSize(valueCount);
 

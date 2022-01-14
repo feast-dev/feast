@@ -60,12 +60,12 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   @Override
   public void getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest request,
-      StreamObserver<ServingAPIProto.GetOnlineFeaturesResponseV2> responseObserver) {
+      StreamObserver<ServingAPIProto.GetOnlineFeaturesResponse> responseObserver) {
     try {
       // authorize for the project in request object.
       RequestHelper.validateOnlineRequest(request);
       Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
-      ServingAPIProto.GetOnlineFeaturesResponseV2 onlineFeatures =
+      ServingAPIProto.GetOnlineFeaturesResponse onlineFeatures =
           servingServiceV2.getOnlineFeatures(request);
       if (span != null) {
         span.finish();
