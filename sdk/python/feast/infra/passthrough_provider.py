@@ -98,7 +98,7 @@ class PassthroughProvider(Provider):
         if feature_view.batch_source.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
 
-        join_keys = [entity.join_key for entity in entities]
+        join_keys = {entity.join_key: entity.value_type for entity in entities}
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
         self.online_write_batch(
@@ -144,7 +144,7 @@ class PassthroughProvider(Provider):
         if feature_view.batch_source.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
 
-        join_keys = [entity.join_key for entity in entities]
+        join_keys = {entity.join_key: entity.value_type for entity in entities}
 
         with tqdm_builder(table.num_rows) as pbar:
             for batch in table.to_batches(DEFAULT_BATCH_SIZE):

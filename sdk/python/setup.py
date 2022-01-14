@@ -40,7 +40,7 @@ AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
-    "Click==7.*",
+    "Click==8.*",
     "colorama>=0.3.9",
     "dill==0.3.*",
     "fastavro>=1.1.0",

@@ -15,7 +15,7 @@ import copy
 import itertools
 import os
 import warnings
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -39,6 +39,7 @@ from tqdm import tqdm
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.FcoDiff import RegistryDiff
+from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -63,15 +64,15 @@ from feast.inference import (
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.online_response import OnlineResponse
+from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
-    GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.Value_pb2 import Value
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
@@ -407,7 +408,9 @@ class FeatureStore:
         return _feature_refs
 
     @log_exceptions_and_usage
-    def plan(self, desired_repo_objects: RepoContents) -> RegistryDiff:
+    def plan(
+        self, desired_repo_objects: RepoContents
+    ) -> Tuple[RegistryDiff, InfraDiff]:
         """Dry-run registering objects to metadata store.
 
         The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
@@ -442,7 +445,7 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
+            >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
 
         current_registry_proto = (
@@ -452,8 +455,21 @@ class FeatureStore:
         )
 
         desired_registry_proto = desired_repo_objects.to_registry_proto()
-        diffs = Registry.diff_between(current_registry_proto, desired_registry_proto)
-        return diffs
+        registry_diff = Registry.diff_between(
+            current_registry_proto, desired_registry_proto
+        )
+
+        current_infra_proto = (
+            self._registry.cached_registry_proto.infra.__deepcopy__()
+            if self._registry.cached_registry_proto
+            else InfraProto()
+        )
+        new_infra_proto = self._provider.plan_infra(
+            self.config, desired_registry_proto
+        ).to_proto()
+        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
+
+        return (registry_diff, infra_diff)
 
     @log_exceptions_and_usage
     def apply(
@@ -1075,6 +1091,15 @@ class FeatureStore:
         set_usage_attribute("odfv", bool(grouped_odfv_refs))
         set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
 
+        # All requested features should be present in the result.
+        requested_result_row_names = {
+            feat_ref.replace(":", "__") for feat_ref in _feature_refs
+        }
+        if not full_feature_names:
+            requested_result_row_names = {
+                name.rpartition("__")[-1] for name in requested_result_row_names
+            }
+
         feature_views = list(view for view, _ in grouped_refs)
         entityless_case = DUMMY_ENTITY_NAME in [
             entity_name
@@ -1085,8 +1110,10 @@ class FeatureStore:
         provider = self._get_provider()
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
+        join_key_to_entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
+            join_key_to_entity_type_map[entity.join_key] = entity.value_type
         for feature_view in requested_feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
@@ -1101,13 +1128,14 @@ class FeatureStore:
                     entity.join_key, entity.join_key
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
+                join_key_to_entity_type_map[join_key] = entity.value_type
 
         needed_request_data, needed_request_fv_features = self.get_needed_request_data(
             grouped_odfv_refs, grouped_request_fv_refs
         )
 
         join_key_rows = []
-        request_data_features: Dict[str, List[Any]] = {}
+        request_data_features: Dict[str, List[Any]] = defaultdict(list)
         # Entity rows may be either entities or request data.
         for row in entity_rows:
             join_key_row = {}
@@ -1117,17 +1145,21 @@ class FeatureStore:
                     entity_name in needed_request_data
                     or entity_name in needed_request_fv_features
                 ):
-                    if entity_name not in request_data_features:
-                        request_data_features[entity_name] = []
+                    if entity_name in needed_request_fv_features:
+                        # If the data was requested as a feature then
+                        # make sure it appears in the result.
+                        requested_result_row_names.add(entity_name)
                     request_data_features[entity_name].append(entity_value)
-                    continue
-                try:
-                    join_key = entity_name_to_join_key_map[entity_name]
-                except KeyError:
-                    raise EntityNotFoundException(entity_name, self.project)
-                join_key_row[join_key] = entity_value
-                if entityless_case:
-                    join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                else:
+                    try:
+                        join_key = entity_name_to_join_key_map[entity_name]
+                    except KeyError:
+                        raise EntityNotFoundException(entity_name, self.project)
+                    # All join keys should be returned in the result.
+                    requested_result_row_names.add(join_key)
+                    join_key_row[join_key] = entity_value
+                    if entityless_case:
+                        join_key_row[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
             if len(join_key_row) > 0:
                 # May be empty if this entity row was request data
                 join_key_rows.append(join_key_row)
@@ -1136,87 +1168,123 @@ class FeatureStore:
             needed_request_data, needed_request_fv_features, request_data_features
         )
 
-        entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
+        # Convert join_key_rows from rowise to columnar.
+        join_key_python_values: Dict[str, List[Value]] = defaultdict(list)
+        for join_key_row in join_key_rows:
+            for join_key, value in join_key_row.items():
+                join_key_python_values[join_key].append(value)
 
-        union_of_entity_keys: List[EntityKeyProto] = []
+        # Convert all join key values to Protobuf Values
+        join_key_proto_values = {
+            k: python_values_to_proto_values(v, join_key_to_entity_type_map[k])
+            for k, v in join_key_python_values.items()
+        }
 
-        for entity_row_proto in entity_row_proto_list:
-            # Create a list of entity keys to filter down for each feature view at lookup time.
-            union_of_entity_keys.append(_entity_row_to_key(entity_row_proto))
-
+        # Populate online features response proto with join keys
         online_features_response = GetOnlineFeaturesResponse(
-            results=[GetOnlineFeaturesResponse.FeatureVector()] * len(join_key_rows)
-        )
-
-        # Append entity keys to the response
-        self._populate_entities_in_response(
-            online_features_response, entity_row_proto_list
-        )
-
-        # Keep track of what has been requested from the OnlineStore
-        # to avoid requesting the same thing twice for ODFVs.
-        retrieved_feature_refs: Set[str] = set()
-        for table, requested_features in grouped_refs:
-            table_join_keys = [
-                entity_name_to_join_key_map[entity_name]
-                for entity_name in table.entities
+            results=[
+                GetOnlineFeaturesResponse.FeatureVector()
+                for _ in range(len(entity_rows))
             ]
-            self._populate_fvs_in_response(
+        )
+        for key, values in join_key_proto_values.items():
+            online_features_response.metadata.feature_names.val.append(key)
+            for row_idx, result_row in enumerate(online_features_response.results):
+                result_row.values.append(values[row_idx])
+                result_row.statuses.append(FieldStatus.PRESENT)
+                result_row.event_timestamps.append(Timestamp())
+
+        # Initialize the set of EntityKeyProtos once and reuse them for each FeatureView
+        # to avoid initialization overhead.
+        entity_keys = [EntityKeyProto() for _ in range(len(join_key_rows))]
+        for table, requested_features in grouped_refs:
+            # Get the correct set of entity values with the correct join keys.
+            entity_values = self._get_table_entity_values(
+                table, entity_name_to_join_key_map, join_key_proto_values,
+            )
+
+            # Set the EntityKeyProtos inplace.
+            self._set_table_entity_keys(
+                entity_values, entity_keys,
+            )
+
+            # Populate the result_rows with the Features from the OnlineStore inplace.
+            self._populate_result_rows_from_feature_view(
                 online_features_response,
-                table_join_keys,
+                entity_keys,
                 full_feature_names,
                 provider,
                 requested_features,
                 table,
-                union_of_entity_keys,
             )
-            table_feature_names = {feature.name for feature in table.features}
-            retrieved_feature_refs |= {
-                f"{table.name}:{feature}" if feature in table_feature_names else feature
-                for feature in requested_features
-            }
 
-        requested_result_row_names = (
-            set(online_features_response.metadata.feature_names.val)
-            | needed_request_fv_features
+        self._populate_request_data_features(
+            online_features_response, request_data_features
         )
 
-        self._populate_odfv_dependencies(
-            online_features_response,
-            entity_name_to_join_key_map,
-            full_feature_names,
-            grouped_odfv_refs,
-            provider,
-            request_data_features,
-            union_of_entity_keys,
-            retrieved_feature_refs,
-        )
+        if grouped_odfv_refs:
+            self._augment_response_with_on_demand_transforms(
+                online_features_response,
+                _feature_refs,
+                requested_on_demand_feature_views,
+                full_feature_names,
+            )
 
-        self._augment_response_with_on_demand_transforms(
-            online_features_response,
-            _feature_refs,
-            requested_result_row_names,
-            requested_on_demand_feature_views,
-            full_feature_names,
+        self._drop_unneeded_columns(
+            online_features_response, requested_result_row_names
         )
         return OnlineResponse(online_features_response)
 
-    def _populate_odfv_dependencies(
-        self,
-        online_features_response: GetOnlineFeaturesResponse,
+    @staticmethod
+    def _get_table_entity_values(
+        table: FeatureView,
         entity_name_to_join_key_map: Dict[str, str],
-        full_feature_names: bool,
-        grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
-        provider: Provider,
+        join_key_proto_values: Dict[str, List[Value]],
+    ) -> Dict[str, List[Value]]:
+        # The correct join_keys expected by the OnlineStore for this Feature View.
+        table_join_keys = [
+            entity_name_to_join_key_map[entity_name] for entity_name in table.entities
+        ]
+
+        # If the FeatureView has a Projection then the join keys may be aliased.
+        alias_to_join_key_map = {v: k for k, v in table.projection.join_key_map.items()}
+
+        # Subset to columns which are relevant to this FeatureView and
+        # give them the correct names.
+        entity_values = {
+            alias_to_join_key_map.get(k, k): v
+            for k, v in join_key_proto_values.items()
+            if alias_to_join_key_map.get(k, k) in table_join_keys
+        }
+        return entity_values
+
+    @staticmethod
+    def _set_table_entity_keys(
+        entity_values: Dict[str, List[Value]], entity_keys: List[EntityKeyProto],
+    ):
+        """
+        This method sets the a list of EntityKeyProtos inplace.
+        """
+        keys = entity_values.keys()
+        # Columar to rowise (dict keys and values are guaranteed to have the same order).
+        rowise_values = zip(*entity_values.values())
+        for entity_key in entity_keys:
+            # Make sure entity_keys are empty before setting.
+            entity_key.Clear()
+            entity_key.join_keys.extend(keys)
+            entity_key.entity_values.extend(next(rowise_values))
+
+    @staticmethod
+    def _populate_request_data_features(
+        online_features_response: GetOnlineFeaturesResponse,
         request_data_features: Dict[str, List[Any]],
-        union_of_entity_keys: List[EntityKeyProto],
-        retrieved_feature_refs: Set[str],
     ):
         # Add more feature values to the existing result rows for the request data features
         for feature_name, feature_values in request_data_features.items():
             proto_values = python_values_to_proto_values(
                 feature_values, ValueType.UNKNOWN
             )
+
             online_features_response.metadata.feature_names.val.append(feature_name)
 
             for row_idx, proto_value in enumerate(proto_values):
@@ -1225,39 +1293,8 @@ class FeatureStore:
                 result_row.statuses.append(FieldStatus.PRESENT)
                 result_row.event_timestamps.append(Timestamp())
 
-        # Add data if odfv requests specific feature views as dependencies
-        if len(grouped_odfv_refs) > 0:
-            for odfv, _ in grouped_odfv_refs:
-                for fv in odfv.input_feature_views.values():
-                    # Find the set of required Features which have not yet
-                    # been retrieved.
-                    not_yet_retrieved = {
-                        feature.name
-                        for feature in fv.projection.features
-                        if f"{fv.name}:{feature.name}" not in retrieved_feature_refs
-                    }
-                    # If there are required Features which have not yet been retrieved
-                    # retrieve them.
-                    if not_yet_retrieved:
-                        table_join_keys = [
-                            entity_name_to_join_key_map[entity_name]
-                            for entity_name in fv.entities
-                        ]
-                        self._populate_fvs_in_response(
-                            online_features_response,
-                            table_join_keys,
-                            full_feature_names,
-                            provider,
-                            list(not_yet_retrieved),
-                            fv,
-                            union_of_entity_keys,
-                        )
-                    # Update the set of retrieved Features with any newly retrieved
-                    # Features.
-                    retrieved_feature_refs |= not_yet_retrieved
-
+    @staticmethod
     def get_needed_request_data(
-        self,
         grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
         grouped_request_fv_refs: List[Tuple[RequestFeatureView, List[str]]],
     ) -> Tuple[Set[str], Set[str]]:
@@ -1271,8 +1308,8 @@ class FeatureStore:
                 needed_request_fv_features.add(feature.name)
         return needed_request_data, needed_request_fv_features
 
+    @staticmethod
     def ensure_request_data_values_exist(
-        self,
         needed_request_data: Set[str],
         needed_request_fv_features: Set[str],
         request_data_features: Dict[str, List[Any]],
@@ -1291,38 +1328,15 @@ class FeatureStore:
                 feature_names=missing_features
             )
 
-    def _populate_entities_in_response(
+    def _populate_result_rows_from_feature_view(
         self,
         online_features_response: GetOnlineFeaturesResponse,
-        rows: List[GetOnlineFeaturesRequestV2.EntityRow],
-    ):
-        # Note: We temporarily store entities in the same field as features for backwards compatibility.
-        # Java server uses the same GetOnlineFeaturesResponse but does not return entities right now.
-        # We need to unify the logic between Python & Java on this.
-        if len(rows) == 0:
-            return
-        fields = list(rows[0].fields.keys())
-        online_features_response.metadata.feature_names.val.extend(fields)
-        for idx, row in enumerate(rows):
-            for field in fields:
-                result_row = online_features_response.results[idx]
-                result_row.values.append(row.fields[field])
-                result_row.statuses.append(FieldStatus.PRESENT)
-                result_row.event_timestamps.append(Timestamp())
-
-    def _populate_fvs_in_response(
-        self,
-        online_features_response: GetOnlineFeaturesResponse,
-        table_join_keys: List[str],
+        entity_keys: List[EntityKeyProto],
         full_feature_names: bool,
         provider: Provider,
         requested_features: List[str],
         table: FeatureView,
-        union_of_entity_keys: List[EntityKeyProto],
     ):
-        entity_keys = _get_table_entity_keys(
-            table, union_of_entity_keys, table_join_keys
-        )
         read_rows = provider.online_read(
             config=self.config,
             table=table,
@@ -1338,7 +1352,6 @@ class FeatureStore:
         online_features_response.metadata.feature_names.val.extend(
             requested_feature_refs
         )
-
         # Each row is a set of features for a given entity key
         for row_idx, read_row in enumerate(read_rows):
             row_ts, feature_data = read_row
@@ -1352,21 +1365,20 @@ class FeatureStore:
                 result_row.statuses.extend(
                     [FieldStatus.NOT_FOUND] * len(requested_features)
                 )
-                result_row.values.extend([ValueProto()] * len(requested_features))
+                result_row.values.extend([Value()] * len(requested_features))
             else:
                 for feature_name in requested_features:
                     if feature_name not in feature_data:
                         result_row.statuses.append(FieldStatus.NOT_FOUND)
-                        result_row.values.append(ValueProto())
+                        result_row.values.append(Value())
                     else:
                         result_row.statuses.append(FieldStatus.PRESENT)
                         result_row.values.append(feature_data[feature_name])
 
+    @staticmethod
     def _augment_response_with_on_demand_transforms(
-        self,
         online_features_response: GetOnlineFeaturesResponse,
         feature_refs: List[str],
-        requested_result_row_names: Set[str],
         requested_on_demand_feature_views: List[OnDemandFeatureView],
         full_feature_names: bool,
     ):
@@ -1379,16 +1391,12 @@ class FeatureStore:
         Args:
             online_features_response: Protobuf object to populate
             feature_refs: List of all feature references to be returned.
-            requested_result_row_names: Fields from 'result_rows' that have been requested, and
-                therefore should not be dropped.
             requested_on_demand_feature_views: List of all odfvs that have been requested.
             full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
                 changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
                 "customer_fv__daily_transactions").
+            result_rows: List of result rows to be augmented with on demand feature values.
         """
-        if len(requested_on_demand_feature_views) == 0:
-            return
-
         requested_odfv_map = {
             odfv.name: odfv for odfv in requested_on_demand_feature_views
         }
@@ -1436,13 +1444,27 @@ class FeatureStore:
                     result_row.statuses.append(FieldStatus.PRESENT)
                     result_row.event_timestamps.append(Timestamp())
 
+    @staticmethod
+    def _drop_unneeded_columns(
+        online_features_response: GetOnlineFeaturesResponse,
+        requested_result_row_names: Set[str],
+    ):
+        """
+        Unneeded feature values such as request data and unrequested input feature views will
+        be removed from 'online_features_response'.
+
+        Args:
+            online_features_response: Protobuf object to populate
+            requested_result_row_names: Fields from 'result_rows' that have been requested, and
+                    therefore should not be dropped.
+        """
         # Drop values that aren't needed
         unneeded_feature_indices = [
             idx
             for idx, val in enumerate(
                 online_features_response.metadata.feature_names.val
             )
-            if val not in requested_result_row_names and val not in odfv_result_names
+            if val not in requested_result_row_names
         ]
 
         for idx in reversed(unneeded_feature_indices):
@@ -1496,9 +1518,13 @@ class FeatureStore:
                         request_fvs[fv_name].with_projection(copy.copy(projection))
                     )
                 elif fv_name in od_fvs:
-                    od_fvs_to_use.append(
-                        od_fvs[fv_name].with_projection(copy.copy(projection))
-                    )
+                    odfv = od_fvs[fv_name].with_projection(copy.copy(projection))
+                    od_fvs_to_use.append(odfv)
+                    # Let's make sure to include an FVs which the ODFV requires Features from.
+                    for projection in odfv.input_feature_view_projections.values():
+                        fv = fvs[projection.name].with_projection(copy.copy(projection))
+                        if fv not in fvs_to_use:
+                            fvs_to_use.append(fv)
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
@@ -1539,11 +1565,6 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
-
-
-def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
-    names, values = zip(*row.fields.items())
-    return EntityKeyProto(join_keys=names, entity_values=values)
 
 
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
@@ -1599,21 +1620,27 @@ def _group_feature_refs(
     }
 
     # view name to feature names
-    views_features = defaultdict(list)
-    request_views_features = defaultdict(list)
+    views_features = defaultdict(set)
+    request_views_features = defaultdict(set)
     request_view_refs = set()
 
     # on demand view name to feature names
-    on_demand_view_features = defaultdict(list)
+    on_demand_view_features = defaultdict(set)
 
     for ref in features:
         view_name, feat_name = ref.split(":")
         if view_name in view_index:
-            views_features[view_name].append(feat_name)
+            views_features[view_name].add(feat_name)
         elif view_name in on_demand_view_index:
-            on_demand_view_features[view_name].append(feat_name)
+            on_demand_view_features[view_name].add(feat_name)
+            # Let's also add in any FV Feature dependencies here.
+            for input_fv_projection in on_demand_view_index[
+                view_name
+            ].input_feature_view_projections.values():
+                for input_feat in input_fv_projection.features:
+                    views_features[input_fv_projection.name].add(input_feat.name)
         elif view_name in request_view_index:
-            request_views_features[view_name].append(feat_name)
+            request_views_features[view_name].add(feat_name)
             request_view_refs.add(ref)
         else:
             raise FeatureViewNotFoundException(view_name)
@@ -1623,52 +1650,12 @@ def _group_feature_refs(
     request_fvs_result: List[Tuple[RequestFeatureView, List[str]]] = []
 
     for view_name, feature_names in views_features.items():
-        fvs_result.append((view_index[view_name], feature_names))
+        fvs_result.append((view_index[view_name], list(feature_names)))
     for view_name, feature_names in request_views_features.items():
-        request_fvs_result.append((request_view_index[view_name], feature_names))
+        request_fvs_result.append((request_view_index[view_name], list(feature_names)))
     for view_name, feature_names in on_demand_view_features.items():
-        odfvs_result.append((on_demand_view_index[view_name], feature_names))
+        odfvs_result.append((on_demand_view_index[view_name], list(feature_names)))
     return fvs_result, odfvs_result, request_fvs_result, request_view_refs
-
-
-def _get_table_entity_keys(
-    table: FeatureView, entity_keys: List[EntityKeyProto], table_join_keys: List[str]
-) -> List[EntityKeyProto]:
-    reverse_join_key_map = {
-        alias: original for original, alias in table.projection.join_key_map.items()
-    }
-    required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
-    entity_key_protos = []
-    for entity_key in entity_keys:
-        required_entities_to_values = required_entities.copy()
-        for i in range(len(entity_key.join_keys)):
-            entity_name = reverse_join_key_map.get(
-                entity_key.join_keys[i], entity_key.join_keys[i]
-            )
-            entity_value = entity_key.entity_values[i]
-
-            if entity_name in required_entities_to_values:
-                if required_entities_to_values[entity_name] is not None:
-                    raise ValueError(
-                        f"Duplicate entity keys detected. Table {table.name} expects {table_join_keys}. The entity "
-                        f"{entity_name} was provided at least twice"
-                    )
-                required_entities_to_values[entity_name] = entity_value
-
-        entity_names = []
-        entity_values = []
-        for entity_name, entity_value in required_entities_to_values.items():
-            if entity_value is None:
-                raise ValueError(
-                    f"Table {table.name} expects entity field {table_join_keys}. No entity value was found for "
-                    f"{entity_name}"
-                )
-            entity_names.append(entity_name)
-            entity_values.append(entity_value)
-        entity_key_protos.append(
-            EntityKeyProto(join_keys=entity_names, entity_values=entity_values)
-        )
-    return entity_key_protos
 
 
 def _print_materialization_log(

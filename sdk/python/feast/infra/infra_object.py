@@ -15,9 +15,21 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, List
 
-from feast.importer import get_class_from_type
+from feast.errors import FeastInvalidInfraObjectType
+from feast.importer import import_class
+from feast.protos.feast.core.DatastoreTable_pb2 import (
+    DatastoreTable as DatastoreTableProto,
+)
+from feast.protos.feast.core.DynamoDBTable_pb2 import (
+    DynamoDBTable as DynamoDBTableProto,
+)
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
+
+DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
+DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
+SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.sqlite.SqliteTable"
 
 
 class InfraObject(ABC):
@@ -26,13 +38,18 @@ class InfraObject(ABC):
     """
 
     @abstractmethod
-    def to_proto(self) -> InfraObjectProto:
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        """Converts an InfraObject to its protobuf representation, wrapped in an InfraObjectProto."""
+        pass
+
+    @abstractmethod
+    def to_proto(self) -> Any:
         """Converts an InfraObject to its protobuf representation."""
         pass
 
     @staticmethod
     @abstractmethod
-    def from_proto(infra_object_proto: InfraObjectProto) -> Any:
+    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> Any:
         """
         Returns an InfraObject created from a protobuf representation.
 
@@ -40,15 +57,38 @@ class InfraObject(ABC):
             infra_object_proto: A protobuf representation of an InfraObject.
 
         Raises:
-            ValueError: The type of InfraObject could not be identified.
+            FeastInvalidInfraObjectType: The type of InfraObject could not be identified.
         """
         if infra_object_proto.infra_object_class_type:
             cls = _get_infra_object_class_from_type(
                 infra_object_proto.infra_object_class_type
             )
-            return cls.from_proto(infra_object_proto)
+            return cls.from_infra_object_proto(infra_object_proto)
 
-        raise ValueError("Could not identify the type of the InfraObject.")
+        raise FeastInvalidInfraObjectType()
+
+    @staticmethod
+    def from_proto(infra_object_proto: Any) -> Any:
+        """
+        Converts a protobuf representation of a subclass to an object of that subclass.
+
+        Args:
+            infra_object_proto: A protobuf representation of an InfraObject.
+
+        Raises:
+            FeastInvalidInfraObjectType: The type of InfraObject could not be identified.
+        """
+        if isinstance(infra_object_proto, DatastoreTableProto):
+            infra_object_class_type = DATASTORE_INFRA_OBJECT_CLASS_TYPE
+        elif isinstance(infra_object_proto, DynamoDBTableProto):
+            infra_object_class_type = DYNAMODB_INFRA_OBJECT_CLASS_TYPE
+        elif isinstance(infra_object_proto, SqliteTableProto):
+            infra_object_class_type = SQLITE_INFRA_OBJECT_CLASS_TYPE
+        else:
+            raise FeastInvalidInfraObjectType()
+
+        cls = _get_infra_object_class_from_type(infra_object_class_type)
+        return cls.from_proto(infra_object_proto)
 
     @abstractmethod
     def update(self):
@@ -85,7 +125,7 @@ class Infra:
         """
         infra_proto = InfraProto()
         for infra_object in self.infra_objects:
-            infra_object_proto = infra_object.to_proto()
+            infra_object_proto = infra_object.to_infra_object_proto()
             infra_proto.infra_objects.append(infra_object_proto)
 
         return infra_proto
@@ -97,7 +137,7 @@ class Infra:
         """
         infra = cls()
         cls.infra_objects += [
-            InfraObject.from_proto(infra_object_proto)
+            InfraObject.from_infra_object_proto(infra_object_proto)
             for infra_object_proto in infra_proto.infra_objects
         ]
 
@@ -106,4 +146,4 @@ class Infra:
 
 def _get_infra_object_class_from_type(infra_object_class_type: str):
     module_name, infra_object_class_name = infra_object_class_type.rsplit(".", 1)
-    return get_class_from_type(module_name, infra_object_class_name, "Object")
+    return import_class(module_name, infra_object_class_name)

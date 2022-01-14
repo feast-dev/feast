@@ -54,7 +54,7 @@ def test_online() -> None:
         )
 
         customer_key = EntityKeyProto(
-            join_keys=["customer"], entity_values=[ValueProto(int64_val=5)]
+            join_keys=["customer"], entity_values=[ValueProto(string_val="5")]
         )
         provider.online_write_batch(
             config=store.config,
@@ -76,7 +76,7 @@ def test_online() -> None:
 
         customer_key = EntityKeyProto(
             join_keys=["customer", "driver"],
-            entity_values=[ValueProto(int64_val=5), ValueProto(int64_val=1)],
+            entity_values=[ValueProto(string_val="5"), ValueProto(int64_val=1)],
         )
         provider.online_write_batch(
             config=store.config,
@@ -100,7 +100,7 @@ def test_online() -> None:
                 "customer_profile:name",
                 "customer_driver_combined:trips",
             ],
-            entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
+            entity_rows=[{"driver": 1, "customer": "5"}, {"driver": 1, "customer": 5}],
             full_feature_names=False,
         ).to_dict()
 
@@ -108,7 +108,7 @@ def test_online() -> None:
         assert "avg_orders_day" in result
         assert "name" in result
         assert result["driver"] == [1, 1]
-        assert result["customer"] == [5, 5]
+        assert result["customer"] == ["5", "5"]
         assert result["lon"] == ["1.0", "1.0"]
         assert result["avg_orders_day"] == [1.0, 1.0]
         assert result["name"] == ["John", "John"]
@@ -311,7 +311,7 @@ def test_online_to_df():
                 6           6.0                  foo6         60
             """
             customer_key = EntityKeyProto(
-                join_keys=["customer"], entity_values=[ValueProto(int64_val=c)]
+                join_keys=["customer"], entity_values=[ValueProto(string_val=str(c))]
             )
             provider.online_write_batch(
                 config=store.config,
@@ -341,7 +341,7 @@ def test_online_to_df():
             """
             combo_keys = EntityKeyProto(
                 join_keys=["customer", "driver"],
-                entity_values=[ValueProto(int64_val=c), ValueProto(int64_val=d)],
+                entity_values=[ValueProto(string_val=str(c)), ValueProto(int64_val=d)],
             )
             provider.online_write_batch(
                 config=store.config,
@@ -382,7 +382,7 @@ def test_online_to_df():
         """
         df_dict = {
             "driver": driver_ids,
-            "customer": customer_ids,
+            "customer": [str(c) for c in customer_ids],
             "lon": [str(d * lon_multiply) for d in driver_ids],
             "lat": [d * lat_multiply for d in driver_ids],
             "avg_orders_day": [c * avg_order_day_multiply for c in customer_ids],

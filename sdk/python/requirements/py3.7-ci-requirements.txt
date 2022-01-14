@@ -85,7 +85,7 @@ charset-normalizer==2.0.8
     # via
     #   aiohttp
     #   requests
-click==7.1.2
+click==8.0.3
     # via
     #   black
     #   feast (setup.py)

@@ -18,6 +18,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import InfraObject
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
@@ -91,6 +93,18 @@ class OnlineStore(ABC):
         partial: bool,
     ):
         ...
+
+    def plan(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> List[InfraObject]:
+        """
+        Returns the set of InfraObjects required to support the desired registry.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            desired_registry_proto: The desired registry, in proto form.
+        """
+        return []
 
     @abstractmethod
     def teardown(
