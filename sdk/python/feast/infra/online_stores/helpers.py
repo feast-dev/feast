@@ -14,11 +14,14 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
     """Creates an online store corresponding to the given online store config."""
-    module_name = online_store_config.__module__
-    qualified_name = type(online_store_config).__name__
-    class_name = qualified_name.replace("Config", "")
-    online_store_class = import_class(module_name, class_name, "OnlineStore")
-    return online_store_class()
+
+    # online_store is an optional feature of the feature store. Don't call update online store if there is not one
+    if online_store_config:
+        module_name = online_store_config.__module__
+        qualified_name = type(online_store_config).__name__
+        class_name = qualified_name.replace("Config", "")
+        online_store_class = import_class(module_name, class_name, "OnlineStore")
+        return online_store_class()
 
 
 def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:

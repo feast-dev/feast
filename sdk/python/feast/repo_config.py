@@ -114,12 +114,15 @@ class RepoConfig(FeastBaseModel):
     def __init__(self, **data: Any):
         super().__init__(**data)
 
-        if isinstance(self.online_store, Dict):
-            self.online_store = get_online_config_from_type(self.online_store["type"])(
-                **self.online_store
-            )
-        elif isinstance(self.online_store, str):
-            self.online_store = get_online_config_from_type(self.online_store)()
+        # online_store is an optional feature of the feature store. Don't call update online store if there is not one
+        if self.online_store:
+            if isinstance(self.online_store, Dict):
+                self.online_store = get_online_config_from_type(self.online_store["type"])(
+                    **self.online_store
+                )
+            elif isinstance(self.online_store, str):
+                self.online_store = get_online_config_from_type(self.online_store)()
+
 
         if isinstance(self.offline_store, Dict):
             self.offline_store = get_offline_config_from_type(
@@ -148,6 +151,8 @@ class RepoConfig(FeastBaseModel):
         # considered tech debt until we can implement https://github.com/samuelcolvin/pydantic/issues/619 or a more
         # granular configuration system
 
+        # online store is optional, it shouldn't be set to default values.
+
         # Set empty online_store config if it isn't set explicitly
         if "online_store" not in values:
             values["online_store"] = dict()
@@ -159,32 +164,12 @@ class RepoConfig(FeastBaseModel):
         # Make sure that the provider configuration is set. We need it to set the defaults
         assert "provider" in values
 
-        # Set the default type
-        # This is only direct reference to a provider or online store that we should have
-        # for backwards compatibility.
-        if "type" not in values["online_store"]:
-            if values["provider"] == "local":
-                values["online_store"]["type"] = "sqlite"
-            elif values["provider"] == "gcp":
-                values["online_store"]["type"] = "datastore"
-            elif values["provider"] == "aws":
-                values["online_store"]["type"] = "dynamodb"
-
-        online_store_type = values["online_store"]["type"]
-
-        # Validate the dict to ensure one of the union types match
-        try:
-            online_config_class = get_online_config_from_type(online_store_type)
-            online_config_class(**values["online_store"])
-        except ValidationError as e:
-            raise ValidationError(
-                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
-            )
         return values
 
     @root_validator(pre=True)
     def _validate_offline_store_config(cls, values):
         # Set empty offline_store config if it isn't set explicitly
+
         if "offline_store" not in values:
             values["offline_store"] = dict()
 
