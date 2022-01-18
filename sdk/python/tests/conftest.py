@@ -142,7 +142,9 @@ def simple_dataset_2() -> pd.DataFrame:
 
 def start_test_local_server(repo_path: str, worker_id: str):
     fs = FeatureStore(repo_path)
-    fs.serve("localhost", Environment.get_local_server_port(worker_id), no_access_log=True)
+    fs.serve(
+        "localhost", Environment.get_local_server_port(worker_id), no_access_log=True
+    )
 
 
 @pytest.fixture(
@@ -151,7 +153,9 @@ def start_test_local_server(repo_path: str, worker_id: str):
 def environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
     proc = Process(
-        target=start_test_local_server, args=(e.feature_store.repo_path, worker_id), daemon=True
+        target=start_test_local_server,
+        args=(e.feature_store.repo_path, worker_id),
+        daemon=True,
     )
     if e.python_feature_server and e.test_repo_config.provider == "local":
         proc.start()
@@ -170,7 +174,9 @@ def environment(request, worker_id: str):
 
 @pytest.fixture()
 def local_redis_environment(request, worker_id):
-    e = construct_test_environment(IntegrationTestRepoConfig(online_store=REDIS_CONFIG), worker_id=worker_id)
+    e = construct_test_environment(
+        IntegrationTestRepoConfig(online_store=REDIS_CONFIG), worker_id=worker_id
+    )
 
     def cleanup():
         e.feature_store.teardown()
