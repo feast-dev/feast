@@ -46,7 +46,7 @@
 
         <grpc.version>1.30.2</grpc.version>
         <protoc.version>3.12.2</protoc.version>
-        <protobuf.version>3.12.2</protobuf.version>
+        <protobuf.version>3.16.1</protobuf.version>
         <spring.boot.version>2.3.1.RELEASE</spring.boot.version>
         <spring.version>5.2.7.RELEASE</spring.version>
         <spring.security.version>5.3.0.RELEASE</spring.security.version>

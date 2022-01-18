@@ -212,11 +212,11 @@ def _get_online_features_dict_remotely(
         time.sleep(1)
     else:
         raise Exception("Failed to get online features from remote feature server")
-    keys = response["field_values"][0]["statuses"].keys()
+    keys = response["metadata"]["feature_names"]
     # Get rid of unnecessary structure in the response, leaving list of dicts
-    response = [row["fields"] for row in response["field_values"]]
+    response = [row["values"] for row in response["results"]]
     # Convert list of dicts (response) into dict of lists which is the format of the return value
-    return {key: [row.get(key) for row in response] for key in keys}
+    return {key: [row[idx] for row in response] for idx, key in enumerate(keys)}
 
 
 def get_online_features_dict(

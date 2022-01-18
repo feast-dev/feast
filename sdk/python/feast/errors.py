@@ -103,14 +103,16 @@ class FeastFeatureServerTypeInvalidError(Exception):
 
 
 class FeastModuleImportError(Exception):
-    def __init__(self, module_name: str, module_type: str):
-        super().__init__(f"Could not import {module_type} module '{module_name}'")
+    def __init__(self, module_name: str, class_name: str):
+        super().__init__(
+            f"Could not import module '{module_name}' while attempting to load class '{class_name}'"
+        )
 
 
 class FeastClassImportError(Exception):
-    def __init__(self, module_name, class_name, class_type="provider"):
+    def __init__(self, module_name: str, class_name: str):
         super().__init__(
-            f"Could not import {class_type} '{class_name}' from module '{module_name}'"
+            f"Could not import class '{class_name}' from module '{module_name}'"
         )
 
 
@@ -168,11 +170,10 @@ class FeastOnlineStoreInvalidName(Exception):
         )
 
 
-class FeastClassInvalidName(Exception):
+class FeastInvalidBaseClass(Exception):
     def __init__(self, class_name: str, class_type: str):
         super().__init__(
-            f"Config Class '{class_name}' "
-            f"should end with the string `{class_type}`.'"
+            f"Class '{class_name}' should have `{class_type}` as a base class."
         )
 
 
@@ -292,3 +293,8 @@ class IncompatibleRegistryStoreClass(Exception):
         super().__init__(
             f"The registry store class was expected to be {expected_class}, but was instead {actual_class}."
         )
+
+
+class FeastInvalidInfraObjectType(Exception):
+    def __init__(self):
+        super().__init__("Could not identify the type of the InfraObject.")

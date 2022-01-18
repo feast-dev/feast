@@ -9,8 +9,8 @@ import (
 )
 
 var response = OnlineFeaturesResponse{
-	RawResponse: &serving.GetOnlineFeaturesResponseV2{
-		Results: []*serving.GetOnlineFeaturesResponseV2_FeatureVector{
+	RawResponse: &serving.GetOnlineFeaturesResponse{
+		Results: []*serving.GetOnlineFeaturesResponse_FeatureVector{
 			{
 				Values: []*types.Value{Int64Val(1), Int64Val(2)},
 				Statuses: []serving.FieldStatus{

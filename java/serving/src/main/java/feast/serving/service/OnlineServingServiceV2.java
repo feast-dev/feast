@@ -72,7 +72,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   @Override
-  public ServingAPIProto.GetOnlineFeaturesResponseV2 getOnlineFeatures(
+  public ServingAPIProto.GetOnlineFeaturesResponse getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest request) {
     // Split all feature references into non-ODFV (e.g. batch and stream) references and ODFV.
     List<FeatureReferenceV2> allFeatureReferences = getFeaturesList(request);
@@ -132,8 +132,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     Span postProcessingSpan = tracer.buildSpan("postProcessing").start();
 
-    ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder =
-        ServingAPIProto.GetOnlineFeaturesResponseV2.newBuilder();
+    ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder =
+        ServingAPIProto.GetOnlineFeaturesResponse.newBuilder();
 
     Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
     Timestamp nullTimestamp = Timestamp.newBuilder().build();
@@ -147,7 +147,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
       Duration maxAge = this.registryRepository.getMaxAge(featureReference);
 
-      ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector.Builder vectorBuilder =
+      ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector.Builder vectorBuilder =
           responseBuilder.addResultsBuilder();
 
       for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
@@ -262,7 +262,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       List<FeatureReferenceV2> retrievedFeatureReferences,
       ServingAPIProto.GetOnlineFeaturesRequest request,
       List<List<feast.storage.api.retriever.Feature>> features,
-      ServingAPIProto.GetOnlineFeaturesResponseV2.Builder responseBuilder) {
+      ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder) {
 
     List<Pair<String, List<ValueProto.Value>>> onDemandContext =
         request.getRequestContextMap().entrySet().stream()
@@ -383,7 +383,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    */
   private void populateCountMetrics(
       FeatureReferenceV2 featureRef,
-      ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVectorOrBuilder featureVector) {
+      ServingAPIProto.GetOnlineFeaturesResponse.FeatureVectorOrBuilder featureVector) {
     String featureRefString = Feature.getFeatureReference(featureRef);
     featureVector
         .getStatusesList()

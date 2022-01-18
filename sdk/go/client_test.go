@@ -33,8 +33,8 @@ func TestGetOnlineFeatures(t *testing.T) {
 				Project: "driver_project",
 			},
 			want: OnlineFeaturesResponse{
-				RawResponse: &serving.GetOnlineFeaturesResponseV2{
-					Results: []*serving.GetOnlineFeaturesResponseV2_FeatureVector{
+				RawResponse: &serving.GetOnlineFeaturesResponse{
+					Results: []*serving.GetOnlineFeaturesResponse_FeatureVector{
 						{
 							Values: []*types.Value{Int64Val(1)},
 							Statuses: []serving.FieldStatus{

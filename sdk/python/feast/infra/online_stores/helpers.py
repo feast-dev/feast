@@ -1,10 +1,9 @@
-import importlib
 import struct
 from typing import Any, List
 
 import mmh3
 
-from feast import errors
+from feast.importer import import_class
 from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_entity_key_prefix,
@@ -13,29 +12,12 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
-def get_online_store_from_config(online_store_config: Any,) -> OnlineStore:
-    """Get the online store from online store config"""
-
+def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
+    """Creates an online store corresponding to the given online store config."""
     module_name = online_store_config.__module__
     qualified_name = type(online_store_config).__name__
-    store_class_name = qualified_name.replace("Config", "")
-    try:
-        module = importlib.import_module(module_name)
-    except Exception as e:
-        # The original exception can be anything - either module not found,
-        # or any other kind of error happening during the module import time.
-        # So we should include the original error as well in the stack trace.
-        raise errors.FeastModuleImportError(module_name, "OnlineStore") from e
-
-    # Try getting the provider class definition
-    try:
-        online_store_class = getattr(module, store_class_name)
-    except AttributeError:
-        # This can only be one type of error, when class_name attribute does not exist in the module
-        # So we don't have to include the original exception here
-        raise errors.FeastClassImportError(
-            module_name, store_class_name, class_type="OnlineStore"
-        ) from None
+    class_name = qualified_name.replace("Config", "")
+    online_store_class = import_class(module_name, class_name, "OnlineStore")
     return online_store_class()
 
 

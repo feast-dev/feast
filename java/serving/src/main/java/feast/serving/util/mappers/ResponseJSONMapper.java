@@ -26,14 +26,14 @@ import java.util.stream.Collectors;
 public class ResponseJSONMapper {
 
   public static List<Map<String, Object>> mapGetOnlineFeaturesResponse(
-      ServingAPIProto.GetOnlineFeaturesResponseV2 response) {
+      ServingAPIProto.GetOnlineFeaturesResponse response) {
     return response.getResultsList().stream()
         .map(fieldValues -> convertFieldValuesToMap(fieldValues))
         .collect(Collectors.toList());
   }
 
   private static Map<String, Object> convertFieldValuesToMap(
-      ServingAPIProto.GetOnlineFeaturesResponseV2.FeatureVector vec) {
+      ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector vec) {
     return Map.of(
         "values",
         vec.getValuesList().stream()

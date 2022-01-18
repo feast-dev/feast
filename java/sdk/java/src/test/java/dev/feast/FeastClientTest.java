@@ -24,7 +24,7 @@ import com.google.protobuf.Timestamp;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponseV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
@@ -57,7 +57,7 @@ public class FeastClientTest {
                 @Override
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
-                    StreamObserver<GetOnlineFeaturesResponseV2> responseObserver) {
+                    StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
                   if (!request.equals(FeastClientTest.getFakeRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
@@ -137,22 +137,22 @@ public class FeastClientTest {
         .build();
   }
 
-  private static GetOnlineFeaturesResponseV2 getFakeResponse() {
-    return GetOnlineFeaturesResponseV2.newBuilder()
+  private static GetOnlineFeaturesResponse getFakeResponse() {
+    return GetOnlineFeaturesResponse.newBuilder()
         .addResults(
-            GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+            GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                 .addValues(strValue("david"))
                 .addStatuses(FieldStatus.PRESENT)
                 .addEventTimestamps(Timestamp.newBuilder())
                 .build())
         .addResults(
-            GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+            GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                 .addValues(intValue(3))
                 .addStatuses(FieldStatus.PRESENT)
                 .addEventTimestamps(Timestamp.newBuilder())
                 .build())
         .addResults(
-            GetOnlineFeaturesResponseV2.FeatureVector.newBuilder()
+            GetOnlineFeaturesResponse.FeatureVector.newBuilder()
                 .addValues(Value.newBuilder().build())
                 .addStatuses(FieldStatus.NULL_VALUE)
                 .addEventTimestamps(Timestamp.newBuilder())

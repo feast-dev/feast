@@ -18,6 +18,7 @@ import pandas as pd
 
 from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
+from feast.type_map import feast_value_type_to_python_type
 
 
 class OnlineResponse:
@@ -34,53 +35,30 @@ class OnlineResponse:
         """
         self.proto = online_response_proto
         # Delete DUMMY_ENTITY_ID from proto if it exists
-        for item in self.proto.field_values:
-            if DUMMY_ENTITY_ID in item.statuses:
-                del item.statuses[DUMMY_ENTITY_ID]
-            if DUMMY_ENTITY_ID in item.fields:
-                del item.fields[DUMMY_ENTITY_ID]
-
-    @property
-    def field_values(self):
-        """
-        Getter for GetOnlineResponse's field_values.
-        """
-        return self.proto.field_values
+        for idx, val in enumerate(self.proto.metadata.feature_names.val):
+            if val == DUMMY_ENTITY_ID:
+                del self.proto.metadata.feature_names.val[idx]
+                for result in self.proto.results:
+                    del result.values[idx]
+                    del result.statuses[idx]
+                    del result.event_timestamps[idx]
+                break
 
     def to_dict(self) -> Dict[str, Any]:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
-        # Status for every Feature should be present in every record.
-        features_dict: Dict[str, List[Any]] = {
-            k: list() for k in self.field_values[0].statuses.keys()
-        }
-        rows = [record.fields for record in self.field_values]
+        response: Dict[str, List[Any]] = {}
 
-        # Find the first non-null instance of each Feature to determine
-        # which ValueType.
-        val_types = {k: None for k in features_dict.keys()}
-        for feature in features_dict.keys():
-            for row in rows:
-                try:
-                    val_types[feature] = row[feature].WhichOneof("val")
-                except KeyError:
-                    continue
-                if val_types[feature] is not None:
-                    break
+        for result in self.proto.results:
+            for idx, feature_ref in enumerate(self.proto.metadata.feature_names.val):
+                native_type_value = feast_value_type_to_python_type(result.values[idx])
+                if feature_ref not in response:
+                    response[feature_ref] = [native_type_value]
+                else:
+                    response[feature_ref].append(native_type_value)
 
-        # Now we know what attribute to fetch.
-        for feature, val_type in val_types.items():
-            if val_type is None:
-                features_dict[feature] = [None] * len(rows)
-            else:
-                for row in rows:
-                    val = getattr(row[feature], val_type)
-                    if "_list_" in val_type:
-                        val = list(val.val)
-                    features_dict[feature].append(val)
-
-        return features_dict
+        return response
 
     def to_df(self) -> pd.DataFrame:
         """

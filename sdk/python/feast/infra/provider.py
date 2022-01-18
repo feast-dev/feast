@@ -8,11 +8,14 @@ import pandas
 import pyarrow
 from tqdm import tqdm
 
-from feast import errors, importer
+from feast import errors
 from feast.entity import Entity
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
+from feast.importer import import_class
+from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
@@ -59,6 +62,18 @@ class Provider(abc.ABC):
                 There may be other tables that are not touched by this update.
         """
         ...
+
+    def plan_infra(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> Infra:
+        """
+        Returns the Infra required to support the desired registry.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            desired_registry_proto: The desired registry, in proto form.
+        """
+        return Infra()
 
     @abc.abstractmethod
     def teardown_infra(
@@ -172,7 +187,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     # For example, provider 'foo.bar.MyProvider' will be parsed into 'foo.bar' and 'MyProvider'
     module_name, class_name = provider.rsplit(".", 1)
 
-    cls = importer.get_class_from_type(module_name, class_name, "Provider")
+    cls = import_class(module_name, class_name, "Provider")
 
     return cls(config)
 

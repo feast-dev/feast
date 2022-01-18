@@ -40,7 +40,14 @@ def _assert_online_features(
 
     # Float features should still be floats from the online store...
     assert (
-        response.field_values[0].fields["driver_hourly_stats__conv_rate"].float_val > 0
+        response.proto.results[0]
+        .values[
+            list(response.proto.metadata.feature_names.val).index(
+                "driver_hourly_stats__conv_rate"
+            )
+        ]
+        .float_val
+        > 0
     )
 
     result = response.to_dict()

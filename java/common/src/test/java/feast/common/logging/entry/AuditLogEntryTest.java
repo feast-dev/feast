@@ -21,11 +21,12 @@ import static org.hamcrest.Matchers.equalTo;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.protobuf.Timestamp;
 import feast.common.logging.entry.LogResource.ResourceType;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.Status;
 import java.util.Arrays;
@@ -50,15 +51,24 @@ public class AuditLogEntryTest {
 
     GetOnlineFeaturesResponse responseSpec =
         GetOnlineFeaturesResponse.newBuilder()
-            .addAllFieldValues(
+            .setMetadata(
+                ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+                    .setFeatureNames(
+                        ServingAPIProto.FeatureList.newBuilder()
+                            .addAllVal(
+                                Arrays.asList(
+                                    "featuretable_1:feature_1", "featuretable_1:feature2"))))
+            .addAllResults(
                 Arrays.asList(
-                    FieldValues.newBuilder()
-                        .putFields(
-                            "featuretable_1:feature_1", Value.newBuilder().setInt32Val(32).build())
+                    GetOnlineFeaturesResponse.FeatureVector.newBuilder()
+                        .addValues(Value.newBuilder().setInt32Val(32).build())
+                        .addStatuses(ServingAPIProto.FieldStatus.PRESENT)
+                        .addEventTimestamps(Timestamp.newBuilder().build())
                         .build(),
-                    FieldValues.newBuilder()
-                        .putFields(
-                            "featuretable_1:feature2", Value.newBuilder().setInt32Val(64).build())
+                    GetOnlineFeaturesResponse.FeatureVector.newBuilder()
+                        .addValues(Value.newBuilder().setInt32Val(64).build())
+                        .addStatuses(ServingAPIProto.FieldStatus.PRESENT)
+                        .addEventTimestamps(Timestamp.newBuilder().build())
                         .build()))
             .build();
 

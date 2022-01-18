@@ -54,7 +54,7 @@ public class ServingServiceRestController {
   public List<Map<String, Object>> getOnlineFeatures(
       @RequestBody ServingAPIProto.GetOnlineFeaturesRequest request) {
     RequestHelper.validateOnlineRequest(request);
-    ServingAPIProto.GetOnlineFeaturesResponseV2 onlineFeatures =
+    ServingAPIProto.GetOnlineFeaturesResponse onlineFeatures =
         servingService.getOnlineFeatures(request);
     return mapGetOnlineFeaturesResponse(onlineFeatures);
   }
