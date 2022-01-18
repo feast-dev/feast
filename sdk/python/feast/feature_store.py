@@ -23,6 +23,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
     NamedTuple,
     Optional,
     Sequence,
@@ -1072,14 +1073,17 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
-        columnar = defaultdict(list)
+        columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
         for entity_row in entity_rows:
             for key, value in entity_row.items():
-                columnar[key].append(value)
+                try:
+                    columnar[key].append(value)
+                except KeyError as e:
+                    raise ValueError("All entity_rows must have the same keys.") from e
 
         return self._get_online_features(
             features=features,
-            entity_values=dict(columnar),
+            entity_values=columnar,
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
@@ -1087,7 +1091,9 @@ class FeatureStore:
     def _get_online_features(
         self,
         features: Union[List[str], FeatureService],
-        entity_values: Dict[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
+        entity_values: Mapping[
+            str, Union[Sequence[Any], Sequence[Value], RepeatedValue]
+        ],
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
