@@ -58,7 +58,8 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source: The batch source of data where this group of features
+        input: The source of data where this group of features is stored.
+        batch_source (optional): The batch source of data where this group of features
             is stored.
         stream_source (optional): The stream source of data where this group of features
             is stored.
@@ -83,7 +84,8 @@ class FeatureView(BaseFeatureView):
         name: str,
         entities: List[str],
         ttl: Union[Duration, timedelta],
-        batch_source: DataSource,
+        input: Optional[DataSource] = None,
+        batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -95,18 +97,26 @@ class FeatureView(BaseFeatureView):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
+        if input is not None:
+            warnings.warn(
+                (
+                    "The argument 'input' is being deprecated. Please use 'batch_source' "
+                    "instead. Feast 0.13 and onwards will not support the argument 'input'."
+                ),
+                DeprecationWarning,
+            )
+
+        _input = input or batch_source
+        assert _input is not None
 
         _features = features or []
 
         cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
-            if (
-                batch_source.field_mapping is not None
-                and col in batch_source.field_mapping.keys()
-            ):
+            if _input.field_mapping is not None and col in _input.field_mapping.keys():
                 raise ValueError(
-                    f"The field {col} is mapped to {batch_source.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {batch_source.field_mapping[col]} as the "
+                    f"The field {col} is mapped to {_input.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {_input.field_mapping[col]} as the "
                     f"Entity or Feature name."
                 )
 
@@ -120,7 +130,8 @@ class FeatureView(BaseFeatureView):
             self.ttl = ttl
 
         self.online = online
-        self.batch_source = batch_source
+        self.input = _input
+        self.batch_source = _input
         self.stream_source = stream_source
 
         self.materialization_intervals = []
@@ -137,6 +148,7 @@ class FeatureView(BaseFeatureView):
             name=self.name,
             entities=self.entities,
             ttl=self.ttl,
+            input=self.input,
             batch_source=self.batch_source,
             stream_source=self.stream_source,
             features=self.features,
