@@ -25,6 +25,7 @@ from typing import (
     List,
     NamedTuple,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
@@ -69,7 +70,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value
+from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.request_feature_view import RequestFeatureView
@@ -1060,7 +1061,7 @@ class FeatureStore:
 
         return self._get_online_features(
             features=features,
-            entity_values=columnar,
+            entity_values=dict(columnar),
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
@@ -1068,7 +1069,7 @@ class FeatureStore:
     def _get_online_features(
         self,
         features: Union[List[str], FeatureService],
-        entity_values: Dict[str, List[Any]],
+        entity_values: Dict[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
@@ -1085,16 +1086,23 @@ class FeatureStore:
             requested_feature_views
         )
 
+        # Extract Sequence from RepeatedValue Protobuf.
+        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
+            k: list(v) if isinstance(v, Sequence) else list(v.val)
+            for k, v in entity_values.items()
+        }
+
+        entity_proto_values: Dict[str, List[Value]]
         if native_entity_values:
             # Convert values to Protobuf once.
-            entity_proto_values: Dict[str, List[Value]] = {
+            entity_proto_values = {
                 k: python_values_to_proto_values(
                     v, entity_type_map.get(k, ValueType.UNKNOWN)
                 )
-                for k, v in entity_values.items()
+                for k, v in entity_value_lists.items()
             }
         else:
-            entity_proto_values = entity_values
+            entity_proto_values = entity_value_lists
 
         num_rows = _validate_entity_values(entity_proto_values)
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -1179,13 +1187,13 @@ class FeatureStore:
         provider = self._get_provider()
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
-            entity_values = self._get_table_entity_values(
+            table_entity_values = self._get_table_entity_values(
                 table, entity_name_to_join_key_map, join_key_values,
             )
 
             # Set the EntityKeyProtos inplace.
             self._set_table_entity_keys(
-                entity_values, entity_keys,
+                table_entity_values, entity_keys,
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
