@@ -84,7 +84,7 @@ class FeatureView(BaseFeatureView):
         name: str,
         entities: List[str],
         ttl: Union[Duration, timedelta],
-        batch_source: Optional[DataSource] = None,
+        batch_source: DataSource,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -96,17 +96,18 @@ class FeatureView(BaseFeatureView):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        _input = batch_source
-        assert _input is not None
 
         _features = features or []
 
         cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
-            if _input.field_mapping is not None and col in _input.field_mapping.keys():
+            if (
+                batch_source.field_mapping is not None
+                and col in batch_source.field_mapping.keys()
+            ):
                 raise ValueError(
-                    f"The field {col} is mapped to {_input.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {_input.field_mapping[col]} as the "
+                    f"The field {col} is mapped to {batch_source.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {batch_source.field_mapping[col]} as the "
                     f"Entity or Feature name."
                 )
 
@@ -120,7 +121,7 @@ class FeatureView(BaseFeatureView):
             self.ttl = ttl
 
         self.online = online
-        self.batch_source = _input
+        self.batch_source = batch_source
         self.stream_source = stream_source
 
         self.materialization_intervals = []
