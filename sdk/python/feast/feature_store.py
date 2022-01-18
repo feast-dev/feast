@@ -1327,6 +1327,7 @@ class FeatureStore:
         online_features_response: GetOnlineFeaturesResponse,
         data: Dict[str, List[Value]],
     ):
+        timestamp = Timestamp()  # Only initialize this timestamp once.
         # Add more values to the existing result rows
         for feature_name, feature_values in data.items():
 
@@ -1336,7 +1337,7 @@ class FeatureStore:
                 result_row = online_features_response.results[row_idx]
                 result_row.values.append(proto_value)
                 result_row.statuses.append(FieldStatus.PRESENT)
-                result_row.event_timestamps.append(Timestamp())
+                result_row.event_timestamps.append(timestamp)
 
     @staticmethod
     def get_needed_request_data(
