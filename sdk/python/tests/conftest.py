@@ -140,11 +140,9 @@ def simple_dataset_2() -> pd.DataFrame:
     return pd.DataFrame.from_dict(data)
 
 
-def start_test_local_server(repo_path: str, worker_id: str):
+def start_test_local_server(repo_path: str, port: int):
     fs = FeatureStore(repo_path)
-    fs.serve(
-        "localhost", Environment.get_local_server_port(worker_id), no_access_log=True
-    )
+    fs.serve("localhost", port, no_access_log=True)
 
 
 @pytest.fixture(
@@ -154,7 +152,7 @@ def environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
     proc = Process(
         target=start_test_local_server,
-        args=(e.feature_store.repo_path, worker_id),
+        args=(e.feature_store.repo_path, e.get_local_server_port()),
         daemon=True,
     )
     if e.python_feature_server and e.test_repo_config.provider == "local":

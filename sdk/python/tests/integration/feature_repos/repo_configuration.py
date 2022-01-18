@@ -230,15 +230,12 @@ class Environment:
 
     def get_feature_server_endpoint(self) -> str:
         if self.python_feature_server and self.test_repo_config.provider == "local":
-            return (
-                f"http://localhost:{Environment.get_local_server_port(self.worker_id)}"
-            )
+            return f"http://localhost:{self.get_local_server_port()}"
         return self.feature_store.get_feature_server_endpoint()
 
-    @staticmethod
-    def get_local_server_port(worker_id: str) -> int:
+    def get_local_server_port(self) -> int:
         # Heuristic when running with xdist to extract unique ports for each worker
-        parsed_worker_id = re.findall("gw(\\d+)", worker_id)
+        parsed_worker_id = re.findall("gw(\\d+)", self.worker_id)
         if len(parsed_worker_id) != 0:
             worker_id_num = int(parsed_worker_id[0])
         else:
