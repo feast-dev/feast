@@ -1207,9 +1207,6 @@ class FeatureStore:
                 [DUMMY_ENTITY_VAL] * num_rows, DUMMY_ENTITY.value_type
             )
 
-        # Initialize the set of EntityKeyProtos once and reuse them for each FeatureView
-        # to avoid initialization overhead.
-        entity_keys = [EntityKeyProto() for _ in range(num_rows)]
         provider = self._get_provider()
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
@@ -1217,15 +1214,10 @@ class FeatureStore:
                 table, entity_name_to_join_key_map, join_key_values,
             )
 
-            # Set the EntityKeyProtos inplace.
-            self._set_table_entity_keys(
-                table_entity_values, entity_keys,
-            )
-
             # Populate the result_rows with the Features from the OnlineStore inplace.
             self._populate_result_rows_from_feature_view(
                 online_features_response,
-                entity_keys,
+                table_entity_values,
                 full_feature_names,
                 provider,
                 requested_features,
@@ -1313,22 +1305,6 @@ class FeatureStore:
         return entity_values
 
     @staticmethod
-    def _set_table_entity_keys(
-        entity_values: Dict[str, List[Value]], entity_keys: List[EntityKeyProto],
-    ):
-        """
-        This method sets the a list of EntityKeyProtos inplace.
-        """
-        keys = entity_values.keys()
-        # Columar to rowise (dict keys and values are guaranteed to have the same order).
-        rowise_values = zip(*entity_values.values())
-        for entity_key in entity_keys:
-            # Make sure entity_keys are empty before setting.
-            entity_key.Clear()
-            entity_key.join_keys.extend(keys)
-            entity_key.entity_values.extend(next(rowise_values))
-
-    @staticmethod
     def _populate_result_rows_from_columnar(
         online_features_response: GetOnlineFeaturesResponse,
         data: Dict[str, List[Value]],
@@ -1383,26 +1359,32 @@ class FeatureStore:
     def _populate_result_rows_from_feature_view(
         self,
         online_features_response: GetOnlineFeaturesResponse,
-        entity_keys: List[EntityKeyProto],
+        entity_keys: Dict[str, List[Value]],
         full_feature_names: bool,
         provider: Provider,
         requested_features: List[str],
         table: FeatureView,
     ):
+        # Convert back to rowise.
+        join_keys = entity_keys.keys()
+        rowise_values = list(zip(*entity_keys.values()))
 
-        # We only need to fetch unique entities.
-        gb_entity_key: List[Tuple[EntityKeyProto, List[int]]] = [
+        # Identify unique entities and the indexes at which they occur.
+        gb_entity_key: List[Tuple[Tuple[Value, ...], List[int]]] = [
             (k, [_[0] for _ in g])
-            for k, g in itertools.groupby(enumerate(entity_keys), key=lambda x: x[1])
+            for k, g in itertools.groupby(enumerate(rowise_values), key=lambda x: x[1])
         ]
-        unique_entities: List[EntityKeyProto] = [
-            entity_group[0] for entity_group in gb_entity_key
+        # Instantiate one EntityKeyProto per unique Entity.
+        entity_key_protos = [
+            EntityKeyProto(join_keys=join_keys, entity_values=entity_group[0])
+            for entity_group in gb_entity_key
         ]
 
+        # Fetch data for unique Entities.
         read_rows = provider.online_read(
             config=self.config,
             table=table,
-            entity_keys=unique_entities,
+            entity_keys=entity_key_protos,
             requested_features=requested_features,
         )
 
