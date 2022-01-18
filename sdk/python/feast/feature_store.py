@@ -1389,12 +1389,61 @@ class FeatureStore:
         requested_features: List[str],
         table: FeatureView,
     ):
+
+        # We only need to fetch unique entities.
+        gb_entity_key: List[Tuple[EntityKeyProto, List[int]]] = [
+            (k, [_[0] for _ in g])
+            for k, g in itertools.groupby(enumerate(entity_keys), key=lambda x: x[1])
+        ]
+        unique_entities: List[EntityKeyProto] = [
+            entity_group[0] for entity_group in gb_entity_key
+        ]
+
         read_rows = provider.online_read(
             config=self.config,
             table=table,
-            entity_keys=entity_keys,
+            entity_keys=unique_entities,
             requested_features=requested_features,
         )
+
+        # Each row is a set of features for a given entity key. We only need to convert
+        # the data to Protobuf once.
+        row_ts_proto = Timestamp()
+        null_value = Value()
+        read_row_protos = []
+        for read_row in read_rows:
+            row_ts, feature_data = read_row
+
+            if row_ts is not None:
+                row_ts_proto.FromDatetime(row_ts)
+            event_timestamps = [row_ts_proto] * len(requested_features)
+
+            if feature_data is None:
+                statuses = [FieldStatus.NOT_FOUND] * len(requested_features)
+                values = [null_value] * len(requested_features)
+            else:
+                statuses = []
+                values = []
+                for feature_name in requested_features:
+                    if feature_name not in feature_data:
+                        statuses.append(FieldStatus.NOT_FOUND)
+                        values.append(null_value)
+                    else:
+                        statuses.append(FieldStatus.PRESENT)
+                        values.append(feature_data[feature_name])
+            read_row_protos.append((event_timestamps, statuses, values))
+
+        # Populate the result with data fetched from the OnlineStore.
+        for src_idx, dest_idxs in enumerate(
+            entity_group[1] for entity_group in gb_entity_key
+        ):
+            event_timestamps, statuses, values = read_row_protos[src_idx]
+            for dest_idx in dest_idxs:
+                result_row = online_features_response.results[dest_idx]
+                result_row.event_timestamps.extend(event_timestamps)
+                result_row.statuses.extend(statuses)
+                result_row.values.extend(values)
+
         requested_feature_refs = [
             f"{table.projection.name_to_use()}__{feature_name}"
             if full_feature_names
@@ -1404,28 +1453,6 @@ class FeatureStore:
         online_features_response.metadata.feature_names.val.extend(
             requested_feature_refs
         )
-        # Each row is a set of features for a given entity key
-        for row_idx, read_row in enumerate(read_rows):
-            row_ts, feature_data = read_row
-            result_row = online_features_response.results[row_idx]
-            row_ts_proto = Timestamp()
-            if row_ts is not None:
-                row_ts_proto.FromDatetime(row_ts)
-            result_row.event_timestamps.extend([row_ts_proto] * len(requested_features))
-
-            if feature_data is None:
-                result_row.statuses.extend(
-                    [FieldStatus.NOT_FOUND] * len(requested_features)
-                )
-                result_row.values.extend([Value()] * len(requested_features))
-            else:
-                for feature_name in requested_features:
-                    if feature_name not in feature_data:
-                        result_row.statuses.append(FieldStatus.NOT_FOUND)
-                        result_row.values.append(Value())
-                    else:
-                        result_row.statuses.append(FieldStatus.PRESENT)
-                        result_row.values.append(feature_data[feature_name])
 
     @staticmethod
     def _augment_response_with_on_demand_transforms(
