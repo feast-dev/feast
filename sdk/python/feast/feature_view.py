@@ -58,8 +58,7 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        input: The source of data where this group of features is stored.
-        batch_source (optional): The batch source of data where this group of features
+        batch_source: The batch source of data where this group of features
             is stored.
         stream_source (optional): The stream source of data where this group of features
             is stored.
