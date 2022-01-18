@@ -13,7 +13,9 @@
 # limitations under the License.
 import logging
 import multiprocessing
+import time
 from datetime import datetime, timedelta
+from multiprocessing import Process
 from sys import platform
 from typing import List
 
@@ -21,6 +23,7 @@ import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
+from feast import FeatureStore
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -137,23 +140,41 @@ def simple_dataset_2() -> pd.DataFrame:
     return pd.DataFrame.from_dict(data)
 
 
+def start_test_local_server(repo_path: str, port: int):
+    fs = FeatureStore(repo_path)
+    fs.serve("localhost", port, no_access_log=True)
+
+
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request):
-    e = construct_test_environment(request.param)
+def environment(request, worker_id: str):
+    e = construct_test_environment(request.param, worker_id=worker_id)
+    proc = Process(
+        target=start_test_local_server,
+        args=(e.feature_store.repo_path, e.get_local_server_port()),
+        daemon=True,
+    )
+    if e.python_feature_server and e.test_repo_config.provider == "local":
+        proc.start()
+        # Wait for server to start
+        time.sleep(3)
 
     def cleanup():
         e.feature_store.teardown()
+        if proc.is_alive():
+            proc.kill()
 
     request.addfinalizer(cleanup)
+
     return e
 
 
 @pytest.fixture()
 def local_redis_environment(request, worker_id):
-
-    e = construct_test_environment(IntegrationTestRepoConfig(online_store=REDIS_CONFIG))
+    e = construct_test_environment(
+        IntegrationTestRepoConfig(online_store=REDIS_CONFIG), worker_id=worker_id
+    )
 
     def cleanup():
         e.feature_store.teardown()

@@ -20,7 +20,7 @@ def driver_feature_view(
         entities=["driver"],
         features=None if infer_features else [Feature("value", value_type)],
         ttl=timedelta(days=5),
-        input=data_source,
+        batch_source=data_source,
     )
 
 
@@ -35,7 +35,7 @@ def global_feature_view(
         entities=[],
         features=None if infer_features else [Feature("entityless_value", value_type)],
         ttl=timedelta(days=5),
-        input=data_source,
+        batch_source=data_source,
     )
 
 

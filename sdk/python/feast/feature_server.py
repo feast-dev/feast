@@ -1,3 +1,5 @@
+import traceback
+
 import click
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -59,7 +61,7 @@ def get_app(store: "feast.FeatureStore"):
             )
         except Exception as e:
             # Print the original exception on the server side
-            logger.exception(e)
+            logger.exception(traceback.format_exc())
             # Raise HTTPException to return the error message to the client
             raise HTTPException(status_code=500, detail=str(e))
 
