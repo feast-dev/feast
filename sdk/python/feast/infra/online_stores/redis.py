@@ -41,7 +41,7 @@ from feast.usage import log_exceptions_and_usage, tracing_span
 
 try:
     from redis import Redis
-    from rediscluster import RedisCluster
+    from redis.cluster import RedisCluster
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
