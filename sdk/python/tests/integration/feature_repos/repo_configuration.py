@@ -51,6 +51,7 @@ REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
     IntegrationTestRepoConfig(),
+    IntegrationTestRepoConfig(python_feature_server=True),
 ]
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
@@ -225,6 +226,11 @@ class Environment:
     def __post_init__(self):
         self.start_date: datetime = self.end_date - timedelta(days=3)
 
+    def get_feature_server_endpoint(self) -> str:
+        if self.python_feature_server and self.test_repo_config.provider == "local":
+            return "http://localhost:6566"
+        return self.feature_store.get_feature_server_endpoint()
+
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
     if hasattr(ds, "table_ref"):
@@ -254,7 +260,7 @@ def construct_test_environment(
 
     repo_dir_name = tempfile.mkdtemp()
 
-    if test_repo_config.python_feature_server:
+    if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
             AwsLambdaFeatureServerConfig,
         )
@@ -266,6 +272,7 @@ def construct_test_environment(
 
         registry = f"s3://feast-integration-tests/registries/{project}/registry.db"
     else:
+        # Note: even if it's a local feature server, the repo config does not have this configured
         feature_server = None
         registry = str(Path(repo_dir_name) / "registry.db")
 

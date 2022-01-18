@@ -185,7 +185,7 @@ def _get_online_features_dict_remotely(
 
     The output should be identical to:
 
-    >>> fs.get_online_features(features=features, entity_rows=entity_rows, full_feature_names=full_feature_names).to_dict()
+    fs.get_online_features(features=features, entity_rows=entity_rows, full_feature_names=full_feature_names).to_dict()
 
     This makes it easy to test the remote feature server by comparing the output to the local method.
 
@@ -212,6 +212,10 @@ def _get_online_features_dict_remotely(
         time.sleep(1)
     else:
         raise Exception("Failed to get online features from remote feature server")
+    if "metadata" not in response:
+        raise Exception(
+            f"Failed to get online features from remote feature server {response}"
+        )
     keys = response["metadata"]["feature_names"]
     # Get rid of unnecessary structure in the response, leaving list of dicts
     response = [row["values"] for row in response["results"]]
@@ -238,8 +242,8 @@ def get_online_features_dict(
     assertpy.assert_that(online_features).is_not_none()
     dict1 = online_features.to_dict()
 
-    endpoint = environment.feature_store.get_feature_server_endpoint()
-    # If endpoint is None, it means that the remote feature server isn't configured
+    endpoint = environment.get_feature_server_endpoint()
+    # If endpoint is None, it means that a local / remote feature server aren't configured
     if endpoint is not None:
         dict2 = _get_online_features_dict_remotely(
             endpoint=endpoint,
