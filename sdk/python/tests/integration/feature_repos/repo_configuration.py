@@ -1,6 +1,7 @@
 import importlib
 import json
 import os
+import re
 import tempfile
 import uuid
 from dataclasses import dataclass, field
@@ -218,6 +219,7 @@ class Environment:
     feature_store: FeatureStore
     data_source_creator: DataSourceCreator
     python_feature_server: bool
+    worker_id: str
 
     end_date: datetime = field(
         default=datetime.utcnow().replace(microsecond=0, second=0, minute=0)
@@ -228,8 +230,18 @@ class Environment:
 
     def get_feature_server_endpoint(self) -> str:
         if self.python_feature_server and self.test_repo_config.provider == "local":
-            return "http://localhost:6566"
+            return f"http://localhost:{Environment.get_local_server_port(self.worker_id)}"
         return self.feature_store.get_feature_server_endpoint()
+
+    @staticmethod
+    def get_local_server_port(worker_id: str) -> int:
+        # Heuristic when running with xdist to extract unique ports for each worker
+        parsed_worker_id = re.findall('gw(\\d+)', worker_id)
+        if len(parsed_worker_id) != 0:
+            worker_id_num = int(parsed_worker_id[0])
+        else:
+            worker_id_num = 0
+        return 6566 + worker_id_num
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
@@ -243,6 +255,7 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
 def construct_test_environment(
     test_repo_config: IntegrationTestRepoConfig,
     test_suite_name: str = "integration_test",
+    worker_id: str = "worker_id"
 ) -> Environment:
 
     _uuid = str(uuid.uuid4()).replace("-", "")[:8]
@@ -300,6 +313,7 @@ def construct_test_environment(
         feature_store=fs,
         data_source_creator=offline_creator,
         python_feature_server=test_repo_config.python_feature_server,
+        worker_id=worker_id
     )
 
     return environment

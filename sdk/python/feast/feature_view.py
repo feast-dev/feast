@@ -84,7 +84,6 @@ class FeatureView(BaseFeatureView):
         name: str,
         entities: List[str],
         ttl: Union[Duration, timedelta],
-        input: Optional[DataSource] = None,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
@@ -97,17 +96,8 @@ class FeatureView(BaseFeatureView):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        if input is not None:
-            warnings.warn(
-                (
-                    "The argument 'input' is being deprecated. Please use 'batch_source' "
-                    "instead. Feast 0.13 and onwards will not support the argument 'input'."
-                ),
-                DeprecationWarning,
-            )
-
-        _input = input or batch_source
-        assert _input is not None
+        _input = batch_source
+        assert batch_source is not None
 
         _features = features or []
 
@@ -130,7 +120,6 @@ class FeatureView(BaseFeatureView):
             self.ttl = ttl
 
         self.online = online
-        self.input = _input
         self.batch_source = _input
         self.stream_source = stream_source
 
@@ -148,7 +137,6 @@ class FeatureView(BaseFeatureView):
             name=self.name,
             entities=self.entities,
             ttl=self.ttl,
-            input=self.input,
             batch_source=self.batch_source,
             stream_source=self.stream_source,
             features=self.features,
