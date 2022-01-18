@@ -97,7 +97,7 @@ class FeatureView(BaseFeatureView):
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
         _input = batch_source
-        assert batch_source is not None
+        assert _input is not None
 
         _features = features or []
 
