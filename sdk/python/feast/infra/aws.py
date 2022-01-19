@@ -63,17 +63,14 @@ class AwsProvider(PassthroughProvider):
         partial: bool,
     ):
 
-        # online_store is an optional feature of the feature store. Don't call update online store if there is not one
-        # online store is not updated in gcp and local providers. Maybe remove this part?
-        if self.online_store:
-            self.online_store.update(
-                config=self.repo_config,
-                tables_to_delete=tables_to_delete,
-                tables_to_keep=tables_to_keep,
-                entities_to_keep=entities_to_keep,
-                entities_to_delete=entities_to_delete,
-                partial=partial,
-            )
+        self.online_store.update(
+            config=self.repo_config,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_keep=entities_to_keep,
+            entities_to_delete=entities_to_delete,
+            partial=partial,
+        )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
             if not enable_aws_lambda_feature_server(self.repo_config):
