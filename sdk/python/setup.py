@@ -77,7 +77,7 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis==4.1.*",
+    "redis>=4.1.0",
     "hiredis>=2.0.0",
 ]
 
