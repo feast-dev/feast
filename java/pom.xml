@@ -38,7 +38,7 @@
     </modules>
 
     <properties>
-        <revision>0.15.2-SNAPSHOT</revision>
+        <revision>0.15.1-SNAPSHOT</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -99,6 +99,7 @@
 
         <skipUTs>false</skipUTs>
         <skipITs>false</skipITs>
+        <maven.deploy.skip>true</maven.deploy.skip>
         <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client</feast.auth.providers.http.client.package.name>
     </properties>
 
@@ -140,11 +141,11 @@
     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
         <repository>
             <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
 
@@ -692,22 +693,6 @@
                         <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                     </additionalClasspathElements>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
-                    <skip>true</skip>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>build-info</id>
-                        <goals>
-                            <goal>build-info</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <!-- nexus-staging-maven-plugin configures Maven to deploy to OSSRH Nexus Repository Manager -->
             <plugin>

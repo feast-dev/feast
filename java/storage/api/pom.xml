@@ -32,7 +32,7 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>datatypes-java</artifactId>
+      <artifactId>datatypes-java-0.1x</artifactId>
       <version>${project.version}</version>
     </dependency>
 
