@@ -6,17 +6,17 @@
 #
 absl-py==0.12.0
     # via tensorflow-metadata
-anyio==3.4.0
+anyio==3.5.0
     # via starlette
 asgiref==3.4.1
     # via uvicorn
-attrs==21.2.0
+attrs==21.4.0
     # via jsonschema
 cachetools==4.2.4
     # via google-auth
 certifi==2021.10.8
     # via requests
-charset-normalizer==2.0.8
+charset-normalizer==2.0.10
     # via requests
 click==8.0.3
     # via
@@ -26,13 +26,13 @@ colorama==0.4.4
     # via feast (setup.py)
 dill==0.3.4
     # via feast (setup.py)
-fastapi==0.70.0
+fastapi==0.72.0
     # via feast (setup.py)
-fastavro==1.4.7
+fastavro==1.4.9
     # via
     #   feast (setup.py)
     #   pandavro
-google-api-core==2.2.2
+google-api-core==2.4.0
     # via feast (setup.py)
 google-auth==2.3.3
     # via google-api-core
@@ -41,15 +41,15 @@ googleapis-common-protos==1.52.0
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-grpcio==1.42.0
+grpcio==1.43.0
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.42.0
+grpcio-reflection==1.43.0
     # via feast (setup.py)
 h11==0.12.0
     # via uvicorn
-httptools==0.2.0
+httptools==0.3.0
     # via uvicorn
 idna==3.3
     # via
@@ -57,18 +57,18 @@ idna==3.3
     #   requests
 jinja2==3.0.3
     # via feast (setup.py)
-jsonschema==4.2.1
+jsonschema==4.4.0
     # via feast (setup.py)
 markupsafe==2.0.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
-numpy==1.21.4
+numpy==1.22.1
     # via
     #   pandas
     #   pandavro
     #   pyarrow
-pandas==1.3.4
+pandas==1.3.5
     # via
     #   feast (setup.py)
     #   pandavro
@@ -76,7 +76,7 @@ pandavro==1.5.2
     # via feast (setup.py)
 proto-plus==1.19.6
     # via feast (setup.py)
-protobuf==3.19.1
+protobuf==3.19.3
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -92,11 +92,11 @@ pyasn1==0.4.8
     #   rsa
 pyasn1-modules==0.2.8
     # via google-auth
-pydantic==1.8.2
+pydantic==1.9.0
     # via
     #   fastapi
     #   feast (setup.py)
-pyrsistent==0.18.0
+pyrsistent==0.18.1
     # via jsonschema
 python-dateutil==2.8.2
     # via pandas
@@ -108,7 +108,7 @@ pyyaml==6.0
     # via
     #   feast (setup.py)
     #   uvicorn
-requests==2.26.0
+requests==2.27.1
     # via google-api-core
 rsa==4.8
     # via google-auth
@@ -121,7 +121,7 @@ six==1.16.0
     #   python-dateutil
 sniffio==1.2.0
     # via anyio
-starlette==0.16.0
+starlette==0.17.1
     # via fastapi
 tabulate==0.8.9
     # via feast (setup.py)
@@ -135,9 +135,9 @@ tqdm==4.62.3
     # via feast (setup.py)
 typing-extensions==4.0.1
     # via pydantic
-urllib3==1.26.7
+urllib3==1.26.8
     # via requests
-uvicorn[standard]==0.15.0
+uvicorn[standard]==0.17.0
     # via feast (setup.py)
 uvloop==0.16.0
     # via uvicorn
