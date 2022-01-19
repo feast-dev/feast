@@ -114,12 +114,10 @@ class RepoConfig(FeastBaseModel):
     def __init__(self, **data: Any):
         super().__init__(**data)
 
-        # Create online store if it is specified, ie: not an empty dict. If it is not specified then
-        # this attribute will stay as a dict, else it will be of type FeastConfigBaseModel
-        if isinstance(self.online_store, Dict) and "type" in self.online_store:
-            self.online_store = get_online_config_from_type(
-                self.online_store["type"]
-            )(**self.online_store)
+        if isinstance(self.online_store, Dict):
+            self.online_store = get_online_config_from_type(self.online_store["type"])(
+                **self.online_store
+            )
         elif isinstance(self.online_store, str):
             self.online_store = get_online_config_from_type(self.online_store)()
 
@@ -161,18 +159,22 @@ class RepoConfig(FeastBaseModel):
         # Make sure that the provider configuration is set. We need it to set the defaults
         assert "provider" in values
 
-        if "type" in values["online_store"]:
-            # Validate the dict to ensure one of the union types match
-            try:
-                online_config_class = get_online_config_from_type(online_store_type)
-                online_config_class(**values["online_store"])
+        # Set default type
+        if "type" not in values["online_store"]:
+            values["online_store"]["type"] = "sqlite"
 
-            except ValidationError as e:
-                raise ValidationError(
-                    [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
-                )
+        online_store_type = values["online_store"]["type"]
+
+        # Validate the dict to ensure one of the union types match
+        try:
+            online_config_class = get_online_config_from_type(online_store_type)
+            online_config_class(**values["online_store"])
+
+        except ValidationError as e:
+            raise ValidationError(
+                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
+            )
         return values
-
 
     @root_validator(pre=True)
     def _validate_offline_store_config(cls, values):
@@ -309,6 +311,7 @@ def get_online_config_from_type(online_store_type: str):
     config_class_name = f"{online_store_class_type}Config"
 
     return import_class(module_name, config_class_name, config_class_name)
+
 
 def get_offline_config_from_type(offline_store_type: str):
     if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:

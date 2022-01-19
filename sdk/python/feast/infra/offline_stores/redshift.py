@@ -38,22 +38,22 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["redshift"] = "redshift"
     """ Offline store type selector"""
 
-    cluster_id: Optional[StrictStr]
+    cluster_id: StrictStr = "*****"
     """ Redshift cluster identifier """
 
-    region: Optional[StrictStr]
+    region: StrictStr = "*****"
     """ Redshift cluster's AWS region """
 
-    user: Optional[StrictStr]
+    user: StrictStr = "*****"
     """ Redshift user name """
 
-    database: Optional[StrictStr]
+    database: StrictStr = "*****"
     """ Redshift database name """
 
-    s3_staging_location: Optional[StrictStr]
+    s3_staging_location: StrictStr = "*****"
     """ S3 path for importing & exporting data to Redshift """
 
-    iam_role: Optional[StrictStr]
+    iam_role: StrictStr = "*****"
     """ IAM Role for Redshift, granting it access to S3 """
 
 
