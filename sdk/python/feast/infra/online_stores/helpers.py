@@ -2,7 +2,6 @@ import struct
 from typing import Any, List
 
 import mmh3
-from pydantic.typing import Dict
 
 from feast.importer import import_class
 from feast.infra.key_encoding_utils import (
