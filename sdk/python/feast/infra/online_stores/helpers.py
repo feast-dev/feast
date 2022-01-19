@@ -1,6 +1,6 @@
 import struct
-from typing import Any, List
-
+from typing import Any, List, Optional
+from pydantic.typing import Dict
 import mmh3
 
 from feast.importer import import_class
@@ -12,17 +12,19 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
-def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
-    """Creates an online store corresponding to the given online store config."""
+def get_online_store_from_config(online_store_config: Optional[Any]) -> OnlineStore:
+    """Creates an online store corresponding to the given online store config.
+    It returns None if the online store is not specified
+    """
 
-    # online_store is an optional feature of the feature store. Don't call update online store if there is not one
-    if online_store_config:
+    # Don't return anything if the online store is not specified. online_store_config will stay
+    # as of type dict if it is not specified, else it will be of class FeastConfigBaseModel
+    if not isinstance(online_store_config, Dict):
         module_name = online_store_config.__module__
         qualified_name = type(online_store_config).__name__
         class_name = qualified_name.replace("Config", "")
         online_store_class = import_class(module_name, class_name, "OnlineStore")
         return online_store_class()
-
 
 def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:
     key: List[bytes] = [serialize_entity_key(entity_key), project.encode("utf-8")]

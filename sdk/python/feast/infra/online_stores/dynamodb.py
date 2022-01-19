@@ -49,7 +49,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["dynamodb"] = "dynamodb"
     """Online store type selector"""
 
-    region: StrictStr = "us-west-2"
+    region: StrictStr
     """ AWS Region Name """
 
 
