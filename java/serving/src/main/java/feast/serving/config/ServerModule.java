@@ -18,9 +18,12 @@ package feast.serving.config;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
+import feast.serving.controller.HealthServiceController;
 import feast.serving.grpc.OnlineServingGrpcServiceV2;
+import feast.serving.service.ServingServiceV2;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.health.v1.HealthGrpc;
 import io.grpc.protobuf.services.ProtoReflectionService;
 import io.opentracing.contrib.grpc.TracingServerInterceptor;
 
@@ -35,13 +38,20 @@ public class ServerModule extends AbstractModule {
   public Server provideGrpcServer(
       ApplicationProperties applicationProperties,
       OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2,
-      TracingServerInterceptor tracingServerInterceptor) {
+      TracingServerInterceptor tracingServerInterceptor,
+      HealthGrpc.HealthImplBase healthImplBase) {
     ServerBuilder<?> serverBuilder =
         ServerBuilder.forPort(applicationProperties.getGrpc().getServer().getPort());
     serverBuilder
         .addService(ProtoReflectionService.newInstance())
-        .addService(tracingServerInterceptor.intercept(onlineServingGrpcServiceV2));
+        .addService(tracingServerInterceptor.intercept(onlineServingGrpcServiceV2))
+        .addService(healthImplBase);
 
     return serverBuilder.build();
+  }
+
+  @Provides
+  public HealthGrpc.HealthImplBase healthService(ServingServiceV2 servingServiceV2) {
+    return new HealthServiceController(servingServiceV2);
   }
 }

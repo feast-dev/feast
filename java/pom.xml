@@ -38,7 +38,7 @@
     </modules>
 
     <properties>
-        <revision>0.15.1-SNAPSHOT</revision>
+        <revision>0.16.1-SNAPSHOT</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -47,10 +47,6 @@
         <grpc.version>1.30.2</grpc.version>
         <protoc.version>3.12.2</protoc.version>
         <protobuf.version>3.16.1</protobuf.version>
-        <spring.boot.version>2.3.1.RELEASE</spring.boot.version>
-        <spring.version>5.2.7.RELEASE</spring.version>
-        <spring.security.version>5.3.0.RELEASE</spring.security.version>
-        <grpc.spring.boot.starter.version>2.9.0.RELEASE</grpc.spring.boot.starter.version>
         <com.google.cloud.version>1.111.1</com.google.cloud.version>
         <io.prometheus.version>0.8.0</io.prometheus.version>
         <byte-buddy.version>1.9.10</byte-buddy.version>
@@ -62,7 +58,6 @@
         <log4jVersion>2.17.1</log4jVersion>
         <joda.time.version>2.9.9</joda.time.version>
         <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
-        <spring.security.oauth2.version>2.5.0.RELEASE</spring.security.oauth2.version>
         <lombok.version>1.18.12</lombok.version>
         <gson.fire.version>1.8.4</gson.fire.version>
         <gson.version>2.8.6</gson.version>
@@ -72,9 +67,9 @@
         <javax.xml.bind.version>2.3.1</javax.xml.bind.version>
         <javax.annotation.version>1.3.2</javax.annotation.version>
         <javax.validation.version>2.0.1.Final</javax.validation.version>
-        <springfox.version>2.8.0</springfox.version>
         <google.auth.library.oauth2.http.version>0.20.0</google.auth.library.oauth2.http.version>
         <auto.value.version>1.6.6</auto.value.version>
+        <guava.version>29.0-jre</guava.version>
 
         <license.content><![CDATA[
 /*
@@ -99,7 +94,6 @@
 
         <skipUTs>false</skipUTs>
         <skipITs>false</skipITs>
-        <maven.deploy.skip>true</maven.deploy.skip>
         <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client</feast.auth.providers.http.client.package.name>
     </properties>
 
@@ -152,307 +146,6 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>${commons.lang3.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.google.inject</groupId>
-                <artifactId>guice</artifactId>
-                <version>5.0.1</version>
-            </dependency>
-
-            <!-- Google Cloud -->
-            <dependency>
-                <groupId>com.google.cloud</groupId>
-                <artifactId>google-cloud-bigquery</artifactId>
-                <version>${com.google.cloud.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.cloud</groupId>
-                <artifactId>google-cloud-storage</artifactId>
-                <version>${com.google.cloud.version}</version>
-            </dependency>
-
-            <!-- Provides FileSystemProvider for GCS. -->
-            <dependency>
-                <groupId>com.google.cloud</groupId>
-                <artifactId>google-cloud-nio</artifactId>
-                <version>0.83.0-alpha</version>
-            </dependency>
-
-            <dependency>
-              <groupId>io.opencensus</groupId>
-              <artifactId>opencensus-api</artifactId>
-              <version>${opencensus.version}</version>
-            </dependency>
-            <dependency>
-              <groupId>io.opencensus</groupId>
-              <artifactId>opencensus-contrib-grpc-util</artifactId>
-              <version>${opencensus.version}</version>
-            </dependency>
-            <dependency>
-              <groupId>io.opencensus</groupId>
-              <artifactId>opencensus-contrib-http-util</artifactId>
-              <version>${opencensus.version}</version>
-            </dependency>
-
-            <!-- gRPC -->
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-core</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-api</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-context</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-all</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-okhttp</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-auth</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-grpclb</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-alts</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-netty</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-netty-shaded</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-protobuf</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-services</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-stub</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-testing</artifactId>
-                <version>${grpc.version}</version>
-                <scope>test</scope>
-            </dependency>
-
-            <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-java-root -->
-            <dependency>
-                <groupId>org.apache.arrow</groupId>
-                <artifactId>arrow-java-root</artifactId>
-                <version>5.0.0</version>
-                <type>pom</type>
-            </dependency>
-
-            <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-vector -->
-            <dependency>
-                <groupId>org.apache.arrow</groupId>
-                <artifactId>arrow-vector</artifactId>
-                <version>5.0.0</version>
-            </dependency>
-
-            <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-memory -->
-            <dependency>
-                <groupId>org.apache.arrow</groupId>
-                <artifactId>arrow-memory</artifactId>
-                <version>5.0.0</version>
-                <type>pom</type>
-            </dependency>
-
-            <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-memory-netty -->
-            <dependency>
-                <groupId>org.apache.arrow</groupId>
-                <artifactId>arrow-memory-netty</artifactId>
-                <version>5.0.0</version>
-                <scope>runtime</scope>
-            </dependency>
-
-            <!-- Spring Extended -->
-            <dependency>
-                <groupId>net.devh</groupId>
-                <artifactId>grpc-server-spring-boot-starter</artifactId>
-                <version>${grpc.spring.boot.starter.version}</version>
-            </dependency>
-
-            <!-- Prometheus Client -->
-            <dependency>
-                <groupId>io.prometheus</groupId>
-                <artifactId>simpleclient</artifactId>
-                <version>${io.prometheus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.prometheus</groupId>
-                <artifactId>simpleclient_servlet</artifactId>
-                <version>${io.prometheus.version}</version>
-            </dependency>
-
-            <!-- Security -->
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-core</artifactId>
-                <version>${spring.security.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-config</artifactId>
-                <version>${spring.security.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-oauth2-resource-server</artifactId>
-                <version>${spring.security.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-oauth2-jose</artifactId>
-                <version>${spring.security.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.auth</groupId>
-                <artifactId>google-auth-library-oauth2-http</artifactId>
-                <version>${google.auth.library.oauth2.http.version}</version>
-            </dependency>
-
-            <!-- Other Stuff -->
-            <dependency>
-                <groupId>joda-time</groupId>
-                <artifactId>joda-time</artifactId>
-                <version>${joda.time.version}</version>
-            </dependency>
-            <dependency>
-              <groupId>com.datadoghq</groupId>
-              <artifactId>java-dogstatsd-client</artifactId>
-              <version>2.6.1</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.guava</groupId>
-                <artifactId>guava</artifactId>
-                <version>29.0-jre</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>${protobuf.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java-util</artifactId>
-                <version>${protobuf.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
-                <scope>provided</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.google.auto.value</groupId>
-                <artifactId>auto-value-annotations</artifactId>
-                <version>${auto.value.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.auto.value</groupId>
-                <artifactId>auto-value</artifactId>
-                <version>${auto.value.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.code.gson</groupId>
-                <artifactId>gson</artifactId>
-                <version>${gson.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.gsonfire</groupId>
-                <artifactId>gson-fire</artifactId>
-                <version>${gson.fire.version}</version>
-            </dependency>
-            <!-- Misc Testing -->
-            <dependency>
-                <groupId>com.github.kstyrc</groupId>
-                <artifactId>embedded-redis</artifactId>
-                <version>0.6</version>
-                <scope>test</scope>
-            </dependency>
-
-            <!-- Spring Boot BOM overrides -->
-
-            <dependency>
-                <groupId>net.bytebuddy</groupId>
-                <artifactId>byte-buddy</artifactId>
-                <version>${byte-buddy.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-core</artifactId>
-                <version>${mockito.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-web</artifactId>
-                <version>${spring.boot.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.springframework.boot</groupId>
-                        <artifactId>spring-boot-starter-logging</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-api</artifactId>
-                <version>${log4jVersion}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-core</artifactId>
-                <version>${log4jVersion}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-jul</artifactId>
-                <version>${log4jVersion}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-web</artifactId>
-                <version>${log4jVersion}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-slf4j-impl</artifactId>
                 <version>${log4jVersion}</version>
@@ -463,26 +156,6 @@
                 <version>1.7.30</version>
             </dependency>
 
-
-            <!--
-                Import Spring Boot's dependency management.
-                Override things *before* here if needed, but be wary of that!
-
-                https://www.baeldung.com/spring-boot-dependency-management-custom-parent
-                https://github.com/spring-projects/spring-boot/blob/v2.0.9.RELEASE/spring-boot-project/spring-boot-dependencies/pom.xml
-            -->
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>${spring.boot.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.squareup.okio</groupId>
-                <artifactId>okio</artifactId>
-                <version>1.17.2</version>
-            </dependency>
             <dependency>
                 <groupId>javax.xml.bind</groupId>
                 <artifactId>jaxb-api</artifactId>
@@ -497,6 +170,19 @@
                 <groupId>javax.validation</groupId>
                 <artifactId>validation-api</artifactId>
                 <version>${javax.validation.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-engine</artifactId>
+                <version>1.8.2</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-commons</artifactId>
+                <version>1.8.2</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -705,6 +391,7 @@
                     <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                     <!-- autoReleaseAfterClose is true as the release should be automated via continuous integration -->
                     <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
             </plugin>
             <!--
@@ -826,21 +513,6 @@
                             </goals>
                         </execution>
                     </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring.boot.version}</version>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                    <configuration>
-                        <classifier>exec</classifier>
-                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.xolstice.maven.plugins</groupId>

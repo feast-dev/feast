@@ -16,24 +16,20 @@
  */
 package feast.serving.controller;
 
+import com.google.inject.Inject;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingServiceV2;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse;
 import io.grpc.health.v1.HealthProto.ServingStatus;
 import io.grpc.stub.StreamObserver;
-import net.devh.boot.grpc.server.service.GrpcService;
-import org.springframework.beans.factory.annotation.Autowired;
 
 // Reference: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
-
-@GrpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class HealthServiceController extends HealthImplBase {
   private final ServingServiceV2 servingService;
 
-  @Autowired
+  @Inject
   public HealthServiceController(final ServingServiceV2 servingService) {
     this.servingService = servingService;
   }
