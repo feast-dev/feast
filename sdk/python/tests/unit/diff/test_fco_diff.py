@@ -55,14 +55,14 @@ def test_diff_between_feature_views(simple_dataset_1):
             batch_source=file_source,
             ttl=None,
             tags={"when": "before"},
-        ).to_proto()
+        )
         post_changed = FeatureView(
             name="fv2",
             entities=["id"],
             batch_source=file_source,
             ttl=None,
             tags={"when": "after"},
-        ).to_proto()
+        )
 
         fco_diffs = diff_between(pre_changed, pre_changed, "feature view")
         assert len(fco_diffs.fco_property_diffs) == 0

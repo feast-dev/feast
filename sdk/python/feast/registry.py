@@ -16,7 +16,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Set
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
@@ -29,7 +29,7 @@ from feast.diff.FcoDiff import (
     RegistryDiff,
     TransitionType,
     diff_between,
-    tag_proto_objects_for_keep_delete_add,
+    tag_objects_for_keep_delete_update_add,
 )
 from feast.entity import Entity
 from feast.errors import (
@@ -65,7 +65,107 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "": "LocalRegistryStore",
 }
 
+REGISTRY_OBJECT_TYPE_TO_STR = {
+    "entities": "entity",
+    "feature_views": "feature view",
+    "on_demand_feature_views": "on demand feature view",
+    "request_feature_views": "request feature view",
+    "feature_services": "feature service",
+}
+
+REGISTRY_OBJECT_TYPES = REGISTRY_OBJECT_TYPE_TO_STR.keys()
+
 logger = logging.getLogger(__name__)
+
+
+class RepoContents(NamedTuple):
+    feature_views: Set[FeatureView]
+    on_demand_feature_views: Set[OnDemandFeatureView]
+    request_feature_views: Set[RequestFeatureView]
+    entities: Set[Entity]
+    feature_services: Set[FeatureService]
+
+    def to_registry_proto(self) -> RegistryProto:
+        registry_proto = RegistryProto()
+        registry_proto.entities.extend([e.to_proto() for e in self.entities])
+        registry_proto.feature_views.extend(
+            [fv.to_proto() for fv in self.feature_views]
+        )
+        registry_proto.on_demand_feature_views.extend(
+            [fv.to_proto() for fv in self.on_demand_feature_views]
+        )
+        registry_proto.request_feature_views.extend(
+            [fv.to_proto() for fv in self.request_feature_views]
+        )
+        registry_proto.feature_services.extend(
+            [fs.to_proto() for fs in self.feature_services]
+        )
+        return registry_proto
+
+    @classmethod
+    def from_registry_proto(cls, project: str, registry_proto: RegistryProto):
+        repo_contents = cls(
+            entities=set(),
+            feature_views=set(),
+            feature_services=set(),
+            on_demand_feature_views=set(),
+            request_feature_views=set(),
+        )
+
+        for feature_view_proto in registry_proto.feature_views:
+            if feature_view_proto.spec.project == project:
+                repo_contents.feature_views.add(
+                    FeatureView.from_proto(feature_view_proto)
+                )
+        for on_demand_feature_view_proto in registry_proto.on_demand_feature_views:
+            if on_demand_feature_view_proto.spec.project == project:
+                repo_contents.on_demand_feature_views.add(
+                    OnDemandFeatureView.from_proto(on_demand_feature_view_proto)
+                )
+        for request_feature_view_proto in registry_proto.request_feature_views:
+            if request_feature_view_proto.spec.project == project:
+                repo_contents.request_feature_views.add(
+                    RequestFeatureView.from_proto(request_feature_view_proto)
+                )
+        for entity_proto in registry_proto.entities:
+            if entity_proto.spec.project == project:
+                repo_contents.entities.add(Entity.from_proto(entity_proto))
+        for feature_service_proto in registry_proto.feature_services:
+            if feature_service_proto.spec.project == project:
+                repo_contents.feature_services.add(
+                    FeatureService.from_proto(feature_service_proto)
+                )
+
+        return repo_contents
+
+
+def extract_objects_for_keep_delete_update_add(
+    current_repo_contents: RepoContents, new_repo_contents: RepoContents
+):
+    """
+    Extracts the objects to be kept, deleted, updated, and added to achieve the desired end state.
+
+    Args:
+        current_repo_contents: The current repo state.
+        new_repo_contents: The desired repo state.
+    """
+    objs_to_keep = {}
+    objs_to_delete = {}
+    objs_to_update = {}
+    objs_to_add = {}
+
+    for object_type in REGISTRY_OBJECT_TYPES:
+        to_keep, to_delete, to_update, to_add = tag_objects_for_keep_delete_update_add(
+            getattr(current_repo_contents, object_type),
+            getattr(new_repo_contents, object_type),
+        )
+
+        objs_to_keep[object_type] = to_keep
+        objs_to_delete[object_type] = to_delete
+        objs_to_update[object_type] = to_update
+        objs_to_add[object_type] = to_add
+
+    return objs_to_keep, objs_to_delete, objs_to_update, objs_to_add
 
 
 def get_registry_store_class_from_type(registry_store_type: str):
@@ -143,44 +243,60 @@ class Registry:
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
+    def to_repo_contents(self, project: str) -> RepoContents:
+        """
+        Convert the contents of the registry for the given project into a RepoContents object.
+
+        Args:
+            project: The Feast project to be converted.
+        """
+        return RepoContents(
+            entities=set(self.list_entities(project=project)),
+            feature_views=set(self.list_feature_views(project=project)),
+            request_feature_views=set(self.list_request_feature_views(project=project)),
+            on_demand_feature_views=set(
+                self.list_on_demand_feature_views(project=project)
+            ),
+            feature_services=set(self.list_feature_services(project=project)),
+        )
+
     # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
     @staticmethod
     def diff_between(
-        current_registry: RegistryProto, new_registry: RegistryProto
+        current_registry_contents: RepoContents, new_registry_contents: RepoContents
     ) -> RegistryDiff:
+        """
+        Computes the difference between the two repos.
+
+        Args:
+            current_registry_contents: The current repo.
+            new_registry_contents: The new repo.
+
+        Returns:
+            A RegistryDiff object containing the difference between the two repos.
+        """
         diff = RegistryDiff()
 
-        attribute_to_object_type_str = {
-            "entities": "entity",
-            "feature_views": "feature view",
-            "feature_tables": "feature table",
-            "on_demand_feature_views": "on demand feature view",
-            "request_feature_views": "request feature view",
-            "feature_services": "feature service",
-        }
+        (
+            objs_to_keep,
+            objs_to_delete,
+            objs_to_update,
+            objs_to_add,
+        ) = extract_objects_for_keep_delete_update_add(
+            current_registry_contents, new_registry_contents
+        )
 
-        for object_type in [
-            "entities",
-            "feature_views",
-            "feature_tables",
-            "on_demand_feature_views",
-            "request_feature_views",
-            "feature_services",
-        ]:
-            (
-                objects_to_keep,
-                objects_to_delete,
-                objects_to_add,
-            ) = tag_proto_objects_for_keep_delete_add(
-                getattr(current_registry, object_type),
-                getattr(new_registry, object_type),
-            )
+        for object_type in REGISTRY_OBJECT_TYPES:
+            objects_to_keep = objs_to_keep[object_type]
+            objects_to_delete = objs_to_delete[object_type]
+            objects_to_update = objs_to_update[object_type]
+            objects_to_add = objs_to_add[object_type]
 
             for e in objects_to_add:
                 diff.add_fco_diff(
                     FcoDiff(
-                        e.spec.name,
-                        attribute_to_object_type_str[object_type],
+                        e.name,
+                        REGISTRY_OBJECT_TYPE_TO_STR[object_type],
                         None,
                         e,
                         [],
@@ -190,23 +306,19 @@ class Registry:
             for e in objects_to_delete:
                 diff.add_fco_diff(
                     FcoDiff(
-                        e.spec.name,
-                        attribute_to_object_type_str[object_type],
+                        e.name,
+                        REGISTRY_OBJECT_TYPE_TO_STR[object_type],
                         e,
                         None,
                         [],
                         TransitionType.DELETE,
                     )
                 )
-            for e in objects_to_keep:
-                current_obj_proto = [
-                    _e
-                    for _e in getattr(current_registry, object_type)
-                    if _e.spec.name == e.spec.name
-                ][0]
+            for e in objects_to_update:
+                current_obj = [_e for _e in objects_to_keep if _e.name == e.name][0]
                 diff.add_fco_diff(
                     diff_between(
-                        current_obj_proto, e, attribute_to_object_type_str[object_type]
+                        current_obj, e, REGISTRY_OBJECT_TYPE_TO_STR[object_type]
                     )
                 )
 
