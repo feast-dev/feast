@@ -32,26 +32,23 @@ import org.fluentd.logger.FluentLogger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 import org.slf4j.event.Level;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.info.BuildProperties;
-import org.springframework.stereotype.Component;
 
 @Slf4j
-@Component
 public class AuditLogger {
   private static final String FLUENTD_DESTINATION = "fluentd";
   private static final Marker AUDIT_MARKER = MarkerFactory.getMarker("AUDIT_MARK");
   private static FluentLogger fluentLogger;
   private static AuditLogProperties properties;
-  private static BuildProperties buildProperties;
+  private static String artifact;
+  private static String version;
 
-  @Autowired
-  public AuditLogger(LoggingProperties loggingProperties, BuildProperties buildProperties) {
+  public AuditLogger(LoggingProperties loggingProperties, String artifact, String version) {
     // Spring runs this constructor when creating the AuditLogger bean,
     // which allows us to populate the AuditLogger class with dependencies.
     // This allows us to use the dependencies in the AuditLogger's static methods
     AuditLogger.properties = loggingProperties.getAudit();
-    AuditLogger.buildProperties = buildProperties;
+    AuditLogger.artifact = artifact;
+    AuditLogger.version = version;
     if (AuditLogger.properties.getMessageLogging() != null
         && AuditLogger.properties.getMessageLogging().isEnabled()) {
       AuditLogger.fluentLogger =
@@ -69,12 +66,7 @@ public class AuditLogger {
    * @param entryBuilder with all fields set except instance.
    */
   public static void logMessage(Level level, MessageAuditLogEntry.Builder entryBuilder) {
-    log(
-        level,
-        entryBuilder
-            .setComponent(buildProperties.getArtifact())
-            .setVersion(buildProperties.getVersion())
-            .build());
+    log(level, entryBuilder.setComponent(artifact).setVersion(version).build());
   }
 
   /**
@@ -90,10 +82,7 @@ public class AuditLogger {
     log(
         level,
         ActionAuditLogEntry.of(
-            buildProperties.getArtifact(),
-            buildProperties.getArtifact(),
-            LogResource.of(resourceType, resourceId),
-            action));
+            artifact, version, LogResource.of(resourceType, resourceId), action));
   }
 
   /**
@@ -109,10 +98,7 @@ public class AuditLogger {
     log(
         level,
         TransitionAuditLogEntry.of(
-            buildProperties.getArtifact(),
-            buildProperties.getArtifact(),
-            LogResource.of(resourceType, resourceId),
-            status));
+            artifact, version, LogResource.of(resourceType, resourceId), status));
   }
 
   /**

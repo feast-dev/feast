@@ -6,13 +6,13 @@
 
   <name>Feast SDK for Java</name>
   <description>SDK for registering, storing, and retrieving features</description>
-  <artifactId>feast-sdk</artifactId>
+  <artifactId>feast-serving-client</artifactId>
 
   <parent>
     <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
-    <relativePath>../..</relativePath>
+    <relativePath>../</relativePath>
   </parent>
 
   <properties>
@@ -25,13 +25,7 @@
   <dependencies>
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>datatypes-java</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-common</artifactId>
+      <artifactId>feast-datatypes</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -39,26 +33,37 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty-shaded</artifactId>
+      <version>${grpc.version}</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-protobuf</artifactId>
+      <version>${grpc.version}</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
+      <version>${grpc.version}</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-testing</artifactId>
+      <version>${grpc.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+      <version>${protobuf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value-annotations</artifactId>
+      <version>${auto.value.version}</version>
     </dependency>
 
     <!-- Tracing -->
@@ -136,6 +141,13 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <configuration>
+          <skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
+        </configuration>
       </plugin>
     </plugins>
   </build>

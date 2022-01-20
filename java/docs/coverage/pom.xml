@@ -30,7 +30,7 @@
     <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
-    <relativePath>../../..</relativePath>
+    <relativePath>../..</relativePath>
   </parent>
 
   <name>Feast Coverage Java</name>
@@ -61,7 +61,7 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>feast-sdk</artifactId>
+      <artifactId>feast-serving-client</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

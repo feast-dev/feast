@@ -30,10 +30,6 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import org.slf4j.event.Level;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 
 /**
  * GrpcMessageInterceptor intercepts a GRPC calls to log handling of GRPC messages to the Audit Log.
@@ -41,7 +37,6 @@ import org.springframework.stereotype.Component;
  * name and assumed authenticated identity (if authentication is enabled). NOTE:
  * GrpcMessageInterceptor assumes that all service calls are unary (ie single request/response).
  */
-@Component
 public class GrpcMessageInterceptor implements ServerInterceptor {
   private LoggingProperties loggingProperties;
 
@@ -50,7 +45,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
    *
    * @param loggingProperties properties used to configure logging interceptor.
    */
-  @Autowired
   public GrpcMessageInterceptor(LoggingProperties loggingProperties) {
     this.loggingProperties = loggingProperties;
   }
@@ -80,9 +74,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
     entryBuilder.setMethod(fullMethodName.substring(fullMethodName.indexOf("/") + 1));
 
     // Attempt Extract current authenticated identity.
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String identity = (authentication != null) ? getIdentity(authentication) : "";
-    entryBuilder.setIdentity(identity);
+    entryBuilder.setIdentity("");
 
     // Register forwarding call to intercept outgoing response and log to audit log
     call =
@@ -114,14 +106,5 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
         entryBuilder.setRequest((Message) message);
       }
     };
-  }
-
-  /**
-   * Extract current authenticated identity from given {@link Authentication}. Extracts subject
-   * claim if specified in AuthorizationProperties, otherwise returns authentication subject.
-   */
-  private String getIdentity(Authentication authentication) {
-    // use subject claim as identity if set in security authorization properties
-    return authentication.getName();
   }
 }

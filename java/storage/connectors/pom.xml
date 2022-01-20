@@ -41,7 +41,7 @@
     <dependencies>
         <dependency>
             <groupId>dev.feast</groupId>
-            <artifactId>datatypes-java</artifactId>
+            <artifactId>feast-datatypes</artifactId>
             <version>${project.version}</version>
         </dependency>
 
