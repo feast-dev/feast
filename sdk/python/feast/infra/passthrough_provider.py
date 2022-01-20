@@ -35,7 +35,11 @@ class PassthroughProvider(Provider):
 
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
-        self.online_store = get_online_store_from_config(config.online_store) if not isinstance(config.online_store, Dict) else None
+        self.online_store = (
+            get_online_store_from_config(config.online_store)
+            if not isinstance(config.online_store, Dict)
+            else None
+        )
 
     def update_infra(
         self,

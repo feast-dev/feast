@@ -126,6 +126,7 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath)
 
     return yaml.safe_dump(config_dict)
 
+
 @pytest.mark.integration
 @pytest.mark.parametrize("test_repo_config", FULL_REPO_CONFIGS)
 def test_nullable_online_store(test_repo_config) -> None:

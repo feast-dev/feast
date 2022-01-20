@@ -13,7 +13,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
-def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
+def get_online_store_from_config(online_store_config: Any):
     """Creates an online store corresponding to the given online store config."""
     module_name = online_store_config.__module__
     qualified_name = type(online_store_config).__name__
