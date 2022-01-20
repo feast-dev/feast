@@ -7,14 +7,14 @@ FROM maven:3.6-jdk-11 as builder
 WORKDIR /build
 
 COPY java/pom.xml .
-COPY java/datatypes/java/pom.xml datatypes/java/pom.xml
+COPY java/datatypes/pom.xml datatypes/pom.xml
 COPY java/common/pom.xml common/pom.xml
 COPY java/serving/pom.xml serving/pom.xml
 COPY java/storage/api/pom.xml storage/api/pom.xml
 COPY java/storage/connectors/pom.xml storage/connectors/pom.xml
 COPY java/storage/connectors/redis/pom.xml storage/connectors/redis/pom.xml
-COPY java/sdk/java/pom.xml sdk/java/pom.xml
-COPY java/docs/coverage/java/pom.xml docs/coverage/java/pom.xml
+COPY java/sdk/pom.xml sdk/pom.xml
+COPY java/docs/coverage/pom.xml docs/coverage/pom.xml
 
 # Setting Maven repository .m2 directory relative to /build folder gives the
 # user to optionally use cached repository when building the image by copying
@@ -24,7 +24,7 @@ COPY java/pom.xml .m2/* .m2/
 RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
 
 COPY java/ .
-COPY protos/feast datatypes/java/src/main/proto/feast
+COPY protos/feast datatypes/src/main/proto/feast
 
 ARG VERSION=dev
 RUN mvn --also-make --projects serving -Drevision=$VERSION \
