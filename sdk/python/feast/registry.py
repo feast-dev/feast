@@ -84,6 +84,7 @@ class RepoContents(NamedTuple):
 
     Equivalently, represents the contents of a registry corresponding to a specific Feas project.
     """
+
     feature_views: Set[FeatureView]
     on_demand_feature_views: Set[OnDemandFeatureView]
     request_feature_views: Set[RequestFeatureView]
