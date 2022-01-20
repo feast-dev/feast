@@ -18,6 +18,7 @@ package feast.serving.it;
 
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
