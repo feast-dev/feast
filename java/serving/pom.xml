@@ -88,7 +88,7 @@
   <dependencies>
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>datatypes-java-0.1x</artifactId>
+      <artifactId>feast-datatypes</artifactId>
       <version>${project.version}</version>
     </dependency>
 

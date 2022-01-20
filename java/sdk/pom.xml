@@ -6,13 +6,13 @@
 
   <name>Feast SDK for Java</name>
   <description>SDK for registering, storing, and retrieving features</description>
-  <artifactId>feast-sdk-0.1x</artifactId>
+  <artifactId>feast-serving-client</artifactId>
 
   <parent>
     <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
-    <relativePath>../..</relativePath>
+    <relativePath>../</relativePath>
   </parent>
 
   <properties>
@@ -25,7 +25,7 @@
   <dependencies>
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>datatypes-java-0.1x</artifactId>
+      <artifactId>feast-datatypes</artifactId>
       <version>${project.version}</version>
     </dependency>
 

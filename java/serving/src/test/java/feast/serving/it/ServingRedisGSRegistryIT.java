@@ -16,8 +16,6 @@
  */
 package feast.serving.it;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.google.cloud.storage.*;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
 import feast.proto.core.RegistryProto;

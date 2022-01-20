@@ -30,13 +30,13 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
     </properties>
-    <artifactId>datatypes-java-0.1x</artifactId>
+    <artifactId>feast-datatypes</artifactId>
 
     <parent>
         <groupId>dev.feast</groupId>
         <artifactId>feast-parent</artifactId>
         <version>${revision}</version>
-        <relativePath>../..</relativePath>
+        <relativePath>../</relativePath>
     </parent>
 
     <build>

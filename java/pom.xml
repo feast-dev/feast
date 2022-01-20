@@ -28,12 +28,12 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>datatypes/java</module>
+        <module>datatypes</module>
         <module>storage/api</module>
         <module>storage/connectors</module>
         <module>serving</module>
-        <module>sdk/java</module>
-        <module>docs/coverage/java</module>
+        <module>sdk</module>
+        <module>docs/coverage</module>
         <module>common</module>
     </modules>
 
@@ -135,11 +135,11 @@
     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
         <repository>
             <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
 
