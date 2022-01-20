@@ -268,7 +268,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
-    apply_total_with_repo_instance(store, project, registry, repo, skip_source_validation)
+    apply_total_with_repo_instance(
+        store, project, registry, repo, skip_source_validation
+    )
 
 
 def log_cli_output(diff, views_to_delete, views_to_keep):
