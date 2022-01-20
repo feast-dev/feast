@@ -66,10 +66,16 @@ def test_usage_on(dummy_exporter, enabling_toggle):
 
         test_feature_store.apply([entity])
 
-        assert len(dummy_exporter) == 1
+        assert len(dummy_exporter) == 3
+        assert {
+            "entrypoint": "feast.infra.local.LocalRegistryStore.get_registry_proto"
+        }.items() <= dummy_exporter[0].items()
+        assert {
+            "entrypoint": "feast.infra.local.LocalRegistryStore.update_registry_proto"
+        }.items() <= dummy_exporter[1].items()
         assert {
             "entrypoint": "feast.feature_store.FeatureStore.apply"
-        }.items() <= dummy_exporter[0].items()
+        }.items() <= dummy_exporter[2].items()
 
 
 @pytest.mark.integration
