@@ -77,7 +77,7 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis-py-cluster==2.1.2",
+    "redis>=4.1.0",
     "hiredis>=2.0.0",
 ]
 
@@ -101,7 +101,7 @@ CI_REQUIRED = [
     "avro==1.10.0",
     "gcsfs",
     "urllib3>=1.25.4",
-    "pytest==6.0.0",
+    "pytest>=6.0.0",
     "pytest-cov",
     "pytest-xdist",
     "pytest-benchmark>=3.4.1",
@@ -109,7 +109,7 @@ CI_REQUIRED = [
     "pytest-timeout==1.4.2",
     "pytest-ordering==0.6.*",
     "pytest-mock==1.10.4",
-    "Sphinx!=4.0.0",
+    "Sphinx!=4.0.0,<4.4.0",
     "sphinx-rtd-theme",
     "testcontainers==3.4.2",
     "adlfs==0.5.9",
