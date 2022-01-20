@@ -61,7 +61,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["redis"] = "redis"
     """Online store type selector"""
 
-    redis_type: Optional[RedisType] = RedisType.redis
+    redis_type: RedisType = RedisType.redis
     """Redis type: redis or redis_cluster"""
 
     connection_string: StrictStr = "localhost:6379"
