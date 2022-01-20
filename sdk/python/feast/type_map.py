@@ -97,6 +97,7 @@ def python_type_to_feast_value_type(
     type_map = {
         "int": ValueType.INT64,
         "str": ValueType.STRING,
+        "string": ValueType.STRING,  # pandas.StringDtype
         "float": ValueType.DOUBLE,
         "bytes": ValueType.BYTES,
         "float64": ValueType.DOUBLE,
@@ -119,48 +120,50 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
-    if type_name == "ndarray" or isinstance(value, list):
-        if recurse:
+    if isinstance(value, np.ndarray) and str(value.dtype) in type_map:
+        item_type = type_map[str(value.dtype)]
+        return ValueType[item_type.name + "_LIST"]
 
-            # Convert to list type
-            list_items = pd.core.series.Series(value)
-
-            # This is the final type which we infer from the list
-            common_item_value_type = None
-            for item in list_items:
-                if isinstance(item, ProtoValue):
-                    current_item_value_type: ValueType = _proto_value_to_value_type(
-                        item
-                    )
-                else:
-                    # Get the type from the current item, only one level deep
-                    current_item_value_type = python_type_to_feast_value_type(
-                        name=name, value=item, recurse=False
-                    )
-                # Validate whether the type stays consistent
-                if (
-                    common_item_value_type
-                    and not common_item_value_type == current_item_value_type
-                ):
-                    raise ValueError(
-                        f"List value type for field {name} is inconsistent. "
-                        f"{common_item_value_type} different from "
-                        f"{current_item_value_type}."
-                    )
-                common_item_value_type = current_item_value_type
-            if common_item_value_type is None:
-                return ValueType.UNKNOWN
-            return ValueType[common_item_value_type.name + "_LIST"]
-        else:
-            assert value
+    if isinstance(value, (list, np.ndarray)):
+        # if the value's type is "ndarray" and we couldn't infer from "value.dtype"
+        # this is most probably array of "object",
+        # so we need to iterate over objects and try to infer type of each item
+        if not recurse:
             raise ValueError(
-                f"Value type for field {name} is {value.dtype.__str__()} but "
+                f"Value type for field {name} is {type(value)} but "
                 f"recursion is not allowed. Array types can only be one level "
                 f"deep."
             )
 
-    assert value
-    return type_map[value.dtype.__str__()]
+        # This is the final type which we infer from the list
+        common_item_value_type = None
+        for item in value:
+            if isinstance(item, ProtoValue):
+                current_item_value_type: ValueType = _proto_value_to_value_type(item)
+            else:
+                # Get the type from the current item, only one level deep
+                current_item_value_type = python_type_to_feast_value_type(
+                    name=name, value=item, recurse=False
+                )
+            # Validate whether the type stays consistent
+            if (
+                common_item_value_type
+                and not common_item_value_type == current_item_value_type
+            ):
+                raise ValueError(
+                    f"List value type for field {name} is inconsistent. "
+                    f"{common_item_value_type} different from "
+                    f"{current_item_value_type}."
+                )
+            common_item_value_type = current_item_value_type
+        if common_item_value_type is None:
+            return ValueType.UNKNOWN
+        return ValueType[common_item_value_type.name + "_LIST"]
+
+    raise ValueError(
+        f"Value with native type {type_name} "
+        f"cannot be converted into Feast value type"
+    )
 
 
 def python_values_to_feast_value_type(
