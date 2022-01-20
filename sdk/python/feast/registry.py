@@ -79,6 +79,11 @@ logger = logging.getLogger(__name__)
 
 
 class RepoContents(NamedTuple):
+    """
+    Represents the objects in a Feast feature repo.
+
+    Equivalently, represents the contents of a registry corresponding to a specific Feas project.
+    """
     feature_views: Set[FeatureView]
     on_demand_feature_views: Set[OnDemandFeatureView]
     request_feature_views: Set[RequestFeatureView]
