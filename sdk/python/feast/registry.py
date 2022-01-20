@@ -102,42 +102,6 @@ class RepoContents(NamedTuple):
         )
         return registry_proto
 
-    @classmethod
-    def from_registry_proto(cls, project: str, registry_proto: RegistryProto):
-        repo_contents = cls(
-            entities=set(),
-            feature_views=set(),
-            feature_services=set(),
-            on_demand_feature_views=set(),
-            request_feature_views=set(),
-        )
-
-        for feature_view_proto in registry_proto.feature_views:
-            if feature_view_proto.spec.project == project:
-                repo_contents.feature_views.add(
-                    FeatureView.from_proto(feature_view_proto)
-                )
-        for on_demand_feature_view_proto in registry_proto.on_demand_feature_views:
-            if on_demand_feature_view_proto.spec.project == project:
-                repo_contents.on_demand_feature_views.add(
-                    OnDemandFeatureView.from_proto(on_demand_feature_view_proto)
-                )
-        for request_feature_view_proto in registry_proto.request_feature_views:
-            if request_feature_view_proto.spec.project == project:
-                repo_contents.request_feature_views.add(
-                    RequestFeatureView.from_proto(request_feature_view_proto)
-                )
-        for entity_proto in registry_proto.entities:
-            if entity_proto.spec.project == project:
-                repo_contents.entities.add(Entity.from_proto(entity_proto))
-        for feature_service_proto in registry_proto.feature_services:
-            if feature_service_proto.spec.project == project:
-                repo_contents.feature_services.add(
-                    FeatureService.from_proto(feature_service_proto)
-                )
-
-        return repo_contents
-
 
 def extract_objects_for_keep_delete_update_add(
     current_repo_contents: RepoContents, new_repo_contents: RepoContents
