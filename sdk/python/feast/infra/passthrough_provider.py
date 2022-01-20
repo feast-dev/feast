@@ -35,7 +35,7 @@ class PassthroughProvider(Provider):
 
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
-        self.online_store = get_online_store_from_config(config.online_store)
+        self.online_store = get_online_store_from_config(config.online_store) if not isinstance(config.online_store, Dict) else None
 
     def update_infra(
         self,
@@ -46,9 +46,10 @@ class PassthroughProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        set_usage_attribute("provider", self.__class__.__name__)
+
         # Call update only if there is an online store
         if self.online_store:
-            set_usage_attribute("provider", self.__class__.__name__)
             self.online_store.update(
                 config=self.repo_config,
                 tables_to_delete=tables_to_delete,

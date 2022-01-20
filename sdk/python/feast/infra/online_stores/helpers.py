@@ -13,16 +13,13 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
-def get_online_store_from_config(online_store_config: Any):
-    """Creates an online store corresponding to the given online store config.
-    It returns None if the config is still a Dict ie: online store is opted out."""
-    if not isinstance(online_store_config, Dict):
-        module_name = online_store_config.__module__
-        qualified_name = type(online_store_config).__name__
-        class_name = qualified_name.replace("Config", "")
-        online_store_class = import_class(module_name, class_name, "OnlineStore")
-        return online_store_class()
-    return None
+def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
+    """Creates an online store corresponding to the given online store config."""
+    module_name = online_store_config.__module__
+    qualified_name = type(online_store_config).__name__
+    class_name = qualified_name.replace("Config", "")
+    online_store_class = import_class(module_name, class_name, "OnlineStore")
+    return online_store_class()
 
 
 def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:

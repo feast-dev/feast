@@ -21,7 +21,6 @@ from tests.utils.online_read_write_test import basic_rw_test
 @pytest.mark.parametrize("test_repo_config", FULL_REPO_CONFIGS)
 def test_universal_cli(test_repo_config) -> None:
     project = f"test_universal_cli_{str(uuid.uuid4()).replace('-', '')[:8]}"
-
     runner = CliRunner()
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
@@ -126,6 +125,32 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath)
     config_dict["repo_path"] = str(config_dict["repo_path"])
 
     return yaml.safe_dump(config_dict)
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_repo_config", FULL_REPO_CONFIGS)
+def test_nullable_online_store(test_repo_config) -> None:
+    project = f"test_nullable_online_store{str(uuid.uuid4()).replace('-', '')[:8]}"
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+        try:
+            feature_store_yaml = make_feature_store_yaml(
+                project, test_repo_config, repo_dir_name
+            )
+            config_dict = yaml.safe_load(feature_store_yaml)
+            config_dict["online_store"]["type"] = "null"
+            repo_path = Path(repo_dir_name)
+
+            repo_config = repo_path / "feature_store.yaml"
+
+            repo_config.write_text(dedent(feature_store_yaml))
+
+            repo_example = repo_path / "example.py"
+            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+            result = runner.run(["apply"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+        finally:
+            runner.run(["teardown"], cwd=repo_path)
 
 
 @contextmanager

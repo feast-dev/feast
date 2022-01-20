@@ -666,16 +666,14 @@ class FeatureStore:
             ob for ob in objects_to_delete if isinstance(ob, FeatureView)
         ]
 
-        # Don't call update if there isn't an online store
-        if not isinstance(self.config.online_store, Dict):
-            self._get_provider().update_infra(
-                project=self.project,
-                tables_to_delete=views_to_delete if not partial else [],
-                tables_to_keep=views_to_update,
-                entities_to_delete=entities_to_delete if not partial else [],
-                entities_to_keep=entities_to_update,
-                partial=partial,
-            )
+        self._get_provider().update_infra(
+            project=self.project,
+            tables_to_delete=views_to_delete if not partial else [],
+            tables_to_keep=views_to_update,
+            entities_to_delete=entities_to_delete if not partial else [],
+            entities_to_keep=entities_to_update,
+            partial=partial,
+        )
 
         self._registry.commit()
 

@@ -67,6 +67,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 offline_store_creator=BigQueryDataSourceCreator,
                 online_store=REDIS_CONFIG,
             ),
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store="null",
+            ),
             # AWS configurations
             IntegrationTestRepoConfig(
                 provider="aws",
@@ -78,6 +83,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
                 online_store=REDIS_CONFIG,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store="null",
             ),
         ]
     )
