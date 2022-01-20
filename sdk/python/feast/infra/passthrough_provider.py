@@ -46,15 +46,17 @@ class PassthroughProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        set_usage_attribute("provider", self.__class__.__name__)
-        self.online_store.update(
-            config=self.repo_config,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_keep=entities_to_keep,
-            entities_to_delete=entities_to_delete,
-            partial=partial,
-        )
+        # Call update only if there is an online store
+        if self.online_store:
+            set_usage_attribute("provider", self.__class__.__name__)
+            self.online_store.update(
+                config=self.repo_config,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_keep=entities_to_keep,
+                entities_to_delete=entities_to_delete,
+                partial=partial,
+            )
 
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],

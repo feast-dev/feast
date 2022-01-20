@@ -114,7 +114,8 @@ class RepoConfig(FeastBaseModel):
     def __init__(self, **data: Any):
         super().__init__(**data)
 
-        if isinstance(self.online_store, Dict):
+        # Create the online store given the dictionary. Don't create one if the type is set to None
+        if isinstance(self.online_store, Dict) and self.online_store["type"]:
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
             )
@@ -159,21 +160,30 @@ class RepoConfig(FeastBaseModel):
         # Make sure that the provider configuration is set. We need it to set the defaults
         assert "provider" in values
 
-        # Set default type
+        # Set the default type
+        # This is only direct reference to a provider or online store that we should have
+        # for backwards compatibility.
         if "type" not in values["online_store"]:
-            values["online_store"]["type"] = "sqlite"
+            if values["provider"] == "local":
+                values["online_store"]["type"] = "sqlite"
+            elif values["provider"] == "gcp":
+                values["online_store"]["type"] = "datastore"
+            elif values["provider"] == "aws":
+                values["online_store"]["type"] = "dynamodb"
 
         online_store_type = values["online_store"]["type"]
 
-        # Validate the dict to ensure one of the union types match
-        try:
-            online_config_class = get_online_config_from_type(online_store_type)
-            online_config_class(**values["online_store"])
+        # Validate only if there is an online store, ie: type is not None
+        if online_store_type:
+            # Validate the dict to ensure one of the union types match
+            try:
+                online_config_class = get_online_config_from_type(online_store_type)
+                online_config_class(**values["online_store"])
 
-        except ValidationError as e:
-            raise ValidationError(
-                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
-            )
+            except ValidationError as e:
+                raise ValidationError(
+                    [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
+                )
         return values
 
     @root_validator(pre=True)
