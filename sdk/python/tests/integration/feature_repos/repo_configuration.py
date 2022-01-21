@@ -16,7 +16,7 @@ from feast import FeatureStore, FeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
-from feast.repo_config import RepoConfig, RegistryConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -288,8 +288,7 @@ def construct_test_environment(
         # Note: even if it's a local feature server, the repo config does not have this configured
         feature_server = None
         registry = RegistryConfig(
-            path=str(Path(repo_dir_name) / "registry.db"),
-            cache_ttl_seconds=1,
+            path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
         )
 
     config = RepoConfig(
