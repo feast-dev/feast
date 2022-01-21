@@ -60,6 +60,13 @@ def get_feature_values_for_dtype(
         "float": [1.0, None, 3.0, 4.0, 5.0],
         "string": ["1", None, "3", "4", "5"],
         "bool": [True, None, False, True, False],
+        "datetime": [
+            datetime(1980, 1, 1),
+            None,
+            datetime(1981, 1, 1),
+            datetime(1982, 1, 1),
+            datetime(1982, 1, 1),
+        ],
     }
     non_list_val = dtype_map[dtype]
     if is_list:
