@@ -79,7 +79,11 @@ def get_repo_files(repo_root: Path) -> List[Path]:
     ignore_files = get_ignore_files(repo_root, ignore_paths)
 
     # List all Python files in the root directory (recursively)
-    repo_files = {p.resolve() for p in repo_root.glob("**/*.py") if p.is_file()}
+    repo_files = {
+        p.resolve()
+        for p in repo_root.glob("**/*.py")
+        if p.is_file() and "__init__.py" != p.name
+    }
     # Ignore all files that match any of the ignore paths in .feastignore
     repo_files -= ignore_files
 
