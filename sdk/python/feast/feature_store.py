@@ -1292,7 +1292,6 @@ class FeatureStore:
         entity_name_to_join_key_map: Dict[str, str],
         join_key_proto_values: Dict[str, List[Value]],
     ) -> Dict[str, List[Value]]:
-        ""
         # The correct join_keys expected by the OnlineStore for this Feature View.
         table_join_keys = [
             entity_name_to_join_key_map[entity_name] for entity_name in table.entities
