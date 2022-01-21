@@ -212,7 +212,7 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.UNIX_TIMESTAMP_LIST: (
         Int64List,
         "int64_list_val",
-        [np.int64, np.int32, int],
+        [np.datetime64, np.int64, np.int32, int, datetime, Timestamp],
     ),
     ValueType.STRING_LIST: (StringList, "string_list_val", [np.str_, str]),
     ValueType.BOOL_LIST: (BoolList, "bool_list_val", [np.bool_, bool]),
@@ -271,6 +271,24 @@ def _python_value_to_proto_value(
                     item for item in sample if type(item) not in valid_types
                 )
                 raise _type_err(first_invalid, valid_types[0])
+
+            if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
+                converted_values = []
+                for value in values:
+                    converted_sub_values = []
+                    for sub_value in value:
+                        if isinstance(sub_value, datetime):
+                            converted_sub_values.append(int(sub_value.timestamp()))
+                        elif isinstance(sub_value, Timestamp):
+                            converted_sub_values.append(int(sub_value.ToSeconds()))
+                        elif isinstance(sub_value, np.datetime64):
+                            converted_sub_values.append(
+                                sub_value.astype("datetime64[s]").astype("int")
+                            )
+                        else:
+                            converted_sub_values.append(sub_value)
+                    converted_values.append(converted_sub_values)
+                values = converted_values
 
             return [
                 ProtoValue(**{field_name: proto_type(val=value)})
