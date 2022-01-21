@@ -245,9 +245,9 @@ class Environment:
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
     if hasattr(ds, "table_ref"):
-        return ds.table_ref
+        return ds.table_ref  # type: ignore
     elif hasattr(ds, "table"):
-        return ds.table
+        return ds.table  # type: ignore
     return None
 
 

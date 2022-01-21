@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -292,7 +292,9 @@ def assert_feature_list_types(
     provider: str, feature_dtype: str, historical_features_df: pd.DataFrame
 ):
     print("Asserting historical feature list types")
-    feature_list_dtype_to_expected_historical_feature_list_dtype = {
+    feature_list_dtype_to_expected_historical_feature_list_dtype: Dict[
+        str, Union[type, Tuple[Union[type, Tuple[Any, ...]], ...]]
+    ] = {
         "int32": (
             int,
             np.int64,

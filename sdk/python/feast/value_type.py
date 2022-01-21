@@ -12,6 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import enum
+from typing import Type, Union
+
+from feast.protos.feast.types.Value_pb2 import (
+    BoolList,
+    BytesList,
+    DoubleList,
+    FloatList,
+    Int32List,
+    Int64List,
+    StringList,
+)
 
 
 class ValueType(enum.Enum):
@@ -37,3 +48,14 @@ class ValueType(enum.Enum):
     BOOL_LIST = 17
     UNIX_TIMESTAMP_LIST = 18
     NULL = 19
+
+
+ListType = Union[
+    Type[BoolList],
+    Type[BytesList],
+    Type[DoubleList],
+    Type[FloatList],
+    Type[Int32List],
+    Type[Int64List],
+    Type[StringList],
+]

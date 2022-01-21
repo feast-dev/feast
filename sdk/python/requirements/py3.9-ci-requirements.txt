@@ -534,7 +534,25 @@ typed-ast==1.5.1
 types-futures==3.3.7
     # via types-protobuf
 types-protobuf==3.19.5
-    # via mypy-protobuf
+    # via
+    #   feast (setup.py)
+    #   mypy-protobuf
+types-python-dateutil==2.8.8
+    # via feast (setup.py)
+types-pytz==2021.3.4
+    # via feast (setup.py)
+types-pyyaml==6.0.3
+    # via feast (setup.py)
+types-redis==4.1.10
+    # via feast (setup.py)
+types-requests==2.27.7
+    # via feast (setup.py)
+types-setuptools==57.4.7
+    # via feast (setup.py)
+types-tabulate==0.8.5
+    # via feast (setup.py)
+types-urllib3==1.26.7
+    # via types-requests
 typing-extensions==4.0.1
     # via
     #   libcst

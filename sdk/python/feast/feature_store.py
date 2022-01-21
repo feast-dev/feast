@@ -1458,7 +1458,9 @@ class FeatureStore:
     @staticmethod
     def _populate_response_from_feature_data(
         feature_data: Iterable[
-            Tuple[Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]]
+            Tuple[
+                Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
+            ]
         ],
         indexes: Iterable[Iterable[int]],
         online_features_response: GetOnlineFeaturesResponse,

@@ -277,13 +277,13 @@ class RedisOnlineStore(OnlineStore):
         res_ts = Timestamp()
         ts_val = res_val.pop(f"_ts:{feature_view}")
         if ts_val:
-            res_ts.ParseFromString(ts_val)
+            res_ts.ParseFromString(bytes(ts_val))
 
         res = {}
         for feature_name, val_bin in res_val.items():
             val = ValueProto()
             if val_bin:
-                val.ParseFromString(val_bin)
+                val.ParseFromString(bytes(val_bin))
             res[feature_name] = val
 
         if not res:

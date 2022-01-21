@@ -5,6 +5,7 @@ import random
 import re
 import sys
 from importlib.abc import Loader
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from typing import List, Set, Union, cast
 
@@ -375,6 +376,7 @@ def init_repo(repo_name: str, template: str):
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("bootstrap", str(bootstrap_path))
+        assert isinstance(spec, ModuleSpec)
         bootstrap = importlib.util.module_from_spec(spec)
         assert isinstance(spec.loader, Loader)
         spec.loader.exec_module(bootstrap)

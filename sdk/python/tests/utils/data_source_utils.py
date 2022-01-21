@@ -2,6 +2,7 @@ import contextlib
 import random
 import tempfile
 import time
+from typing import Iterator
 
 from google.cloud import bigquery
 
@@ -10,7 +11,7 @@ from feast.data_format import ParquetFormat
 
 
 @contextlib.contextmanager
-def prep_file_source(df, event_timestamp_column=None) -> FileSource:
+def prep_file_source(df, event_timestamp_column=None) -> Iterator[FileSource]:
     with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
         f.close()
         df.to_parquet(f.name)
