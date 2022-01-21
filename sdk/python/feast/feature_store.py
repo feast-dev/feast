@@ -1210,16 +1210,21 @@ class FeatureStore:
         provider = self._get_provider()
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values = self._get_table_entity_values(
-                table, entity_name_to_join_key_map, join_key_values,
+            table_entity_values, idxs = self._get_unique_entities(
+                table, join_key_values, entity_name_to_join_key_map,
+            )
+
+            # Fetch feature data for the minimum set of Entities.
+            feature_data = self._read_from_online_store(
+                table_entity_values, provider, requested_features, table,
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
-            self._populate_result_rows_from_feature_view(
+            self._populate_response_from_feature_data(
+                feature_data,
+                idxs,
                 online_features_response,
-                table_entity_values,
                 full_feature_names,
-                provider,
                 requested_features,
                 table,
             )
@@ -1287,6 +1292,7 @@ class FeatureStore:
         entity_name_to_join_key_map: Dict[str, str],
         join_key_proto_values: Dict[str, List[Value]],
     ) -> Dict[str, List[Value]]:
+        ""
         # The correct join_keys expected by the OnlineStore for this Feature View.
         table_join_keys = [
             entity_name_to_join_key_map[entity_name] for entity_name in table.entities
@@ -1356,31 +1362,65 @@ class FeatureStore:
                 feature_names=missing_features
             )
 
-    def _populate_result_rows_from_feature_view(
+    def _get_unique_entities(
         self,
-        online_features_response: GetOnlineFeaturesResponse,
-        entity_keys: Dict[str, List[Value]],
-        full_feature_names: bool,
+        table: FeatureView,
+        join_key_values: Dict[str, List[Value]],
+        entity_name_to_join_key_map: Dict[str, str],
+    ) -> Tuple[Tuple[Dict[str, Value], ...], Tuple[List[int], ...]]:
+        """ Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
+
+            This method allows us to query the OnlineStore for data we need only once
+            rather than requesting and processing data for the same combination of
+            Entities multiple times.
+        """
+        # Get the correct set of entity values with the correct join keys.
+        table_entity_values = self._get_table_entity_values(
+            table, entity_name_to_join_key_map, join_key_values,
+        )
+
+        # Convert back to rowise.
+        keys = table_entity_values.keys()
+        rowise_values = list(zip(*table_entity_values.values()))
+
+        # Identify unique entities and the indexes at which they occur.
+        unique_entities: Tuple[Dict[str, Value], ...]
+        indexes: Tuple[List[int], ...]
+        unique_entities, indexes = tuple(
+            zip(
+                *[
+                    (dict(zip(keys, k)), [_[0] for _ in g])
+                    for k, g in itertools.groupby(
+                        enumerate(rowise_values), key=lambda x: x[1]
+                    )
+                ]
+            )
+        )
+        return unique_entities, indexes
+
+    def _read_from_online_store(
+        self,
+        entity_rows: Iterable[Mapping[str, Value]],
         provider: Provider,
         requested_features: List[str],
         table: FeatureView,
-    ):
-        # Convert back to rowise.
-        join_keys = entity_keys.keys()
-        rowise_values = list(zip(*entity_keys.values()))
+    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
+        """ Read and process data from the OnlineStore for a given FeatureView.
 
-        # Identify unique entities and the indexes at which they occur.
-        gb_entity_key: List[Tuple[Tuple[Value, ...], List[int]]] = [
-            (k, [_[0] for _ in g])
-            for k, g in itertools.groupby(enumerate(rowise_values), key=lambda x: x[1])
-        ]
-        # Instantiate one EntityKeyProto per unique Entity.
+            This method guarentees that the order of the data in each element of the
+            List returned is the same as the order of `requested_features`.
+
+            This method assumes that `provider.online_read` returns data for each
+            combination of Entities in `entity_rows` in the same order as they
+            are provided.
+        """
+        # Instantiate one EntityKeyProto per Entity.
         entity_key_protos = [
-            EntityKeyProto(join_keys=join_keys, entity_values=entity_group[0])
-            for entity_group in gb_entity_key
+            EntityKeyProto(join_keys=row.keys(), entity_values=row.values())
+            for row in entity_rows
         ]
 
-        # Fetch data for unique Entities.
+        # Fetch data for Entities.
         read_rows = provider.online_read(
             config=self.config,
             table=table,
@@ -1395,11 +1435,9 @@ class FeatureStore:
         read_row_protos = []
         for read_row in read_rows:
             row_ts, feature_data = read_row
-
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
             event_timestamps = [row_ts_proto] * len(requested_features)
-
             if feature_data is None:
                 statuses = [FieldStatus.NOT_FOUND] * len(requested_features)
                 values = [null_value] * len(requested_features)
@@ -1407,6 +1445,7 @@ class FeatureStore:
                 statuses = []
                 values = []
                 for feature_name in requested_features:
+                    # Make sure order of data is the same as requested_features.
                     if feature_name not in feature_data:
                         statuses.append(FieldStatus.NOT_FOUND)
                         values.append(null_value)
@@ -1414,18 +1453,38 @@ class FeatureStore:
                         statuses.append(FieldStatus.PRESENT)
                         values.append(feature_data[feature_name])
             read_row_protos.append((event_timestamps, statuses, values))
+        return read_row_protos
 
-        # Populate the result with data fetched from the OnlineStore.
-        for src_idx, dest_idxs in enumerate(
-            entity_group[1] for entity_group in gb_entity_key
-        ):
-            event_timestamps, statuses, values = read_row_protos[src_idx]
-            for dest_idx in dest_idxs:
-                result_row = online_features_response.results[dest_idx]
-                result_row.event_timestamps.extend(event_timestamps)
-                result_row.statuses.extend(statuses)
-                result_row.values.extend(values)
+    @staticmethod
+    def _populate_response_from_feature_data(
+        feature_data: Iterable[
+            Tuple[Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]]
+        ],
+        indexes: Iterable[Iterable[int]],
+        online_features_response: GetOnlineFeaturesResponse,
+        full_feature_names: bool,
+        requested_features: Iterable[str],
+        table: FeatureView,
+    ):
+        """ Populate the GetOnlineFeaturesReponse with feature data.
 
+            This method assumes that `_read_from_online_store` returns data for each
+            combination of Entities in `entity_rows` in the same order as they
+            are provided.
+
+            Args:
+                feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
+                indexes: A list of indexes which should be the same length as `feature_data`. Each list
+                    of indexes corresponds to a set of result rows in `online_features_response`.
+                online_features_response: The object to populate.
+                full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
+                    changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
+                    "customer_fv__daily_transactions").
+                requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
+                    data in `feature_data`.
+                table: The FeatureView that `feature_data` was retrieved from.
+        """
+        # Add the feature names to the response.
         requested_feature_refs = [
             f"{table.projection.name_to_use()}__{feature_name}"
             if full_feature_names
@@ -1435,6 +1494,16 @@ class FeatureStore:
         online_features_response.metadata.feature_names.val.extend(
             requested_feature_refs
         )
+
+        # Populate the result with data fetched from the OnlineStore
+        # which is guarenteed to be aligned with `requested_features`.
+        for feature_row, dest_idxs in zip(feature_data, indexes):
+            event_timestamps, statuses, values = feature_row
+            for dest_idx in dest_idxs:
+                result_row = online_features_response.results[dest_idx]
+                result_row.event_timestamps.extend(event_timestamps)
+                result_row.statuses.extend(statuses)
+                result_row.values.extend(values)
 
     @staticmethod
     def _augment_response_with_on_demand_transforms(
