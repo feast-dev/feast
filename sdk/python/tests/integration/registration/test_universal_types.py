@@ -217,7 +217,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
-    entity = driver(value_type=ValueType.UNKNOWN)
+    entity = driver(value_type=config.entity_type)
     fs.apply([fv, entity])
     fs.materialize(environment.start_date, environment.end_date)
 
