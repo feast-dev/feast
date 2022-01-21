@@ -12,10 +12,11 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import yaml
 
-from feast import FeatureStore, FeatureView, RepoConfig, driver_test_data
+from feast import FeatureStore, FeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
+from feast.repo_config import RepoConfig, RegistryConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -286,7 +287,10 @@ def construct_test_environment(
     else:
         # Note: even if it's a local feature server, the repo config does not have this configured
         feature_server = None
-        registry = str(Path(repo_dir_name) / "registry.db")
+        registry = RegistryConfig(
+            path=str(Path(repo_dir_name) / "registry.db"),
+            cache_ttl_seconds=1,
+        )
 
     config = RepoConfig(
         registry=registry,
