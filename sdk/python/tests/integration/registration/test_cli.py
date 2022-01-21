@@ -1,17 +1,31 @@
+import os
 import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path, PosixPath
 from textwrap import dedent
+from typing import List
 
 import pytest
 import yaml
 from assertpy import assertpy
 
 from feast import FeatureStore, RepoConfig
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,
+)
 from tests.integration.feature_repos.repo_configuration import FULL_REPO_CONFIGS
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.bigquery import (
+    BigQueryDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.redshift import (
+    RedshiftDataSourceCreator,
 )
 from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.online_read_write_test import basic_rw_test
@@ -127,16 +141,41 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath)
     return yaml.safe_dump(config_dict)
 
 
+NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
+    IntegrationTestRepoConfig(),
+]
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    NULLABLE_ONLINE_STORE_CONFIGS.extend(
+        [
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store="null",
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store="null",
+            ),
+            IntegrationTestRepoConfig(
+                provider="local",
+                offline_store_creator=FileDataSourceCreator,
+                online_store="null",
+            ),
+        ]
+    )
+
+
 @pytest.mark.integration
-@pytest.mark.parametrize("test_repo_config", FULL_REPO_CONFIGS)
-def test_nullable_online_store(test_repo_config) -> None:
+@pytest.mark.parametrize("test_nullable_online_store", NULLABLE_ONLINE_STORE_CONFIGS)
+def test_nullable_online_store(test_nullable_online_store) -> None:
     project = f"test_nullable_online_store{str(uuid.uuid4()).replace('-', '')[:8]}"
     runner = CliRunner()
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
         try:
             feature_store_yaml = make_feature_store_yaml(
-                project, test_repo_config, repo_dir_name
+                project, test_nullable_online_store, repo_dir_name
             )
             config_dict = yaml.safe_load(feature_store_yaml)
             config_dict["online_store"]["type"] = "null"

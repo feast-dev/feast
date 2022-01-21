@@ -114,8 +114,7 @@ class RepoConfig(FeastBaseModel):
     def __init__(self, **data: Any):
         super().__init__(**data)
 
-        # Create the online store given the dictionary. Don't create one if the type is set to None
-        if isinstance(self.online_store, Dict) and self.online_store["type"]:
+        if isinstance(self.online_store, Dict):
             self.online_store = get_online_config_from_type(self.online_store["type"])(
                 **self.online_store
             )
@@ -153,7 +152,7 @@ class RepoConfig(FeastBaseModel):
         if "online_store" not in values:
             values["online_store"] = dict()
 
-        # Skip if we aren't creating the configuration from a dict
+        # Skip if we aren't creating the configuration from a dict or online store is null
         if not isinstance(values["online_store"], Dict):
             return values
 
@@ -173,17 +172,15 @@ class RepoConfig(FeastBaseModel):
 
         online_store_type = values["online_store"]["type"]
 
-        # Validate only if there is an online store, ie: type is not None
-        if online_store_type:
-            # Validate the dict to ensure one of the union types match
-            try:
-                online_config_class = get_online_config_from_type(online_store_type)
-                online_config_class(**values["online_store"])
+        # Validate the dict to ensure one of the union types match
+        try:
+            online_config_class = get_online_config_from_type(online_store_type)
+            online_config_class(**values["online_store"])
 
-            except ValidationError as e:
-                raise ValidationError(
-                    [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
-                )
+        except ValidationError as e:
+            raise ValidationError(
+                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
+            )
         return values
 
     @root_validator(pre=True)
@@ -311,11 +308,9 @@ def get_data_source_class_from_type(data_source_type: str):
 
 
 def get_online_config_from_type(online_store_type: str):
-
     if online_store_type in ONLINE_STORE_CLASS_FOR_TYPE:
         online_store_type = ONLINE_STORE_CLASS_FOR_TYPE[online_store_type]
     else:
-
         assert online_store_type.endswith("OnlineStore")
     module_name, online_store_class_type = online_store_type.rsplit(".", 1)
     config_class_name = f"{online_store_class_type}Config"
@@ -350,7 +345,6 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
     with open(config_path) as f:
         raw_config = yaml.safe_load(os.path.expandvars(f.read()))
         try:
-
             c = RepoConfig(**raw_config)
             c.repo_path = repo_path
             return c

@@ -2,14 +2,12 @@ import struct
 from typing import Any, List
 
 import mmh3
-from pydantic.typing import Dict
 
 from feast.importer import import_class
 from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_entity_key_prefix,
 )
-from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 

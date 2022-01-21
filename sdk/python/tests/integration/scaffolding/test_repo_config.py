@@ -41,8 +41,7 @@ def test_nullable_online_store_aws():
         project: foo
         registry: "registry.db"
         provider: aws
-        online_store:
-            type: null
+        online_store: null
         """
         ),
         expect_error="__root__ -> offline_store -> cluster_id\n"
@@ -57,8 +56,21 @@ def test_nullable_online_store_gcp():
         project: foo
         registry: "registry.db"
         provider: gcp
-        online_store:
-            type: null
+        online_store: null
+        """
+        ),
+        expect_error=None,
+    )
+
+
+def test_nullable_online_store_local():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: local
+        online_store: null
         """
         ),
         expect_error=None,

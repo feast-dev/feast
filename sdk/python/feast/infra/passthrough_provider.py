@@ -10,6 +10,7 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.provider import (
     Provider,
     _convert_arrow_to_proto,
@@ -37,7 +38,7 @@ class PassthroughProvider(Provider):
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = (
             get_online_store_from_config(config.online_store)
-            if not isinstance(config.online_store, Dict)
+            if config.online_store
             else None
         )
 
