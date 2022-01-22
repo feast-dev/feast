@@ -427,10 +427,7 @@ class FeatureStore:
             ... )
             >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
-        current_repo_contents = self._registry.to_repo_contents(project=self.project)
-        registry_diff = Registry.diff_between(
-            current_repo_contents, desired_repo_contents
-        )
+        registry_diff = self._registry.diff_between(self.project, desired_repo_contents)
 
         current_infra_proto = (
             self._registry.cached_registry_proto.infra.__deepcopy__()
@@ -476,7 +473,7 @@ class FeatureStore:
             ]
         ] = None,
         partial: bool = True,
-    ) -> RegistryDiff:
+    ):
         """Register objects to metadata store and update related infrastructure.
 
         The apply method registers one or more definitions (e.g., Entity, FeatureView) and registers or updates these
@@ -512,7 +509,7 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> diff = fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
+            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
         if not isinstance(objects, Iterable):
@@ -521,8 +518,6 @@ class FeatureStore:
 
         if not objects_to_delete:
             objects_to_delete = []
-
-        current_repo_contents = self._registry.to_repo_contents(project=self.project)
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
@@ -631,9 +626,6 @@ class FeatureStore:
         )
 
         self._registry.commit()
-
-        new_repo_contents = self._registry.to_repo_contents(project=self.project)
-        return Registry.diff_between(current_repo_contents, new_repo_contents)
 
     @log_exceptions_and_usage
     def teardown(self):

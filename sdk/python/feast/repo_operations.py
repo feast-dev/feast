@@ -18,13 +18,9 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import (
-    REGISTRY_OBJECT_TYPES,
-    Registry,
-    RepoContents,
-    extract_objects_for_keep_delete_update_add,
-)
+from feast.registry import REGISTRY_OBJECT_TYPES, Registry
 from feast.repo_config import RepoConfig
+from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
 
@@ -165,13 +161,12 @@ def _prepare_registry_and_repo(repo_config, repo_path):
 
 def extract_objects_for_apply_delete(project, registry, repo):
     # TODO(achals): This code path should be refactored to handle added & kept entities separately.
-    current_repo_contents = registry.to_repo_contents(project=project)
     (
         _,
         objs_to_delete,
         objs_to_update,
         objs_to_add,
-    ) = extract_objects_for_keep_delete_update_add(current_repo_contents, repo)
+    ) = registry.extract_objects_for_keep_delete_update_add(project, repo)
 
     all_to_apply: List[
         Union[
@@ -211,6 +206,8 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
+    registry_diff, _ = store.plan(repo)
+
     # For each object in the registry, determine whether it should be kept or deleted.
     (
         all_to_apply,
@@ -219,9 +216,9 @@ def apply_total_with_repo_instance(
         views_to_keep,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
-    log_cli_output(diff, views_to_delete, views_to_keep)
+    log_cli_output(registry_diff, views_to_delete, views_to_keep)
 
 
 @log_exceptions_and_usage

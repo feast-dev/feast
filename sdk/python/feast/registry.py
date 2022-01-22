@@ -16,7 +16,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, NamedTuple, Optional, Set
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
@@ -47,6 +47,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
+from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
@@ -76,66 +77,6 @@ REGISTRY_OBJECT_TYPE_TO_STR = {
 REGISTRY_OBJECT_TYPES = REGISTRY_OBJECT_TYPE_TO_STR.keys()
 
 logger = logging.getLogger(__name__)
-
-
-class RepoContents(NamedTuple):
-    """
-    Represents the objects in a Feast feature repo.
-
-    Equivalently, represents the contents of a registry corresponding to a specific Feas project.
-    """
-
-    feature_views: Set[FeatureView]
-    on_demand_feature_views: Set[OnDemandFeatureView]
-    request_feature_views: Set[RequestFeatureView]
-    entities: Set[Entity]
-    feature_services: Set[FeatureService]
-
-    def to_registry_proto(self) -> RegistryProto:
-        registry_proto = RegistryProto()
-        registry_proto.entities.extend([e.to_proto() for e in self.entities])
-        registry_proto.feature_views.extend(
-            [fv.to_proto() for fv in self.feature_views]
-        )
-        registry_proto.on_demand_feature_views.extend(
-            [fv.to_proto() for fv in self.on_demand_feature_views]
-        )
-        registry_proto.request_feature_views.extend(
-            [fv.to_proto() for fv in self.request_feature_views]
-        )
-        registry_proto.feature_services.extend(
-            [fs.to_proto() for fs in self.feature_services]
-        )
-        return registry_proto
-
-
-def extract_objects_for_keep_delete_update_add(
-    current_repo_contents: RepoContents, new_repo_contents: RepoContents
-):
-    """
-    Extracts the objects to be kept, deleted, updated, and added to achieve the desired end state.
-
-    Args:
-        current_repo_contents: The current repo state.
-        new_repo_contents: The desired repo state.
-    """
-    objs_to_keep = {}
-    objs_to_delete = {}
-    objs_to_update = {}
-    objs_to_add = {}
-
-    for object_type in REGISTRY_OBJECT_TYPES:
-        to_keep, to_delete, to_update, to_add = tag_objects_for_keep_delete_update_add(
-            getattr(current_repo_contents, object_type),
-            getattr(new_repo_contents, object_type),
-        )
-
-        objs_to_keep[object_type] = to_keep
-        objs_to_delete[object_type] = to_delete
-        objs_to_update[object_type] = to_update
-        objs_to_add[object_type] = to_add
-
-    return objs_to_keep, objs_to_delete, objs_to_update, objs_to_add
 
 
 def get_registry_store_class_from_type(registry_store_type: str):
@@ -213,37 +154,61 @@ class Registry:
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
-    def to_repo_contents(self, project: str) -> RepoContents:
+    def extract_objects_for_keep_delete_update_add(
+        self, current_project: str, desired_repo_contents: RepoContents,
+    ):
         """
-        Convert the contents of the registry for the given project into a RepoContents object.
+        Returns the objects that must be modified to achieve the desired repo state.
 
         Args:
-            project: The Feast project to be converted.
+            current_project: The Feast project whose objects should be compared.
+            desired_repo_contents: The desired repo state.
         """
-        return RepoContents(
-            entities=set(self.list_entities(project=project)),
-            feature_views=set(self.list_feature_views(project=project)),
-            request_feature_views=set(self.list_request_feature_views(project=project)),
-            on_demand_feature_views=set(
-                self.list_on_demand_feature_views(project=project)
-            ),
-            feature_services=set(self.list_feature_services(project=project)),
-        )
+        objs_to_keep = {}
+        objs_to_delete = {}
+        objs_to_update = {}
+        objs_to_add = {}
 
-    # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
-    @staticmethod
+        registry_object_type_to_objects: Dict[str, List[Any]]
+        registry_object_type_to_objects = {
+            "entities": self.list_entities(project=current_project),
+            "feature_views": self.list_feature_views(project=current_project),
+            "on_demand_feature_views": self.list_on_demand_feature_views(
+                project=current_project
+            ),
+            "request_feature_views": self.list_request_feature_views(
+                project=current_project
+            ),
+            "feature_services": self.list_feature_services(project=current_project),
+        }
+
+        for object_type in REGISTRY_OBJECT_TYPES:
+            (
+                to_keep,
+                to_delete,
+                to_update,
+                to_add,
+            ) = tag_objects_for_keep_delete_update_add(
+                registry_object_type_to_objects[object_type],
+                getattr(desired_repo_contents, object_type),
+            )
+
+            objs_to_keep[object_type] = to_keep
+            objs_to_delete[object_type] = to_delete
+            objs_to_update[object_type] = to_update
+            objs_to_add[object_type] = to_add
+
+        return objs_to_keep, objs_to_delete, objs_to_update, objs_to_add
+
     def diff_between(
-        current_registry_contents: RepoContents, new_registry_contents: RepoContents
+        self, current_project: str, desired_repo_contents: RepoContents,
     ) -> RegistryDiff:
         """
-        Computes the difference between the two repos.
+        Returns the difference between the current and desired repo states.
 
         Args:
-            current_registry_contents: The current repo.
-            new_registry_contents: The new repo.
-
-        Returns:
-            A RegistryDiff object containing the difference between the two repos.
+            current_project: The Feast project for which the diff is being computed.
+            desired_repo_contents: The desired repo state.
         """
         diff = RegistryDiff()
 
@@ -252,8 +217,8 @@ class Registry:
             objs_to_delete,
             objs_to_update,
             objs_to_add,
-        ) = extract_objects_for_keep_delete_update_add(
-            current_registry_contents, new_registry_contents
+        ) = self.extract_objects_for_keep_delete_update_add(
+            current_project, desired_repo_contents
         )
 
         for object_type in REGISTRY_OBJECT_TYPES:
