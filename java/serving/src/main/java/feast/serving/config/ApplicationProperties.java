@@ -147,6 +147,36 @@ public class ApplicationProperties {
     public LoggingProperties getLogging() {
       return logging;
     }
+
+    private String gcpProject;
+
+    public String getGcpProject() {
+      return gcpProject;
+    }
+
+    public void setGcpProject(String gcpProject) {
+      this.gcpProject = gcpProject;
+    }
+
+    public void setAwsRegion(String awsRegion) {
+      this.awsRegion = awsRegion;
+    }
+
+    private String awsRegion;
+
+    public String getAwsRegion() {
+      return awsRegion;
+    }
+
+    private String transformationServiceEndpoint;
+
+    public String getTransformationServiceEndpoint() {
+      return transformationServiceEndpoint;
+    }
+
+    public void setTransformationServiceEndpoint(String transformationServiceEndpoint) {
+      this.transformationServiceEndpoint = transformationServiceEndpoint;
+    }
   }
 
   private FeastProperties feast;
@@ -157,28 +187,6 @@ public class ApplicationProperties {
 
   public FeastProperties getFeast() {
     return feast;
-  }
-
-  private String gcpProject;
-
-  public String getGcpProject() {
-    return gcpProject;
-  }
-
-  public void setAwsRegion(String awsRegion) {
-    this.awsRegion = awsRegion;
-  }
-
-  private String awsRegion;
-
-  public String getAwsRegion() {
-    return awsRegion;
-  }
-
-  private String transformationServiceEndpoint;
-
-  public String getTransformationServiceEndpoint() {
-    return transformationServiceEndpoint;
   }
 
   /** Store configuration class for database that this Feast Serving uses. */
@@ -263,6 +271,10 @@ public class ApplicationProperties {
     public int getPort() {
       return port;
     }
+
+    public void setPort(int port) {
+      this.port = port;
+    }
   }
 
   public static class GrpcServer {
@@ -271,6 +283,10 @@ public class ApplicationProperties {
     public Server getServer() {
       return server;
     }
+
+    public void setServer(Server server) {
+      this.server = server;
+    }
   }
 
   public static class RestServer {
@@ -278,6 +294,10 @@ public class ApplicationProperties {
 
     public Server getServer() {
       return server;
+    }
+
+    public void setServer(Server server) {
+      this.server = server;
     }
   }
 
@@ -288,8 +308,16 @@ public class ApplicationProperties {
     return grpc;
   }
 
+  public void setGrpc(GrpcServer grpc) {
+    this.grpc = grpc;
+  }
+
   public RestServer getRest() {
     return rest;
+  }
+
+  public void setRest(RestServer rest) {
+    this.rest = rest;
   }
 
   public enum StoreType {

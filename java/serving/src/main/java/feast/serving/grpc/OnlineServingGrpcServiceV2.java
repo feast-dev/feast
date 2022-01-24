@@ -19,11 +19,15 @@ package feast.serving.grpc;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.serving.service.ServingServiceV2;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import javax.inject.Inject;
+import org.slf4j.Logger;
 
 public class OnlineServingGrpcServiceV2 extends ServingServiceGrpc.ServingServiceImplBase {
   private final ServingServiceV2 servingServiceV2;
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(OnlineServingGrpcServiceV2.class);
 
   @Inject
   OnlineServingGrpcServiceV2(ServingServiceV2 servingServiceV2) {
@@ -34,15 +38,27 @@ public class OnlineServingGrpcServiceV2 extends ServingServiceGrpc.ServingServic
   public void getFeastServingInfo(
       ServingAPIProto.GetFeastServingInfoRequest request,
       StreamObserver<ServingAPIProto.GetFeastServingInfoResponse> responseObserver) {
-    responseObserver.onNext(this.servingServiceV2.getFeastServingInfo(request));
-    responseObserver.onCompleted();
+    try {
+      responseObserver.onNext(this.servingServiceV2.getFeastServingInfo(request));
+      responseObserver.onCompleted();
+    } catch (RuntimeException e) {
+      log.warn("Failed to get Serving Info", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
   }
 
   @Override
   public void getOnlineFeatures(
       ServingAPIProto.GetOnlineFeaturesRequest request,
       StreamObserver<ServingAPIProto.GetOnlineFeaturesResponse> responseObserver) {
-    responseObserver.onNext(this.servingServiceV2.getOnlineFeatures(request));
-    responseObserver.onCompleted();
+    try {
+      responseObserver.onNext(this.servingServiceV2.getOnlineFeatures(request));
+      responseObserver.onCompleted();
+    } catch (RuntimeException e) {
+      log.warn("Failed to get Online Features", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
   }
 }

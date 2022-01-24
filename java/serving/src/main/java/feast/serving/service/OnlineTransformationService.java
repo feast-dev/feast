@@ -19,11 +19,7 @@ package feast.serving.service;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
-import feast.common.models.Feature;
-import feast.proto.core.DataSourceProto;
-import feast.proto.core.FeatureProto;
-import feast.proto.core.FeatureViewProto;
-import feast.proto.core.OnDemandFeatureViewProto;
+import feast.proto.core.*;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRequest;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
@@ -48,7 +44,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
@@ -77,17 +72,18 @@ public class OnlineTransformationService implements TransformationService {
   @Override
   public TransformFeaturesResponse transformFeatures(
       TransformFeaturesRequest transformFeaturesRequest) {
+    if (this.stub == null) {
+      throw new RuntimeException(
+          "Transformation service endpoint must be configured to " + "enable this functionality.");
+    }
     return this.stub.transformFeatures(transformFeaturesRequest);
   }
 
   /** {@inheritDoc} */
   @Override
-  public Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>
-      extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences) {
-    Set<String> requestDataFeatureNames = new HashSet<String>();
-    List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureInputs =
-        new ArrayList<ServingAPIProto.FeatureReferenceV2>();
+  public List<ServingAPIProto.FeatureReferenceV2> extractOnDemandFeaturesDependencies(
+      List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences) {
+    List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureInputs = new ArrayList<>();
     for (ServingAPIProto.FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
       OnDemandFeatureViewProto.OnDemandFeatureViewSpec onDemandFeatureViewSpec =
           this.registryRepository.getOnDemandFeatureViewSpec(featureReference);
@@ -98,11 +94,20 @@ public class OnlineTransformationService implements TransformationService {
         OnDemandFeatureViewProto.OnDemandInput.InputCase inputCase = input.getInputCase();
         switch (inputCase) {
           case REQUEST_DATA_SOURCE:
-            DataSourceProto.DataSource requestDataSource = input.getRequestDataSource();
-            DataSourceProto.DataSource.RequestDataOptions requestDataOptions =
-                requestDataSource.getRequestDataOptions();
-            Set<String> requestDataNames = requestDataOptions.getSchemaMap().keySet();
-            requestDataFeatureNames.addAll(requestDataNames);
+            // Do nothing. The value should be provided as dedicated request parameter
+            break;
+          case FEATURE_VIEW_PROJECTION:
+            FeatureReferenceProto.FeatureViewProjection projection =
+                input.getFeatureViewProjection();
+            for (FeatureProto.FeatureSpecV2 featureSpec : projection.getFeatureColumnsList()) {
+              String featureName = featureSpec.getName();
+              ServingAPIProto.FeatureReferenceV2 onDemandFeatureInput =
+                  ServingAPIProto.FeatureReferenceV2.newBuilder()
+                      .setFeatureViewName(projection.getFeatureViewName())
+                      .setFeatureName(featureName)
+                      .build();
+              onDemandFeatureInputs.add(onDemandFeatureInput);
+            }
             break;
           case FEATURE_VIEW:
             FeatureViewProto.FeatureView featureView = input.getFeatureView();
@@ -126,61 +131,7 @@ public class OnlineTransformationService implements TransformationService {
         }
       }
     }
-    Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>> pair =
-        new ImmutablePair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>(
-            requestDataFeatureNames, onDemandFeatureInputs);
-    return pair;
-  }
-
-  /** {@inheritDoc} */
-  public Pair<
-          List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow>,
-          Map<String, List<ValueProto.Value>>>
-      separateEntityRows(
-          Set<String> requestDataFeatureNames, ServingAPIProto.GetOnlineFeaturesRequestV2 request) {
-    // Separate entity rows into entity data and request feature data.
-    List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows =
-        new ArrayList<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow>();
-    Map<String, List<ValueProto.Value>> requestDataFeatures =
-        new HashMap<String, List<ValueProto.Value>>();
-
-    for (ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow entityRow :
-        request.getEntityRowsList()) {
-      Map<String, ValueProto.Value> fieldsMap = new HashMap<String, ValueProto.Value>();
-
-      for (Map.Entry<String, ValueProto.Value> entry : entityRow.getFieldsMap().entrySet()) {
-        String key = entry.getKey();
-        ValueProto.Value value = entry.getValue();
-
-        if (requestDataFeatureNames.contains(key)) {
-          if (!requestDataFeatures.containsKey(key)) {
-            requestDataFeatures.put(key, new ArrayList<ValueProto.Value>());
-          }
-          requestDataFeatures.get(key).add(value);
-        } else {
-          fieldsMap.put(key, value);
-        }
-      }
-
-      // Construct new entity row containing the extracted entity data, if necessary.
-      if (!fieldsMap.isEmpty()) {
-        ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow newEntityRow =
-            ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
-                .setTimestamp(entityRow.getTimestamp())
-                .putAllFields(fieldsMap)
-                .build();
-        entityRows.add(newEntityRow);
-      }
-    }
-
-    Pair<
-            List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow>,
-            Map<String, List<ValueProto.Value>>>
-        pair =
-            new ImmutablePair<
-                List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow>,
-                Map<String, List<ValueProto.Value>>>(entityRows, requestDataFeatures);
-    return pair;
+    return onDemandFeatureInputs;
   }
 
   /** {@inheritDoc} */
@@ -208,7 +159,7 @@ public class OnlineTransformationService implements TransformationService {
 
       for (Field field : responseFields) {
         String columnName = field.getName();
-        String fullFeatureName = onDemandFeatureViewName + ":" + columnName;
+        String fullFeatureName = columnName.replace("__", ":");
         ArrowType columnType = field.getType();
 
         // The response will contain all features for the specified ODFV, so we
@@ -306,7 +257,7 @@ public class OnlineTransformationService implements TransformationService {
 
     for (Pair<String, List<ValueProto.Value>> columnEntry : values) {
       // The Python FTS does not expect full feature names, so we extract the feature name.
-      String columnName = Feature.getFeatureName(columnEntry.getKey());
+      String columnName = columnEntry.getKey();
 
       List<ValueProto.Value> columnValues = columnEntry.getValue();
       FieldVector column;
@@ -332,14 +283,14 @@ public class OnlineTransformationService implements TransformationService {
           column = new Float8Vector(columnName, allocator);
           column.setValueCount(columnValues.size());
           for (int idx = 0; idx < columnValues.size(); idx++) {
-            ((Float8Vector) column).set(idx, columnValues.get(idx).getInt64Val());
+            ((Float8Vector) column).set(idx, columnValues.get(idx).getDoubleVal());
           }
           break;
         case FLOAT_VAL:
           column = new Float4Vector(columnName, allocator);
           column.setValueCount(columnValues.size());
           for (int idx = 0; idx < columnValues.size(); idx++) {
-            ((Float4Vector) column).set(idx, columnValues.get(idx).getInt64Val());
+            ((Float4Vector) column).set(idx, columnValues.get(idx).getFloatVal());
           }
           break;
         default:

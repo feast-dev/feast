@@ -16,23 +16,23 @@
  */
 package feast.serving.it;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+
 import com.google.inject.*;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
 import feast.proto.serving.ServingServiceGrpc;
-import feast.serving.config.ApplicationProperties;
-import feast.serving.config.InstrumentationConfig;
-import feast.serving.config.RegistryConfig;
-import feast.serving.config.ServingServiceConfigV2;
+import feast.serving.config.*;
 import feast.serving.grpc.OnlineServingGrpcServiceV2;
 import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.protobuf.services.ProtoReflectionService;
 import io.grpc.util.MutableHandlerRegistry;
 import java.io.File;
-import java.time.Duration;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -53,17 +53,16 @@ abstract class ServingEnvironment {
   Server server;
   MutableHandlerRegistry serviceRegistry;
 
+  static int serverPort = getFreePort();
+
   @BeforeAll
   static void globalSetup() {
     environment =
         new DockerComposeContainer(
                 new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
             .withExposedService("redis", 6379)
-            .withOptions()
-            .waitingFor(
-                "materialize",
-                Wait.forLogMessage(".*Materialization finished.*\\n", 1)
-                    .withStartupTimeout(Duration.ofMinutes(5)));
+            .withExposedService("feast", 8080)
+            .waitingFor("feast", Wait.forListeningPort());
     environment.start();
   }
 
@@ -74,7 +73,6 @@ abstract class ServingEnvironment {
 
   @BeforeEach
   public void envSetUp() throws Exception {
-
     AbstractModule appPropertiesModule =
         new AbstractModule() {
           @Override
@@ -85,9 +83,15 @@ abstract class ServingEnvironment {
           @Provides
           ApplicationProperties applicationProperties() {
             final ApplicationProperties p = new ApplicationProperties();
-            p.setAwsRegion("us-east-1");
+
+            ApplicationProperties.GrpcServer grpcServer = new ApplicationProperties.GrpcServer();
+            ApplicationProperties.Server server = new ApplicationProperties.Server();
+            server.setPort(serverPort);
+            grpcServer.setServer(server);
+            p.setGrpc(grpcServer);
 
             final ApplicationProperties.FeastProperties feastProperties = createFeastProperties();
+            feastProperties.setAwsRegion("us-east-1");
             p.setFeast(feastProperties);
 
             final ApplicationProperties.TracingProperties tracingProperties =
@@ -112,22 +116,13 @@ abstract class ServingEnvironment {
             new ServingServiceConfigV2(),
             registryConfig,
             new InstrumentationConfig(),
-            appPropertiesModule);
+            appPropertiesModule,
+            new ServerModule());
 
-    OnlineServingGrpcServiceV2 onlineServingGrpcServiceV2 =
-        injector.getInstance(OnlineServingGrpcServiceV2.class);
-
-    serverName = InProcessServerBuilder.generateName();
-
-    server =
-        InProcessServerBuilder.forName(serverName)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .addService(onlineServingGrpcServiceV2)
-            .addService(ProtoReflectionService.newInstance())
-            .build();
+    server = injector.getInstance(Server.class);
     server.start();
 
-    channel = InProcessChannelBuilder.forName(serverName).usePlaintext().directExecutor().build();
+    channel = ManagedChannelBuilder.forAddress("localhost", serverPort).usePlaintext().build();
 
     servingStub =
         ServingServiceGrpc.newBlockingStub(channel)
@@ -149,11 +144,29 @@ abstract class ServingEnvironment {
       channel.shutdownNow();
       server.shutdownNow();
     }
+
+    server = null;
+    channel = null;
+    servingStub = null;
   }
 
   abstract ApplicationProperties.FeastProperties createFeastProperties();
 
   AbstractModule registryConfig() {
     return null;
+  }
+
+  private static int getFreePort() {
+    ServerSocket serverSocket;
+    try {
+      serverSocket = new ServerSocket(0);
+    } catch (IOException e) {
+      throw new RuntimeException("Couldn't allocate port");
+    }
+
+    assertThat(serverSocket, is(notNullValue()));
+    assertThat(serverSocket.getLocalPort(), greaterThan(0));
+
+    return serverSocket.getLocalPort();
   }
 }

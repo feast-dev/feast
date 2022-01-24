@@ -91,9 +91,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     // Pair from extractRequestDataFeatureNamesAndOnDemandFeatureInputs.
     // Currently, we can retrieve context variables directly from GetOnlineFeaturesRequest.
     List<FeatureReferenceV2> onDemandFeatureInputs =
-        this.onlineTransformationService
-            .extractRequestDataFeatureNamesAndOnDemandFeatureInputs(onDemandFeatureReferences)
-            .getRight();
+        this.onlineTransformationService.extractOnDemandFeaturesDependencies(
+            onDemandFeatureReferences);
 
     // Add on demand feature inputs to list of feature references to retrieve.
     for (FeatureReferenceV2 onDemandFeatureInput : onDemandFeatureInputs) {
@@ -284,7 +283,12 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
         valueList.add(features.get(rowIdx).get(featureIdx).getFeatureValue(valueType));
       }
 
-      onDemandContext.add(Pair.of(Feature.getFeatureReference(featureReference), valueList));
+      onDemandContext.add(
+          Pair.of(
+              String.format(
+                  "%s__%s",
+                  featureReference.getFeatureViewName(), featureReference.getFeatureName()),
+              valueList));
     }
     // Serialize the augmented values.
     ValueType transformationInput =
