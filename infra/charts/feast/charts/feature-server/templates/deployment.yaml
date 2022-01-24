@@ -84,12 +84,11 @@ spec:
           value: {{ $value | quote }}
           {{- end }}
         {{- end }}
-
         command:
         - java
         - -jar
         - /opt/feast/feast-serving.jar
-        - {{- if index .Values "application.yaml" "enabled" -}}
+        - {{ if index .Values "application.yaml" "enabled" -}}
           classpath:/application.yml
           {{- end }}
           {{- if index .Values "application-generated.yaml" "enabled" -}}
