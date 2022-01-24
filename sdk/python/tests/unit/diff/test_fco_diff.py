@@ -1,5 +1,5 @@
 from feast.diff.FcoDiff import (
-    diff_between,
+    diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
     tag_proto_objects_for_keep_delete_add,
 )
@@ -95,7 +95,7 @@ def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
         assert to_add in add
 
 
-def test_diff_between_feature_views(simple_dataset_1):
+def test_diff_registry_objects_feature_views(simple_dataset_1):
     with prep_file_source(
         df=simple_dataset_1, event_timestamp_column="ts_1"
     ) as file_source:
@@ -114,10 +114,10 @@ def test_diff_between_feature_views(simple_dataset_1):
             tags={"when": "after"},
         )
 
-        fco_diffs = diff_between(pre_changed, pre_changed, "feature view")
+        fco_diffs = diff_registry_objects(pre_changed, pre_changed, "feature view")
         assert len(fco_diffs.fco_property_diffs) == 0
 
-        fco_diffs = diff_between(pre_changed, post_changed, "feature view")
+        fco_diffs = diff_registry_objects(pre_changed, post_changed, "feature view")
         assert len(fco_diffs.fco_property_diffs) == 1
 
         assert fco_diffs.fco_property_diffs[0].property_name == "tags"
