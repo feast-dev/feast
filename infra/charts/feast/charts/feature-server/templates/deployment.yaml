@@ -84,6 +84,7 @@ spec:
           value: {{ $value | quote }}
           {{- end }}
         {{- end }}
+
         command:
         - java
         - -jar
