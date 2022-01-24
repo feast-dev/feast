@@ -142,6 +142,8 @@ class Registry:
                 else 0
             )
 
+            self._initialize_registry()
+
     def clone(self) -> "Registry":
         new_registry = Registry(None, None)
         new_registry.cached_registry_proto_ttl = timedelta(seconds=0)
