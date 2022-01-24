@@ -11,7 +11,10 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast.diff.FcoDiff import TransitionType
+from feast.diff.FcoDiff import (
+    TransitionType,
+    extract_objects_for_keep_delete_update_add,
+)
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
@@ -165,7 +168,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         objs_to_delete,
         objs_to_update,
         objs_to_add,
-    ) = registry.extract_objects_for_keep_delete_update_add(project, repo)
+    ) = extract_objects_for_keep_delete_update_add(registry, project, repo)
 
     all_to_apply: List[
         Union[

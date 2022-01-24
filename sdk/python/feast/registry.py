@@ -24,13 +24,6 @@ from google.protobuf.json_format import MessageToDict
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import (
-    FcoDiff,
-    RegistryDiff,
-    TransitionType,
-    diff_between,
-    tag_objects_for_keep_delete_update_add,
-)
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -47,7 +40,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
-from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
@@ -155,111 +147,6 @@ class Registry:
         new_registry.cached_registry_proto_created = datetime.utcnow()
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
-
-    def extract_objects_for_keep_delete_update_add(
-        self, current_project: str, desired_repo_contents: RepoContents,
-    ):
-        """
-        Returns the objects that must be modified to achieve the desired repo state.
-
-        Args:
-            current_project: The Feast project whose objects should be compared.
-            desired_repo_contents: The desired repo state.
-        """
-        objs_to_keep = {}
-        objs_to_delete = {}
-        objs_to_update = {}
-        objs_to_add = {}
-
-        registry_object_type_to_objects: Dict[str, List[Any]]
-        registry_object_type_to_objects = {
-            "entities": self.list_entities(project=current_project),
-            "feature_views": self.list_feature_views(project=current_project),
-            "on_demand_feature_views": self.list_on_demand_feature_views(
-                project=current_project
-            ),
-            "request_feature_views": self.list_request_feature_views(
-                project=current_project
-            ),
-            "feature_services": self.list_feature_services(project=current_project),
-        }
-
-        for object_type in REGISTRY_OBJECT_TYPES:
-            (
-                to_keep,
-                to_delete,
-                to_update,
-                to_add,
-            ) = tag_objects_for_keep_delete_update_add(
-                registry_object_type_to_objects[object_type],
-                getattr(desired_repo_contents, object_type),
-            )
-
-            objs_to_keep[object_type] = to_keep
-            objs_to_delete[object_type] = to_delete
-            objs_to_update[object_type] = to_update
-            objs_to_add[object_type] = to_add
-
-        return objs_to_keep, objs_to_delete, objs_to_update, objs_to_add
-
-    def diff_between(
-        self, current_project: str, desired_repo_contents: RepoContents,
-    ) -> RegistryDiff:
-        """
-        Returns the difference between the current and desired repo states.
-
-        Args:
-            current_project: The Feast project for which the diff is being computed.
-            desired_repo_contents: The desired repo state.
-        """
-        diff = RegistryDiff()
-
-        (
-            objs_to_keep,
-            objs_to_delete,
-            objs_to_update,
-            objs_to_add,
-        ) = self.extract_objects_for_keep_delete_update_add(
-            current_project, desired_repo_contents
-        )
-
-        for object_type in REGISTRY_OBJECT_TYPES:
-            objects_to_keep = objs_to_keep[object_type]
-            objects_to_delete = objs_to_delete[object_type]
-            objects_to_update = objs_to_update[object_type]
-            objects_to_add = objs_to_add[object_type]
-
-            for e in objects_to_add:
-                diff.add_fco_diff(
-                    FcoDiff(
-                        e.name,
-                        REGISTRY_OBJECT_TYPE_TO_STR[object_type],
-                        None,
-                        e,
-                        [],
-                        TransitionType.CREATE,
-                    )
-                )
-            for e in objects_to_delete:
-                diff.add_fco_diff(
-                    FcoDiff(
-                        e.name,
-                        REGISTRY_OBJECT_TYPE_TO_STR[object_type],
-                        e,
-                        None,
-                        [],
-                        TransitionType.DELETE,
-                    )
-                )
-            for e in objects_to_update:
-                current_obj = [_e for _e in objects_to_keep if _e.name == e.name][0]
-                diff.add_fco_diff(
-                    diff_between(
-                        current_obj, e, REGISTRY_OBJECT_TYPE_TO_STR[object_type]
-                    )
-                )
-
-        return diff
 
     def _initialize_registry(self):
         """Explicitly initializes the registry with an empty proto if it doesn't exist."""

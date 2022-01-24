@@ -39,7 +39,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import RegistryDiff
+from feast.diff.FcoDiff import RegistryDiff, diff_between
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.entity import Entity
 from feast.errors import (
@@ -73,8 +73,9 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import Registry, RepoContents
+from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
+from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
@@ -426,7 +427,9 @@ class FeatureStore:
             ... )
             >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
-        registry_diff = self._registry.diff_between(self.project, desired_repo_contents)
+        registry_diff = diff_between(
+            self._registry, self.project, desired_repo_contents
+        )
 
         current_infra_proto = (
             self._registry.cached_registry_proto.infra.__deepcopy__()
