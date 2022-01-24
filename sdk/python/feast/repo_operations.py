@@ -156,6 +156,7 @@ def _prepare_registry_and_repo(repo_config, repo_path):
         )
         sys.exit(1)
     registry = store.registry
+    registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
     return project, registry, repo, store
