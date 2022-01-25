@@ -24,7 +24,6 @@ from typing import (
     Iterable,
     List,
     Mapping,
-    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -40,7 +39,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import RegistryDiff
+from feast.diff.FcoDiff import RegistryDiff, diff_between
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.entity import Entity
 from feast.errors import (
@@ -68,7 +67,6 @@ from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -77,6 +75,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
+from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
@@ -84,31 +83,6 @@ from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
-
-
-class RepoContents(NamedTuple):
-    feature_views: Set[FeatureView]
-    on_demand_feature_views: Set[OnDemandFeatureView]
-    request_feature_views: Set[RequestFeatureView]
-    entities: Set[Entity]
-    feature_services: Set[FeatureService]
-
-    def to_registry_proto(self) -> RegistryProto:
-        registry_proto = RegistryProto()
-        registry_proto.entities.extend([e.to_proto() for e in self.entities])
-        registry_proto.feature_views.extend(
-            [fv.to_proto() for fv in self.feature_views]
-        )
-        registry_proto.on_demand_feature_views.extend(
-            [fv.to_proto() for fv in self.on_demand_feature_views]
-        )
-        registry_proto.request_feature_views.extend(
-            [fv.to_proto() for fv in self.request_feature_views]
-        )
-        registry_proto.feature_services.extend(
-            [fs.to_proto() for fs in self.feature_services]
-        )
-        return registry_proto
 
 
 class FeatureStore:
@@ -415,7 +389,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def plan(
-        self, desired_repo_objects: RepoContents
+        self, desired_repo_contents: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff]:
         """Dry-run registering objects to metadata store.
 
@@ -453,16 +427,8 @@ class FeatureStore:
             ... )
             >>> registry_diff, infra_diff = fs.plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
-
-        current_registry_proto = (
-            self._registry.cached_registry_proto.__deepcopy__()
-            if self._registry.cached_registry_proto
-            else RegistryProto()
-        )
-
-        desired_registry_proto = desired_repo_objects.to_registry_proto()
-        registry_diff = Registry.diff_between(
-            current_registry_proto, desired_registry_proto
+        registry_diff = diff_between(
+            self._registry, self.project, desired_repo_contents
         )
 
         current_infra_proto = (
@@ -470,6 +436,7 @@ class FeatureStore:
             if self._registry.cached_registry_proto
             else InfraProto()
         )
+        desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra_proto = self._provider.plan_infra(
             self.config, desired_registry_proto
         ).to_proto()
@@ -508,7 +475,7 @@ class FeatureStore:
             ]
         ] = None,
         partial: bool = True,
-    ) -> RegistryDiff:
+    ):
         """Register objects to metadata store and update related infrastructure.
 
         The apply method registers one or more definitions (e.g., Entity, FeatureView) and registers or updates these
@@ -544,7 +511,7 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> diff = fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
+            >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
         if not isinstance(objects, Iterable):
@@ -553,12 +520,6 @@ class FeatureStore:
 
         if not objects_to_delete:
             objects_to_delete = []
-
-        current_registry_proto = (
-            self._registry.cached_registry_proto.__deepcopy__()
-            if self._registry.cached_registry_proto
-            else RegistryProto()
-        )
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
@@ -657,22 +618,6 @@ class FeatureStore:
                     service.name, project=self.project, commit=False
                 )
 
-        new_registry_proto = (
-            self._registry.cached_registry_proto
-            if self._registry.cached_registry_proto
-            else RegistryProto()
-        )
-
-        diffs = Registry.diff_between(current_registry_proto, new_registry_proto)
-
-        entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
-
-        entities_to_delete = [ob for ob in objects_to_delete if isinstance(ob, Entity)]
-        views_to_delete = [
-            ob for ob in objects_to_delete if isinstance(ob, FeatureView)
-        ]
-
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=views_to_delete if not partial else [],
@@ -683,8 +628,6 @@ class FeatureStore:
         )
 
         self._registry.commit()
-
-        return diffs
 
     @log_exceptions_and_usage
     def teardown(self):

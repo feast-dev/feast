@@ -14,6 +14,7 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional
@@ -24,13 +25,6 @@ from google.protobuf.json_format import MessageToDict
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import (
-    FcoDiff,
-    RegistryDiff,
-    TransitionType,
-    diff_between,
-    tag_proto_objects_for_keep_delete_add,
-)
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -64,6 +58,15 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "file": "LocalRegistryStore",
     "": "LocalRegistryStore",
 }
+
+
+class FeastObjectType(Enum):
+    ENTITY = 0
+    FEATURE_VIEW = 1
+    ON_DEMAND_FEATURE_VIEW = 2
+    REQUEST_FEATURE_VIEW = 3
+    FEATURE_SERVICE = 4
+
 
 logger = logging.getLogger(__name__)
 
@@ -142,75 +145,6 @@ class Registry:
         new_registry.cached_registry_proto_created = datetime.utcnow()
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
-
-    # TODO(achals): This method needs to be filled out and used in the feast plan/apply methods.
-    @staticmethod
-    def diff_between(
-        current_registry: RegistryProto, new_registry: RegistryProto
-    ) -> RegistryDiff:
-        diff = RegistryDiff()
-
-        attribute_to_object_type_str = {
-            "entities": "entity",
-            "feature_views": "feature view",
-            "feature_tables": "feature table",
-            "on_demand_feature_views": "on demand feature view",
-            "request_feature_views": "request feature view",
-            "feature_services": "feature service",
-        }
-
-        for object_type in [
-            "entities",
-            "feature_views",
-            "feature_tables",
-            "on_demand_feature_views",
-            "request_feature_views",
-            "feature_services",
-        ]:
-            (
-                objects_to_keep,
-                objects_to_delete,
-                objects_to_add,
-            ) = tag_proto_objects_for_keep_delete_add(
-                getattr(current_registry, object_type),
-                getattr(new_registry, object_type),
-            )
-
-            for e in objects_to_add:
-                diff.add_fco_diff(
-                    FcoDiff(
-                        e.spec.name,
-                        attribute_to_object_type_str[object_type],
-                        None,
-                        e,
-                        [],
-                        TransitionType.CREATE,
-                    )
-                )
-            for e in objects_to_delete:
-                diff.add_fco_diff(
-                    FcoDiff(
-                        e.spec.name,
-                        attribute_to_object_type_str[object_type],
-                        e,
-                        None,
-                        [],
-                        TransitionType.DELETE,
-                    )
-                )
-            for e in objects_to_keep:
-                current_obj_proto = [
-                    _e
-                    for _e in getattr(current_registry, object_type)
-                    if _e.spec.name == e.spec.name
-                ][0]
-                diff.add_fco_diff(
-                    diff_between(
-                        current_obj_proto, e, attribute_to_object_type_str[object_type]
-                    )
-                )
-
-        return diff
 
     def _initialize_registry(self):
         """Explicitly initializes the registry with an empty proto if it doesn't exist."""

@@ -6,21 +6,25 @@ import re
 import sys
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, Set, Union, cast
+from typing import List, Set, Union
 
 import click
 from click.exceptions import BadParameter
 
-from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import TransitionType, tag_objects_for_keep_delete_add
+from feast.diff.FcoDiff import (
+    FEAST_OBJECT_TYPES,
+    extract_objects_for_keep_delete_update_add,
+)
+from feast.diff.property_diff import TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.feature_store import FeatureStore, RepoContents
+from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
+from feast.registry import FeastObjectType, Registry
 from feast.repo_config import RepoConfig
+from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
 
@@ -160,81 +164,41 @@ def _prepare_registry_and_repo(repo_config, repo_path):
 
 
 def extract_objects_for_apply_delete(project, registry, repo):
-    (
-        entities_to_keep,
-        entities_to_delete,
-        entities_to_add,
-    ) = tag_objects_for_keep_delete_add(
-        set(registry.list_entities(project=project)), repo.entities
-    )
     # TODO(achals): This code path should be refactored to handle added & kept entities separately.
-    entities_to_keep = set(entities_to_keep).union(entities_to_add)
-    views = tag_objects_for_keep_delete_add(
-        set(registry.list_feature_views(project=project)), repo.feature_views
-    )
-    views_to_keep, views_to_delete, views_to_add = (
-        cast(Set[FeatureView], views[0]),
-        cast(Set[FeatureView], views[1]),
-        cast(Set[FeatureView], views[2]),
-    )
-    request_views = tag_objects_for_keep_delete_add(
-        set(registry.list_request_feature_views(project=project)),
-        repo.request_feature_views,
-    )
-    request_views_to_keep: Set[RequestFeatureView]
-    request_views_to_delete: Set[RequestFeatureView]
-    request_views_to_add: Set[RequestFeatureView]
-    request_views_to_keep, request_views_to_delete, request_views_to_add = (
-        cast(Set[RequestFeatureView], request_views[0]),
-        cast(Set[RequestFeatureView], request_views[1]),
-        cast(Set[RequestFeatureView], request_views[2]),
-    )
-    base_views_to_keep: Set[Union[RequestFeatureView, FeatureView]] = {
-        *views_to_keep,
-        *views_to_add,
-        *request_views_to_keep,
-        *request_views_to_add,
-    }
-    base_views_to_delete: Set[Union[RequestFeatureView, FeatureView]] = {
-        *views_to_delete,
-        *request_views_to_delete,
-    }
-    odfvs = tag_objects_for_keep_delete_add(
-        set(registry.list_on_demand_feature_views(project=project)),
-        repo.on_demand_feature_views,
-    )
-    odfvs_to_keep, odfvs_to_delete, odfvs_to_add = (
-        cast(Set[OnDemandFeatureView], odfvs[0]),
-        cast(Set[OnDemandFeatureView], odfvs[1]),
-        cast(Set[OnDemandFeatureView], odfvs[2]),
-    )
-    odfvs_to_keep = odfvs_to_keep.union(odfvs_to_add)
     (
-        services_to_keep,
-        services_to_delete,
-        services_to_add,
-    ) = tag_objects_for_keep_delete_add(
-        set(registry.list_feature_services(project=project)), repo.feature_services
-    )
-    services_to_keep = services_to_keep.union(services_to_add)
-    sys.dont_write_bytecode = False
-    # Apply all changes to the registry and infrastructure.
-    all_to_apply: List[
-        Union[Entity, BaseFeatureView, FeatureService, OnDemandFeatureView]
-    ] = []
-    all_to_apply.extend(entities_to_keep)
-    all_to_apply.extend(base_views_to_keep)
-    all_to_apply.extend(services_to_keep)
-    all_to_apply.extend(odfvs_to_keep)
-    all_to_delete: List[
-        Union[Entity, BaseFeatureView, FeatureService, OnDemandFeatureView]
-    ] = []
-    all_to_delete.extend(entities_to_delete)
-    all_to_delete.extend(base_views_to_delete)
-    all_to_delete.extend(services_to_delete)
-    all_to_delete.extend(odfvs_to_delete)
+        _,
+        objs_to_delete,
+        objs_to_update,
+        objs_to_add,
+    ) = extract_objects_for_keep_delete_update_add(registry, project, repo)
 
-    return all_to_apply, all_to_delete, views_to_delete, views_to_keep
+    all_to_apply: List[
+        Union[
+            Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
+        ]
+    ] = []
+    for object_type in FEAST_OBJECT_TYPES:
+        to_apply = set(objs_to_add[object_type]).union(objs_to_update[object_type])
+        all_to_apply.extend(to_apply)
+
+    all_to_delete: List[
+        Union[
+            Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
+        ]
+    ] = []
+    for object_type in FEAST_OBJECT_TYPES:
+        all_to_delete.extend(objs_to_delete[object_type])
+
+    return (
+        all_to_apply,
+        all_to_delete,
+        set(
+            objs_to_add[FeastObjectType.FEATURE_VIEW].union(
+                objs_to_update[FeastObjectType.FEATURE_VIEW]
+            )
+        ),
+        objs_to_delete[FeastObjectType.FEATURE_VIEW],
+    )
 
 
 def apply_total_with_repo_instance(
@@ -250,6 +214,8 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
+    registry_diff, _ = store.plan(repo)
+
     # For each object in the registry, determine whether it should be kept or deleted.
     (
         all_to_apply,
@@ -258,9 +224,9 @@ def apply_total_with_repo_instance(
         views_to_keep,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    diff = store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
 
-    log_cli_output(diff, views_to_delete, views_to_keep)
+    log_cli_output(registry_diff, views_to_delete, views_to_keep)
 
 
 @log_exceptions_and_usage
