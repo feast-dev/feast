@@ -146,12 +146,12 @@ NULLABLE_ONLINE_STORE_CONFIGS.extend(
         IntegrationTestRepoConfig(
             provider="gcp",
             offline_store_creator=BigQueryDataSourceCreator,
-            online_store="null",
+            online_store=None,
         ),
         IntegrationTestRepoConfig(
             provider="aws",
             offline_store_creator=RedshiftDataSourceCreator,
-            online_store="null",
+            online_store=None,
         ),
     ]
 )
