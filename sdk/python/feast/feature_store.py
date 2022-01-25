@@ -395,6 +395,47 @@ class FeatureStore:
         # Currently only the local provider supports _plan and _apply_diffs.
         return self.config.provider == "local"
 
+    def _validate_all_feature_views(
+        self,
+        views_to_update: List[FeatureView],
+        odfvs_to_update: List[OnDemandFeatureView],
+        request_views_to_update: List[RequestFeatureView],
+    ):
+        """Validates all feature views."""
+        if (
+            not flags_helper.enable_on_demand_feature_views(self.config)
+            and len(odfvs_to_update) > 0
+        ):
+            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+
+        set_usage_attribute("odfv", bool(odfvs_to_update))
+
+        _validate_feature_views(
+            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        )
+
+    def _make_inferences(
+        self,
+        entities_to_update: List[Entity],
+        views_to_update: List[FeatureView],
+        odfvs_to_update: List[OnDemandFeatureView],
+    ):
+        """Makes inferences for entities, feature views, and odfvs."""
+        update_entities_with_inferred_types_from_feature_views(
+            entities_to_update, views_to_update, self.config
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in views_to_update], self.config
+        )
+
+        update_feature_views_with_inferred_features(
+            views_to_update, entities_to_update, self.config
+        )
+
+        for odfv in odfvs_to_update:
+            odfv.infer_features()
+
     @log_exceptions_and_usage
     def _plan(
         self, desired_repo_contents: RepoContents
@@ -492,34 +533,11 @@ class FeatureStore:
             in [TransitionType.CREATE, TransitionType.UPDATE]
         ]
 
-        # Validate all types of feature views.
-        if (
-            not flags_helper.enable_on_demand_feature_views(self.config)
-            and len(odfvs_to_update) > 0
-        ):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
-
-        set_usage_attribute("odfv", bool(odfvs_to_update))
-
-        _validate_feature_views(
-            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        # Validate all feature views and make inferences.
+        self._validate_all_feature_views(
+            views_to_update, odfvs_to_update, request_views_to_update
         )
-
-        # Make inferences
-        update_entities_with_inferred_types_from_feature_views(
-            entities_to_update, views_to_update, self.config
-        )
-
-        update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in views_to_update], self.config
-        )
-
-        update_feature_views_with_inferred_features(
-            views_to_update, entities_to_update, self.config
-        )
-
-        for odfv in odfvs_to_update:
-            odfv.infer_features()
+        self._make_inferences(entities_to_update, views_to_update, odfvs_to_update)
 
         # Apply infra and registry changes.
         infra_diff.update()
@@ -619,34 +637,11 @@ class FeatureStore:
         ) + len(odfvs_to_update) + len(services_to_update) != len(objects):
             raise ValueError("Unknown object type provided as part of apply() call")
 
-        # Validate all types of feature views.
-        if (
-            not flags_helper.enable_on_demand_feature_views(self.config)
-            and len(odfvs_to_update) > 0
-        ):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
-
-        set_usage_attribute("odfv", bool(odfvs_to_update))
-
-        _validate_feature_views(
-            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+        # Validate all feature views and make inferences.
+        self._validate_all_feature_views(
+            views_to_update, odfvs_to_update, request_views_to_update
         )
-
-        # Make inferences
-        update_entities_with_inferred_types_from_feature_views(
-            entities_to_update, views_to_update, self.config
-        )
-
-        update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in views_to_update], self.config
-        )
-
-        update_feature_views_with_inferred_features(
-            views_to_update, entities_to_update, self.config
-        )
-
-        for odfv in odfvs_to_update:
-            odfv.infer_features()
+        self._make_inferences(entities_to_update, views_to_update, odfvs_to_update)
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
