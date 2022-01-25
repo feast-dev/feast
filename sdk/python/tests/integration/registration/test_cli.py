@@ -168,8 +168,6 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
             feature_store_yaml = make_feature_store_yaml(
                 project, test_nullable_online_store, repo_dir_name
             )
-            config_dict = yaml.safe_load(feature_store_yaml)
-            config_dict["online_store"]["type"] = "null"
             repo_path = Path(repo_dir_name)
 
             repo_config = repo_path / "feature_store.yaml"
