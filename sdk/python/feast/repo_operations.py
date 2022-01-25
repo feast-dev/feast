@@ -12,16 +12,17 @@ import click
 from click.exceptions import BadParameter
 
 from feast.diff.FcoDiff import (
-    TransitionType,
+    FEAST_OBJECT_TYPES,
     extract_objects_for_keep_delete_update_add,
 )
+from feast.diff.property_diff import TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import REGISTRY_OBJECT_TYPES, Registry
+from feast.registry import FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -176,7 +177,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
             Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
         ]
     ] = []
-    for object_type in REGISTRY_OBJECT_TYPES:
+    for object_type in FEAST_OBJECT_TYPES:
         to_apply = set(objs_to_add[object_type]).union(objs_to_update[object_type])
         all_to_apply.extend(to_apply)
 
@@ -185,14 +186,18 @@ def extract_objects_for_apply_delete(project, registry, repo):
             Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
         ]
     ] = []
-    for object_type in REGISTRY_OBJECT_TYPES:
+    for object_type in FEAST_OBJECT_TYPES:
         all_to_delete.extend(objs_to_delete[object_type])
 
     return (
         all_to_apply,
         all_to_delete,
-        set(objs_to_add["feature_views"].union(objs_to_update["feature_views"])),
-        objs_to_delete["feature_views"],
+        set(
+            objs_to_add[FeastObjectType.FEATURE_VIEW].union(
+                objs_to_update[FeastObjectType.FEATURE_VIEW]
+            )
+        ),
+        objs_to_delete[FeastObjectType.FEATURE_VIEW],
     )
 
 

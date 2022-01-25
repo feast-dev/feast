@@ -16,8 +16,18 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
-from feast.registry import REGISTRY_OBJECT_TYPE_TO_STR, REGISTRY_OBJECT_TYPES, Registry
+from feast.registry import FeastObjectType, Registry
 from feast.repo_contents import RepoContents
+
+FEAST_OBJECT_TYPE_TO_STR = {
+    FeastObjectType.ENTITY: "entity",
+    FeastObjectType.FEATURE_VIEW: "feature view",
+    FeastObjectType.ON_DEMAND_FEATURE_VIEW: "on demand feature view",
+    FeastObjectType.REQUEST_FEATURE_VIEW: "request feature view",
+    FeastObjectType.FEATURE_SERVICE: "feature service",
+}
+
+FEAST_OBJECT_TYPES = FEAST_OBJECT_TYPE_TO_STR.keys()
 
 Fco = TypeVar("Fco", Entity, BaseFeatureView, FeatureService)
 
@@ -105,14 +115,22 @@ def diff_registry_objects(current: Fco, new: Fco, object_type: str) -> FcoDiff:
                     )
                 )
     return FcoDiff(
-        new_proto.spec.name, object_type, current, new, property_diffs, transition,
+        name=new_proto.spec.name,
+        fco_type=object_type,
+        current_fco=current,
+        new_fco=new,
+        fco_property_diffs=property_diffs,
+        transition_type=transition,
     )
 
 
 def extract_objects_for_keep_delete_update_add(
     registry: Registry, current_project: str, desired_repo_contents: RepoContents,
 ) -> Tuple[
-    Dict[str, Set[Fco]], Dict[str, Set[Fco]], Dict[str, Set[Fco]], Dict[str, Set[Fco]]
+    Dict[FeastObjectType, Set[Fco]],
+    Dict[FeastObjectType, Set[Fco]],
+    Dict[FeastObjectType, Set[Fco]],
+    Dict[FeastObjectType, Set[Fco]],
 ]:
     """
     Returns the objects in the registry that must be modified to achieve the desired repo state.
@@ -127,20 +145,32 @@ def extract_objects_for_keep_delete_update_add(
     objs_to_update = {}
     objs_to_add = {}
 
-    registry_object_type_to_objects: Dict[str, List[Any]]
+    registry_object_type_to_objects: Dict[FeastObjectType, List[Any]]
     registry_object_type_to_objects = {
-        "entities": registry.list_entities(project=current_project),
-        "feature_views": registry.list_feature_views(project=current_project),
-        "on_demand_feature_views": registry.list_on_demand_feature_views(
+        FeastObjectType.ENTITY: registry.list_entities(project=current_project),
+        FeastObjectType.FEATURE_VIEW: registry.list_feature_views(
             project=current_project
         ),
-        "request_feature_views": registry.list_request_feature_views(
+        FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
             project=current_project
         ),
-        "feature_services": registry.list_feature_services(project=current_project),
+        FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
+            project=current_project
+        ),
+        FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
+            project=current_project
+        ),
+    }
+    registry_object_type_to_repo_contents: Dict[FeastObjectType, Set[Any]]
+    registry_object_type_to_repo_contents = {
+        FeastObjectType.ENTITY: desired_repo_contents.entities,
+        FeastObjectType.FEATURE_VIEW: desired_repo_contents.feature_views,
+        FeastObjectType.ON_DEMAND_FEATURE_VIEW: desired_repo_contents.on_demand_feature_views,
+        FeastObjectType.REQUEST_FEATURE_VIEW: desired_repo_contents.request_feature_views,
+        FeastObjectType.FEATURE_SERVICE: desired_repo_contents.feature_services,
     }
 
-    for object_type in REGISTRY_OBJECT_TYPES:
+    for object_type in FEAST_OBJECT_TYPES:
         (
             to_keep,
             to_delete,
@@ -148,7 +178,7 @@ def extract_objects_for_keep_delete_update_add(
             to_add,
         ) = tag_objects_for_keep_delete_update_add(
             registry_object_type_to_objects[object_type],
-            getattr(desired_repo_contents, object_type),
+            registry_object_type_to_repo_contents[object_type],
         )
 
         objs_to_keep[object_type] = to_keep
@@ -181,7 +211,7 @@ def diff_between(
         registry, current_project, desired_repo_contents
     )
 
-    for object_type in REGISTRY_OBJECT_TYPES:
+    for object_type in FEAST_OBJECT_TYPES:
         objects_to_keep = objs_to_keep[object_type]
         objects_to_delete = objs_to_delete[object_type]
         objects_to_update = objs_to_update[object_type]
@@ -190,30 +220,30 @@ def diff_between(
         for e in objects_to_add:
             diff.add_fco_diff(
                 FcoDiff(
-                    e.name,
-                    REGISTRY_OBJECT_TYPE_TO_STR[object_type],
-                    None,
-                    e,
-                    [],
-                    TransitionType.CREATE,
+                    name=e.name,
+                    fco_type=FEAST_OBJECT_TYPE_TO_STR[object_type],
+                    current_fco=None,
+                    new_fco=e,
+                    fco_property_diffs=[],
+                    transition_type=TransitionType.CREATE,
                 )
             )
         for e in objects_to_delete:
             diff.add_fco_diff(
                 FcoDiff(
-                    e.name,
-                    REGISTRY_OBJECT_TYPE_TO_STR[object_type],
-                    e,
-                    None,
-                    [],
-                    TransitionType.DELETE,
+                    name=e.name,
+                    fco_type=FEAST_OBJECT_TYPE_TO_STR[object_type],
+                    current_fco=e,
+                    new_fco=None,
+                    fco_property_diffs=[],
+                    transition_type=TransitionType.DELETE,
                 )
             )
         for e in objects_to_update:
             current_obj = [_e for _e in objects_to_keep if _e.name == e.name][0]
             diff.add_fco_diff(
                 diff_registry_objects(
-                    current_obj, e, REGISTRY_OBJECT_TYPE_TO_STR[object_type]
+                    current_obj, e, FEAST_OBJECT_TYPE_TO_STR[object_type]
                 )
             )
 

@@ -14,6 +14,7 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional
@@ -58,15 +59,14 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "": "LocalRegistryStore",
 }
 
-REGISTRY_OBJECT_TYPE_TO_STR = {
-    "entities": "entity",
-    "feature_views": "feature view",
-    "on_demand_feature_views": "on demand feature view",
-    "request_feature_views": "request feature view",
-    "feature_services": "feature service",
-}
 
-REGISTRY_OBJECT_TYPES = REGISTRY_OBJECT_TYPE_TO_STR.keys()
+class FeastObjectType(Enum):
+    ENTITY = 0
+    FEATURE_VIEW = 1
+    ON_DEMAND_FEATURE_VIEW = 2
+    REQUEST_FEATURE_VIEW = 3
+    FEATURE_SERVICE = 4
+
 
 logger = logging.getLogger(__name__)
 
