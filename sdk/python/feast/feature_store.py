@@ -1380,7 +1380,12 @@ class FeatureStore:
 
         # Convert back to rowise.
         keys = table_entity_values.keys()
-        rowise_values = list(zip(*table_entity_values.values()))
+        # Sort the rowise data to allow for grouping but keep original index. This lambda is
+        # sufficient as Entity types cannot be complex (ie. lists).
+        rowise = list(enumerate(zip(*table_entity_values.values())))
+        rowise.sort(
+            key=lambda row: tuple(getattr(x, x.WhichOneof("val")) for x in row[1])
+        )
 
         # Identify unique entities and the indexes at which they occur.
         unique_entities: Tuple[Dict[str, Value], ...]
@@ -1389,9 +1394,7 @@ class FeatureStore:
             zip(
                 *[
                     (dict(zip(keys, k)), [_[0] for _ in g])
-                    for k, g in itertools.groupby(
-                        enumerate(rowise_values), key=lambda x: x[1]
-                    )
+                    for k, g in itertools.groupby(rowise, key=lambda x: x[1])
                 ]
             )
         )
