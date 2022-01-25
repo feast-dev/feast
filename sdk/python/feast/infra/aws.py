@@ -196,7 +196,8 @@ class AwsProvider(PassthroughProvider):
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
-        self.online_store.teardown(self.repo_config, tables, entities)
+        if self.online_store:
+            self.online_store.teardown(self.repo_config, tables, entities)
 
         if (
             self.repo_config.feature_server is not None

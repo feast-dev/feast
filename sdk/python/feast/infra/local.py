@@ -16,15 +16,15 @@ class LocalProvider(PassthroughProvider):
     This class only exists for backwards compatibility.
     """
 
-    def plan_infra(
-        self, config: RepoConfig, desired_registry_proto: RegistryProto
-    ) -> Infra:
-        infra_objects: List[InfraObject] = self.online_store.plan(
-            config, desired_registry_proto
-        )
-        infra = Infra()
-        infra.infra_objects += infra_objects
-        return infra
+    def plan_infra(self, config: RepoConfig, desired_registry_proto: RegistryProto):
+        if self.online_store:
+            infra_objects: List[InfraObject] = self.online_store.plan(
+                config, desired_registry_proto
+            )
+            infra = Infra()
+            infra.infra_objects += infra_objects
+            return infra
+        return None
 
 
 class LocalRegistryStore(RegistryStore):

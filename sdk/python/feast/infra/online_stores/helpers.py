@@ -8,10 +8,11 @@ from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_entity_key_prefix,
 )
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
 
-def get_online_store_from_config(online_store_config: Any):
+def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
     """Creates an online store corresponding to the given online store config."""
     module_name = online_store_config.__module__
     qualified_name = type(online_store_config).__name__

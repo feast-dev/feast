@@ -1,4 +1,3 @@
-import os
 import tempfile
 import uuid
 from contextlib import contextmanager
@@ -20,9 +19,6 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 )
 from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (
-    FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
@@ -144,26 +140,21 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath)
 NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
     IntegrationTestRepoConfig(),
 ]
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    NULLABLE_ONLINE_STORE_CONFIGS.extend(
-        [
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store="null",
-            ),
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store="null",
-            ),
-            IntegrationTestRepoConfig(
-                provider="local",
-                offline_store_creator=FileDataSourceCreator,
-                online_store="null",
-            ),
-        ]
-    )
+NULLABLE_ONLINE_STORE_CONFIGS.pop(0)
+NULLABLE_ONLINE_STORE_CONFIGS.extend(
+    [
+        IntegrationTestRepoConfig(
+            provider="gcp",
+            offline_store_creator=BigQueryDataSourceCreator,
+            online_store="null",
+        ),
+        IntegrationTestRepoConfig(
+            provider="aws",
+            offline_store_creator=RedshiftDataSourceCreator,
+            online_store="null",
+        ),
+    ]
+)
 
 
 @pytest.mark.integration

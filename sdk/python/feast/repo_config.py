@@ -176,7 +176,6 @@ class RepoConfig(FeastBaseModel):
         try:
             online_config_class = get_online_config_from_type(online_store_type)
             online_config_class(**values["online_store"])
-
         except ValidationError as e:
             raise ValidationError(
                 [ErrorWrapper(e, loc="online_store")], model=RepoConfig,

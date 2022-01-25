@@ -10,7 +10,6 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
-from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.provider import (
     Provider,
     _convert_arrow_to_proto,
@@ -68,7 +67,8 @@ class PassthroughProvider(Provider):
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
-        self.online_store.teardown(self.repo_config, tables, entities)
+        if self.online_store:
+            self.online_store.teardown(self.repo_config, tables, entities)
 
     def online_write_batch(
         self,
@@ -80,7 +80,8 @@ class PassthroughProvider(Provider):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
-        self.online_store.online_write_batch(config, table, data, progress)
+        if self.online_store:
+            self.online_store.online_write_batch(config, table, data, progress)
 
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
@@ -89,13 +90,14 @@ class PassthroughProvider(Provider):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ):
         set_usage_attribute("provider", self.__class__.__name__)
-        result = self.online_store.online_read(
-            config, table, entity_keys, requested_features
-        )
-
-        return result
+        if self.online_store:
+            result = self.online_store.online_read(
+                config, table, entity_keys, requested_features
+            )
+            return result
+        return None
 
     def ingest_df(
         self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
