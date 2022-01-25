@@ -313,6 +313,10 @@ class FileOfflineStore(OfflineStore):
                 ]
                 df_to_join = df_to_join.persist()
 
+                if created_timestamp_column:
+                    df_to_join = df_to_join.sort_values(by=created_timestamp_column)
+                    df_to_join = df_to_join.persist()
+
                 df_to_join = df_to_join.sort_values(by=event_timestamp_column)
                 df_to_join = df_to_join.persist()
 
@@ -419,6 +423,9 @@ class FileOfflineStore(OfflineStore):
                 if created_timestamp_column
                 else [event_timestamp_column]
             )
+
+            if created_timestamp_column:
+                source_df = source_df.sort_values(by=created_timestamp_column)
 
             source_df = source_df.sort_values(by=event_timestamp_column)
 
