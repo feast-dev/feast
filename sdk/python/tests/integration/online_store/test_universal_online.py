@@ -28,6 +28,7 @@ from tests.integration.feature_repos.universal.entities import (
 )
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
+    driver_feature_view,
 )
 from tests.utils.data_source_utils import prep_file_source
 
@@ -501,6 +502,79 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         origins_df,
         destinations_df,
     )
+
+
+@pytest.mark.integration
+@pytest.mark.universal
+def test_online_store_cleanup(environment, universal_data_sources):
+    """
+    Some online store implementations (like Redis) keep features from different features views
+    but with common entities together.
+    This might end up with deletion of all features attached to the entity,
+    when only one feature view was deletion target (see https://github.com/feast-dev/feast/issues/2150).
+
+    Plan:
+        1. Register two feature views with common entity "driver"
+        2. Materialize data
+        3. Check if features are available (via online retrieval)
+        4. Delete one feature view
+        5. Check that features for other are still available
+        6. Delete another feature view (and create again)
+        7. Verify that features for both feature view were deleted
+    """
+    fs = environment.feature_store
+    entities, datasets, data_sources = universal_data_sources
+    driver_stats_fv = construct_universal_feature_views(data_sources)["driver"]
+
+    df = pd.DataFrame(
+        {
+            "ts_1": [environment.end_date] * len(entities["driver"]),
+            "created_ts": [environment.end_date] * len(entities["driver"]),
+            "driver_id": entities["driver"],
+            "value": np.random.random(size=len(entities["driver"])),
+        }
+    )
+
+    ds = environment.data_source_creator.create_data_source(
+        df, destination_name="simple_driver_dataset"
+    )
+
+    simple_driver_fv = driver_feature_view(
+        data_source=ds, name="test_universal_online_simple_driver"
+    )
+
+    fs.apply([driver(), simple_driver_fv, driver_stats_fv])
+
+    fs.materialize(
+        environment.start_date - timedelta(days=1),
+        environment.end_date + timedelta(days=1),
+    )
+    expected_values = df.sort_values(by="driver_id")
+
+    features = [f"{simple_driver_fv.name}:value"]
+    entity_rows = [{"driver": driver_id} for driver_id in sorted(entities["driver"])]
+
+    online_features = fs.get_online_features(
+        features=features, entity_rows=entity_rows
+    ).to_dict()
+    assert np.allclose(expected_values["value"], online_features["value"])
+
+    fs.apply(
+        objects=[simple_driver_fv], objects_to_delete=[driver_stats_fv], partial=False
+    )
+
+    online_features = fs.get_online_features(
+        features=features, entity_rows=entity_rows
+    ).to_dict()
+    assert np.allclose(expected_values["value"], online_features["value"])
+
+    fs.apply(objects=[], objects_to_delete=[simple_driver_fv], partial=False)
+    fs.apply([simple_driver_fv])
+
+    online_features = fs.get_online_features(
+        features=features, entity_rows=entity_rows
+    ).to_dict()
+    assert all(v is None for v in online_features["value"])
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
