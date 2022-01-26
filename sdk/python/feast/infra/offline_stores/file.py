@@ -72,7 +72,7 @@ class FileRetrievalJob(RetrievalJob):
     @log_exceptions_and_usage
     def _to_arrow_internal(self):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
-        df = self.evaluation_function()
+        df = self.evaluation_function().compute()
         return pyarrow.Table.from_pandas(df)
 
     def persist(self, storage: SavedDatasetStorage):
@@ -95,6 +95,7 @@ class FileRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
+
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
