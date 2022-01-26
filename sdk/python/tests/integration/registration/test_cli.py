@@ -18,11 +18,11 @@ from tests.integration.feature_repos.repo_configuration import FULL_REPO_CONFIGS
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
-    FileDataSourceCreator,
-)
 from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
