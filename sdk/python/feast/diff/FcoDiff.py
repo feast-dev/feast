@@ -260,10 +260,10 @@ def apply_diff_to_registry(
         # will automatically delete the existing FCO.
         if fco_diff.transition_type == TransitionType.DELETE:
             if fco_diff.fco_type == FeastObjectType.ENTITY:
-                registry.delete_entity(fco_diff.current_fco.name, project, False)
+                registry.delete_entity(fco_diff.current_fco.name, project, commit=False)
             elif fco_diff.fco_type == FeastObjectType.FEATURE_SERVICE:
                 registry.delete_feature_service(
-                    fco_diff.current_fco.name, project, False
+                    fco_diff.current_fco.name, project, commit=False
                 )
             elif fco_diff.fco_type in [
                 FeastObjectType.FEATURE_VIEW,
@@ -271,7 +271,7 @@ def apply_diff_to_registry(
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
                 registry.delete_feature_view(
-                    fco_diff.current_fco.name, project, False,
+                    fco_diff.current_fco.name, project, commit=False,
                 )
 
         if fco_diff.transition_type in [
@@ -279,15 +279,15 @@ def apply_diff_to_registry(
             TransitionType.UPDATE,
         ]:
             if fco_diff.fco_type == FeastObjectType.ENTITY:
-                registry.apply_entity(fco_diff.new_fco, project, False)
+                registry.apply_entity(fco_diff.new_fco, project, commit=False)
             elif fco_diff.fco_type == FeastObjectType.FEATURE_SERVICE:
-                registry.apply_feature_service(fco_diff.new_fco, project, False)
+                registry.apply_feature_service(fco_diff.new_fco, project, commit=False)
             elif fco_diff.fco_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
-                registry.apply_feature_view(fco_diff.new_fco, project, False)
+                registry.apply_feature_view(fco_diff.new_fco, project, commit=False)
 
     if commit:
         registry.commit()
