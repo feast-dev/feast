@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -14,7 +14,7 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 class RedshiftDataSourceCreator(DataSourceCreator):
 
-    tables = []
+    tables: List[str] = []
 
     def __init__(self, project_name: str):
         super().__init__()

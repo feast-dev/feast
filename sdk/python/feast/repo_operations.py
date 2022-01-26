@@ -5,6 +5,7 @@ import random
 import re
 import sys
 from importlib.abc import Loader
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from typing import List, Set, Union
 
@@ -82,7 +83,11 @@ def get_repo_files(repo_root: Path) -> List[Path]:
     ignore_files = get_ignore_files(repo_root, ignore_paths)
 
     # List all Python files in the root directory (recursively)
-    repo_files = {p.resolve() for p in repo_root.glob("**/*.py") if p.is_file()}
+    repo_files = {
+        p.resolve()
+        for p in repo_root.glob("**/*.py")
+        if p.is_file() and "__init__.py" != p.name
+    }
     # Ignore all files that match any of the ignore paths in .feastignore
     repo_files -= ignore_files
 
@@ -352,6 +357,7 @@ def init_repo(repo_name: str, template: str):
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("bootstrap", str(bootstrap_path))
+        assert isinstance(spec, ModuleSpec)
         bootstrap = importlib.util.module_from_spec(spec)
         assert isinstance(spec.loader, Loader)
         spec.loader.exec_module(bootstrap)

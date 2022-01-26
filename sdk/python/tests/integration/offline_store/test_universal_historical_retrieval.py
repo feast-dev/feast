@@ -55,7 +55,7 @@ def find_asof_record(
     filter_keys = filter_keys or []
     filter_values = filter_values or []
     assert len(filter_keys) == len(filter_values)
-    found_record = {}
+    found_record: Dict[str, Any] = {}
     for record in records:
         if (
             all(

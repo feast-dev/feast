@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 from google.cloud import bigquery
@@ -21,7 +21,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self.gcp_project = self.client.project
         self.dataset_id = f"{self.gcp_project}.{project_name}"
 
-        self.tables = []
+        self.tables: List[str] = []
 
     def create_dataset(self):
         if not self.dataset:
@@ -50,7 +50,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: Optional[str] = None,
+        destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,

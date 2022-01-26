@@ -1,7 +1,7 @@
 import tempfile
 import uuid
 from contextlib import contextmanager
-from pathlib import Path, PosixPath
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
@@ -26,10 +26,10 @@ def test_universal_cli(test_repo_config) -> None:
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
         try:
-            feature_store_yaml = make_feature_store_yaml(
-                project, test_repo_config, repo_dir_name
-            )
             repo_path = Path(repo_dir_name)
+            feature_store_yaml = make_feature_store_yaml(
+                project, test_repo_config, repo_path
+            )
 
             repo_config = repo_path / "feature_store.yaml"
 
@@ -103,7 +103,7 @@ def test_universal_cli(test_repo_config) -> None:
             runner.run(["teardown"], cwd=repo_path)
 
 
-def make_feature_store_yaml(project, test_repo_config, repo_dir_name: PosixPath):
+def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
 
     offline_store_config = offline_creator.create_offline_store_config()

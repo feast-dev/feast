@@ -19,7 +19,6 @@ from typing import Any, Dict, List, Optional, Set, Sized, Tuple, Type
 import numpy as np
 import pandas as pd
 import pyarrow
-from google.protobuf.pyext.cpp_message import GeneratedProtocolMessageType
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.protos.feast.types.Value_pb2 import (
@@ -32,7 +31,7 @@ from feast.protos.feast.types.Value_pb2 import (
     StringList,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
-from feast.value_type import ValueType
+from feast.value_type import ListType, ValueType
 
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
@@ -195,7 +194,7 @@ def _type_err(item, dtype):
 
 
 PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
-    ValueType, Tuple[GeneratedProtocolMessageType, str, List[Type]]
+    ValueType, Tuple[ListType, str, List[Type]]
 ] = {
     ValueType.FLOAT_LIST: (
         FloatList,
@@ -273,7 +272,7 @@ def _python_value_to_proto_value(
                 raise _type_err(first_invalid, valid_types[0])
 
             return [
-                ProtoValue(**{field_name: proto_type(val=value)})
+                ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
                 if value is not None
                 else ProtoValue()
                 for value in values
