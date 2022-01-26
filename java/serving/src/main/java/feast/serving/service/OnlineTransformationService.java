@@ -74,7 +74,7 @@ public class OnlineTransformationService implements TransformationService {
       TransformFeaturesRequest transformFeaturesRequest) {
     if (this.stub == null) {
       throw new RuntimeException(
-          "Transformation service endpoint must be configured to " + "enable this functionality.");
+          "Transformation service endpoint must be configured to enable this functionality.");
     }
     return this.stub.transformFeatures(transformFeaturesRequest);
   }
