@@ -533,6 +533,7 @@ class FeatureStore:
             in [TransitionType.CREATE, TransitionType.UPDATE]
         ]
 
+        # TODO(felixwang9817): move validation logic into _plan.
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
             views_to_update, odfvs_to_update, request_views_to_update
