@@ -62,14 +62,16 @@ class AwsProvider(PassthroughProvider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        self.online_store.update(
-            config=self.repo_config,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_keep=entities_to_keep,
-            entities_to_delete=entities_to_delete,
-            partial=partial,
-        )
+        # Call update only if there is an online store
+        if self.online_store:
+            self.online_store.update(
+                config=self.repo_config,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_keep=entities_to_keep,
+                entities_to_delete=entities_to_delete,
+                partial=partial,
+            )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
             if not enable_aws_lambda_feature_server(self.repo_config):
@@ -194,7 +196,8 @@ class AwsProvider(PassthroughProvider):
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
-        self.online_store.teardown(self.repo_config, tables, entities)
+        if self.online_store:
+            self.online_store.teardown(self.repo_config, tables, entities)
 
         if (
             self.repo_config.feature_server is not None

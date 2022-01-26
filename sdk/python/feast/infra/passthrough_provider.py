@@ -37,7 +37,11 @@ class PassthroughProvider(Provider):
 
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
-        self.online_store = get_online_store_from_config(config.online_store)
+        self.online_store = (
+            get_online_store_from_config(config.online_store)
+            if config.online_store
+            else None
+        )
 
     def update_infra(
         self,
@@ -49,20 +53,24 @@ class PassthroughProvider(Provider):
         partial: bool,
     ):
         set_usage_attribute("provider", self.__class__.__name__)
-        self.online_store.update(
-            config=self.repo_config,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_keep=entities_to_keep,
-            entities_to_delete=entities_to_delete,
-            partial=partial,
-        )
+
+        # Call update only if there is an online store
+        if self.online_store:
+            self.online_store.update(
+                config=self.repo_config,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_keep=entities_to_keep,
+                entities_to_delete=entities_to_delete,
+                partial=partial,
+            )
 
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
-        self.online_store.teardown(self.repo_config, tables, entities)
+        if self.online_store:
+            self.online_store.teardown(self.repo_config, tables, entities)
 
     def online_write_batch(
         self,
@@ -74,7 +82,8 @@ class PassthroughProvider(Provider):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
-        self.online_store.online_write_batch(config, table, data, progress)
+        if self.online_store:
+            self.online_store.online_write_batch(config, table, data, progress)
 
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
@@ -83,12 +92,13 @@ class PassthroughProvider(Provider):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
-        result = self.online_store.online_read(
-            config, table, entity_keys, requested_features
-        )
-
+        result = []
+        if self.online_store:
+            result = self.online_store.online_read(
+                config, table, entity_keys, requested_features
+            )
         return result
 
     def ingest_df(
