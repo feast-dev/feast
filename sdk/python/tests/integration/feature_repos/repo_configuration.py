@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import yaml
@@ -283,13 +283,15 @@ def construct_test_environment(
             execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
         )
 
-        registry = f"s3://feast-integration-tests/registries/{project}/registry.db"
+        registry = (
+            f"s3://feast-integration-tests/registries/{project}/registry.db"
+        )  # type: Union[str, RegistryConfig]
     else:
         # Note: even if it's a local feature server, the repo config does not have this configured
         feature_server = None
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
-        )  # type: ignore
+        )
 
     config = RepoConfig(
         registry=registry,
