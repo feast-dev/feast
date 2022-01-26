@@ -189,7 +189,6 @@ class RepoConfig(FeastBaseModel):
     @root_validator(pre=True)
     def _validate_offline_store_config(cls, values):
         # Set empty offline_store config if it isn't set explicitly
-
         if "offline_store" not in values:
             values["offline_store"] = dict()
 

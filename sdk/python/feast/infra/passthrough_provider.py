@@ -90,14 +90,14 @@ class PassthroughProvider(Provider):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
-    ):
+    ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
+        result = []
         if self.online_store:
             result = self.online_store.online_read(
                 config, table, entity_keys, requested_features
             )
-            return result
-        return None
+        return result
 
     def ingest_df(
         self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
