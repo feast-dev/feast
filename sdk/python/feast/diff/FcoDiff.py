@@ -17,18 +17,8 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
-from feast.registry import FeastObjectType, Registry
+from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
-
-FEAST_OBJECT_TYPE_TO_STR = {
-    FeastObjectType.ENTITY: "entity",
-    FeastObjectType.FEATURE_VIEW: "feature view",
-    FeastObjectType.ON_DEMAND_FEATURE_VIEW: "on demand feature view",
-    FeastObjectType.REQUEST_FEATURE_VIEW: "request feature view",
-    FeastObjectType.FEATURE_SERVICE: "feature service",
-}
-
-FEAST_OBJECT_TYPES = FEAST_OBJECT_TYPE_TO_STR.keys()
 
 Fco = TypeVar("Fco", Entity, BaseFeatureView, FeatureService)
 
@@ -68,7 +58,7 @@ class RegistryDiff:
             if fco_diff.name == DUMMY_ENTITY_NAME:
                 continue
             action, color = message_action_map[fco_diff.transition_type]
-            log_string += f"{action} {FEAST_OBJECT_TYPE_TO_STR[fco_diff.fco_type]} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}\n"
+            log_string += f"{action} {fco_diff.fco_type.value} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}\n"
             if fco_diff.transition_type == TransitionType.UPDATE:
                 for _p in fco_diff.fco_property_diffs:
                     log_string += f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}\n"

@@ -63,11 +63,14 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
 
 
 class FeastObjectType(Enum):
-    ENTITY = 0
-    FEATURE_VIEW = 1
-    ON_DEMAND_FEATURE_VIEW = 2
-    REQUEST_FEATURE_VIEW = 3
-    FEATURE_SERVICE = 4
+    ENTITY = "entity"
+    FEATURE_VIEW = "feature view"
+    ON_DEMAND_FEATURE_VIEW = "on demand feature view"
+    REQUEST_FEATURE_VIEW = "request feature view"
+    FEATURE_SERVICE = "feature service"
+
+
+FEAST_OBJECT_TYPES = [feast_object_type for feast_object_type in FeastObjectType]
 
 
 logger = logging.getLogger(__name__)

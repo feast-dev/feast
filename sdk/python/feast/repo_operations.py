@@ -12,17 +12,14 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast.diff.FcoDiff import (
-    FEAST_OBJECT_TYPES,
-    extract_objects_for_keep_delete_update_add,
-)
+from feast.diff.FcoDiff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import FeastObjectType, Registry
+from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
