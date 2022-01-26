@@ -234,10 +234,22 @@ class FileOfflineStore(OfflineStore):
                         formatted_feature_name = feature
                     # Add the feature name to the list of columns
                     feature_names.append(formatted_feature_name)
+                    columns_map[feature] = formatted_feature_name
 
                 # Ensure that the source dataframe feature column includes the feature view name as a prefix
                 df_to_join = df_to_join.rename(columns=columns_map)
                 df_to_join = df_to_join.persist()
+
+                # Rename columns by the field mapping dictionary if it exists
+                if feature_view.batch_source.field_mapping:
+                    df_to_join = _run_dask_field_mapping(
+                        df_to_join, feature_view.batch_source.field_mapping
+                    )
+                # Rename entity columns by the join_key_map dictionary if it exists
+                if feature_view.projection.join_key_map:
+                    df_to_join = _run_dask_field_mapping(
+                        df_to_join, feature_view.projection.join_key_map
+                    )
 
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
@@ -253,17 +265,6 @@ class FileOfflineStore(OfflineStore):
                     how="left",
                 )
                 df_to_join = df_to_join.persist()
-
-                # Rename columns by the field mapping dictionary if it exists
-                if feature_view.batch_source.field_mapping is not None:
-                    _run_dask_field_mapping(
-                        df_to_join, feature_view.batch_source.field_mapping
-                    )
-                # Rename entity columns by the join_key_map dictionary if it exists
-                if feature_view.projection.join_key_map:
-                    _run_dask_field_mapping(
-                        df_to_join, feature_view.projection.join_key_map
-                    )
 
                 df_to_join_types = df_to_join.dtypes
                 event_timestamp_column_type = df_to_join_types[event_timestamp_column]

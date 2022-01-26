@@ -318,8 +318,10 @@ def _run_dask_field_mapping(
 ):
     if field_mapping:
         # run field mapping in the forward direction
-        table = table.rename(field_mapping)
+        table = table.rename(columns=field_mapping)
         table = table.persist()
+
+    return table
 
 
 def _coerce_datetime(ts):
