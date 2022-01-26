@@ -10,6 +10,7 @@ from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
+from feast.saved_dataset import SavedDataset
 
 
 class FooProvider(Provider):
@@ -74,4 +75,7 @@ class FooProvider(Provider):
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        pass
+
+    def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
         pass

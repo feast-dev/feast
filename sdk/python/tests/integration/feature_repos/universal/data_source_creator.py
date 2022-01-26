@@ -5,6 +5,7 @@ import pandas as pd
 
 from feast.data_source import DataSource
 from feast.repo_config import FeastConfigBaseModel
+from feast.saved_dataset import SavedDatasetStorage
 
 
 class DataSourceCreator(ABC):
@@ -38,6 +39,10 @@ class DataSourceCreator(ABC):
 
     @abstractmethod
     def create_offline_store_config(self) -> FeastConfigBaseModel:
+        ...
+
+    @abstractmethod
+    def create_saved_dataset_destination(self) -> SavedDatasetStorage:
         ...
 
     @abstractmethod
