@@ -289,7 +289,7 @@ def construct_test_environment(
         feature_server = None
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
-        )
+        )  # type: ignore
 
     config = RepoConfig(
         registry=registry,
