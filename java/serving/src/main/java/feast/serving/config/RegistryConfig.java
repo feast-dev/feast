@@ -31,7 +31,7 @@ public class RegistryConfig extends AbstractModule {
   @Provides
   Storage googleStorage(ApplicationProperties applicationProperties) {
     return StorageOptions.newBuilder()
-        .setProjectId(applicationProperties.getGcpProject())
+        .setProjectId(applicationProperties.getFeast().getGcpProject())
         .build()
         .getService();
   }
@@ -39,7 +39,7 @@ public class RegistryConfig extends AbstractModule {
   @Provides
   public AmazonS3 awsStorage(ApplicationProperties applicationProperties) {
     return AmazonS3ClientBuilder.standard()
-        .withRegion(applicationProperties.getAwsRegion())
+        .withRegion(applicationProperties.getFeast().getAwsRegion())
         .build();
   }
 

@@ -1,5 +1,3 @@
-feast[redis]>=0.13,<1
-
 # for source generation
 pyarrow==6.0.0
 

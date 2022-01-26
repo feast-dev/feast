@@ -68,10 +68,10 @@ public class ServingServiceConfigV2 extends AbstractModule {
 
     log.info("Working Directory = " + System.getProperty("user.dir"));
 
-    final String transformationServiceEndpoint =
-        applicationProperties.getTransformationServiceEndpoint();
     final OnlineTransformationService onlineTransformationService =
-        new OnlineTransformationService(transformationServiceEndpoint, registryRepository);
+        new OnlineTransformationService(
+            applicationProperties.getFeast().getTransformationServiceEndpoint(),
+            registryRepository);
 
     servingService =
         new OnlineServingServiceV2(

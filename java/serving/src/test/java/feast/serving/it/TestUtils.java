@@ -38,17 +38,33 @@ public class TestUtils {
 
   public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
       List<String> featureReferences, Map<String, ValueProto.RepeatedValue> entityRows) {
+    return createOnlineFeatureRequest(featureReferences, entityRows, new HashMap<>());
+  }
+
+  public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
+      List<String> featureReferences,
+      Map<String, ValueProto.RepeatedValue> entityRows,
+      Map<String, ValueProto.RepeatedValue> requestContext) {
     return GetOnlineFeaturesRequest.newBuilder()
         .setFeatures(ServingAPIProto.FeatureList.newBuilder().addAllVal(featureReferences))
         .putAllEntities(entityRows)
+        .putAllRequestContext(requestContext)
         .build();
   }
 
   public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
       String featureService, Map<String, ValueProto.RepeatedValue> entityRows) {
+    return createOnlineFeatureRequest(featureService, entityRows, new HashMap<>());
+  }
+
+  public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
+      String featureService,
+      Map<String, ValueProto.RepeatedValue> entityRows,
+      Map<String, ValueProto.RepeatedValue> requestContext) {
     return GetOnlineFeaturesRequest.newBuilder()
         .setFeatureService(featureService)
         .putAllEntities(entityRows)
+        .putAllRequestContext(requestContext)
         .build();
   }
 

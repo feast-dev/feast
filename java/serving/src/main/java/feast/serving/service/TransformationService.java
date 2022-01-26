@@ -17,13 +17,11 @@
 package feast.serving.service;
 
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesRequest;
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
 import feast.proto.types.ValueProto;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -37,27 +35,13 @@ public interface TransformationService {
   TransformFeaturesResponse transformFeatures(TransformFeaturesRequest transformFeaturesRequest);
 
   /**
-   * Extract the set of request data feature names and the list of on demand feature inputs from a
-   * list of ODFV references.
+   * Extract the list of on demand feature inputs from a list of ODFV references.
    *
    * @param onDemandFeatureReferences list of ODFV references to be parsed
-   * @return a pair containing the set of request data feature names and list of on demand feature
-   *     inputs
+   * @return list of on demand feature inputs
    */
-  Pair<Set<String>, List<ServingAPIProto.FeatureReferenceV2>>
-      extractRequestDataFeatureNamesAndOnDemandFeatureInputs(
-          List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences);
-
-  /**
-   * Separate the entity rows of a request into entity data and request feature data.
-   *
-   * @param requestDataFeatureNames set of feature names for the request data
-   * @param request the GetOnlineFeaturesRequestV2 containing the entity rows
-   * @return a pair containing the set of request data feature names and list of on demand feature
-   *     inputs
-   */
-  Pair<List<GetOnlineFeaturesRequestV2.EntityRow>, Map<String, List<ValueProto.Value>>>
-      separateEntityRows(Set<String> requestDataFeatureNames, GetOnlineFeaturesRequestV2 request);
+  List<ServingAPIProto.FeatureReferenceV2> extractOnDemandFeaturesDependencies(
+      List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences);
 
   /**
    * Process a response from the feature transformation server by augmenting the given lists of
