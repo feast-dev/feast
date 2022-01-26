@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
@@ -42,6 +42,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
+from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset
 
@@ -68,6 +69,36 @@ class FeastObjectType(Enum):
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
     REQUEST_FEATURE_VIEW = "request feature view"
     FEATURE_SERVICE = "feature service"
+
+    @staticmethod
+    def get_objects_from_registry(
+        registry: "Registry", project: str
+    ) -> Dict["FeastObjectType", List[Any]]:
+        return {
+            FeastObjectType.ENTITY: registry.list_entities(project=project),
+            FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
+            FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
+                project=project
+            ),
+            FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
+                project=project
+            ),
+            FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
+                project=project
+            ),
+        }
+
+    @staticmethod
+    def get_objects_from_repo_contents(
+        repo_contents: RepoContents,
+    ) -> Dict["FeastObjectType", Set[Any]]:
+        return {
+            FeastObjectType.ENTITY: repo_contents.entities,
+            FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
+            FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
+            FeastObjectType.REQUEST_FEATURE_VIEW: repo_contents.request_feature_views,
+            FeastObjectType.FEATURE_SERVICE: repo_contents.feature_services,
+        }
 
 
 FEAST_OBJECT_TYPES = [feast_object_type for feast_object_type in FeastObjectType]

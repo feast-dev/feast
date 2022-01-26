@@ -160,30 +160,12 @@ def extract_objects_for_keep_delete_update_add(
     objs_to_update = {}
     objs_to_add = {}
 
-    registry_object_type_to_objects: Dict[FeastObjectType, List[Any]]
-    registry_object_type_to_objects = {
-        FeastObjectType.ENTITY: registry.list_entities(project=current_project),
-        FeastObjectType.FEATURE_VIEW: registry.list_feature_views(
-            project=current_project
-        ),
-        FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
-            project=current_project
-        ),
-        FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
-            project=current_project
-        ),
-        FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
-            project=current_project
-        ),
-    }
-    registry_object_type_to_repo_contents: Dict[FeastObjectType, Set[Any]]
-    registry_object_type_to_repo_contents = {
-        FeastObjectType.ENTITY: desired_repo_contents.entities,
-        FeastObjectType.FEATURE_VIEW: desired_repo_contents.feature_views,
-        FeastObjectType.ON_DEMAND_FEATURE_VIEW: desired_repo_contents.on_demand_feature_views,
-        FeastObjectType.REQUEST_FEATURE_VIEW: desired_repo_contents.request_feature_views,
-        FeastObjectType.FEATURE_SERVICE: desired_repo_contents.feature_services,
-    }
+    registry_object_type_to_objects: Dict[
+        FeastObjectType, List[Any]
+    ] = FeastObjectType.get_objects_from_registry(registry, current_project)
+    registry_object_type_to_repo_contents: Dict[
+        FeastObjectType, Set[Any]
+    ] = FeastObjectType.get_objects_from_repo_contents(desired_repo_contents)
 
     for object_type in FEAST_OBJECT_TYPES:
         (
