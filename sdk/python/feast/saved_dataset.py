@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Type, cast
 
 import pandas as pd
 import pyarrow
@@ -32,7 +32,7 @@ class SavedDatasetStorage(metaclass=_StorageRegistry):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> "SavedDatasetStorage":
-        proto_attr_name = storage_proto.WhichOneof("kind")
+        proto_attr_name = cast(str, storage_proto.WhichOneof("kind"))
         return _StorageRegistry.classes_by_proto_attr_name[proto_attr_name].from_proto(
             storage_proto
         )
