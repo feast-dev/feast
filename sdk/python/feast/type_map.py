@@ -14,10 +14,21 @@
 
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence, Set, Sized, Tuple, Type, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Sized,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -250,10 +261,14 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
 }
 
 
-def _python_datetime_to_int_timestamp(values: Sequence[Any]) -> Sequence[int]:
+def _python_datetime_to_int_timestamp(
+    values: Sequence[Any],
+) -> Sequence[Union[int, np.int_]]:
     # Fast path for Numpy array.
     if isinstance(values, np.ndarray) and isinstance(values.dtype, np.datetime64):
-        return cast(npt.NDArray[np.int_], values.astype("datetime64[s]").astype("int"))
+        if values.ndim != 1:
+            raise ValueError("Only 1 dimensional arrays are supported.")
+        return cast(Sequence[np.int_], values.astype("datetime64[s]").astype(np.int_))
 
     int_timestamps = []
     for sub_value in values:
@@ -262,7 +277,7 @@ def _python_datetime_to_int_timestamp(values: Sequence[Any]) -> Sequence[int]:
         elif isinstance(sub_value, Timestamp):
             int_timestamps.append(int(sub_value.ToSeconds()))
         elif isinstance(sub_value, np.datetime64):
-            int_timestamps.append(sub_value.astype("datetime64[s]").astype("int"))
+            int_timestamps.append(sub_value.astype("datetime64[s]").astype(np.int_))
         else:
             int_timestamps.append(int(sub_value))
     return int_timestamps
@@ -307,7 +322,8 @@ def _python_value_to_proto_value(
                     _python_datetime_to_int_timestamp(value) for value in values
                 )
                 return [
-                    ProtoValue(unix_timestamp_list_val=Int64List(val=ts))
+                    # ProtoValue does actually accept `np.int_` but the typing complains.
+                    ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
                     for ts in int_timestamps_lists
                 ]
 
@@ -322,7 +338,8 @@ def _python_value_to_proto_value(
     else:
         if feast_value_type == ValueType.UNIX_TIMESTAMP:
             int_timestamps = _python_datetime_to_int_timestamp(values)
-            return [ProtoValue(unix_timestamp_val=ts) for ts in int_timestamps]
+            # ProtoValue does actually accept `np.int_` but the typing complains.
+            return [ProtoValue(unix_timestamp_val=ts) for ts in int_timestamps]  # type: ignore
 
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
             (
