@@ -82,6 +82,8 @@ def get_expected_training_df(
     location_fv: FeatureView,
     global_df: pd.DataFrame,
     global_fv: FeatureView,
+    field_mapping_df: pd.DataFrame,
+    field_mapping_fv: FeatureView,
     entity_df: pd.DataFrame,
     event_timestamp: str,
     full_feature_names: bool = False,
@@ -101,6 +103,10 @@ def get_expected_training_df(
     )
     global_records = convert_timestamp_records_to_utc(
         global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
+    )
+    field_mapping_records = convert_timestamp_records_to_utc(
+        field_mapping_df.to_dict("records"),
+        field_mapping_fv.batch_source.event_timestamp_column,
     )
     entity_rows = convert_timestamp_records_to_utc(
         entity_df.to_dict("records"), event_timestamp
@@ -156,6 +162,13 @@ def get_expected_training_df(
             ts_end=order_record[event_timestamp],
         )
 
+        field_mapping_record = find_asof_record(
+            field_mapping_records,
+            ts_key=field_mapping_fv.batch_source.event_timestamp_column,
+            ts_start=order_record[event_timestamp] - field_mapping_fv.ttl,
+            ts_end=order_record[event_timestamp],
+        )
+
         entity_row.update(
             {
                 (
@@ -197,6 +210,16 @@ def get_expected_training_df(
             }
         )
 
+        # get field_mapping_record by column name, but label by feature name
+        entity_row.update(
+            {
+                (
+                    f"field_mapping__{feature}" if full_feature_names else feature
+                ): field_mapping_record.get(column, None)
+                for (column, feature) in field_mapping_fv.input.field_mapping.items()
+            }
+        )
+
     # Convert records back to pandas dataframe
     expected_df = pd.DataFrame(entity_rows)
 
@@ -213,6 +236,7 @@ def get_expected_training_df(
             "customer_profile__current_balance": "float32",
             "customer_profile__avg_passenger_count": "float32",
             "global_stats__avg_ride_length": "float32",
+            "field_mapping__feature_name": "int32",
         }
     else:
         expected_column_types = {
@@ -221,6 +245,7 @@ def get_expected_training_df(
             "current_balance": "float32",
             "avg_passenger_count": "float32",
             "avg_ride_length": "float32",
+            "feature_name": "int32",
         }
 
     for col, typ in expected_column_types.items():
@@ -311,6 +336,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         feature_views["location"],
         datasets["global"],
         feature_views["global"],
+        datasets["field_mapping"],
+        feature_views["field_mapping"],
         entity_df_with_request_data,
         event_timestamp,
         full_feature_names,
@@ -336,6 +363,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
             "driver_age:driver_age",
+            "field_mapping:feature_name",
         ],
         full_feature_names=full_feature_names,
     )
@@ -404,6 +432,7 @@ def test_historical_features_with_missing_request_data(
                 "conv_rate_plus_100:conv_rate_plus_val_to_add",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
+                "field_mapping:feature_name",
             ],
             full_feature_names=full_feature_names,
         )
@@ -419,6 +448,7 @@ def test_historical_features_with_missing_request_data(
                 "driver_age:driver_age",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
+                "field_mapping:feature_name",
             ],
             full_feature_names=full_feature_names,
         )
@@ -452,6 +482,7 @@ def test_historical_features_with_entities_from_query(
             "order:order_is_success",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
+            "field_mapping:feature_name",
         ],
         full_feature_names=full_feature_names,
     )
@@ -477,6 +508,8 @@ def test_historical_features_with_entities_from_query(
         feature_views["location"],
         datasets["global"],
         feature_views["global"],
+        datasets["field_mapping"],
+        feature_views["field_mapping"],
         datasets["entity"],
         event_timestamp,
         full_feature_names,
@@ -538,6 +571,7 @@ def test_historical_features_persisting(
             "order:order_is_success",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
+            "field_mapping:feature_name",
         ],
         full_feature_names=full_feature_names,
     )
@@ -561,6 +595,8 @@ def test_historical_features_persisting(
         feature_views["location"],
         datasets["global"],
         feature_views["global"],
+        datasets["field_mapping"],
+        feature_views["field_mapping"],
         entity_df,
         event_timestamp,
         full_feature_names,

@@ -85,6 +85,7 @@ class FeatureViewQueryContext:
     ttl: int
     entities: List[str]
     features: List[str]  # feature reference format
+    field_mapping: Dict[str, str]
     event_timestamp_column: str
     created_timestamp_column: Optional[str]
     table_subquery: str
@@ -144,7 +145,10 @@ def get_feature_view_query_context(
             name=feature_view.projection.name_to_use(),
             ttl=ttl_seconds,
             entities=join_keys,
-            features=features,
+            features=[
+                reverse_field_mapping.get(feature, feature) for feature in features
+            ],
+            field_mapping=feature_view.input.field_mapping,
             event_timestamp_column=reverse_field_mapping.get(
                 event_timestamp_column, event_timestamp_column
             ),
@@ -175,7 +179,11 @@ def build_point_in_time_query(
     final_output_feature_names = list(entity_df_columns)
     final_output_feature_names.extend(
         [
-            (f"{fv.name}__{feature}" if full_feature_names else feature)
+            (
+                f"{fv.name}__{fv.field_mapping.get(feature, feature)}"
+                if full_feature_names
+                else fv.field_mapping.get(feature, feature)
+            )
             for fv in feature_view_query_contexts
             for feature in fv.features
         ]
