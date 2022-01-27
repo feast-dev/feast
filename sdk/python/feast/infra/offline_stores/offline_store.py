@@ -116,7 +116,6 @@ class RetrievalJob(ABC):
         Return dataset as pyarrow Table synchronously
         Args:
             validation_reference: If provided resulting dataset will be validated against this reference profile.
-
         """
         if not self.on_demand_feature_views and not validation_reference:
             return self._to_arrow_internal()
