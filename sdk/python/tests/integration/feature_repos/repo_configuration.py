@@ -288,8 +288,6 @@ def construct_test_environment(
 
     repo_dir_name = tempfile.mkdtemp()
 
-    registry: Union[StrictStr, RegistryConfig]
-
     if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
             AwsLambdaFeatureServerConfig,
