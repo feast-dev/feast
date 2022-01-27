@@ -12,18 +12,14 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast.diff.FcoDiff import (
-    FEAST_OBJECT_TYPES,
-    extract_objects_for_keep_delete_update_add,
-)
-from feast.diff.property_diff import TransitionType
+from feast.diff.FcoDiff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
-from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import FeastObjectType, Registry
+from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -136,20 +132,9 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, _ = store.plan(repo)
-    views_to_delete = [
-        v
-        for v in registry_diff.fco_diffs
-        if v.fco_type == "feature view" and v.transition_type == TransitionType.DELETE
-    ]
-    views_to_keep = [
-        v
-        for v in registry_diff.fco_diffs
-        if v.fco_type == "feature view"
-        and v.transition_type in {TransitionType.CREATE, TransitionType.UNCHANGED}
-    ]
-
-    log_cli_output(registry_diff, views_to_delete, views_to_keep)
+    registry_diff, infra_diff, _ = store._plan(repo)
+    click.echo(registry_diff.to_string())
+    click.echo(infra_diff.to_string())
 
 
 def _prepare_registry_and_repo(repo_config, repo_path):
@@ -219,7 +204,7 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, _ = store.plan(repo)
+    registry_diff, infra_diff, new_infra = store._plan(repo)
 
     # For each object in the registry, determine whether it should be kept or deleted.
     (
@@ -229,9 +214,29 @@ def apply_total_with_repo_instance(
         views_to_keep,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+    click.echo(registry_diff.to_string())
 
-    log_cli_output(registry_diff, views_to_delete, views_to_keep)
+    if store._should_use_plan():
+        store._apply_diffs(registry_diff, infra_diff, new_infra)
+        click.echo(infra_diff.to_string())
+    else:
+        store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+        log_infra_changes(views_to_keep, views_to_delete)
+
+
+def log_infra_changes(
+    views_to_keep: List[FeatureView], views_to_delete: List[FeatureView]
+):
+    from colorama import Fore, Style
+
+    for view in views_to_keep:
+        click.echo(
+            f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
+        )
+    for view in views_to_delete:
+        click.echo(
+            f"Removing infrastructure for {Style.BRIGHT + Fore.RED}{view.name}{Style.RESET_ALL}"
+        )
 
 
 @log_exceptions_and_usage
@@ -242,44 +247,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     apply_total_with_repo_instance(
         store, project, registry, repo, skip_source_validation
     )
-
-
-def log_cli_output(diff, views_to_delete, views_to_keep):
-    from colorama import Fore, Style
-
-    message_action_map = {
-        TransitionType.CREATE: ("Created", Fore.GREEN),
-        TransitionType.DELETE: ("Deleted", Fore.RED),
-        TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
-        TransitionType.UPDATE: ("Updated", Fore.YELLOW),
-    }
-    for fco_diff in diff.fco_diffs:
-        if fco_diff.name == DUMMY_ENTITY_NAME:
-            continue
-        action, color = message_action_map[fco_diff.transition_type]
-        click.echo(
-            f"{action} {fco_diff.fco_type} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}"
-        )
-        if fco_diff.transition_type == TransitionType.UPDATE:
-            for _p in fco_diff.fco_property_diffs:
-                click.echo(
-                    f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}"
-                )
-
-    views_to_keep_in_infra = [
-        view for view in views_to_keep if isinstance(view, FeatureView)
-    ]
-    for name in [view.name for view in views_to_keep_in_infra]:
-        click.echo(
-            f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
-        )
-    views_to_delete_from_infra = [
-        view for view in views_to_delete if isinstance(view, FeatureView)
-    ]
-    for name in [view.name for view in views_to_delete_from_infra]:
-        click.echo(
-            f"Removing infrastructure for {Style.BRIGHT + Fore.RED}{name}{Style.RESET_ALL}"
-        )
 
 
 @log_exceptions_and_usage
