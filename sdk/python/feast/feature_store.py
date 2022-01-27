@@ -1438,7 +1438,7 @@ class FeatureStore:
         provider: Provider,
         requested_features: List[str],
         table: FeatureView,
-    ) -> List[Tuple[List[Timestamp], List[FieldStatusValue], List[Value]]]:
+    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """ Read and process data from the OnlineStore for a given FeatureView.
 
             This method guarentees that the order of the data in each element of the
@@ -1492,7 +1492,9 @@ class FeatureStore:
     @staticmethod
     def _populate_response_from_feature_data(
         feature_data: Iterable[
-            Tuple[Iterable[Timestamp], Iterable[FieldStatusValue], Iterable[Value]]
+            Tuple[
+                Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
+            ]
         ],
         indexes: Iterable[Iterable[int]],
         online_features_response: GetOnlineFeaturesResponse,
