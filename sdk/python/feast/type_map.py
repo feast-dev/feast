@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import re
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Set, Sized, Tuple, Type, cast
 
 import numpy as np
@@ -49,8 +50,17 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     if val_attr is None:
         return None
     val = getattr(field_value_proto, val_attr)
+
+    # If it's a _LIST type extract the list.
     if hasattr(val, "val"):
         val = list(val.val)
+
+    # Convert UNIX_TIMESTAMP values to `datetime`
+    if val_attr == "unix_timestamp_list_val":
+        val = [datetime.fromtimestamp(v, tz=timezone.utc) for v in val]
+    elif val_attr == "unix_timestamp_val":
+        val = datetime.fromtimestamp(val, tz=timezone.utc)
+
     return val
 
 
