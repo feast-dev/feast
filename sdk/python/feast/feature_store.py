@@ -69,7 +69,6 @@ from feast.online_response import OnlineResponse
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
-    FieldStatusValue,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -1438,7 +1437,7 @@ class FeatureStore:
         provider: Provider,
         requested_features: List[str],
         table: FeatureView,
-    ) -> List[Tuple[List[Timestamp], List[FieldStatusValue], List[Value]]]:
+    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """ Read and process data from the OnlineStore for a given FeatureView.
 
             This method guarentees that the order of the data in each element of the
@@ -1492,7 +1491,9 @@ class FeatureStore:
     @staticmethod
     def _populate_response_from_feature_data(
         feature_data: Iterable[
-            Tuple[Iterable[Timestamp], Iterable[FieldStatusValue], Iterable[Value]]
+            Tuple[
+                Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
+            ]
         ],
         indexes: Iterable[Iterable[int]],
         online_features_response: GetOnlineFeaturesResponse,
