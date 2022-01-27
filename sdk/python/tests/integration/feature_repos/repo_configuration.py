@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import yaml
-from pydantic import StrictStr
 
 from feast import FeatureStore, FeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
