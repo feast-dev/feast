@@ -258,7 +258,7 @@ def construct_test_environment(
     worker_id: str = "worker_id",
 ) -> Environment:
 
-    _uuid = str(uuid.uuid4()).replace("-", "")[:8]
+    _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
     run_id = os.getenv("GITHUB_RUN_ID", default=None)
     run_id = f"gh_run_{run_id}_{_uuid}" if run_id else _uuid
