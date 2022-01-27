@@ -69,8 +69,9 @@ from feast.online_response import OnlineResponse
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
+    FieldStatusValue,
     GetOnlineFeaturesResponse,
-    FieldStatusValue)
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.registry import Registry
@@ -1491,9 +1492,7 @@ class FeatureStore:
     @staticmethod
     def _populate_response_from_feature_data(
         feature_data: Iterable[
-            Tuple[
-                Iterable[Timestamp], Iterable[FieldStatusValue], Iterable[Value]
-            ]
+            Tuple[Iterable[Timestamp], Iterable[FieldStatusValue], Iterable[Value]]
         ],
         indexes: Iterable[Iterable[int]],
         online_features_response: GetOnlineFeaturesResponse,
