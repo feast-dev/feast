@@ -11,13 +11,13 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import yaml
+from pydantic import StrictStr
 
 from feast import FeatureStore, FeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
 from feast.repo_config import RegistryConfig, RepoConfig
-from pydantic import StrictStr
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
