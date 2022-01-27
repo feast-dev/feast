@@ -5,7 +5,6 @@ from great_expectations.dataset import PandasDataset
 
 from feast.dqm.errors import ValidationFailed
 from feast.dqm.profilers.ge_profiler import ge_profiler
-from feast.saved_dataset import SavedDatasetOptions
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -72,13 +71,15 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
         columns=["order_id", "origin_id", "destination_id"]
     )
 
-    store.get_historical_features(
+    reference_job = store.get_historical_features(
         entity_df=entity_df,
         features=_features,
-        save_as=SavedDatasetOptions(
-            name="my_training_dataset",
-            storage=environment.data_source_creator.create_saved_dataset_destination(),
-        ),
+    )
+
+    store.create_saved_dataset(
+        from_=reference_job,
+        name="my_training_dataset",
+        storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
     job = store.get_historical_features(
@@ -107,13 +108,15 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         columns=["order_id", "origin_id", "destination_id"]
     )
 
-    store.get_historical_features(
+    reference_job = store.get_historical_features(
         entity_df=entity_df,
         features=_features,
-        save_as=SavedDatasetOptions(
-            name="my_other_dataset",
-            storage=environment.data_source_creator.create_saved_dataset_destination(),
-        ),
+    )
+
+    store.create_saved_dataset(
+        from_=reference_job,
+        name="my_other_dataset",
+        storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
     job = store.get_historical_features(
