@@ -399,6 +399,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
                 "order:order_is_success",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
+                "field_mapping:feature_name"
             ],
             full_feature_names=full_feature_names,
         )
