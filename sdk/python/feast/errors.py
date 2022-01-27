@@ -243,6 +243,13 @@ class RedshiftQueryError(Exception):
         super().__init__(f"Redshift SQL Query failed to finish. Details: {details}")
 
 
+class RedshiftTableNameTooLong(Exception):
+    def __init__(self, table_name: str):
+        super().__init__(
+            f"Redshift table names have a maximum length of 127 characters, but the table name {table_name} has length {len(table_name)} characters."
+        )
+
+
 class EntityTimestampInferenceException(Exception):
     def __init__(self, expected_column_name: str):
         super().__init__(
