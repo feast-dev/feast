@@ -91,7 +91,7 @@ class RedshiftOfflineStore(OfflineStore):
             timestamp_columns.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamp_columns) + " DESC"
         field_string = ", ".join(
-            set(join_key_columns + feature_name_columns + timestamp_columns)
+            join_key_columns + feature_name_columns + timestamp_columns
         )
 
         redshift_client = aws_utils.get_redshift_data_client(

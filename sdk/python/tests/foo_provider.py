@@ -65,7 +65,6 @@ class FooProvider(Provider):
         registry: Registry,
         project: str,
         full_feature_names: bool = False,
-        save_as: Optional[SavedDataset] = None,
     ) -> RetrievalJob:
         pass
 

@@ -101,7 +101,7 @@ class BigQueryOfflineStore(OfflineStore):
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(
-            set(join_key_columns + feature_name_columns + timestamps)
+            join_key_columns + feature_name_columns + timestamps
         )
 
         client = _get_bigquery_client(
