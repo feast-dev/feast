@@ -558,7 +558,7 @@ WITH entity_dataframe AS (
             ,CAST({{entity_df_event_timestamp_col}} AS STRING) AS {{featureview.name}}__entity_row_unique_id
             {% endif %}
         {% endfor %}
-    FROM {{ left_table_query_string }}
+    FROM `{{ left_table_query_string }}`
 ),
 
 {% for featureview in featureviews %}
