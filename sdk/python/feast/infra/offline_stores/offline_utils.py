@@ -85,7 +85,7 @@ class FeatureViewQueryContext:
     ttl: int
     entities: List[str]
     features: List[str]  # feature reference format
-    field_mapping: Optional[Dict[str, str]]
+    field_mapping: Dict[str, str]
     event_timestamp_column: str
     created_timestamp_column: Optional[str]
     table_subquery: str
