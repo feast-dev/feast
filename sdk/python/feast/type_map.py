@@ -271,15 +271,15 @@ def _python_datetime_to_int_timestamp(
         return cast(Sequence[np.int_], values.astype("datetime64[s]").astype(np.int_))
 
     int_timestamps = []
-    for sub_value in values:
-        if isinstance(sub_value, datetime):
-            int_timestamps.append(int(sub_value.timestamp()))
-        elif isinstance(sub_value, Timestamp):
-            int_timestamps.append(int(sub_value.ToSeconds()))
-        elif isinstance(sub_value, np.datetime64):
-            int_timestamps.append(sub_value.astype("datetime64[s]").astype(np.int_))
+    for value in values:
+        if isinstance(value, datetime):
+            int_timestamps.append(int(value.timestamp()))
+        elif isinstance(value, Timestamp):
+            int_timestamps.append(int(value.ToSeconds()))
+        elif isinstance(value, np.datetime64):
+            int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))
         else:
-            int_timestamps.append(int(sub_value))
+            int_timestamps.append(int(value))
     return int_timestamps
 
 
