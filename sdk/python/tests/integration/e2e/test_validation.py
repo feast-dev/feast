@@ -72,8 +72,7 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
     )
 
     reference_job = store.get_historical_features(
-        entity_df=entity_df,
-        features=_features,
+        entity_df=entity_df, features=_features,
     )
 
     store.create_saved_dataset(
@@ -109,8 +108,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
     )
 
     reference_job = store.get_historical_features(
-        entity_df=entity_df,
-        features=_features,
+        entity_df=entity_df, features=_features,
     )
 
     store.create_saved_dataset(

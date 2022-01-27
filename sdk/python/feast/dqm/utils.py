@@ -53,10 +53,10 @@ class RetrievalJobWithValidation(RetrievalJob):
         return self._retrieval_job.on_demand_feature_views
 
     def _to_df_internal(self) -> pd.DataFrame:
-        raise NotImplemented
+        raise NotImplementedError
 
     def _to_arrow_internal(self) -> pyarrow.Table:
-        raise NotImplemented
+        raise NotImplementedError
 
     def persist(self, storage: SavedDatasetStorage) -> "RetrievalJob":
         return self._retrieval_job.persist(storage)
