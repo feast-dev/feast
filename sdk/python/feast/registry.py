@@ -32,6 +32,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
+    SavedDatasetNotFound,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -42,6 +43,7 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
+from feast.saved_dataset import SavedDataset
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -639,6 +641,80 @@ class Registry:
 
         raise EntityNotFoundException(name, project)
 
+    def apply_saved_dataset(
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True
+    ):
+        """
+        Registers a single entity with Feast
+
+        Args:
+            saved_dataset: SavedDataset that will be added / updated to registry
+            project: Feast project that this dataset belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        saved_dataset_proto = saved_dataset.to_proto()
+        saved_dataset_proto.spec.project = project
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        for idx, existing_saved_dataset_proto in enumerate(
+            self.cached_registry_proto.saved_datasets
+        ):
+            if (
+                existing_saved_dataset_proto.spec.name == saved_dataset_proto.spec.name
+                and existing_saved_dataset_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.saved_datasets[idx]
+                break
+
+        self.cached_registry_proto.saved_datasets.append(saved_dataset_proto)
+        if commit:
+            self.commit()
+
+    def get_saved_dataset(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> SavedDataset:
+        """
+        Retrieves a saved dataset.
+
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
+
+        Returns:
+            Returns either the specified SavedDataset, or raises an exception if
+            none is found
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        for saved_dataset in registry_proto.saved_datasets:
+            if (
+                saved_dataset.spec.name == name
+                and saved_dataset.spec.project == project
+            ):
+                return SavedDataset.from_proto(saved_dataset)
+        raise SavedDatasetNotFound(name, project=project)
+
+    def list_saved_datasets(
+        self, project: str, allow_cache: bool = False
+    ) -> List[SavedDataset]:
+        """
+        Retrieves a list of all saved datasets in specified project
+
+        Args:
+            project: Feast project
+            allow_cache: Whether to allow returning this dataset from a cached registry
+
+        Returns:
+            Returns the list of SavedDatasets
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        return [
+            SavedDataset.from_proto(saved_dataset)
+            for saved_dataset in registry_proto.saved_datasets
+            if saved_dataset.spec.project == project
+        ]
+
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""
         if self.cached_registry_proto:
@@ -692,6 +768,12 @@ class Registry:
         ):
             registry_dict["requestFeatureViews"].append(
                 MessageToDict(request_feature_view.to_proto())
+            )
+        for saved_dataset in sorted(
+            self.list_saved_datasets(project=project), key=lambda item: item.name
+        ):
+            registry_dict["savedDatasets"].append(
+                MessageToDict(saved_dataset.to_proto())
             )
         return registry_dict
 

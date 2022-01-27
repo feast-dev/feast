@@ -3,7 +3,7 @@ import pytest
 
 from feast import Entity, Feature, RepoConfig, ValueType
 from feast.data_source import RequestDataSource
-from feast.errors import RegistryInferenceFailure
+from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -86,7 +86,7 @@ def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1)
             )
 
 
-def test_modify_feature_views_success():
+def test_on_demand_features_type_inference():
     # Create Feature Views
     date_request = RequestDataSource(
         name="date_request", schema={"some_date": ValueType.UNIX_TIMESTAMP}
@@ -94,11 +94,46 @@ def test_modify_feature_views_success():
 
     @on_demand_feature_view(
         inputs={"date_request": date_request},
-        features=[Feature("output", ValueType.UNIX_TIMESTAMP)],
+        features=[
+            Feature("output", ValueType.UNIX_TIMESTAMP),
+            Feature("string_output", ValueType.STRING),
+        ],
     )
     def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
         data["output"] = features_df["some_date"]
+        data["string_output"] = features_df["some_date"].astype(pd.StringDtype())
         return data
 
     test_view.infer_features()
+
+    @on_demand_feature_view(
+        inputs={"date_request": date_request},
+        features=[
+            Feature("output", ValueType.UNIX_TIMESTAMP),
+            Feature("object_output", ValueType.STRING),
+        ],
+    )
+    def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["output"] = features_df["some_date"]
+        data["object_output"] = features_df["some_date"].astype(str)
+        return data
+
+    with pytest.raises(ValueError, match="Value with native type object"):
+        invalid_test_view.infer_features()
+
+    @on_demand_feature_view(
+        inputs={"date_request": date_request},
+        features=[
+            Feature("output", ValueType.UNIX_TIMESTAMP),
+            Feature("missing", ValueType.STRING),
+        ],
+    )
+    def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["output"] = features_df["some_date"]
+        return data
+
+    with pytest.raises(SpecifiedFeaturesNotPresentError):
+        test_view_with_missing_feature.infer_features()

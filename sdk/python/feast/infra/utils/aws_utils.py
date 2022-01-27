@@ -15,7 +15,11 @@ from tenacity import (
     wait_exponential,
 )
 
-from feast.errors import RedshiftCredentialsError, RedshiftQueryError
+from feast.errors import (
+    RedshiftCredentialsError,
+    RedshiftQueryError,
+    RedshiftTableNameTooLong,
+)
 from feast.type_map import pa_to_redshift_value_type
 
 try:
@@ -26,6 +30,9 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("aws", str(e))
+
+
+REDSHIFT_TABLE_NAME_MAX_LENGTH = 127
 
 
 def get_redshift_data_client(aws_region: str):
@@ -184,7 +191,7 @@ def upload_df_to_redshift(
     iam_role: str,
     table_name: str,
     df: pd.DataFrame,
-) -> None:
+):
     """Uploads a Pandas DataFrame to Redshift as a new table.
 
     The caller is responsible for deleting the table when no longer necessary.
@@ -208,9 +215,12 @@ def upload_df_to_redshift(
         table_name: The name of the new Redshift table where we copy the dataframe
         df: The Pandas DataFrame to upload
 
-    Returns: None
-
+    Raises:
+        RedshiftTableNameTooLong: The specified table name is too long.
     """
+    if len(table_name) > REDSHIFT_TABLE_NAME_MAX_LENGTH:
+        raise RedshiftTableNameTooLong(table_name)
+
     bucket, key = get_bucket_and_key(s3_path)
 
     # Drop the index so that we dont have unnecessary columns

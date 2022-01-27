@@ -273,7 +273,7 @@ def construct_test_environment(
     worker_id: str = "worker_id",
 ) -> Environment:
 
-    _uuid = str(uuid.uuid4()).replace("-", "")[:8]
+    _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
     run_id = os.getenv("GITHUB_RUN_ID", default=None)
     run_id = f"gh_run_{run_id}_{_uuid}" if run_id else _uuid
@@ -300,7 +300,9 @@ def construct_test_environment(
             execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
         )
 
-        registry = f"s3://feast-integration-tests/registries/{project}/registry.db"
+        registry = (
+            f"s3://feast-integration-tests/registries/{project}/registry.db"
+        )  # type: Union[str, RegistryConfig]
     else:
         # Note: even if it's a local feature server, the repo config does not have this configured
         feature_server = None

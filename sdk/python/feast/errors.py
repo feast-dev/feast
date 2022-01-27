@@ -74,6 +74,11 @@ class S3RegistryBucketForbiddenAccess(FeastObjectNotFoundException):
         super().__init__(f"S3 bucket {bucket} for the Feast registry can't be accessed")
 
 
+class SavedDatasetNotFound(FeastObjectNotFoundException):
+    def __init__(self, name: str, project: str):
+        super().__init__(f"Saved dataset {name} does not exist in project {project}")
+
+
 class FeastProviderLoginError(Exception):
     """Error class that indicates a user has not authenticated with their provider."""
 
@@ -236,6 +241,13 @@ class RedshiftCredentialsError(Exception):
 class RedshiftQueryError(Exception):
     def __init__(self, details):
         super().__init__(f"Redshift SQL Query failed to finish. Details: {details}")
+
+
+class RedshiftTableNameTooLong(Exception):
+    def __init__(self, table_name: str):
+        super().__init__(
+            f"Redshift table names have a maximum length of 127 characters, but the table name {table_name} has length {len(table_name)} characters."
+        )
 
 
 class EntityTimestampInferenceException(Exception):

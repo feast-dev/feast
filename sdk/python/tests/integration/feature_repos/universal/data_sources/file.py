@@ -1,4 +1,5 @@
 import tempfile
+import uuid
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -10,6 +11,7 @@ from feast import FileSource
 from feast.data_format import ParquetFormat
 from feast.data_source import DataSource
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -48,6 +50,12 @@ class FileDataSourceCreator(DataSourceCreator):
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        return SavedDatasetFileStorage(
+            path=d, file_format=ParquetFormat(), s3_endpoint_override=None
         )
 
     def get_prefixed_table_name(self, suffix: str) -> str:
@@ -124,6 +132,16 @@ class S3FileDataSourceCreator(DataSourceCreator):
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
+            s3_endpoint_override=f"http://{host}:{port}",
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        port = self.minio.get_exposed_port("9000")
+        host = self.minio.get_container_host_ip()
+
+        return SavedDatasetFileStorage(
+            path=f"s3://{self.bucket}/persisted/{str(uuid.uuid4())}",
+            file_format=ParquetFormat(),
             s3_endpoint_override=f"http://{host}:{port}",
         )
 

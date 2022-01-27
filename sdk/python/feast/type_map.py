@@ -96,6 +96,7 @@ def python_type_to_feast_value_type(
     type_map = {
         "int": ValueType.INT64,
         "str": ValueType.STRING,
+        "string": ValueType.STRING,  # pandas.StringDtype
         "float": ValueType.DOUBLE,
         "bytes": ValueType.BYTES,
         "float64": ValueType.DOUBLE,
@@ -118,48 +119,50 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
-    if type_name == "ndarray" or isinstance(value, list):
-        if recurse:
+    if isinstance(value, np.ndarray) and str(value.dtype) in type_map:
+        item_type = type_map[str(value.dtype)]
+        return ValueType[item_type.name + "_LIST"]
 
-            # Convert to list type
-            list_items = pd.core.series.Series(value)
-
-            # This is the final type which we infer from the list
-            common_item_value_type = None
-            for item in list_items:
-                if isinstance(item, ProtoValue):
-                    current_item_value_type: ValueType = _proto_value_to_value_type(
-                        item
-                    )
-                else:
-                    # Get the type from the current item, only one level deep
-                    current_item_value_type = python_type_to_feast_value_type(
-                        name=name, value=item, recurse=False
-                    )
-                # Validate whether the type stays consistent
-                if (
-                    common_item_value_type
-                    and not common_item_value_type == current_item_value_type
-                ):
-                    raise ValueError(
-                        f"List value type for field {name} is inconsistent. "
-                        f"{common_item_value_type} different from "
-                        f"{current_item_value_type}."
-                    )
-                common_item_value_type = current_item_value_type
-            if common_item_value_type is None:
-                return ValueType.UNKNOWN
-            return ValueType[common_item_value_type.name + "_LIST"]
-        else:
-            assert value
+    if isinstance(value, (list, np.ndarray)):
+        # if the value's type is "ndarray" and we couldn't infer from "value.dtype"
+        # this is most probably array of "object",
+        # so we need to iterate over objects and try to infer type of each item
+        if not recurse:
             raise ValueError(
-                f"Value type for field {name} is {value.dtype.__str__()} but "
+                f"Value type for field {name} is {type(value)} but "
                 f"recursion is not allowed. Array types can only be one level "
                 f"deep."
             )
 
-    assert value
-    return type_map[value.dtype.__str__()]
+        # This is the final type which we infer from the list
+        common_item_value_type = None
+        for item in value:
+            if isinstance(item, ProtoValue):
+                current_item_value_type: ValueType = _proto_value_to_value_type(item)
+            else:
+                # Get the type from the current item, only one level deep
+                current_item_value_type = python_type_to_feast_value_type(
+                    name=name, value=item, recurse=False
+                )
+            # Validate whether the type stays consistent
+            if (
+                common_item_value_type
+                and not common_item_value_type == current_item_value_type
+            ):
+                raise ValueError(
+                    f"List value type for field {name} is inconsistent. "
+                    f"{common_item_value_type} different from "
+                    f"{current_item_value_type}."
+                )
+            common_item_value_type = current_item_value_type
+        if common_item_value_type is None:
+            return ValueType.UNKNOWN
+        return ValueType[common_item_value_type.name + "_LIST"]
+
+    raise ValueError(
+        f"Value with native type {type_name} "
+        f"cannot be converted into Feast value type"
+    )
 
 
 def python_values_to_feast_value_type(
@@ -211,7 +214,7 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.UNIX_TIMESTAMP_LIST: (
         Int64List,
         "int64_list_val",
-        [np.int64, np.int32, int],
+        [np.datetime64, np.int64, np.int32, int, datetime, Timestamp],
     ),
     ValueType.STRING_LIST: (StringList, "string_list_val", [np.str_, str]),
     ValueType.BOOL_LIST: (BoolList, "bool_list_val", [np.bool_, bool]),
@@ -271,6 +274,24 @@ def _python_value_to_proto_value(
                 )
                 raise _type_err(first_invalid, valid_types[0])
 
+            if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
+                converted_values = []
+                for value in values:
+                    converted_sub_values = []
+                    for sub_value in value:
+                        if isinstance(sub_value, datetime):
+                            converted_sub_values.append(int(sub_value.timestamp()))
+                        elif isinstance(sub_value, Timestamp):
+                            converted_sub_values.append(int(sub_value.ToSeconds()))
+                        elif isinstance(sub_value, np.datetime64):
+                            converted_sub_values.append(
+                                sub_value.astype("datetime64[s]").astype("int")
+                            )
+                        else:
+                            converted_sub_values.append(sub_value)
+                    converted_values.append(converted_sub_values)
+                values = converted_values
+
             return [
                 ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
                 if value is not None
@@ -288,6 +309,11 @@ def _python_value_to_proto_value(
             elif isinstance(sample, Timestamp):
                 return [
                     ProtoValue(int64_val=int(value.ToSeconds())) for value in values
+                ]
+            elif isinstance(sample, np.datetime64):
+                return [
+                    ProtoValue(int64_val=value.astype("datetime64[s]").astype("int"))
+                    for value in values
                 ]
             return [ProtoValue(int64_val=int(value)) for value in values]
 

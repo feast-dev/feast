@@ -34,6 +34,49 @@ def _test_config(config_text, expect_error: Optional[str]):
         return rc
 
 
+def test_nullable_online_store_aws():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: aws
+        online_store: null
+        """
+        ),
+        expect_error="__root__ -> offline_store -> cluster_id\n"
+        "  field required (type=value_error.missing)",
+    )
+
+
+def test_nullable_online_store_gcp():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: gcp
+        online_store: null
+        """
+        ),
+        expect_error=None,
+    )
+
+
+def test_nullable_online_store_local():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: local
+        online_store: null
+        """
+        ),
+        expect_error=None,
+    )
+
+
 def test_local_config():
     _test_config(
         dedent(

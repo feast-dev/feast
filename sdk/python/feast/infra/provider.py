@@ -20,6 +20,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.saved_dataset import SavedDataset
 from feast.type_map import python_values_to_proto_values
 from feast.value_type import ValueType
 
@@ -167,6 +168,21 @@ class Provider(abc.ABC):
             of event_ts for the row, and the feature data as a dict from feature names to values.
             Values are returned as Value proto message.
         """
+        ...
+
+    @abc.abstractmethod
+    def retrieve_saved_dataset(
+        self, config: RepoConfig, dataset: SavedDataset
+    ) -> RetrievalJob:
+        """
+        Read saved dataset from offline store.
+        All parameters for retrieval (like path, datetime boundaries, column names for both keys and features, etc)
+        are determined from SavedDataset object.
+
+        Returns:
+             RetrievalJob object, which is lazy wrapper for actual query performed under the hood.
+
+         """
         ...
 
     def get_feature_server_endpoint(self) -> Optional[str]:
