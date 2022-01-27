@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import yaml
@@ -17,6 +17,7 @@ from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
 from feast.repo_config import RegistryConfig, RepoConfig
+from pydantic import StrictStr
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -286,6 +287,8 @@ def construct_test_environment(
     online_store = test_repo_config.online_store
 
     repo_dir_name = tempfile.mkdtemp()
+
+    registry: Union[StrictStr, RegistryConfig]
 
     if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
