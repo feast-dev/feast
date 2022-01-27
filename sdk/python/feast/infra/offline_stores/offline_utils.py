@@ -144,7 +144,7 @@ def get_feature_view_query_context(
             name=feature_view.projection.name_to_use(),
             ttl=ttl_seconds,
             entities=join_keys,
-            features=features,
+            features=[reverse_field_mapping.get(feature, feature) for feature in features],
             event_timestamp_column=reverse_field_mapping.get(
                 event_timestamp_column, event_timestamp_column
             ),
