@@ -35,10 +35,10 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_customer_daily_profile_feature_view,
     create_driver_age_request_feature_view,
     create_driver_hourly_stats_feature_view,
+    create_field_mapping_feature_view,
     create_global_stats_feature_view,
     create_location_stats_feature_view,
     create_order_feature_view,
-    create_field_mapping_feature_view,
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
@@ -188,9 +188,7 @@ def construct_universal_data_sources(
         destination_name="field_mapping",
         event_timestamp_column="event_timestamp",
         created_timestamp_column="created",
-        field_mapping={
-            "column_name": "feature_name"
-        }
+        field_mapping={"column_name": "feature_name"},
     )
     return {
         "customer": customer_ds,
@@ -198,7 +196,7 @@ def construct_universal_data_sources(
         "location": location_ds,
         "orders": orders_ds,
         "global": global_ds,
-        "field_mapping": field_mapping_ds
+        "field_mapping": field_mapping_ds,
     }
 
 
@@ -223,7 +221,9 @@ def construct_universal_feature_views(
         "driver_age_request_fv": create_driver_age_request_feature_view(),
         "order": create_order_feature_view(data_sources["orders"]),
         "location": create_location_stats_feature_view(data_sources["location"]),
-        "field_mapping": create_field_mapping_feature_view(data_sources["field_mapping"])
+        "field_mapping": create_field_mapping_feature_view(
+            data_sources["field_mapping"]
+        ),
     }
 
 

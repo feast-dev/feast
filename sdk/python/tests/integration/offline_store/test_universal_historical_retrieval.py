@@ -105,7 +105,8 @@ def get_expected_training_df(
         global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
     )
     field_mapping_records = convert_timestamp_records_to_utc(
-        field_mapping_df.to_dict("records"), field_mapping_fv.batch_source.event_timestamp_column
+        field_mapping_df.to_dict("records"),
+        field_mapping_fv.batch_source.event_timestamp_column,
     )
     entity_rows = convert_timestamp_records_to_utc(
         entity_df.to_dict("records"), event_timestamp
@@ -212,7 +213,9 @@ def get_expected_training_df(
         # get field_mapping_record by column name, but label by feature name
         entity_row.update(
             {
-                (f"field_mapping__{feature}" if full_feature_names else feature): field_mapping_record.get(column, None)
+                (
+                    f"field_mapping__{feature}" if full_feature_names else feature
+                ): field_mapping_record.get(column, None)
                 for (column, feature) in field_mapping_fv.input.field_mapping.items()
             }
         )
@@ -277,7 +280,15 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    customer_df, driver_df, location_df, orders_df, global_df, entity_df, field_mapping_df = (
+    (
+        customer_df,
+        driver_df,
+        location_df,
+        orders_df,
+        global_df,
+        entity_df,
+        field_mapping_df,
+    ) = (
         datasets["customer"],
         datasets["driver"],
         datasets["location"],
@@ -399,7 +410,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
                 "order:order_is_success",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
-                "field_mapping:feature_name"
+                "field_mapping:feature_name",
             ],
             full_feature_names=full_feature_names,
         )
