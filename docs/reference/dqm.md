@@ -7,19 +7,19 @@ Validation could be applied during:
 * [planned] Reading features from an online store
 
 Its goal is to address several complex data problems, namely:
-* Data Consistency - new training dataset could be significantly different from previous, which will require change in model architecture.
-* Issues/bugs in upstream pipeline - bug in upstream could case invalid values to overwrite existing valid values in an online store.
-* Training/serving skew - distribution shift could significantly decrease performance of the model.
+* Data Consistency - new training dataset could be significantly different from the previous, which might require a change in model architecture.
+* Issues/bugs in the upstream pipeline - bug in upstream could cause invalid values to overwrite existing valid values in an online store.
+* Training/serving skew - distribution shift could significantly decrease the performance of the model.
 
-> By “monitoring data quality” we understand verifying that the characteristics of tested dataset (we call it dataset's profile) are "equivalent" to the characteristics of reference dataset.
-> Eg, data currently passed to the model hasn’t changed significantly since the model was trained and expectations implicitly made by ML algorithm during training are still met.
+> By “monitoring data quality” we understand verifying that the characteristics of the tested dataset (we call this characteristics dataset's profile) are "equivalent" to the characteristics of the reference dataset.
+> Eg, data currently passed to the model hasn’t changed significantly since the model was trained, and expectations implicitly made by ML algorithm during training are still met.
 > How exactly profiles equivalency should be measured is up to the user. 
 
 ### Overview
 
-Validation process consists of the next steps:
+The validation process consists of the next steps:
 1. User prepares reference dataset (currently only [saved dataset](../getting-started/concepts/dataset.md) from historical retrieval is supported).
-2. User defines profiler function, which should produce profile by given dataset.
+2. User defines profiler function, which should produce profile by given dataset (currently only profilers based on [Great Expectations](https://docs.greatexpectations.io) are allowed).
 3. Validation of tested dataset is performed with reference dataset and profiler provided as parameters.
 
 ### Preparations
@@ -30,7 +30,7 @@ pip install 'feast[dqm]'
 
 ### Dataset profile
 Currently, Feast supports only [great expectation's](https://greatexpectations.io/) [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite)
-as dataset's profile. Hence, user needs to define a function (profiler) that would receive a dataset and return [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
+as dataset's profiler. Hence, the user needs to define a function (profiler) that would receive a dataset and return [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
 
 Either automatic profiler or user selected expectations could be used in profiler function:
 ```python
@@ -60,10 +60,10 @@ def manual_profiler(dataset: Dataset) -> ExpectationSuite:
 
 
 ### Validating Training Dataset
-During retrieval of historical features additional parameter `validation_reference` could be passed.
-If this parameter is supplied `get_historical_features` will return `RetrievalJobWithValidation` instead of simple `RetrievalJob`.
+During retrieval of historical features, additional parameter `validation_reference` could be passed.
+If this parameter is supplied, `get_historical_features` will return instance `RetrievalJobWithValidation` instead of isntance of `RetrievalJob`.
 Such job will run validation once dataset is materialized (when `.to_df()` or `.to_arrow()` called). In case if validation successful materialized dataset is returned (no change to previous/regular behavior).
-Otherwise `feast.dqm.errors.ValidationFailed` exception would be raised. It will consist of all details for expectations that didn't pass.
+Otherwise, `feast.dqm.errors.ValidationFailed` exception would be raised. It will consist of all details for expectations that didn't pass.
 
 ```python
 from feast import FeatureStore
