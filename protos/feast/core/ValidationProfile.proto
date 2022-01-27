@@ -19,10 +19,11 @@ syntax = "proto3";
 
 package feast.core;
 option java_package = "feast.proto.core";
-option java_outer_classname = "SavedDatasetProto";
+option java_outer_classname = "ValidationProfile";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 import "google/protobuf/timestamp.proto";
+import "feast/core/SavedDataset.proto";
 
 message GEValidationProfiler {
   message UserDefinedProfiler {
@@ -36,4 +37,12 @@ message GEValidationProfiler {
 message GEValidationProfile {
   // JSON-serialized ExpectationSuite object
   bytes expectation_suite = 1;
+}
+
+message ValidationReference {
+  SavedDataset dataset = 1;
+
+  oneof profiler {
+    GEValidationProfiler ge_profiler = 2;
+  }
 }
