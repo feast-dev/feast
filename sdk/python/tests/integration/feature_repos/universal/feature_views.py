@@ -217,3 +217,13 @@ def create_location_stats_feature_view(source, infer_features: bool = False):
         ttl=timedelta(days=2),
     )
     return location_stats_feature_view
+
+
+def create_field_mapping_feature_view(source):
+    return FeatureView(
+        name="field_mapping",
+        entities=[],
+        features=[Feature(name="feature_name", dtype=ValueType.INT32)],
+        batch_source=source,
+        ttl=timedelta(days=2),
+    )
