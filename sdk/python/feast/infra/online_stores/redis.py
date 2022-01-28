@@ -72,11 +72,11 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
 
-    def delete_table_values(self, config: RepoConfig, table: FeatureView):
+    def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
         deleted_count = 0
         pipeline = client.pipeline()
-        prefix = _redis_key_prefix(table.entities)
+        prefix = _redis_key_prefix(join_keys)
 
         for _k in client.scan_iter(
             b"".join([prefix, b"*", config.project.encode("utf8")])
@@ -85,7 +85,7 @@ class RedisOnlineStore(OnlineStore):
             deleted_count += 1
         pipeline.execute()
 
-        logger.debug(f"Deleted {deleted_count} keys for {table.name}")
+        logger.debug(f"Deleted {deleted_count} rows for entity {', '.join(join_keys)}")
 
     @log_exceptions_and_usage(online_store="redis")
     def update(
@@ -98,10 +98,16 @@ class RedisOnlineStore(OnlineStore):
         partial: bool,
     ):
         """
-        We delete the keys in redis for tables/views being removed.
+        Look for join_keys (list of entities) that are not in use anymore
+        (usually this happens when the last feature view that was using specific compound key is deleted)
+        and remove all features attached to this "join_keys".
         """
-        for table in tables_to_delete:
-            self.delete_table_values(config, table)
+        join_keys_to_keep = set(tuple(table.entities) for table in tables_to_keep)
+
+        join_keys_to_delete = set(tuple(table.entities) for table in tables_to_delete)
+
+        for join_keys in join_keys_to_delete - join_keys_to_keep:
+            self.delete_entity_values(config, list(join_keys))
 
     def teardown(
         self,
@@ -112,8 +118,10 @@ class RedisOnlineStore(OnlineStore):
         """
         We delete the keys in redis for tables/views being removed.
         """
-        for table in tables:
-            self.delete_table_values(config, table)
+        join_keys_to_delete = set(tuple(table.entities) for table in tables)
+
+        for join_keys in join_keys_to_delete:
+            self.delete_entity_values(config, list(join_keys))
 
     @staticmethod
     def _parse_connection_string(connection_string: str):
