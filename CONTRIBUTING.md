@@ -50,7 +50,7 @@ Setting up your development environment for Feast Python SDK / CLI:
 3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
 ```sh
 # create & activate a virtual environment
-python -v venv venv/
+python -m venv venv/
 source venv/bin/activate
 ```
 
