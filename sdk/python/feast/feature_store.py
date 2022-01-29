@@ -40,7 +40,6 @@ from tqdm import tqdm
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
-from feast.diff.property_diff import TransitionType
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.entity import Entity
 from feast.errors import (
@@ -75,7 +74,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import FeastObjectType, Registry
+from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
