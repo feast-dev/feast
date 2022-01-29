@@ -66,10 +66,6 @@ def test_usage_on(dummy_exporter, enabling_toggle):
 
         test_feature_store.apply([entity])
 
-        print(dummy_exporter)
-        print(dummy_exporter[0])
-        print(dummy_exporter[1])
-        print(dummy_exporter[2])
         assert len(dummy_exporter) == 3
         assert {
             "entrypoint": "feast.infra.local.LocalRegistryStore.get_registry_proto"
