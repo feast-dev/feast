@@ -234,7 +234,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
         "float": float,
         "string": str,
         "bool": bool,
-        "datetime": int,
+        "datetime": datetime,
     }
     expected_dtype = feature_list_dtype_to_expected_online_response_value_type[
         config.feature_dtype
