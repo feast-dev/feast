@@ -125,6 +125,7 @@ class FeatureStore:
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(registry_config, repo_path=self.repo_path)
+        self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
 
     @log_exceptions
