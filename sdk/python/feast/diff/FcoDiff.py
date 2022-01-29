@@ -57,11 +57,19 @@ class RegistryDiff:
         for fco_diff in self.fco_diffs:
             if fco_diff.name == DUMMY_ENTITY_NAME:
                 continue
+            if fco_diff.transition_type == TransitionType.UNCHANGED:
+                continue
             action, color = message_action_map[fco_diff.transition_type]
             log_string += f"{action} {fco_diff.fco_type.value} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}\n"
             if fco_diff.transition_type == TransitionType.UPDATE:
                 for _p in fco_diff.fco_property_diffs:
                     log_string += f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}\n"
+
+        log_string = (
+            f"{Style.BRIGHT + Fore.LIGHTBLUE_EX}No changes to registry"
+            if not log_string
+            else log_string
+        )
 
         return log_string
 
