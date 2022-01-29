@@ -12,7 +12,7 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast.diff.FcoDiff import extract_objects_for_keep_delete_update_add
+from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore

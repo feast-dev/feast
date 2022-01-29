@@ -1,4 +1,4 @@
-from feast.diff.FcoDiff import (
+from feast.diff.registry_diff import (
     diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
     tag_proto_objects_for_keep_delete_add,
@@ -114,12 +114,12 @@ def test_diff_registry_objects_feature_views(simple_dataset_1):
             tags={"when": "after"},
         )
 
-        fco_diffs = diff_registry_objects(pre_changed, pre_changed, "feature view")
-        assert len(fco_diffs.fco_property_diffs) == 0
+        feast_object_diffs = diff_registry_objects(pre_changed, pre_changed, "feature view")
+        assert len(feast_object_diffs.feast_object_property_diffs) == 0
 
-        fco_diffs = diff_registry_objects(pre_changed, post_changed, "feature view")
-        assert len(fco_diffs.fco_property_diffs) == 1
+        feast_object_diffs = diff_registry_objects(pre_changed, post_changed, "feature view")
+        assert len(feast_object_diffs.feast_object_property_diffs) == 1
 
-        assert fco_diffs.fco_property_diffs[0].property_name == "tags"
-        assert fco_diffs.fco_property_diffs[0].val_existing == {"when": "before"}
-        assert fco_diffs.fco_property_diffs[0].val_declared == {"when": "after"}
+        assert feast_object_diffs.feast_object_property_diffs[0].property_name == "tags"
+        assert feast_object_diffs.feast_object_property_diffs[0].val_existing == {"when": "before"}
+        assert feast_object_diffs.feast_object_property_diffs[0].val_declared == {"when": "after"}

@@ -20,28 +20,28 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
 
-Fco = TypeVar("Fco", Entity, BaseFeatureView, FeatureService)
+FeastObject = TypeVar("FeastObject", Entity, BaseFeatureView, FeatureService)
 
 
 @dataclass
-class FcoDiff(Generic[Fco]):
+class FeastObjectDiff(Generic[FeastObject]):
     name: str
-    fco_type: FeastObjectType
-    current_fco: Fco
-    new_fco: Fco
-    fco_property_diffs: List[PropertyDiff]
+    feast_object_type: FeastObjectType
+    current_feast_object: FeastObject
+    new_feast_object: FeastObject
+    feast_object_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
 
 @dataclass
 class RegistryDiff:
-    fco_diffs: List[FcoDiff]
+    feast_object_diffs: List[FeastObjectDiff]
 
     def __init__(self):
-        self.fco_diffs = []
+        self.feast_object_diffs = []
 
-    def add_fco_diff(self, fco_diff: FcoDiff):
-        self.fco_diffs.append(fco_diff)
+    def add_feast_object_diff(self, feast_object_diff: FeastObjectDiff):
+        self.feast_object_diffs.append(feast_object_diff)
 
     def to_string(self):
         from colorama import Fore, Style
@@ -54,15 +54,15 @@ class RegistryDiff:
             TransitionType.UNCHANGED: ("Unchanged", Fore.LIGHTBLUE_EX),
             TransitionType.UPDATE: ("Updated", Fore.YELLOW),
         }
-        for fco_diff in self.fco_diffs:
-            if fco_diff.name == DUMMY_ENTITY_NAME:
+        for feast_object_diff in self.feast_object_diffs:
+            if feast_object_diff.name == DUMMY_ENTITY_NAME:
                 continue
-            if fco_diff.transition_type == TransitionType.UNCHANGED:
+            if feast_object_diff.transition_type == TransitionType.UNCHANGED:
                 continue
-            action, color = message_action_map[fco_diff.transition_type]
-            log_string += f"{action} {fco_diff.fco_type.value} {Style.BRIGHT + color}{fco_diff.name}{Style.RESET_ALL}\n"
-            if fco_diff.transition_type == TransitionType.UPDATE:
-                for _p in fco_diff.fco_property_diffs:
+            action, color = message_action_map[feast_object_diff.transition_type]
+            log_string += f"{action} {feast_object_diff.feast_object_type.value} {Style.BRIGHT + color}{feast_object_diff.name}{Style.RESET_ALL}\n"
+            if feast_object_diff.transition_type == TransitionType.UPDATE:
+                for _p in feast_object_diff.feast_object_property_diffs:
                     log_string += f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}\n"
 
         log_string = (
@@ -75,8 +75,8 @@ class RegistryDiff:
 
 
 def tag_objects_for_keep_delete_update_add(
-    existing_objs: Iterable[Fco], desired_objs: Iterable[Fco]
-) -> Tuple[Set[Fco], Set[Fco], Set[Fco], Set[Fco]]:
+    existing_objs: Iterable[FeastObject], desired_objs: Iterable[FeastObject]
+) -> Tuple[Set[FeastObject], Set[FeastObject], Set[FeastObject], Set[FeastObject]]:
     existing_obj_names = {e.name for e in existing_objs}
     desired_obj_names = {e.name for e in desired_objs}
 
@@ -88,8 +88,8 @@ def tag_objects_for_keep_delete_update_add(
     return objs_to_keep, objs_to_delete, objs_to_update, objs_to_add
 
 
-FcoProto = TypeVar(
-    "FcoProto",
+FeastObjectProto = TypeVar(
+    "FeastObjectProto",
     EntityProto,
     FeatureViewProto,
     FeatureServiceProto,
@@ -99,8 +99,8 @@ FcoProto = TypeVar(
 
 
 def tag_proto_objects_for_keep_delete_add(
-    existing_objs: Iterable[FcoProto], desired_objs: Iterable[FcoProto]
-) -> Tuple[Iterable[FcoProto], Iterable[FcoProto], Iterable[FcoProto]]:
+    existing_objs: Iterable[FeastObjectProto], desired_objs: Iterable[FeastObjectProto]
+) -> Tuple[Iterable[FeastObjectProto], Iterable[FeastObjectProto], Iterable[FeastObjectProto]]:
     existing_obj_names = {e.spec.name for e in existing_objs}
     desired_obj_names = {e.spec.name for e in desired_objs}
 
@@ -115,8 +115,8 @@ FIELDS_TO_IGNORE = {"project"}
 
 
 def diff_registry_objects(
-    current: Fco, new: Fco, object_type: FeastObjectType
-) -> FcoDiff:
+    current: FeastObject, new: FeastObject, object_type: FeastObjectType
+) -> FeastObjectDiff:
     current_proto = current.to_proto()
     new_proto = new.to_proto()
     assert current_proto.DESCRIPTOR.full_name == new_proto.DESCRIPTOR.full_name
@@ -137,12 +137,12 @@ def diff_registry_objects(
                         getattr(new_proto.spec, _field.name),
                     )
                 )
-    return FcoDiff(
+    return FeastObjectDiff(
         name=new_proto.spec.name,
-        fco_type=object_type,
-        current_fco=current,
-        new_fco=new,
-        fco_property_diffs=property_diffs,
+        feast_object_type=object_type,
+        current_feast_object=current,
+        new_feast_object=new,
+        feast_object_property_diffs=property_diffs,
         transition_type=transition,
     )
 
@@ -150,10 +150,10 @@ def diff_registry_objects(
 def extract_objects_for_keep_delete_update_add(
     registry: Registry, current_project: str, desired_repo_contents: RepoContents,
 ) -> Tuple[
-    Dict[FeastObjectType, Set[Fco]],
-    Dict[FeastObjectType, Set[Fco]],
-    Dict[FeastObjectType, Set[Fco]],
-    Dict[FeastObjectType, Set[Fco]],
+    Dict[FeastObjectType, Set[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
 ]:
     """
     Returns the objects in the registry that must be modified to achieve the desired repo state.
@@ -223,30 +223,30 @@ def diff_between(
         objects_to_add = objs_to_add[object_type]
 
         for e in objects_to_add:
-            diff.add_fco_diff(
-                FcoDiff(
+            diff.add_feast_object_diff(
+                FeastObjectDiff(
                     name=e.name,
-                    fco_type=object_type,
-                    current_fco=None,
-                    new_fco=e,
-                    fco_property_diffs=[],
+                    feast_object_type=object_type,
+                    current_feast_object=None,
+                    new_feast_object=e,
+                    feast_object_property_diffs=[],
                     transition_type=TransitionType.CREATE,
                 )
             )
         for e in objects_to_delete:
-            diff.add_fco_diff(
-                FcoDiff(
+            diff.add_feast_object_diff(
+                FeastObjectDiff(
                     name=e.name,
-                    fco_type=object_type,
-                    current_fco=e,
-                    new_fco=None,
-                    fco_property_diffs=[],
+                    feast_object_type=object_type,
+                    current_feast_object=e,
+                    new_feast_object=None,
+                    feast_object_property_diffs=[],
                     transition_type=TransitionType.DELETE,
                 )
             )
         for e in objects_to_update:
             current_obj = [_e for _e in objects_to_keep if _e.name == e.name][0]
-            diff.add_fco_diff(diff_registry_objects(current_obj, e, object_type))
+            diff.add_feast_object_diff(diff_registry_objects(current_obj, e, object_type))
 
     return diff
 
@@ -263,39 +263,39 @@ def apply_diff_to_registry(
         project: Feast project to be updated.
         commit: Whether the change should be persisted immediately
     """
-    for fco_diff in registry_diff.fco_diffs:
-        # There is no need to delete the FCO on an update, since applying the new FCO
-        # will automatically delete the existing FCO.
-        if fco_diff.transition_type == TransitionType.DELETE:
-            if fco_diff.fco_type == FeastObjectType.ENTITY:
-                registry.delete_entity(fco_diff.current_fco.name, project, commit=False)
-            elif fco_diff.fco_type == FeastObjectType.FEATURE_SERVICE:
+    for feast_object_diff in registry_diff.feast_object_diffs:
+        # There is no need to delete the object on an update, since applying the new object
+        # will automatically delete the existing object.
+        if feast_object_diff.transition_type == TransitionType.DELETE:
+            if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
+                registry.delete_entity(feast_object_diff.current_feast_object.name, project, commit=False)
+            elif feast_object_diff.feast_object_type == FeastObjectType.FEATURE_SERVICE:
                 registry.delete_feature_service(
-                    fco_diff.current_fco.name, project, commit=False
+                    feast_object_diff.current_feast_object.name, project, commit=False
                 )
-            elif fco_diff.fco_type in [
+            elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
                 registry.delete_feature_view(
-                    fco_diff.current_fco.name, project, commit=False,
+                    feast_object_diff.current_feast_object.name, project, commit=False,
                 )
 
-        if fco_diff.transition_type in [
+        if feast_object_diff.transition_type in [
             TransitionType.CREATE,
             TransitionType.UPDATE,
         ]:
-            if fco_diff.fco_type == FeastObjectType.ENTITY:
-                registry.apply_entity(fco_diff.new_fco, project, commit=False)
-            elif fco_diff.fco_type == FeastObjectType.FEATURE_SERVICE:
-                registry.apply_feature_service(fco_diff.new_fco, project, commit=False)
-            elif fco_diff.fco_type in [
+            if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
+                registry.apply_entity(feast_object_diff.new_feast_object, project, commit=False)
+            elif feast_object_diff.feast_object_type == FeastObjectType.FEATURE_SERVICE:
+                registry.apply_feature_service(feast_object_diff.new_feast_object, project, commit=False)
+            elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
-                registry.apply_feature_view(fco_diff.new_fco, project, commit=False)
+                registry.apply_feature_view(feast_object_diff.new_feast_object, project, commit=False)
 
     if commit:
         registry.commit()

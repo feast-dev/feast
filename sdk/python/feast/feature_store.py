@@ -39,9 +39,9 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.diff.FcoDiff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.property_diff import TransitionType
+from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
