@@ -13,7 +13,12 @@ def update_entities_with_inferred_types_from_feature_views(
     entities: List[Entity], feature_views: List[FeatureView], config: RepoConfig
 ) -> None:
     """
-    Infer entity value type by examining schema of feature view batch sources
+    Infers the types of the entities by examining the schemas of feature view batch sources.
+
+    Args:
+        entities: The entities to be updated.
+        feature_views: A list containing feature views associated with the entities.
+        config: The config for the current feature store.
     """
     incomplete_entities = {
         entity.name: entity
@@ -127,6 +132,11 @@ def update_feature_views_with_inferred_features(
     Infers the set of features associated to each FeatureView and updates the FeatureView with those features.
     Inference occurs through considering each column of the underlying data source as a feature except columns that are
     associated with the data source's timestamp columns and the FeatureView's entity columns.
+
+    Args:
+        fvs: The feature views to be updated.
+        entities: A list containing entities associated with the feature views.
+        config: The config for the current feature store.
     """
     entity_name_to_join_key_map = {entity.name: entity.join_key for entity in entities}
 

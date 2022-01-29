@@ -429,8 +429,10 @@ class FeatureStore:
             [view.batch_source for view in views_to_update], self.config
         )
 
+        # New feature views may reference previously applied entities.
+        entities = self._list_entities()
         update_feature_views_with_inferred_features(
-            views_to_update, entities_to_update, self.config
+            views_to_update, entities + entities_to_update, self.config
         )
 
         for odfv in odfvs_to_update:
@@ -476,10 +478,26 @@ class FeatureStore:
             ... )
             >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
         """
+        # Validate and run inference on all the objects to be registered.
+        self._validate_all_feature_views(
+            list(desired_repo_contents.feature_views),
+            list(desired_repo_contents.on_demand_feature_views),
+            list(desired_repo_contents.request_feature_views),
+        )
+        self._make_inferences(
+            list(desired_repo_contents.entities),
+            list(desired_repo_contents.feature_views),
+            list(desired_repo_contents.on_demand_feature_views),
+        )
+
+        # Compute the desired difference between the current objects in the registry and
+        # the desired repo state.
         registry_diff = diff_between(
             self._registry, self.project, desired_repo_contents
         )
 
+        # Compute the desired difference between the current infra, as stored in the registry,
+        # and the desired infra.
         self._registry.refresh()
         current_infra_proto = (
             self._registry.cached_registry_proto.infra.__deepcopy__()
@@ -504,43 +522,6 @@ class FeatureStore:
             infra_diff: The diff between the current infra and the desired infra.
             new_infra: The desired infra.
         """
-        entities_to_update = [
-            fco_diff.new_fco
-            for fco_diff in registry_diff.fco_diffs
-            if fco_diff.fco_type == FeastObjectType.ENTITY
-            and fco_diff.transition_type
-            in [TransitionType.CREATE, TransitionType.UPDATE]
-        ]
-        views_to_update = [
-            fco_diff.new_fco
-            for fco_diff in registry_diff.fco_diffs
-            if fco_diff.fco_type == FeastObjectType.FEATURE_VIEW
-            and fco_diff.transition_type
-            in [TransitionType.CREATE, TransitionType.UPDATE]
-        ]
-        odfvs_to_update = [
-            fco_diff.new_fco
-            for fco_diff in registry_diff.fco_diffs
-            if fco_diff.fco_type == FeastObjectType.ON_DEMAND_FEATURE_VIEW
-            and fco_diff.transition_type
-            in [TransitionType.CREATE, TransitionType.UPDATE]
-        ]
-        request_views_to_update = [
-            fco_diff.new_fco
-            for fco_diff in registry_diff.fco_diffs
-            if fco_diff.fco_type == FeastObjectType.REQUEST_FEATURE_VIEW
-            and fco_diff.transition_type
-            in [TransitionType.CREATE, TransitionType.UPDATE]
-        ]
-
-        # TODO(felixwang9817): move validation logic into _plan.
-        # Validate all feature views and make inferences.
-        self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, request_views_to_update
-        )
-        self._make_inferences(entities_to_update, views_to_update, odfvs_to_update)
-
-        # Apply infra and registry changes.
         infra_diff.update()
         apply_diff_to_registry(
             self._registry, registry_diff, self.project, commit=False
