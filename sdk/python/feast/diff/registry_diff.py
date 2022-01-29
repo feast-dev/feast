@@ -98,19 +98,6 @@ FeastObjectProto = TypeVar(
 )
 
 
-def tag_proto_objects_for_keep_delete_add(
-    existing_objs: Iterable[FeastObjectProto], desired_objs: Iterable[FeastObjectProto]
-) -> Tuple[Iterable[FeastObjectProto], Iterable[FeastObjectProto], Iterable[FeastObjectProto]]:
-    existing_obj_names = {e.spec.name for e in existing_objs}
-    desired_obj_names = {e.spec.name for e in desired_objs}
-
-    objs_to_add = [e for e in desired_objs if e.spec.name not in existing_obj_names]
-    objs_to_keep = [e for e in desired_objs if e.spec.name in existing_obj_names]
-    objs_to_delete = [e for e in existing_objs if e.spec.name not in desired_obj_names]
-
-    return objs_to_keep, objs_to_delete, objs_to_add
-
-
 FIELDS_TO_IGNORE = {"project"}
 
 
@@ -246,7 +233,9 @@ def diff_between(
             )
         for e in objects_to_update:
             current_obj = [_e for _e in objects_to_keep if _e.name == e.name][0]
-            diff.add_feast_object_diff(diff_registry_objects(current_obj, e, object_type))
+            diff.add_feast_object_diff(
+                diff_registry_objects(current_obj, e, object_type)
+            )
 
     return diff
 
@@ -268,7 +257,9 @@ def apply_diff_to_registry(
         # will automatically delete the existing object.
         if feast_object_diff.transition_type == TransitionType.DELETE:
             if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
-                registry.delete_entity(feast_object_diff.current_feast_object.name, project, commit=False)
+                registry.delete_entity(
+                    feast_object_diff.current_feast_object.name, project, commit=False
+                )
             elif feast_object_diff.feast_object_type == FeastObjectType.FEATURE_SERVICE:
                 registry.delete_feature_service(
                     feast_object_diff.current_feast_object.name, project, commit=False
@@ -287,15 +278,21 @@ def apply_diff_to_registry(
             TransitionType.UPDATE,
         ]:
             if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
-                registry.apply_entity(feast_object_diff.new_feast_object, project, commit=False)
+                registry.apply_entity(
+                    feast_object_diff.new_feast_object, project, commit=False
+                )
             elif feast_object_diff.feast_object_type == FeastObjectType.FEATURE_SERVICE:
-                registry.apply_feature_service(feast_object_diff.new_feast_object, project, commit=False)
+                registry.apply_feature_service(
+                    feast_object_diff.new_feast_object, project, commit=False
+                )
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
-                registry.apply_feature_view(feast_object_diff.new_feast_object, project, commit=False)
+                registry.apply_feature_view(
+                    feast_object_diff.new_feast_object, project, commit=False
+                )
 
     if commit:
         registry.commit()
