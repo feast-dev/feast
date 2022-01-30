@@ -33,7 +33,8 @@ public class S3RegistryFile implements RegistryFile {
     this.s3Client = s3Client;
 
     String[] split = url.replace("s3://", "").split("/");
-    this.s3Object = this.s3Client.getObject(split[0], split[1]);
+    String objectPath = String.join("/", java.util.Arrays.copyOfRange(split, 1, split.length));
+    this.s3Object = this.s3Client.getObject(split[0], objectPath);
   }
 
   @Override
