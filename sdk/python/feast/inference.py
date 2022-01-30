@@ -1,7 +1,14 @@
 import re
 from typing import List
 
-from feast import BigQuerySource, Entity, Feature, FileSource, RedshiftSource
+from feast import (
+    BigQuerySource,
+    Entity,
+    Feature,
+    FileSource,
+    RedshiftSource,
+    SnowflakeSource,
+)
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
@@ -83,6 +90,8 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"
             elif isinstance(data_source, RedshiftSource):
                 ts_column_type_regex_pattern = "TIMESTAMP[A-Z]*"
+            elif isinstance(data_source, SnowflakeSource):
+                ts_column_type_regex_pattern = "TIMESTAMP_[A-Z]*"
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
@@ -92,8 +101,10 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     """,
                 )
             #  for informing the type checker
-            assert isinstance(data_source, FileSource) or isinstance(
-                data_source, BigQuerySource
+            assert (
+                isinstance(data_source, FileSource)
+                or isinstance(data_source, BigQuerySource)
+                or isinstance(data_source, SnowflakeSource)
             )
 
             # loop through table columns to find singular match

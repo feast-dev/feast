@@ -6,6 +6,12 @@ Install Feast using [pip](https://pip.pypa.io):
 pip install feast
 ```
 
+Install Feast with Snowflake dependencies (required when using Snowflake):
+
+```
+pip install 'feast[snowflake]'
+```
+
 Install Feast with GCP dependencies (required when using BigQuery or Firestore):
 
 ```

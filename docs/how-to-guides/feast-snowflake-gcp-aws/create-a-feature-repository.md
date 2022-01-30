@@ -13,6 +13,21 @@ Creating a new Feast repository in /<...>/tiny_pika.
 ```
 {% endtab %}
 
+{% tabs %}
+{% tab title="Snowflake template" %}
+```bash
+feast init -t snowflake
+Snowflake Deployment URL: ...
+Snowflake User Name: ...
+Snowflake Password: ...
+Snowflake Role Name: ...
+Snowflake Warehouse Name: ...
+Snowflake Database Name: ...
+
+Creating a new Feast repository in /<...>/tiny_pika.
+```
+{% endtab %}
+
 {% tab title="GCP template" %}
 ```text
 feast init -t gcp
@@ -30,7 +45,7 @@ Redshift Database Name: ...
 Redshift User Name: ...
 Redshift S3 Staging Location (s3://*): ...
 Redshift IAM Role for S3 (arn:aws:iam::*:role/*): ...
-Should I upload example data to Redshift (overwriting 'feast_driver_hourly_stats' table)? (Y/n): 
+Should I upload example data to Redshift (overwriting 'feast_driver_hourly_stats' table)? (Y/n):
 
 Creating a new Feast repository in /<...>/tiny_pika.
 ```
@@ -63,4 +78,3 @@ You can now use this feature repository for development. You can try the followi
 * Run `feast apply` to apply these definitions to Feast.
 * Edit the example feature definitions in  `example.py` and run `feast apply` again to change feature definitions.
 * Initialize a git repository in the same directory and checking the feature repository into version control.
-

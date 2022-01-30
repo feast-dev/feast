@@ -7,8 +7,8 @@ One of the design goals of Feast is being able to plug seamlessly into existing 
 
 Feast provides first class support for the following data warehouses (DWH) to store feature data offline out of the box:
 * [BigQuery](https://cloud.google.com/bigquery)
-* [Snowflake](https://www.snowflake.com/) (Coming Soon)
-* [Redshift](https://aws.amazon.com/redshift/) (Coming Soon)
+* [Snowflake](https://www.snowflake.com/)
+* [Redshift](https://aws.amazon.com/redshift/)
 
 The integration between Feast and the DWH is highly configurable, but at the same time there are some non-configurable implications and assumptions that Feast imposes on table schemas and mapping between database-native types and Feast type system. This is what this document is about.
 
@@ -28,14 +28,14 @@ Feature data is stored in tables in the DWH. There is one DWH table per Feast Fe
 ## Type mappings
 
 #### Pandas types
-Here's how Feast types map to Pandas types for Feast APIs that take in or return a Pandas dataframe: 
+Here's how Feast types map to Pandas types for Feast APIs that take in or return a Pandas dataframe:
 
 | Feast Type | Pandas Type |
 |-------------|--|
 | Event Timestamp |   `datetime64[ns]` |
 | BYTES | `bytes` |
 | STRING | `str` , `category`|
-| INT32 | `int32`, `uint32` |
+| INT32 | `int16`, `uint16`, `int32`, `uint32` |
 | INT64 | `int64`, `uint64` |
 | UNIX_TIMESTAMP | `datetime64[ns]`, `datetime64[ns, tz]` |
 | DOUBLE | `float64` |
@@ -80,3 +80,17 @@ Here's how Feast types map to BigQuery types when using BigQuery for offline sto
 | BOOL\_LIST | `ARRAY<BOOL>`|
 
 Values that are not specified by the table above will cause an error on conversion.
+
+#### Snowflake Types
+Here's how Feast types map to Snowflake types when using Snowflake for offline storage
+See source here:
+https://docs.snowflake.com/en/user-guide/python-connector-pandas.html#snowflake-to-pandas-data-mapping
+
+| Feast Type | Snowflake Python Type |
+|-------------|--|
+| Event Timestamp |   `DATETIME64[NS]` |
+| UNIX_TIMESTAMP | `DATETIME64[NS]` |
+| STRING | `STR` |
+| INT32 | `INT8 / UINT8 / INT16 / UINT16 / INT32 / UINT32` |
+| INT64 | `INT64 / UINT64` |
+| DOUBLE | `FLOAT64` |

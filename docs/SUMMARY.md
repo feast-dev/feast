@@ -33,10 +33,11 @@
 * [Driver ranking](tutorials/driver-ranking-with-feast.md)
 * [Fraud detection on GCP](tutorials/fraud-detection.md)
 * [Real-time credit scoring on AWS](tutorials/real-time-credit-scoring-on-aws.md)
+* [Driver Stats using Snowflake](tutorials/driver-stats-using-snowflake.md)
 
 ## How-to Guides
 
-* [Running Feast with GCP/AWS](how-to-guides/feast-gcp-aws/README.md)
+* [Running Feast with Snowflake/GCP/AWS](how-to-guides/feast-snowflake-gcp-aws/README.md)
   * [Install Feast](how-to-guides/feast-gcp-aws/install-feast.md)
   * [Create a feature repository](how-to-guides/feast-gcp-aws/create-a-feature-repository.md)
   * [Deploy a feature store](how-to-guides/feast-gcp-aws/deploy-a-feature-store.md)
@@ -54,10 +55,12 @@
 
 * [Data sources](reference/data-sources/README.md)
   * [File](reference/data-sources/file.md)
+  * [Snowflake](reference/data-sources/snowflake.md)
   * [BigQuery](reference/data-sources/bigquery.md)
   * [Redshift](reference/data-sources/redshift.md)
 * [Offline stores](reference/offline-stores/README.md)
   * [File](reference/offline-stores/file.md)
+  * [Snowflake](reference/offline-stores/snowflake.md)
   * [BigQuery](reference/offline-stores/bigquery.md)
   * [Redshift](reference/offline-stores/redshift.md)
 * [Online stores](reference/online-stores/README.md)

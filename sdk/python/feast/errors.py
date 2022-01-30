@@ -250,6 +250,16 @@ class RedshiftTableNameTooLong(Exception):
         )
 
 
+class SnowflakeCredentialsError(Exception):
+    def __init__(self):
+        super().__init__("Snowflake Connector failed due to incorrect credentials")
+
+
+class SnowflakeQueryError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Snowflake SQL Query failed to finish. Details: {details}")
+
+
 class EntityTimestampInferenceException(Exception):
     def __init__(self, expected_column_name: str):
         super().__init__(

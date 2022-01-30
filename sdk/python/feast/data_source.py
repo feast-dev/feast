@@ -34,6 +34,7 @@ class SourceType(enum.Enum):
     BATCH_BIGQUERY = 2
     STREAM_KAFKA = 3
     STREAM_KINESIS = 4
+    BATCH_SNOWFLAKE = 8
 
 
 class KafkaOptions:
@@ -360,6 +361,12 @@ class DataSource(ABC):
             from feast.infra.offline_stores.redshift_source import RedshiftSource
 
             data_source_obj = RedshiftSource.from_proto(data_source)
+
+        elif data_source.snowflake_options.table or data_source.snowflake_options.query:
+            from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+
+            data_source_obj = SnowflakeSource.from_proto(data_source)
+
         elif (
             data_source.kafka_options.bootstrap_servers
             and data_source.kafka_options.topic
