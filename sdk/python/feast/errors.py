@@ -325,3 +325,8 @@ class FeastInvalidInfraObjectType(Exception):
 class SnowflakeIncompleteConfig(Exception):
     def __init__(self, e: KeyError):
         super().__init__(f"{e} not defined in a config file or feature_store.yaml file")
+
+
+class SnowflakeQueryUnknownError(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"Snowflake query failed: {query}")

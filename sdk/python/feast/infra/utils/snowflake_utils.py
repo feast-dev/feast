@@ -12,7 +12,7 @@ from snowflake.connector import ProgrammingError, SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 from tenacity import retry, wait_exponential, retry_if_exception_type, stop_after_attempt
 
-from sdk.python.feast.errors import SnowflakeIncompleteConfig
+from sdk.python.feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
 
 getLogger("snowflake.connector.cursor").disabled = True
 getLogger("snowflake.connector.connection").disabled = True
@@ -20,8 +20,11 @@ getLogger("snowflake.connector.network").disabled = True
 logger = getLogger(__name__)
 
 
-def execute_snowflake_statement(conn: SnowflakeConnection, query) -> Optional[Union["SnowflakeCursor", None]]:
-    return conn.cursor().execute(query)
+def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCursor:
+    cursor = conn.cursor().execute(query)
+    if cursor is None:
+        raise SnowflakeQueryUnknownError(query)
+    return cursor
 
 
 def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
@@ -191,8 +194,11 @@ def write_pandas(
         file_format_name = create_file_format(compression, compression_map, cursor)
         infer_schema_sql = f"SELECT COLUMN_NAME, TYPE FROM table(infer_schema(location=>'@\"{stage_name}\"', file_format=>'{file_format_name}'))"
         logger.debug(f"inferring schema with '{infer_schema_sql}'")
-        column_type_mapping = dict(
-            cursor.execute(infer_schema_sql, _is_internal=True).fetchall()
+        result_cursor = cursor.execute(infer_schema_sql, _is_internal=True)
+        if result_cursor is None:
+            raise SnowflakeQueryUnknownError(infer_schema_sql)
+        column_type_mapping: Dict[str, str] = dict(
+            result_cursor.fetchall()
         )
         # Infer schema can return the columns out of order depending on the chunking we do when uploading
         # so we have to iterate through the dataframe columns to make sure we create the table with its
@@ -233,8 +239,12 @@ def write_pandas(
         on_error=on_error,
     )
     logger.debug("copying into with '{}'".format(copy_into_sql))
-    copy_results = cursor.execute(copy_into_sql, _is_internal=True).fetchall()
-    cursor.close()
+    # Snowflake returns the original cursor if the query execution succeeded.
+    result_cursor = cursor.execute(copy_into_sql, _is_internal=True)
+    if result_cursor is None:
+        raise SnowflakeQueryUnknownError(copy_into_sql)
+    copy_results = result_cursor.fetchall()
+    result_cursor.close()
     return (
         all(e[1] == "LOADED" for e in copy_results),
         len(copy_results),
@@ -280,7 +290,10 @@ def create_temporary_sfc_stage(cursor: SnowflakeCursor) -> str:
         '"{stage_name}"'
     ).format(stage_name=stage_name)
     logger.debug(f"creating stage with '{create_stage_sql}'")
-    cursor.execute(create_stage_sql, _is_internal=True).fetchall()
+    result_cursor = cursor.execute(create_stage_sql, _is_internal=True)
+    if result_cursor is None:
+        raise SnowflakeQueryUnknownError(create_stage_sql)
+    result_cursor.fetchall()
     return stage_name
 
 
