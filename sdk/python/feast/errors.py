@@ -320,3 +320,8 @@ class IncompatibleRegistryStoreClass(Exception):
 class FeastInvalidInfraObjectType(Exception):
     def __init__(self):
         super().__init__("Could not identify the type of the InfraObject.")
+
+
+class SnowflakeIncompleteConfig(Exception):
+    def __init__(self, e: KeyError):
+        super().__init__(f"{e} not defined in a config file or feature_store.yaml file")

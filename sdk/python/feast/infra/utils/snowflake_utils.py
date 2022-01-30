@@ -4,11 +4,15 @@ import random
 import string
 from logging import getLogger
 from tempfile import TemporaryDirectory
-from typing import Iterator, Optional, Sequence, Tuple, TypeVar
+from typing import Iterator, Optional, Sequence, Tuple, TypeVar, Union, Dict
 
 import pandas as pd
 import snowflake.connector
 from snowflake.connector import ProgrammingError, SnowflakeConnection
+from snowflake.connector.cursor import SnowflakeCursor
+from tenacity import retry, wait_exponential, retry_if_exception_type, stop_after_attempt
+
+from sdk.python.feast.errors import SnowflakeIncompleteConfig
 
 getLogger("snowflake.connector.cursor").disabled = True
 getLogger("snowflake.connector.connection").disabled = True
@@ -16,12 +20,11 @@ getLogger("snowflake.connector.network").disabled = True
 logger = getLogger(__name__)
 
 
-def execute_snowflake_statement(conn: SnowflakeConnection, query):
+def execute_snowflake_statement(conn: SnowflakeConnection, query) -> Optional[Union["SnowflakeCursor", None]]:
     return conn.cursor().execute(query)
 
 
-def get_snowflake_conn(config, autocommit=True):
-
+def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     if config.type == "snowflake.offline":
         config_header = "connections.feast_offline_store"
 
@@ -52,7 +55,7 @@ def get_snowflake_conn(config, autocommit=True):
 
         return conn
     except KeyError as e:
-        print(f"{e} not defined in a config file or feature_store.yaml file")
+        raise SnowflakeIncompleteConfig(e)
 
 
 def write_pandas(
@@ -154,23 +157,8 @@ def write_pandas(
         )
     if chunk_size is None:
         chunk_size = len(df)
-    cursor = conn.cursor()
-    while True:
-        try:
-            stage_name = "".join(
-                random.choice(string.ascii_lowercase) for _ in range(5)
-            )
-            create_stage_sql = (
-                "create temporary stage /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
-                '"{stage_name}"'
-            ).format(stage_name=stage_name)
-            logger.debug(f"creating stage with '{create_stage_sql}'")
-            cursor.execute(create_stage_sql, _is_internal=True).fetchall()
-            break
-        except ProgrammingError as pe:
-            if pe.msg.endswith("already exists."):
-                continue
-            raise
+    cursor: SnowflakeCursor = conn.cursor()
+    stage_name = create_temporary_sfc_stage(cursor)
 
     with TemporaryDirectory() as tmp_folder:
         for i, chunk in chunk_helper(df, chunk_size):
@@ -200,25 +188,7 @@ def write_pandas(
         columns = ",".join(list(df.columns))
 
     if auto_create_table:
-        while True:
-            try:
-                file_format_name = (
-                    '"'
-                    + "".join(random.choice(string.ascii_lowercase) for _ in range(5))
-                    + '"'
-                )
-                file_format_sql = (
-                    f"CREATE FILE FORMAT {file_format_name} "
-                    f"/* Python:snowflake.connector.pandas_tools.write_pandas() */ "
-                    f"TYPE=PARQUET COMPRESSION={compression_map[compression]}"
-                )
-                logger.debug(f"creating file format with '{file_format_sql}'")
-                cursor.execute(file_format_sql, _is_internal=True)
-                break
-            except ProgrammingError as pe:
-                if pe.msg.endswith("already exists."):
-                    continue
-                raise
+        file_format_name = create_file_format(compression, compression_map, cursor)
         infer_schema_sql = f"SELECT COLUMN_NAME, TYPE FROM table(infer_schema(location=>'@\"{stage_name}\"', file_format=>'{file_format_name}'))"
         logger.debug(f"inferring schema with '{infer_schema_sql}'")
         column_type_mapping = dict(
@@ -271,6 +241,47 @@ def write_pandas(
         sum(int(e[3]) for e in copy_results),
         copy_results,
     )
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, max=4),
+    retry=retry_if_exception_type(ProgrammingError),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def create_file_format(compression: str, compression_map: Dict[str, str], cursor: SnowflakeCursor) -> str:
+    file_format_name = (
+            '"'
+            + "".join(random.choice(string.ascii_lowercase) for _ in range(5))
+            + '"'
+    )
+    file_format_sql = (
+        f"CREATE FILE FORMAT {file_format_name} "
+        f"/* Python:snowflake.connector.pandas_tools.write_pandas() */ "
+        f"TYPE=PARQUET COMPRESSION={compression_map[compression]}"
+    )
+    logger.debug(f"creating file format with '{file_format_sql}'")
+    cursor.execute(file_format_sql, _is_internal=True)
+    return file_format_name
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, max=4),
+    retry=retry_if_exception_type(ProgrammingError),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def create_temporary_sfc_stage(cursor: SnowflakeCursor) -> str:
+    stage_name = "".join(
+        random.choice(string.ascii_lowercase) for _ in range(5)
+    )
+    create_stage_sql = (
+        "create temporary stage /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
+        '"{stage_name}"'
+    ).format(stage_name=stage_name)
+    logger.debug(f"creating stage with '{create_stage_sql}'")
+    cursor.execute(create_stage_sql, _is_internal=True).fetchall()
+    return stage_name
 
 
 T = TypeVar("T", bound=Sequence)
