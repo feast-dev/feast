@@ -4,14 +4,7 @@ import random
 import string
 from logging import getLogger
 from tempfile import TemporaryDirectory
-from typing import (
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 import pandas as pd
 import snowflake.connector
