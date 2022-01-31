@@ -5,15 +5,11 @@ import string
 from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import (
-    Any,
     Dict,
     Iterator,
     List,
     Optional,
-    Sequence,
     Tuple,
-    TypeVar,
-    Union,
     cast,
 )
 
@@ -238,7 +234,6 @@ def write_pandas(
     result_cursor = cursor.execute(copy_into_sql, _is_internal=True)
     if result_cursor is None:
         raise SnowflakeQueryUnknownError(copy_into_sql)
-    copy_results = cast(List[Tuple], result_cursor.fetchall())
     result_cursor.close()
 
 
