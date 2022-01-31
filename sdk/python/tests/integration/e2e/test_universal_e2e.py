@@ -76,14 +76,26 @@ def check_offline_and_online_features(
 
         if full_feature_names:
             if expected_value:
-                assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+                assert (
+                    abs(
+                        df.to_dict(orient="list")[f"{fv.name}__value"][0]
+                        - expected_value
+                    )
+                    < 1e-6
+                )
             else:
-                assert math.isnan(df.to_dict()[f"{fv.name}__value"][0])
+                assert not df.to_dict(orient="list")[f"{fv.name}__value"] or math.isnan(
+                    df.to_dict(orient="list")[f"{fv.name}__value"][0]
+                )
         else:
             if expected_value:
-                assert abs(df.to_dict()["value"][0] - expected_value) < 1e-6
+                assert (
+                    abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
+                )
             else:
-                assert math.isnan(df.to_dict()["value"][0])
+                assert not df.to_dict(orient="list")["value"] or math.isnan(
+                    df.to_dict(orient="list")["value"][0]
+                )
 
 
 def run_offline_online_store_consistency_test(
