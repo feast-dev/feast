@@ -26,6 +26,9 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
+from tests.integration.feature_repos.universal.data_sources.snowflake import (
+    SnowflakeDataSourceCreator,
+)
 from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
@@ -469,7 +472,13 @@ def test_historical_features_with_entities_from_query(
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
-    entity_df_query = f"SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp FROM {orders_table}"
+    if (
+        environment.test_repo_config.offline_store_creator.__name__
+        == SnowflakeDataSourceCreator.__name__
+    ):
+        entity_df_query = f'''SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp" FROM "{orders_table}"'''
+    else:
+        entity_df_query = f"SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp FROM {orders_table}"
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 

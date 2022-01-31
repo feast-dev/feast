@@ -52,6 +52,6 @@ Explore the following resources to get started with Feast:
 * [Concepts](getting-started/concepts/) describes all important Feast API concepts
 * [Architecture](getting-started/architecture-and-components/) describes Feast's overall architecture.
 * [Tutorials](tutorials/tutorials-overview.md) shows full examples of using Feast in machine learning applications.
-* [Running Feast with GCP/AWS](how-to-guides/feast-gcp-aws/) provides a more in-depth guide to using Feast.
+* [Running Feast with Snowflake/GCP/AWS](how-to-guides/feast-snowflake-gcp-aws/) provides a more in-depth guide to using Feast.
 * [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
 * [Contributing](project/contributing.md) contains resources for anyone who wants to contribute to Feast.

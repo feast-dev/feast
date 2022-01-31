@@ -126,6 +126,8 @@ def python_type_to_feast_value_type(
         "uint64": ValueType.INT64,
         "int32": ValueType.INT32,
         "uint32": ValueType.INT32,
+        "int16": ValueType.INT32,
+        "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
@@ -478,6 +480,28 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
     }
 
     return type_map[redshift_type_as_str.lower()]
+
+
+def snowflake_python_type_to_feast_value_type(
+    snowflake_python_type_as_str: str,
+) -> ValueType:
+
+    type_map = {
+        "str": ValueType.STRING,
+        "float64": ValueType.DOUBLE,
+        "int64": ValueType.INT64,
+        "uint64": ValueType.INT64,
+        "int32": ValueType.INT32,
+        "uint32": ValueType.INT32,
+        "int16": ValueType.INT32,
+        "uint16": ValueType.INT32,
+        "uint8": ValueType.INT32,
+        "int8": ValueType.INT32,
+        "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
+        "object": ValueType.UNKNOWN,
+    }
+
+    return type_map[snowflake_python_type_as_str.lower()]
 
 
 def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:

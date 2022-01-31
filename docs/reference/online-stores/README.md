@@ -9,4 +9,3 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 {% page-ref page="datastore.md" %}
 
 {% page-ref page="dynamodb.md" %}
-

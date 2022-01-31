@@ -13,6 +13,7 @@ Don't see your offline store or online store of choice here? Check out our guide
 
 ### **Data Sources**
 
+* [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
 * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
 * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
 * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
@@ -20,11 +21,11 @@ Don't see your offline store or online store of choice here? Check out our guide
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
 * [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
-* [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
 * [ ] HTTP source
 
 ### Offline Stores
 
+* [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
 * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
 * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
 * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
@@ -32,7 +33,6 @@ Don't see your offline store or online store of choice here? Check out our guide
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
 * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
 * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-* [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
 * [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
 
 ### Online Stores

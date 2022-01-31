@@ -8,6 +8,7 @@ The list below contains the functionality that contributors are planning to deve
 * Want to speak to a Feast contributor? We are more than happy to jump on a call. Please schedule a time using [Calendly](https://calendly.com/d/x2ry-g5bb/meet-with-feast-team).
 
 * **Data Sources**
+  * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
   * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
   * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
@@ -18,6 +19,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
   * [ ] HTTP source
 * **Offline Stores**
+  * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
   * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
   * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)

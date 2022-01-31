@@ -29,6 +29,9 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.data_sources.snowflake import (
+    SnowflakeDataSourceCreator,
+)
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_data_source,
@@ -81,6 +84,12 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            # Snowflake configurations
+            IntegrationTestRepoConfig(
+                provider="aws",  # no list features, no feature server
+                offline_store_creator=SnowflakeDataSourceCreator,
                 online_store=REDIS_CONFIG,
             ),
         ]

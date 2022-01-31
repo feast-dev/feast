@@ -250,6 +250,16 @@ class RedshiftTableNameTooLong(Exception):
         )
 
 
+class SnowflakeCredentialsError(Exception):
+    def __init__(self):
+        super().__init__("Snowflake Connector failed due to incorrect credentials")
+
+
+class SnowflakeQueryError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Snowflake SQL Query failed to finish. Details: {details}")
+
+
 class EntityTimestampInferenceException(Exception):
     def __init__(self, expected_column_name: str):
         super().__init__(
@@ -310,3 +320,13 @@ class IncompatibleRegistryStoreClass(Exception):
 class FeastInvalidInfraObjectType(Exception):
     def __init__(self):
         super().__init__("Could not identify the type of the InfraObject.")
+
+
+class SnowflakeIncompleteConfig(Exception):
+    def __init__(self, e: KeyError):
+        super().__init__(f"{e} not defined in a config file or feature_store.yaml file")
+
+
+class SnowflakeQueryUnknownError(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"Snowflake query failed: {query}")
