@@ -8,10 +8,6 @@ from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 import pandas as pd
 import snowflake.connector
-from sdk.python.feast.errors import (
-    SnowflakeIncompleteConfig,
-    SnowflakeQueryUnknownError,
-)
 from snowflake.connector import ProgrammingError, SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 from tenacity import (
@@ -20,6 +16,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+
+from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
 
 getLogger("snowflake.connector.cursor").disabled = True
 getLogger("snowflake.connector.connection").disabled = True
