@@ -65,7 +65,9 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     except KeyError as e:
         raise SnowflakeIncompleteConfig(e)
 
-
+# TO DO -- sfc-gh-madkins
+#Remove dependency on write_pandas function by falling back to native snowflake python connector
+#Current issue is datetime[ns] types are read incorrectly in Snowflake, need to coerce to datetime[ns, UTC]
 def write_pandas(
     conn: SnowflakeConnection,
     df: pd.DataFrame,

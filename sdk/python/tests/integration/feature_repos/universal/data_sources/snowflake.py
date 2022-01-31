@@ -73,7 +73,6 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         return f"{self.project_name}_{suffix}"
 
     def teardown(self):
-
         snowflake_conn = get_snowflake_conn(self.offline_store_config)
 
         with snowflake_conn as conn:

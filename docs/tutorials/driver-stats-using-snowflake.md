@@ -52,9 +52,6 @@ The following files will automatically be created in your project folder:
 * driver_repo.py -- This is your main feature definition file
 * test.py -- This is a file to test your feature store configuration
 
-* registry.db -- (Inactive) This file contains the metadata related to your feature store operations
-* data/ -- (Inactive) This folder contains the sample data that we will use
-
 #### Inspect `feature_store.yaml`
 
 Here you will see the information that you entered. This template will look to use

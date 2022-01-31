@@ -34,7 +34,6 @@ class SourceType(enum.Enum):
     BATCH_BIGQUERY = 2
     STREAM_KAFKA = 3
     STREAM_KINESIS = 4
-    BATCH_SNOWFLAKE = 8
 
 
 class KafkaOptions:
