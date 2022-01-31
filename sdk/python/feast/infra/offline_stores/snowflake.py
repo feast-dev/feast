@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -212,7 +213,7 @@ class SnowflakeOfflineStore(OfflineStore):
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df, entity_df_event_timestamp_col, snowflake_conn, config,
+            entity_df, entity_df_event_timestamp_col, snowflake_conn,
         )
 
         @contextlib.contextmanager
@@ -357,7 +358,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def to_arrow_chunks(self, arrow_options: Optional[Dict] = None) -> list:
+    def to_arrow_chunks(self, arrow_options: Optional[Dict] = None) -> Optional[List]:
         with self._query_generator() as query:
 
             arrow_batches = execute_snowflake_statement(
@@ -436,7 +437,6 @@ def _get_entity_df_event_timestamp_range(
     entity_df: Union[pd.DataFrame, str],
     entity_df_event_timestamp_col: str,
     snowflake_conn: SnowflakeConnection,
-    config: RepoConfig,
 ) -> Tuple[datetime, datetime]:
     if isinstance(entity_df, pd.DataFrame):
         entity_df_event_timestamp = entity_df.loc[
@@ -456,7 +456,7 @@ def _get_entity_df_event_timestamp_range(
         query = f'SELECT MIN("{entity_df_event_timestamp_col}") AS "min_value", MAX("{entity_df_event_timestamp_col}") AS "max_value" FROM ({entity_df})'
         results = execute_snowflake_statement(snowflake_conn, query).fetchall()
 
-        entity_df_event_timestamp_range = results[0]
+        entity_df_event_timestamp_range = cast(Tuple[datetime, datetime], results[0])
     else:
         raise InvalidEntityType(type(entity_df))
 
