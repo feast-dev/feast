@@ -43,7 +43,7 @@ def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
 
 class GEProfile(Profile):
     """
-    GEProfile is an implementation of abstract Profile for Great Expectation integration.
+    GEProfile is an implementation of abstract Profile for integration with Great Expectations.
     It executes validation by applying expectations from ExpectationSuite instance to a given dataset.
     """
 
@@ -55,9 +55,9 @@ class GEProfile(Profile):
     def validate(self, df: pd.DataFrame) -> "GEValidationReport":
         """
         Validate provided dataframe against GE expectation suite.
-        1. Pandas dataframe is converted into PandasDataset
-        2. Some fixes applied to avoid crash inside GE (see _prepare_dataset)
-        3. Each expectation from ExpectationSuite instance ran against resulting dataset
+        1. Pandas dataframe is converted into PandasDataset (GE type)
+        2. Some fixes applied to the data to avoid crashes inside GE (see _prepare_dataset)
+        3. Each expectation from ExpectationSuite instance tested against resulting dataset
 
         Return GEValidationReport, which parses great expectation's schema into list of generic ValidationErrors.
         """
@@ -90,9 +90,9 @@ class GEProfile(Profile):
 
 class GEProfiler(Profiler):
     """
-    GEProfiler is an implementation of abstract Profiler for Great Expectations integration.
-    It wraps around user defined profiler that would accept dataset (in a form of pandas dataframe)
-    and generate GEProfile (with ExpectationSuite inside).
+    GEProfiler is an implementation of abstract Profiler for integration with Great Expectations.
+    It wraps around user defined profiler that should accept dataset (in a form of pandas dataframe)
+    and return ExpectationSuite.
     """
 
     def __init__(
@@ -102,10 +102,10 @@ class GEProfiler(Profiler):
 
     def analyze_dataset(self, df: pd.DataFrame) -> Profile:
         """
-        Generate GEProfile consisting from ExpectationSuite (set of expectations)
-        from given pandas dataframe (with user defined profiler).
+        Generate GEProfile with ExpectationSuite (set of expectations)
+        from a given pandas dataframe by applying user defined profiler.
 
-        Some fixes are also applied to the dataset (see _prepare_dataset function).
+        Some fixes are also applied to the dataset (see _prepare_dataset function) to make it compatible with GE.
 
         Return GEProfile
         """
