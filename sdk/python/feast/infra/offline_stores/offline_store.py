@@ -67,7 +67,7 @@ class RetrievalJob(ABC):
         pass
 
     def to_df(
-        self, validation_reference: Optional[ValidationReference] = None
+        self, validation_reference: Optional["ValidationReference"] = None
     ) -> pd.DataFrame:
         """
         Return dataset as Pandas DataFrame synchronously including on demand transforms
@@ -109,7 +109,7 @@ class RetrievalJob(ABC):
         pass
 
     def to_arrow(
-        self, validation_reference: Optional[ValidationReference] = None
+        self, validation_reference: Optional["ValidationReference"] = None
     ) -> pyarrow.Table:
         """
         Return dataset as pyarrow Table synchronously
