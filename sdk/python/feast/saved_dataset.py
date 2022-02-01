@@ -203,3 +203,7 @@ class ValidationReference:
     def __init__(self, dataset: SavedDataset, profiler: Profiler):
         self.dataset = dataset
         self.profiler = profiler
+
+    @property
+    def profile(self) -> Profile:
+        return self.profiler.analyze_dataset(self.dataset.to_df())

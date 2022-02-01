@@ -81,16 +81,14 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
-    job = store.get_historical_features(
-        entity_df=entity_df,
-        features=_features,
-        validation_reference=store.get_saved_dataset(
-            "my_training_dataset"
-        ).as_reference(profiler=configurable_profiler),
-    )
+    job = store.get_historical_features(entity_df=entity_df, features=_features,)
 
     # if validation pass there will be no exceptions on this point
-    job.to_df()
+    job.to_df(
+        validation_reference=store.get_saved_dataset(
+            "my_training_dataset"
+        ).as_reference(profiler=configurable_profiler)
+    )
 
 
 @pytest.mark.integration
@@ -117,16 +115,14 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
-    job = store.get_historical_features(
-        entity_df=entity_df,
-        features=_features,
-        validation_reference=store.get_saved_dataset("my_other_dataset").as_reference(
-            profiler=profiler_with_unrealistic_expectations
-        ),
-    )
+    job = store.get_historical_features(entity_df=entity_df, features=_features,)
 
     with pytest.raises(ValidationFailed) as exc_info:
-        job.to_df()
+        job.to_df(
+            validation_reference=store.get_saved_dataset(
+                "my_other_dataset"
+            ).as_reference(profiler=profiler_with_unrealistic_expectations)
+        )
 
     failed_expectations = exc_info.value.report.errors
     assert len(failed_expectations) == 2
