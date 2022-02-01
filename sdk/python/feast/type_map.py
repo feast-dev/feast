@@ -442,6 +442,11 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
 
 
 def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
+    is_list = False
+    if bq_type_as_str.startswith("ARRAY<"):
+        is_list = True
+        bq_type_as_str = bq_type_as_str[6:-1]
+
     type_map: Dict[str, ValueType] = {
         "DATETIME": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
@@ -453,15 +458,14 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "BYTES": ValueType.BYTES,
         "BOOL": ValueType.BOOL,
         "BOOLEAN": ValueType.BOOL,  # legacy sql data type
-        "ARRAY<INT64>": ValueType.INT64_LIST,
-        "ARRAY<FLOAT64>": ValueType.DOUBLE_LIST,
-        "ARRAY<STRING>": ValueType.STRING_LIST,
-        "ARRAY<BYTES>": ValueType.BYTES_LIST,
-        "ARRAY<BOOL>": ValueType.BOOL_LIST,
         "NULL": ValueType.NULL,
     }
 
-    return type_map[bq_type_as_str]
+    value_type = type_map[bq_type_as_str]
+    if is_list:
+        value_type = ValueType[value_type.name + "_LIST"]
+
+    return value_type
 
 
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
