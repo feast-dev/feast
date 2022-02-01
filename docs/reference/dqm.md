@@ -7,13 +7,13 @@ Validation could be applied during:
 * [planned] Reading features from an online store
 
 Its goal is to address several complex data problems, namely:
-* Data Consistency - new training dataset could be significantly different from the previous, which might require a change in model architecture.
-* Issues/bugs in the upstream pipeline - bug in upstream could cause invalid values to overwrite existing valid values in an online store.
+* Data consistency - new training datasets can be significantly different from previous datasets. This might require a change in model architecture.
+* Issues/bugs in the upstream pipeline - bugs in upstream pipelines can cause invalid values to overwrite existing valid values in an online store.
 * Training/serving skew - distribution shift could significantly decrease the performance of the model.
 
-> By “monitoring data quality” we understand verifying that the characteristics of the tested dataset (we call this characteristics dataset's profile) are "equivalent" to the characteristics of the reference dataset.
+> To monitor data quality, we check that the characteristics of the tested dataset (aka the tested dataset's profile) are "equivalent" to the characteristics of the reference dataset.
 > Eg, data currently passed to the model hasn’t changed significantly since the model was trained, and expectations implicitly made by ML algorithm during training are still met.
-> How exactly profiles equivalency should be measured is up to the user. 
+> How exactly profile equivalency should be measured is up to the user. 
 
 ### Overview
 
