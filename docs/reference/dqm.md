@@ -16,8 +16,8 @@ Its goal is to address several complex data problems, namely:
 
 ### Overview
 
-The validation process consists of the next steps:
-1. User prepares reference dataset (currently only [saved dataset](../getting-started/concepts/dataset.md) from historical retrieval is supported).
+The validation process consists of the following steps:
+1. User prepares reference dataset (currently only [saved datasets](../getting-started/concepts/dataset.md) from historical retrieval are supported).
 2. User defines profiler function, which should produce profile by given dataset (currently only profilers based on [Great Expectations](https://docs.greatexpectations.io) are allowed).
 3. Validation of tested dataset is performed with reference dataset and profiler provided as parameters.
 
@@ -29,9 +29,9 @@ pip install 'feast[dqm]'
 
 ### Dataset profile
 Currently, Feast supports only [great expectation's](https://greatexpectations.io/) [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite)
-as dataset's profiler. Hence, the user needs to define a function (profiler) that would receive a dataset and return [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
+as dataset's profiler. Hence, the user needs to define a function (profiler) that would receive a dataset and return an [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
 
-Either automatic profiler or user selected expectations could be used in profiler function:
+Great Expectations supports automatic profiling as well as manually specifying expectations:
 ```python
 from great_expectations.dataset import Dataset
 from great_expectations.core.expectation_suite import ExpectationSuite
@@ -59,7 +59,7 @@ def manual_profiler(dataset: Dataset) -> ExpectationSuite:
 
 
 ### Validating Training Dataset
-During retrieval of historical features, additional parameter `validation_reference` could be passed.
+During retrieval of historical features, `validation_reference` can be passed as a parameter.
 If this parameter is supplied, `get_historical_features` will return instance `RetrievalJobWithValidation` instead of isntance of `RetrievalJob`.
 Such job will run validation once dataset is materialized (when `.to_df()` or `.to_arrow()` called). In case if validation successful materialized dataset is returned (no change to previous/regular behavior).
 Otherwise, `feast.dqm.errors.ValidationFailed` exception would be raised. It will consist of all details for expectations that didn't pass.
