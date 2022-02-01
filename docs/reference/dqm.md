@@ -12,7 +12,6 @@ Its goal is to address several complex data problems, namely:
 * Training/serving skew - distribution shift could significantly decrease the performance of the model.
 
 > To monitor data quality, we check that the characteristics of the tested dataset (aka the tested dataset's profile) are "equivalent" to the characteristics of the reference dataset.
-> Eg, data currently passed to the model hasn’t changed significantly since the model was trained, and expectations implicitly made by ML algorithm during training are still met.
 > How exactly profile equivalency should be measured is up to the user. 
 
 ### Overview
