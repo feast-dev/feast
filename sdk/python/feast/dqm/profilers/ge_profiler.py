@@ -23,19 +23,22 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 )
 
 
-def _prepare_dataset(dataset):
+def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
+    dataset_copy = dataset.copy(deep=True)
+
     for column in dataset.columns:
         if dataset.expect_column_values_to_be_in_type_list(
             column, type_list=sorted(list(ProfilerTypeMapping.DATETIME_TYPE_NAMES))
         ).success:
-
             # GE cannot parse Timestamp or other pandas datetime time
-            dataset[column] = dataset[column].dt.strftime("%Y-%m-%dT%H:%M:%S")
+            dataset_copy[column] = dataset[column].dt.strftime("%Y-%m-%dT%H:%M:%S")
 
         if dataset[column].dtype == np.float32:
             # GE converts expectation arguments into native Python float
             # This could cause error on comparison => so better to convert to double prematurely
-            dataset[column] = dataset[column].astype(np.float64)
+            dataset_copy[column] = dataset[column].astype(np.float64)
+
+    return dataset_copy
 
 
 class GEProfile(Profile):
@@ -45,9 +48,17 @@ class GEProfile(Profile):
         self.expectation_suite = expectation_suite
 
     def validate(self, df: pd.DataFrame) -> "GEValidationReport":
+        """
+        Validate provided dataframe against GE expectation suite.
+        1. Pandas dataframe is converted into PandasDataset
+        2. Some fixes applied to avoid crash inside GE (see _prepare_dataset)
+        3. Each expectation from ExpectationSuite instance ran against resulting dataset
+
+        Return GEValidationReport, which parses great expectation's schema into list of generic ValidationErrors.
+        """
         dataset = PandasDataset(df)
 
-        _prepare_dataset(dataset)
+        dataset = _prepare_dataset(dataset)
 
         results = ge.validate(
             dataset, expectation_suite=self.expectation_suite, result_format="COMPLETE"
@@ -73,9 +84,17 @@ class GEProfiler(Profiler):
         self.user_defined_profiler = user_defined_profiler
 
     def analyze_dataset(self, df: pd.DataFrame) -> Profile:
+        """
+        Generate GEProfile consisting from ExpectationSuite (set of expectations)
+        from given pandas dataframe (with user defined profiler).
+
+        Some fixes are also applied to the dataset (see _prepare_dataset function).
+
+        Return GEProfile
+        """
         dataset = PandasDataset(df)
 
-        _prepare_dataset(dataset)
+        dataset = _prepare_dataset(dataset)
 
         return GEProfile(expectation_suite=self.user_defined_profiler(dataset))
 

@@ -75,14 +75,15 @@ class RetrievalJob(ABC):
             validation_reference: If provided resulting dataset will be validated against this reference profile.
         """
         features_df = self._to_df_internal()
-        if not self.on_demand_feature_views:
-            return features_df
 
-        # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
-        for odfv in self.on_demand_feature_views:
-            features_df = features_df.join(
-                odfv.get_transformed_features_df(features_df, self.full_feature_names,)
-            )
+        if self.on_demand_feature_views:
+            # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
+            for odfv in self.on_demand_feature_views:
+                features_df = features_df.join(
+                    odfv.get_transformed_features_df(
+                        features_df, self.full_feature_names,
+                    )
+                )
 
         if validation_reference:
             warnings.warn(
@@ -117,14 +118,17 @@ class RetrievalJob(ABC):
             validation_reference: If provided resulting dataset will be validated against this reference profile.
 
         """
-        if not self.on_demand_feature_views:
+        if not self.on_demand_feature_views and not validation_reference:
             return self._to_arrow_internal()
 
         features_df = self._to_df_internal()
-        for odfv in self.on_demand_feature_views:
-            features_df = features_df.join(
-                odfv.get_transformed_features_df(features_df, self.full_feature_names,)
-            )
+        if self.on_demand_feature_views:
+            for odfv in self.on_demand_feature_views:
+                features_df = features_df.join(
+                    odfv.get_transformed_features_df(
+                        features_df, self.full_feature_names,
+                    )
+                )
 
         if validation_reference:
             warnings.warn(

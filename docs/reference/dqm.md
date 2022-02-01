@@ -22,13 +22,13 @@ The validation process consists of the following steps:
 3. Validation of tested dataset is performed with reference dataset and profiler provided as parameters.
 
 ### Preparations
-Feast with DQM support can be installed via
+Feast with Great Expectations support can be installed via
 ```shell
-pip install 'feast[dqm]'
+pip install 'feast[ge]'
 ```
 
 ### Dataset profile
-Currently, Feast supports only [great expectation's](https://greatexpectations.io/) [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite)
+Currently, Feast supports only [Great Expectation's](https://greatexpectations.io/) [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite)
 as dataset's profiler. Hence, the user needs to define a function (profiler) that would receive a dataset and return an [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
 
 Great Expectations supports automatic profiling as well as manually specifying expectations:
@@ -59,9 +59,8 @@ def manual_profiler(dataset: Dataset) -> ExpectationSuite:
 
 
 ### Validating Training Dataset
-During retrieval of historical features, `validation_reference` can be passed as a parameter.
-If this parameter is supplied, `get_historical_features` will return instance `RetrievalJobWithValidation` instead of isntance of `RetrievalJob`.
-Such job will run validation once dataset is materialized (when `.to_df()` or `.to_arrow()` called). In case if validation successful materialized dataset is returned (no change to previous/regular behavior).
+During retrieval of historical features, `validation_reference` can be passed as a parameter to methods `.to_df(validation_reference=...)` or `.to_arrow(validation_reference=...)`.
+Such job will run validation once dataset is materialized. In case if validation successful materialized dataset is returned.
 Otherwise, `feast.dqm.errors.ValidationFailed` exception would be raised. It will consist of all details for expectations that didn't pass.
 
 ```python
