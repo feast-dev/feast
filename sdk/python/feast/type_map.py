@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 from datetime import datetime, timezone
 from typing import (
     Any,
@@ -416,27 +415,30 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
 
 
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
-    if re.match(r"^timestamp", pa_type_as_str):
-        return ValueType.INT64
+    is_list = False
+    if pa_type_as_str.startswith("list<item: "):
+        is_list = True
+        pa_type_as_str = pa_type_as_str.replace("list<item: ", "").replace(">", "")
 
-    type_map = {
-        "int32": ValueType.INT32,
-        "int64": ValueType.INT64,
-        "double": ValueType.DOUBLE,
-        "float": ValueType.FLOAT,
-        "string": ValueType.STRING,
-        "binary": ValueType.BYTES,
-        "bool": ValueType.BOOL,
-        "list<item: int32>": ValueType.INT32_LIST,
-        "list<item: int64>": ValueType.INT64_LIST,
-        "list<item: double>": ValueType.DOUBLE_LIST,
-        "list<item: float>": ValueType.FLOAT_LIST,
-        "list<item: string>": ValueType.STRING_LIST,
-        "list<item: binary>": ValueType.BYTES_LIST,
-        "list<item: bool>": ValueType.BOOL_LIST,
-        "null": ValueType.NULL,
-    }
-    return type_map[pa_type_as_str]
+    if pa_type_as_str.startswith("timestamp"):
+        value_type = ValueType.UNIX_TIMESTAMP
+    else:
+        type_map = {
+            "int32": ValueType.INT32,
+            "int64": ValueType.INT64,
+            "double": ValueType.DOUBLE,
+            "float": ValueType.FLOAT,
+            "string": ValueType.STRING,
+            "binary": ValueType.BYTES,
+            "bool": ValueType.BOOL,
+            "null": ValueType.NULL,
+        }
+        value_type = type_map[pa_type_as_str]
+
+    if is_list:
+        value_type = ValueType[value_type.name + "_LIST"]
+
+    return value_type
 
 
 def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
