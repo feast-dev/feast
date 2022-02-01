@@ -42,6 +42,11 @@ def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
 
 
 class GEProfile(Profile):
+    """
+    GEProfile is an implementation of abstract Profile for Great Expectation integration.
+    It executes validation by applying expectations from ExpectationSuite instance to a given dataset.
+    """
+
     expectation_suite: ExpectationSuite
 
     def __init__(self, expectation_suite: ExpectationSuite):
@@ -78,6 +83,12 @@ class GEProfile(Profile):
 
 
 class GEProfiler(Profiler):
+    """
+    GEProfiler is an implementation of abstract Profiler for Great Expectations integration.
+    It wraps around user defined profiler that would accept dataset (in a form of pandas dataframe)
+    and generate GEProfile (with ExpectationSuite inside).
+    """
+
     def __init__(
         self, user_defined_profiler: Callable[[pd.DataFrame], ExpectationSuite]
     ):
