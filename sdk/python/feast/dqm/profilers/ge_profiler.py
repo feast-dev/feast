@@ -81,6 +81,12 @@ class GEProfile(Profile):
             expectation_suite=ExpectationSuite(**json.loads(proto.expectation_suite))
         )
 
+    def __repr__(self):
+        expectations = json.dumps(
+            [e.to_json_dict() for e in self.expectation_suite.expectations], indent=2
+        )
+        return f"<GEProfile with expectations: {expectations}>"
+
 
 class GEProfiler(Profiler):
     """

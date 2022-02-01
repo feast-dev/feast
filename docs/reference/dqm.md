@@ -29,7 +29,7 @@ pip install 'feast[ge]'
 
 ### Dataset profile
 Currently, Feast supports only [Great Expectation's](https://greatexpectations.io/) [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite)
-as dataset's profiler. Hence, the user needs to define a function (profiler) that would receive a dataset and return an [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
+as dataset's profile. Hence, the user needs to define a function (profiler) that would receive a dataset and return an [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite).
 
 Great Expectations supports automatic profiling as well as manually specifying expectations:
 ```python
@@ -48,7 +48,7 @@ def automatic_profiler(dataset: Dataset) -> ExpectationSuite:
         value_set_threshold='few'
     ).build_suite()
 ```
-
+However, from our experience capabilities of automatic profiler are quite limited. So we would recommend crafting your own expectations:
 ```python
 @ge_profiler
 def manual_profiler(dataset: Dataset) -> ExpectationSuite:
@@ -59,8 +59,8 @@ def manual_profiler(dataset: Dataset) -> ExpectationSuite:
 
 
 ### Validating Training Dataset
-During retrieval of historical features, `validation_reference` can be passed as a parameter to methods `.to_df(validation_reference=...)` or `.to_arrow(validation_reference=...)`.
-Such job will run validation once dataset is materialized. In case if validation successful materialized dataset is returned.
+During retrieval of historical features, `validation_reference` can be passed as a parameter to methods `.to_df(validation_reference=...)` or `.to_arrow(validation_reference=...)` of RetrievalJob.
+If parameter is provided Feast will run validation once dataset is materialized. In case if validation successful materialized dataset is returned.
 Otherwise, `feast.dqm.errors.ValidationFailed` exception would be raised. It will consist of all details for expectations that didn't pass.
 
 ```python
@@ -68,8 +68,8 @@ from feast import FeatureStore
 
 fs = FeatureStore(".")
 
-fs.get_historical_features(
-    ...,
+job = fs.get_historical_features(...)
+job.to_df(
     validation_reference=fs
         .get_saved_dataset("my_reference_dataset")
         .as_reference(profiler=manual_profiler)
