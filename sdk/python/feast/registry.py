@@ -374,7 +374,8 @@ class Registry:
         """
         feature_view.ensure_valid()
         if not feature_view.created_timestamp:
-            feature_view.created_timestamp = datetime.now()
+            feature_view.created_timestamp = datetime.utcnow()
+        feature_view.last_updated_timestamp = datetime.utcnow()
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
