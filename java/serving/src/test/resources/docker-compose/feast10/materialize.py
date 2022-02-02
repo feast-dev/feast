@@ -28,22 +28,26 @@ df["event_timestamp"] = start + pd.Series(np.arange(0, 10)).map(lambda days: tim
 # for more info.
 df.to_parquet("driver_stats.parquet")
 
+
 # For Benchmarks
 # Please read more in Feast RFC-031
 # (link https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)
 # about this benchmark setup
-def generate_data(num_rows: int, num_features: int, key_space: int, destination: str) -> pd.DataFrame:
+def generate_data(num_rows: int, num_features: int, destination: str) -> pd.DataFrame:
     features = [f"feature_{i}" for i in range(num_features)]
     columns = ["entity", "event_timestamp"] + features
     df = pd.DataFrame(0, index=np.arange(num_rows), columns=columns)
     df["event_timestamp"] = datetime.utcnow()
-    for column in ["entity"] + features:
-        df[column] = np.random.randint(1, key_space, num_rows)
+    for column in features:
+        df[column] = np.random.randint(1, num_rows, num_rows)
+
+    df["entity"] = "key-" + \
+                   pd.Series(np.arange(1, num_rows + 1)).astype(pd.StringDtype())
 
     df.to_parquet(destination)
 
 
-generate_data(10**3, 250, 10**3, "benchmark_data.parquet")
+generate_data(10**3, 250, "benchmark_data.parquet")
 
 
 fs = FeatureStore(".")
