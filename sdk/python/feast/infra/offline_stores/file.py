@@ -83,12 +83,12 @@ class FileRetrievalJob(RetrievalJob):
 
         if path.endswith(".parquet"):
             pyarrow.parquet.write_table(
-                self._to_arrow_internal(), where=path, filesystem=filesystem
+                self.to_arrow(), where=path, filesystem=filesystem
             )
         else:
             # otherwise assume destination is directory
             pyarrow.parquet.write_to_dataset(
-                self._to_arrow_internal(), root_path=path, filesystem=filesystem
+                self.to_arrow(), root_path=path, filesystem=filesystem
             )
 
     @property
