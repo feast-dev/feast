@@ -48,6 +48,7 @@ class OnDemandFeatureView(BaseFeatureView):
     input_feature_view_projections: Dict[str, FeatureViewProjection]
     input_request_data_sources: Dict[str, RequestDataSource]
     udf: MethodType
+    created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
 
     @log_exceptions
@@ -73,7 +74,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.input_feature_view_projections[input_ref] = odfv_input.projection
 
         self.udf = udf
-
+        self.created_timestamp: Optional[datetime] = None
         self.last_updated_timestamp: Optional[datetime] = None
 
     @property
