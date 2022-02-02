@@ -231,6 +231,12 @@ class Registry:
             commit: Whether the change should be persisted immediately
         """
         entity.is_valid()
+
+        now = datetime.utcnow()
+        if not entity.created_timestamp:
+            entity._created_timestamp = now
+        entity._last_updated_timestamp = now
+
         entity_proto = entity.to_proto()
         entity_proto.spec.project = project
         self._prepare_registry_for_changes()
@@ -278,6 +284,11 @@ class Registry:
             feature_service: A feature service that will be registered
             project: Feast project that this entity belongs to
         """
+        now = datetime.utcnow()
+        if not feature_service.created_timestamp:
+            feature_service.created_timestamp = now
+        feature_service.last_updated_timestamp = now
+
         feature_service_proto = feature_service.to_proto()
         feature_service_proto.spec.project = project
 
@@ -373,9 +384,12 @@ class Registry:
             commit: Whether the change should be persisted immediately
         """
         feature_view.ensure_valid()
+
+        now = datetime.utcnow()
         if not feature_view.created_timestamp:
-            feature_view.created_timestamp = datetime.utcnow()
-        feature_view.last_updated_timestamp = datetime.utcnow()
+            feature_view.created_timestamp = now
+        feature_view.last_updated_timestamp = now
+
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
         self._prepare_registry_for_changes()
@@ -499,6 +513,7 @@ class Registry:
                 existing_feature_view.materialization_intervals.append(
                     (start_date, end_date)
                 )
+                existing_feature_view.last_updated_timestamp = datetime.utcnow()
                 feature_view_proto = existing_feature_view.to_proto()
                 feature_view_proto.spec.project = project
                 del self.cached_registry_proto.feature_views[idx]
@@ -687,6 +702,11 @@ class Registry:
             project: Feast project that this dataset belongs to
             commit: Whether the change should be persisted immediately
         """
+        now = datetime.utcnow()
+        if not saved_dataset.created_timestamp:
+            saved_dataset.created_timestamp = now
+        saved_dataset.last_updated_timestamp = now
+
         saved_dataset_proto = saved_dataset.to_proto()
         saved_dataset_proto.spec.project = project
         self._prepare_registry_for_changes()
