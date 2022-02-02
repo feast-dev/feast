@@ -63,7 +63,7 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Delete API
   * [ ] Feature Logging (for training)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
-  * [ ] Data profiling and validation (Great Expectations) (Planned for Q1 2022)
+  * [x] Data profiling and validation (Great Expectations)
   * [ ] Metric production
   * [ ] Training-serving skew detection
   * [ ] Drift detection
@@ -71,7 +71,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Python SDK for browsing feature registry
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
+  * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
   * [ ] REST API for browsing feature registry
   * [ ] Feast Web UI
   * [ ] Feature versioning
-  * [ ] Amundsen integration

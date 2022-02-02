@@ -4,7 +4,7 @@
 
 Feast (**Fea**ture **St**ore) is an operational data system for managing and serving machine learning features to models in production. Feast is able to serve feature data to models from a low-latency online store (for real-time prediction) or from an offline store (for scale-out batch scoring or model training).
 
-![](.gitbook/assets/feast-marchitecture-211014.png)
+![](assets/feast-marchitecture.png)
 
 ## Problems Feast Solves
 
@@ -30,7 +30,7 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 
 **Feature discovery:** We also aim for Feast to include a first-class user interface for exploring and discovering entities and features.
 
-**‌Feature validation:** We additionally aim for Feast to improve support for statistics generation of feature data and subsequent validation of these statistics. Current support is limited.
+**Feature validation:** We additionally aim for Feast to improve support for statistics generation of feature data and subsequent validation of these statistics. Current support is limited.
 
 ## What Feast is not
 
