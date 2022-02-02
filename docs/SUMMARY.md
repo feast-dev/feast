@@ -77,6 +77,7 @@
   * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [Feature servers](reference/feature-servers/README.md)
   * [Local feature server](reference/feature-servers/local-feature-server.md)
+* [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
 * [\[Alpha\] Stream ingestion](reference/alpha-stream-ingestion.md)
 * [\[Alpha\] AWS Lambda feature server](reference/alpha-aws-lambda-feature-server.md)
