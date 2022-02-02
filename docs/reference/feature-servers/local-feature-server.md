@@ -57,48 +57,74 @@ $  curl -X POST \
     }
   }' | jq
 {
-  "field_values": [
+  "metadata": {
+    "feature_names": [
+      "driver_id",
+      "conv_rate",
+      "avg_daily_trips",
+      "acc_rate"
+    ]
+  },
+  "results": [
     {
-      "fields": {
-        "driver_id": 1001,
-        "conv_rate": 0.07427442818880081,
-        "avg_daily_trips": 140,
-        "acc_rate": 0.8625795245170593
-      },
-      "statuses": {
-        "conv_rate": "PRESENT",
-        "acc_rate": "PRESENT",
-        "driver_id": "PRESENT",
-        "avg_daily_trips": "PRESENT"
-      }
+      "values": [
+        1001,
+        0.7037263512611389,
+        308,
+        0.8724706768989563
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z"
+      ]
     },
     {
-      "fields": {
-        "avg_daily_trips": 646,
-        "acc_rate": 0.8026317954063416,
-        "conv_rate": 0.41487279534339905,
-        "driver_id": 1002
-      },
-      "statuses": {
-        "driver_id": "PRESENT",
-        "avg_daily_trips": "PRESENT",
-        "conv_rate": "PRESENT",
-        "acc_rate": "PRESENT"
-      }
+      "values": [
+        1002,
+        0.038169607520103455,
+        332,
+        0.48534533381462097
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z"
+      ]
     },
     {
-      "fields": {
-        "avg_daily_trips": 671,
-        "conv_rate": 0.4033895432949066,
-        "driver_id": 1003,
-        "acc_rate": 0.06059994176030159
-      },
-      "statuses": {
-        "driver_id": "PRESENT",
-        "conv_rate": "PRESENT",
-        "avg_daily_trips": "PRESENT",
-        "acc_rate": "PRESENT"
-      }
+      "values": [
+        1003,
+        0.9665873050689697,
+        779,
+        0.7793770432472229
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z"
+      ]
     }
   ]
 }
