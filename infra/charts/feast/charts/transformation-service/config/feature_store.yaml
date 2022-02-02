@@ -5,5 +5,4 @@ provider: local
 project: {{ .Values.global.project }}
 flags:
   on_demand_transforms: true
-  python_feature_server: true
   alpha_features: true

@@ -8,4 +8,3 @@ offline_store: {}
 flags:
   alpha_features: true
   on_demand_transforms: true
-  python_feature_server: true
