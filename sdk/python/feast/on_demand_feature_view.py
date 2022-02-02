@@ -1,7 +1,8 @@
 import copy
 import functools
+from datetime import datetime
 from types import MethodType
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
@@ -47,6 +48,7 @@ class OnDemandFeatureView(BaseFeatureView):
     input_feature_view_projections: Dict[str, FeatureViewProjection]
     input_request_data_sources: Dict[str, RequestDataSource]
     udf: MethodType
+    last_updated_timestamp: Optional[datetime] = None
 
     @log_exceptions
     def __init__(
@@ -71,6 +73,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.input_feature_view_projections[input_ref] = odfv_input.projection
 
         self.udf = udf
+
+        self.last_updated_timestamp: Optional[datetime] = None
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -119,6 +123,8 @@ class OnDemandFeatureView(BaseFeatureView):
         meta = OnDemandFeatureViewMeta()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
         inputs = {}
         for input_ref, fv_projection in self.input_feature_view_projections.items():
             inputs[input_ref] = OnDemandInput(
@@ -193,6 +199,10 @@ class OnDemandFeatureView(BaseFeatureView):
         if on_demand_feature_view_proto.meta.HasField("created_timestamp"):
             on_demand_feature_view_obj.created_timestamp = (
                 on_demand_feature_view_proto.meta.created_timestamp.ToDatetime()
+            )
+        if on_demand_feature_view_proto.meta.HasField("last_updated_timestamp"):
+            on_demand_feature_view_obj.last_updated_timestamp = (
+                on_demand_feature_view_proto.meta.last_updated_timestamp.ToDatetime()
             )
 
         return on_demand_feature_view_obj

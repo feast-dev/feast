@@ -55,6 +55,9 @@ message OnDemandFeatureViewSpec {
 message OnDemandFeatureViewMeta {
     // Time where this Feature View is created
     google.protobuf.Timestamp created_timestamp = 1;
+
+    // Time where this Feature View is last updated
+    google.protobuf.Timestamp last_updated_timestamp = 2;
 }
 
 message OnDemandInput {
