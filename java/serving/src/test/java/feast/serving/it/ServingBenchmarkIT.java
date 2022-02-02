@@ -51,7 +51,8 @@ public class ServingBenchmarkIT extends ServingEnvironment {
       int rowsCount, int featuresCount) {
     List<ValueProto.Value> entities =
         IntStream.range(0, rowsCount)
-            .mapToObj(i -> DataGenerator.createInt64Value(rand.nextInt(1000)))
+            .mapToObj(
+                i -> DataGenerator.createStrValue(String.format("key-%s", rand.nextInt(1000))))
             .collect(Collectors.toList());
 
     List<String> featureReferences =

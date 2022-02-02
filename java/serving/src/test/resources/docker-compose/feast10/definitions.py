@@ -73,7 +73,7 @@ generated_data_source = FileSource(
 
 entity = Entity(
     name="entity",
-    value_type=ValueType.INT64,
+    value_type=ValueType.STRING,
 )
 
 benchmark_feature_views = [
