@@ -1769,9 +1769,6 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
-        if not flags_helper.enable_python_feature_server(self.config):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
-
         feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
@@ -1782,8 +1779,6 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
-        if not flags_helper.enable_python_feature_server(self.config):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
         if not flags_helper.enable_on_demand_feature_views(self.config):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
