@@ -16,7 +16,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] Kafka source (with [push support into the online store](reference/alpha-stream-ingestion.md))
-  * [x] [Snowflake source (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
@@ -27,7 +26,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-  * [x] [Snowflake (community plugin)](https://github.com/sfc-gh-madkins/feast-snowflake)
   * [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
 * **Online Stores**
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
@@ -63,7 +61,7 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Delete API
   * [ ] Feature Logging (for training)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
-  * [ ] Data profiling and validation (Great Expectations) (Planned for Q1 2022)
+  * [x] Data profiling and validation (Great Expectations)
   * [ ] Metric production
   * [ ] Training-serving skew detection
   * [ ] Drift detection
@@ -71,7 +69,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Python SDK for browsing feature registry
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
+  * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
   * [ ] REST API for browsing feature registry
   * [ ] Feast Web UI
   * [ ] Feature versioning
-  * [ ] Amundsen integration

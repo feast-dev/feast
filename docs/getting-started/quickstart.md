@@ -17,7 +17,7 @@ In this tutorial, we use feature stores to generate training data and power onli
 
 1. **Training-serving skew and complex data joins:** Feature values often exist across multiple tables. Joining these datasets can be complicated, slow, and error-prone.
    * Feast joins these tables with battle-tested logic that ensures _point-in-time_ correctness so future feature values do not leak to models.
-   * _\*Upcoming_: Feast alerts users to offline / online skew with data quality monitoring.&#x20;
+   * Feast alerts users to offline / online skew with data quality monitoring
 2. **Online feature availability:** At inference time, models often need access to features that aren't readily available and need to be precomputed from other datasources.&#x20;
    * Feast manages deployment to a variety of online stores (e.g. DynamoDB, Redis, Google Cloud Datastore) and ensures necessary features are consistently _available_ and _freshly computed_ at inference time.
 3. **Feature reusability and model versioning:** Different teams within an organization are often unable to reuse features across projects, resulting in duplicate feature creation logic. Models have data dependencies that need to be versioned, for example when running A/B tests on model versions.
@@ -123,11 +123,14 @@ The key line defining the overall architecture of the feature store is the **pro
 
 Valid values for `provider` in `feature_store.yaml` are:
 
-* local: use file source / SQLite
-* gcp: use BigQuery / Google Cloud Datastore
-* aws: use Redshift / DynamoDB
+* local: use file source with SQLite/Redis
+* gcp: use BigQuery/Snowflake with Google Cloud Datastore/Redis
+* aws: use Redshift/Snowflake with DynamoDB/Redis
 
-To use a custom provider, see [adding a custom provider](../how-to-guides/creating-a-custom-provider.md). There are also several plugins maintained by the community: [Azure](https://github.com/Azure/feast-azure), [Postgres](https://github.com/nossrannug/feast-postgres), and [Hive](https://github.com/baineng/feast-hive). Note that the choice of provider gives sensible defaults but does not enforce those choices; for example, if you choose the AWS provider, you can use [Redis](../reference/online-stores/redis.md) as an online store alongside Redshift as an offline store.
+Note that there are many other sources Feast works with, including Azure, Hive, Trino, and PostgreSQL via community plugins. See https://docs.feast.dev/getting-started/third-party-integrations for all supported datasources.
+
+A custom setup can also be made by following [adding a custom provider](../how-to-guides/creating-a-custom-provider.md).
+
 
 ## Step 3: Register feature definitions and deploy your feature store
 
