@@ -17,7 +17,7 @@ Our template will generate new data containing driver statistics. From there, we
 #### Install feast-snowflake
 
 ```shell
-pip install feast[snowflake]
+pip install 'feast[snowflake]'
 ```
 
 #### Get a Snowflake Trial Account (Optional)
@@ -46,7 +46,7 @@ The following files will automatically be created in your project folder:
 
 #### Inspect `feature_store.yaml`
 
-Here you will see the information that you entered. This template will use Snowflake as an offline store and SQLite as the online store. The main thing to remember is by default, Snowflake Objects have ALL CAPS names unless lower case was specified.
+Here you will see the information that you entered. This template will use Snowflake as an offline store and SQLite as the online store. The main thing to remember is by default, Snowflake objects have ALL CAPS names unless lower case was specified.
 
 {% code title="feature_store.yaml" %}
 ```yaml
