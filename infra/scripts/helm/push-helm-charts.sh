@@ -14,9 +14,9 @@ helm plugin install https://github.com/hayorov/helm-gcs.git  --version 0.2.2  ||
 
 helm repo add feast-helm-chart-repo $bucket
 
-mkdir -p feast
-cp -R * feast/ || true
-
+cd infra/charts
 helm package feast
+helm package feast-python-server
 
 helm gcs push --public feast-${1}.tgz feast-helm-chart-repo --force
+helm gcs push --public feast-python-server${1}.tgz feast-helm-chart-repo --force
