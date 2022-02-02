@@ -74,8 +74,7 @@ class FeatureView(BaseFeatureView):
     online: bool
     input: DataSource
     batch_source: DataSource
-    stream_source: Optional[DataSource] = None
-    last_updated_timestamp: Optional[datetime] = None
+    stream_source: Optional[DataSource]
     materialization_intervals: List[Tuple[datetime, datetime]]
 
     @log_exceptions
@@ -135,9 +134,6 @@ class FeatureView(BaseFeatureView):
         self.stream_source = stream_source
 
         self.materialization_intervals = []
-
-        self.created_timestamp: Optional[datetime] = None
-        self.last_updated_timestamp: Optional[datetime] = None
 
     # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):

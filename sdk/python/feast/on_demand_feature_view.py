@@ -119,6 +119,8 @@ class OnDemandFeatureView(BaseFeatureView):
         meta = OnDemandFeatureViewMeta()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
         inputs = {}
         for input_ref, fv_projection in self.input_feature_view_projections.items():
             inputs[input_ref] = OnDemandInput(
@@ -193,6 +195,10 @@ class OnDemandFeatureView(BaseFeatureView):
         if on_demand_feature_view_proto.meta.HasField("created_timestamp"):
             on_demand_feature_view_obj.created_timestamp = (
                 on_demand_feature_view_proto.meta.created_timestamp.ToDatetime()
+            )
+        if on_demand_feature_view_proto.meta.HasField("last_updated_timestamp"):
+            on_demand_feature_view_obj.last_updated_timestamp = (
+                on_demand_feature_view_proto.meta.last_updated_timestamp.ToDatetime()
             )
 
         return on_demand_feature_view_obj
