@@ -208,7 +208,7 @@ The list below contains the functionality that contributors are planning to deve
 Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
  * [Quickstart](https://docs.feast.dev/getting-started/quickstart)
  * [Tutorials](https://docs.feast.dev/tutorials/tutorials-overview)
- * [Running Feast with GCP/AWS](https://docs.feast.dev/how-to-guides/feast-gcp-aws)
+ * [Running Feast with Snowflake/GCP/AWS](https://docs.feast.dev/how-to-guides/feast-snowflake-gcp-aws)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
  * [Slack (#Feast)](https://slack.feast.dev/)
 
