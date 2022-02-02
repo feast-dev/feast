@@ -1,24 +1,16 @@
 ---
 description: >-
-  Initial demonstration of using Snowflake with Feast as both and Offline & Online store
-  using the snowflake demo template.
+  Initial demonstration of Snowflake as an offline store with Feast, using the Snowflake demo template.
 ---
 
 # Drivers Stats using Snowflake
 
-In the following steps below, we will setup a sample feast project that leverages Snowflake
-as an Offline Store.
+In the steps below, we will set up a sample Feast project that leverages Snowflake
+as an offline store.
 
-Starting with data in a Snowflake table, we will register that table to the feature store and
-define features associated with the columns in that table. From there, we will generate historical
-training data based on those feature definitions. We then will materialize the latest feature values
-given our feature definitions into our online feature store. Lastly, we will then call
-for those latest feature values.
+Starting with data in a Snowflake table, we will register that table to the feature store and define features associated with the columns in that table. From there, we will generate historical training data based on those feature definitions and then materialize the latest feature values into the online store. Lastly, we will retrieve the materialized feature values.
 
-Our template that you will leverage will generate new data related to driver statistics.
-From there, we will show you code snippets that will call to the offline store for generating
-training datasets, and then the code for calling the online store to serve you the
-latest feature values to serve models in production.
+Our template will generate new data containing driver statistics. From there, we will show you code snippets that will call to the offline store for generating training datasets, and then the code for calling the online store to serve you the latest feature values to serve models in production.
 
 ## Snowflake Offline/Online Store Example
 
@@ -54,9 +46,7 @@ The following files will automatically be created in your project folder:
 
 #### Inspect `feature_store.yaml`
 
-Here you will see the information that you entered. This template will look to use
-Snowflake as both an Offline & Online store. The main thing to remember is by default,
-Snowflake Objects have ALL CAPS names unless lower case was specified.
+Here you will see the information that you entered. This template will use Snowflake as an offline store and SQLite as the online store. The main thing to remember is by default, Snowflake Objects have ALL CAPS names unless lower case was specified.
 
 {% code title="feature_store.yaml" %}
 ```yaml
@@ -98,7 +88,7 @@ fs.apply([driver, driver_stats_fv])
 ```
 {% endcode %}
 
-#### Create a dummy training dataframe, then call our Offline store to add additional columns
+#### Create a dummy training dataframe, then call our offline store to add additional columns
 {% code title="test.py" %}
 ```python
 entity_df = pd.DataFrame(
@@ -123,14 +113,14 @@ training_df = fs.get_historical_features(
 ```
 {% endcode %}
 
-#### Materialize the latest feature values into our Online store
+#### Materialize the latest feature values into our online store
 {% code title="test.py" %}
 ```python
 fs.materialize_incremental(end_date=datetime.now())
 ```
 {% endcode %}
 
-#### Retrieve the latest values from our Online store based on our Entity Key
+#### Retrieve the latest values from our online store based on our entity key
 {% code title="test.py" %}
 ```python
 online_features = fs.get_online_features(
