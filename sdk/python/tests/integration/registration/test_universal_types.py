@@ -1,11 +1,11 @@
 import logging
-import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -339,23 +339,21 @@ def assert_expected_arrow_types(
     historical_features_arrow = historical_features.to_arrow()
     print(historical_features_arrow)
     feature_list_dtype_to_expected_historical_feature_arrow_type = {
-        "int32": r"int64",
-        "int64": r"int64",
-        "float": r"double",
-        "string": r"string",
-        "bool": r"bool",
-        "datetime": r"timestamp\[.+\]",
+        "int32": pa.types.is_int64,
+        "int64": pa.types.is_int64,
+        "float": pa.types.is_float64,
+        "string": pa.types.is_string,
+        "bool": pa.types.is_boolean,
+        "date": pa.types.is_date,
+        "datetime": pa.types.is_timestamp,
     }
-    arrow_type = feature_list_dtype_to_expected_historical_feature_arrow_type[
+    arrow_type_checker = feature_list_dtype_to_expected_historical_feature_arrow_type[
         feature_dtype
     ]
+    pa_type = historical_features_arrow.schema.field("value").type
+
     if feature_is_list:
-        assert re.match(
-            f"list<item: {arrow_type}>",
-            str(historical_features_arrow.schema.field_by_name("value").type),
-        )
+        assert pa.types.is_list(pa_type)
+        assert arrow_type_checker(pa_type.value_type)
     else:
-        assert re.match(
-            arrow_type,
-            str(historical_features_arrow.schema.field_by_name("value").type),
-        )
+        assert arrow_type_checker(pa_type)

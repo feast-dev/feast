@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 from datetime import datetime, timezone
 from typing import (
     Any,
@@ -416,30 +415,38 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
 
 
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
-    if re.match(r"^timestamp", pa_type_as_str):
-        return ValueType.INT64
+    is_list = False
+    if pa_type_as_str.startswith("list<item: "):
+        is_list = True
+        pa_type_as_str = pa_type_as_str.replace("list<item: ", "").replace(">", "")
 
-    type_map = {
-        "int32": ValueType.INT32,
-        "int64": ValueType.INT64,
-        "double": ValueType.DOUBLE,
-        "float": ValueType.FLOAT,
-        "string": ValueType.STRING,
-        "binary": ValueType.BYTES,
-        "bool": ValueType.BOOL,
-        "list<item: int32>": ValueType.INT32_LIST,
-        "list<item: int64>": ValueType.INT64_LIST,
-        "list<item: double>": ValueType.DOUBLE_LIST,
-        "list<item: float>": ValueType.FLOAT_LIST,
-        "list<item: string>": ValueType.STRING_LIST,
-        "list<item: binary>": ValueType.BYTES_LIST,
-        "list<item: bool>": ValueType.BOOL_LIST,
-        "null": ValueType.NULL,
-    }
-    return type_map[pa_type_as_str]
+    if pa_type_as_str.startswith("timestamp"):
+        value_type = ValueType.UNIX_TIMESTAMP
+    else:
+        type_map = {
+            "int32": ValueType.INT32,
+            "int64": ValueType.INT64,
+            "double": ValueType.DOUBLE,
+            "float": ValueType.FLOAT,
+            "string": ValueType.STRING,
+            "binary": ValueType.BYTES,
+            "bool": ValueType.BOOL,
+            "null": ValueType.NULL,
+        }
+        value_type = type_map[pa_type_as_str]
+
+    if is_list:
+        value_type = ValueType[value_type.name + "_LIST"]
+
+    return value_type
 
 
 def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
+    is_list = False
+    if bq_type_as_str.startswith("ARRAY<"):
+        is_list = True
+        bq_type_as_str = bq_type_as_str[6:-1]
+
     type_map: Dict[str, ValueType] = {
         "DATETIME": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
@@ -451,15 +458,14 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "BYTES": ValueType.BYTES,
         "BOOL": ValueType.BOOL,
         "BOOLEAN": ValueType.BOOL,  # legacy sql data type
-        "ARRAY<INT64>": ValueType.INT64_LIST,
-        "ARRAY<FLOAT64>": ValueType.DOUBLE_LIST,
-        "ARRAY<STRING>": ValueType.STRING_LIST,
-        "ARRAY<BYTES>": ValueType.BYTES_LIST,
-        "ARRAY<BOOL>": ValueType.BOOL_LIST,
         "NULL": ValueType.NULL,
     }
 
-    return type_map[bq_type_as_str]
+    value_type = type_map[bq_type_as_str]
+    if is_list:
+        value_type = ValueType[value_type.name + "_LIST"]
+
+    return value_type
 
 
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:

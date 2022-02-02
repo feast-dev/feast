@@ -16,16 +16,14 @@
  */
 package feast.storage.connectors.redis.retriever;
 
-import com.google.common.primitives.UnsignedBytes;
 import com.google.protobuf.ProtocolStringList;
 import feast.proto.storage.RedisProto;
 import feast.proto.types.ValueProto;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 // This is derived from
@@ -48,70 +46,52 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
     }
     tuples.sort(Comparator.comparing(Pair::getLeft));
 
-    ByteBuffer stringBytes = ByteBuffer.allocate(Integer.BYTES);
-    stringBytes.order(ByteOrder.LITTLE_ENDIAN);
-    stringBytes.putInt(ValueProto.ValueType.Enum.STRING.getNumber());
-
     for (Pair<String, ValueProto.Value> pair : tuples) {
-      for (final byte b : stringBytes.array()) {
-        buffer.add(b);
-      }
-      for (final byte b : pair.getLeft().getBytes(StandardCharsets.UTF_8)) {
-        buffer.add(b);
-      }
+      buffer.addAll(encodeInteger(ValueProto.ValueType.Enum.STRING.getNumber()));
+      buffer.addAll(encodeString(pair.getLeft()));
     }
 
     for (Pair<String, ValueProto.Value> pair : tuples) {
       final ValueProto.Value val = pair.getRight();
       switch (val.getValCase()) {
         case STRING_VAL:
-          buffer.add(UnsignedBytes.checkedCast(ValueProto.ValueType.Enum.STRING.getNumber()));
-          buffer.add(
-              UnsignedBytes.checkedCast(
-                  val.getStringVal().getBytes(StandardCharsets.UTF_8).length));
-          for (final byte b : val.getStringVal().getBytes(StandardCharsets.UTF_8)) {
-            buffer.add(b);
-          }
+          String stringVal = val.getStringVal();
+
+          buffer.addAll(encodeInteger(ValueProto.ValueType.Enum.STRING.getNumber()));
+          buffer.addAll(encodeInteger(stringVal.length()));
+          buffer.addAll(encodeString(stringVal));
+
           break;
         case BYTES_VAL:
-          buffer.add(UnsignedBytes.checkedCast(ValueProto.ValueType.Enum.BYTES.getNumber()));
-          for (final byte b : val.getBytesVal().toByteArray()) {
-            buffer.add(b);
-          }
+          byte[] bytes = val.getBytesVal().toByteArray();
+
+          buffer.addAll(encodeInteger(ValueProto.ValueType.Enum.BYTES.getNumber()));
+          buffer.addAll(encodeInteger(bytes.length));
+          buffer.addAll(encodeBytes(bytes));
+
           break;
         case INT32_VAL:
-          ByteBuffer int32ByteBuffer =
-              ByteBuffer.allocate(Integer.BYTES + Integer.BYTES + Integer.BYTES);
-          int32ByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-          int32ByteBuffer.putInt(ValueProto.ValueType.Enum.INT32.getNumber());
-          int32ByteBuffer.putInt(Integer.BYTES);
-          int32ByteBuffer.putInt(val.getInt32Val());
-          for (final byte b : int32ByteBuffer.array()) {
-            buffer.add(b);
-          }
+          buffer.addAll(encodeInteger(ValueProto.ValueType.Enum.INT32.getNumber()));
+          buffer.addAll(encodeInteger(Integer.BYTES));
+          buffer.addAll(encodeInteger(val.getInt32Val()));
+
           break;
         case INT64_VAL:
-          ByteBuffer int64ByteBuffer =
-              ByteBuffer.allocate(Integer.BYTES + Integer.BYTES + Integer.BYTES);
-          int64ByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-          int64ByteBuffer.putInt(ValueProto.ValueType.Enum.INT64.getNumber());
-          int64ByteBuffer.putInt(Integer.BYTES);
+          buffer.addAll(encodeInteger(ValueProto.ValueType.Enum.INT64.getNumber()));
+          buffer.addAll(encodeInteger(Integer.BYTES));
           /* This is super dumb - but in https://github.com/feast-dev/feast/blob/dcae1606f53028ce5413567fb8b66f92cfef0f8e/sdk/python/feast/infra/key_encoding_utils.py#L9
           we use `struct.pack("<l", v.int64_val)` to get the bytes of an int64 val. This actually extracts only 4 bytes,
           instead of 8 bytes as you'd expect from to serialize an int64 value.
           */
-          int64ByteBuffer.putInt(Long.valueOf(val.getInt64Val()).intValue());
-          for (final byte b : int64ByteBuffer.array()) {
-            buffer.add(b);
-          }
+          buffer.addAll(encodeInteger(((Long) val.getInt64Val()).intValue()));
+
           break;
         default:
           throw new RuntimeException("Unable to serialize Entity Key");
       }
     }
-    for (final byte b : entityKey.getProject().getBytes(StandardCharsets.UTF_8)) {
-      buffer.add(b);
-    }
+
+    buffer.addAll(encodeString(entityKey.getProject()));
 
     final byte[] bytes = new byte[buffer.size()];
     for (int i = 0; i < buffer.size(); i++) {
@@ -119,5 +99,22 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
     }
 
     return bytes;
+  }
+
+  private List<Byte> encodeBytes(byte[] toByteArray) {
+    return Arrays.asList(ArrayUtils.toObject(toByteArray));
+  }
+
+  private List<Byte> encodeInteger(Integer value) {
+    ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+    buffer.order(ByteOrder.LITTLE_ENDIAN);
+    buffer.putInt(value);
+
+    return Arrays.asList(ArrayUtils.toObject(buffer.array()));
+  }
+
+  private List<Byte> encodeString(String value) {
+    byte[] stringBytes = value.getBytes(StandardCharsets.UTF_8);
+    return encodeBytes(stringBytes);
   }
 }

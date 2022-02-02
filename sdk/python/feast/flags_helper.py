@@ -35,10 +35,6 @@ def enable_on_demand_feature_views(repo_config: RepoConfig) -> bool:
     return feature_flag_enabled(repo_config, flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
 
-def enable_python_feature_server(repo_config: RepoConfig) -> bool:
-    return feature_flag_enabled(repo_config, flags.FLAG_PYTHON_FEATURE_SERVER_NAME)
-
-
 def enable_aws_lambda_feature_server(repo_config: RepoConfig) -> bool:
     return feature_flag_enabled(repo_config, flags.FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
 

@@ -11,19 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import pandas as pd
 import pyarrow
 
 from feast.data_source import DataSource
+from feast.dqm.errors import ValidationFailed
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+
+if TYPE_CHECKING:
+    from feast.saved_dataset import ValidationReference
 
 
 class RetrievalMetadata:
@@ -61,17 +66,37 @@ class RetrievalJob(ABC):
     def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
         pass
 
-    def to_df(self) -> pd.DataFrame:
-        """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
+    def to_df(
+        self, validation_reference: Optional["ValidationReference"] = None
+    ) -> pd.DataFrame:
+        """
+        Return dataset as Pandas DataFrame synchronously including on demand transforms
+        Args:
+            validation_reference: If provided resulting dataset will be validated against this reference profile.
+        """
         features_df = self._to_df_internal()
-        if not self.on_demand_feature_views:
-            return features_df
 
-        # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
-        for odfv in self.on_demand_feature_views:
-            features_df = features_df.join(
-                odfv.get_transformed_features_df(features_df, self.full_feature_names,)
+        if self.on_demand_feature_views:
+            # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
+            for odfv in self.on_demand_feature_views:
+                features_df = features_df.join(
+                    odfv.get_transformed_features_df(
+                        features_df, self.full_feature_names,
+                    )
+                )
+
+        if validation_reference:
+            warnings.warn(
+                "Dataset validation is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
             )
+
+            validation_result = validation_reference.profile.validate(features_df)
+            if not validation_result.is_success:
+                raise ValidationFailed(validation_result)
+
         return features_df
 
     @abstractmethod
@@ -84,16 +109,39 @@ class RetrievalJob(ABC):
         """Return dataset as pyarrow Table synchronously"""
         pass
 
-    def to_arrow(self) -> pyarrow.Table:
-        """Return dataset as pyarrow Table synchronously"""
-        if not self.on_demand_feature_views:
+    def to_arrow(
+        self, validation_reference: Optional["ValidationReference"] = None
+    ) -> pyarrow.Table:
+        """
+        Return dataset as pyarrow Table synchronously
+        Args:
+            validation_reference: If provided resulting dataset will be validated against this reference profile.
+
+        """
+        if not self.on_demand_feature_views and not validation_reference:
             return self._to_arrow_internal()
 
         features_df = self._to_df_internal()
-        for odfv in self.on_demand_feature_views:
-            features_df = features_df.join(
-                odfv.get_transformed_features_df(features_df, self.full_feature_names,)
+        if self.on_demand_feature_views:
+            for odfv in self.on_demand_feature_views:
+                features_df = features_df.join(
+                    odfv.get_transformed_features_df(
+                        features_df, self.full_feature_names,
+                    )
+                )
+
+        if validation_reference:
+            warnings.warn(
+                "Dataset validation is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
             )
+
+            validation_result = validation_reference.profile.validate(features_df)
+            if not validation_result.is_success:
+                raise ValidationFailed(validation_result)
+
         return pyarrow.Table.from_pandas(features_df)
 
     @abstractmethod

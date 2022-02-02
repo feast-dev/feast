@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
@@ -123,18 +123,20 @@ class BigQuerySource(DataSource):
 
         client = bigquery.Client()
         if self.table_ref is not None:
-            table_schema = client.get_table(self.table_ref).schema
-            if not isinstance(table_schema[0], bigquery.schema.SchemaField):
+            schema = client.get_table(self.table_ref).schema
+            if not isinstance(schema[0], bigquery.schema.SchemaField):
                 raise TypeError("Could not parse BigQuery table schema.")
-
-            name_type_pairs = [(field.name, field.field_type) for field in table_schema]
         else:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
             queryRes = client.query(bq_columns_query).result()
-            name_type_pairs = [
-                (schema_field.name, schema_field.field_type)
-                for schema_field in queryRes.schema
-            ]
+            schema = queryRes.schema
+
+        name_type_pairs: List[Tuple[str, str]] = []
+        for field in schema:
+            bq_type_as_str = field.field_type
+            if field.mode == "REPEATED":
+                bq_type_as_str = "ARRAY<" + bq_type_as_str + ">"
+            name_type_pairs.append((field.name, bq_type_as_str))
 
         return name_type_pairs
 

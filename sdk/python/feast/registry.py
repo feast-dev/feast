@@ -840,7 +840,7 @@ class Registry:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
             self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.now()
+            self.cached_registry_proto_created = datetime.utcnow()
         return self.cached_registry_proto
 
     def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
@@ -859,7 +859,7 @@ class Registry:
                 self.cached_registry_proto_ttl.total_seconds()
                 > 0  # 0 ttl means infinity
                 and (
-                    datetime.now()
+                    datetime.utcnow()
                     > (
                         self.cached_registry_proto_created
                         + self.cached_registry_proto_ttl
@@ -873,7 +873,7 @@ class Registry:
 
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.now()
+            self.cached_registry_proto_created = datetime.utcnow()
 
             return registry_proto
 

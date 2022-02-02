@@ -157,5 +157,28 @@ abstract class ServingBaseTests extends ServingEnvironment {
             equalTo(3));
   }
 
+  /** https://github.com/feast-dev/feast/issues/2253 */
+  @Test
+  public void shouldGetOnlineFeaturesWithStringEntity() {
+    Map<String, ValueProto.RepeatedValue> entityRows =
+        ImmutableMap.of(
+            "entity",
+            ValueProto.RepeatedValue.newBuilder()
+                .addVal(DataGenerator.createStrValue("key-1"))
+                .build());
+
+    ImmutableList<String> featureReferences =
+        ImmutableList.of("feature_view_0:feature_0", "feature_view_0:feature_1");
+
+    ServingAPIProto.GetOnlineFeaturesRequest req =
+        TestUtils.createOnlineFeatureRequest(featureReferences, entityRows);
+
+    ServingAPIProto.GetOnlineFeaturesResponse resp = servingStub.getOnlineFeatures(req);
+
+    for (final int featureIdx : List.of(0, 1)) {
+      assertEquals(FieldStatus.PRESENT, resp.getResults(featureIdx).getStatuses(0));
+    }
+  }
+
   abstract void updateRegistryFile(RegistryProto.Registry registry);
 }

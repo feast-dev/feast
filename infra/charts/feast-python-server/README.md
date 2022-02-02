@@ -57,15 +57,3 @@ RUN pip install feast
 
 COPY feature_store.yaml /feature_store.yaml
 ```
-
-Make sure that you have enabled the flags for the python server. Example `feature_store.yaml`:
-```
-project: feature_repo
-registry: data/registry.db
-provider: local
-online_store:
-    path: data/online_store.db
-flags:
-  alpha_features: true
-  python_feature_server: true
-```

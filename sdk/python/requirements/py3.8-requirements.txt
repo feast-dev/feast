@@ -65,7 +65,7 @@ markupsafe==2.0.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
-numpy==1.22.1
+numpy==1.21.5
     # via
     #   pandas
     #   pandavro
