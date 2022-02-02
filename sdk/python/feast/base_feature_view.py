@@ -28,8 +28,8 @@ warnings.simplefilter("once", DeprecationWarning)
 class BaseFeatureView(ABC):
     """A FeatureView defines a logical grouping of features to be served."""
 
-    created_timestamp: Optional[datetime] = None
-    last_updated_timestamp: Optional[datetime] = None
+    created_timestamp: Optional[datetime]
+    last_updated_timestamp: Optional[datetime]
 
     @abstractmethod
     def __init__(self, name: str, features: List[Feature]):
