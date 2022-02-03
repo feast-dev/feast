@@ -47,10 +47,6 @@ from google.cloud.bigquery import Client
 bq_client = Client(project='kf-feast')
 ```
 
-    /Users/pyalex/projects/feast/venv/lib/python3.7/site-packages/google/auth/_default.py:70: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK without a quota project. You might receive a "quota exceeded" or "API not enabled" error. We recommend you rerun `gcloud auth application-default login` and make sure a quota project is added. Or you can use service accounts instead. For more information about service accounts, see https://cloud.google.com/docs/authentication/
-      warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
-
-
 Running some basic aggregations while pulling data from BigQuery. Grouping by taxi_id and day:
 
 
@@ -96,12 +92,6 @@ entities_2019_table = bq_client.query(entities_query(2019)).to_arrow()
 
 # Storing entities (taxi ids) into parquet file
 pyarrow.parquet.write_table(entities_2019_table, "entities.parquet")
-```
-
-
-```python
-#entities_2020_table = bq_client.query(entities_query(2020)).to_arrow()
-#pyarrow.parquet.write_table(entities_2019_table, "entities_2020.parquet")
 ```
 
 
@@ -217,19 +207,6 @@ entity_df
 
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -326,15 +303,9 @@ store.create_saved_dataset(
 )
 ```
 
-    /Users/pyalex/projects/feast/sdk/python/feast/feature_store.py:853: RuntimeWarning: Saving dataset is an experimental feature. This API is unstable and it could and most probably will be changed in the future. We do not guarantee that future changes will maintain backward compatibility.
-      RuntimeWarning,
-
-
-
-
-
-    <SavedDataset(name = my_training_ds, features = ['trip_stats:total_miles_travelled', 'trip_stats:total_trip_seconds', 'trip_stats:total_earned', 'trip_stats:trip_count', 'on_demand_stats:avg_fare', 'on_demand_stats:avg_trip_seconds', 'on_demand_stats:avg_speed', 'on_demand_stats:earned_per_hour'], join_keys = ['taxi_id'], storage = <feast.infra.offline_stores.file_source.SavedDatasetFileStorage object at 0x1276e7950>, full_feature_names = False, tags = {}, _retrieval_job = <feast.infra.offline_stores.file.FileRetrievalJob object at 0x12716fed0>, min_event_timestamp = 2019-06-01 00:00:00, max_event_timestamp = 2019-07-01 00:00:00)>
-
+```python
+<SavedDataset(name = my_training_ds, features = ['trip_stats:total_miles_travelled', 'trip_stats:total_trip_seconds', 'trip_stats:total_earned', 'trip_stats:trip_count', 'on_demand_stats:avg_fare', 'on_demand_stats:avg_trip_seconds', 'on_demand_stats:avg_speed', 'on_demand_stats:earned_per_hour'], join_keys = ['taxi_id'], storage = <feast.infra.offline_stores.file_source.SavedDatasetFileStorage object at 0x1276e7950>, full_feature_names = False, tags = {}, _retrieval_job = <feast.infra.offline_stores.file.FileRetrievalJob object at 0x12716fed0>, min_event_timestamp = 2019-06-01 00:00:00, max_event_timestamp = 2019-07-01 00:00:00)>
+```
 
 
 ## 4. Developing dataset profiler
@@ -355,10 +326,6 @@ from great_expectations.core.expectation_suite import ExpectationSuite
 from great_expectations.dataset import PandasDataset
 ```
 
-    02/02/2022 02:43:45 PM WARNING:/Users/pyalex/projects/feast/venv/lib/python3.7/site-packages/great_expectations/render/view/view.py:116: DeprecationWarning: 'contextfilter' is renamed to 'pass_context', the old name will be removed in Jinja 3.1.
-      def add_data_context_id_to_url(self, jinja_context, url, add_datetime=True):
-    
-
 
 Loading saved dataset first and exploring the data:
 
@@ -368,27 +335,7 @@ ds = store.get_saved_dataset('my_training_ds')
 ds.to_df()
 ```
 
-    /Users/pyalex/projects/feast/sdk/python/feast/feature_store.py:904: RuntimeWarning: Retrieving datasets is an experimental feature. This API is unstable and it could and most probably will be changed in the future. We do not guarantee that future changes will maintain backward compatibility.
-      RuntimeWarning,
-
-
-
-
-
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -611,13 +558,7 @@ Testing our profiler function:
 ```python
 ds.get_profile(profiler=stats_profiler)
 ```
-
     02/02/2022 02:43:47 PM INFO:	5 expectation(s) included in expectation_suite. result_format settings filtered.
-
-
-
-
-
     <GEProfile with expectations: [
       {
         "expectation_type": "expect_column_values_to_be_between",
@@ -710,10 +651,8 @@ and test it against our existing retrieval job
 _ = job.to_df(validation_reference=validation_reference)
 ```
 
-    /Users/pyalex/projects/feast/sdk/python/feast/infra/offline_stores/offline_store.py:93: RuntimeWarning: Dataset validation is an experimental feature. This API is unstable and it could and most probably will be changed in the future. We do not guarantee that future changes will maintain backward compatibility.
-      RuntimeWarning,
-    02/02/2022 02:43:52 PM INFO:	5 expectation(s) included in expectation_suite. result_format settings filtered.
-    02/02/2022 02:43:53 PM INFO:Validating data_asset_name None with expectation_suite_name default
+    02/02/2022 02:43:52 PM INFO: 5 expectation(s) included in expectation_suite. result_format settings filtered.
+    02/02/2022 02:43:53 PM INFO: Validating data_asset_name None with expectation_suite_name default
 
 
 Validation successfully passed as no exception were raised.
@@ -740,23 +679,7 @@ entity_df = pd.merge(taxi_ids, timestamps, how='cross')
 entity_df
 ```
 
-
-
-
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -827,8 +750,6 @@ entity_df
 </div>
 
 
-
-
 ```python
 job = store.get_historical_features(
     entity_df=entity_df,
@@ -855,11 +776,8 @@ except ValidationFailed as exc:
     print(exc.validation_report)
 ```
 
-    /Users/pyalex/projects/feast/sdk/python/feast/infra/offline_stores/offline_store.py:93: RuntimeWarning: Dataset validation is an experimental feature. This API is unstable and it could and most probably will be changed in the future. We do not guarantee that future changes will maintain backward compatibility.
-      RuntimeWarning,
-    02/02/2022 02:43:58 PM INFO:	5 expectation(s) included in expectation_suite. result_format settings filtered.
-    02/02/2022 02:43:59 PM INFO:Validating data_asset_name None with expectation_suite_name default
-
+    02/02/2022 02:43:58 PM INFO: 5 expectation(s) included in expectation_suite. result_format settings filtered.
+    02/02/2022 02:43:59 PM INFO: Validating data_asset_name None with expectation_suite_name default
 
     [
       {
