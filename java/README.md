@@ -19,4 +19,4 @@ Guides on Contributing:
 - [Development Guide for feast-java (this repository)](CONTRIBUTING.md)
 
 ### Installing using Helm
-Please see the Helm charts in [charts](https://github.com/feast-dev/feast-helm-charts).
+Please see the Helm charts in [infra/charts/feast](../infra/charts/feast).

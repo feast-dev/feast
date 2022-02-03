@@ -5,8 +5,8 @@
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
 - [Feast Python SDK / CLI](#feast-python-sdk-%2F-cli)
+- [Feast Java Serving](#feast-java-serving)
 - [Feast Go Client](#feast-go-client)
-- [Feast Terraform](#feast-terraform)
 
 ## Making a pull request
 
@@ -117,6 +117,9 @@ AWS
 
 Then run `make test-python-integration`. Note that for GCP / AWS, this will create new temporary tables / datasets.
 
+## Feast Serving (Java)
+
+
 ## Feast Go Client
 :warning: Feast Go Client will move to its own standalone repository in the future.
 
@@ -153,13 +156,3 @@ Unit tests for the Feast Go Client can be run as follows:
 ```sh
 go test
 ```
-
-## Feast on Kubernetes
-:warning: Feast Terraform will move to its own standalone repository in the future.
-
-See the deployment guide of the respective cloud providers for how to work with these deployments:
-- [Helm Deployment on Kubernetes](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-with-helm)
-- [Terraform Deployment on Amazon EKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-amazon-eks-with-terraform)
-- [Terraform Deployment on Azure AKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-terraform)
-- [Terraform Deployment on Google Cloud GKE](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/google-cloud-gke-with-terraform)
-- [Kustomize Deployment on IBM Cloud IKS or OpenShift](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-kustomize)
