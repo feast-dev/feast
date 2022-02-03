@@ -59,7 +59,7 @@ Don't see your offline store or online store of choice here? Check out our guide
 
 In order for a plugin integration to be highlighted on this page, it must meet the following requirements:
 
-1. The plugin must have tests. Ideally it would use the Feast universal tests (see this [guide](broken-reference) for an example), but custom tests are fine.
+1. The plugin must have tests. Ideally it would use the Feast universal tests (see this [guide](../how-to-guides/adding-or-reusing-tests) for an example), but custom tests are fine.
 2. The plugin must have some basic documentation on how it should be used.
 3. The author must work with a maintainer to pass a basic code review (e.g. to ensure that the implementation roughly matches the core Feast implementations).&#x20;
 

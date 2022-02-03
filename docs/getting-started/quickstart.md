@@ -348,5 +348,5 @@ pprint(feature_vector)
 * Read the [Concepts](concepts/) page to understand the Feast data model.
 * Read the [Architecture](architecture-and-components/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview.md) section for more examples on how to use Feast.
-* Follow our [Running Feast with GCP/AWS](../how-to-guides/feast-gcp-aws/) guide for a more in-depth tutorial on using Feast.
+* Follow our [Running Feast with Snowflake/GCP/AWS](../how-to-guides/feast-snowflake-gcp-aws/) guide for a more in-depth tutorial on using Feast.
 * Join other Feast users and contributors in [Slack](https://slack.feast.dev) and become part of the community!

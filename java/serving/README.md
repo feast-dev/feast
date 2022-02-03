@@ -1,5 +1,10 @@
 ## Getting Started Guide for Feast Serving Developers
 
+### Overview
+This guide is targeted at developers looking to contribute to Feast Serving:
+- [Building and running Feast Serving locally](#building-and-running-feast-serving-locally)
+- [Feast Java Client](#feast-java-client)
+
 ### Pre-requisites:
 
 - [Maven](https://maven.apache.org/install.html) build tool version 3.6.x
@@ -110,3 +115,12 @@ You can debug this like any other Java executable. Swap the java command above w
      classpath:/application.yml,file:./application-override.yaml
    ```
 Now you can attach e.g. a Remote debugger in IntelliJ to port 5005 to debug / make breakpoints.
+
+### Unit / Integration Tests
+Unit &amp; Integration Tests can be used to verify functionality:
+```sh
+# run unit tests
+mvn test -pl serving --also-make
+# run integration tests
+mvn verify -pl serving --also-make
+```

@@ -3,7 +3,7 @@ description: >-
   Initial demonstration of Snowflake as an offline store with Feast, using the Snowflake demo template.
 ---
 
-# Drivers Stats using Snowflake
+# Drivers stats on Snowflake
 
 In the steps below, we will set up a sample Feast project that leverages Snowflake
 as an offline store.
@@ -22,7 +22,7 @@ pip install 'feast[snowflake]'
 
 #### Get a Snowflake Trial Account (Optional)
 
-[Snowflake Trial Account](trial.snowflake.com)
+[Snowflake Trial Account](http://trial.snowflake.com)
 
 #### Create a feature repository
 

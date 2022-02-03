@@ -1,4 +1,4 @@
-# Running Feast with GCP/AWS
+# Running Feast with Snowflake/GCP/AWS
 
 {% page-ref page="install-feast.md" %}
 
