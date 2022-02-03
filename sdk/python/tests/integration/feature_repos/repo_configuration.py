@@ -4,7 +4,7 @@ import os
 import re
 import tempfile
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -245,11 +245,8 @@ class Environment:
     python_feature_server: bool
     worker_id: str
 
-    end_date: datetime = field(
-        default=datetime.utcnow().replace(microsecond=0, second=0, minute=0)
-    )
-
     def __post_init__(self):
+        self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
         self.start_date: datetime = self.end_date - timedelta(days=3)
 
     def get_feature_server_endpoint(self) -> str:

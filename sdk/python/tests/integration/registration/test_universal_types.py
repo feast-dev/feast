@@ -241,6 +241,9 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
     expected_dtype = feature_list_dtype_to_expected_online_response_value_type[
         config.feature_dtype
     ]
+
+    assert len(online_features["value"]) == 1
+
     if config.feature_is_list:
         for feature in online_features["value"]:
             assert isinstance(feature, list), "Feature value should be a list"
