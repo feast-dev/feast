@@ -143,7 +143,8 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [x] Kafka source (with [push support into the online store](reference/alpha-stream-ingestion.md))
+  * [x] [Spark (community plugin)] (https://github.com/Adyen/feast-spark-offline-store)
+  * [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
@@ -152,9 +153,10 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
+  * [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
+  * [x] [Spark (community plugin)] (https://github.com/Adyen/feast-spark-offline-store)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
-  * [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
 * **Online Stores**
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
