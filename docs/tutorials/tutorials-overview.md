@@ -9,3 +9,5 @@ These Feast tutorials showcase how to use Feast to simplify end to end model tra
 {% page-ref page="real-time-credit-scoring-on-aws.md" %}
 
 {% page-ref page="driver-stats-using-snowflake.md" %}
+
+{% page-ref page="validation-historical-features.md" %}

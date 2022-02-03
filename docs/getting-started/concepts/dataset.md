@@ -44,3 +44,7 @@ Saved dataset can be later retrieved using `get_saved_dataset` method:
 dataset = store.get_saved_dataset('my_training_dataset')
 dataset.to_df()
 ```
+
+---
+
+Check out our [tutorial on validating historical features](../../tutorials/validating-historical-features.md) to see how this concept can be applied in real-world use case.
