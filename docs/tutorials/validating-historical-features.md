@@ -13,6 +13,9 @@ Our plan:
 4. Develop & test profiler function
 5. Run validation on different dataset using reference dataset & profiler
 
+
+> The original notebook and datasets for this tutorial can be found on [GitHub](https://github.com/feast-dev/dqm-tutorial).
+
 ### 0. Setup
 
 Install Feast Python SDK and great expectations:
