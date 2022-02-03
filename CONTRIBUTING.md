@@ -117,8 +117,8 @@ AWS
 
 Then run `make test-python-integration`. Note that for GCP / AWS, this will create new temporary tables / datasets.
 
-## Feast Serving (Java)
-
+## Feast Java Serving
+See [Java contributing guide](java/CONTRIBUTING.md)
 
 ## Feast Go Client
 :warning: Feast Go Client will move to its own standalone repository in the future.
