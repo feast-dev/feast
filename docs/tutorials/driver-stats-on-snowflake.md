@@ -12,7 +12,7 @@ Starting with data in a Snowflake table, we will register that table to the feat
 
 Our template will generate new data containing driver statistics. From there, we will show you code snippets that will call to the offline store for generating training datasets, and then the code for calling the online store to serve you the latest feature values to serve models in production.
 
-## Snowflake Offline/Online Store Example
+## Snowflake Offline Store Example
 
 #### Install feast-snowflake
 
