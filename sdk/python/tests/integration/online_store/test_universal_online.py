@@ -569,6 +569,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     assert np.allclose(expected_values["value"], online_features["value"])
 
     fs.apply(objects=[], objects_to_delete=[simple_driver_fv], partial=False)
+    time.sleep(1)  # some online stores have eventual consistency of schema
     fs.apply([simple_driver_fv])
 
     online_features = fs.get_online_features(
