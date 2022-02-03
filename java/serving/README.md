@@ -1,101 +1,112 @@
-### Getting Started Guide for Feast Serving Developers
+## Getting Started Guide for Feast Serving Developers
 
-Pre-requisites:
+### Pre-requisites:
 
 - [Maven](https://maven.apache.org/install.html) build tool version 3.6.x
-- A running Feast Core instance
-- A running Store instance e.g. local Redis Store instance
+- A Feast feature repo (e.g. https://github.com/feast-dev/feast-demo)
+- A running Store instance e.g. local Redis instance with `redis-server`
 
-From the Feast project root directory, run the following Maven command to start Feast Serving gRPC service running on port 6566 locally:
+### Building and running Feast Serving locally: 
+From the Feast GitHub root, run:
 
-```bash
-# Assumptions: 
-# - Local Feast Core is running on localhost:6565
-# Uses configuration from serving/src/main/resources/application.yml
-mvn -pl serving spring-boot:run -Dspring-boot.run.arguments=\
---feast.core-host=localhost,\
---feast.core-port=6565
-```
+1. `mvn -f java/pom.xml install -Dmaven.test.skip=true`
+2. Package an executable jar for serving: `mvn -f java/serving/pom.xml package -Dmaven.test.skip=true`
+3. Make a file called `application-override.yaml` that specifies your Feast repo project and registry path:
+   1. Note if you have a remote registry, you can specify that too (e.g. `gs://...`)
+   ```yaml
+    feast:
+      project: "feast_demo"
+      registry: "/Users/[your username]/GitHub/feast-demo/feature_repo/data/registry.db"
+    ```
+4. Run the jar with dependencies that was built from Maven (note the version might vary):
+   ```
+   java \
+     -Xms1g \
+     -Xmx4g \
+     -jar java/serving/target/feast-serving-0.17.1-SNAPSHOT-jar-with-dependencies.jar \
+     classpath:/application.yml,file:./application-override.yaml
+   ```
+5. Now you have a Feast Serving gRPC service running on port 6566 locally!
 
+### Running test queries
 If you have [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) installed, you can check that Feast Serving is running
 ```
 grpc_cli ls localhost:6566
-grpc_cli call localhost:6566 GetFeastServingVersion ''
-grpc_cli call localhost:6566 GetFeastServingType ''
 ```
 
+An example of fetching features
 ```bash
-grpc_cli call localhost:6565 ApplyFeatureSet '
-feature_set {
-  name: "driver"
-  entities {
-    name: "driver_id"
-    value_type: STRING
-  }
-  features {
-    name: "city"
-    value_type: STRING
-  }
-  features {
-    name: "booking_completed_count"
-    value_type: INT64
-  }
-  source {
-    type: KAFKA
-    kafka_source_config {
-      bootstrap_servers: "localhost:9092"
+grpc_cli call localhost:6566 GetOnlineFeatures '
+features {
+  val: "driver_hourly_stats:conv_rate"
+  val: "driver_hourly_stats:acc_rate"
+}
+entities {
+  key: "driver_id"
+  value {
+    val {
+      int64_val: 1001
     }
-  }
-}
-'
-
-grpc_cli call localhost:6565 GetFeatureSets '
-filter {
-  feature_set_name: "driver"
-}
-'
-
-grpc_cli call localhost:6566 GetBatchFeatures '
-feature_sets {
-  name: "driver"
-  feature_names: "booking_completed_count"
-  max_age {
-    seconds: 86400
-  }
-}
-entity_dataset {
-  entity_names: "driver_id"
-  entity_dataset_rows {
-    entity_timestamp {
-      seconds: 1569873954
+    val {
+      int64_val: 1002
     }
   }
 }
 '
 ```
-
+Example output:
 ```
-python3 <<EOF
-import pandas as pd
-import fastavro
-
-with open("/tmp/000000000000.avro", "rb") as f:
-    reader = fastavro.reader(f)
-    records = [r for r in reader]
-    df = pd.DataFrame.from_records(records)
-    print(df.columns)
-    print(df.shape)
-    print(df.head(5))
-EOF
+connecting to localhost:6566
+metadata {
+  feature_names {
+    val: "driver_hourly_stats:conv_rate"
+    val: "driver_hourly_stats:acc_rate"
+  }
+}
+results {
+  values {
+    float_val: 0.812357187
+  }
+  values {
+    float_val: 0.379484832
+  }
+  statuses: PRESENT
+  statuses: PRESENT
+  event_timestamps {
+    seconds: 1631725200
+  }
+  event_timestamps {
+    seconds: 1631725200
+  }
+}
+results {
+  values {
+    float_val: 0.840873241
+  }
+  values {
+    float_val: 0.151376978
+  }
+  statuses: PRESENT
+  statuses: PRESENT
+  event_timestamps {
+    seconds: 1631725200
+  }
+  event_timestamps {
+    seconds: 1631725200
+  }
+}
+Rpc succeeded with OK status
 ```
-#### Working with Feast 0.10+ 
-Feast serving supports reading feature values materialized into Redis by feast 0.10+. To configure this, feast-serving 
-needs to be able to read the registry file for the project.
-The location of the registry file can be specified in the `application.yml` like so:
-```yaml
-feast:
-  registry: "src/test/resources/docker-compose/feast10/registry.db"
-```
 
-This changes the behaviour of feast-serving to look up feature view definitions and specifications from the registry file instead 
-of the core service.
+### Debugging Feast Serving
+You can debug this like any other Java executable. Swap the java command above with:
+```
+   java \
+     -Xdebug \
+     -Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=y \
+     -Xms1g \
+     -Xmx4g \
+     -jar java/serving/target/feast-serving-0.17.1-SNAPSHOT-jar-with-dependencies.jar \
+     classpath:/application.yml,file:./application-override.yaml
+   ```
+Now you can attach e.g. a Remote debugger in IntelliJ to port 5005 to debug / make breakpoints.
