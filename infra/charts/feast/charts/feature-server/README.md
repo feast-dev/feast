@@ -1,6 +1,6 @@
 # feature-server
 
-![Version: 0.100.4](https://img.shields.io/badge/Version-0.100.4-informational?style=flat-square) ![AppVersion: v0.15.0](https://img.shields.io/badge/AppVersion-v0.15.0-informational?style=flat-square)
+![Version: 0.17.0](https://img.shields.io/badge/Version-0.17.0-informational?style=flat-square) ![AppVersion: v0.17.0](https://img.shields.io/badge/AppVersion-v0.17.0-informational?style=flat-square)
 
 Feast Feature Server: Online feature serving service for Feast
 
