@@ -127,7 +127,7 @@ Valid values for `provider` in `feature_store.yaml` are:
 * gcp: use BigQuery/Snowflake with Google Cloud Datastore/Redis
 * aws: use Redshift/Snowflake with DynamoDB/Redis
 
-Note that there are many other sources Feast works with, including Azure, Hive, Trino, and PostgreSQL via community plugins. See https://docs.feast.dev/getting-started/third-party-integrations for all supported datasources.
+Note that there are many other sources Feast works with, including Azure, Hive, Trino, and PostgreSQL via community plugins. See [Third party integrations](../getting-started/third-party-integrations.md) for all supported datasources.
 
 A custom setup can also be made by following [adding a custom provider](../how-to-guides/creating-a-custom-provider.md).
 
