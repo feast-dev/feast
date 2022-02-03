@@ -34,6 +34,7 @@
 * [Fraud detection on GCP](tutorials/fraud-detection.md)
 * [Real-time credit scoring on AWS](tutorials/real-time-credit-scoring-on-aws.md)
 * [Driver stats on Snowflake](tutorials/driver-stats-on-snowflake.md)
+* [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 
 ## How-to Guides
 
