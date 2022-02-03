@@ -144,6 +144,27 @@ jobs:
           python3 setup.py sdist bdist_wheel
           python3 -m twine upload --verbose dist/*
 
+  publish-python-sdk-no-telemetry:
+    runs-on: ubuntu-latest
+    env:
+      TWINE_USERNAME: __token__
+      TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+    container: python:3.7
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install dependencies
+        run: make install-python-ci-dependencies PYTHON=3.7
+      - name: Publish Python Package
+        run: |
+          cd sdk/python
+          sed -i 's/DEFAULT_FEAST_USAGE_VALUE = "True"/DEFAULT_FEAST_USAGE_VALUE = "False"/g' feast/constants.py
+          sed -i 's/NAME = "feast"/NAME = "feast-no-telemetry"/g' setup.py
+          python3 -m pip install --user --upgrade setuptools wheel twine
+          python3 setup.py sdist bdist_wheel
+          python3 -m twine upload --verbose dist/*
+
   publish-java-sdk:
     container: maven:3.6-jdk-11
     runs-on: ubuntu-latest

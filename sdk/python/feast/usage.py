@@ -29,7 +29,7 @@ from pathlib import Path
 
 import requests
 
-from feast.constants import FEAST_USAGE
+from feast.constants import DEFAULT_FEAST_USAGE_VALUE, FEAST_USAGE
 from feast.version import get_version
 
 USAGE_ENDPOINT = "https://usage.feast.dev"
@@ -37,7 +37,7 @@ USAGE_ENDPOINT = "https://usage.feast.dev"
 _logger = logging.getLogger(__name__)
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
-_is_enabled = os.getenv(FEAST_USAGE, default="True") == "True"
+_is_enabled = os.getenv(FEAST_USAGE, default=DEFAULT_FEAST_USAGE_VALUE) == "True"
 
 _constant_attributes = {
     "session_id": str(uuid.uuid4()),
