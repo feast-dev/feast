@@ -33,7 +33,7 @@
 * [Driver ranking](tutorials/driver-ranking-with-feast.md)
 * [Fraud detection on GCP](tutorials/fraud-detection.md)
 * [Real-time credit scoring on AWS](tutorials/real-time-credit-scoring-on-aws.md)
-* [Driver Stats on Snowflake](tutorials/driver-stats-on-snowflake.md)
+* [Driver stats on Snowflake](tutorials/driver-stats-on-snowflake.md)
 
 ## How-to Guides
 
