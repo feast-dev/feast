@@ -31,4 +31,4 @@ offline_store:
 ```
 {% endcode %}
 
-Configuration options are available [here](https://github.com/feast-dev/feast/blob/bf557bcb72c7878a16dccb48443bbbe9dc3efa49/sdk/python/feast/infra/offline_stores/snowflake.py#L39).
+Configuration options are available in [SnowflakeOfflineStoreConfig](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/snowflake.py#L56).
