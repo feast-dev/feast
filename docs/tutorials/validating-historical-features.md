@@ -1,8 +1,13 @@
-# Data Quality Monitoring
+# Validating historical features with Great Expectations
 
-## Validating Historical Features with Great Expectations
+In this tutorial, we will use the public dataset of Chicago taxi trips to present data validation capabilities of Feast. 
+- The original dataset is stored in BigQuery and consists of raw data for each taxi trip (one row per trip) since 2013. 
+- We will generate several training datasets (aka historical features in Feast) for different periods and evaluate expectations made on one dataset against another.
 
-In this tutorial, we will use the public dataset of Chicago taxi trips to present data validation capabilities of Feast. The original dataset is stored in BigQuery and consists of raw data for each taxi trip (one row per trip) since 2013. We will generate several training datasets (aka historical features in Feast) for different periods and evaluate expectations made on one dataset against another. Our features will represent aggregations of raw data with daily intervals (eg, trips per day, average fare or speed for a specific day, etc.). We will craft some features using SQL while pulling data from BigQuery (like total trips time or total miles travelled). Another chunk of features will be implemented using Feast's on-demand transformations - features calculated on the fly when requested.
+Types of features we're ingesting and generating:
+- Features that aggregate raw data with daily intervals (eg, trips per day, average fare or speed for a specific day, etc.). 
+- Features using SQL while pulling data from BigQuery (like total trips time or total miles travelled). 
+- Features calculated on the fly when requested using Feast's on-demand transformations
 
 Our plan:
 
