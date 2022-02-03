@@ -7,7 +7,11 @@ The Snowflake offline store provides support for reading [SnowflakeSources](../d
 * Snowflake tables and views are allowed as sources.
 * All joins happen within Snowflake.
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. Pandas dataframes will be uploaded to Snowflake in order to complete join operations.
-* A [SnowflakeRetrievalJob](https://github.com/feast-dev/feast/blob/bf557bcb72c7878a16dccb48443bbbe9dc3efa49/sdk/python/feast/infra/offline_stores/snowflake.py#L185) is returned when calling `get_historical_features()`.
+* A `SnowflakeRetrievalJob` is returned when calling `get_historical_features()`.
+  * This allows you to call
+     * `to_snowflake` to save the dataset into Snowflake
+     * `to_sql` to get the SQL query that would execute on `to_df`
+     * `to_arrow_chunks` to get the result in batches ([Snowflake python connector docs](https://docs.snowflake.com/en/user-guide/python-connector-api.html#get_result_batches)) 
 
 ## Example
 
