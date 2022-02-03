@@ -28,7 +28,7 @@ In this tutorial, we use feature stores to generate training data and power onli
 
 Install the Feast SDK and CLI using pip:
 
-* In this tutorial, we focus on a local deployment. For a more in-depth guide on how to use Feast with GCP or AWS deployments, see [Running Feast with GCP/AWS](../how-to-guides/feast-gcp-aws/)
+* In this tutorial, we focus on a local deployment. For a more in-depth guide on how to use Feast with Snowflake / GCP / AWS deployments, see [Running Feast with Snowflake/GCP/AWS](../how-to-guides/feast-snowflake-gcp-aws/)
 
 {% tabs %}
 {% tab title="Bash" %}
