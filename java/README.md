@@ -1,5 +1,4 @@
 # Feast Java components
-[![complete](https://github.com/feast-dev/feast-java/actions/workflows/complete.yml/badge.svg)](https://github.com/feast-dev/feast-java/actions/workflows/complete.yml)
 
 ### Overview
 
