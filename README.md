@@ -25,7 +25,7 @@ Please see our [documentation](https://docs.feast.dev/) for more information abo
 ## 📐 Architecture
 ![](docs/assets/feast-marchitecture.png)
 
-The above architecture is the minimal Feast deployment. Want to run the full Feast on GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-gcp-aws).
+The above architecture is the minimal Feast deployment. Want to run the full Feast on Snowflake/GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-snowflake-gcp-aws).
 
 ## 🐣 Getting Started
 
