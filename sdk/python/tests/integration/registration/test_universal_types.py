@@ -221,14 +221,17 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
     features = [fv.name + ":value"]
     entity = driver(value_type=config.entity_type)
     fs.apply([fv, entity])
-    fs.materialize(environment.start_date, environment.end_date)
+    fs.materialize(
+        environment.start_date,
+        environment.end_date
+        - timedelta(hours=1)  # throwing out last record to make sure
+        # we can successfully infer type even from all empty values
+    )
 
     driver_id_value = "1" if config.entity_type == ValueType.STRING else 1
     online_features = fs.get_online_features(
         features=features, entity_rows=[{"driver": driver_id_value}],
-    )
-    print(online_features.proto)  # will be in the logs when test fails
-    online_features = online_features.to_dict()
+    ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
         "int32": int,
