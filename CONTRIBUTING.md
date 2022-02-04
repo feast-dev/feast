@@ -113,7 +113,11 @@ Redis
 Now run `make test-python-universal-local`
 
 #### Full integration tests
-To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup
+To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup.
+
+> Note: you can manually control what tests are run today by inspecting 
+> [RepoConfiguration](https://github.com/feast-dev/feast/blob/master/sdk/python/tests/integration/feature_repos/repo_configuration.py)
+> and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
 
 **GCP**
 1. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
@@ -128,7 +132,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 1. TODO(adchia): flesh out setting up AWS login (or create helper script)
 2. Modify `RedshiftDataSourceCreator` to use your credentials
 
-<strong>Snowflake</strong>
+**Snowflake**
 - See https://signup.snowflake.com/
 
 Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
