@@ -19,7 +19,7 @@ A quick list of things to keep in mind as you're making changes:
   - Install [pre-commit hooks](#pre-commit-hooks) to ensure all the default linters / formatters are run when you push.
 - When you make the PR
   - Make a pull request from the forked repo you made
-  - Ensure you add a kind tag to the PR (e.g. `kind/bug` or `kind/housekeeping`) or else checks will fail.
+  - Ensure you add a GitHub **label** (i.e. a kind tag to the PR (e.g. `kind/bug` or `kind/housekeeping`)) or else checks will fail.
   - Ensure you leave a release note for any user facing changes in the PR. There is a field automatically generated in the PR request. You can write `NONE` in that field if there are no user facing changes. 
   - Please run tests locally before submitting a PR (e.g. for Python, the [local integration tests](#local-integration-tests))
   - Try to keep PRs smaller. This makes them easier to review.
