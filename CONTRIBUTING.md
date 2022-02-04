@@ -10,6 +10,20 @@ the main Feast repository:
 
 ## Making a pull request
 
+### Pull request checklist
+A quick list of things to keep in mind as you're making changes:
+- As you make changes
+  - Make your changes in a [forked repo](#forking-the-repo) (instead of making a branch on the main Feast repo)
+  - [Sign your commits](#signing-off-commits) as you go (to avoid DCO checks failing)
+  - [Rebase from master](#incorporating-upstream-changes-from-master) instead of using `git pull` on your PR branch
+  - Install [pre-commit hooks](#pre-commit-hooks) to ensure all the default linters / formatters are run when you push.
+- When you make the PR
+  - Make a pull request from the forked repo you made
+  - Ensure you add a kind tag to the PR (e.g. `kind/bug` or `kind/housekeeping`) or else checks will fail.
+  - Ensure you leave a release note for any user facing changes in the PR. There is a field automatically generated in the PR request. You can write `NONE` in that field if there are no user facing changes. 
+  - Please run tests locally before submitting a PR (e.g. for Python, the [local integration tests](#local-integration-tests))
+  - Try to keep PRs smaller. This makes them easier to review.
+
 ### Forking the repo
 Fork the Feast Github repo and clone your fork locally. Then make changes to a local branch to the fork. 
 
