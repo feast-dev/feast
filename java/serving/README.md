@@ -3,7 +3,6 @@
 ### Overview
 This guide is targeted at developers looking to contribute to Feast Serving:
 - [Building and running Feast Serving locally](#building-and-running-feast-serving-locally)
-- [Feast Java Client](#feast-java-client)
 
 ### Pre-requisites:
 

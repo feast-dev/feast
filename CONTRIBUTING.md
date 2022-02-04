@@ -1,7 +1,7 @@
 # Development Guide: Main Feast Repository
 > Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
-### Overview
+## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
 - [Feast Python SDK / CLI](#feast-python-sdk-%2F-cli)
@@ -96,13 +96,23 @@ make test-python
 > - Ensure Feast Python SDK / CLI is not configured with configuration overrides (ie `~/.feast/config` should be empty).
 
 ### Integration Tests
-To get tests running, you'll need to have GCP / AWS / Redis setup:
+There are two sets of tests you can run:
+1. Local integration tests (for faster development)
+2. Full integration tests (requires cloud environment setups)
+
+#### Local integration tests
+To get local integration tests running, you'll need to have Redis setup:
 
 Redis
 1. Install Redis: [Quickstart](https://redis.io/topics/quickstart) 
 2. Run `redis-server` 
 
-GCP
+Now run `make test-python-universal-local`
+
+#### Full integration tests
+To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup
+
+**GCP**
 1. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
 2. Then run login to gcloud:
   ```
@@ -111,18 +121,19 @@ GCP
   ```
 3. Export `GCLOUD_PROJECT=[your project]` to your .zshrc
 
-AWS
+**AWS**
 1. TODO(adchia): flesh out setting up AWS login (or create helper script)
 2. Modify `RedshiftDataSourceCreator` to use your credentials
 
-Then run `make test-python-integration`. Note that for GCP / AWS, this will create new temporary tables / datasets.
+<strong>Snowflake</strong>
+- See https://signup.snowflake.com/
+
+Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
 
 ## Feast Java Serving
 See [Java contributing guide](java/CONTRIBUTING.md)
 
 ## Feast Go Client
-:warning: Feast Go Client will move to its own standalone repository in the future.
-
 ### Environment Setup
 Setting up your development environment for Feast Go SDK:
 
