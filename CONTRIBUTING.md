@@ -26,6 +26,9 @@ pre-commit install --hook-type pre-commit --hook-type pre-push
 3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
 
 ### Signing off commits
+> :warning: Warning: using the default integrations with IDEs like VSCode or IntelliJ will not sign commits. 
+> When you submit a PR, you'll have to re-sign commits to pass the DCO check.
+
 Use git signoffs to sign your commits. See 
 https://docs.github.com/en/github/authenticating-to-github/managing-commit-signature-verification for details
 
