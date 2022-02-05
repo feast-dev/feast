@@ -146,6 +146,7 @@ jobs:
 
   publish-python-sdk-no-telemetry:
     runs-on: ubuntu-latest
+    needs: get-version
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
@@ -157,6 +158,8 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies PYTHON=3.7
       - name: Publish Python Package
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.get-version.outputs.version_without_prefix }}
         run: |
           cd sdk/python
           sed -i 's/DEFAULT_FEAST_USAGE_VALUE = "True"/DEFAULT_FEAST_USAGE_VALUE = "False"/g' feast/constants.py
