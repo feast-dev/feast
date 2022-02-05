@@ -276,7 +276,7 @@ def create_temporary_sfc_stage(cursor: SnowflakeCursor) -> str:
 
 
 def write_pandas_binary(
-    conn: "SnowflakeConnection",
+    conn: SnowflakeConnection,
     df: pd.DataFrame,
     table_name: str,
     database: Optional[str] = None,
@@ -286,25 +286,9 @@ def write_pandas_binary(
     on_error: str = "abort_statement",
     parallel: int = 4,
     quote_identifiers: bool = True,
-) -> Tuple[
-    bool,
-    int,
-    int,
-    Sequence[
-        Tuple[
-            str,
-            str,
-            int,
-            int,
-            int,
-            int,
-            Optional[str],
-            Optional[int],
-            Optional[int],
-            Optional[str],
-        ]
-    ],
-]:
+    auto_create_table: bool = False,
+    create_temp_table: bool = False,
+):
     """Allows users to most efficiently write back a pandas DataFrame to Snowflake.
 
     It works by dumping the DataFrame into Parquet files, uploading them and finally copying their data into the table.
@@ -337,10 +321,9 @@ def write_pandas_binary(
         quote_identifiers: By default, identifiers, specifically database, schema, table and column names
             (from df.columns) will be quoted. If set to False, identifiers are passed on to Snowflake without quoting.
             I.e. identifiers will be coerced to uppercase by Snowflake.  (Default value = True)
-
-    Returns:
-        Returns the COPY INTO command's results to verify ingestion in the form of a tuple of whether all chunks were
-        ingested correctly, # of chunks, # of ingested rows, and ingest's output.
+        auto_create_table: When true, will automatically create a table with corresponding columns for each column in
+            the passed in DataFrame. The table will not be created if it already exists
+        create_temp_table: Will make the auto-created table as a temporary table
     """
     if database is not None and schema is None:
         raise ProgrammingError(
@@ -369,24 +352,8 @@ def write_pandas_binary(
         )
     if chunk_size is None:
         chunk_size = len(df)
-    cursor = conn.cursor()
-    stage_name = None  # Forward declaration
-    while True:
-        try:
-            stage_name = "".join(
-                random.choice(string.ascii_lowercase) for _ in range(5)
-            )
-            create_stage_sql = (
-                "create temporary stage /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
-                '"{stage_name}"'
-            ).format(stage_name=stage_name)
-            logger.debug("creating stage with '{}'".format(create_stage_sql))
-            cursor.execute(create_stage_sql, _is_internal=True).fetchall()
-            break
-        except ProgrammingError as pe:
-            if pe.msg.endswith("already exists."):
-                continue
-            raise
+    cursor: SnowflakeCursor = conn.cursor()
+    stage_name = create_temporary_sfc_stage(cursor)
 
     with TemporaryDirectory() as tmp_folder:
         for i, chunk in chunk_helper(df, chunk_size):
@@ -406,7 +373,7 @@ def write_pandas_binary(
                 stage_name=stage_name,
                 parallel=parallel,
             )
-            logger.debug("uploading files with '{}'".format(upload_sql))
+            logger.debug(f"uploading files with '{upload_sql}'")
             cursor.execute(upload_sql, _is_internal=True)
             # Remove chunk file
             os.remove(chunk_path)
@@ -414,6 +381,33 @@ def write_pandas_binary(
         columns = '"' + '","'.join(list(df.columns)) + '"'
     else:
         columns = ",".join(list(df.columns))
+
+    if auto_create_table:
+        file_format_name = create_file_format(compression, compression_map, cursor)
+        infer_schema_sql = f"SELECT COLUMN_NAME, TYPE FROM table(infer_schema(location=>'@\"{stage_name}\"', file_format=>'{file_format_name}'))"
+        logger.debug(f"inferring schema with '{infer_schema_sql}'")
+        result_cursor = cursor.execute(infer_schema_sql, _is_internal=True)
+        if result_cursor is None:
+            raise SnowflakeQueryUnknownError(infer_schema_sql)
+        result = cast(List[Tuple[str, str]], result_cursor.fetchall())
+        column_type_mapping: Dict[str, str] = dict(result)
+        # Infer schema can return the columns out of order depending on the chunking we do when uploading
+        # so we have to iterate through the dataframe columns to make sure we create the table with its
+        # columns in order
+        quote = '"' if quote_identifiers else ""
+        create_table_columns = ", ".join(
+            [f"{quote}{c}{quote} {column_type_mapping[c]}" for c in df.columns]
+        )
+        create_table_sql = (
+            f"CREATE {'TEMP ' if create_temp_table else ''}TABLE IF NOT EXISTS {location} "
+            f"({create_table_columns})"
+            f" /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
+        )
+        logger.debug(f"auto creating table with '{create_table_sql}'")
+        cursor.execute(create_table_sql, _is_internal=True)
+        drop_file_format_sql = f"DROP FILE FORMAT IF EXISTS {file_format_name}"
+        logger.debug(f"dropping file format with '{drop_file_format_sql}'")
+        cursor.execute(drop_file_format_sql, _is_internal=True)
 
     # in Snowflake, all parquet data is stored in a single column, $1, so we must select columns explicitly
     # see (https://docs.snowflake.com/en/user-guide/script-data-load-transform-parquet.html)
@@ -443,14 +437,11 @@ def write_pandas_binary(
         on_error=on_error,
     )
     logger.debug("copying into with '{}'".format(copy_into_sql))
-    copy_results = cursor.execute(copy_into_sql, _is_internal=True).fetchall()
-    cursor.close()
-    return (
-        all(e[1] == "LOADED" for e in copy_results),
-        len(copy_results),
-        sum(int(e[3]) for e in copy_results),
-        copy_results,
-    )
+    # Snowflake returns the original cursor if the query execution succeeded.
+    result_cursor = cursor.execute(copy_into_sql, _is_internal=True)
+    if result_cursor is None:
+        raise SnowflakeQueryUnknownError(copy_into_sql)
+    result_cursor.close()
 
 
 def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]]:
