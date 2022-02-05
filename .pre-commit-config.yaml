@@ -18,4 +18,3 @@ repos:
         stages: [ commit ]
         language: system
         entry: make build-templates
-a
