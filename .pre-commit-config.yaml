@@ -13,3 +13,8 @@ repos:
         stages: [ push ]
         language: system
         entry: make lint
+      - id: template
+        name: Build Templates
+        stages: [ commit ]
+        language: system
+        entry: make build-templates
