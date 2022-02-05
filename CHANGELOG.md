@@ -1,5 +1,83 @@
 # Changelog
 
+## [v0.18.0](https://github.com/feast-dev/feast/tree/v0.18.0) (2022-02-05)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.17.0...v0.18.0)
+
+**Implemented enhancements:**
+
+- Tutorial on validation of historical features [\#2277](https://github.com/feast-dev/feast/pull/2277) ([pyalex](https://github.com/pyalex))
+- Feast plan clean up [\#2256](https://github.com/feast-dev/feast/pull/2256) ([felixwang9817](https://github.com/felixwang9817))
+- Return `UNIX\_TIMESTAMP` as Python `datetime` [\#2244](https://github.com/feast-dev/feast/pull/2244) ([judahrand](https://github.com/judahrand))
+- Validating historical features against reference dataset with "great expectations" profiler [\#2243](https://github.com/feast-dev/feast/pull/2243) ([pyalex](https://github.com/pyalex))
+- Implement feature\_store.\_apply\_diffs to handle registry and infra diffs [\#2238](https://github.com/feast-dev/feast/pull/2238) ([felixwang9817](https://github.com/felixwang9817))
+- Compare Python objects instead of proto objects [\#2227](https://github.com/feast-dev/feast/pull/2227) ([felixwang9817](https://github.com/felixwang9817))
+- Modify feature\_store.plan to produce an InfraDiff [\#2211](https://github.com/feast-dev/feast/pull/2211) ([felixwang9817](https://github.com/felixwang9817))
+- Implement diff\_infra\_protos method for feast plan [\#2204](https://github.com/feast-dev/feast/pull/2204) ([felixwang9817](https://github.com/felixwang9817))
+- Persisting results of historical retrieval [\#2197](https://github.com/feast-dev/feast/pull/2197) ([pyalex](https://github.com/pyalex))
+- Merge feast-snowflake plugin into main repo with documentation [\#2193](https://github.com/feast-dev/feast/pull/2193) ([sfc-gh-madkins](https://github.com/sfc-gh-madkins))
+- Add InfraDiff class for feast plan [\#2190](https://github.com/feast-dev/feast/pull/2190) ([felixwang9817](https://github.com/felixwang9817))
+- Use FeatureViewProjection instead of FeatureView in ODFV [\#2186](https://github.com/feast-dev/feast/pull/2186) ([judahrand](https://github.com/judahrand))
+
+**Fixed bugs:**
+
+- Set `created\_timestamp` and `last\_updated\_timestamp` fields [\#2266](https://github.com/feast-dev/feast/pull/2266) ([judahrand](https://github.com/judahrand))
+- Use `datetime.utcnow\(\)` to avoid timezone issues [\#2265](https://github.com/feast-dev/feast/pull/2265) ([judahrand](https://github.com/judahrand))
+- Fix Redis key serialization in java feature server [\#2264](https://github.com/feast-dev/feast/pull/2264) ([pyalex](https://github.com/pyalex))
+- modify registry.db s3 object initialization to work in S3 subdirectory with Java Feast Server [\#2259](https://github.com/feast-dev/feast/pull/2259) ([NalinGHub](https://github.com/NalinGHub))
+- Add snowflake environment variables to allow testing on snowflake infra [\#2258](https://github.com/feast-dev/feast/pull/2258) ([sfc-gh-madkins](https://github.com/sfc-gh-madkins))
+- Correct inconsistent dependency [\#2255](https://github.com/feast-dev/feast/pull/2255) ([judahrand](https://github.com/judahrand))
+- Fix for historical field mappings [\#2252](https://github.com/feast-dev/feast/pull/2252) ([michelle-rascati-sp](https://github.com/michelle-rascati-sp))
+- Add backticks to left\_table\_query\_string [\#2250](https://github.com/feast-dev/feast/pull/2250) ([dmille](https://github.com/dmille))
+- Fix inference of BigQuery ARRAY types. [\#2245](https://github.com/feast-dev/feast/pull/2245) ([judahrand](https://github.com/judahrand))
+- Fix Redshift data creator [\#2242](https://github.com/feast-dev/feast/pull/2242) ([felixwang9817](https://github.com/felixwang9817))
+- Delete entity key from Redis only when all attached feature views are gone [\#2240](https://github.com/feast-dev/feast/pull/2240) ([pyalex](https://github.com/pyalex))
+- Tests for transformation service integration in java feature server [\#2236](https://github.com/feast-dev/feast/pull/2236) ([pyalex](https://github.com/pyalex))
+- Feature server helm chart produces invalid YAML [\#2234](https://github.com/feast-dev/feast/pull/2234) ([pyalex](https://github.com/pyalex))
+- Docker build fails for java feature server [\#2230](https://github.com/feast-dev/feast/pull/2230) ([pyalex](https://github.com/pyalex))
+- Fix ValueType.UNIX\_TIMESTAMP conversions [\#2219](https://github.com/feast-dev/feast/pull/2219) ([judahrand](https://github.com/judahrand))
+- Add on demand feature views deletion [\#2203](https://github.com/feast-dev/feast/pull/2203) ([corentinmarek](https://github.com/corentinmarek))
+- Compare only specs in integration tests [\#2200](https://github.com/feast-dev/feast/pull/2200) ([felixwang9817](https://github.com/felixwang9817))
+- Bump log4j-core from 2.17.0 to 2.17.1 in /java [\#2189](https://github.com/feast-dev/feast/pull/2189) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Support multiple application properties files \(incl from classpath\) [\#2187](https://github.com/feast-dev/feast/pull/2187) ([pyalex](https://github.com/pyalex))
+- Avoid requesting features from OnlineStore twice [\#2185](https://github.com/feast-dev/feast/pull/2185) ([judahrand](https://github.com/judahrand))
+- Speed up Datastore deletes by batch deletions with multithreading [\#2182](https://github.com/feast-dev/feast/pull/2182) ([ptoman-pa](https://github.com/ptoman-pa))
+- Fixes large payload runtime exception in Datastore \(issue 1633\) [\#2181](https://github.com/feast-dev/feast/pull/2181) ([ptoman-pa](https://github.com/ptoman-pa))
+
+**Merged pull requests:**
+
+- Add link to community plugin for Spark offline store [\#2279](https://github.com/feast-dev/feast/pull/2279) ([adchia](https://github.com/adchia))
+- Fix broken links on documentation [\#2278](https://github.com/feast-dev/feast/pull/2278) ([adchia](https://github.com/adchia))
+- Publish alternative python package with FEAST\_USAGE=False by default [\#2275](https://github.com/feast-dev/feast/pull/2275) ([pyalex](https://github.com/pyalex))
+- Unify all helm charts versions [\#2274](https://github.com/feast-dev/feast/pull/2274) ([pyalex](https://github.com/pyalex))
+- Fix / update helm chart workflows to push the feast python server [\#2273](https://github.com/feast-dev/feast/pull/2273) ([adchia](https://github.com/adchia))
+- Update Feast Serving documentation with ways to run and debug locally [\#2272](https://github.com/feast-dev/feast/pull/2272) ([adchia](https://github.com/adchia))
+- Fix Snowflake docs [\#2270](https://github.com/feast-dev/feast/pull/2270) ([felixwang9817](https://github.com/felixwang9817))
+- Update local-feature-server.md [\#2269](https://github.com/feast-dev/feast/pull/2269) ([tsotnet](https://github.com/tsotnet))
+- Update docs to include Snowflake/DQM and removing unused docs from old versions of Feast [\#2268](https://github.com/feast-dev/feast/pull/2268) ([adchia](https://github.com/adchia))
+- Graduate Python feature server [\#2263](https://github.com/feast-dev/feast/pull/2263) ([felixwang9817](https://github.com/felixwang9817))
+- Fix benchmark tests at HEAD by passing in Snowflake secrets [\#2262](https://github.com/feast-dev/feast/pull/2262) ([adchia](https://github.com/adchia))
+- Refactor `pa\_to\_feast\_value\_type` [\#2246](https://github.com/feast-dev/feast/pull/2246) ([judahrand](https://github.com/judahrand))
+- Allow using pandas.StringDtype to support on-demand features with STRING type [\#2229](https://github.com/feast-dev/feast/pull/2229) ([pyalex](https://github.com/pyalex))
+- Bump jackson-databind from 2.10.1 to 2.10.5.1 in /java/common [\#2228](https://github.com/feast-dev/feast/pull/2228) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Split apply total parse repo [\#2226](https://github.com/feast-dev/feast/pull/2226) ([mickey-liu](https://github.com/mickey-liu))
+- Publish renamed java packages to maven central \(via Sonatype\) [\#2225](https://github.com/feast-dev/feast/pull/2225) ([pyalex](https://github.com/pyalex))
+- Make online store nullable [\#2224](https://github.com/feast-dev/feast/pull/2224) ([mirayyuce](https://github.com/mirayyuce))
+- Optimize `\_populate\_result\_rows\_from\_feature\_view` [\#2223](https://github.com/feast-dev/feast/pull/2223) ([judahrand](https://github.com/judahrand))
+- Update to newer `redis-py` [\#2221](https://github.com/feast-dev/feast/pull/2221) ([judahrand](https://github.com/judahrand))
+- Adding a local feature server test [\#2217](https://github.com/feast-dev/feast/pull/2217) ([adchia](https://github.com/adchia))
+- replace GetOnlineFeaturesResponse with GetOnlineFeaturesResponseV2 in… [\#2214](https://github.com/feast-dev/feast/pull/2214) ([tsotnet](https://github.com/tsotnet))
+- Updates to click==8.\* [\#2210](https://github.com/feast-dev/feast/pull/2210) ([diogommartins](https://github.com/diogommartins))
+- Bump protobuf-java from 3.12.2 to 3.16.1 in /java [\#2208](https://github.com/feast-dev/feast/pull/2208) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Add default priority for bug reports [\#2207](https://github.com/feast-dev/feast/pull/2207) ([adchia](https://github.com/adchia))
+- Modify issue templates to automatically attach labels [\#2205](https://github.com/feast-dev/feast/pull/2205) ([adchia](https://github.com/adchia))
+- Python FeatureServer optimization [\#2202](https://github.com/feast-dev/feast/pull/2202) ([judahrand](https://github.com/judahrand))
+- Refactor all importer logic to belong in feast.importer [\#2199](https://github.com/feast-dev/feast/pull/2199) ([felixwang9817](https://github.com/felixwang9817))
+- Refactor `OnlineResponse.to\_dict\(\)` [\#2196](https://github.com/feast-dev/feast/pull/2196) ([judahrand](https://github.com/judahrand))
+- \[Java feature server\] Converge ServingService API to make Python and Java feature servers consistent [\#2166](https://github.com/feast-dev/feast/pull/2166) ([pyalex](https://github.com/pyalex))
+- Add a unit test for the tag\_proto\_objects method [\#2163](https://github.com/feast-dev/feast/pull/2163) ([achals](https://github.com/achals))
+
+
 ## [v0.17.0](https://github.com/feast-dev/feast/tree/v0.17.0) (2021-12-31)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.16.1...v0.17.0)
