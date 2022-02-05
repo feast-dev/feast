@@ -52,6 +52,16 @@ REDIS_CLUSTER_CONFIG = {
     # Redis Cluster Port Forwarding is setup in "pr_integration_tests.yaml" under "Setup Redis Cluster".
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
+SNOWFLAKE_CONFIG = {
+    "type": "snowflake.online",
+    "account": os.environ["SNOWFLAKE_CI_DEPLOYMENT"],
+    "user": os.environ["SNOWFLAKE_CI_USER"],
+    "password": os.environ["SNOWFLAKE_CI_PASSWORD"],
+    "role": os.environ["SNOWFLAKE_CI_ROLE"],
+    "warehouse": os.environ["SNOWFLAKE_CI_WAREHOUSE"],
+    "database": "FEAST",
+    "schema": "ONLINE",
+}
 
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
 # online store, test data, and more parameters) that most integration tests will test
@@ -98,6 +108,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 provider="aws",  # no list features, no feature server
                 offline_store_creator=SnowflakeDataSourceCreator,
                 online_store=REDIS_CONFIG,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",  # no list features, no feature server, #offline/online cant be in same schema
+                offline_store_creator=SnowflakeDataSourceCreator,
+                online_store=SNOWFLAKE_CONFIG,
             ),
         ]
     )

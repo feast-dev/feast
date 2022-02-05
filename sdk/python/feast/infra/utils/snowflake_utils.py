@@ -4,7 +4,7 @@ import random
 import string
 from logging import getLogger
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterator, List, Optional, Tuple, cast
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple, cast
 
 import pandas as pd
 from tenacity import (
@@ -399,7 +399,11 @@ def write_pandas_binary(
         for i, chunk in chunk_helper(df, chunk_size):
             chunk_path = os.path.join(tmp_folder, "file{}.txt".format(i))
             # Dump chunk into parquet file
-            chunk.to_parquet(chunk_path, compression=compression)
+            chunk.to_parquet(
+                chunk_path,
+                compression=compression,
+                use_deprecated_int96_timestamps=True,
+            )
             # Upload parquet file
             upload_sql = (
                 "PUT /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
