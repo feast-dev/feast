@@ -149,7 +149,7 @@ class SnowflakeOnlineStore(OnlineStore):
 
         with snowflake_conn as conn:
 
-            data = list(
+            data = (
                 conn.cursor()
                 .execute(
                     f"""
@@ -163,9 +163,10 @@ class SnowflakeOnlineStore(OnlineStore):
                     "entity_key"
             """,
                 )
-                .fetch_pandas_all()
-                .to_records(index=False)
+                .fetchall()
             )
+
+        data = [(bytes(x[0]), x[1], bytes(x[2]), x[3]) for x in data]
 
         rows = {
             k: list(group) for k, group in itertools.groupby(data, key=lambda r: r[0])
