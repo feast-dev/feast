@@ -46,6 +46,16 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+SNOWFLAKE_CONFIG = {
+    "type": "snowflake.online",
+    "account": os.environ["SNOWFLAKE_CI_DEPLOYMENT"],
+    "user": os.environ["SNOWFLAKE_CI_USER"],
+    "password": os.environ["SNOWFLAKE_CI_PASSWORD"],
+    "role": os.environ["SNOWFLAKE_CI_ROLE"],
+    "warehouse": os.environ["SNOWFLAKE_CI_WAREHOUSE"],
+    "database": "FEAST",
+    "schema": "ONLINE",
+}
 
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
 # online store, test data, and more parameters) that most integration tests will test
@@ -91,6 +101,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 provider="aws",  # no list features, no feature server
                 offline_store_creator=SnowflakeDataSourceCreator,
                 online_store=REDIS_CONFIG,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",  # no list features, no feature server, #offline/online cant be in same schema
+                offline_store_creator=SnowflakeDataSourceCreator,
+                online_store=SNOWFLAKE_CONFIG,
             ),
         ]
     )
