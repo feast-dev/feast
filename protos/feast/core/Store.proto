@@ -19,7 +19,7 @@ package feast.core;
 
 option java_package = "feast.proto.core";
 option java_outer_classname = "StoreProto";
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
 // Store provides a location where Feast reads and writes feature values.
 // Feature values will be written to the Store in the form of FeatureRow elements.

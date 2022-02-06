@@ -22,7 +22,7 @@ package feast.types;
 
 option java_package = "feast.proto.types";
 option java_outer_classname = "FieldProto";
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/types";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
 
 message Field {
   string name = 1;
