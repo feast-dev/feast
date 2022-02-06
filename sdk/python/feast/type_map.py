@@ -497,17 +497,17 @@ def snowflake_python_type_to_feast_value_type(
 
     type_map = {
         "str": ValueType.STRING,
+        "object": ValueType.STRING,
         "float64": ValueType.DOUBLE,
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
-        "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
-        "int16": ValueType.INT32,
-        "uint16": ValueType.INT32,
-        "uint8": ValueType.INT32,
-        "int8": ValueType.INT32,
+        "int32": ValueType.INT64,
+        "uint32": ValueType.INT64,
+        "int16": ValueType.INT64,
+        "uint16": ValueType.INT64,
+        "uint8": ValueType.INT64,
+        "int8": ValueType.INT64,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "object": ValueType.UNKNOWN,
     }
 
     return type_map[snowflake_python_type_as_str.lower()]
