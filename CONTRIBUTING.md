@@ -1,7 +1,7 @@
 # Development Guide: Main Feast Repository
 > Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
-### Overview
+## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
 - [Feast Python SDK / CLI](#feast-python-sdk-%2F-cli)
@@ -9,6 +9,20 @@ the main Feast repository:
 - [Feast Go Client](#feast-go-client)
 
 ## Making a pull request
+
+### Pull request checklist
+A quick list of things to keep in mind as you're making changes:
+- As you make changes
+  - Make your changes in a [forked repo](#forking-the-repo) (instead of making a branch on the main Feast repo)
+  - [Sign your commits](#signing-off-commits) as you go (to avoid DCO checks failing)
+  - [Rebase from master](#incorporating-upstream-changes-from-master) instead of using `git pull` on your PR branch
+  - Install [pre-commit hooks](#pre-commit-hooks) to ensure all the default linters / formatters are run when you push.
+- When you make the PR
+  - Make a pull request from the forked repo you made
+  - Ensure you add a GitHub **label** (i.e. a kind tag to the PR (e.g. `kind/bug` or `kind/housekeeping`)) or else checks will fail.
+  - Ensure you leave a release note for any user facing changes in the PR. There is a field automatically generated in the PR request. You can write `NONE` in that field if there are no user facing changes. 
+  - Please run tests locally before submitting a PR (e.g. for Python, the [local integration tests](#local-integration-tests))
+  - Try to keep PRs smaller. This makes them easier to review.
 
 ### Forking the repo
 Fork the Feast Github repo and clone your fork locally. Then make changes to a local branch to the fork. 
@@ -26,6 +40,9 @@ pre-commit install --hook-type pre-commit --hook-type pre-push
 3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
 
 ### Signing off commits
+> :warning: Warning: using the default integrations with IDEs like VSCode or IntelliJ will not sign commits. 
+> When you submit a PR, you'll have to re-sign commits to pass the DCO check.
+
 Use git signoffs to sign your commits. See 
 https://docs.github.com/en/github/authenticating-to-github/managing-commit-signature-verification for details
 
@@ -96,13 +113,27 @@ make test-python
 > - Ensure Feast Python SDK / CLI is not configured with configuration overrides (ie `~/.feast/config` should be empty).
 
 ### Integration Tests
-To get tests running, you'll need to have GCP / AWS / Redis setup:
+There are two sets of tests you can run:
+1. Local integration tests (for faster development)
+2. Full integration tests (requires cloud environment setups)
+
+#### Local integration tests
+To get local integration tests running, you'll need to have Redis setup:
 
 Redis
 1. Install Redis: [Quickstart](https://redis.io/topics/quickstart) 
 2. Run `redis-server` 
 
-GCP
+Now run `make test-python-universal-local`
+
+#### Full integration tests
+To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup.
+
+> Note: you can manually control what tests are run today by inspecting 
+> [RepoConfiguration](https://github.com/feast-dev/feast/blob/master/sdk/python/tests/integration/feature_repos/repo_configuration.py)
+> and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
+
+**GCP**
 1. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
 2. Then run login to gcloud:
   ```
@@ -111,18 +142,19 @@ GCP
   ```
 3. Export `GCLOUD_PROJECT=[your project]` to your .zshrc
 
-AWS
+**AWS**
 1. TODO(adchia): flesh out setting up AWS login (or create helper script)
 2. Modify `RedshiftDataSourceCreator` to use your credentials
 
-Then run `make test-python-integration`. Note that for GCP / AWS, this will create new temporary tables / datasets.
+**Snowflake**
+- See https://signup.snowflake.com/
+
+Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
 
 ## Feast Java Serving
 See [Java contributing guide](java/CONTRIBUTING.md)
 
 ## Feast Go Client
-:warning: Feast Go Client will move to its own standalone repository in the future.
-
 ### Environment Setup
 Setting up your development environment for Feast Go SDK:
 
