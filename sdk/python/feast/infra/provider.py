@@ -76,6 +76,16 @@ class Provider(abc.ABC):
         """
         return Infra()
 
+    def get_latest_historical_timestamp(self, feature_view: FeatureView) -> str:
+        """
+        Returns a string representation of the latest event timestamp available for a given feature view.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            feature_view: The feature view to query
+        """
+        return "none"
+
     @abc.abstractmethod
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],

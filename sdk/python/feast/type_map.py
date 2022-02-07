@@ -141,6 +141,9 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
+    if isinstance(value, np.bool_):
+        return ValueType.BOOL
+
     if isinstance(value, np.ndarray) and str(value.dtype) in type_map:
         item_type = type_map[str(value.dtype)]
         return ValueType[item_type.name + "_LIST"]

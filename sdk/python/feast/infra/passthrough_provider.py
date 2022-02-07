@@ -168,6 +168,16 @@ class PassthroughProvider(Provider):
                     lambda x: pbar.update(x),
                 )
 
+    def get_latest_historical_timestamp(self, feature_view: FeatureView) -> str:
+        """
+        Returns a string representation of the latest event timestamp available for a given feature view.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            feature_view: The feature view to query
+        """
+        return self.offline_store.get_latest_historical_timestamp(feature_view)
+
     def get_historical_features(
         self,
         config: RepoConfig,
