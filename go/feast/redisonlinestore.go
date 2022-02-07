@@ -1,10 +1,13 @@
 package feast
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/go-redis/redis/v8"
+	"github.com/spaolacci/murmur3"
 	"strings"
 )
 
@@ -105,5 +108,41 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 }
 
 func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]Feature, error) {
+	featureCount := len(features)
+	var hsetKeys = make([]string, featureCount)
+	h := murmur3.New32()
+	intBuffer := h.Sum32()
+	byteBuffer := make([]byte, 4)
+
+	for i := 0; i < featureCount; i++ {
+		h.Write([]byte(view + ":" + features[i]))
+		intBuffer = h.Sum32()
+		binary.LittleEndian.PutUint32(byteBuffer, intBuffer)
+		hsetKeys[i] = hex.EncodeToString(byteBuffer)
+		h.Reset()
+	}
+
+	hsetKeys[featureCount] = fmt.Sprintf("_ts:%s", view)
+
+	// Rest of code from Python
+
+	//        requested_features.append(ts_key)
+	//
+	//        keys = []
+	//        for entity_key in entity_keys:
+	//            redis_key_bin = _redis_key(project, entity_key)
+	//            keys.append(redis_key_bin)
+	//        with client.pipeline() as pipe:
+	//            for redis_key_bin in keys:
+	//                pipe.hmget(redis_key_bin, hset_keys)
+	//            with tracing_span(name="remote_call"):
+	//                redis_values = pipe.execute()
+	//        for values in redis_values:
+	//            features = self._get_features_for_entity(
+	//                values, feature_view, requested_features
+	//            )
+	//            result.append(features)
+	//        return result
+
 	return nil, errors.New("not implemented")
 }
