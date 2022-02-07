@@ -11,7 +11,7 @@ func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
 		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", config.OnlineStore))
 	}
 	if onlineStoreType == "redis" {
-		onlineStore, err := NewRedisOnlineStore(config.OnlineStore)
+		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
 		return onlineStore, err
 	} else {
 		// TODO(willem): Python connectors here
