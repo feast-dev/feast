@@ -109,7 +109,7 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 
 func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]Feature, error) {
 	featureCount := len(features)
-	var hsetKeys = make([]string, featureCount)
+	var hsetKeys = make([]string, featureCount+1)
 	h := murmur3.New32()
 	intBuffer := h.Sum32()
 	byteBuffer := make([]byte, 4)
@@ -122,7 +122,17 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		h.Reset()
 	}
 
-	hsetKeys[featureCount] = fmt.Sprintf("_ts:%s", view)
+	tsKey := fmt.Sprintf("_ts:%s", view)
+	hsetKeys[featureCount] = tsKey
+	features = append(features, tsKey)
+
+	keys := make([][]byte, len(entityKeys))
+	for i := 0; i < len(entityKeys); i++ {
+		keys[i] = BuildRedisKey(r.project, entityKeys[i])
+	}
+
+	res := make([][]Feature, len(entityKeys))
+	return res, nil
 
 	// Rest of code from Python
 
@@ -143,6 +153,13 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	//            )
 	//            result.append(features)
 	//        return result
+}
 
-	return nil, errors.New("not implemented")
+func BuildRedisKey(project string, entityKey types.EntityKey) []byte {
+	serKey := SerializeEntityKey(entityKey)
+	return serKey
+}
+
+func SerializeEntityKey(entityKey types.EntityKey) []byte {
+	return []byte{}
 }
