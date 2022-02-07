@@ -111,7 +111,7 @@ func TestRedisOnlineStoreRead(t *testing.T) {
 			},
 		},
 	}
-	res, err := r.OnlineRead(keys, "driver_hourly_stats", []string{"avg_daily_trips", "acc_rate"})
+	res, err := r.OnlineRead(keys, "driver_hourly_stats", []string{"avg_daily_trips", "conv_rate"})
 
 	if err != nil {
 		t.Fatalf(`could not read from online store for project %v with client config %v`, r.project, r.client.String())
