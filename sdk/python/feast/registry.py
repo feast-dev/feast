@@ -830,6 +830,10 @@ class Registry:
             registry_dict["savedDatasets"].append(
                 MessageToDict(saved_dataset.to_proto())
             )
+
+        registry_dict["infra"].append(
+            MessageToDict(self.get_infra(project=project).to_proto())
+        )
         return registry_dict
 
     def _prepare_registry_for_changes(self):

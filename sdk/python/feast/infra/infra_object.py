@@ -136,7 +136,7 @@ class Infra:
         Returns an Infra object created from a protobuf representation.
         """
         infra = cls()
-        cls.infra_objects += [
+        infra.infra_objects += [
             InfraObject.from_infra_object_proto(infra_object_proto)
             for infra_object_proto in infra_proto.infra_objects
         ]
