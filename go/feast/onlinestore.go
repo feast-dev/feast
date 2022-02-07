@@ -32,3 +32,4 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 		return result, ok
 	}
 }
+
