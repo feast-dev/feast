@@ -24,10 +24,12 @@ type RedisOnlineStore struct {
 	password string
 	// Redis connection encryption
 	ssl bool
+	// Feast project name
+	project string
 }
 
-func NewRedisOnlineStore(onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
-	r := RedisOnlineStore{}
+func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
+	r := RedisOnlineStore{project: project}
 	// Parse redis_type and write it into r.t
 	redisTypeJson, ok := onlineStoreConfig["redis_type"]
 	if !ok {
