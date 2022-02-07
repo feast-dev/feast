@@ -3,6 +3,7 @@ module github.com/feast-dev/feast
 go 1.17
 
 require (
+	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.3
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/grpc v1.44.0
@@ -16,5 +17,6 @@ require (
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
 	golang.org/x/text v0.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	gopkg.in/yaml.v2 v2.2.3 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )

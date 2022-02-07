@@ -24,16 +24,6 @@ type OnlineStore interface {
 	OnlineRead(entityKeys []types.EntityKey, featureReferences []serving.FeatureReferenceV2) ([][]Feature, error)
 }
 
-func getOnlineStoreConfig(config map[string]interface{}) (map[string]interface{}, bool) {
-	if onlineStoreConfig, ok := config["online_store"]; !ok {
-		return nil, false
-	} else if result, ok := onlineStoreConfig.(map[string]interface{}); !ok {
-		return nil, false
-	} else {
-		return result, true
-	}
-}
-
 func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool) {
 	if onlineStoreType, ok := onlineStoreConfig["type"]; !ok {
 		return "", false

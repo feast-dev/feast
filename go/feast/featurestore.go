@@ -7,14 +7,14 @@ import (
 )
 
 type FeatureStore struct {
-	config      map[string]interface{}
+	config      *RepoConfig
 	registry    *core.Registry
 	onlineStore OnlineStore
 }
 
 // NewFeatureStore constructs a feature store fat client using the
 // repo config (contents of feature_store.yaml converted to JSON map).
-func NewFeatureStore(config map[string]interface{}) (*FeatureStore, error) {
+func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
 	onlineStore, err := getOnlineStore(config)
 	if err != nil {
 		return nil, err
