@@ -98,6 +98,23 @@ class FileRetrievalJob(RetrievalJob):
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
+    def get_latest_historical_timestamp(
+        feature_view: FeatureView,
+    ) -> Optional[datetime]:
+        time_now = datetime.utcnow()
+        data_source = feature_view.batch_source
+        event_timestamp_column = data_source.event_timestamp_column
+        filesystem, path = FileSource.create_filesystem_and_path(
+            data_source.path, data_source.file_options.s3_endpoint_override
+        )
+        source_df = pd.read_parquet(path, filesystem=filesystem)
+        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
+            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+        )
+        return source_df["event_timestamp"].max().to_pydatetime()
+
+    @staticmethod
     @log_exceptions_and_usage(offline_store="file")
     def get_historical_features(
         config: RepoConfig,

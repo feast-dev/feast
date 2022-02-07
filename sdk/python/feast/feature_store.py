@@ -359,6 +359,9 @@ class FeatureStore:
             """
         return self._registry.delete_feature_service(name, self.project)
 
+    def get_latest_historical_timestamp(self, feature_view: FeatureView) -> Optional[datetime]:
+        return self._get_provider().get_latest_historical_timestamp(feature_view)
+
     def _get_features(
         self, features: Union[List[str], FeatureService], allow_cache: bool = False,
     ) -> List[str]:

@@ -200,6 +200,12 @@ class OfflineStore(ABC):
         pass
 
     @staticmethod
+    def get_latest_historical_timestamp(
+        feature_view: FeatureView,
+    ) -> Optional[datetime]:
+        return None
+
+    @staticmethod
     @abstractmethod
     def pull_all_from_table_or_query(
         config: RepoConfig,
