@@ -5,17 +5,13 @@ import (
 	"fmt"
 )
 
-func getOnlineStore(config map[string]interface{}) (OnlineStore, error) {
-	onlineStoreConfig, ok := getOnlineStoreConfig(config)
+func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
+	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("could not get online store config from config: %+v", config))
-	}
-	onlineStoreType, ok := getOnlineStoreType(onlineStoreConfig)
-	if !ok {
-		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", onlineStoreConfig))
+		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", config.OnlineStore))
 	}
 	if onlineStoreType == "redis" {
-		onlineStore, err := NewRedisOnlineStore(onlineStoreConfig)
+		onlineStore, err := NewRedisOnlineStore(config.OnlineStore)
 		return onlineStore, err
 	} else {
 		// TODO(willem): Python connectors here
