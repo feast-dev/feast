@@ -1,6 +1,8 @@
 package feast
 
 import (
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -83,5 +85,41 @@ func TestNewRedisOnlineStore6(t *testing.T) {
 		"connection_string": "localhost:6379,test",
 	}
 	_, err := NewRedisOnlineStore("feature_repo", onlineStoreConfig)
+	assert.NotNil(t, err)
+}
+
+func TestRedisOnlineStoreRead(t *testing.T) {
+	onlineStoreConfig := map[string]interface{}{
+		"type":              "redis",
+		"connection_string": "localhost:6379",
+	}
+	// TODO (woop): Add setup/teardown
+	// TODO (woop): Remove hardcoded values
+	r, err := NewRedisOnlineStore("test_repo", onlineStoreConfig)
+
+	keys := []types.EntityKey{
+		{
+			JoinKeys: []string{"driver_id", "driver_id"},
+			EntityValues: []*types.Value{
+				{
+					Val: &types.Value_Int64Val{Int64Val: 1001},
+				},
+				{
+					Val: &types.Value_Int64Val{Int64Val: 1004},
+				},
+			},
+		},
+	}
+	refs := []serving.FeatureReferenceV2{
+		{
+			FeatureViewName: "driver_hourly_stats",
+			FeatureName:     "acc_rate",
+		},
+		{
+			FeatureViewName: "driver_hourly_stats",
+			FeatureName:     "acc_rate",
+		},
+	}
+	r.OnlineRead(keys, refs)
 	assert.NotNil(t, err)
 }

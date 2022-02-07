@@ -124,7 +124,7 @@ install-go-ci-dependencies:
 	go get -u golang.org/x/lint/golint
 
 compile-protos-go:
-	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../go/protos feast/$(dir)/*.proto;)
+	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go-grpc_out=paths=source_relative:../go/protos --go_out=paths=source_relative:../go/protos feast/$(dir)/*.proto;)
 
 test-go:
 	go test ./...

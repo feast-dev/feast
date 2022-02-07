@@ -1,0 +1,6 @@
+project: test_repo
+registry: data/registry.db
+provider: local
+online_store:
+    type: redis
+    connection_string: "localhost:6379"
