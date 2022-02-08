@@ -151,6 +151,10 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 		// TODO: Implement response handling
 		println(res)
+
+		for _, r := range res {
+			println(r)
+		}
 	}
 
 	res := make([][]Feature, len(entityKeys))
