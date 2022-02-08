@@ -144,6 +144,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	for _, redisKey := range redisKeys {
 
 		keyString := string(*redisKey)
+		// TODO: Add pipelining (without transactions)
 		res, err := r.client.HMGet(ctx, keyString, hsetKeys...).Result()
 		if err != nil {
 			return nil, err
