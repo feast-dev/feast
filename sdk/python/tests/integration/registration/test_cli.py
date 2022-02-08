@@ -59,7 +59,7 @@ def test_universal_cli(test_repo_config) -> None:
 
             # Save only the specs, not the metadata.
             registry_specs = {
-                key: [fco["spec"] for fco in value]
+                key: [fco["spec"] if "spec" in fco else fco for fco in value]
                 for key, value in registry_dict.items()
             }
 
