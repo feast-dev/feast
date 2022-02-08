@@ -35,5 +35,11 @@ func NewRepoConfig(repoPath string) (*RepoConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	// If the registry points to a relative path, convert it into absolute path
+	// because otherwise RepoConfig struct doesn't contain enough information
+	// about how to locate the registry
+	if !filepath.IsAbs(config.Registry) {
+		config.Registry = filepath.Join(repoPath, config.Registry)
+	}
 	return &config, nil
 }

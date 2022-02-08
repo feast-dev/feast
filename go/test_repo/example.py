@@ -5,7 +5,7 @@ from google.protobuf.duration_pb2 import Duration
 from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
 driver_hourly_stats = FileSource(
-    path="/Users/willem/Projects/feast/go/test_repo/data/driver_stats.parquet",
+    path="data/driver_stats.parquet",
     event_timestamp_column="event_timestamp",
     created_timestamp_column="created",
 )

@@ -5,13 +5,25 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
+// Return absolute path to the test_repo registry regardless of the working directory
+func getRegistryPath() string {
+	// Get the file path of this source file, regardless of the working directory
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("couldn't find file path of the test file")
+	}
+	return filepath.Join(filename, "..", "..", "test_repo/data/registry.db")
+}
+
 func TestNewFeatureStore(t *testing.T) {
 	config := RepoConfig{
-		Project:  "feature_repo_redis",
-		Registry: "../test_repo/data/registry.db",
+		Project:  "test_repo",
+		Registry: getRegistryPath(),
 		Provider: "local",
 		OnlineStore: map[string]interface{}{
 			"type": "redis",
@@ -24,8 +36,8 @@ func TestNewFeatureStore(t *testing.T) {
 
 func TestGetOnlineFeatures1(t *testing.T) {
 	config := RepoConfig{
-		Project:  "feature_repo_redis",
-		Registry: "../test_repo/data/registry.db",
+		Project:  "test_repo",
+		Registry: getRegistryPath(),
 		Provider: "local",
 		OnlineStore: map[string]interface{}{
 			"type": "redis",
@@ -56,11 +68,11 @@ func TestGetOnlineFeatures1(t *testing.T) {
 	assert.Nil(t, err)
 	response, err := fs.GetOnlineFeatures(&request)
 	assert.Nil(t, err)
-	for _, feature_vector := range response.Results {
+	for _, featureVector := range response.Results {
 
-		values := feature_vector.GetValues()
-		statuses := feature_vector.GetStatuses()
-		timestamps := feature_vector.GetEventTimestamps()
+		values := featureVector.GetValues()
+		statuses := featureVector.GetStatuses()
+		timestamps := featureVector.GetEventTimestamps()
 		lenValues := len(values)
 		for i := 0; i < lenValues; i++ {
 			fmt.Println(*values[i], statuses[i], timestamps[i].String())
