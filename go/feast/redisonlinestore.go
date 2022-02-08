@@ -163,7 +163,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 }
 
 func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
-	serKey, err := BuildSerializedEntityKey(entityKey)
+	serKey, err := SerializeEntityKey(entityKey)
 	if err != nil {
 		return nil, err
 	}
@@ -172,12 +172,15 @@ func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
 	return &fullKey, nil
 }
 
-func BuildSerializedEntityKey(entityKey types.EntityKey) (*[]byte, error) {
-	// TODO: Clean up this function and add comments
+func SerializeEntityKey(entityKey types.EntityKey) (*[]byte, error) {
+	//    Serialize entity key to a bytestring so that it can be used as a lookup key in a hash table.
+
+	// Ensure that we have the right amount of join keys and entity values
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
 		return nil, errors.New(fmt.Sprintf("The amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues))
 	}
 
+	// Make sure that join keys are sorted so that we have consistent key building
 	m := make(map[string]*types.Value)
 
 	for i := 0; i < len(entityKey.JoinKeys); i++ {
@@ -190,6 +193,7 @@ func BuildSerializedEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 	}
 	sort.Strings(keys)
 
+	// Build the key
 	length := 5 * len(keys)
 	bufferList := make([][]byte, length)
 
@@ -205,23 +209,23 @@ func BuildSerializedEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 		offset := (2 * len(keys)) + (i * 3)
 		value := m[keys[i]].GetVal()
 
-		valueBytes, valueTypeEnumBytes, err := SerializeValue(value)
+		valueBytes, valueTypeBytes, err := SerializeValue(value)
 		if err != nil {
 			return valueBytes, err
 		}
 
-		// TODO: Use idiomatic names (shorter)
-		valueTypeEnumByteBuffer := make([]byte, 4)
-		binary.LittleEndian.PutUint32(valueTypeEnumByteBuffer, uint32(valueTypeEnumBytes))
-		bufferList[offset+0] = valueTypeEnumByteBuffer
+		typeBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(typeBuffer, uint32(valueTypeBytes))
 
-		valueBytesLengthBuffer := make([]byte, 4)
-		binary.LittleEndian.PutUint32(valueBytesLengthBuffer, uint32(len(*valueBytes)))
-		bufferList[offset+1] = valueBytesLengthBuffer
+		lenBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(lenBuffer, uint32(len(*valueBytes)))
 
+		bufferList[offset+0] = typeBuffer
+		bufferList[offset+1] = lenBuffer
 		bufferList[offset+2] = *valueBytes
 	}
 
+	// Convert from an array of byte arrays to a single byte array
 	var entityKeyBuffer []byte
 	for i := 0; i < len(bufferList); i++ {
 		entityKeyBuffer = append(entityKeyBuffer, bufferList[i]...)
