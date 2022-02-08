@@ -22,10 +22,12 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
+import "google/protobuf/timestamp.proto";
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
+// Next available id: 22
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
@@ -45,6 +47,9 @@ message DataSource {
     REQUEST_SOURCE = 7;
 
   }
+
+  string name = 20;
+
   SourceType type = 1;
 
   // Defines mapping between fields in the sourced data
@@ -64,6 +69,13 @@ message DataSource {
   // This is an internal field that is represents the python class for the data source object a proto object represents.
   // This should be set by feast, and not by users.
   string data_source_class_type = 17;
+
+  DataSourceMeta meta = 21;
+
+  message DataSourceMeta {
+    // Latest event timestamp available in this data source
+    google.protobuf.Timestamp latest_event_timestamp = 1;
+}
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {

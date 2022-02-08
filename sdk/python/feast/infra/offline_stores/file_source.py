@@ -6,7 +6,7 @@ from pyarrow.parquet import ParquetFile
 
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
-from feast.data_source import DataSource
+from feast.data_source import DataSource, DataSourceMeta
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -19,6 +19,7 @@ from feast.value_type import ValueType
 class FileSource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = "",
         event_timestamp_column: Optional[str] = "",
         file_url: Optional[str] = None,
         path: Optional[str] = None,
@@ -27,11 +28,13 @@ class FileSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         s3_endpoint_override: Optional[str] = None,
+        meta: Optional[DataSourceMeta] = None,
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 
         Args:
 
+            name (optional): Name for the file source
             path: File path to file containing feature data. Must contain an event_timestamp column, entity columns and
                 feature columns.
             event_timestamp_column: Event timestamp column used for point in time joins of feature values.
@@ -41,6 +44,7 @@ class FileSource(DataSource):
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
             s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
+            meta (optional): Metadata around the file source
 
         Examples:
             >>> from feast import FileSource
@@ -59,6 +63,7 @@ class FileSource(DataSource):
         else:
             file_url = path
 
+        self._name = name
         self._file_options = FileOptions(
             file_format=file_format,
             file_url=file_url,
@@ -70,6 +75,7 @@ class FileSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            meta,
         )
 
     def __eq__(self, other):
@@ -117,13 +123,16 @@ class FileSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
+            meta=data_source.meta,
         )
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
+            name=self._name,
             type=DataSourceProto.BATCH_FILE,
             field_mapping=self.field_mapping,
             file_options=self.file_options.to_proto(),
+            meta=self._meta,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column

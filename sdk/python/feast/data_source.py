@@ -22,6 +22,8 @@ from feast.data_format import StreamFormat
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.value_type import ValueType
+from datetime import datetime
+from google.protobuf.timestamp_pb2 import Timestamp
 
 
 class SourceType(enum.Enum):
@@ -34,6 +36,46 @@ class SourceType(enum.Enum):
     BATCH_BIGQUERY = 2
     STREAM_KAFKA = 3
     STREAM_KINESIS = 4
+
+
+class DataSourceMeta:
+    """
+    Metadata for a datasource=
+
+    Args:
+        name: Name of the request data source
+        schema: Schema mapping from the input feature name to a ValueType
+    """
+
+    _latest_event_timestamp: datetime
+
+    def __init__(
+        self, latest_event_timestamp: datetime,
+    ):
+        """Creates a DataSourceMeta object."""
+        self._latest_event_timestamp = latest_event_timestamp
+
+    @property
+    def latest_event_timestamp(self) -> datetime:
+        """
+        Returns the latest_event_timestamp of this data source
+        """
+        return self._latest_event_timestamp
+
+    @staticmethod
+    def from_proto(data_source_meta_proto: DataSourceProto.DataSourceMeta):
+        return DataSourceMeta(
+            latest_event_timestamp=data_source_meta_proto.latest_event_timestamp.ToDatetime()
+        )
+
+    def to_proto(self) -> DataSourceProto.DataSourceMeta:
+        timestamp = Timestamp()
+        timestamp.FromDatetime(self.latest_event_timestamp)
+        data_source_meta_proto = DataSourceProto.DataSourceMeta(
+            latest_event_timestamp=timestamp
+        )
+
+        return data_source_meta_proto
 
 
 class KafkaOptions:
@@ -237,6 +279,7 @@ class DataSource(ABC):
     _created_timestamp_column: str
     _field_mapping: Dict[str, str]
     _date_partition_column: str
+    _meta: Optional[DataSourceMeta]
 
     def __init__(
         self,
@@ -244,6 +287,7 @@ class DataSource(ABC):
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
+        meta: Optional[DataSourceMeta] = None,
     ):
         """Creates a DataSource object."""
         self._event_timestamp_column = (
@@ -256,6 +300,7 @@ class DataSource(ABC):
         self._date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        self._meta = meta
 
     def __eq__(self, other):
         if not isinstance(other, DataSource):
@@ -266,6 +311,7 @@ class DataSource(ABC):
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
+            or self._meta != other._meta
         ):
             return False
 
@@ -326,6 +372,20 @@ class DataSource(ABC):
         Sets the date partition column of this data source.
         """
         self._date_partition_column = date_partition_column
+
+    @property
+    def latest_event_timestamp(self) -> datetime:
+        """
+        Returns the created timestamp column of this data source.
+        """
+        return self._meta.latest_event_timestamp
+
+    @latest_event_timestamp.setter
+    def latest_event_timestamp(self, latest_event_timestamp):
+        """
+        Sets the latest event timestamp of this data source.
+        """
+        self._meta.latest_event_timestamp = latest_event_timestamp
 
     @staticmethod
     @abstractmethod

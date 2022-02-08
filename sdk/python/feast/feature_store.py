@@ -359,7 +359,9 @@ class FeatureStore:
             """
         return self._registry.delete_feature_service(name, self.project)
 
-    def get_latest_historical_timestamp(self, feature_view: FeatureView) -> Optional[datetime]:
+    def get_latest_historical_timestamp(
+        self, feature_view: FeatureView
+    ) -> Optional[datetime]:
         return self._get_provider().get_latest_historical_timestamp(feature_view)
 
     def _get_features(
@@ -1004,7 +1006,11 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view, self.project, start_date, end_date
+                feature_view,
+                self.project,
+                start_date,
+                end_date,
+                self.get_latest_historical_timestamp(feature_view),
             )
 
     @log_exceptions_and_usage
