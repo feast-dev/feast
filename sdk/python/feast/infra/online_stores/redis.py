@@ -75,7 +75,7 @@ class RedisOnlineStore(OnlineStore):
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
         deleted_count = 0
-        pipeline = client.pipeline()
+        pipeline = client.pipeline(transaction=False)
         prefix = _redis_key_prefix(join_keys)
 
         for _k in client.scan_iter(
@@ -188,7 +188,7 @@ class RedisOnlineStore(OnlineStore):
         ts_key = f"_ts:{feature_view}"
         keys = []
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
-        with client.pipeline() as pipe:
+        with client.pipeline(transaction=False) as pipe:
             # check if a previous record under the key bin exists
             # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
             # it may be significantly slower but avoids potential (rare) race conditions
@@ -262,7 +262,7 @@ class RedisOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             redis_key_bin = _redis_key(project, entity_key)
             keys.append(redis_key_bin)
-        with client.pipeline() as pipe:
+        with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:
                 pipe.hmget(redis_key_bin, hset_keys)
             with tracing_span(name="remote_call"):
