@@ -205,6 +205,7 @@ func BuildSerializedEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 			return valueBytes, err
 		}
 
+		// TODO: Use idiomatic names (shorter)
 		valueTypeEnumByteBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(valueTypeEnumByteBuffer, uint32(valueTypeEnumBytes))
 		bufferList[offset+0] = valueTypeEnumByteBuffer
@@ -225,6 +226,7 @@ func BuildSerializedEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 }
 
 func SerializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
+	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
 	switch x := (value).(type) {
 	case *types.Value_StringVal:
 		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
