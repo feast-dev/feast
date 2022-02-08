@@ -101,13 +101,10 @@ func TestRedisOnlineStoreRead(t *testing.T) {
 
 	keys := []types.EntityKey{
 		{
-			JoinKeys: []string{"driver_id", "driver_id"},
+			JoinKeys: []string{"driver_id"},
 			EntityValues: []*types.Value{
 				{
 					Val: &types.Value_Int64Val{Int64Val: 1001},
-				},
-				{
-					Val: &types.Value_Int64Val{Int64Val: 1004},
 				},
 			},
 		},
@@ -115,7 +112,7 @@ func TestRedisOnlineStoreRead(t *testing.T) {
 	res, err := r.OnlineRead(keys, "driver_hourly_stats", []string{"avg_daily_trips", "conv_rate"})
 
 	if err != nil {
-		t.Fatalf(`could not read from online store for project %v with client config %v`, r.project, r.client.String())
+		t.Errorf(`could not read from online store for project %v with client config %v with error: %v`, r.project, r.client.String(), err)
 	}
 
 	assert.NotNil(t, res)

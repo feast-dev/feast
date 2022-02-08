@@ -1,13 +1,14 @@
 package feast
 
 import (
+	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/go-redis/redis/v8"
 	"github.com/spaolacci/murmur3"
+	"sort"
 	"strings"
 )
 
@@ -118,7 +119,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		h.Write([]byte(view + ":" + features[i]))
 		intBuffer = h.Sum32()
 		binary.LittleEndian.PutUint32(byteBuffer, intBuffer)
-		hsetKeys[i] = hex.EncodeToString(byteBuffer)
+		hsetKeys[i] = string(byteBuffer)
 		h.Reset()
 	}
 
@@ -126,40 +127,115 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	hsetKeys[featureCount] = tsKey
 	features = append(features, tsKey)
 
-	keys := make([][]byte, len(entityKeys))
+	redisKeys := make([]*[]byte, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
-		keys[i] = BuildRedisKey(r.project, entityKeys[i])
+
+		var key, err = BuildRedisKey(r.project, entityKeys[i])
+		if err != nil {
+			return nil, err
+		}
+		redisKeys[i] = key
+	}
+
+	// Retrieve features from Redis
+	// TODO: Move context object out
+	ctx := context.Background()
+
+	for _, redisKey := range redisKeys {
+
+		keyString := string(*redisKey)
+		res, err := r.client.HMGet(ctx, keyString, hsetKeys...).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: Implement response handling
+		println(res)
 	}
 
 	res := make([][]Feature, len(entityKeys))
 	return res, nil
-
-	// Rest of code from Python
-
-	//        requested_features.append(ts_key)
-	//
-	//        keys = []
-	//        for entity_key in entity_keys:
-	//            redis_key_bin = _redis_key(project, entity_key)
-	//            keys.append(redis_key_bin)
-	//        with client.pipeline() as pipe:
-	//            for redis_key_bin in keys:
-	//                pipe.hmget(redis_key_bin, hset_keys)
-	//            with tracing_span(name="remote_call"):
-	//                redis_values = pipe.execute()
-	//        for values in redis_values:
-	//            features = self._get_features_for_entity(
-	//                values, feature_view, requested_features
-	//            )
-	//            result.append(features)
-	//        return result
 }
 
-func BuildRedisKey(project string, entityKey types.EntityKey) []byte {
-	serKey := SerializeEntityKey(entityKey)
-	return serKey
+func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
+	serKey, err := BuildSerializedEntityKey(entityKey)
+	if err != nil {
+		return nil, err
+	}
+
+	fullKey := append(*serKey, []byte(project)...)
+	return &fullKey, nil
 }
 
-func SerializeEntityKey(entityKey types.EntityKey) []byte {
-	return []byte{}
+func BuildSerializedEntityKey(entityKey types.EntityKey) (*[]byte, error) {
+	// TODO: Clean up this function and add comments
+	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
+		return nil, errors.New(fmt.Sprintf("The amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues))
+	}
+
+	m := make(map[string]*types.Value)
+
+	for i := 0; i < len(entityKey.JoinKeys); i++ {
+		m[entityKey.JoinKeys[i]] = entityKey.EntityValues[i]
+	}
+
+	keys := make([]string, 0, len(m))
+	for k := range entityKey.JoinKeys {
+		keys = append(keys, entityKey.JoinKeys[k])
+	}
+	sort.Strings(keys)
+
+	length := 5 * len(keys)
+	bufferList := make([][]byte, length)
+
+	for i := 0; i < len(keys); i++ {
+		offset := i * 2
+		byteBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(byteBuffer, uint32(types.ValueType_Enum_value["STRING"]))
+		bufferList[offset] = byteBuffer
+		bufferList[offset+1] = []byte(keys[i])
+	}
+
+	for i := 0; i < len(keys); i++ {
+		offset := (2 * len(keys)) + (i * 3)
+		value := m[keys[i]].GetVal()
+
+		valueBytes, valueTypeEnumBytes, err := SerializeValue(value)
+		if err != nil {
+			return valueBytes, err
+		}
+
+		valueTypeEnumByteBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(valueTypeEnumByteBuffer, uint32(valueTypeEnumBytes))
+		bufferList[offset+0] = valueTypeEnumByteBuffer
+
+		valueBytesLengthBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(valueBytesLengthBuffer, uint32(len(*valueBytes)))
+		bufferList[offset+1] = valueBytesLengthBuffer
+
+		bufferList[offset+2] = *valueBytes
+	}
+
+	var entityKeyBuffer []byte
+	for i := 0; i < len(bufferList); i++ {
+		entityKeyBuffer = append(entityKeyBuffer, bufferList[i]...)
+	}
+
+	return &entityKeyBuffer, nil
+}
+
+func SerializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
+	switch x := (value).(type) {
+	case *types.Value_StringVal:
+		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
+	case *types.Value_Int64Val:
+		// TODO (woop): We unfortunately have to use 32 bit here for backward compatibility :(
+		valueBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int64Val))
+		return &valueBuffer, types.ValueType_INT64, nil
+	case nil:
+		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
+	default:
+		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
+	}
 }
