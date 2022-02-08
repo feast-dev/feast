@@ -243,7 +243,6 @@ func SerializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
 	case *types.Value_BytesVal:
 		return &x.BytesVal, types.ValueType_BYTES, nil
 	case *types.Value_Int32Val:
-		// TODO (woop): We unfortunately have to use 32 bit here for backward compatibility :(
 		valueBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
 		return &valueBuffer, types.ValueType_INT32, nil
