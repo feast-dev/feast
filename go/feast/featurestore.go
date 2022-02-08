@@ -144,30 +144,17 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 			for _, feature := range featureList {
 				status := serving.FieldStatus_PRESENT
 
-				// if feature == nil {
-				// 	status = serving.FieldStatus_NOT_FOUND
-				// 	feature_vector.Values = append(feature_vector.Values, nil)
-				// 	feature_vector.Statuses = append(feature_vector.Statuses, status)
-				// 	feature_vector.EventTimestamps = append(feature_vector.EventTimestamps, nil)
-				// 	continue
-				// } else if feature.value == nil {
-				// 	status = serving.FieldStatus_NULL_VALUE
-				// 	feature_vector.Values = append(feature_vector.Values, nil)
-				// 	feature_vector.Statuses = append(feature_vector.Statuses, status)
-
-				// 	if feature.timestamp != nil {
-				// 		feature_vector.EventTimestamps = append(feature_vector.EventTimestamps, timestamp.Timestamp(&feature.timestamp))
-				// 	} else {
-				// 		feature_vector.EventTimestamps = append(feature_vector.EventTimestamps, nil)
-				// 	}
-				// 	continue
-				// } else if checkOutsideMaxAge(feature.EventTimestamps, timestamppb.Now(), feature_view_spec.GetTtl()) {
-				// 	status = serving.FieldStatus_OUTSIDE_MAX_AGE
-				// }
-
-				featureVector.Values = append(featureVector.Values, &feature.value)
+				if _, ok := feature.value.Val.(*types.Value_NullVal); ok {
+					status = serving.FieldStatus_NULL_VALUE
+				} else if checkOutsideMaxAge(&feature.timestamp, timestamppb.Now(), featureViewSpec.GetTtl()) {
+					status = serving.FieldStatus_OUTSIDE_MAX_AGE
+				}
+				
+				value := feature.value
+				timeStamp := feature.timestamp
+				featureVector.Values = append(featureVector.Values, &value)
 				featureVector.Statuses = append(featureVector.Statuses, status)
-				featureVector.EventTimestamps = append(featureVector.EventTimestamps, &feature.timestamp)
+				featureVector.EventTimestamps = append(featureVector.EventTimestamps, &timeStamp)
 
 			}
 			response.Results = append(response.Results, &featureVector)

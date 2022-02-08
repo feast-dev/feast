@@ -75,7 +75,7 @@ func TestGetOnlineFeatures1(t *testing.T) {
 		timestamps := featureVector.GetEventTimestamps()
 		lenValues := len(values)
 		for i := 0; i < lenValues; i++ {
-			fmt.Println(*values[i], statuses[i], timestamps[i].String())
+			fmt.Println(values[i].String(), statuses[i], timestamps[i].String())
 		}
 	}
 	fmt.Println("Passed featurestore_test")
