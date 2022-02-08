@@ -62,7 +62,6 @@ class FileSource(DataSource):
             )
         else:
             file_url = path
-
         self._name = name
         self._file_options = FileOptions(
             file_format=file_format,
@@ -93,6 +92,13 @@ class FileSource(DataSource):
         )
 
     @property
+    def name(self):
+        """
+        Returns the file name of this feature data source
+        """
+        return self._name
+
+    @property
     def file_options(self):
         """
         Returns the file options of this data source
@@ -116,6 +122,7 @@ class FileSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         return FileSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             file_format=FileFormat.from_proto(data_source.file_options.file_format),
             path=data_source.file_options.file_url,
@@ -128,7 +135,7 @@ class FileSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            name=self._name,
+            name=self.name,
             type=DataSourceProto.BATCH_FILE,
             field_mapping=self.field_mapping,
             file_options=self.file_options.to_proto(),

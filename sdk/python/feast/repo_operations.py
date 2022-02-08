@@ -265,11 +265,11 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(registry_config=registry_config, repo_path=repo_path)
     registry_dict = registry.to_dict(project=project)
 
-    warning = (
-        "Warning: The registry-dump command is for debugging only and may contain "
-        "breaking changes in the future. No guarantees are made on this interface."
-    )
-    click.echo(f"{Style.BRIGHT}{Fore.YELLOW}{warning}{Style.RESET_ALL}")
+    # warning = (
+    #     "Warning: The registry-dump command is for debugging only and may contain "
+    #     "breaking changes in the future. No guarantees are made on this interface."
+    # )
+    # click.echo(f"{Style.BRIGHT}{Fore.YELLOW}{warning}{Style.RESET_ALL}")
     click.echo(json.dumps(registry_dict, indent=2))
 
 

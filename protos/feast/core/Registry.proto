@@ -39,6 +39,7 @@ message Registry {
     repeated RequestFeatureView request_feature_views = 9;
     repeated FeatureService feature_services = 7;
     repeated SavedDataset saved_datasets = 11;
+    repeated ValidationProfile validation_profile = 12;
     Infra infra = 10;
 
     string registry_schema_version = 3; // to support migrations; incremented when schema is changed
