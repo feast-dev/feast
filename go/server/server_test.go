@@ -2,20 +2,41 @@ package main
 
 import (
 	"context"
+	"github.com/feast-dev/feast/go/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	"net"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+// Return absolute path to the test_repo directory regardless of the working directory
+func getRepoPath() string {
+	// Get the file path of this source file, regardless of the working directory
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("couldn't find file path of the test file")
+	}
+	return filepath.Join(filename, "..", "..", "test_repo")
+}
 
 func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	serving.RegisterServingServiceServer(server, &servingServiceServer{})
+	config, err := feast.NewRepoConfig(getRepoPath())
+	if err != nil {
+		panic(err)
+	}
+	fs, err := feast.NewFeatureStore(config)
+	if err != nil {
+		panic(err)
+	}
+	serving.RegisterServingServiceServer(server, &servingServiceServer{fs: fs})
 	go func() {
 		if err := server.Serve(listener); err != nil {
 			panic(err)
@@ -50,7 +71,6 @@ func TestGetOnlineFeatures(t *testing.T) {
 	client, closer := getClient(ctx)
 	defer closer()
 	response, err := client.GetOnlineFeatures(ctx, &serving.GetOnlineFeaturesRequest{})
-	// TODO: change this once everything works
-	assert.Nil(t, response)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.NotNil(t, response)
 }

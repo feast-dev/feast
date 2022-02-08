@@ -80,7 +80,7 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	// Validate that all entities in request_entities are found in registry
 	for entityName, _ := range requestEntities {
 		if _, ok := entitiesInRegistry[entityName]; !ok {
-			return nil, errors.New("Requested entity not found inside the registry")
+			return nil, errors.New("requested entity not found inside the registry")
 		}
 	}
 	// Construct a map of all feature_views to validate later
@@ -122,12 +122,12 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 			return nil, err
 		}
 
-		feature_vector := serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, 0),
+		featureVector := serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, 0),
 			Statuses:        make([]serving.FieldStatus, 0),
 			EventTimestamps: make([]*timestamppb.Timestamp, 0)}
-		for _, feature_list := range features {
+		for _, featureList := range features {
 
-			for _, feature := range feature_list {
+			for _, feature := range featureList {
 				status := serving.FieldStatus_PRESENT
 
 				// if feature == nil {
@@ -151,12 +151,12 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 				// 	status = serving.FieldStatus_OUTSIDE_MAX_AGE
 				// }
 
-				feature_vector.Values = append(feature_vector.Values, &feature.value)
-				feature_vector.Statuses = append(feature_vector.Statuses, status)
-				feature_vector.EventTimestamps = append(feature_vector.EventTimestamps, &feature.timestamp)
+				featureVector.Values = append(featureVector.Values, &feature.value)
+				featureVector.Statuses = append(featureVector.Statuses, status)
+				featureVector.EventTimestamps = append(featureVector.EventTimestamps, &feature.timestamp)
 
 			}
-			response.Results = append(response.Results, &feature_vector)
+			response.Results = append(response.Results, &featureVector)
 		}
 	}
 
