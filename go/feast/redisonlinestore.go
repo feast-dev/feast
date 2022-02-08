@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/golang/protobuf/proto"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/go-redis/redis/v8"
 	"github.com/spaolacci/murmur3"
 	"sort"
@@ -141,25 +144,49 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	// TODO: Move context object out
 	ctx := context.Background()
 
-	for _, redisKey := range redisKeys {
+	results := make([][]Feature, len(entityKeys))
 
+	for entityIndex, redisKey := range redisKeys {
+		results[entityIndex] = make([]Feature, len(features))
 		keyString := string(*redisKey)
 		// TODO: Add pipelining (without transactions)
 		res, err := r.client.HMGet(ctx, keyString, hsetKeys...).Result()
 		if err != nil {
 			return nil, err
 		}
-
-		// TODO: Implement response handling
-		println(res)
-
-		for _, r := range res {
-			println(r)
+		var timeStamp timestamppb.Timestamp
+		timeStampInterface := res[len(res)-1]
+		if timeStampString, ok := timeStampInterface.(string); !ok {
+			return nil, errors.New("Error parsing value from redis")
+		} else {
+			if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
+				return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
+			}
 		}
+		res = res[:len(res)-1]
+		
+		for featureIndex,resString := range res {
+			if valueString, ok := resString.(string); !ok {
+				return nil, errors.New("Error parsing value from redis")
+			} else {
+				var value types.Value
+				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+					return nil, errors.New("Error converting parsed redis value to types.Value")
+				} else {
+					featureName := features[ featureIndex ]
+					ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
+						FeatureName: featureName}
+					feature := Feature { 	reference: ref,
+											timestamp: timeStamp,
+											value: value }
+					results[entityIndex][featureIndex] = feature
+				}
+			}
+		}
+		
 	}
 
-	res := make([][]Feature, len(entityKeys))
-	return res, nil
+	return results, nil
 }
 
 func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
