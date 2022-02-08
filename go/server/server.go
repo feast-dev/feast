@@ -8,6 +8,7 @@ import (
 
 type servingServiceServer struct {
 	fs *feast.FeatureStore
+	serving.UnimplementedServingServiceServer
 }
 
 func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error) {
