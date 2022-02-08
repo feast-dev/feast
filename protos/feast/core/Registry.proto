@@ -29,7 +29,6 @@ import "feast/core/InfraObject.proto";
 import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/RequestFeatureView.proto";
 import "feast/core/SavedDataset.proto";
-import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 
 message Registry {

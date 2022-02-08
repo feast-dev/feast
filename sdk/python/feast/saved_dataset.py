@@ -9,6 +9,9 @@ from google.protobuf.json_format import MessageToJson
 from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.feature_service import FeatureService
+from feast.protos.feast.core.GEValidationProfile_pb2 import (
+    GEValidationProfile as GEValidationProfileProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -64,6 +67,7 @@ class SavedDataset:
     max_event_timestamp: Optional[datetime] = None
 
     _retrieval_job: Optional["RetrievalJob"] = None
+    _profile: Optional[GEValidationProfileProto] = None
 
     def __init__(
         self,
@@ -173,6 +177,7 @@ class SavedDataset:
             feature_service=self.feature_service.to_proto()
             if self.feature_service
             else None,
+            profile=self._profile,
         )
 
         feature_service_proto = SavedDatasetProto(spec=spec, meta=meta)
@@ -180,6 +185,12 @@ class SavedDataset:
 
     def with_retrieval_job(self, retrieval_job: "RetrievalJob") -> "SavedDataset":
         self._retrieval_job = retrieval_job
+        return self
+
+    def with_profile(
+        self, profile: Optional[GEValidationProfileProto] = None
+    ) -> "SavedDataset":
+        self._profile = profile
         return self
 
     def to_df(self) -> pd.DataFrame:

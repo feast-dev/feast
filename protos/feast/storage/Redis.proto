@@ -16,7 +16,6 @@
 
 syntax = "proto3";
 
-import "feast/types/Field.proto";
 import "feast/types/Value.proto";
 
 package feast.storage;

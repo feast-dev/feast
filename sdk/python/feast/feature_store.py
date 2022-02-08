@@ -41,6 +41,7 @@ from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
+from feast.dqm.profilers.ge_profiler import GEProfiler
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -67,6 +68,9 @@ from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
+from feast.protos.feast.core.GEValidationProfile_pb2 import (
+    GEValidationProfile as GEValidationProfileProto,
+)
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -838,6 +842,7 @@ class FeatureStore:
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
         feature_service: Optional[FeatureService] = None,
+        profiler: Optional[GEProfiler] = None,
     ) -> SavedDataset:
         """
             Execute provided retrieval job and persist its outcome in given storage.
@@ -880,13 +885,20 @@ class FeatureStore:
 
         from_.persist(storage)
 
-        self._registry.apply_saved_dataset(dataset, self.project, commit=True)
-
-        return dataset.with_retrieval_job(
+        dataset = dataset.with_retrieval_job(
             self._get_provider().retrieve_saved_dataset(
                 config=self.config, dataset=dataset
             )
         )
+
+        profile = (
+            cast(GEValidationProfileProto, dataset.get_profile(profiler).to_proto())
+            if profiler
+            else None
+        )
+        dataset = dataset.with_profile(profile)
+        self._registry.apply_saved_dataset(dataset, self.project, commit=True)
+        return dataset
 
     @log_exceptions_and_usage
     def get_saved_dataset(self, name: str) -> SavedDataset:
