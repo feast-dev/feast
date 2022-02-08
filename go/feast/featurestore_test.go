@@ -1,10 +1,10 @@
 package feast
 
 import (
-	"github.com/stretchr/testify/assert"
+	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -32,16 +32,16 @@ func TestGetOnlineFeatures1(t *testing.T) {
 		},
 	}
 
-	feature_view_names := []string{ 	"driver_hourly_stats:conv_rate",
-								"driver_hourly_stats:acc_rate",
-								"driver_hourly_stats:avg_daily_trips" }
-	feature_list := serving.FeatureList{Val: feature_view_names}
-	feature_list_request := serving.GetOnlineFeaturesRequest_Features{&feature_list}
-	entities := map[string]*types.RepeatedValue{ "driver_id": &types.RepeatedValue{Val: []*types.Value{	&types.Value{Val: &types.Value_Int64Val{1001}},
-																										&types.Value{Val: &types.Value_Int64Val{1002}},
-																										&types.Value{Val: &types.Value_Int64Val{1003}} }} }
-	request := serving.GetOnlineFeaturesRequest{Kind: &feature_list_request, Entities: entities, FullFeatureNames: true}
-	
+	featureViewNames := []string{"driver_hourly_stats:conv_rate",
+		"driver_hourly_stats:acc_rate",
+		"driver_hourly_stats:avg_daily_trips"}
+	featureList := serving.FeatureList{Val: featureViewNames}
+	featureListRequest := serving.GetOnlineFeaturesRequest_Features{Features: &featureList}
+	entities := map[string]*types.RepeatedValue{"driver_id": {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}},
+		{Val: &types.Value_Int64Val{Int64Val: 1002}},
+		{Val: &types.Value_Int64Val{Int64Val: 1003}}}}}
+	request := serving.GetOnlineFeaturesRequest{Kind: &featureListRequest, Entities: entities, FullFeatureNames: true}
+
 	// Kind isGetOnlineFeaturesRequest_Kind `protobuf_oneof:"kind"`
 	// // The entity data is specified in a columnar format
 	// // A map of entity name -> list of values
@@ -57,12 +57,12 @@ func TestGetOnlineFeatures1(t *testing.T) {
 	response, err := fs.GetOnlineFeatures(&request)
 	assert.Nil(t, err)
 	for _, feature_vector := range response.Results {
-		
+
 		values := feature_vector.GetValues()
 		statuses := feature_vector.GetStatuses()
 		timestamps := feature_vector.GetEventTimestamps()
-		len := len(values)
-		for i := 0; i < len; i++ {
+		lenValues := len(values)
+		for i := 0; i < lenValues; i++ {
 			fmt.Println(*values[i], statuses[i], timestamps[i].String())
 		}
 	}
