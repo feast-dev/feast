@@ -107,12 +107,17 @@ class FileOfflineStore(OfflineStore):
         filesystem, path = FileSource.create_filesystem_and_path(
             data_source.path, data_source.file_options.s3_endpoint_override
         )
-        source_df = pd.read_parquet(path, filesystem=filesystem)
-        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+        source_table = pyarrow.parquet.read_table(path, filesystem=filesystem)
+        if feature_view.batch_source.field_mapping is not None:
+            source_table = _run_field_mapping(
+                source_table, feature_view.batch_source.field_mapping
+            )
+
+        return (
+            pyarrow.compute.max(source_table[event_timestamp_column])
+            .as_py()
+            .astimezone(tz=pytz.utc)
         )
-        return source_df["event_timestamp"].max().to_pydatetime()
 
     @staticmethod
     @log_exceptions_and_usage(offline_store="file")
