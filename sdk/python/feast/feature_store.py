@@ -837,6 +837,7 @@ class FeatureStore:
         name: str,
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
+        feature_service: Optional[FeatureService] = None
     ) -> SavedDataset:
         """
             Execute provided retrieval job and persist its outcome in given storage.
@@ -871,6 +872,7 @@ class FeatureStore:
             full_feature_names=from_.full_feature_names,
             storage=storage,
             tags=tags,
+            feature_service=feature_service
         )
 
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
