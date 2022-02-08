@@ -64,30 +64,49 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	requestEntities := request.GetEntities()      // map[string]*types.RepeatedValue
 	registryEntities := fs.registry.GetEntities() //[]*Entity
 	entitiesInRegistry := make(map[string]bool)   // used for validation of requested entities versus registry entities
-	entityKeysLookup := make(map[string]*types.EntityKey)
-
+	var requestEntitiesRowLength int
+	
+	for _, values := range requestEntities {
+		requestEntitiesRowLength = len(values.GetVal())
+		break
+	}
 	for _, registryEntity := range registryEntities {
 		// append(entities_in_registry, registry_entity.Spec.Name)
 		entitiesInRegistry[registryEntity.Spec.Name] = true
-		// An entity in registry is found in request entity
-		// Construct entityKey and add entityKey to entityKeys, the first param of OnlineRead
-		if requestEntityValues, ok := requestEntities[registryEntity.Spec.Name]; ok {
-			entityKey := types.EntityKey{JoinKeys: []string{registryEntity.GetSpec().GetJoinKey()},
-				EntityValues: requestEntityValues.GetVal()}
-			entityKeysLookup[registryEntity.Spec.Name] = &entityKey
-		}
 	}
+	joinKeyIndex := 0
+	joinKeyToIndex := make(map[string]int)
 	// Validate that all entities in request_entities are found in registry
-	for entityName, _ := range requestEntities {
+	for entityName, values := range requestEntities {
 		if _, ok := entitiesInRegistry[entityName]; !ok {
-			return nil, errors.New("requested entity not found inside the registry")
+			return nil, errors.New("Requested entity not found inside the registry")
 		}
+		if len(values.GetVal()) != requestEntitiesRowLength {
+			return nil, errors.New("Values of each Entity must have the same length")
+		}
+		joinKeyToIndex[entityName] = joinKeyIndex
+		joinKeyIndex += 1
 	}
 	// Construct a map of all feature_views to validate later
 	registryFeatureViews := fs.registry.GetFeatureViews()
 	featureViewsInRegistry := make(map[string]*core.FeatureView)
 	for _, registryFeatureView := range registryFeatureViews {
 		featureViewsInRegistry[registryFeatureView.Spec.Name] = registryFeatureView
+	}
+	numRequestJoinKeys := len(requestEntities)
+	entityKeys := make([]types.EntityKey, requestEntitiesRowLength)
+	for index, _ := range entityKeys {
+		entityKey := types.EntityKey{	JoinKeys: make([]string, numRequestJoinKeys),
+										EntityValues: make([]*types.Value, numRequestJoinKeys)}
+		entityKeys[index] = entityKey
+	}
+	// Building entity keys
+	for joinKey, values := range requestEntities {
+		for rowEntityKeyIndex, value := range values.GetVal() {
+			joinKeyIndex := joinKeyToIndex[joinKey]
+			entityKeys[rowEntityKeyIndex].JoinKeys[joinKeyIndex] = joinKey
+			entityKeys[rowEntityKeyIndex].EntityValues[joinKeyIndex] = value
+		}
 	}
 
 	response := serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{FeatureNames: featureList},
@@ -96,7 +115,7 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	for featureViewName, allFeatures := range allFeaturesPerFeatureView {
 		// Validate that all requested feature view exists inside registry
 		if _, ok := featureViewsInRegistry[featureViewName]; !ok {
-			return nil, errors.New("requested feature_view not found inside the registry")
+			return nil, errors.New("Requested featureView not found inside the registry")
 		}
 
 		featureView := featureViewsInRegistry[featureViewName]
@@ -104,18 +123,13 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 		// Obtain all join keys required by this feature view
 		// and for each join key, create a EntityKey
 		// and add to entity_keys
-		joinKeys := featureViewSpec.GetEntities()
-		entityKeys := make([]types.EntityKey, 0)
-		for _, entityName := range joinKeys {
-
-			if _, ok := entityKeysLookup[entityName]; !ok {
-				// When does this case happen ???
-				// User wants a subset of feature_view which doesn't
-				// contain the entity but the entity is a part of the feature_view?
-				return nil, errors.New("entity required for feature_view but not provided")
+		entitiesRequired := featureViewSpec.GetEntities()
+		for _, entityName := range entitiesRequired {
+			if _, ok := requestEntities[entityName]; !ok {
+				return nil, errors.New("All entities inside FeatureView must be provided")
 			}
-			entityKeys = append(entityKeys, *entityKeysLookup[entityName])
 		}
+		
 		features, err := fs.onlineStore.OnlineRead(entityKeys, featureViewName, allFeatures)
 
 		if err != nil {
