@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Callable, List, Optional, Tuple, Union
 
 import pandas as pd
-import dask
 import pyarrow
 import pytz
 from pydantic.typing import Literal

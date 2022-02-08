@@ -6,9 +6,9 @@ import pandas as pd
 import pyarrow
 from google.protobuf.json_format import MessageToJson
 
-from feast.feature_service import FeatureService
 from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
+from feast.feature_service import FeatureService
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -73,7 +73,7 @@ class SavedDataset:
         storage: SavedDatasetStorage,
         full_feature_names: bool = False,
         tags: Optional[Dict[str, str]] = None,
-        feature_service: Optional[FeatureService] = None
+        feature_service: Optional[FeatureService] = None,
     ):
         self.name = name
         self.features = features
@@ -126,7 +126,9 @@ class SavedDataset:
         )
 
         if saved_dataset_proto.spec.feature_service:
-            ds.feature_service = FeatureService.from_proto(saved_dataset_proto.spec.feature_service)
+            ds.feature_service = FeatureService.from_proto(
+                saved_dataset_proto.spec.feature_service
+            )
         if saved_dataset_proto.meta.HasField("created_timestamp"):
             ds.created_timestamp = (
                 saved_dataset_proto.meta.created_timestamp.ToDatetime()
@@ -168,7 +170,9 @@ class SavedDataset:
             full_feature_names=self.full_feature_names,
             storage=self.storage.to_proto(),
             tags=self.tags,
-            feature_service=self.feature_service.to_proto() if self.feature_service else None
+            feature_service=self.feature_service.to_proto()
+            if self.feature_service
+            else None,
         )
 
         feature_service_proto = SavedDatasetProto(spec=spec, meta=meta)
