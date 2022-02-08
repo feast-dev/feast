@@ -1097,7 +1097,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view, self.project, start_date, end_date
+                feature_view, self.project, start_date, end_date, self.get_latest_historical_timestamp(feature_view)
             )
 
     @log_exceptions_and_usage

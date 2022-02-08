@@ -15,15 +15,16 @@
 
 import enum
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import type_map
 from feast.data_format import StreamFormat
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.value_type import ValueType
-from datetime import datetime
-from google.protobuf.timestamp_pb2 import Timestamp
 
 
 class SourceType(enum.Enum):
@@ -47,28 +48,40 @@ class DataSourceMeta:
         schema: Schema mapping from the input feature name to a ValueType
     """
 
-    _latest_event_timestamp: datetime
+    _latest_event_timestamp: Optional[datetime]
 
     def __init__(
-        self, latest_event_timestamp: datetime,
+        self, latest_event_timestamp: Optional[datetime] = None,
     ):
         """Creates a DataSourceMeta object."""
         self._latest_event_timestamp = latest_event_timestamp
 
     @property
-    def latest_event_timestamp(self) -> datetime:
+    def latest_event_timestamp(self) -> Optional[datetime]:
         """
         Returns the latest_event_timestamp of this data source
         """
         return self._latest_event_timestamp
 
+    @latest_event_timestamp.setter
+    def latest_event_timestamp(self, latest_event_timestamp):
+        """
+        Returns the latest_event_timestamp of this data source
+        """
+        self._latest_event_timestamp = latest_event_timestamp
+
     @staticmethod
     def from_proto(data_source_meta_proto: DataSourceProto.DataSourceMeta):
-        return DataSourceMeta(
-            latest_event_timestamp=data_source_meta_proto.latest_event_timestamp.ToDatetime()
-        )
+        if data_source_meta_proto.latest_event_timestamp:
+            return DataSourceMeta(
+                latest_event_timestamp=data_source_meta_proto.latest_event_timestamp.ToDatetime()
+            )
+        return DataSourceMeta()
 
     def to_proto(self) -> DataSourceProto.DataSourceMeta:
+        if not self.latest_event_timestamp:
+            return DataSourceProto.DataSourceMeta()
+
         timestamp = Timestamp()
         timestamp.FromDatetime(self.latest_event_timestamp)
         data_source_meta_proto = DataSourceProto.DataSourceMeta(
@@ -287,7 +300,7 @@ class DataSource(ABC):
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
-        meta: Optional[DataSourceMeta] = None,
+        meta: Optional[DataSourceMeta] = DataSourceMeta(),
     ):
         """Creates a DataSource object."""
         self._event_timestamp_column = (
@@ -316,6 +329,13 @@ class DataSource(ABC):
             return False
 
         return True
+
+    @property
+    def meta(self) -> Optional[DataSourceMeta]:
+        """
+        Returns the field mapping of this data source.
+        """
+        return self._meta
 
     @property
     def field_mapping(self) -> Dict[str, str]:

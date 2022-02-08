@@ -28,7 +28,7 @@ class FileSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         s3_endpoint_override: Optional[str] = None,
-        meta: Optional[DataSourceMeta] = None,
+        meta: Optional[DataSourceMeta] = DataSourceMeta(),
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 
@@ -123,7 +123,7 @@ class FileSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
-            meta=data_source.meta,
+            meta=DataSourceMeta.from_proto(data_source.meta),
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -132,7 +132,7 @@ class FileSource(DataSource):
             type=DataSourceProto.BATCH_FILE,
             field_mapping=self.field_mapping,
             file_options=self.file_options.to_proto(),
-            meta=self._meta,
+            meta=self._meta.to_proto(),
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column

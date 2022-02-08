@@ -485,6 +485,7 @@ class Registry:
         project: str,
         start_date: datetime,
         end_date: datetime,
+        latest_event_timestamp: datetime,
         commit: bool = True,
     ):
         """
@@ -496,6 +497,7 @@ class Registry:
             start_date (datetime): Start date of the materialization interval to track
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
+            latest_event_timestamp: Latest event timestamp
         """
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
@@ -509,6 +511,9 @@ class Registry:
             ):
                 existing_feature_view = FeatureView.from_proto(
                     existing_feature_view_proto
+                )
+                existing_feature_view.batch_source.meta.latest_event_timestamp = (
+                    latest_event_timestamp
                 )
                 existing_feature_view.materialization_intervals.append(
                     (start_date, end_date)
