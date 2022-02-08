@@ -485,7 +485,7 @@ class Registry:
         project: str,
         start_date: datetime,
         end_date: datetime,
-        latest_event_timestamp: datetime,
+        latest_event_timestamp: Optional[datetime] = None,
         commit: bool = True,
     ):
         """
@@ -512,9 +512,10 @@ class Registry:
                 existing_feature_view = FeatureView.from_proto(
                     existing_feature_view_proto
                 )
-                existing_feature_view.batch_source.meta.latest_event_timestamp = (
-                    latest_event_timestamp
-                )
+                if latest_event_timestamp:
+                    existing_feature_view.batch_source.meta.latest_event_timestamp = (
+                        latest_event_timestamp
+                    )
                 existing_feature_view.materialization_intervals.append(
                     (start_date, end_date)
                 )

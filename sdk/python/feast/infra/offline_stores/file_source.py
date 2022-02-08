@@ -19,7 +19,7 @@ from feast.value_type import ValueType
 class FileSource(DataSource):
     def __init__(
         self,
-        name: Optional[str] = "",
+        name: str = "",
         event_timestamp_column: Optional[str] = "",
         file_url: Optional[str] = None,
         path: Optional[str] = None,
@@ -28,7 +28,7 @@ class FileSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         s3_endpoint_override: Optional[str] = None,
-        meta: Optional[DataSourceMeta] = DataSourceMeta(),
+        meta: Optional[DataSourceMeta] = None,
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 

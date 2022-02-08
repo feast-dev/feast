@@ -292,7 +292,7 @@ class DataSource(ABC):
     _created_timestamp_column: str
     _field_mapping: Dict[str, str]
     _date_partition_column: str
-    _meta: Optional[DataSourceMeta]
+    _meta: DataSourceMeta
 
     def __init__(
         self,
@@ -300,7 +300,7 @@ class DataSource(ABC):
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
-        meta: Optional[DataSourceMeta] = DataSourceMeta(),
+        meta: Optional[DataSourceMeta] = None,
     ):
         """Creates a DataSource object."""
         self._event_timestamp_column = (
@@ -313,7 +313,7 @@ class DataSource(ABC):
         self._date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
-        self._meta = meta
+        self._meta = meta if meta else DataSourceMeta()
 
     def __eq__(self, other):
         if not isinstance(other, DataSource):
@@ -394,10 +394,12 @@ class DataSource(ABC):
         self._date_partition_column = date_partition_column
 
     @property
-    def latest_event_timestamp(self) -> datetime:
+    def latest_event_timestamp(self) -> Optional[datetime]:
         """
         Returns the created timestamp column of this data source.
         """
+        if not self._meta:
+            return None
         return self._meta.latest_event_timestamp
 
     @latest_event_timestamp.setter

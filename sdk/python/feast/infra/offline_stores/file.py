@@ -101,9 +101,9 @@ class FileOfflineStore(OfflineStore):
     def get_latest_historical_timestamp(
         feature_view: FeatureView,
     ) -> Optional[datetime]:
-        time_now = datetime.utcnow()
         data_source = feature_view.batch_source
         event_timestamp_column = data_source.event_timestamp_column
+        assert isinstance(data_source, FileSource)
         filesystem, path = FileSource.create_filesystem_and_path(
             data_source.path, data_source.file_options.s3_endpoint_override
         )
