@@ -238,7 +238,15 @@ func SerializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
 	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
 	switch x := (value).(type) {
 	case *types.Value_StringVal:
-		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
+		valueString := []byte(x.StringVal)
+		return &valueString, types.ValueType_STRING, nil
+	case *types.Value_BytesVal:
+		return &x.BytesVal, types.ValueType_BYTES, nil
+	case *types.Value_Int32Val:
+		// TODO (woop): We unfortunately have to use 32 bit here for backward compatibility :(
+		valueBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
+		return &valueBuffer, types.ValueType_INT32, nil
 	case *types.Value_Int64Val:
 		// TODO (woop): We unfortunately have to use 32 bit here for backward compatibility :(
 		valueBuffer := make([]byte, 4)
