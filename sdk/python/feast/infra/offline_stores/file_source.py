@@ -81,7 +81,6 @@ class FileSource(DataSource):
     def __hash__(self):
         return super().__hash__()
 
-
     def __eq__(self, other):
         if not isinstance(other, FileSource):
             raise TypeError("Comparisons should only involve FileSource class objects.")

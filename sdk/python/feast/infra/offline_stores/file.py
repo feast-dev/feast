@@ -115,11 +115,11 @@ class FileOfflineStore(OfflineStore):
 
         return (
             pyarrow.compute.min(source_table[event_timestamp_column])
-                .as_py()
-                .astimezone(tz=pytz.utc),
+            .as_py()
+            .astimezone(tz=pytz.utc),
             pyarrow.compute.max(source_table[event_timestamp_column])
             .as_py()
-            .astimezone(tz=pytz.utc)
+            .astimezone(tz=pytz.utc),
         )
 
     @staticmethod

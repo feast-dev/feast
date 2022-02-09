@@ -25,6 +25,7 @@ class BigQuerySource(DataSource):
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
         super().__init__(
+            "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,

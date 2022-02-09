@@ -31,11 +31,12 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
+    DataSourceNotFoundException,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
-    SavedDatasetNotFound, DataSourceNotFoundException,
+    SavedDatasetNotFound,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -310,10 +311,7 @@ class Registry:
         registry = self._prepare_registry_for_changes()
 
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
-            if (
-                    existing_data_source_proto.name
-                    == data_source_proto.name
-            ):
+            if existing_data_source_proto.name == data_source_proto.name:
                 del registry.data_sources[idx]
         registry.data_sources.append(data_source_proto)
         if commit:
@@ -332,16 +330,14 @@ class Registry:
         assert self.cached_registry_proto
 
         for idx, data_source_proto in enumerate(
-                self.cached_registry_proto.data_sources
+            self.cached_registry_proto.data_sources
         ):
-            if (
-                    data_source_proto.spec.name == name
-            ):
+            if data_source_proto.spec.name == name:
                 del self.cached_registry_proto.data_sources[idx]
                 if commit:
                     self.commit()
                 return
-        raise DataSourceNotFoundException(name, project)
+        raise DataSourceNotFoundException(name)
 
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
@@ -582,7 +578,10 @@ class Registry:
                     existing_feature_view_proto
                 )
                 if earliest_latest_event_timestamp:
-                    (earliest_event_timestamp, latest_event_timestamp) = earliest_latest_event_timestamp
+                    (
+                        earliest_event_timestamp,
+                        latest_event_timestamp,
+                    ) = earliest_latest_event_timestamp
                     existing_feature_view.batch_source.meta.earliest_event_timestamp = (
                         earliest_event_timestamp
                     )
@@ -874,12 +873,9 @@ class Registry:
         registry_dict = defaultdict(list)
 
         for data_source in sorted(
-            self.list_datasources(),
-            key=lambda data_source: data_source.name,
+            self.list_datasources(), key=lambda data_source: data_source.name,
         ):
-            registry_dict["dataSources"].append(
-                MessageToDict(data_source.to_proto())
-            )
+            registry_dict["dataSources"].append(MessageToDict(data_source.to_proto()))
         for entity in sorted(
             self.list_entities(project=project), key=lambda entity: entity.name
         ):
@@ -901,10 +897,10 @@ class Registry:
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = MessageToDict(on_demand_feature_view.to_proto())
-            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(on_demand_feature_view.udf)
-            registry_dict["onDemandFeatureViews"].append(
-                odfv_dict
+            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(
+                on_demand_feature_view.udf
             )
+            registry_dict["onDemandFeatureViews"].append(odfv_dict)
 
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
@@ -989,5 +985,3 @@ class Registry:
             fv.spec.name: fv for fv in self.cached_registry_proto.request_feature_views
         }
         return {**odfvs, **fvs, **request_fvs}
-
-

@@ -199,6 +199,11 @@ class Provider(abc.ABC):
          """
         ...
 
+    def get_historical_timestamp_interval(
+        self, feature_view: FeatureView
+    ) -> Optional[Tuple[datetime, datetime]]:
+        return None
+
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return None

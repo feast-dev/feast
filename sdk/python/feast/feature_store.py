@@ -265,9 +265,7 @@ class FeatureStore:
         )
 
     @log_exceptions_and_usage
-    def list_datasources(
-            self, allow_cache: bool = False
-    ) -> List[DataSource]:
+    def list_datasources(self, allow_cache: bool = False) -> List[DataSource]:
         """
         Retrieves the list of data sources from the registry.
 
@@ -277,22 +275,7 @@ class FeatureStore:
         Returns:
             A list of data sources.
         """
-        return self._registry.list_datasources(
-            allow_cache=allow_cache
-        )
-
-    @log_exceptions_and_usage
-    def get_datasource(self, name: str) -> Entity:
-        """
-        Retrieves a datasource.
-
-        Args:
-            name: Name of datasource.
-
-        Returns:
-            The specified datasource.
-        """
-        return self._registry.get_datasource(name)
+        return self._registry.list_datasources(allow_cache=allow_cache)
 
     @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
@@ -572,6 +555,7 @@ class FeatureStore:
     def apply(
         self,
         objects: Union[
+            DataSource,
             Entity,
             FeatureView,
             OnDemandFeatureView,
@@ -579,6 +563,7 @@ class FeatureStore:
             FeatureService,
             List[
                 Union[
+                    DataSource,
                     FeatureView,
                     OnDemandFeatureView,
                     RequestFeatureView,
@@ -590,6 +575,7 @@ class FeatureStore:
         objects_to_delete: Optional[
             List[
                 Union[
+                    DataSource,
                     FeatureView,
                     OnDemandFeatureView,
                     RequestFeatureView,
@@ -1156,7 +1142,7 @@ class FeatureStore:
                 self.project,
                 start_date,
                 end_date,
-                self.get_latest_historical_timestamp(feature_view),
+                self.get_historical_timestamp_interval(feature_view),
             )
 
     @log_exceptions_and_usage

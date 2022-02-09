@@ -2,10 +2,12 @@ from dataclasses import dataclass
 from typing import Any, Dict, Generic, Iterable, List, Set, Tuple, TypeVar
 
 from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -20,7 +22,9 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
 
-FeastObject = TypeVar("FeastObject", Entity, BaseFeatureView, FeatureService)
+FeastObject = TypeVar(
+    "FeastObject", Entity, BaseFeatureView, FeatureService, DataSource
+)
 
 
 @dataclass
@@ -90,6 +94,7 @@ def tag_objects_for_keep_delete_update_add(
 
 FeastObjectProto = TypeVar(
     "FeastObjectProto",
+    DataSourceProto,
     EntityProto,
     FeatureViewProto,
     FeatureServiceProto,
@@ -110,23 +115,17 @@ def diff_registry_objects(
     property_diffs = []
     transition: TransitionType = TransitionType.UNCHANGED
 
-    try:
-        if current_proto.HasField("spec") and new_proto.HasField("spec"):
-            current_spec = current_proto.spec
-            new_spec = new_proto.spec
-        else:
-            current_spec = current_proto
-            new_spec = new_proto
-    except ValueError:
+    if isinstance(current_proto, DataSourceProto):
         current_spec = current_proto
         new_spec = new_proto
+    else:
+        current_spec = current_proto.spec
+        new_spec = new_proto.spec
     if current_spec != new_spec:
         for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
                 continue
-            if getattr(current_spec, _field.name) != getattr(
-                new_spec, _field.name
-            ):
+            if getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
                 transition = TransitionType.UPDATE
                 property_diffs.append(
                     PropertyDiff(

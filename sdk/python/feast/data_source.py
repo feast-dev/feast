@@ -544,6 +544,7 @@ class KafkaSource(DataSource):
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
+            "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
@@ -660,9 +661,7 @@ class RequestDataSource(DataSource):
         schema = {}
         for key in schema_pb.keys():
             schema[key] = ValueType(schema_pb.get(key))
-        return RequestDataSource(
-            name=data_source.name, schema=schema
-        )
+        return RequestDataSource(name=data_source.name, schema=schema)
 
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
@@ -670,7 +669,9 @@ class RequestDataSource(DataSource):
             schema_pb[key] = value.value
         options = DataSourceProto.RequestDataOptions(schema=schema_pb)
         data_source_proto = DataSourceProto(
-            name=self._name, type=DataSourceProto.REQUEST_SOURCE, request_data_options=options
+            name=self._name,
+            type=DataSourceProto.REQUEST_SOURCE,
+            request_data_options=options,
         )
 
         return data_source_proto
@@ -714,6 +715,7 @@ class KinesisSource(DataSource):
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
+            "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,

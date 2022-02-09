@@ -41,6 +41,7 @@ class SnowflakeSource(DataSource):
 
         """
         super().__init__(
+            "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,

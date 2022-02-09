@@ -180,7 +180,7 @@ class SavedDataset:
             feature_service=self.feature_service.to_proto()
             if self.feature_service
             else None,
-            profile=self._profile,
+            profile=self._profile if self._profile else "",
         )
 
         feature_service_proto = SavedDatasetProto(spec=spec, meta=meta)
@@ -194,7 +194,10 @@ class SavedDataset:
         self, profile: Optional[GEValidationProfileProto] = None
     ) -> "SavedDataset":
         from google.protobuf import text_format
-        self._profile = text_format.MessageToString(profile, as_utf8=True) if profile else ""
+
+        self._profile = (
+            text_format.MessageToString(profile, as_utf8=True) if profile else ""
+        )
         return self
 
     def to_df(self) -> pd.DataFrame:

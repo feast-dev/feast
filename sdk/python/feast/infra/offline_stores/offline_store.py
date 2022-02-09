@@ -14,7 +14,7 @@
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Union, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow

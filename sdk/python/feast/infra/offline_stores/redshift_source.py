@@ -39,6 +39,7 @@ class RedshiftSource(DataSource):
             query (optional): The query to be executed to obtain the features.
         """
         super().__init__(
+            "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
