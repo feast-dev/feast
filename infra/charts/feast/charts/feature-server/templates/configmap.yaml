@@ -14,23 +14,26 @@ data:
 {{- if index .Values "application-generated.yaml" "enabled" }}
     feast:
       registry: {{ .Values.global.registry.path }}
-      registry-refresh-interval: {{ .Values.global.registry.cache_ttl_seconds }}
+      registryRefreshInterval: {{ .Values.global.registry.cache_ttl_seconds }}
       {{- if .Values.transformationService.host }}
-      transformation-service-endpoint: {{ .Values.transformationService.host}}:{{ .Values.transformationService.port }}
+      transformationServiceEndpoint: {{ .Values.transformationService.host}}:{{ .Values.transformationService.port }}
       {{- else }}
-      transformation-service-endpoint: {{ .Release.Name }}-transformation-service:{{ .Values.transformationService.port }}
+      transformationServiceEndpoint: {{ .Release.Name }}-transformation-service:{{ .Values.transformationService.port }}
       {{- end }}
       
-      active_store: online
+      activeStore: online
       stores:
       - name: online
         type: REDIS 
         config:
           host: {{ .Release.Name }}-redis-master
           port: 6379
-      
-    server:
-      port: {{ .Values.service.http.targetPort }}
+    rest:
+      server: 
+        port: {{ .Values.service.http.targetPort }}
+    grpc:
+      server:
+        port: {{ .Values.service.grpc.targetPort }}
 {{- end }}
 
   application-override.yaml: |

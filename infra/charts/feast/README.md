@@ -36,7 +36,6 @@ In order to modify the default configuration of Feature Server, please use the `
 ```
 feature-server:
     application-override.yaml:
-        enabled: true
         feast:
             active_store: online
             stores:
