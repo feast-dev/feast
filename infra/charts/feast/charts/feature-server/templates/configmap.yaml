@@ -38,5 +38,13 @@ data:
 
   application-override.yaml: |
 {{- if index .Values "application-override.yaml" "enabled" }}
-{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    
+  {{- if index .Values "application-override.yaml" "feast" }}
+    feast: {{- toYaml (index .Values "application-override.yaml" "feast") | nindent 6 }}
+  {{- end }}
+  {{- if index .Values "application-override.yaml" "rest" }}
+    rest: {{- toYaml (index .Values "application-override.yaml" "rest") | nindent 6 }}
+  {{- end }}
+  {{- if index .Values "application-override.yaml" "grpc" }}
+    grpc: {{- toYaml (index .Values "application-override.yaml" "grpc") | nindent 6 }}
+  {{- end }}
 {{- end }}
