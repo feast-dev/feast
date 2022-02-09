@@ -39,6 +39,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.profilers.ge_profiler import GEProfiler
@@ -262,6 +263,36 @@ class FeatureStore:
         return self._registry.list_on_demand_feature_views(
             self.project, allow_cache=allow_cache
         )
+
+    @log_exceptions_and_usage
+    def list_datasources(
+            self, allow_cache: bool = False
+    ) -> List[DataSource]:
+        """
+        Retrieves the list of data sources from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning data sources from a cached registry.
+
+        Returns:
+            A list of data sources.
+        """
+        return self._registry.list_datasources(
+            allow_cache=allow_cache
+        )
+
+    @log_exceptions_and_usage
+    def get_datasource(self, name: str) -> Entity:
+        """
+        Retrieves a datasource.
+
+        Args:
+            name: Name of datasource.
+
+        Returns:
+            The specified datasource.
+        """
+        return self._registry.get_datasource(name)
 
     @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
@@ -622,6 +653,7 @@ class FeatureStore:
         ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
+        data_sources_to_update = [ob for ob in objects if isinstance(ob, DataSource)]
 
         if len(entities_to_update) + len(views_to_update) + len(
             request_views_to_update
@@ -644,6 +676,8 @@ class FeatureStore:
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
+        for ds in data_sources_to_update:
+            self._registry.apply_data_source(ds, project=self.project, commit=False)
         for feature_service in services_to_update:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
@@ -666,7 +700,14 @@ class FeatureStore:
             services_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, FeatureService)
             ]
+            datasources_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, DataSource)
+            ]
 
+            for data_source in datasources_to_delete:
+                self._registry.delete_data_source(
+                    data_source.name, project=self.project, commit=False
+                )
             for entity in entities_to_delete:
                 self._registry.delete_entity(
                     entity.name, project=self.project, commit=False

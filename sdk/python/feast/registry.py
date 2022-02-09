@@ -27,6 +27,7 @@ from google.protobuf.json_format import MessageToDict
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -34,7 +35,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
-    SavedDatasetNotFound,
+    SavedDatasetNotFound, DataSourceNotFoundException,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -66,6 +67,7 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
 
 
 class FeastObjectType(Enum):
+    DATA_SOURCE = "data source"
     ENTITY = "entity"
     FEATURE_VIEW = "feature view"
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
@@ -77,6 +79,7 @@ class FeastObjectType(Enum):
         registry: "Registry", project: str
     ) -> Dict["FeastObjectType", List[Any]]:
         return {
+            FeastObjectType.DATA_SOURCE: registry.list_datasources(),
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
@@ -95,6 +98,7 @@ class FeastObjectType(Enum):
         repo_contents: RepoContents,
     ) -> Dict["FeastObjectType", Set[Any]]:
         return {
+            FeastObjectType.DATA_SOURCE: repo_contents.data_sources,
             FeastObjectType.ENTITY: repo_contents.entities,
             FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
@@ -275,6 +279,69 @@ class Registry:
             if entity_proto.spec.project == project:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
+
+    def list_datasources(self, allow_cache: bool = False) -> List[DataSource]:
+        """
+        Retrieve a list of data sources from the registry
+
+        Args:
+            allow_cache: Whether to allow returning data sources from a cached registry
+
+        Returns:
+            List of data sources
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        datasources = []
+        for data_source_proto in registry_proto.data_sources:
+            datasources.append(DataSource.from_proto(data_source_proto))
+        return datasources
+
+    def apply_data_source(
+        self, data_source: DataSource, project: str, commit: bool = True
+    ):
+        """
+        Registers a single feature service with Feast
+
+        Args:
+            data_source: A feature service that will be registered
+            project: Feast project that this entity belongs to
+        """
+        data_source_proto = data_source.to_proto()
+        registry = self._prepare_registry_for_changes()
+
+        for idx, existing_data_source_proto in enumerate(registry.data_sources):
+            if (
+                    existing_data_source_proto.name
+                    == data_source_proto.name
+            ):
+                del registry.data_sources[idx]
+        registry.data_sources.append(data_source_proto)
+        if commit:
+            self.commit()
+
+    def delete_data_source(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a data source or raises an exception if not found.
+
+        Args:
+            name: Name of data source
+            project: Feast project that this data source belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        for idx, data_source_proto in enumerate(
+                self.cached_registry_proto.data_sources
+        ):
+            if (
+                    data_source_proto.spec.name == name
+            ):
+                del self.cached_registry_proto.data_sources[idx]
+                if commit:
+                    self.commit()
+                return
+        raise DataSourceNotFoundException(name, project)
 
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
@@ -806,6 +873,13 @@ class Registry:
         """
         registry_dict = defaultdict(list)
 
+        for data_source in sorted(
+            self.list_datasources(),
+            key=lambda data_source: data_source.name,
+        ):
+            registry_dict["dataSources"].append(
+                MessageToDict(data_source.to_proto())
+            )
         for entity in sorted(
             self.list_entities(project=project), key=lambda entity: entity.name
         ):
@@ -915,3 +989,5 @@ class Registry:
             fv.spec.name: fv for fv in self.cached_registry_proto.request_feature_views
         }
         return {**odfvs, **fvs, **request_fvs}
+
+

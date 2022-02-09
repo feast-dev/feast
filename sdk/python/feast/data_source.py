@@ -278,6 +278,7 @@ class DataSource(ABC):
     DataSource that can be used to source features.
 
     Args:
+        name: Name of data source
         event_timestamp_column (optional): Event timestamp column used for point in time
             joins of feature values.
         created_timestamp_column (optional): Timestamp column indicating when the row
@@ -288,6 +289,7 @@ class DataSource(ABC):
         date_partition_column (optional): Timestamp column used for partitioning.
     """
 
+    _name: str
     _event_timestamp_column: str
     _created_timestamp_column: str
     _field_mapping: Dict[str, str]
@@ -296,6 +298,7 @@ class DataSource(ABC):
 
     def __init__(
         self,
+        name: str,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
@@ -303,6 +306,7 @@ class DataSource(ABC):
         meta: Optional[DataSourceMeta] = None,
     ):
         """Creates a DataSource object."""
+        self._name = name
         self._event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
@@ -315,12 +319,16 @@ class DataSource(ABC):
         )
         self._meta = meta if meta else DataSourceMeta()
 
+    def __hash__(self):
+        return hash((id(self), self.name))
+
     def __eq__(self, other):
         if not isinstance(other, DataSource):
             raise TypeError("Comparisons should only involve DataSource class objects.")
 
         if (
-            self.event_timestamp_column != other.event_timestamp_column
+            self.name != other.name
+            or self.event_timestamp_column != other.event_timestamp_column
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
@@ -329,6 +337,13 @@ class DataSource(ABC):
             return False
 
         return True
+
+    @property
+    def name(self) -> str:
+        """
+        Returns the name of this data source
+        """
+        return self._name
 
     @property
     def meta(self) -> Optional[DataSourceMeta]:
@@ -428,7 +443,9 @@ class DataSource(ABC):
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
 
-        if data_source.file_options.file_format and data_source.file_options.file_url:
+        if data_source.request_data_options and data_source.request_data_options.schema:
+            data_source_obj = RequestDataSource.from_proto(data_source)
+        elif data_source.file_options.file_format and data_source.file_options.file_url:
             from feast.infra.offline_stores.file_source import FileSource
 
             data_source_obj = FileSource.from_proto(data_source)
@@ -613,23 +630,14 @@ class RequestDataSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
 
-    _name: str
     _schema: Dict[str, ValueType]
 
     def __init__(
         self, name: str, schema: Dict[str, ValueType],
     ):
         """Creates a RequestDataSource object."""
-        super().__init__()
-        self._name = name
+        super().__init__(name)
         self._schema = schema
-
-    @property
-    def name(self) -> str:
-        """
-        Returns the name of this data source
-        """
-        return self._name
 
     @property
     def schema(self) -> Dict[str, ValueType]:
@@ -653,16 +661,16 @@ class RequestDataSource(DataSource):
         for key in schema_pb.keys():
             schema[key] = ValueType(schema_pb.get(key))
         return RequestDataSource(
-            name=data_source.request_data_options.name, schema=schema
+            name=data_source.name, schema=schema
         )
 
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
         for key, value in self._schema.items():
             schema_pb[key] = value.value
-        options = DataSourceProto.RequestDataOptions(name=self._name, schema=schema_pb)
+        options = DataSourceProto.RequestDataOptions(schema=schema_pb)
         data_source_proto = DataSourceProto(
-            type=DataSourceProto.REQUEST_SOURCE, request_data_options=options
+            name=self._name, type=DataSourceProto.REQUEST_SOURCE, request_data_options=options
         )
 
         return data_source_proto

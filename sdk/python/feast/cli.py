@@ -126,6 +126,56 @@ def endpoint(ctx: click.Context):
         _logger.info("There is no active feature server.")
 
 
+@cli.group(name="datasources")
+def datasources_cmd():
+    """
+    Access datasources
+    """
+    pass
+
+
+@datasources_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def datasource_describe(ctx: click.Context, name: str):
+    """
+    Describe an datasource
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    try:
+        datasource = store.get_datasource(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(datasource)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@datasources_cmd.command(name="list")
+@click.pass_context
+def datasource_list(ctx: click.Context):
+    """
+    List all datasources
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    table = []
+    for datasource in store.list_datasources():
+        table.append([datasource.name, datasource.__class__])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "CLASS"], tablefmt="plain"))
+
+
 @cli.group(name="entities")
 def entities_cmd():
     """

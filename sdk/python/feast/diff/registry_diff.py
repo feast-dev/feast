@@ -109,23 +109,34 @@ def diff_registry_objects(
     assert current_proto.DESCRIPTOR.full_name == new_proto.DESCRIPTOR.full_name
     property_diffs = []
     transition: TransitionType = TransitionType.UNCHANGED
-    if current_proto.spec != new_proto.spec:
-        for _field in current_proto.spec.DESCRIPTOR.fields:
+
+    try:
+        if current_proto.HasField("spec") and new_proto.HasField("spec"):
+            current_spec = current_proto.spec
+            new_spec = new_proto.spec
+        else:
+            current_spec = current_proto
+            new_spec = new_proto
+    except ValueError:
+        current_spec = current_proto
+        new_spec = new_proto
+    if current_spec != new_spec:
+        for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
                 continue
-            if getattr(current_proto.spec, _field.name) != getattr(
-                new_proto.spec, _field.name
+            if getattr(current_spec, _field.name) != getattr(
+                new_spec, _field.name
             ):
                 transition = TransitionType.UPDATE
                 property_diffs.append(
                     PropertyDiff(
                         _field.name,
-                        getattr(current_proto.spec, _field.name),
-                        getattr(new_proto.spec, _field.name),
+                        getattr(current_spec, _field.name),
+                        getattr(new_spec, _field.name),
                     )
                 )
     return FeastObjectDiff(
-        name=new_proto.spec.name,
+        name=new_spec.name,
         feast_object_type=object_type,
         current_feast_object=current,
         new_feast_object=new,
@@ -277,6 +288,10 @@ def apply_diff_to_registry(
             TransitionType.CREATE,
             TransitionType.UPDATE,
         ]:
+            if feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
+                registry.apply_data_source(
+                    feast_object_diff.new_feast_object, project, commit=False
+                )
             if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
                 registry.apply_entity(
                     feast_object_diff.new_feast_object, project, commit=False

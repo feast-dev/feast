@@ -12,6 +12,7 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
+from feast.data_source import DataSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -94,6 +95,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 def parse_repo(repo_root: Path) -> RepoContents:
     """ Collect feature table definitions from feature repo """
     res = RepoContents(
+        data_sources=set(),
         entities=set(),
         feature_views=set(),
         feature_services=set(),
@@ -106,6 +108,8 @@ def parse_repo(repo_root: Path) -> RepoContents:
         module = importlib.import_module(module_path)
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
+            if isinstance(obj, DataSource):
+                res.data_sources.add(obj)
             if isinstance(obj, FeatureView):
                 res.feature_views.add(obj)
             elif isinstance(obj, Entity):

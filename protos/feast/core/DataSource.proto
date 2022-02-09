@@ -171,9 +171,7 @@ message DataSource {
 
   // Defines options for DataSource that sources features from request data
   message RequestDataOptions {
-    // Name of the request data source
-    string name = 1;
-
+    reserved 1;
     // Mapping of feature name to type
     map<string, feast.types.ValueType.Enum> schema = 2;
   }

@@ -62,7 +62,6 @@ class FileSource(DataSource):
             )
         else:
             file_url = path
-        self._name = name
         self._file_options = FileOptions(
             file_format=file_format,
             file_url=file_url,
@@ -70,12 +69,18 @@ class FileSource(DataSource):
         )
 
         super().__init__(
+            name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
             meta,
         )
+
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
+
 
     def __eq__(self, other):
         if not isinstance(other, FileSource):
@@ -90,13 +95,6 @@ class FileSource(DataSource):
             and self.file_options.s3_endpoint_override
             == other.file_options.s3_endpoint_override
         )
-
-    @property
-    def name(self):
-        """
-        Returns the file name of this feature data source
-        """
-        return self._name
 
     @property
     def file_options(self):
