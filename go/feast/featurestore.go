@@ -10,6 +10,8 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	"io/ioutil"
 	"strings"
+	"sort"
+	"fmt"
 )
 
 type FeatureStore struct {
@@ -62,51 +64,12 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	}
 
 	requestEntities := request.GetEntities()      // map[string]*types.RepeatedValue
-	registryEntities := fs.registry.GetEntities() //[]*Entity
-	entitiesInRegistry := make(map[string]bool)   // used for validation of requested entities versus registry entities
-	var requestEntitiesRowLength int
-	
-	for _, values := range requestEntities {
-		requestEntitiesRowLength = len(values.GetVal())
-		break
-	}
-	for _, registryEntity := range registryEntities {
-		// append(entities_in_registry, registry_entity.Spec.Name)
-		entitiesInRegistry[registryEntity.Spec.Name] = true
-	}
-	joinKeyIndex := 0
-	joinKeyToIndex := make(map[string]int)
-	// Validate that all entities in request_entities are found in registry
-	for entityName, values := range requestEntities {
-		if _, ok := entitiesInRegistry[entityName]; !ok {
-			return nil, errors.New("Requested entity not found inside the registry")
-		}
-		if len(values.GetVal()) != requestEntitiesRowLength {
-			return nil, errors.New("Values of each Entity must have the same length")
-		}
-		joinKeyToIndex[entityName] = joinKeyIndex
-		joinKeyIndex += 1
-	}
+
 	// Construct a map of all feature_views to validate later
 	registryFeatureViews := fs.registry.GetFeatureViews()
 	featureViewsInRegistry := make(map[string]*core.FeatureView)
 	for _, registryFeatureView := range registryFeatureViews {
 		featureViewsInRegistry[registryFeatureView.Spec.Name] = registryFeatureView
-	}
-	numRequestJoinKeys := len(requestEntities)
-	entityKeys := make([]types.EntityKey, requestEntitiesRowLength)
-	for index, _ := range entityKeys {
-		entityKey := types.EntityKey{	JoinKeys: make([]string, numRequestJoinKeys),
-										EntityValues: make([]*types.Value, numRequestJoinKeys)}
-		entityKeys[index] = entityKey
-	}
-	// Building entity keys
-	for joinKey, values := range requestEntities {
-		for rowEntityKeyIndex, value := range values.GetVal() {
-			joinKeyIndex := joinKeyToIndex[joinKey]
-			entityKeys[rowEntityKeyIndex].JoinKeys[joinKeyIndex] = joinKey
-			entityKeys[rowEntityKeyIndex].EntityValues[joinKeyIndex] = value
-		}
 	}
 
 	response := serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{FeatureNames: featureList},
@@ -123,12 +86,55 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 		// Obtain all join keys required by this feature view
 		// and for each join key, create a EntityKey
 		// and add to entity_keys
-		entitiesRequired := featureViewSpec.GetEntities()
-		for _, entityName := range entitiesRequired {
-			if _, ok := requestEntities[entityName]; !ok {
-				return nil, errors.New("All entities inside FeatureView must be provided")
+		entitiesInFeatureView := featureViewSpec.GetEntities()
+		sort.Strings(entitiesInFeatureView)
+		featuresInFeatureView := featureViewSpec.GetFeatures()
+		// Validate that all features asked for are inside this feature view
+		featuresInFeatureViewMap := make(map[string]bool)
+		for _, featureRef := range featuresInFeatureView {
+			featuresInFeatureViewMap[featureRef.GetName()] = true
+		}
+
+		for _, featureName := range allFeatures {
+			if _, ok := featuresInFeatureViewMap[featureName]; !ok {
+				return nil, errors.New(fmt.Sprintf("FeatureView: %s doesn't contain feature: %s\n", featureViewName, featureName))
 			}
 		}
+
+		var entityKeys []types.EntityKey
+		// Construct EntityKeys
+		if len(entitiesInFeatureView) > 0 {
+
+			if _, ok := requestEntities[entitiesInFeatureView[0]]; !ok {
+				return nil, errors.New(fmt.Sprintf("EntityKey: %s is required for feature view: %s\n", entitiesInFeatureView[0], featureViewName))
+			}
+			requestEntitiesRowLength := len(requestEntities[entitiesInFeatureView[0]].GetVal())
+			
+			numJoinKeysInFeatureView := len(entitiesInFeatureView)
+			entityKeys = make([]types.EntityKey, requestEntitiesRowLength)
+			for index, _ := range entityKeys {
+				entityKey := types.EntityKey{	JoinKeys: make([]string, numJoinKeysInFeatureView),
+												EntityValues: make([]*types.Value, numJoinKeysInFeatureView)}
+				entityKeys[index] = entityKey
+			}
+			// Building entity keys for required for each Feature View from the Feature View's Spec
+			for joinKeyIndex, joinKey := range entitiesInFeatureView {
+				if values, ok := requestEntities[joinKey]; !ok {
+					return nil, errors.New(fmt.Sprintf("EntityKey: %s is required for feature view: %s\n", joinKey, featureViewName))
+				} else {
+					// All requested entities must have the same number of rows
+					if len(values.GetVal()) != requestEntitiesRowLength {
+						return nil, errors.New("Values of each Entity must have the same length")
+					}
+					for rowEntityKeyIndex, value := range values.GetVal() {
+						entityKeys[rowEntityKeyIndex].JoinKeys[joinKeyIndex] = joinKey
+						entityKeys[rowEntityKeyIndex].EntityValues[joinKeyIndex] = value
+					}
+				}
+			}
+			
+		}
+		
 		
 		features, err := fs.onlineStore.OnlineRead(entityKeys, featureViewName, allFeatures)
 
@@ -149,7 +155,6 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 				} else if checkOutsideMaxAge(&feature.timestamp, timestamppb.Now(), featureViewSpec.GetTtl()) {
 					status = serving.FieldStatus_OUTSIDE_MAX_AGE
 				}
-				
 				value := feature.value
 				timeStamp := feature.timestamp
 				featureVector.Values = append(featureVector.Values, &value)
