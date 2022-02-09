@@ -98,9 +98,9 @@ class FileRetrievalJob(RetrievalJob):
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
-    def get_latest_historical_timestamp(
+    def get_historical_timestamp_interval(
         feature_view: FeatureView,
-    ) -> Optional[datetime]:
+    ) -> Optional[Tuple[datetime, datetime]]:
         data_source = feature_view.batch_source
         event_timestamp_column = data_source.event_timestamp_column
         assert isinstance(data_source, FileSource)
@@ -114,6 +114,9 @@ class FileOfflineStore(OfflineStore):
             )
 
         return (
+            pyarrow.compute.min(source_table[event_timestamp_column])
+                .as_py()
+                .astimezone(tz=pytz.utc),
             pyarrow.compute.max(source_table[event_timestamp_column])
             .as_py()
             .astimezone(tz=pytz.utc)

@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
@@ -39,9 +39,6 @@ from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.protos.feast.core.GEValidationProfile_pb2 import (
-    GEValidationProfile as GEValidationProfileProto,
-)
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
@@ -488,7 +485,7 @@ class Registry:
         project: str,
         start_date: datetime,
         end_date: datetime,
-        latest_event_timestamp: Optional[datetime] = None,
+        earliest_latest_event_timestamp: Optional[Tuple[datetime, datetime]] = None,
         commit: bool = True,
     ):
         """
@@ -500,7 +497,7 @@ class Registry:
             start_date (datetime): Start date of the materialization interval to track
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
-            latest_event_timestamp: Latest event timestamp
+            earliest_latest_event_timestamp: Earliest and latest event timestamp
         """
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
@@ -515,7 +512,11 @@ class Registry:
                 existing_feature_view = FeatureView.from_proto(
                     existing_feature_view_proto
                 )
-                if latest_event_timestamp:
+                if earliest_latest_event_timestamp:
+                    (earliest_event_timestamp, latest_event_timestamp) = earliest_latest_event_timestamp
+                    existing_feature_view.batch_source.meta.earliest_event_timestamp = (
+                        earliest_event_timestamp
+                    )
                     existing_feature_view.batch_source.meta.latest_event_timestamp = (
                         latest_event_timestamp
                     )

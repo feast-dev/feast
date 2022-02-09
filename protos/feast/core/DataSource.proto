@@ -75,7 +75,10 @@ message DataSource {
   message DataSourceMeta {
     // Latest event timestamp available in this data source
     google.protobuf.Timestamp latest_event_timestamp = 1;
-}
+
+    // Earliest event timestamp available in this data source
+    google.protobuf.Timestamp earliest_event_timestamp = 2;
+  }
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {

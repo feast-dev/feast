@@ -363,10 +363,10 @@ class FeatureStore:
             """
         return self._registry.delete_feature_service(name, self.project)
 
-    def get_latest_historical_timestamp(
+    def get_historical_timestamp_interval(
         self, feature_view: FeatureView
-    ) -> Optional[datetime]:
-        return self._get_provider().get_latest_historical_timestamp(feature_view)
+    ) -> Optional[Tuple[datetime, datetime]]:
+        return self._get_provider().get_historical_timestamp_interval(feature_view)
 
     def _get_features(
         self, features: Union[List[str], FeatureService], allow_cache: bool = False,
@@ -1024,7 +1024,7 @@ class FeatureStore:
                 self.project,
                 start_date,
                 end_date,
-                self.get_latest_historical_timestamp(feature_view),
+                self.get_historical_timestamp_interval(feature_view),
             )
 
     @log_exceptions_and_usage

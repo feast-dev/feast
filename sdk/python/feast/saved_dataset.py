@@ -67,7 +67,7 @@ class SavedDataset:
     max_event_timestamp: Optional[datetime] = None
 
     _retrieval_job: Optional["RetrievalJob"] = None
-    _profile: Optional[GEValidationProfileProto] = None
+    _profile: Optional[str] = None
 
     def __init__(
         self,
@@ -133,6 +133,9 @@ class SavedDataset:
             ds.feature_service = FeatureService.from_proto(
                 saved_dataset_proto.spec.feature_service
             )
+        if saved_dataset_proto.spec.profile:
+            ds._profile = saved_dataset_proto.spec.profile
+
         if saved_dataset_proto.meta.HasField("created_timestamp"):
             ds.created_timestamp = (
                 saved_dataset_proto.meta.created_timestamp.ToDatetime()
@@ -190,7 +193,8 @@ class SavedDataset:
     def with_profile(
         self, profile: Optional[GEValidationProfileProto] = None
     ) -> "SavedDataset":
-        self._profile = profile
+        from google.protobuf import text_format
+        self._profile = text_format.MessageToString(profile, as_utf8=True) if profile else ""
         return self
 
     def to_df(self) -> pd.DataFrame:

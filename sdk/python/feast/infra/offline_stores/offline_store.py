@@ -14,7 +14,7 @@
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union, Tuple
 
 import pandas as pd
 import pyarrow
@@ -200,9 +200,9 @@ class OfflineStore(ABC):
         pass
 
     @staticmethod
-    def get_latest_historical_timestamp(
+    def get_historical_timestamp_interval(
         feature_view: FeatureView,
-    ) -> Optional[datetime]:
+    ) -> Optional[Tuple[datetime, datetime]]:
         return None
 
     @staticmethod

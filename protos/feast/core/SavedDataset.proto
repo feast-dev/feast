@@ -50,7 +50,7 @@ message SavedDatasetSpec {
   FeatureService feature_service = 8;
 
   // Optional
-  GEValidationProfile profile = 9;
+  string profile = 9;
 
   // User defined metadata
   map<string, string> tags = 7;
