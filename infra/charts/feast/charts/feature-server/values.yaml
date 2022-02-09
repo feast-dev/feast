@@ -25,7 +25,7 @@ application-generated.yaml:
 
 # "application-secret.yaml" -- Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management.
 application-secret.yaml:
-  enabled: true
+  enabled: false
 
 # "application-override.yaml" -- Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
 application-override.yaml:
