@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import pickle
 from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
@@ -20,6 +21,7 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
+import dill
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.json_format import MessageToDict
 from proto import Message
@@ -824,9 +826,12 @@ class Registry:
             self.list_on_demand_feature_views(project=project),
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
+            odfv_dict = MessageToDict(on_demand_feature_view.to_proto())
+            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(on_demand_feature_view.udf)
             registry_dict["onDemandFeatureViews"].append(
-                MessageToDict(on_demand_feature_view.to_proto())
+                odfv_dict
             )
+
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
             key=lambda request_feature_view: request_feature_view.name,
