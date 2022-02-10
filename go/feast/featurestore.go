@@ -49,6 +49,23 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	featureList := request.GetFeatures()
 	featureListVal := featureList.GetVal()
 	allFeaturesPerFeatureView := make(map[string][]string)
+	
+	requestEntities := request.GetEntities()      // map[string]*types.RepeatedValue
+	var requestEntitiesRowLength int
+	for _, values := range requestEntities {
+		requestEntitiesRowLength = len(values.GetVal())
+	}
+
+	response := serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{FeatureNames : &serving.FeatureList{Val : make([]string, 0) }},
+		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, requestEntitiesRowLength)}
+	for i := 0; i < requestEntitiesRowLength; i++ {
+		featureVector := serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, 0),
+			Statuses:        make([]serving.FieldStatus, 0),
+			EventTimestamps: make([]*timestamppb.Timestamp, 0)}
+		response.Results[i] = &featureVector
+	}
+	populateResultRowsFromColumnar(&response, requestEntities)
+
 	for _, featureName := range featureListVal {
 		parsedFeatureName := strings.Split(featureName, ":")
 		if len(parsedFeatureName) < 2 {
@@ -61,9 +78,12 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 		}
 		features := allFeaturesPerFeatureView[featureViewName]
 		allFeaturesPerFeatureView[featureViewName] = append(features, featureName)
+		featureMetaData := featureName
+		if request.FullFeatureNames {
+			featureMetaData = fmt.Sprintf("%s__%s", featureViewName, featureName)
+		}
+		response.Metadata.FeatureNames.Val = append(response.Metadata.FeatureNames.Val, featureMetaData)
 	}
-
-	requestEntities := request.GetEntities()      // map[string]*types.RepeatedValue
 
 	// Construct a map of all feature_views to validate later
 	registryFeatureViews := fs.registry.GetFeatureViews()
@@ -71,9 +91,6 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	for _, registryFeatureView := range registryFeatureViews {
 		featureViewsInRegistry[registryFeatureView.Spec.Name] = registryFeatureView
 	}
-
-	response := serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{FeatureNames: featureList},
-		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, 0)}
 
 	for featureViewName, allFeatures := range allFeaturesPerFeatureView {
 		// Validate that all requested feature view exists inside registry
@@ -108,14 +125,12 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 			if _, ok := requestEntities[entitiesInFeatureView[0]]; !ok {
 				return nil, errors.New(fmt.Sprintf("EntityKey: %s is required for feature view: %s\n", entitiesInFeatureView[0], featureViewName))
 			}
-			requestEntitiesRowLength := len(requestEntities[entitiesInFeatureView[0]].GetVal())
 			
 			numJoinKeysInFeatureView := len(entitiesInFeatureView)
 			entityKeys = make([]types.EntityKey, requestEntitiesRowLength)
 			for index, _ := range entityKeys {
-				entityKey := types.EntityKey{	JoinKeys: make([]string, numJoinKeysInFeatureView),
-												EntityValues: make([]*types.Value, numJoinKeysInFeatureView)}
-				entityKeys[index] = entityKey
+				entityKeys[index] = types.EntityKey{	JoinKeys: make([]string, numJoinKeysInFeatureView),
+									EntityValues: make([]*types.Value, numJoinKeysInFeatureView)}
 			}
 			// Building entity keys for required for each Feature View from the Feature View's Spec
 			for joinKeyIndex, joinKey := range entitiesInFeatureView {
@@ -134,19 +149,15 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 			}
 			
 		}
-		
-		
+			
 		features, err := fs.onlineStore.OnlineRead(entityKeys, featureViewName, allFeatures)
 
 		if err != nil {
 			return nil, err
 		}
 
-		featureVector := serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, 0),
-			Statuses:        make([]serving.FieldStatus, 0),
-			EventTimestamps: make([]*timestamppb.Timestamp, 0)}
-		for _, featureList := range features {
-
+		for rowIndex, featureList := range features {
+			featureVector := response.Results[rowIndex]
 			for _, feature := range featureList {
 				status := serving.FieldStatus_PRESENT
 
@@ -162,13 +173,29 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 				featureVector.EventTimestamps = append(featureVector.EventTimestamps, &timeStamp)
 
 			}
-			response.Results = append(response.Results, &featureVector)
+			
 		}
 	}
-
 	return &response, nil
 }
 
 func checkOutsideMaxAge(featureTimestamp *timestamppb.Timestamp, currentTimestamp *timestamppb.Timestamp, ttl *durationpb.Duration) bool {
 	return currentTimestamp.GetSeconds()-featureTimestamp.GetSeconds() > ttl.Seconds
+}
+
+func populateResultRowsFromColumnar(response *serving.GetOnlineFeaturesResponse, data map[string]*types.RepeatedValue) {
+	timeStamp := timestamppb.Now()
+	for entityName, values := range data {
+		response.Metadata.FeatureNames.Val = append(response.Metadata.FeatureNames.Val, entityName)
+		
+		for rowIndex, value := range values.GetVal() {
+			featureVector := response.Results[rowIndex]
+			featureTimeStamp := *timeStamp
+			featureValue := *value
+			featureVector.Values = append(featureVector.Values, &featureValue)
+			featureVector.Statuses = append(featureVector.Statuses, serving.FieldStatus_PRESENT)
+			featureVector.EventTimestamps = append(featureVector.EventTimestamps, &featureTimeStamp)
+		}
+	}
+	fmt.Println(response.Metadata.FeatureNames.Val)
 }

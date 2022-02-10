@@ -147,7 +147,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	results := make([][]Feature, len(entityKeys))
 
 	for entityIndex, redisKey := range redisKeys {
-		results[entityIndex] = make([]Feature, len(features))
+		results[entityIndex] = make([]Feature, len(features)-1)
 		keyString := string(*redisKey)
 		// TODO: Add pipelining (without transactions)
 		res, err := r.client.HMGet(ctx, keyString, hsetKeys...).Result()
