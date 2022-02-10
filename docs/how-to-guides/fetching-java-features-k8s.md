@@ -1,8 +1,3 @@
----
-description: >-
-How to use Feast to define features in Python and retrieve from them with a Java feature server deployed in Kubernetes
----
-
 # How to set up a Java feature server
 
 This tutorial guides you on how to:
