@@ -15,22 +15,40 @@ from feast.value_type import ValueType
 class BigQuerySource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = "",
         event_timestamp_column: Optional[str] = "",
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
+        source_dbt_model: Optional[str] = None,
+        dbt_model_serialized: Optional[str] = "",
     ):
-        self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
+        _dbt_model_serialized = dbt_model_serialized
+        if not dbt_model_serialized and source_dbt_model:
+            text_file = open(source_dbt_model, "r")
+            _dbt_model_serialized = text_file.read()
+
+        self._bigquery_options = BigQueryOptions(
+            table_ref=table_ref, query=query, dbt_model_serialized=_dbt_model_serialized
+        )
+
+        _name = name
+        if not _name:
+            _name = table_ref
         super().__init__(
-            "",
+            _name if _name else "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
         )
+
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
@@ -74,16 +92,19 @@ class BigQuerySource(DataSource):
         assert data_source.HasField("bigquery_options")
 
         return BigQuerySource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table_ref=data_source.bigquery_options.table_ref,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
+            dbt_model_serialized=data_source.bigquery_options.dbt_model_serialized,
         )
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
@@ -147,9 +168,12 @@ class BigQueryOptions:
     DataSource BigQuery options used to source features from BigQuery query
     """
 
-    def __init__(self, table_ref: Optional[str], query: Optional[str]):
+    def __init__(
+        self, table_ref: Optional[str], query: Optional[str], dbt_model_serialized: str
+    ):
         self._table_ref = table_ref
         self._query = query
+        self._dbt_model_serialized = dbt_model_serialized
 
     @property
     def query(self):
@@ -179,6 +203,20 @@ class BigQueryOptions:
         """
         self._table_ref = table_ref
 
+    @property
+    def dbt_model_serialized(self):
+        """
+        Returns the BigQuery SQL query referenced by this source
+        """
+        return self._dbt_model_serialized
+
+    @dbt_model_serialized.setter
+    def dbt_model_serialized(self, dbt_model_serialized):
+        """
+        Sets the BigQuery SQL query referenced by this source
+        """
+        self._dbt_model_serialized = dbt_model_serialized
+
     @classmethod
     def from_proto(cls, bigquery_options_proto: DataSourceProto.BigQueryOptions):
         """
@@ -194,6 +232,7 @@ class BigQueryOptions:
         bigquery_options = cls(
             table_ref=bigquery_options_proto.table_ref,
             query=bigquery_options_proto.query,
+            dbt_model_serialized=bigquery_options_proto.dbt_model_serialized,
         )
 
         return bigquery_options
@@ -207,7 +246,9 @@ class BigQueryOptions:
         """
 
         bigquery_options_proto = DataSourceProto.BigQueryOptions(
-            table_ref=self.table_ref, query=self.query,
+            table_ref=self.table_ref,
+            query=self.query,
+            dbt_model_serialized=self.dbt_model_serialized,
         )
 
         return bigquery_options_proto
@@ -219,7 +260,9 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
     bigquery_options: BigQueryOptions
 
     def __init__(self, table_ref: str):
-        self.bigquery_options = BigQueryOptions(table_ref=table_ref, query=None)
+        self.bigquery_options = BigQueryOptions(
+            table_ref=table_ref, query=None, dbt_model_serialized=None
+        )
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:

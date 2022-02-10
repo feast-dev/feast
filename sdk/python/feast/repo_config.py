@@ -113,6 +113,9 @@ class RepoConfig(FeastBaseModel):
 
     repo_path: Optional[Path] = None
 
+    dbt_dataset: Optional[Any] = None
+    """ Dataset used to generate dbt """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 

@@ -643,7 +643,11 @@ class FeatureStore:
 
         if len(entities_to_update) + len(views_to_update) + len(
             request_views_to_update
-        ) + len(odfvs_to_update) + len(services_to_update) != len(objects):
+        ) + len(odfvs_to_update) + len(services_to_update) + len(
+            data_sources_to_update
+        ) != len(
+            objects
+        ):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         # Validate all feature views and make inferences.

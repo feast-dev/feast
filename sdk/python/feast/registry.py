@@ -331,7 +331,7 @@ class Registry:
         for idx, data_source_proto in enumerate(
             self.cached_registry_proto.data_sources
         ):
-            if data_source_proto.spec.name == name:
+            if data_source_proto.name == name:
                 del self.cached_registry_proto.data_sources[idx]
                 if commit:
                     self.commit()
