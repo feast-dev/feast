@@ -34,8 +34,8 @@ RUN mvn --also-make --projects serving -Drevision=$VERSION \
 # https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
 #
 RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
-  -O /usr/bin/grpc-health-probe && \
-  chmod +x /usr/bin/grpc-health-probe
+         -O /usr/bin/grpc-health-probe && \
+    chmod +x /usr/bin/grpc-health-probe
 
 # ============================================================
 # Build stage 2: Production
@@ -46,7 +46,7 @@ ARG VERSION=dev
 COPY --from=builder /build/serving/target/feast-serving-$VERSION-jar-with-dependencies.jar /opt/feast/feast-serving.jar
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 CMD ["java",\
-  "-Xms1g",\
-  "-Xmx4g",\
-  "-jar",\
-  "/opt/feast/feast-serving.jar"]
+     "-Xms1g",\
+     "-Xmx4g",\
+     "-jar",\
+     "/opt/feast/feast-serving.jar"]
