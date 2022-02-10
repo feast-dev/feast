@@ -40,6 +40,9 @@ data:
 {{- if index .Values "application-override.yaml" "enabled" }}
   {{- if index .Values "application-override.yaml" "feast" }}
     feast: {{- toYaml (index .Values "application-override.yaml" "feast") | nindent 6 }}
+      registry: {{ .Values.global.registry.path }}
+      registryRefreshInterval: {{ .Values.global.registry.cache_ttl_seconds }}
+      project: {{ .Values.global.project }}
   {{- end }}
   {{- if index .Values "application-override.yaml" "rest" }}
     rest: {{- toYaml (index .Values "application-override.yaml" "rest") | nindent 6 }}

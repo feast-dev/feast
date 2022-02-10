@@ -3,7 +3,7 @@ project: feast_java_demo
 provider: gcp
 online_store:
   type: redis
-  connection_string: localhost:6379,password=WW2Jew09Yt
+  connection_string: localhost:6379,password=cmqD98DXBn
 offline_store:
   type: file
 flags:

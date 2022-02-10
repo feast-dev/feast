@@ -9,9 +9,9 @@ feature-server:
               config:
                 host: my-redis-master
                 port: 6379
-                password: WW2Jew09Yt
+                password: [YOUR PASSWORD]
 global:
   registry:
-    path: gs://feast-demo-staging/demo-repo/registry.db 
+    path: gs://[YOUR BUCKET]/demo-repo/registry.db
     cache_ttl_seconds: 60
   project: feast_java_demo

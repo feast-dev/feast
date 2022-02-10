@@ -14,7 +14,7 @@ def fetch_java():
     feature_refs = FeatureList(val=["driver_hourly_stats:conv_rate"])
     entity_rows = {
         "driver_id": RepeatedValue(
-            val=[Value(int64_val=driver_id) for driver_id in range(1001, 1020)]
+            val=[Value(int64_val=driver_id) for driver_id in range(1001, 1003)]
         )
     }
 

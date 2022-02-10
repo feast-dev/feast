@@ -2,7 +2,7 @@
 # Running Feast Java Server with Redis & calling with python (with registry in GCP)
 
 For this tutorial, we setup Feast with Redis, using the Feast CLI to register and materialize features, and then retrieving via a Feast Java server deployed in Kubernetes via a gRPC call.
-
+> :point_right: for tips on how to run and debug this locally without using Kubernetes, see [java/serving/README.md](https://github.com/feast-dev/feast/blob/master/java/serving/README.md)
 
 ## First, let's setup a Redis cluster
 1.  Start minikube (`minikube start`)
@@ -26,12 +26,9 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
     ```
 
 ## Next, we setup a local Feast repo
-1. Install Feast with Redis dependencies `pip install ‘feast[redis]’`
+1. Install Feast with Redis dependencies `pip install "feast[redis]"`
 2. Make a bucket in GCS (or S3)
-3. The feature repo is already setup here, so you just need to swap in your GCS bucket and Redis credentials. Inspecting this directory, we see:
-
-    <img src="tree.png" width="200" />
-
+3. The feature repo is already setup here, so you just need to swap in your GCS bucket and Redis credentials.
     We need to modify the `feature_store.yaml`, which has two fields for you to replace:
      ```yaml
     registry: gs://[YOUR BUCKET]/demo-repo/registry.db
@@ -53,15 +50,17 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
     feast materialize-incremental $CURRENT_TIME
     ``` 
 
-## Now let's setup the k8s cluster
+## Now let's setup the Feast Server
 1. Add the gcp-auth addon to mount GCP credentials:
-    `minikube addons enable gcp-auth`
-2. Add Feast's Java feature server chart repo
+    ```bash
+   minikube addons enable gcp-auth
+   ```
+3. Add Feast's Java feature server chart repo
     ```bash
     helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
     helm repo update
     ```
-3. Modify the application-override.yaml file to have your credentials + bucket location:
+4. Modify the application-override.yaml file to have your credentials + bucket location:
     ```yaml
     feature-server:
       application-override.yaml:
@@ -81,12 +80,16 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
         cache_ttl_seconds: 60
       project: feast_java_demo
     ```
-4. Install the Feast helm chart: `helm install feast-release feast-charts/feast --values application-override.yaml`
-5. (Optional): check logs of the server to make sure it’s working
-    1.  `kubectl logs svc/feast-release-feature-server`
-6. Port forward to expose the grpc endpoint:
-    1.  `kubectl port-forward svc/feast-release-feature-server 6566:6566`
-7. Make a gRPC call:
+5. Install the Feast helm chart: `helm install feast-release feast-charts/feast --values application-override.yaml`
+6. (Optional): check logs of the server to make sure it’s working
+   ```bash
+   kubectl logs svc/feast-release-feature-server
+   ```
+7. Port forward to expose the grpc endpoint:
+   ```bash
+   kubectl port-forward svc/feast-release-feature-server 6566:6566
+   ```
+8. Make a gRPC call:
     - Python example
       ```bash
         python test.py
