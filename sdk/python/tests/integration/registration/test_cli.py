@@ -105,7 +105,7 @@ def test_universal_cli(test_repo_config) -> None:
             registry_dict = fs.registry.to_dict(project=project)
             assertpy.assert_that(registry_specs).is_equal_to(
                 {
-                    key: [fco["spec"] for fco in value]
+                    key: [fco["spec"] if "spec" in fco else fco for fco in value]
                     for key, value in registry_dict.items()
                 }
             )
