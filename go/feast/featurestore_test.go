@@ -66,6 +66,7 @@ func TestGetOnlineFeatures1(t *testing.T) {
 
 	fs, err := NewFeatureStore(&config)
 	assert.Nil(t, err)
+	// _, err = fs.GetOnlineFeatures(&request)
 	response, err := fs.GetOnlineFeatures(&request)
 	assert.Nil(t, err)
 	for _, featureVector := range response.Results {
