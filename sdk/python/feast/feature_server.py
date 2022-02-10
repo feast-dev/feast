@@ -1,6 +1,5 @@
 import traceback
 
-import click
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.logger import logger
