@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List, Set, Any
 
 from colorama import Fore, Style
 
@@ -104,6 +104,13 @@ class FeastFeatureServerTypeInvalidError(Exception):
     def __init__(self, feature_server_type: str):
         super().__init__(
             f"Feature server type was set to {feature_server_type}, but this type is invalid"
+        )
+
+
+class GoSubprocessConnectionFailed(Exception):
+    def __init__(self):
+        super().__init__(
+            "Failed to connect to the Go subprocess (locally running feature server)"
         )
 
 
@@ -330,3 +337,8 @@ class SnowflakeIncompleteConfig(Exception):
 class SnowflakeQueryUnknownError(Exception):
     def __init__(self, query: str):
         super().__init__(f"Snowflake query failed: {query}")
+
+
+class InvalidFeaturesParameterType(Exception):
+    def __init__(self, features: Any):
+        super().__init__(f"Invalid `features` parameter type {type(features)}. Expected one of List[str] and FeatureService.")

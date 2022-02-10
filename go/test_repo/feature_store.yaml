@@ -1,6 +1,11 @@
-project: test_repo
 registry: data/registry.db
+project: test_repo
 provider: local
 online_store:
-    type: redis
-    connection_string: "localhost:6379"
+  type: redis
+  connection_string: localhost:6379
+offline_store:
+  type: file
+flags:
+  alpha_features: true
+  go_feature_server: true

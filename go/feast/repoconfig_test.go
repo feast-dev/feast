@@ -24,7 +24,7 @@ online_store:
 `)
 	err = os.WriteFile(filePath, data, 0666)
 	assert.Nil(t, err)
-	config, err := NewRepoConfig(dir)
+	config, err := NewRepoConfig(dir, "")
 	assert.Nil(t, err)
 	assert.Equal(t, "feature_repo", config.Project)
 	assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.Registry)
