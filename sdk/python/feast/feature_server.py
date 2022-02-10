@@ -66,9 +66,4 @@ def start_server(
     store: "feast.FeatureStore", host: str, port: int, no_access_log: bool
 ):
     app = get_app(store)
-    click.echo(
-        "This is an "
-        + click.style("experimental", fg="yellow", bold=True, underline=True)
-        + " feature. It's intended for early testing and feedback, and could change without warnings in future releases."
-    )
     uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
