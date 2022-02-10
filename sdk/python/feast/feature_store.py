@@ -34,6 +34,7 @@ from typing import (
 
 import pandas as pd
 from colorama import Fore, Style
+from feast.flags_helper import enable_go_feature_server
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
@@ -84,6 +85,7 @@ from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
+from feast.go_server import GoServer
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -102,6 +104,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
     _provider: Provider
+    _go_server: Optional[GoServer]
 
     @log_exceptions
     def __init__(
@@ -128,6 +131,7 @@ class FeatureStore:
         self._registry = Registry(registry_config, repo_path=self.repo_path)
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
+        self._go_server = None
 
     @log_exceptions
     def version(self) -> str:
@@ -1156,6 +1160,13 @@ class FeatureStore:
                     columnar[key].append(value)
                 except KeyError as e:
                     raise ValueError("All entity_rows must have the same keys.") from e
+
+        # If Go feature server is enabled, send request to it instead of going through a regular Python logic
+        if enable_go_feature_server(self.config):
+            # Lazily start the go server on the first request
+            if self._go_server is None:
+                self._go_server = GoServer(str(self.repo_path.absolute()), self.config)
+            return self._go_server.get_online_features(features, columnar, full_feature_names)
 
         return self._get_online_features(
             features=features,

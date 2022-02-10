@@ -1,6 +1,7 @@
 package feast
 
 import (
+	"encoding/json"
 	"github.com/ghodss/yaml"
 	"os"
 	"path/filepath"
@@ -24,16 +25,20 @@ type RepoConfig struct {
 }
 
 // NewRepoConfig reads file <repoPath>/feature_store.yaml
-// and converts the YAML format into RepoConfig struct
-func NewRepoConfig(repoPath string) (*RepoConfig, error) {
+// and converts the YAML format into RepoConfig struct.
+// It first uses repoPath to read feature_store.yaml if it exists,
+// however if it doesn't then it checks configJSON and tries parsing that.
+func NewRepoConfig(repoPath string, configJSON string) (*RepoConfig, error) {
 	data, err := os.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
-	if err != nil {
-		return nil, err
-	}
 	config := RepoConfig{}
-	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		return nil, err
+		if err = json.Unmarshal([]byte(configJSON), &config); err != nil {
+			return nil, err
+		}
+	} else {
+		if err = yaml.Unmarshal(data, &config); err != nil {
+			return nil, err
+		}
 	}
 	// If the registry points to a relative path, convert it into absolute path
 	// because otherwise RepoConfig struct doesn't contain enough information

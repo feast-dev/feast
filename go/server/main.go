@@ -3,25 +3,25 @@ package main
 // THIS WORKS
 
 import (
+	"context"
 	"fmt"
 	"github.com/feast-dev/feast/go/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/golang/glog"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
-	"os"
-	"path/filepath"
 	"net/http"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc/credentials/insecure"
-	"context"
-	"sync"
-	"github.com/golang/glog"
+	"os"
 	"strings"
+	"sync"
 )
 
 const (
 	flagFeastRepoPath    = "FEAST_REPO_PATH"
+	flagFeastRepoConfig  = "FEAST_REPO_CONFIG"
 	flagFeastGrpcPort    = "FEAST_GRPC_PORT"
 	defaultFeastGrpcPort = "6566"
 	feastServerVersion   = "0.18.0"
@@ -32,15 +32,15 @@ var wg sync.WaitGroup
 
 func main() {
 	repoPath := os.Getenv(flagFeastRepoPath)
+	repoConfig := os.Getenv(flagFeastRepoConfig)
 	grpcPort, ok := os.LookupEnv(flagFeastGrpcPort)
 	if !ok {
 		grpcPort = defaultFeastGrpcPort
 	}
-	log.Printf("Reading Feast repo config at %s", filepath.Join(repoPath, "feature_store.yaml"))
-	config, err := feast.NewRepoConfig(repoPath)
-	if err != nil {
-		log.Fatalln(err)
+	if repoPath == "" && repoConfig == "" {
+		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 	}
+	config, err := feast.NewRepoConfig(repoPath, repoConfig)
 	log.Println("Initializing feature store...")
 	fs, err := feast.NewFeatureStore(config)
 	if err != nil {
@@ -57,7 +57,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, &server)
 	wg.Add(1)
-	go func () {
+	go func() {
 		defer wg.Done()
 		err = grpcServer.Serve(lis)
 		if err != nil {
@@ -77,14 +77,14 @@ func runHttp(grpcServerEndpoint string) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-  
+
 	// Register gRPC server endpoint
 	// Note: Make sure the gRPC server is running properly and accessible
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	err := serving.RegisterServingServiceHandlerFromEndpoint(ctx, mux,  grpcServerEndpoint, opts)
+	err := serving.RegisterServingServiceHandlerFromEndpoint(ctx, mux, grpcServerEndpoint, opts)
 	if err != nil {
-	  return err
+		return err
 	}
 
 	return http.ListenAndServe(fmt.Sprintf(":%s", defaultFeastHttpPort), allowCORS(mux))

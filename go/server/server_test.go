@@ -28,7 +28,7 @@ func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	config, err := feast.NewRepoConfig(getRepoPath())
+	config, err := feast.NewRepoConfig(getRepoPath(), "")
 	if err != nil {
 		panic(err)
 	}

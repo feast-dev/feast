@@ -167,6 +167,17 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
+# Build go server for 3 targets: macos (intel), macos (m1), linux (64 bit)
+# First start by clearing the necessary directory
+binaries_path = (pathlib.Path(__file__) / "../feast/binaries").resolve()
+binaries_path_abs = str(binaries_path.absolute())
+if binaries_path.exists():
+    shutil.rmtree(binaries_path_abs)
+os.mkdir(binaries_path_abs)
+# Then, iterate over target architectures and build executables
+for goos, goarch in (("darwin", "amd64"), ("darwin", "arm64"), ("linux", "amd64")):
+    subprocess.check_output(["go", "build", "-o", f"{binaries_path_abs}/go_server_{goos}_{goarch}", "github.com/feast-dev/feast/go/server"], env={"GOOS": goos, "GOARCH": goarch, **os.environ})
+
 
 class BuildProtoCommand(Command):
     description = "Builds the proto files into python files."

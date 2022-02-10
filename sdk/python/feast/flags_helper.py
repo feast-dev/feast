@@ -41,3 +41,7 @@ def enable_aws_lambda_feature_server(repo_config: RepoConfig) -> bool:
 
 def enable_direct_ingestion_to_online_store(repo_config: RepoConfig) -> bool:
     return feature_flag_enabled(repo_config, flags.FLAG_DIRECT_INGEST_TO_ONLINE_STORE)
+
+
+def enable_go_feature_server(repo_config: RepoConfig) -> bool:
+    return feature_flag_enabled(repo_config, flags.FLAG_GO_FEATURE_SERVER)
