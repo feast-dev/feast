@@ -45,6 +45,7 @@ Feast Feature Server: Online feature serving service for Feast
 | logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
 | logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
+| podAnnotations | object | `{}` | Annotations to be added to Feast Serving pods |
 | podLabels | object | `{}` | Labels to be added to Feast Serving pods |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |

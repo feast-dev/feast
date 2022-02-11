@@ -140,5 +140,8 @@ envOverrides: {}
 # secrets -- List of Kubernetes secrets to be mounted. These secrets will be mounted on /etc/secrets/<secret name>.
 secrets: []
 
+# podAnnotations -- Annotations to be added to Feast Serving pods
+podAnnotations: {}
+
 # podLabels -- Labels to be added to Feast Serving pods
 podLabels: {}
