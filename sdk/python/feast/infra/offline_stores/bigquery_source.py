@@ -1,7 +1,7 @@
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from feast import type_map
-from feast.data_source import DataSource
+from feast.data_source import DataSource, DataSourceMeta
 from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -24,12 +24,26 @@ class BigQuerySource(DataSource):
         query: Optional[str] = None,
         source_dbt_model: Optional[str] = None,
         dbt_model_serialized: Optional[str] = "",
+        meta: Optional[DataSourceMeta] = None,
     ):
 
         _dbt_model_serialized = dbt_model_serialized
         if not dbt_model_serialized and source_dbt_model:
             text_file = open(source_dbt_model, "r")
             _dbt_model_serialized = text_file.read()
+        if not _dbt_model_serialized and table_ref:
+            # Do a scan of the directory for files with table_ref.sql
+            try:
+                expected_file = table_ref.split(".")[-1] + ".sql"
+                from pathlib import Path
+
+                for path in Path(".").rglob(expected_file):
+                    text_file = open(path.absolute(), "r")
+                    _dbt_model_serialized = text_file.read()
+                    break
+            except:
+                print(f"DANNY ")
+                pass
 
         self._bigquery_options = BigQueryOptions(
             table_ref=table_ref, query=query, dbt_model_serialized=_dbt_model_serialized
@@ -44,6 +58,7 @@ class BigQuerySource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            meta,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -100,6 +115,7 @@ class BigQuerySource(DataSource):
             date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
             dbt_model_serialized=data_source.bigquery_options.dbt_model_serialized,
+            meta=DataSourceMeta.from_proto(data_source.meta),
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -108,6 +124,7 @@ class BigQuerySource(DataSource):
             type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
+            meta=self._meta.to_proto(),
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
@@ -169,7 +186,10 @@ class BigQueryOptions:
     """
 
     def __init__(
-        self, table_ref: Optional[str], query: Optional[str], dbt_model_serialized: str
+        self,
+        table_ref: Optional[str],
+        query: Optional[str],
+        dbt_model_serialized: Optional[str],
     ):
         self._table_ref = table_ref
         self._query = query

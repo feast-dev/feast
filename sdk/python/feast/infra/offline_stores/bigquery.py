@@ -155,6 +155,34 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    def get_historical_timestamp_interval(
+        config: RepoConfig, data_source: DataSource,
+    ) -> Optional[Tuple[datetime, datetime]]:
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
+        event_timestamp_column = data_source.event_timestamp_column
+        from_expression = data_source.get_table_query_string()
+        query = f"""
+            SELECT
+                MIN({event_timestamp_column}) as min_timestamp,
+                MAX({event_timestamp_column}) as max_timestamp
+            FROM {from_expression}
+            """
+
+        # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
+        job = BigQueryRetrievalJob(
+            query=query, client=client, config=config, full_feature_names=False,
+        )
+        result = job.to_df()
+        result_tuple = (
+            result["min_timestamp"][0].to_pydatetime(),
+            result["max_timestamp"][0].to_pydatetime(),
+        )
+        return result_tuple
+
+    @staticmethod
     @log_exceptions_and_usage(offline_store="bigquery")
     def get_historical_features(
         config: RepoConfig,

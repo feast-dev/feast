@@ -9,6 +9,7 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import errors
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.importer import import_class
@@ -200,7 +201,7 @@ class Provider(abc.ABC):
         ...
 
     def get_historical_timestamp_interval(
-        self, feature_view: FeatureView
+        self, config: RepoConfig, data_source: DataSource
     ) -> Optional[Tuple[datetime, datetime]]:
         return None
 

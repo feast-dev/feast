@@ -99,19 +99,16 @@ class FileRetrievalJob(RetrievalJob):
 class FileOfflineStore(OfflineStore):
     @staticmethod
     def get_historical_timestamp_interval(
-        feature_view: FeatureView,
+        config: RepoConfig, data_source: DataSource
     ) -> Optional[Tuple[datetime, datetime]]:
-        data_source = feature_view.batch_source
         event_timestamp_column = data_source.event_timestamp_column
         assert isinstance(data_source, FileSource)
         filesystem, path = FileSource.create_filesystem_and_path(
             data_source.path, data_source.file_options.s3_endpoint_override
         )
         source_table = pyarrow.parquet.read_table(path, filesystem=filesystem)
-        if feature_view.batch_source.field_mapping is not None:
-            source_table = _run_field_mapping(
-                source_table, feature_view.batch_source.field_mapping
-            )
+        if data_source.field_mapping is not None:
+            source_table = _run_field_mapping(source_table, data_source.field_mapping)
 
         return (
             pyarrow.compute.min(source_table[event_timestamp_column])

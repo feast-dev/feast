@@ -201,7 +201,7 @@ class OfflineStore(ABC):
 
     @staticmethod
     def get_historical_timestamp_interval(
-        feature_view: FeatureView,
+        config: RepoConfig, data_source: DataSource,
     ) -> Optional[Tuple[datetime, datetime]]:
         return None
 

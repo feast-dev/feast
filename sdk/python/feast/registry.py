@@ -26,7 +26,7 @@ from google.protobuf.json_format import MessageToDict
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource
+from feast.data_source import DataSource, DataSourceMeta
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -306,12 +306,15 @@ class Registry:
             data_source: A feature service that will be registered
             project: Feast project that this entity belongs to
         """
-        data_source_proto = data_source.to_proto()
         registry = self._prepare_registry_for_changes()
 
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
-            if existing_data_source_proto.name == data_source_proto.name:
+            if existing_data_source_proto.name == data_source.name:
+                data_source.meta = DataSourceMeta.from_proto(
+                    existing_data_source_proto.meta
+                )
                 del registry.data_sources[idx]
+        data_source_proto = data_source.to_proto()
         registry.data_sources.append(data_source_proto)
         if commit:
             self.commit()
@@ -543,6 +546,37 @@ class Registry:
                 return OnDemandFeatureView.from_proto(on_demand_feature_view)
         raise OnDemandFeatureViewNotFoundException(name, project=project)
 
+    def apply_datasource_metadata(
+        self,
+        data_source: DataSource,
+        earliest_latest_event_timestamp: Optional[Tuple[datetime, datetime]] = None,
+        commit: bool = True,
+    ):
+        if not self.cached_registry_proto:
+            return
+        if earliest_latest_event_timestamp:
+            (
+                earliest_event_timestamp,
+                latest_event_timestamp,
+            ) = earliest_latest_event_timestamp
+            for idx, existing_datasource_proto in enumerate(
+                self.cached_registry_proto.data_sources
+            ):
+                if existing_datasource_proto.name == data_source.name:
+                    new_data_source = DataSource.from_proto(existing_datasource_proto)
+                    new_data_source.meta.earliest_event_timestamp = (
+                        earliest_event_timestamp
+                    )
+                    new_data_source.meta.latest_event_timestamp = latest_event_timestamp
+                    del self.cached_registry_proto.data_sources[idx]
+                    self.cached_registry_proto.data_sources.append(
+                        new_data_source.to_proto()
+                    )
+                    break
+        if commit:
+            self.commit()
+        return
+
     def apply_materialization(
         self,
         feature_view: FeatureView,
@@ -565,6 +599,10 @@ class Registry:
         """
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
+
+        self.apply_datasource_metadata(
+            feature_view.batch_source, earliest_latest_event_timestamp, commit=False
+        )
 
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.feature_views
@@ -869,8 +907,8 @@ class Registry:
         Args:
             project: Feast project to convert to a dict
         """
-        registry_dict = defaultdict(list)
-
+        registry_dict: Dict[str, Any] = defaultdict(list)
+        registry_dict["project"] = project
         for data_source in sorted(
             self.list_datasources(), key=lambda data_source: data_source.name,
         ):

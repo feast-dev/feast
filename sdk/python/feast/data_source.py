@@ -48,13 +48,31 @@ class DataSourceMeta:
         schema: Schema mapping from the input feature name to a ValueType
     """
 
+    _earliest_event_timestamp: Optional[datetime]
     _latest_event_timestamp: Optional[datetime]
 
     def __init__(
-        self, latest_event_timestamp: Optional[datetime] = None,
+        self,
+        earliest_event_timestamp: Optional[datetime] = None,
+        latest_event_timestamp: Optional[datetime] = None,
     ):
         """Creates a DataSourceMeta object."""
+        self._earliest_event_timestamp = earliest_event_timestamp
         self._latest_event_timestamp = latest_event_timestamp
+
+    @property
+    def earliest_event_timestamp(self) -> Optional[datetime]:
+        """
+        Returns the earliest_event_timestamp of this data source
+        """
+        return self._earliest_event_timestamp
+
+    @earliest_event_timestamp.setter
+    def earliest_event_timestamp(self, earliest_event_timestamp):
+        """
+        Returns the earliest_event_timestamp of this data source
+        """
+        self._earliest_event_timestamp = earliest_event_timestamp
 
     @property
     def latest_event_timestamp(self) -> Optional[datetime]:
@@ -74,18 +92,22 @@ class DataSourceMeta:
     def from_proto(data_source_meta_proto: DataSourceProto.DataSourceMeta):
         if data_source_meta_proto.latest_event_timestamp:
             return DataSourceMeta(
-                latest_event_timestamp=data_source_meta_proto.latest_event_timestamp.ToDatetime()
+                latest_event_timestamp=data_source_meta_proto.latest_event_timestamp.ToDatetime(),
+                earliest_event_timestamp=data_source_meta_proto.earliest_event_timestamp.ToDatetime(),
             )
         return DataSourceMeta()
 
     def to_proto(self) -> DataSourceProto.DataSourceMeta:
-        if not self.latest_event_timestamp:
+        if not self.latest_event_timestamp or not self.earliest_event_timestamp:
             return DataSourceProto.DataSourceMeta()
 
-        timestamp = Timestamp()
-        timestamp.FromDatetime(self.latest_event_timestamp)
+        latest_timestamp = Timestamp()
+        latest_timestamp.FromDatetime(self.latest_event_timestamp)
+        earliest_timestamp = Timestamp()
+        earliest_timestamp.FromDatetime(self.earliest_event_timestamp)
         data_source_meta_proto = DataSourceProto.DataSourceMeta(
-            latest_event_timestamp=timestamp
+            latest_event_timestamp=latest_timestamp,
+            earliest_event_timestamp=earliest_timestamp,
         )
 
         return data_source_meta_proto
@@ -351,6 +373,13 @@ class DataSource(ABC):
         Returns the field mapping of this data source.
         """
         return self._meta
+
+    @meta.setter
+    def meta(self, meta):
+        """
+        Sets the meta of this data source.
+        """
+        self._meta = meta
 
     @property
     def field_mapping(self) -> Dict[str, str]:

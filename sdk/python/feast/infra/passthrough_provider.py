@@ -5,6 +5,7 @@ import pandas
 import pyarrow as pa
 from tqdm import tqdm
 
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -169,7 +170,7 @@ class PassthroughProvider(Provider):
                 )
 
     def get_historical_timestamp_interval(
-        self, feature_view: FeatureView
+        self, config: RepoConfig, data_source: DataSource
     ) -> Optional[Tuple[datetime, datetime]]:
         """
         Returns a representation of the latest event timestamp available for a given feature view.
@@ -177,7 +178,7 @@ class PassthroughProvider(Provider):
         Args:
             feature_view: The feature view to query
         """
-        return self.offline_store.get_historical_timestamp_interval(feature_view)
+        return self.offline_store.get_historical_timestamp_interval(config, data_source)
 
     def get_historical_features(
         self,

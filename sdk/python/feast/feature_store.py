@@ -378,9 +378,11 @@ class FeatureStore:
         return self._registry.delete_feature_service(name, self.project)
 
     def get_historical_timestamp_interval(
-        self, feature_view: FeatureView
+        self, data_source: DataSource
     ) -> Optional[Tuple[datetime, datetime]]:
-        return self._get_provider().get_historical_timestamp_interval(feature_view)
+        return self._get_provider().get_historical_timestamp_interval(
+            self.config, data_source
+        )
 
     def _get_features(
         self, features: Union[List[str], FeatureService], allow_cache: bool = False,
@@ -549,6 +551,7 @@ class FeatureStore:
         apply_diff_to_registry(
             self._registry, registry_diff, self.project, commit=False
         )
+
         self._registry.update_infra(new_infra, self.project, commit=True)
 
     @log_exceptions_and_usage
@@ -668,6 +671,9 @@ class FeatureStore:
             self._registry.apply_entity(ent, project=self.project, commit=False)
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
+            self._registry.apply_datasource_metadata(
+                ds, self.get_historical_timestamp_interval(ds)
+            )
         for feature_service in services_to_update:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
@@ -1055,7 +1061,7 @@ class FeatureStore:
                 self.project,
                 start_date,
                 end_date,
-                self.get_historical_timestamp_interval(feature_view),
+                self.get_historical_timestamp_interval(feature_view.batch_source),
             )
 
     @log_exceptions_and_usage
@@ -1146,7 +1152,7 @@ class FeatureStore:
                 self.project,
                 start_date,
                 end_date,
-                self.get_historical_timestamp_interval(feature_view),
+                self.get_historical_timestamp_interval(feature_view.batch_source),
             )
 
     @log_exceptions_and_usage
