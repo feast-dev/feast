@@ -41,8 +41,7 @@ class BigQuerySource(DataSource):
                     text_file = open(path.absolute(), "r")
                     _dbt_model_serialized = text_file.read()
                     break
-            except:
-                print(f"DANNY ")
+            except Exception:
                 pass
 
         self._bigquery_options = BigQueryOptions(
