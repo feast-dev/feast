@@ -3,20 +3,20 @@ package main
 // THIS WORKS
 
 import (
-	"context"
 	"fmt"
 	"github.com/feast-dev/feast/go/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/golang/glog"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"bufio"
+	"errors"
+	"io"
 )
 
 const (
@@ -33,10 +33,7 @@ var wg sync.WaitGroup
 func main() {
 	repoPath := os.Getenv(flagFeastRepoPath)
 	repoConfig := os.Getenv(flagFeastRepoConfig)
-	grpcPort, ok := os.LookupEnv(flagFeastGrpcPort)
-	if !ok {
-		grpcPort = defaultFeastGrpcPort
-	}
+	
 	if repoPath == "" && repoConfig == "" {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 	}
@@ -46,6 +43,71 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	grpcPort, ok := os.LookupEnv(flagFeastGrpcPort)
+	if !ok {
+		grpcPort = defaultFeastGrpcPort
+	}
+	
+	// fmt.Println("starting for loop")
+	reader := bufio.NewReader(os.Stdin)
+	writer := bufio.NewWriter(os.Stdout)
+	serverCounts := 0
+	for {
+	
+		text, _ := reader.ReadString('\n')
+		text = strings.Trim(text, "\n")
+		// fmt.Println("Received from stdin", text)
+		commands := strings.Split(text, " ")
+		if len(commands) == 0 {
+			log.Fatalln(errors.New("Invalid command. Should be [startGrpc] or [startHttp host:port]"))
+		} else if commands[0] == "startGrpc" {
+			// fmt.Fprintf(writer, "Success!")
+			writer.Flush()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// startGrpcServer(fs, grpcPort)
+				server := servingServiceServer{
+					fs: fs,
+				}
+				log.Printf("Starting a gRPC server at port %s...", grpcPort)
+				lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
+				if err != nil {
+					log.Fatalln(err)
+				}
+				grpcServer := grpc.NewServer()
+				serving.RegisterServingServiceServer(grpcServer, &server)
+				err = grpcServer.Serve(lis)
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}()
+			serverCounts += 1
+		} else if commands[0] == "startHttp" {
+			// fmt.Fprintf(writer, "Success!")
+			writer.Flush()
+			if len(commands) < 2 {
+				log.Fatalln(errors.New("Invalid command. Should be: startHttp host:port"))
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				startHttpServer(fs, commands[1])
+			}()
+			serverCounts += 1
+		}
+		if serverCounts == 2 {
+			break
+		}
+	}
+	wg.Wait()
+}
+
+
+
+func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
+	fmt.Println("startGrpcServer", grpcPort)
 	server := servingServiceServer{
 		fs: fs,
 	}
@@ -56,60 +118,36 @@ func main() {
 	}
 	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, &server)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = grpcServer.Serve(lis)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}()
-
-	// Implement HTTP server Endpoint
-	log.Printf("Starting a HTTP server at port %s...", defaultFeastHttpPort)
-	if err = runHttp(fmt.Sprintf(":%s", grpcPort)); err != nil {
+	err = grpcServer.Serve(lis)
+	if err != nil {
 		log.Fatalln(err)
 	}
-	wg.Wait()
 }
 
-func runHttp(grpcServerEndpoint string) error {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Register gRPC server endpoint
-	// Note: Make sure the gRPC server is running properly and accessible
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	err := serving.RegisterServingServiceHandlerFromEndpoint(ctx, mux, grpcServerEndpoint, opts)
-	if err != nil {
-		return err
-	}
-
-	return http.ListenAndServe(fmt.Sprintf(":%s", defaultFeastHttpPort), allowCORS(mux))
-}
-
-func preflightHandler(w http.ResponseWriter, r *http.Request) {
-	headers := []string{"Content-Type", "Accept"}
-	w.Header().Set("Access-Control-Allow-Headers", strings.Join(headers, ","))
-	methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
-	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
-	glog.Infof("preflight request for %s", r.URL.Path)
-	return
-}
-
-// allowCORS allows Cross Origin Resoruce Sharing from any origin.
-// Don't do this without consideration in production systems.
-func allowCORS(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if origin := r.Header.Get("Origin"); origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
-				preflightHandler(w, r)
-				return
+func startHttpServer(fs *feast.FeatureStore, address string) {
+	fmt.Println("startHttpServer", address)
+    http.HandleFunc("/get-online-features", func(w http.ResponseWriter, req *http.Request){
+		reqBodyBytes, err := io.ReadAll(req.Body)
+		var grpcRequest serving.GetOnlineFeaturesRequest
+		if err = protojson.Unmarshal(reqBodyBytes, &grpcRequest); err != nil {
+			// panic(err)
+			http.Error(w, err.Error(), 500)
+		} else {
+			response, err := fs.GetOnlineFeatures(&grpcRequest)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
 			}
+			responseBytes, err := protojson.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+			} else {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write(responseBytes)
+			}
+			
 		}
-		h.ServeHTTP(w, r)
 	})
+
+    log.Fatal(http.ListenAndServe(address, nil))
 }
