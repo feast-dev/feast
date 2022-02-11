@@ -16,7 +16,7 @@
 
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
-PROTO_TYPE_SUBDIRS = core serving types storage
+PROTO_TYPE_SUBDIRS = core serving types storage third_party/grpc/connector third_party/grpc/health/v1
 PROTO_SERVICE_SUBDIRS = core serving
 OS := linux
 ifeq ($(shell uname -s), Darwin)
@@ -124,7 +124,7 @@ install-go-ci-dependencies:
 	go get -u golang.org/x/lint/golint
 
 compile-protos-go:
-	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go-grpc_out=paths=source_relative:../go/protos --go_out=paths=source_relative:../go/protos feast/$(dir)/*.proto;)
+	$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go-grpc_out=paths=source_relative:../go/protos --go_out=paths=source_relative:../go/protos feast/$(dir)/*.proto;)
 
 test-go:
 	go test ./...

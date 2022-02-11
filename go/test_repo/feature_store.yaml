@@ -2,8 +2,8 @@ registry: data/registry.db
 project: test_repo
 provider: local
 online_store:
-  type: redis
-  connection_string: localhost:6379
+  type: connector
+  KV_PLUGIN: "python plugin.py"
 offline_store:
   type: file
 flags:

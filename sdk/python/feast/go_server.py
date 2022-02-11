@@ -85,6 +85,9 @@ class GoServer:
                                     self.process.terminate()
                                 ) )
 
+    # feast_go --external_plugin==feast_connector_for_oracle_db_go --conf=featurestore.yaml
+    # feast_connector_for_oracle_db_go
+
     def start_grpc_server(self):
         if self.grpcServerStarted:
             return
