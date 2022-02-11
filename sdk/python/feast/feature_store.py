@@ -441,6 +441,7 @@ class FeatureStore:
 
     def _make_inferences(
         self,
+        datasources_to_update: List[DataSource],
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
@@ -448,6 +449,10 @@ class FeatureStore:
         """Makes inferences for entities, feature views, and odfvs."""
         update_entities_with_inferred_types_from_feature_views(
             entities_to_update, views_to_update, self.config
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            datasources_to_update, self.config
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
@@ -510,6 +515,7 @@ class FeatureStore:
             list(desired_repo_contents.request_feature_views),
         )
         self._make_inferences(
+            list(desired_repo_contents.data_sources),
             list(desired_repo_contents.entities),
             list(desired_repo_contents.feature_views),
             list(desired_repo_contents.on_demand_feature_views),
@@ -657,23 +663,24 @@ class FeatureStore:
         self._validate_all_feature_views(
             views_to_update, odfvs_to_update, request_views_to_update
         )
-        self._make_inferences(entities_to_update, views_to_update, odfvs_to_update)
+        self._make_inferences(
+            data_sources_to_update, entities_to_update, views_to_update, odfvs_to_update
+        )
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
+        for ds in data_sources_to_update:
+            self._registry.apply_data_source(ds, project=self.project, commit=False)
+            data_range = self.get_historical_timestamp_interval(ds)
+            self._registry.apply_datasource_metadata(ds, data_range)
         for view in itertools.chain(
             views_to_update, odfvs_to_update, request_views_to_update
         ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
-        for ds in data_sources_to_update:
-            self._registry.apply_data_source(ds, project=self.project, commit=False)
-            self._registry.apply_datasource_metadata(
-                ds, self.get_historical_timestamp_interval(ds)
-            )
         for feature_service in services_to_update:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
@@ -1057,11 +1064,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
-                self.get_historical_timestamp_interval(feature_view.batch_source),
+                feature_view, self.project, start_date, end_date,
             )
 
     @log_exceptions_and_usage
@@ -1148,11 +1151,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
-                self.get_historical_timestamp_interval(feature_view.batch_source),
+                feature_view, self.project, start_date, end_date,
             )
 
     @log_exceptions_and_usage

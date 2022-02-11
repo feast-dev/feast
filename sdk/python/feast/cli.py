@@ -15,18 +15,20 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import click
 import pkg_resources
 import yaml
 from colorama import Fore, Style
+from genericpath import exists
 
 from feast import flags, flags_helper, utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -106,6 +108,54 @@ def version():
     Display Feast SDK version
     """
     print(f'Feast SDK Version: "{pkg_resources.get_distribution("feast")}"')
+
+
+@cli.command("dbt-run")
+@click.pass_context
+def dbt_run(ctx: click.Context):
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    """
+    Display Feast SDK version
+    """
+    print(f"{Style.BRIGHT + Fore.GREEN}Running dbt run{Style.RESET_ALL}")
+    import os
+
+    os.system("dbt run")
+
+    # Load dbt config
+    config_path = str(repo) + "/dbt_project.yml"
+    target_path = ""
+    with open(config_path, mode="r") as f:
+        raw_file = f.read()
+        yaml_object = yaml.full_load(raw_file)
+        target_path = yaml_object["target-path"]
+
+    bqConfig = cast(BigQueryOfflineStoreConfig, store.config.offline_store)
+
+    print(
+        f"{Style.BRIGHT + Fore.GREEN}Generating Feast datasources from dbt{Style.RESET_ALL}"
+    )
+    # Search for sql files and make python file equivalents
+    for path in Path(".").rglob("*.sql"):
+        datasource_name = os.path.splitext(path.name)[0]
+        relative_file = path.absolute().relative_to(os.getcwd())
+        if str(relative_file).startswith(target_path):
+            continue
+        relative_file_no_extension = os.path.splitext(relative_file)[0]
+        datasource_file_path = relative_file_no_extension + ".py"
+        if exists(datasource_file_path):
+            continue
+        print(f"Created datasource from dbt: {datasource_file_path}")
+        with open(datasource_file_path, "w") as features_file:
+            datasource_def = f"""from feast import BigQuerySource
+
+{datasource_name}_source = BigQuerySource(
+    name="{datasource_name}",
+    table_ref="{bqConfig.project_id}.{bqConfig.dataset}.{datasource_name}"
+)"""
+            features_file.write(datasource_def)
 
 
 @cli.command()

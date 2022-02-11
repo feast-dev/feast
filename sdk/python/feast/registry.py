@@ -595,14 +595,9 @@ class Registry:
             start_date (datetime): Start date of the materialization interval to track
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
-            earliest_latest_event_timestamp: Earliest and latest event timestamp
         """
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
-
-        self.apply_datasource_metadata(
-            feature_view.batch_source, earliest_latest_event_timestamp, commit=False
-        )
 
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.feature_views
@@ -613,20 +608,6 @@ class Registry:
             ):
                 existing_feature_view = FeatureView.from_proto(
                     existing_feature_view_proto
-                )
-                if earliest_latest_event_timestamp:
-                    (
-                        earliest_event_timestamp,
-                        latest_event_timestamp,
-                    ) = earliest_latest_event_timestamp
-                    existing_feature_view.batch_source.meta.earliest_event_timestamp = (
-                        earliest_event_timestamp
-                    )
-                    existing_feature_view.batch_source.meta.latest_event_timestamp = (
-                        latest_event_timestamp
-                    )
-                existing_feature_view.materialization_intervals.append(
-                    (start_date, end_date)
                 )
                 existing_feature_view.last_updated_timestamp = datetime.utcnow()
                 feature_view_proto = existing_feature_view.to_proto()
