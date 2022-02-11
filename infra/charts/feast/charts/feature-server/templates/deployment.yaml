@@ -19,6 +19,9 @@ spec:
   template:
     metadata:
       annotations:
+      {{- if .Values.podAnnotations }}
+        {{ toYaml .Values.podAnnotations | nindent 8 }}
+      {{- end }}
         checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
