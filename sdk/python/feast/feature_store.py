@@ -1166,6 +1166,7 @@ class FeatureStore:
             # Lazily start the go server on the first request
             if self._go_server is None:
                 self._go_server = GoServer(str(self.repo_path.absolute()), self.config)
+            self._go_server.start_grpc_server()
             return self._go_server.get_online_features(features, columnar, full_feature_names)
 
         return self._get_online_features(
@@ -1765,7 +1766,13 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
-        feature_server.start_server(self, host, port, no_access_log)
+        if enable_go_feature_server(self.config):
+            # Lazily start the go server on the first request
+            if self._go_server is None:
+                self._go_server = GoServer(str(self.repo_path.absolute()), self.config)
+            self._go_server.start_http_server(host, port)
+        else:
+            feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:

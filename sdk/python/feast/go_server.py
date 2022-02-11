@@ -20,6 +20,8 @@ class GoServer:
     def __init__(self, repo_path: str, config: RepoConfig):
         self._repo_path = repo_path
         self._config = config
+        self.grpcServerStarted = False
+        self.httpServerStarted = False
         self._connect()
 
     def get_online_features(
@@ -56,6 +58,7 @@ class GoServer:
     def _connect(self):
         """Start Go subprocess on a random unused port and connect to it"""
         unused_port = _get_unused_port()
+        self.unused_port = unused_port
         env = {
             "FEAST_REPO_CONFIG": self._config.json(),
             "FEAST_REPO_PATH": self._repo_path,
@@ -68,19 +71,34 @@ class GoServer:
 
         if "dev" in feast.__version__:
             self.process = subprocess.Popen(["go", "run", "github.com/feast-dev/feast/go/server"],
-                                            cwd=cwd, env=env)
+                                            cwd=cwd, env=env,
+                                            stdin=subprocess.PIPE )
         else:
             goos = platform.system().lower()
             goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
             executable = feast.__path__[0] + f"/binaries/go_server_{goos}_{goarch}"
-            self.process = subprocess.Popen([executable], cwd=cwd, env=env)
+            self.process = subprocess.Popen([executable], cwd=cwd, env=env, stdin=subprocess.PIPE,stderr=subprocess.PIPE)
 
         # Make sure the subprocess is terminated when the parent process dies
         # Note: this doesn't handle cases where the parent process is abruptly killed (e.g. with SIGKILL)
-        atexit.register(lambda: self.process.terminate())
+        atexit.register(lambda: (   self.process.stdin.close(),
+                                    self.process.terminate()
+                                ) )
 
+    def start_grpc_server(self):
+        if self.grpcServerStarted:
+            return
         # Try connecting to the go server using a gPRC client
-        channel = grpc.insecure_channel(f"127.0.0.1:{unused_port}")
+        
+        for i in range(5):
+            try:
+                self.process.stdin.write(b'startGrpc\n')
+                self.process.stdin.flush()
+                self.grpcServerStarted = True
+                break
+            except subprocess.CalledProcessError as error:
+                raise errors.GoSubprocessConnectionFailed() from error
+        channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
         self.client = ServingServiceStub(channel)
 
         # Make sure the connection can be used for feature retrieval before returning from constructor
@@ -95,7 +113,19 @@ class GoServer:
                 # Sleep for 0.1 second before retrying
                 time.sleep(0.1)
 
-
+    def start_http_server(self, host: str, port: int):
+        if self.httpServerStarted:
+            return
+        for i in range(10):
+            try:
+                self.process.stdin.write(bytes(f"startHttp {host}:{port}\n", encoding='utf8'))
+                self.process.stdin.flush()
+                self.httpServerStarted = True
+                break
+            except subprocess.CalledProcessError as error:
+                raise errors.GoSubprocessConnectionFailed() from error 
+                
+                
 def _get_unused_port() -> str:
     sock = socket.socket()
     # binding port 0 means os will choose an unused port for us

@@ -197,5 +197,5 @@ func populateResultRowsFromColumnar(response *serving.GetOnlineFeaturesResponse,
 			featureVector.EventTimestamps = append(featureVector.EventTimestamps, &featureTimeStamp)
 		}
 	}
-	fmt.Println(response.Metadata.FeatureNames.Val)
+	// fmt.Println(response.Metadata.FeatureNames.Val)
 }
