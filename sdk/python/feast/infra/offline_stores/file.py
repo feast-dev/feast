@@ -182,6 +182,8 @@ class FileOfflineStore(OfflineStore):
                 entity_df_event_timestamp_col
             )
 
+            join_keys = []
+
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
                 event_timestamp_column = (
@@ -191,8 +193,12 @@ class FileOfflineStore(OfflineStore):
                     feature_view.batch_source.created_timestamp_column
                 )
 
+                if join_keys:
+                    last_join_keys = join_keys
+
                 # Build a list of entity columns to join on (from the right table)
                 join_keys = []
+
                 for entity_name in feature_view.entities:
                     entity = registry.get_entity(entity_name, project)
                     join_key = feature_view.projection.join_key_map.get(
@@ -256,15 +262,39 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
                 df_to_join = df_to_join.persist()
 
+                # Make sure to not have duplicated columns
+                df_to_join = df_to_join.rename(
+                    columns={event_timestamp_column: f"__{event_timestamp_column}",}
+                )
+                event_timestamp_column = f"__{event_timestamp_column}"
+
+                if created_timestamp_column:
+                    df_to_join = df_to_join.rename(
+                        columns={
+                            created_timestamp_column: f"__{created_timestamp_column}",
+                        }
+                    )
+                    created_timestamp_column = f"__{created_timestamp_column}"
+
+                df_to_join = df_to_join.persist()
+
+                # tmp join keys needed for cross join with null join table view
+                tmp_join_keys = []
+                if not join_keys:
+                    entity_df_with_features["__tmp"] = 1
+                    df_to_join["__tmp"] = 1
+                    tmp_join_keys = ["__tmp"]
+
                 # Get only data with requested entities
                 df_to_join = dd.merge(
                     entity_df_with_features,
                     df_to_join,
-                    left_on=join_keys,
-                    right_on=join_keys,
+                    left_on=join_keys or tmp_join_keys,
+                    right_on=join_keys or tmp_join_keys,
                     suffixes=("", "__"),
                     how="left",
                 )
+
                 df_to_join = df_to_join.persist()
 
                 df_to_join_types = df_to_join.dtypes
@@ -303,16 +333,19 @@ class FileOfflineStore(OfflineStore):
                     )
 
                 # Filter rows by defined timestamp tolerance
-                df_to_join = df_to_join[
-                    (
-                        df_to_join[event_timestamp_column]
-                        >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
-                    )
-                    & (
-                        df_to_join[event_timestamp_column]
-                        <= df_to_join[entity_df_event_timestamp_col]
-                    )
-                ]
+                if feature_view.ttl != 0:
+                    df_to_join = df_to_join[
+                        (
+                            df_to_join[event_timestamp_column]
+                            >= df_to_join[entity_df_event_timestamp_col]
+                            - feature_view.ttl
+                        )
+                        & (
+                            df_to_join[event_timestamp_column]
+                            <= df_to_join[entity_df_event_timestamp_col]
+                        )
+                    ]
+
                 df_to_join = df_to_join.persist()
 
                 if created_timestamp_column:
@@ -322,14 +355,30 @@ class FileOfflineStore(OfflineStore):
                 df_to_join = df_to_join.sort_values(by=event_timestamp_column)
                 df_to_join = df_to_join.persist()
 
+                # For null join table view drop duplicates for last join_keys
+                if tmp_join_keys:
+                    join_keys = last_join_keys
+
                 df_to_join = df_to_join.drop_duplicates(
-                    join_keys, keep="last", ignore_index=True,
+                    join_keys + [entity_df_event_timestamp_col],
+                    keep="last",
+                    ignore_index=True,
                 )
                 df_to_join = df_to_join.persist()
 
                 entity_df_with_features = df_to_join.drop(
                     [event_timestamp_column], axis=1
                 ).persist()
+
+                if created_timestamp_column:
+                    entity_df_with_features = entity_df_with_features.drop(
+                        [created_timestamp_column], axis=1
+                    ).persist()
+
+                if tmp_join_keys:
+                    entity_df_with_features = entity_df_with_features.drop(
+                        ["__tmp"], axis=1
+                    ).persist()
 
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
