@@ -244,7 +244,6 @@ setup(
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "ge": GE_REQUIRED,
-        "dask": DASK_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
