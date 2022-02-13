@@ -225,6 +225,17 @@ class FileOfflineStore(OfflineStore):
                     feature_view.batch_source.path, storage_options=storage_options,
                 )
 
+                # Rename columns by the field mapping dictionary if it exists
+                if feature_view.batch_source.field_mapping:
+                    df_to_join = _run_dask_field_mapping(
+                        df_to_join, feature_view.batch_source.field_mapping
+                    )
+                # Rename entity columns by the join_key_map dictionary if it exists
+                if feature_view.projection.join_key_map:
+                    df_to_join = _run_dask_field_mapping(
+                        df_to_join, feature_view.projection.join_key_map
+                    )
+
                 # Build a list of all the features we should select from this source
                 feature_names = []
                 columns_map = {}
@@ -245,17 +256,6 @@ class FileOfflineStore(OfflineStore):
                 # Ensure that the source dataframe feature column includes the feature view name as a prefix
                 df_to_join = df_to_join.rename(columns=columns_map)
                 df_to_join = df_to_join.persist()
-
-                # Rename columns by the field mapping dictionary if it exists
-                if feature_view.batch_source.field_mapping:
-                    df_to_join = _run_dask_field_mapping(
-                        df_to_join, feature_view.batch_source.field_mapping
-                    )
-                # Rename entity columns by the join_key_map dictionary if it exists
-                if feature_view.projection.join_key_map:
-                    df_to_join = _run_dask_field_mapping(
-                        df_to_join, feature_view.projection.join_key_map
-                    )
 
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
