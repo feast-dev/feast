@@ -195,7 +195,6 @@ class FileOfflineStore(OfflineStore):
                 )
 
                 # Build a list of entity columns to join on (from the right table)
-                all_join_keys = list(set(all_join_keys + join_keys))
                 join_keys = []
 
                 for entity_name in feature_view.entities:
@@ -211,6 +210,8 @@ class FileOfflineStore(OfflineStore):
                 ] + join_keys
                 right_entity_key_columns = [c for c in right_entity_key_columns if c]
 
+                all_join_keys = list(set(all_join_keys + join_keys))
+
                 storage_options = (
                     {
                         "client_kwargs": {
@@ -225,126 +226,40 @@ class FileOfflineStore(OfflineStore):
                     feature_view.batch_source.path, storage_options=storage_options,
                 )
 
-                # Rename columns by the field mapping dictionary if it exists
-                if feature_view.batch_source.field_mapping:
-                    df_to_join = _run_dask_field_mapping(
-                        df_to_join, feature_view.batch_source.field_mapping
-                    )
-                # Rename entity columns by the join_key_map dictionary if it exists
-                if feature_view.projection.join_key_map:
-                    df_to_join = _run_dask_field_mapping(
-                        df_to_join, feature_view.projection.join_key_map
-                    )
-
-                # Build a list of all the features we should select from this source
-                feature_names = []
-                columns_map = {}
-                for feature in features:
-                    # Modify the separator for feature refs in column names to double underscore. We are using
-                    # double underscore as separator for consistency with other databases like BigQuery,
-                    # where there are very few characters available for use as separators
-                    if full_feature_names:
-                        formatted_feature_name = (
-                            f"{feature_view.projection.name_to_use()}__{feature}"
-                        )
-                    else:
-                        formatted_feature_name = feature
-                    # Add the feature name to the list of columns
-                    feature_names.append(formatted_feature_name)
-                    columns_map[feature] = formatted_feature_name
-
-                # Ensure that the source dataframe feature column includes the feature view name as a prefix
-                df_to_join = _run_dask_field_mapping(df_to_join, columns_map)
-
-                # Select only the columns we need to join from the feature dataframe
-                df_to_join = df_to_join[right_entity_key_columns + feature_names]
-                df_to_join = df_to_join.persist()
-
-                # Make sure to not have duplicated columns
-                if entity_df_event_timestamp_col == event_timestamp_column:
-                    df_to_join = _run_dask_field_mapping(
-                        df_to_join,
-                        {event_timestamp_column: f"__{event_timestamp_column}"},
-                    )
-                    event_timestamp_column = f"__{event_timestamp_column}"
-
-                df_to_join = df_to_join.persist()
+                df_to_join, event_timestamp_column = _field_mapping(
+                    df_to_join,
+                    feature_view,
+                    features,
+                    right_entity_key_columns,
+                    entity_df_event_timestamp_col,
+                    event_timestamp_column,
+                    full_feature_names,
+                )
 
                 df_to_join = _merge(entity_df_with_features, df_to_join, join_keys)
 
-                df_to_join_types = df_to_join.dtypes
-                event_timestamp_column_type = df_to_join_types[event_timestamp_column]
-
-                if created_timestamp_column:
-                    created_timestamp_column_type = df_to_join_types[
-                        created_timestamp_column
-                    ]
-
-                if (
-                    not hasattr(event_timestamp_column_type, "tz")
-                    or event_timestamp_column_type.tz != pytz.UTC
-                ):
-                    # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-                    df_to_join[event_timestamp_column] = df_to_join[
-                        event_timestamp_column
-                    ].apply(
-                        lambda x: x
-                        if x.tzinfo is not None
-                        else x.replace(tzinfo=pytz.utc),
-                        meta=(event_timestamp_column, "datetime64[ns, UTC]"),
-                    )
-
-                if created_timestamp_column and (
-                    not hasattr(created_timestamp_column_type, "tz")
-                    or created_timestamp_column_type.tz != pytz.UTC
-                ):
-                    df_to_join[created_timestamp_column] = df_to_join[
-                        created_timestamp_column
-                    ].apply(
-                        lambda x: x
-                        if x.tzinfo is not None
-                        else x.replace(tzinfo=pytz.utc),
-                        meta=(event_timestamp_column, "datetime64[ns, UTC]"),
-                    )
-
-                # Filter rows by defined timestamp tolerance
-                if feature_view.ttl != 0:
-                    df_to_join = df_to_join[
-                        (
-                            df_to_join[event_timestamp_column]
-                            >= df_to_join[entity_df_event_timestamp_col]
-                            - feature_view.ttl
-                        )
-                        & (
-                            df_to_join[event_timestamp_column]
-                            <= df_to_join[entity_df_event_timestamp_col]
-                        )
-                    ]
-
-                df_to_join = df_to_join.persist()
-
-                if created_timestamp_column:
-                    df_to_join = df_to_join.sort_values(by=created_timestamp_column)
-                    df_to_join = df_to_join.persist()
-
-                df_to_join = df_to_join.sort_values(by=event_timestamp_column)
-                df_to_join = df_to_join.persist()
-
-                df_to_join = df_to_join.drop_duplicates(
-                    all_join_keys + [entity_df_event_timestamp_col],
-                    keep="last",
-                    ignore_index=True,
+                df_to_join = _normalize_timestamp(
+                    df_to_join, event_timestamp_column, created_timestamp_column
                 )
-                df_to_join = df_to_join.persist()
 
-                entity_df_with_features = df_to_join.drop(
-                    [event_timestamp_column], axis=1
-                ).persist()
+                df_to_join = _filter_ttl(
+                    df_to_join,
+                    feature_view,
+                    entity_df_event_timestamp_col,
+                    event_timestamp_column,
+                )
 
-                if created_timestamp_column:
-                    entity_df_with_features = entity_df_with_features.drop(
-                        [created_timestamp_column], axis=1
-                    ).persist()
+                df_to_join = _drop_duplicates(
+                    df_to_join,
+                    all_join_keys,
+                    event_timestamp_column,
+                    created_timestamp_column,
+                    entity_df_event_timestamp_col,
+                )
+
+                entity_df_with_features = _drop_columns(
+                    df_to_join, event_timestamp_column, created_timestamp_column
+                )
 
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
@@ -517,6 +432,60 @@ def _get_entity_df_event_timestamp_range(
     )
 
 
+def _field_mapping(
+    df_to_join: dd.DataFrame,
+    feature_view: FeatureView,
+    features: List[str],
+    right_entity_key_columns: List[str],
+    entity_df_event_timestamp_col: str,
+    event_timestamp_column: str,
+    full_feature_names: bool,
+) -> dd.DataFrame:
+    # Rename columns by the field mapping dictionary if it exists
+    if feature_view.batch_source.field_mapping:
+        df_to_join = _run_dask_field_mapping(
+            df_to_join, feature_view.batch_source.field_mapping
+        )
+    # Rename entity columns by the join_key_map dictionary if it exists
+    if feature_view.projection.join_key_map:
+        df_to_join = _run_dask_field_mapping(
+            df_to_join, feature_view.projection.join_key_map
+        )
+
+    # Build a list of all the features we should select from this source
+    feature_names = []
+    columns_map = {}
+    for feature in features:
+        # Modify the separator for feature refs in column names to double underscore. We are using
+        # double underscore as separator for consistency with other databases like BigQuery,
+        # where there are very few characters available for use as separators
+        if full_feature_names:
+            formatted_feature_name = (
+                f"{feature_view.projection.name_to_use()}__{feature}"
+            )
+        else:
+            formatted_feature_name = feature
+        # Add the feature name to the list of columns
+        feature_names.append(formatted_feature_name)
+        columns_map[feature] = formatted_feature_name
+
+    # Ensure that the source dataframe feature column includes the feature view name as a prefix
+    df_to_join = _run_dask_field_mapping(df_to_join, columns_map)
+
+    # Select only the columns we need to join from the feature dataframe
+    df_to_join = df_to_join[right_entity_key_columns + feature_names]
+    df_to_join = df_to_join.persist()
+
+    # Make sure to not have duplicated columns
+    if entity_df_event_timestamp_col == event_timestamp_column:
+        df_to_join = _run_dask_field_mapping(
+            df_to_join, {event_timestamp_column: f"__{event_timestamp_column}"},
+        )
+        event_timestamp_column = f"__{event_timestamp_column}"
+
+    return df_to_join.persist(), event_timestamp_column
+
+
 def _merge(
     entity_df_with_features: dd.DataFrame,
     df_to_join: dd.DataFrame,
@@ -545,3 +514,100 @@ def _merge(
         df_to_join = df_to_join.persist()
 
     return df_to_join
+
+
+def _normalize_timestamp(
+    df_to_join: dd.DataFrame,
+    event_timestamp_column: str,
+    created_timestamp_column: str,
+) -> dd.DataFrame:
+    df_to_join_types = df_to_join.dtypes
+    event_timestamp_column_type = df_to_join_types[event_timestamp_column]
+
+    if created_timestamp_column:
+        created_timestamp_column_type = df_to_join_types[created_timestamp_column]
+
+    if (
+        not hasattr(event_timestamp_column_type, "tz")
+        or event_timestamp_column_type.tz != pytz.UTC
+    ):
+        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+        df_to_join[event_timestamp_column] = df_to_join[event_timestamp_column].apply(
+            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
+            meta=(event_timestamp_column, "datetime64[ns, UTC]"),
+        )
+
+    if created_timestamp_column and (
+        not hasattr(created_timestamp_column_type, "tz")
+        or created_timestamp_column_type.tz != pytz.UTC
+    ):
+        df_to_join[created_timestamp_column] = df_to_join[
+            created_timestamp_column
+        ].apply(
+            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
+            meta=(event_timestamp_column, "datetime64[ns, UTC]"),
+        )
+
+    return df_to_join.persist()
+
+
+def _filter_ttl(
+    df_to_join: dd.DataFrame,
+    feature_view: FeatureView,
+    entity_df_event_timestamp_col: str,
+    event_timestamp_column: str,
+) -> dd.DataFrame:
+    # Filter rows by defined timestamp tolerance
+    if feature_view.ttl and feature_view.ttl != 0:
+        df_to_join = df_to_join[
+            (
+                df_to_join[event_timestamp_column]
+                >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+            )
+            & (
+                df_to_join[event_timestamp_column]
+                <= df_to_join[entity_df_event_timestamp_col]
+            )
+        ]
+
+        df_to_join = df_to_join.persist()
+
+    return df_to_join
+
+
+def _drop_duplicates(
+    df_to_join: dd.DataFrame,
+    all_join_keys: List[str],
+    event_timestamp_column: str,
+    created_timestamp_column: str,
+    entity_df_event_timestamp_col: str,
+) -> dd.DataFrame:
+    if created_timestamp_column:
+        df_to_join = df_to_join.sort_values(by=created_timestamp_column)
+        df_to_join = df_to_join.persist()
+
+    df_to_join = df_to_join.sort_values(by=event_timestamp_column)
+    df_to_join = df_to_join.persist()
+
+    df_to_join = df_to_join.drop_duplicates(
+        all_join_keys + [entity_df_event_timestamp_col], keep="last", ignore_index=True,
+    )
+
+    return df_to_join.persist()
+
+
+def _drop_columns(
+    df_to_join: dd.DataFrame,
+    event_timestamp_column: str,
+    created_timestamp_column: str,
+) -> dd.DataFrame:
+    entity_df_with_features = df_to_join.drop(
+        [event_timestamp_column], axis=1
+    ).persist()
+
+    if created_timestamp_column:
+        entity_df_with_features = entity_df_with_features.drop(
+            [created_timestamp_column], axis=1
+        ).persist()
+
+    return entity_df_with_features
