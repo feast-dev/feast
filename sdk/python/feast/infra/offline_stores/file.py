@@ -254,50 +254,23 @@ class FileOfflineStore(OfflineStore):
                     columns_map[feature] = formatted_feature_name
 
                 # Ensure that the source dataframe feature column includes the feature view name as a prefix
-                df_to_join = df_to_join.rename(columns=columns_map)
-                df_to_join = df_to_join.persist()
+                df_to_join = _run_dask_field_mapping(df_to_join, columns_map)
 
                 # Select only the columns we need to join from the feature dataframe
                 df_to_join = df_to_join[right_entity_key_columns + feature_names]
                 df_to_join = df_to_join.persist()
 
                 # Make sure to not have duplicated columns
-                df_to_join = df_to_join.rename(
-                    columns={event_timestamp_column: f"__{event_timestamp_column}",}
-                )
-                event_timestamp_column = f"__{event_timestamp_column}"
-
-                if created_timestamp_column:
-                    df_to_join = df_to_join.rename(
-                        columns={
-                            created_timestamp_column: f"__{created_timestamp_column}",
-                        }
+                if entity_df_event_timestamp_col == event_timestamp_column:
+                    df_to_join = _run_dask_field_mapping(
+                        df_to_join,
+                        {event_timestamp_column: f"__{event_timestamp_column}"},
                     )
-                    created_timestamp_column = f"__{created_timestamp_column}"
+                    event_timestamp_column = f"__{event_timestamp_column}"
 
                 df_to_join = df_to_join.persist()
 
-                # tmp join keys needed for cross join with null join table view
-                tmp_join_keys = []
-                if not join_keys:
-                    entity_df_with_features["__tmp"] = 1
-                    df_to_join["__tmp"] = 1
-                    tmp_join_keys = ["__tmp"]
-
-                # Get only data with requested entities
-                df_to_join = dd.merge(
-                    entity_df_with_features,
-                    df_to_join,
-                    left_on=join_keys or tmp_join_keys,
-                    right_on=join_keys or tmp_join_keys,
-                    suffixes=("", "__"),
-                    how="left",
-                )
-
-                if tmp_join_keys:
-                    df_to_join = df_to_join.drop(tmp_join_keys, axis=1).persist()
-                else:
-                    df_to_join = df_to_join.persist()
+                df_to_join = _merge(entity_df_with_features, df_to_join, join_keys)
 
                 df_to_join_types = df_to_join.dtypes
                 event_timestamp_column_type = df_to_join_types[event_timestamp_column]
@@ -542,3 +515,33 @@ def _get_entity_df_event_timestamp_range(
         entity_df_event_timestamp.min().to_pydatetime(),
         entity_df_event_timestamp.max().to_pydatetime(),
     )
+
+
+def _merge(
+    entity_df_with_features: dd.DataFrame,
+    df_to_join: dd.DataFrame,
+    join_keys: List[str],
+) -> dd.DataFrame:
+    # tmp join keys needed for cross join with null join table view
+    tmp_join_keys = []
+    if not join_keys:
+        entity_df_with_features["__tmp"] = 1
+        df_to_join["__tmp"] = 1
+        tmp_join_keys = ["__tmp"]
+
+    # Get only data with requested entities
+    df_to_join = dd.merge(
+        entity_df_with_features,
+        df_to_join,
+        left_on=join_keys or tmp_join_keys,
+        right_on=join_keys or tmp_join_keys,
+        suffixes=("", "__"),
+        how="left",
+    )
+
+    if tmp_join_keys:
+        df_to_join = df_to_join.drop(tmp_join_keys, axis=1).persist()
+    else:
+        df_to_join = df_to_join.persist()
+
+    return df_to_join
