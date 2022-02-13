@@ -38,6 +38,14 @@ class InfraObject(ABC):
     """
 
     @abstractmethod
+    def __init__(self, name: str):
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @abstractmethod
     def to_infra_object_proto(self) -> InfraObjectProto:
         """Converts an InfraObject to its protobuf representation, wrapped in an InfraObjectProto."""
         pass
@@ -46,6 +54,9 @@ class InfraObject(ABC):
     def to_proto(self) -> Any:
         """Converts an InfraObject to its protobuf representation."""
         pass
+
+    def __lt__(self, other) -> bool:
+        return self.name < other.name
 
     @staticmethod
     @abstractmethod

@@ -14,7 +14,7 @@ from feast import FeatureStore, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.repo_configuration import FULL_REPO_CONFIGS
+from tests.integration.feature_repos.repo_configuration import Environment
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -32,8 +32,8 @@ from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("test_repo_config", FULL_REPO_CONFIGS)
-def test_universal_cli(test_repo_config) -> None:
+@pytest.mark.universal
+def test_universal_cli(environment: Environment):
     project = f"test_universal_cli_{str(uuid.uuid4()).replace('-', '')[:8]}"
     runner = CliRunner()
 
@@ -41,7 +41,7 @@ def test_universal_cli(test_repo_config) -> None:
         try:
             repo_path = Path(repo_dir_name)
             feature_store_yaml = make_feature_store_yaml(
-                project, test_repo_config, repo_path
+                project, environment.test_repo_config, repo_path
             )
 
             repo_config = repo_path / "feature_store.yaml"
@@ -56,7 +56,6 @@ def test_universal_cli(test_repo_config) -> None:
             # Store registry contents, to be compared later.
             fs = FeatureStore(repo_path=str(repo_path))
             registry_dict = fs.registry.to_dict(project=project)
-
             # Save only the specs, not the metadata.
             registry_specs = {
                 key: [fco["spec"] if "spec" in fco else fco for fco in value]

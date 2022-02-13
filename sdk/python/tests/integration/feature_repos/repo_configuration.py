@@ -75,23 +75,23 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 online_store=REDIS_CONFIG,
             ),
             # AWS configurations
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=DYNAMO_CONFIG,
-                python_feature_server=True,
-            ),
+            # IntegrationTestRepoConfig(
+            #     provider="aws",
+            #     offline_store_creator=RedshiftDataSourceCreator,
+            #     online_store=DYNAMO_CONFIG,
+            #     python_feature_server=True,
+            # ),
             IntegrationTestRepoConfig(
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
                 online_store=REDIS_CONFIG,
             ),
             # Snowflake configurations
-            IntegrationTestRepoConfig(
-                provider="aws",  # no list features, no feature server
-                offline_store_creator=SnowflakeDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
+            # IntegrationTestRepoConfig(
+            #     provider="aws",  # no list features, no feature server
+            #     offline_store_creator=SnowflakeDataSourceCreator,
+            #     online_store=REDIS_CONFIG,
+            # ),
         ]
     )
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)

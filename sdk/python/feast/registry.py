@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -21,7 +22,7 @@ from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.json_format import MessageToDict, MessageToJson
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
@@ -797,44 +798,52 @@ class Registry:
         for entity in sorted(
             self.list_entities(project=project), key=lambda entity: entity.name
         ):
-            registry_dict["entities"].append(MessageToDict(entity.to_proto()))
+            registry_dict["entities"].append(
+                self._message_to_sorted_dict(entity.to_proto())
+            )
         for feature_view in sorted(
             self.list_feature_views(project=project),
             key=lambda feature_view: feature_view.name,
         ):
-            registry_dict["featureViews"].append(MessageToDict(feature_view.to_proto()))
+            registry_dict["featureViews"].append(
+                self._message_to_sorted_dict(feature_view.to_proto())
+            )
         for feature_service in sorted(
             self.list_feature_services(project=project),
             key=lambda feature_service: feature_service.name,
         ):
             registry_dict["featureServices"].append(
-                MessageToDict(feature_service.to_proto())
+                self._message_to_sorted_dict(feature_service.to_proto())
             )
         for on_demand_feature_view in sorted(
             self.list_on_demand_feature_views(project=project),
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             registry_dict["onDemandFeatureViews"].append(
-                MessageToDict(on_demand_feature_view.to_proto())
+                self._message_to_sorted_dict(on_demand_feature_view.to_proto())
             )
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
             key=lambda request_feature_view: request_feature_view.name,
         ):
             registry_dict["requestFeatureViews"].append(
-                MessageToDict(request_feature_view.to_proto())
+                self._message_to_sorted_dict(request_feature_view.to_proto())
             )
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):
             registry_dict["savedDatasets"].append(
-                MessageToDict(saved_dataset.to_proto())
+                self._message_to_sorted_dict(saved_dataset.to_proto())
             )
-
-        registry_dict["infra"].append(
-            MessageToDict(self.get_infra(project=project).to_proto())
-        )
+        for infra_object in sorted(self.get_infra(project=project).infra_objects):
+            registry_dict["infra"].append(
+                self._message_to_sorted_dict(infra_object.to_proto())
+            )
         return registry_dict
+
+    @staticmethod
+    def _message_to_sorted_dict(message: Message) -> Dict[str, Any]:
+        return json.loads(MessageToJson(message, sort_keys=True))
 
     def _prepare_registry_for_changes(self):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
