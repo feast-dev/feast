@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
-from google.protobuf.json_format import MessageToDict, MessageToJson
+from google.protobuf.json_format import MessageToJson
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
