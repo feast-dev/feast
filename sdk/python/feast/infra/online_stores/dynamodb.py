@@ -227,11 +227,10 @@ class DynamoDBTable(InfraObject):
         region: The region of the table.
     """
 
-    name: str
     region: str
 
     def __init__(self, name: str, region: str):
-        self.name = name
+        super().__init__(name)
         self.region = region
 
     def to_infra_object_proto(self) -> InfraObjectProto:
