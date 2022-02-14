@@ -12,9 +12,9 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from feast.protos.feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
-from feast.protos.feast.types import EntityKey_pb2 as feast_dot_types_dot_EntityKey__pb2
-from feast.protos.feast.serving import ServingService_pb2 as feast_dot_serving_dot_ServingService__pb2
+from connector_python import Value_pb2 as feast_dot_types_dot_Value__pb2
+from connector_python import EntityKey_pb2 as feast_dot_types_dot_EntityKey__pb2
+from connector_python import ServingService_pb2 as feast_dot_serving_dot_ServingService__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(

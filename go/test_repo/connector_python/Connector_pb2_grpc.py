@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import Connector_pb2 as feast_dot_third__party_dot_grpc_dot_connector_dot_Connector__pb2
+from connector_python import Connector_pb2 as feast_dot_third__party_dot_grpc_dot_connector_dot_Connector__pb2
 
 
 class OnlineStoreStub(object):

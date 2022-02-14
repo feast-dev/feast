@@ -43,6 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer fs.DestructOnlineStore()
 
 	grpcPort, ok := os.LookupEnv(flagFeastGrpcPort)
 	if !ok {

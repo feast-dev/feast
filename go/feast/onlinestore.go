@@ -22,6 +22,8 @@ type OnlineStore interface {
 	// The inner array will have the same size as featureReferences,
 	// while the outer array will have the same size as entityKeys.
 	OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]Feature, error)
+	// Destruct must be call once user is done using OnlineStore
+	Destruct()
 }
 
 func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool) {
