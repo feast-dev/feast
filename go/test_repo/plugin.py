@@ -1,8 +1,11 @@
 from concurrent import futures
+import concurrent.futures
 import sys
 import time
+from datetime import datetime
 
 import grpc
+import os
 
 from grpc_health.v1.health import HealthServicer
 from grpc_health.v1 import health_pb2, health_pb2_grpc
@@ -10,14 +13,20 @@ from grpc_health.v1 import health_pb2, health_pb2_grpc
 from connector_python import Connector_pb2_grpc
 from connector_python import Connector_pb2
 from connector_python import ServingService_pb2
+from connector_python.ServingService_pb2 import FeatureReferenceV2 as FeatureReferenceV2Proto
+from connector_python.Connector_pb2 import ConnectorFeature as ConnectorFeatureProto
+from connector_python.Connector_pb2 import ConnectorFeatureList as ConnectorFeatureListProto
 from connector_python.ServingService_pb2 import FeatureList as FeatureListProto
 from connector_python.EntityKey_pb2 import EntityKey as EntityKeyProto
 from connector_python.Value_pb2 import Value as ValueProto
+from connector_python.Value_pb2 import ValueType
 from google.protobuf.timestamp_pb2 import Timestamp
 
+import typing
 from typing import (
     Any,
     ByteString,
+    Callable,
     Dict,
     List,
     Optional,
@@ -31,18 +40,6 @@ from redis import Redis
 import mmh3
 import struct
 
-# sdk/python/feast/usage.py
-import contextlib
-import contextvars
-import dataclasses
-import os
-import typing
-import uuid
-from datetime import datetime
-
-sys.path.append("/Users/lycao/Documents/feast/go/test_repo/connector_python")
-
-# sdk/python/feast/infra/online_stores/helpers.py
 def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:
     key: List[bytes] = [serialize_entity_key(entity_key), project.encode("utf-8")]
     return b"".join(key)
@@ -84,76 +81,17 @@ def serialize_entity_key(entity_key: EntityKeyProto) -> bytes:
 
     return b"".join(output)
 
-# sdk/python/feast/usage.py
-
-@dataclasses.dataclass
-class FnCall:
-    fn_name: str
-    id: str
-
-    start: datetime
-    end: typing.Optional[datetime] = None
-
-    parent_id: typing.Optional[str] = None
-
-
-class Sampler:
-    def should_record(self, event) -> bool:
-        raise NotImplementedError
-
-    @property
-    def priority(self):
-        return 0
-
-
-class AlwaysSampler(Sampler):
-    def should_record(self, event) -> bool:
-        return True
-
-
-class UsageContext:
-    attributes: typing.Dict[str, typing.Any]
-
-    call_stack: typing.List[FnCall]
-    completed_calls: typing.List[FnCall]
-
-    exception: typing.Optional[Exception] = None
-    traceback: typing.Optional[typing.Tuple[str, int, str]] = None
-
-    sampler: Sampler = AlwaysSampler()
-
-    def __init__(self):
-        self.attributes = {}
-        self.call_stack = []
-        self.completed_calls = []
-
-
-_context = contextvars.ContextVar("usage_context", default=UsageContext())
-
-@contextlib.contextmanager
-def tracing_span(name):
-    """
-    Context manager for wrapping heavy parts of code in tracing span
-    """
-    if _is_enabled:
-        ctx = _context.get()
-        if not ctx.call_stack:
-            raise RuntimeError("tracing_span must be called in usage context")
-
-        last_call = ctx.call_stack[-1]
-        fn_call = FnCall(
-            id=uuid.uuid4().hex,
-            parent_id=last_call.id,
-            fn_name=f"{last_call.fn_name}.{name}",
-            start=datetime.utcnow(),
-        )
-    try:
-        yield
-    finally:
-        if _is_enabled:
-            fn_call.end = datetime.utcnow()
-            ctx.completed_calls.append(fn_call)
-
+def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:
+    if value_type == "string_val":
+        return v.string_val.encode("utf8"), ValueType.STRING
+    elif value_type == "bytes_val":
+        return v.bytes_val, ValueType.BYTES
+    elif value_type == "int32_val":
+        return struct.pack("<i", v.int32_val), ValueType.INT32
+    elif value_type == "int64_val":
+        return struct.pack("<l", v.int64_val), ValueType.INT64
+    else:
+        raise ValueError(f"Value type not supported for Firestore: {v}")
 
 # sdk/python/feast/infra/online_stores/redis.py
 class ConnectorOnlineStore(Connector_pb2_grpc.OnlineStoreServicer):
@@ -165,62 +103,54 @@ class ConnectorOnlineStore(Connector_pb2_grpc.OnlineStoreServicer):
         self.port = port
 
     def OnlineRead(self, request, context):
-        response = {'results': [[]]}
+        response = Connector_pb2.OnlineReadResponse()
 
-        feature_view = request.View
-        project = config.project
-        requested_features = request.Features
-        entity_keys = request.EntityKeys
+        feature_view = request.view
+        project = self.project
+        requested_features = request.features
+        entity_keys = request.entityKeys
 
         hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
 
         ts_key = f"_ts:{feature_view}"
         hset_keys.append(ts_key)
         requested_features.append(ts_key)
-
-        keys = []
-        for entity_key in entity_keys:
+        results : List[ConnectorFeatureListProto] = [None] * len(entity_keys)
+        keys = [None] * len(entity_keys)
+        for index, entity_key in enumerate(entity_keys):
             redis_key_bin = _redis_key(self.project, entity_key)
-            keys.append(redis_key_bin)
-        with self.client.pipeline() as pipe:
-            for redis_key_bin in keys:
-                pipe.hmget(redis_key_bin, hset_keys)
-            # TODO
-            with tracing_span(name="remote_call"):
-                redis_values = pipe.execute()
-        for values in redis_values:
+            keys[index] = redis_key_bin
+            values = self._client.hmget(redis_key_bin, hset_keys)
             feature_list = self._get_features_for_entity(
                 values, feature_view, requested_features
             )
-            response['results'].append(feature_list)
-        return response
+            results[index] = feature_list
+        return Connector_pb2.OnlineReadResponse(results=results)
 
     def _get_features_for_entity(
         self,
         values: List[ByteString],
         feature_view: str,
         requested_features: List[str],
-    ) -> Optional[List[FeatureListProto]]:
+    ) -> ConnectorFeatureListProto:
 
         res_val = dict(zip(requested_features, values))
-
         res_ts = Timestamp()
         ts_val = res_val.pop(f"_ts:{feature_view}")
         if ts_val:
             res_ts.ParseFromString(bytes(ts_val))
-        timestamp = datetime.fromtimestamp(res_ts.seconds)
-        feature_list = [None] * len(requested_features)
+        feature_list = [None] * len(res_val)
 
         index = 0
         for feature_name, val_bin in res_val.items():
             val = ValueProto()
             if val_bin:
                 val.ParseFromString(bytes(val_bin))
-            feature_ref = {'feature_view_name': feature_view, 'feature_name': feature_name} #ServingService_pb2.FeatureReferenceV2()
-            feature_list[index] = {'timestamp': timestamp, 'reference': feature_ref, 'value': val}
+            feature_ref = FeatureReferenceV2Proto(feature_view_name=feature_view, feature_name=feature_name)
+            feature_list[index] = ConnectorFeatureProto(timestamp=res_ts, reference=feature_ref, value=val)
             index += 1
 
-        return feature_list
+        return ConnectorFeatureListProto(featureList= feature_list)
 
 
 def serve():
@@ -230,7 +160,7 @@ def serve():
 
     # Start the server.
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    Connector_pb2_grpc.add_OnlineStoreServicer_to_server(ConnectorOnlineStore(project="test_repo", host=":", port="6379"), server)
+    Connector_pb2_grpc.add_OnlineStoreServicer_to_server(ConnectorOnlineStore(project="test_repo", host="localhost", port="6379"), server)
     health_pb2_grpc.add_HealthServicer_to_server(health, server)
     server.add_insecure_port('127.0.0.1:1234')
     server.start()
