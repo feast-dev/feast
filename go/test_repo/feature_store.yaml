@@ -3,7 +3,7 @@ project: test_repo
 provider: local
 online_store:
   type: connector
-  KV_PLUGIN: python plugin.py
+  KV_PLUGIN: ./dist/plugin
 offline_store:
   type: file
 flags:
