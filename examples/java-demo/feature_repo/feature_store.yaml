@@ -1,0 +1,11 @@
+registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+project: feast_java_demo
+provider: gcp
+online_store:
+  type: redis
+  connection_string: localhost:6379,password=[YOUR PASSWORD]
+offline_store:
+  type: file
+flags:
+  alpha_features: true
+  on_demand_transforms: true
