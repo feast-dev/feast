@@ -544,10 +544,12 @@ def _drop_duplicates(
     entity_df_event_timestamp_col: str,
 ) -> dd.DataFrame:
     if created_timestamp_column:
-        df_to_join = df_to_join.sort_values(by=created_timestamp_column)
+        df_to_join = df_to_join.sort_values(
+            by=created_timestamp_column, na_position="first"
+        )
         df_to_join = df_to_join.persist()
 
-    df_to_join = df_to_join.sort_values(by=event_timestamp_column)
+    df_to_join = df_to_join.sort_values(by=event_timestamp_column, na_position="first")
     df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
