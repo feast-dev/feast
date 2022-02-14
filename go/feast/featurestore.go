@@ -10,7 +10,7 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	"io/ioutil"
 	"strings"
-	"sort"
+	// "sort"
 	"fmt"
 )
 
@@ -104,7 +104,6 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 		// and for each join key, create a EntityKey
 		// and add to entity_keys
 		entitiesInFeatureView := featureViewSpec.GetEntities()
-		sort.Strings(entitiesInFeatureView)
 		featuresInFeatureView := featureViewSpec.GetFeatures()
 		// Validate that all features asked for are inside this feature view
 		featuresInFeatureViewMap := make(map[string]bool)
@@ -197,5 +196,8 @@ func populateResultRowsFromColumnar(response *serving.GetOnlineFeaturesResponse,
 			featureVector.EventTimestamps = append(featureVector.EventTimestamps, &featureTimeStamp)
 		}
 	}
-	// fmt.Println(response.Metadata.FeatureNames.Val)
+}
+
+func (fs *FeatureStore) DestructOnlineStore() {
+	fs.onlineStore.Destruct()
 }

@@ -189,6 +189,11 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	return results, nil
 }
 
+// Dummy destruct function to conform with plugin OnlineStore interface
+func (r *RedisOnlineStore) Destruct() {
+
+}
+
 func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
 	serKey, err := SerializeEntityKey(entityKey)
 	if err != nil {
