@@ -139,6 +139,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_write_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources

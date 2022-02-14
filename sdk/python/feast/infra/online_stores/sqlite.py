@@ -249,12 +249,11 @@ class SqliteTable(InfraObject):
     """
 
     path: str
-    name: str
     conn: sqlite3.Connection
 
     def __init__(self, path: str, name: str):
+        super().__init__(name)
         self.path = path
-        self.name = name
         self.conn = _initialize_conn(path)
 
     def to_infra_object_proto(self) -> InfraObjectProto:

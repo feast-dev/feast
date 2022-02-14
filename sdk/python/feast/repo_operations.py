@@ -270,7 +270,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
         "breaking changes in the future. No guarantees are made on this interface."
     )
     click.echo(f"{Style.BRIGHT}{Fore.YELLOW}{warning}{Style.RESET_ALL}")
-    click.echo(json.dumps(registry_dict, indent=2))
+    click.echo(json.dumps(registry_dict, indent=2, sort_keys=True))
 
 
 def cli_check_repo(repo_path: Path):
