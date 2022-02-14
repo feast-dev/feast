@@ -212,19 +212,7 @@ class FileOfflineStore(OfflineStore):
 
                 all_join_keys = list(set(all_join_keys + join_keys))
 
-                storage_options = (
-                    {
-                        "client_kwargs": {
-                            "endpoint_url": feature_view.batch_source.file_options.s3_endpoint_override
-                        }
-                    }
-                    if feature_view.batch_source.file_options.s3_endpoint_override
-                    else None
-                )
-
-                df_to_join = dd.read_parquet(
-                    feature_view.batch_source.path, storage_options=storage_options,
-                )
+                df_to_join = _read_datasource(feature_view.batch_source)
 
                 df_to_join, event_timestamp_column = _field_mapping(
                     df_to_join,
@@ -297,52 +285,11 @@ class FileOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
+            source_df = _read_datasource(data_source)
 
-            storage_options = (
-                {
-                    "client_kwargs": {
-                        "endpoint_url": data_source.file_options.s3_endpoint_override
-                    }
-                }
-                if data_source.file_options.s3_endpoint_override
-                else None
+            source_df = _normalize_timestamp(
+                source_df, event_timestamp_column, created_timestamp_column
             )
-
-            source_df = dd.read_parquet(
-                data_source.path, storage_options=storage_options
-            )
-
-            source_df_types = source_df.dtypes
-            event_timestamp_column_type = source_df_types[event_timestamp_column]
-
-            if created_timestamp_column:
-                created_timestamp_column_type = source_df_types[
-                    created_timestamp_column
-                ]
-
-            if (
-                not hasattr(event_timestamp_column_type, "tz")
-                or event_timestamp_column_type.tz != pytz.UTC
-            ):
-                source_df[event_timestamp_column] = source_df[
-                    event_timestamp_column
-                ].apply(
-                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
-                    meta=(event_timestamp_column, "datetime64[ns, UTC]"),
-                )
-
-            if created_timestamp_column and (
-                not hasattr(created_timestamp_column_type, "tz")
-                or created_timestamp_column_type.tz != pytz.UTC
-            ):
-                source_df[created_timestamp_column] = source_df[
-                    created_timestamp_column
-                ].apply(
-                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
-                    meta=(event_timestamp_column, "datetime64[ns, UTC]"),
-                )
-
-            source_df = source_df.persist()
 
             source_columns = set(source_df.columns)
             if not set(join_key_columns).issubset(source_columns):
@@ -430,6 +377,20 @@ def _get_entity_df_event_timestamp_range(
         entity_df_event_timestamp.min().to_pydatetime(),
         entity_df_event_timestamp.max().to_pydatetime(),
     )
+
+
+def _read_datasource(data_source) -> dd.DataFrame:
+    storage_options = (
+        {
+            "client_kwargs": {
+                "endpoint_url": data_source.file_options.s3_endpoint_override
+            }
+        }
+        if data_source.file_options.s3_endpoint_override
+        else None
+    )
+
+    return dd.read_parquet(data_source.path, storage_options=storage_options,)
 
 
 def _field_mapping(
