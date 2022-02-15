@@ -7,9 +7,6 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 import pandas as pd
-import snowflake.connector
-from snowflake.connector import ProgrammingError, SnowflakeConnection
-from snowflake.connector.cursor import SnowflakeCursor
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -18,6 +15,16 @@ from tenacity import (
 )
 
 from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
+
+try:
+    import snowflake.connector
+    from snowflake.connector import ProgrammingError, SnowflakeConnection
+    from snowflake.connector.cursor import SnowflakeCursor
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("snowflake", str(e))
+
 
 getLogger("snowflake.connector.cursor").disabled = True
 getLogger("snowflake.connector.connection").disabled = True
