@@ -113,19 +113,23 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
 
     List<EntityProto.Entity> entities = this.registryRepository.getEntities();
-    Map<String, List<String>> entityNamesPerFeatureView = retrievedFeatureReferences.stream()
-        .map(this.registryRepository::getFeatureViewSpec)
-        .distinct()
-        .collect(Collectors.toMap(
-            FeatureViewSpec::getName,
-            spec -> spec.getEntitiesList().stream().map(name ->
-                entities.stream()
-                    .filter(e -> e.getSpec().getName().equals(name))
-                    .findFirst()
-                    .get()).map(e -> e.getSpec().getJoinKey())
-                .collect(Collectors.toList())
-            )
-        );
+    Map<String, List<String>> entityNamesPerFeatureView =
+        retrievedFeatureReferences.stream()
+            .map(this.registryRepository::getFeatureViewSpec)
+            .distinct()
+            .collect(
+                Collectors.toMap(
+                    FeatureViewSpec::getName,
+                    spec ->
+                        spec.getEntitiesList().stream()
+                            .map(
+                                name ->
+                                    entities.stream()
+                                        .filter(e -> e.getSpec().getName().equals(name))
+                                        .findFirst()
+                                        .get())
+                            .map(e -> e.getSpec().getJoinKey())
+                            .collect(Collectors.toList())));
 
     Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
     if (storageRetrievalSpan != null) {
@@ -133,8 +137,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       storageRetrievalSpan.setTag("features", retrievedFeatureReferences.size());
     }
     List<List<feast.storage.api.retriever.Feature>> features =
-        retriever.getOnlineFeatures(entityRows, retrievedFeatureReferences, entityNames,
-            entityNamesPerFeatureView);
+        retriever.getOnlineFeatures(
+            entityRows, retrievedFeatureReferences, entityNames, entityNamesPerFeatureView);
 
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();

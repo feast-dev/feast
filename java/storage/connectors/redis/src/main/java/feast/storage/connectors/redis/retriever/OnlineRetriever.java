@@ -61,20 +61,27 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
       List<String> entityNames,
       Map<String, List<String>> entityNamesPerFeatureView) {
 
-    List<String> featureViewNames = featureReferences.stream().map(
-        FeatureReferenceV2::getFeatureViewName).distinct()
-        .collect(Collectors.toList());
+    List<String> featureViewNames =
+        featureReferences.stream()
+            .map(FeatureReferenceV2::getFeatureViewName)
+            .distinct()
+            .collect(Collectors.toList());
 
-    List<List<RedisProto.RedisKeyV2>> redisKeys = entityRows.stream()
-        .map(entityRow ->
-            featureViewNames.stream().map(fv -> {
-              List<String> entitiesToRetain = entityNamesPerFeatureView.get(fv);
-              Map<String, Value> res = new HashMap<>(entityRow);
-              res.keySet().retainAll(entitiesToRetain);
-              return res;
-            }).collect(Collectors.toList())
-        ).map(es -> RedisKeyGenerator.buildRedisKeys(this.project, es))
-        .collect(Collectors.toList());
+    List<List<RedisProto.RedisKeyV2>> redisKeys =
+        entityRows.stream()
+            .map(
+                entityRow ->
+                    featureViewNames.stream()
+                        .map(
+                            fv -> {
+                              List<String> entitiesToRetain = entityNamesPerFeatureView.get(fv);
+                              Map<String, Value> res = new HashMap<>(entityRow);
+                              res.keySet().retainAll(entitiesToRetain);
+                              return res;
+                            })
+                        .collect(Collectors.toList()))
+            .map(es -> RedisKeyGenerator.buildRedisKeys(this.project, es))
+            .collect(Collectors.toList());
 
     return getFeaturesFromRedis(redisKeys, featureReferences);
   }
@@ -118,22 +125,23 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
         Lists.newArrayListWithExpectedSize(binaryRedisKeys.size());
 
     for (List<byte[]> binaryRedisKeysForEntity : binaryRedisKeys) {
-      List<CompletableFuture<Map<byte[], byte[]>>> innerFutures = Lists
-          .newArrayListWithExpectedSize(binaryRedisKeysForEntity.size());
+      List<CompletableFuture<Map<byte[], byte[]>>> innerFutures =
+          Lists.newArrayListWithExpectedSize(binaryRedisKeysForEntity.size());
 
       // Number of fields that controls whether to use hmget or hgetall was discovered empirically
       // Could be potentially tuned further
       if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
         byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
         for (byte[] binaryRedisKey : binaryRedisKeysForEntity) {
-          innerFutures.add(redisClientAdapter
-              .hmget(binaryRedisKey, retrieveFieldsByteArray)
-              .thenApply(
-                  list ->
-                      list.stream()
-                          .filter(KeyValue::hasValue)
-                          .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)))
-              .toCompletableFuture());
+          innerFutures.add(
+              redisClientAdapter
+                  .hmget(binaryRedisKey, retrieveFieldsByteArray)
+                  .thenApply(
+                      list ->
+                          list.stream()
+                              .filter(KeyValue::hasValue)
+                              .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)))
+                  .toCompletableFuture());
         }
       } else {
         for (byte[] binaryRedisKey : binaryRedisKeysForEntity) {
@@ -157,22 +165,22 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
     return results;
   }
 
-  private Future<Map<byte[], byte[]>> mergeFuturesForEntity(List<CompletableFuture<Map<byte[], byte[]>>> futures) {
-    return CompletableFuture
-        .allOf(futures.toArray(new CompletableFuture[0]))
-        .thenApply(v -> futures.stream()
-            .map(CompletableFuture::join)
-            .collect(Collectors.toList())
-        ).thenApply(featureMappings -> {
-          Map<byte[], byte[]> mergedMapping = new HashMap<>();
-          featureMappings.forEach(featureMapping ->
-              featureMapping.forEach((key, value) -> {
-                if (!mergedMapping.containsKey(key)) {
-                  mergedMapping.put(key, value);
-                }
-              })
-          );
-          return mergedMapping;
-        });
+  private Future<Map<byte[], byte[]>> mergeFuturesForEntity(
+      List<CompletableFuture<Map<byte[], byte[]>>> futures) {
+    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        .thenApply(v -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
+        .thenApply(
+            featureMappings -> {
+              Map<byte[], byte[]> mergedMapping = new HashMap<>();
+              featureMappings.forEach(
+                  featureMapping ->
+                      featureMapping.forEach(
+                          (key, value) -> {
+                            if (!mergedMapping.containsKey(key)) {
+                              mergedMapping.put(key, value);
+                            }
+                          }));
+              return mergedMapping;
+            });
   }
 }
