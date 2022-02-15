@@ -32,7 +32,7 @@ Don't see your offline store or online store of choice here? Check out our guide
 * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-* [x] [Trino (communiuty plugin)](https://github.com/Shopify/feast-trino)
+* [x] [Trino (community plugin)](https://github.com/Shopify/feast-trino)
 * [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
 * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
 * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)

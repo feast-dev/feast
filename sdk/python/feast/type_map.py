@@ -300,9 +300,6 @@ def _python_value_to_proto_value(
     """
     # ToDo: make a better sample for type checks (more than one element)
     sample = next(filter(_non_empty_value, values), None)  # first not empty value
-    if sample is None:
-        # all input values are None or empty lists
-        return [ProtoValue()] * len(values)
 
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
@@ -312,7 +309,9 @@ def _python_value_to_proto_value(
                 feast_value_type
             ]
 
-            if not all(type(item) in valid_types for item in sample):
+            if sample is not None and not all(
+                type(item) in valid_types for item in sample
+            ):
                 first_invalid = next(
                     item for item in sample if type(item) not in valid_types
                 )
@@ -337,6 +336,10 @@ def _python_value_to_proto_value(
 
     # Handle scalar types below
     else:
+        if sample is None:
+            # all input values are None
+            return [ProtoValue()] * len(values)
+
         if feast_value_type == ValueType.UNIX_TIMESTAMP:
             int_timestamps = _python_datetime_to_int_timestamp(values)
             # ProtoValue does actually accept `np.int_` but the typing complains.

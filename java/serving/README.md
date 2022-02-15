@@ -3,7 +3,6 @@
 ### Overview
 This guide is targeted at developers looking to contribute to Feast Serving:
 - [Building and running Feast Serving locally](#building-and-running-feast-serving-locally)
-- [Feast Java Client](#feast-java-client)
 
 ### Pre-requisites:
 
@@ -20,9 +19,23 @@ From the Feast GitHub root, run:
    1. Note if you have a remote registry, you can specify that too (e.g. `gs://...`)
    ```yaml
     feast:
-      project: "feast_demo"
-      registry: "/Users/[your username]/GitHub/feast-demo/feature_repo/data/registry.db"
+      project: feast_demo
+      registry: /Users/[your username]/GitHub/feast-demo/feature_repo/data/registry.db
     ```
+   2. An example of if you're using Redis with a remote registry:
+      ```yaml
+      feast:
+        project: feast_java_demo
+        registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+        activeStore: online
+        stores:
+        - name: online
+          type: REDIS
+          config:
+            host: localhost
+            port: 6379
+            password: [YOUR PASSWORD]
+      ```
 4. Run the jar with dependencies that was built from Maven (note the version might vary):
    ```
    java \

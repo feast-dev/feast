@@ -30,6 +30,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
             role=os.environ["SNOWFLAKE_CI_ROLE"],
             warehouse=os.environ["SNOWFLAKE_CI_WAREHOUSE"],
             database="FEAST",
+            schema="OFFLINE",
         )
 
     def create_data_source(

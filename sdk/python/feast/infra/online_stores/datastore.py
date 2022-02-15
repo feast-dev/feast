@@ -336,7 +336,6 @@ class DatastoreTable(InfraObject):
     """
 
     project: str
-    name: str
     project_id: Optional[str]
     namespace: Optional[str]
 
@@ -347,8 +346,8 @@ class DatastoreTable(InfraObject):
         project_id: Optional[str] = None,
         namespace: Optional[str] = None,
     ):
+        super().__init__(name)
         self.project = project
-        self.name = name
         self.project_id = project_id
         self.namespace = namespace
 

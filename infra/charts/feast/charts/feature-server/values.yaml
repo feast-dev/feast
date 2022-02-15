@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image for Feature Server repository
   repository: feastdev/feature-server-java
   # image.tag -- Image tag
-  tag: 0.17.0
+  tag: 0.18.0
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -25,7 +25,7 @@ application-generated.yaml:
 
 # "application-secret.yaml" -- Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management.
 application-secret.yaml:
-  enabled: true
+  enabled: false
 
 # "application-override.yaml" -- Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
 application-override.yaml:
@@ -139,6 +139,9 @@ envOverrides: {}
 
 # secrets -- List of Kubernetes secrets to be mounted. These secrets will be mounted on /etc/secrets/<secret name>.
 secrets: []
+
+# podAnnotations -- Annotations to be added to Feast Serving pods
+podAnnotations: {}
 
 # podLabels -- Labels to be added to Feast Serving pods
 podLabels: {}

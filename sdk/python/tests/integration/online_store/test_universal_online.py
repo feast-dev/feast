@@ -4,19 +4,21 @@ import os
 import time
 import unittest
 from datetime import timedelta
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import assertpy
 import numpy as np
 import pandas as pd
 import pytest
 import requests
+from botocore.exceptions import BotoCoreError
 
 from feast import Entity, Feature, FeatureService, FeatureView, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
@@ -137,6 +139,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
 
 
 @pytest.mark.integration
+@pytest.mark.universal
 def test_write_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
@@ -569,7 +572,18 @@ def test_online_store_cleanup(environment, universal_data_sources):
     assert np.allclose(expected_values["value"], online_features["value"])
 
     fs.apply(objects=[], objects_to_delete=[simple_driver_fv], partial=False)
-    fs.apply([simple_driver_fv])
+
+    def eventually_apply() -> Tuple[None, bool]:
+        try:
+            fs.apply([simple_driver_fv])
+        except BotoCoreError:
+            return None, False
+
+        return None, True
+
+    # Online store backend might have eventual consistency in schema update
+    # So recreating table that was just deleted might need some retries
+    wait_retry_backoff(eventually_apply, timeout_secs=60)
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows

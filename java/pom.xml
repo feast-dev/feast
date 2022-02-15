@@ -38,7 +38,7 @@
     </modules>
 
     <properties>
-        <revision>0.17.1-SNAPSHOT</revision>
+        <revision>0.18.1-SNAPSHOT</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -222,7 +222,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <excludePackageNames>feast.proto.*:io.grpc.*:org.tensorflow.*</excludePackageNames>
+                    <excludePackageNames>io.grpc.*:org.tensorflow.*</excludePackageNames>
                 </configuration>
             </plugin>
             <plugin>
