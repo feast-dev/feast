@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Generic, Iterable, List, Set, Tuple, TypeVar
 
-from feast.base_feature_view import BaseFeatureView
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.feature_view import DUMMY_ENTITY_NAME
+from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -19,8 +19,16 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
 )
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
+from feast.request_feature_view import RequestFeatureView
 
-FeastObject = TypeVar("FeastObject", Entity, BaseFeatureView, FeatureService)
+FeastObject = TypeVar(
+    "FeastObject",
+    Entity,
+    FeatureView,
+    OnDemandFeatureView,
+    RequestFeatureView,
+    FeatureService,
+)
 
 
 @dataclass

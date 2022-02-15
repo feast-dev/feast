@@ -18,14 +18,13 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, TypeVar, Union
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import Message
 
-from feast.base_feature_view import BaseFeatureView
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
@@ -40,7 +39,14 @@ from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.protos.feast.core.RequestFeatureView_pb2 import (
+    RequestFeatureView as RequestFeatureViewProto,
+)
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
@@ -62,6 +68,10 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "file": "LocalRegistryStore",
     "": "LocalRegistryStore",
 }
+
+FeastFeatureViewObject = TypeVar(
+    "FeastFeatureViewObject", FeatureView, RequestFeatureView, OnDemandFeatureView,
+)
 
 
 class FeastObjectType(Enum):
@@ -374,7 +384,7 @@ class Registry:
         raise EntityNotFoundException(name, project=project)
 
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self, feature_view: FeastFeatureViewObject, project: str, commit: bool = True
     ):
         """
         Registers a single feature view with Feast
@@ -890,7 +900,9 @@ class Registry:
 
             return registry_proto
 
-    def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):
+    def _check_conflicting_feature_view_names(
+        self, feature_view: FeastFeatureViewObject
+    ):
         name_to_fv_protos = self._existing_feature_view_names_to_fvs()
         if feature_view.name in name_to_fv_protos:
             if not isinstance(
@@ -898,7 +910,11 @@ class Registry:
             ):
                 raise ConflictingFeatureViewNames(feature_view.name)
 
-    def _existing_feature_view_names_to_fvs(self) -> Dict[str, Message]:
+    def _existing_feature_view_names_to_fvs(
+        self,
+    ) -> Dict[
+        str, Union[FeatureViewProto, OnDemandFeatureViewProto, RequestFeatureViewProto]
+    ]:
         assert self.cached_registry_proto
         odfvs = {
             fv.spec.name: fv
