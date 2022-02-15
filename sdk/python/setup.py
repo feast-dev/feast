@@ -89,33 +89,22 @@ GE_REQUIRED = [
 
 CI_REQUIRED = (
     [
-        "cryptography==3.3.2",
         "flake8",
         "black==19.10b0",
         "isort>=5",
         "grpcio-tools==1.34.0",
         "grpcio-testing==1.34.0",
         "minio==7.1.0",
-        "mock==2.0.0",
-        "moto",
         "mypy==0.931",
         "mypy-protobuf==3.1.0",
-        "avro==1.10.0",
-        "gcsfs",
-        "urllib3>=1.25.4",
         "pytest>=6.0.0",
         "pytest-cov",
         "pytest-xdist",
         "pytest-benchmark>=3.4.1",
         "pytest-lazy-fixture==0.6.3",
-        "pytest-timeout==1.4.2",
-        "pytest-ordering==0.6.*",
-        "pytest-mock==1.10.4",
         "Sphinx!=4.0.0,<4.4.0",
         "sphinx-rtd-theme",
         "testcontainers==3.4.2",
-        "adlfs==0.5.9",
-        "firebase-admin==4.5.2",
         "pre-commit",
         "assertpy==1.1",
         "pip-tools",
@@ -135,7 +124,7 @@ CI_REQUIRED = (
     + GE_REQUIRED
 )
 
-DEV_REQUIRED = ["mypy-protobuf>=3.1.0", "grpcio-testing==1.*"] + CI_REQUIRED
+DEV_REQUIRED = CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
