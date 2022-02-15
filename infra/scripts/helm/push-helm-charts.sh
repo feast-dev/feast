@@ -20,3 +20,4 @@ helm package feast-python-server
 
 helm gcs push --public feast-${1}.tgz feast-helm-chart-repo --force
 helm gcs push --public feast-python-server-${1}.tgz feast-helm-chart-repo --force
+rm -f ./*.tgz
