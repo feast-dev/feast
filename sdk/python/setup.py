@@ -43,29 +43,22 @@ REQUIRED = [
     "Click==8.*",
     "colorama>=0.3.9",
     "dill==0.3.*",
-    "fastavro>=1.1.0",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
     "grpcio>=1.34.0",
     "grpcio-reflection>=1.34.0",
     "Jinja2>=2.0.0",
-    "jsonschema",
     "mmh3",
     "pandas>=1.0.0",
-    "pandavro==1.5.*",
     "protobuf>=3.10",
-    "proto-plus<1.19.7",
     "pyarrow>=4.0.0",
     "pydantic>=1.0.0",
     "PyYAML>=5.4.*",
     "tabulate==0.8.*",
     "tenacity>=7.*",
-    "toml==0.10.*",
     "tqdm==4.*",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0",
-    "proto-plus<1.19.7",
-    "tensorflow-metadata>=1.0.0,<2.0.0",
 ]
 
 GCP_REQUIRED = [
@@ -95,7 +88,7 @@ GE_REQUIRED = [
 ]
 
 CI_REQUIRED = (
-        [
+    [
         "cryptography==3.3.2",
         "flake8",
         "black==19.10b0",
@@ -135,11 +128,11 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
     ]
-        + GCP_REQUIRED
-        + REDIS_REQUIRED
-        + AWS_REQUIRED
-        + SNOWFLAKE_REQUIRED
-        + GE_REQUIRED
+    + GCP_REQUIRED
+    + REDIS_REQUIRED
+    + AWS_REQUIRED
+    + SNOWFLAKE_REQUIRED
+    + GE_REQUIRED
 )
 
 DEV_REQUIRED = ["mypy-protobuf>=3.1.0", "grpcio-testing==1.*"] + CI_REQUIRED
