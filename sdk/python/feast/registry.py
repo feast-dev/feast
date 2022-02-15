@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.json_format import MessageToJson
-from proto import Message
+from google.protobuf.message import Message
 
 from feast.base_feature_view import BaseFeatureView
 from feast.entity import Entity

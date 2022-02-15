@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import List, Optional, Type
 
 from google.protobuf.json_format import MessageToJson
-from proto import Message
+from google.protobuf.message import Message
 
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
