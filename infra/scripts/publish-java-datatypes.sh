@@ -70,4 +70,4 @@ echo "============================================================"
 echo "Deploying Java Datatypes with revision: $REVISION"
 echo "============================================================"
 if [ -z $REVISION ]; then usage; exit 1; fi
-mvn -f java/pom.xml --projects datatypes -Drevision=$REVISION --batch-mode clean deploy
+mvn -f java/pom.xml --projects .,datatypes -Drevision=$REVISION --batch-mode clean deploy
