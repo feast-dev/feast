@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-set -e 
+set -e
 set -o pipefail
 
 GPG_KEY_IMPORT_DIR=/etc/gpg
 
 usage()
 {
-    echo "usage: publish-java-sdk.sh
+    echo "usage: publish-java-datatypes.sh
 
   --revision            Value for the revision e.g. '0.2.3'
   --gpg-key-import-dir  Directory containing existing GPG keys to import.
@@ -45,7 +45,7 @@ while [ "$1" != "" ]; do
   case "$1" in
       --revision )             REVISION="$2";            shift;;
       --gpg-key-import-dir )   GPG_KEY_IMPORT_DIR="$2";  shift;;
-      -h | --help )            usage;                    exit;; 
+      -h | --help )            usage;                    exit;;
       * )                      usage;                    exit 1
   esac
   shift
@@ -67,7 +67,7 @@ gpg --import --batch --yes $GPG_KEY_IMPORT_DIR/public-key
 gpg --import --batch --yes $GPG_KEY_IMPORT_DIR/private-key
 
 echo "============================================================"
-echo "Deploying Java SDK with revision: $REVISION"
+echo "Deploying Java Datatypes with revision: $REVISION"
 echo "============================================================"
 if [ -z $REVISION ]; then usage; exit 1; fi
-mvn -f java/pom.xml --projects .,datatypes,sdk -Drevision=$REVISION --batch-mode clean deploy
+mvn -f java/pom.xml --projects datatypes -Drevision=$REVISION --batch-mode clean deploy
