@@ -305,7 +305,7 @@
                                     <version>[3.6,4.0)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>[8.0,)</version>
+                                    <version>[1.8.0,)</version>
                                 </requireJavaVersion>
                                 <reactorModuleConvergence />
                             </rules>
