@@ -21,7 +21,9 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.common.models.Feature;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureServiceProto;
+import feast.proto.core.FeatureViewProto.FeatureViewSpec;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
@@ -110,13 +112,29 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       throw new RuntimeException("Requested features list must not be empty");
     }
 
+    List<EntityProto.Entity> entities = this.registryRepository.getEntities();
+    Map<String, List<String>> entityNamesPerFeatureView = retrievedFeatureReferences.stream()
+        .map(this.registryRepository::getFeatureViewSpec)
+        .distinct()
+        .collect(Collectors.toMap(
+            FeatureViewSpec::getName,
+            spec -> spec.getEntitiesList().stream().map(name ->
+                entities.stream()
+                    .filter(e -> e.getSpec().getName().equals(name))
+                    .findFirst()
+                    .get()).map(e -> e.getSpec().getJoinKey())
+                .collect(Collectors.toList())
+            )
+        );
+
     Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.setTag("entities", entityRows.size());
       storageRetrievalSpan.setTag("features", retrievedFeatureReferences.size());
     }
     List<List<feast.storage.api.retriever.Feature>> features =
-        retriever.getOnlineFeatures(entityRows, retrievedFeatureReferences, entityNames);
+        retriever.getOnlineFeatures(entityRows, retrievedFeatureReferences, entityNames,
+            entityNamesPerFeatureView);
 
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();

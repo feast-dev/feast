@@ -18,8 +18,10 @@ package feast.storage.connectors.redis.retriever;
 
 import com.google.common.collect.Lists;
 import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.storage.RedisProto;
 import feast.proto.types.ValueProto;
+import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import feast.storage.connectors.redis.common.RedisHashDecoder;
@@ -27,6 +29,7 @@ import feast.storage.connectors.redis.common.RedisKeyGenerator;
 import io.lettuce.core.KeyValue;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
@@ -55,22 +58,38 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
   public List<List<Feature>> getOnlineFeatures(
       List<Map<String, ValueProto.Value>> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
-      List<String> entityNames) {
+      List<String> entityNames,
+      Map<String, List<String>> entityNamesPerFeatureView) {
 
-    List<RedisProto.RedisKeyV2> redisKeys =
-        RedisKeyGenerator.buildRedisKeys(this.project, entityRows);
+    List<String> featureViewNames = featureReferences.stream().map(
+        FeatureReferenceV2::getFeatureViewName).distinct()
+        .collect(Collectors.toList());
+
+    List<List<RedisProto.RedisKeyV2>> redisKeys = entityRows.stream()
+        .map(entityRow ->
+            featureViewNames.stream().map(fv -> {
+              List<String> entitiesToRetain = entityNamesPerFeatureView.get(fv);
+              Map<String, Value> res = new HashMap<>(entityRow);
+              res.keySet().retainAll(entitiesToRetain);
+              return res;
+            }).collect(Collectors.toList())
+        ).map(es -> RedisKeyGenerator.buildRedisKeys(this.project, es))
+        .collect(Collectors.toList());
+
     return getFeaturesFromRedis(redisKeys, featureReferences);
   }
 
   private List<List<Feature>> getFeaturesFromRedis(
-      List<RedisProto.RedisKeyV2> redisKeys,
+      List<List<RedisProto.RedisKeyV2>> redisKeys,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
     // To decode bytes back to Feature
     Map<ByteBuffer, Integer> byteToFeatureIdxMap = new HashMap<>();
 
     // Serialize using proto
-    List<byte[]> binaryRedisKeys =
-        redisKeys.stream().map(this.keySerializer::serialize).collect(Collectors.toList());
+    List<List<byte[]>> binaryRedisKeys =
+        redisKeys.stream()
+            .map(l -> l.stream().map(this.keySerializer::serialize).collect(Collectors.toList()))
+            .collect(Collectors.toList());
 
     List<byte[]> retrieveFields = new ArrayList<>();
     for (int idx = 0;
@@ -98,28 +117,30 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
     List<Future<Map<byte[], byte[]>>> futures =
         Lists.newArrayListWithExpectedSize(binaryRedisKeys.size());
 
-    // Number of fields that controls whether to use hmget or hgetall was discovered empirically
-    // Could be potentially tuned further
-    if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
-      byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
+    for (List<byte[]> binaryRedisKeysForEntity : binaryRedisKeys) {
+      List<CompletableFuture<Map<byte[], byte[]>>> innerFutures = Lists
+          .newArrayListWithExpectedSize(binaryRedisKeysForEntity.size());
 
-      for (byte[] binaryRedisKey : binaryRedisKeys) {
-        // Access redis keys and extract features
-        futures.add(
-            redisClientAdapter
-                .hmget(binaryRedisKey, retrieveFieldsByteArray)
-                .thenApply(
-                    list ->
-                        list.stream()
-                            .filter(KeyValue::hasValue)
-                            .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)))
-                .toCompletableFuture());
+      // Number of fields that controls whether to use hmget or hgetall was discovered empirically
+      // Could be potentially tuned further
+      if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
+        byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
+        for (byte[] binaryRedisKey : binaryRedisKeysForEntity) {
+          innerFutures.add(redisClientAdapter
+              .hmget(binaryRedisKey, retrieveFieldsByteArray)
+              .thenApply(
+                  list ->
+                      list.stream()
+                          .filter(KeyValue::hasValue)
+                          .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)))
+              .toCompletableFuture());
+        }
+      } else {
+        for (byte[] binaryRedisKey : binaryRedisKeysForEntity) {
+          innerFutures.add(redisClientAdapter.hgetall(binaryRedisKey).toCompletableFuture());
+        }
       }
-
-    } else {
-      for (byte[] binaryRedisKey : binaryRedisKeys) {
-        futures.add(redisClientAdapter.hgetall(binaryRedisKey));
-      }
+      futures.add(mergeFuturesForEntity(innerFutures));
     }
 
     List<List<Feature>> results = Lists.newArrayListWithExpectedSize(futures.size());
@@ -134,5 +155,24 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
     }
 
     return results;
+  }
+
+  private Future<Map<byte[], byte[]>> mergeFuturesForEntity(List<CompletableFuture<Map<byte[], byte[]>>> futures) {
+    return CompletableFuture
+        .allOf(futures.toArray(new CompletableFuture[0]))
+        .thenApply(v -> futures.stream()
+            .map(CompletableFuture::join)
+            .collect(Collectors.toList())
+        ).thenApply(featureMappings -> {
+          Map<byte[], byte[]> mergedMapping = new HashMap<>();
+          featureMappings.forEach(featureMapping ->
+              featureMapping.forEach((key, value) -> {
+                if (!mergedMapping.containsKey(key)) {
+                  mergedMapping.put(key, value);
+                }
+              })
+          );
+          return mergedMapping;
+        });
   }
 }

@@ -17,6 +17,7 @@
 package feast.serving.registry;
 
 import com.google.protobuf.Duration;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureServiceProto;
 import feast.proto.core.FeatureViewProto;
@@ -101,5 +102,9 @@ public class RegistryRepository {
 
   public List<String> getEntitiesList(ServingAPIProto.FeatureReferenceV2 featureReference) {
     return getFeatureViewSpec(featureReference).getEntitiesList();
+  }
+
+  public List<EntityProto.Entity> getEntities() {
+    return this.registry.getRegistry().getEntitiesList();
   }
 }

@@ -41,5 +41,6 @@ public interface OnlineRetrieverV2 {
   List<List<Feature>> getOnlineFeatures(
       List<Map<String, ValueProto.Value>> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
-      List<String> entityNames);
+      List<String> entityNames,
+      Map<String, List<String>> entityNamesPerFeatureView);
 }
