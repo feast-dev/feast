@@ -163,6 +163,7 @@ class RedisOnlineStore(OnlineStore):
                 kwargs["startup_nodes"] = [
                     ClusterNode(**node) for node in startup_nodes
                 ]
+                self._client = RedisCluster(**kwargs)
             else:
                 kwargs["host"] = startup_nodes[0]["host"]
                 kwargs["port"] = startup_nodes[0]["port"]
