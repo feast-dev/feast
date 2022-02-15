@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.18.1](https://github.com/feast-dev/feast/tree/v0.18.1) (2022-02-15)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.18.0...v0.18.1)
+
+**Fixed bugs:**
+
+- ODFVs raise a PerformanceWarning for very large sets of features [\#2293](https://github.com/feast-dev/feast/issues/2293)
+- Don't require `snowflake` to always be installed [\#2309](https://github.com/feast-dev/feast/pull/2309) ([judahrand](https://github.com/judahrand))
+- podAnnotations Values in the feature-server chart [\#2304](https://github.com/feast-dev/feast/pull/2304) ([tpvasconcelos](https://github.com/tpvasconcelos))
+- Fixing the Java helm charts and adding a demo tutorial on how to use them [\#2298](https://github.com/feast-dev/feast/pull/2298) ([adchia](https://github.com/adchia))
+- avoid using transactions on OSS Redis [\#2296](https://github.com/feast-dev/feast/pull/2296) ([DvirDukhan](https://github.com/DvirDukhan))
+- Include infra objects in registry dump and fix Infra's from\_proto  [\#2295](https://github.com/feast-dev/feast/pull/2295) ([adchia](https://github.com/adchia))
+- Expose snowflake credentials  for unit testing [\#2288](https://github.com/feast-dev/feast/pull/2288) ([sfc-gh-madkins](https://github.com/sfc-gh-madkins))
+- Fix flaky tests \(test\_online\_store\_cleanup & test\_feature\_get\_online\_features\_types\_match\) [\#2276](https://github.com/feast-dev/feast/pull/2276) ([pyalex](https://github.com/pyalex))
+
+**Merged pull requests:**
+
+- Remove old flag warning with the python feature server [\#2300](https://github.com/feast-dev/feast/pull/2300) ([adchia](https://github.com/adchia))
+- Use an OFFLINE schema for Snowflake offline store tests [\#2291](https://github.com/feast-dev/feast/pull/2291) ([sfc-gh-madkins](https://github.com/sfc-gh-madkins))
+- fix typos in markdown files [\#2289](https://github.com/feast-dev/feast/pull/2289) ([charliec443](https://github.com/charliec443))
+- Add -SNAPSHOT suffix to pom.xml version [\#2286](https://github.com/feast-dev/feast/pull/2286) ([tsotnet](https://github.com/tsotnet))
+- Update CONTRIBUTING.md [\#2282](https://github.com/feast-dev/feast/pull/2282) ([adchia](https://github.com/adchia))
+
 ## [v0.18.0](https://github.com/feast-dev/feast/tree/v0.18.0) (2022-02-05)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.17.0...v0.18.0)
