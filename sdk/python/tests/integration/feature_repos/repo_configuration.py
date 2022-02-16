@@ -49,7 +49,7 @@ REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
-    "connection_string": "127.0.0.1:6000,127.0.0.1:6001,127.0.0.1:6002",
+    "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
