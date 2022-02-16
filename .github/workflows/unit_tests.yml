@@ -48,6 +48,7 @@ jobs:
           platform: x64
       - name: Test redis cluster
         run: |
+          sudo apt install build-essential
           git clone https://github.com/redis/redis
           cd redis
           make deps/hiredis deps/lua deps/jemalloc deps/linenoise
