@@ -1,5 +1,7 @@
 name: pr-integration-tests
 
+on: [push, pull_request]
+
 # concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
 #concurrency:
 #  group: pr-integration-tests-${{ github.event.pull_request.number }}
