@@ -2,7 +2,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 NAME = "Python Redis Connector"
-DESCRIPTION = "Python SDK for Feast"
+DESCRIPTION = "Python Redis Connector Example"
 URL = "https://github.com/feast-dev/feast/go/test_repo"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
@@ -29,5 +29,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
     ],
-    entry_points={"console_scripts": ["plugin=test_repo.plugin:server"]},
+    entry_points={"console_scripts": ["plugin=test_repo.plugin:serve"]},
 )
