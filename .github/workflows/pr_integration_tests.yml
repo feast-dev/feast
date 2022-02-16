@@ -14,9 +14,6 @@ on:
 
 jobs:
   build-docker-image:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
-    if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
-      || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -149,7 +146,6 @@ jobs:
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
           docker run -d -p 6000:6379 -p 6001:6380 -p 6002:6381 -p 6003:6382 -p 6004:6383 -p 6005:6384 --name redis-cluster vishnunair/docker-redis-cluster
-      - name: Setup Redis Cluster
       - name: Test python
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
