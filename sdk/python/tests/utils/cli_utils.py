@@ -114,11 +114,10 @@ class CliRunner:
             online_store:
                 type: redis
                 redis_type: redis_cluster
-                connection_string: "127.0.0.1:30000,127.0.0.1:30001,127.0.0.1:30002"
+                connection_string: "127.0.0.1:6000,127.0.0.1:6001,127.0.0.1:6002"
             """
                 )
             )
-
             repo_example = repo_path / "example.py"
             repo_example.write_text(example_repo_py)
 
