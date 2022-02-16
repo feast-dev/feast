@@ -46,6 +46,9 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+REDIS_CLUSTER_CONFIG = {
+        "type": "redis", "redis_type": "redis_cluster",
+        "connection_string": "127.0.0.1:6000,127.0.0.1:6001,127.0.0.1:6002"}
 
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
 # online store, test data, and more parameters) that most integration tests will test
@@ -63,6 +66,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",

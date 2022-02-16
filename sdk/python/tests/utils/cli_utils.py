@@ -89,42 +89,42 @@ class CliRunner:
             result = self.run(["teardown"], cwd=repo_path)
             assert result.returncode == 0
 
-    @contextmanager
-    def local_redis_repo(self, example_repo_py: str):
-        """
-        Convenience method to set up all the boilerplate for a local feature repo with a redis cluster.
-        """
-        project_id = "test" + "".join(
-            random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
-        )
+    # @contextmanager
+    # def local_redis_repo(self, example_repo_py: str):
+    #     """
+    #     Convenience method to set up all the boilerplate for a local feature repo with a redis cluster.
+    #     """
+    #     project_id = "test" + "".join(
+    #         random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
+    #     )
 
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+    #     with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
 
-            repo_path = Path(repo_dir_name)
-            data_path = Path(data_dir_name)
+    #         repo_path = Path(repo_dir_name)
+    #         data_path = Path(data_dir_name)
 
-            repo_config = repo_path / "feature_store.yaml"
+    #         repo_config = repo_path / "feature_store.yaml"
 
-            repo_config.write_text(
-                dedent(
-                    f"""
-            project: {project_id}
-            registry: {data_path / "registry.db"}
-            provider: local
-            online_store:
-                type: redis
-                redis_type: redis_cluster
-                connection_string: "127.0.0.1:6000,127.0.0.1:6001,127.0.0.1:6002"
-            """
-                )
-            )
-            repo_example = repo_path / "example.py"
-            repo_example.write_text(example_repo_py)
+    #         repo_config.write_text(
+    #             dedent(
+    #                 f"""
+    #         project: {project_id}
+    #         registry: {data_path / "registry.db"}
+    #         provider: local
+    #         online_store:
+    #             type: redis
+    #             redis_type: redis_cluster
+    #             connection_string: "127.0.0.1:6000,127.0.0.1:6001,127.0.0.1:6002"
+    #         """
+    #             )
+    #         )
+    #         repo_example = repo_path / "example.py"
+    #         repo_example.write_text(example_repo_py)
 
-            result = self.run(["apply"], cwd=repo_path)
-            assert result.returncode == 0
+    #         result = self.run(["apply"], cwd=repo_path)
+    #         assert result.returncode == 0
 
-            yield FeatureStore(repo_path=str(repo_path), config=None)
+    #         yield FeatureStore(repo_path=str(repo_path), config=None)
 
-            result = self.run(["teardown"], cwd=repo_path)
-            assert result.returncode == 0
+    #         result = self.run(["teardown"], cwd=repo_path)
+    #         assert result.returncode == 0

@@ -24,6 +24,7 @@ import pytest
 from _pytest.nodes import Item
 
 from feast import FeatureStore
+from sdk.python.tests.integration.feature_repos.repo_configuration import REDIS_CLUSTER_CONFIG
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -31,6 +32,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     REDIS_CONFIG,
+    REDIS_CLUSTER_CONFIG,
     Environment,
     construct_test_environment,
     construct_universal_data_sources,
@@ -174,6 +176,18 @@ def environment(request, worker_id: str):
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
         IntegrationTestRepoConfig(online_store=REDIS_CONFIG), worker_id=worker_id
+    )
+
+    def cleanup():
+        e.feature_store.teardown()
+
+    request.addfinalizer(cleanup)
+    return e
+
+@pytest.fixture()
+def local_redis_cluster_environment(request, worker_id):
+    e = construct_test_environment(
+        IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG), worker_id=worker_id
     )
 
     def cleanup():
