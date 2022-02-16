@@ -40,7 +40,8 @@ func TestGetOnlineFeatures1(t *testing.T) {
 		Registry: getRegistryPath(),
 		Provider: "local",
 		OnlineStore: map[string]interface{}{
-			"type": "redis",
+			"type": "connector",
+			"KV_PLUGIN": "python3 /Users/lycao/Documents/feast/go/test_repo/plugin.py",
 		},
 	}
 
