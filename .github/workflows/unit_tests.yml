@@ -41,10 +41,6 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
-      - name: Setup Redis Cluster
-        run: |
-          docker pull vishnunair/docker-redis-cluster:latest
-          docker run -d -p 6000:6379 -p 6001:6380 -p 6002:6381 -p 6003:6382 -p 6004:6383 -p 6005:6384 --name redis-cluster vishnunair/docker-redis-cluster
       - name: Test Python
         env:
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
