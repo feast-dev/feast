@@ -129,4 +129,3 @@ class CliRunner:
 
             result = self.run(["teardown"], cwd=repo_path)
             assert result.returncode == 0
-
