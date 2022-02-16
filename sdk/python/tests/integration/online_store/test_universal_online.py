@@ -137,8 +137,6 @@ def test_write_to_online_store_event_check(local_redis_environment):
         assert df["string_col"].iloc[1] == "LATEST_VALUE2"
         assert df["string_col"].iloc[2] == "LATEST_VALUE3"
 
-
-# TODO: make this work with all universal (all online store types)
 @pytest.mark.integration
 def test_write_to_online_store_event_check_with_redis_cluster(
     local_redis_cluster_environment,

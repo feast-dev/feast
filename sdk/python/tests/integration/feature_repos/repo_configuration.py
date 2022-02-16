@@ -62,14 +62,15 @@ REDIS_CLUSTER_CONFIG = {
 # module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    # IntegrationTestRepoConfig(),
-    # IntegrationTestRepoConfig(python_feature_server=True),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-    IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
+    IntegrationTestRepoConfig(),
+    IntegrationTestRepoConfig(python_feature_server=True),
 ]
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
+            # Redis configurations
+            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
