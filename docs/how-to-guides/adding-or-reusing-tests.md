@@ -79,7 +79,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         datasets["global"],
         datasets["entity"],
     )
-
     # ... more test code
 
     customer_fv, driver_fv, driver_odfv, order_fv, global_fv = (
@@ -112,7 +111,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         ]
     )
     store.apply(feast_objects)
-
     # ... more test code
 
     job_from_df = store.get_historical_features(
@@ -132,13 +130,11 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         full_feature_names=full_feature_names,
     )
     actual_df_from_df_entities = job_from_df.to_df()
-
     # ... more test code
 
     assert_frame_equal(
         expected_df, actual_df_from_df_entities, check_dtype=False,
     )
-
     # ... more test code
 ```
 {% endtab %}
