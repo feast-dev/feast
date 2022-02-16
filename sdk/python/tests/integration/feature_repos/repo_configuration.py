@@ -69,7 +69,7 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
-            GCP configurations
+            # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,
