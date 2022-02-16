@@ -42,14 +42,11 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test redis cluster
-        uses: vishnudxb/redis-cluster@1.0.5
-        with:
-          master1-port: 5000
-          master2-port: 5001
-          master3-port: 5002
-          slave1-port: 5003
-          slave2-port: 5004
-          slave3-port: 5005
+        run: |
+          git clone https://github.com/redis/redis
+          cd redis
+          make
+          cd utils/create-cluster/
       - name: Test Python
         env:
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}

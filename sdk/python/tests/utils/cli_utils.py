@@ -114,7 +114,7 @@ class CliRunner:
             online_store:
                 type: redis
                 redis_type: redis_cluster
-                connection_string: "127.0.0.1:5000,127.0.0.1:5001,127.0.0.1:5002"
+                connection_string: "127.0.0.1:30000,127.0.0.1:30001,127.0.0.1:30002"
             """
                 )
             )
