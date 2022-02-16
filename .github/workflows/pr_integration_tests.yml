@@ -73,7 +73,7 @@ jobs:
         env:
           FEAST_USAGE: "False"
           IS_TEST: "True"
-        run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
+        run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests/integration/online_store/test_universal_online.py --integration --durations=5
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
