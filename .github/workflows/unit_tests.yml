@@ -50,7 +50,7 @@ jobs:
         run: |
           git clone https://github.com/redis/redis
           cd redis
-          cd deps; make hiredis lua jemalloc linenoise
+          make deps/hiredis deps/lua deps/jemalloc deps/linenoise
           make
           cd utils/create-cluster/
       - name: Test Python
