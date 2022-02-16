@@ -519,7 +519,7 @@ def _filter_ttl(
     event_timestamp_column: str,
 ) -> dd.DataFrame:
     # Filter rows by defined timestamp tolerance
-    if feature_view.ttl and feature_view.ttl != 0:
+    if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
         df_to_join = df_to_join[
             (
                 df_to_join[event_timestamp_column]
