@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
+import dask.dataframe as dd
 import pandas
 import pyarrow
 from tqdm import tqdm
@@ -312,6 +313,17 @@ def _run_field_mapping(
     return table
 
 
+def _run_dask_field_mapping(
+    table: dd.DataFrame, field_mapping: Dict[str, str],
+):
+    if field_mapping:
+        # run field mapping in the forward direction
+        table = table.rename(columns=field_mapping)
+        table = table.persist()
+
+    return table
+
+
 def _coerce_datetime(ts):
     """
     Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
@@ -321,7 +333,6 @@ def _coerce_datetime(ts):
     same way. We convert it to normal datetime so that consumers downstream don't have to deal
     with these quirks.
     """
-
     if isinstance(ts, pandas.Timestamp):
         return ts.to_pydatetime()
     else:
