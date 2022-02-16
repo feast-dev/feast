@@ -112,4 +112,8 @@ public class Registry {
     }
     return spec;
   }
+
+  public List<EntityProto.Entity> getEntities() {
+    return registry.getEntitiesList();
+  }
 }

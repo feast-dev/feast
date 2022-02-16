@@ -26,6 +26,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.serving.ServingAPIProto;
@@ -60,6 +61,7 @@ public class OnlineServingServiceTest {
 
   List<Feature> mockedFeatureRows;
   List<FeatureProto.FeatureSpecV2> featureSpecs;
+  List<EntityProto.Entity> entities;
 
   Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
 
@@ -136,6 +138,16 @@ public class OnlineServingServiceTest {
             .setName("feature_2")
             .setValueType(ValueProto.ValueType.Enum.STRING)
             .build());
+
+    entities = new ArrayList<>();
+    entities.add(
+        EntityProto.Entity.newBuilder()
+            .setSpec(EntityProto.EntitySpecV2.newBuilder().setName("entity1").build())
+            .build());
+    entities.add(
+        EntityProto.Entity.newBuilder()
+            .setSpec(EntityProto.EntitySpecV2.newBuilder().setName("entity2").build())
+            .build());
   }
 
   @Test
@@ -160,7 +172,7 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
             List.of(mockedFeatureRows.get(2), mockedFeatureRows.get(3)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
@@ -170,6 +182,7 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(3).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
+    when(registry.getEntities()).thenReturn(entities);
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -231,12 +244,13 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
             Arrays.asList(null, mockedFeatureRows.get(4)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
+    when(registry.getEntities()).thenReturn(entities);
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -291,7 +305,7 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)),
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any()))
         .thenReturn(
             FeatureViewProto.FeatureViewSpec.newBuilder()
@@ -314,6 +328,7 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(1));
     when(registry.getFeatureSpec(mockedFeatureRows.get(5).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
+    when(registry.getEntities()).thenReturn(entities);
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 

@@ -105,6 +105,6 @@ public class RegistryRepository {
   }
 
   public List<EntityProto.Entity> getEntities() {
-    return this.registry.getRegistry().getEntitiesList();
+    return this.registry.getEntities();
   }
 }
