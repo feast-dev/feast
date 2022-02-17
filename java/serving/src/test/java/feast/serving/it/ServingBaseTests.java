@@ -59,6 +59,30 @@ abstract class ServingBaseTests extends ServingEnvironment {
     return TestUtils.createOnlineFeatureRequest(featureReferences, entityRows);
   }
 
+  protected ServingAPIProto.GetOnlineFeaturesRequest buildOnlineRequestWithMultipleEntities(
+      int driverId, String entityId) {
+    // Instantiate EntityRows
+    Map<String, ValueProto.RepeatedValue> entityRows =
+        ImmutableMap.of(
+            "driver_id",
+            ValueProto.RepeatedValue.newBuilder()
+                .addVal(DataGenerator.createInt64Value(driverId))
+                .build(),
+            "entity",
+            ValueProto.RepeatedValue.newBuilder()
+                .addVal(DataGenerator.createStrValue(entityId))
+                .build());
+
+    ImmutableList<String> featureReferences =
+        ImmutableList.of(
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:avg_daily_trips",
+            "feature_view_0:feature_0");
+
+    // Build GetOnlineFeaturesRequestV2
+    return TestUtils.createOnlineFeatureRequest(featureReferences, entityRows);
+  }
+
   static RegistryProto.Registry registryProto = readLocalRegistry();
 
   private static RegistryProto.Registry readLocalRegistry() {
@@ -122,6 +146,32 @@ abstract class ServingBaseTests extends ServingEnvironment {
     for (final int featureIdx : List.of(0, 1)) {
       assertEquals(FieldStatus.NOT_FOUND, featureResponse.getResults(featureIdx).getStatuses(0));
     }
+  }
+
+  @Test
+  public void shouldGetOnlineFeaturesWithDifferentEntities() {
+    ServingAPIProto.GetOnlineFeaturesResponse featureResponse =
+        servingStub.getOnlineFeatures(buildOnlineRequestWithMultipleEntities(1005, "key-1"));
+
+    assertEquals(3, featureResponse.getResultsCount());
+    assertEquals(1, featureResponse.getResults(0).getValuesCount());
+
+    assertEquals(
+        ImmutableList.of(
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:avg_daily_trips",
+            "feature_view_0:feature_0"),
+        featureResponse.getMetadata().getFeatureNames().getValList());
+
+    for (int featureIdx : List.of(0, 1, 2)) {
+      assertEquals(
+          List.of(ServingAPIProto.FieldStatus.PRESENT),
+          featureResponse.getResults(featureIdx).getStatusesList());
+    }
+
+    assertEquals(0.5, featureResponse.getResults(0).getValues(0).getDoubleVal(), 0.0001);
+    assertEquals(500, featureResponse.getResults(1).getValues(0).getInt64Val());
+    assertTrue(featureResponse.getResults(2).getValues(0).getInt64Val() >= 1);
   }
 
   @Test
