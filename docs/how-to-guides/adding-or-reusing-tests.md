@@ -202,19 +202,3 @@ Starting 6006
 * You should be able to run the integration tests and have the redis cluster tests pass.
 * If you would like to run your own redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
 * To stop the cluster, run `./create-cluster stop` and then `./create-cluster clean`.
-
-### Testing with Github Actions workflows
-* Update your current master on your forked branch and make a pull request against your own forked master.
-* Enable workflows by going to actions and clicking `Enable Workflows`.
-    * Pushes will now run your edited workflow yaml file against your test code.
-    * Unfortunately, in order to test any github workflow changes, you must push the code to the branch and see the output in the actions tab.
-
-## Issues
-* pr-integration-tests workflow is skipped
-    * Add `ok-to-test` github label.
-* pr-integration-tests errors out with `Error: fatal: invalid refspec '+refs/pull//merge:refs/remotes/pull//merge'`
-    * This is because github actions cannot pull the branch version for some reason so just find your PR number in your pull request header and hard code it into the `uses: actions/checkout@v2` section (i.e replace `refs/pull/${{ github.event.pull_request.number }}/merge` with `refs/pull/<pr number>/merge`)
-* AWS/GCP workflow
-    * Currently still cannot test GCP/AWS workflow without setting up secrets in a forked repository.
-
-
