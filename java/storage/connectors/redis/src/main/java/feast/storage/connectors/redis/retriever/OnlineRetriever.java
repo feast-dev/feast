@@ -29,6 +29,7 @@ import feast.storage.connectors.redis.common.RedisKeyGenerator;
 import io.lettuce.core.KeyValue;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -67,14 +68,16 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
             .distinct()
             .collect(Collectors.toList());
 
+    Set<List<String>> uniqueEntityKeyCombinations =
+        featureViewNames.stream().map(entityNamesPerFeatureView::get).collect(Collectors.toSet());
+
     List<List<RedisProto.RedisKeyV2>> redisKeys =
         entityRows.stream()
             .map(
                 entityRow ->
-                    featureViewNames.stream()
+                    uniqueEntityKeyCombinations.stream()
                         .map(
-                            fv -> {
-                              List<String> entitiesToRetain = entityNamesPerFeatureView.get(fv);
+                            entitiesToRetain -> {
                               Map<String, Value> res = new HashMap<>(entityRow);
                               res.keySet().retainAll(entitiesToRetain);
                               return res;
@@ -171,16 +174,18 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
         .thenApply(v -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
         .thenApply(
             featureMappings -> {
-              Map<byte[], byte[]> mergedMapping = new HashMap<>();
+              Map<ByteBuffer, byte[]> mergedMapping = new HashMap<>();
               featureMappings.forEach(
                   featureMapping ->
                       featureMapping.forEach(
                           (key, value) -> {
-                            if (!mergedMapping.containsKey(key)) {
-                              mergedMapping.put(key, value);
+                            ByteBuffer wrappedKey = ByteBuffer.wrap(key);
+                            if (!mergedMapping.containsKey(wrappedKey)) {
+                              mergedMapping.put(wrappedKey, value);
                             }
                           }));
-              return mergedMapping;
+              return mergedMapping.entrySet().stream()
+                  .collect(Collectors.toMap(e -> e.getKey().array(), Entry::getValue));
             });
   }
 }
