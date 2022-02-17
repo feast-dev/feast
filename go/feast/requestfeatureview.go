@@ -1,36 +1,40 @@
 package feast
 
 import (
-	"errors"
 	"github.com/feast-dev/feast/go/protos/feast/core"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/golang/protobuf/proto"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	"io/ioutil"
-	"strings"
-	// "sort"
-	"fmt"
 )
 
 // TODO (Ly): parse attributes of proto into RequestFeatureView
+// as needed
 type RequestFeatureView struct {
-	proto *core.RequestFeatureView
-	projection *FeatureViewProjection
+	base *BaseFeatureView
+	schema map[string]types.ValueType_Enum
 }
 
 func NewRequestFeatureViewFromProto(proto *core.RequestFeatureView) *RequestFeatureView {
-	return &RequestFeatureView{proto: proto, projection: nil }
+	requestFeatureView := &RequestFeatureView{}
+	if dataSourceRequestOptions, ok := proto.Spec.RequestDataSource.Options.(*core.DataSource_RequestDataOptions_); !ok {
+		return nil
+	} else {
+		numFeatures := len(dataSourceRequestOptions.RequestDataOptions.Schema)
+		features := make([]*core.FeatureSpecV2, numFeatures)
+		index := 0
+		for featureName, valueType := range dataSourceRequestOptions.RequestDataOptions.Schema {
+			features[index] = &core.FeatureSpecV2{ 	Name: featureName,
+													ValueType: valueType,
+													}
+		}
+		requestFeatureView.schema = dataSourceRequestOptions.RequestDataOptions.Schema
+		requestFeatureView.base = NewBaseFeatureView(proto.Spec.Name, features)
+		return requestFeatureView
+	}
 }
 
-func (fv *RequestFeatureView) withProjection(projection *FeatureViewProjection) (*RequestFeatureView, error) {
-	if projection.proto.FeatureViewName != fv.proto.GetSpec().GetName() {
-		return nil, errors.New(fmt.Sprintf("The projection for the %s FeatureView cannot be applied because it differs in name. "
-									"The projection is named %s and the name indicates which "
-									"FeatureView the projection is for.", fv.proto.GetSpec().GetName(), projection.proto.GetFeatureViewName()))
-	}
-	// TODO (Ly): add features to RequestFeatureView
-	// and check for error here
-	return &RequestFeatureView{proto: fv.proto, projection: projection}, nil
+func (fs *RequestFeatureView) NewRequestFeatureViewFromBase(base *BaseFeatureView) *RequestFeatureView {
+
+	featureView := &RequestFeatureView	{	base: base,
+											schema: fs.schema,
+										}
+	return featureView
 }
