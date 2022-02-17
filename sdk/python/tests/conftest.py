@@ -171,7 +171,11 @@ def environment(request, worker_id: str):
     return e
 
 
-@pytest.fixture(scope="session", params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG], ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]])
+@pytest.fixture(
+    scope="session",
+    params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
+    ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]],
+)
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
         IntegrationTestRepoConfig(online_store=request.param), worker_id=worker_id
