@@ -13,6 +13,7 @@ import (
 	"github.com/spaolacci/murmur3"
 	"sort"
 	"strings"
+	"strconv"
 )
 
 type redisType int
@@ -40,6 +41,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 
 	var address []string
 	var password string
+	var db int
 
 	// Parse redis_type and write it into conf.t
 	t, err := getRedisType(onlineStoreConfig)
@@ -67,6 +69,11 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 				} else if kv[0] == "ssl" {
 					// TODO (woop): Add support for TLS/SSL
 					//ssl = kv[1] == "true"
+				} else if(kv[0]=="db") {
+					db, err = strconv.Atoi(kv[1])
+					if err != nil {
+						return nil, err
+					}
 				} else {
 					return nil, errors.New(fmt.Sprintf("Unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0]))
 				}
@@ -80,7 +87,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 		store.client = redis.NewClient(&redis.Options{
 			Addr:     address[0],
 			Password: password, // no password set
-			DB:       0,        // use default DB
+			DB:       db,        // use default DB
 
 		})
 	} else {
@@ -145,17 +152,32 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	ctx := context.Background()
 
 	results := make([][]Feature, len(entityKeys))
+	pipe := r.client.Pipeline()
+	m := map[string]*redis.SliceCmd{}
 
-	for entityIndex, redisKey := range redisKeys {
-		results[entityIndex] = make([]Feature, len(features)-1)
+	for _, redisKey := range redisKeys {
 		keyString := string(*redisKey)
 		// TODO: Add pipelining (without transactions)
-		res, err := r.client.HMGet(ctx, keyString, hsetKeys...).Result()
+		m[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		
+	}
+
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	entityIndex := 0
+	for _, v := range m {
+
+		results[entityIndex] = make([]Feature, featureCount)
+		res, err := v.Result()
 		if err != nil {
 			return nil, err
 		}
+
 		var timeStamp timestamppb.Timestamp
-		timeStampInterface := res[len(res)-1]
+		timeStampInterface := res[featureCount]
 		if timeStampString, ok := timeStampInterface.(string); !ok {
 			return nil, errors.New("Error parsing value from redis")
 		} else {
@@ -163,7 +185,8 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
 			}
 		}
-		res = res[:len(res)-1]
+		
+		res = res[:featureCount]
 		
 		for featureIndex,resString := range res {
 			if valueString, ok := resString.(string); !ok {
@@ -184,7 +207,9 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 			}
 		}
 		
+		entityIndex += 1
 	}
+
 
 	return results, nil
 }

@@ -10,11 +10,11 @@ import (
 )
 
 func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
+	fmt.Println(config == nil)
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", config.OnlineStore))
 	}
-	fmt.Println(onlineStoreType)
 	if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
 		return onlineStore, err
