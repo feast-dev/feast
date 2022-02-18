@@ -27,6 +27,8 @@ import feast.common.logging.config.LoggingProperties;
 import feast.storage.connectors.redis.retriever.RedisClusterStoreConfig;
 import feast.storage.connectors.redis.retriever.RedisStoreConfig;
 import io.lettuce.core.ReadFrom;
+import org.slf4j.Logger;
+
 import java.time.Duration;
 import java.util.*;
 import javax.annotation.PostConstruct;
@@ -36,6 +38,9 @@ import javax.validation.constraints.NotNull;
 
 /** Feast Serving properties. */
 public class ApplicationProperties {
+  private static final Logger log =
+          org.slf4j.LoggerFactory.getLogger(ApplicationProperties.class);
+
   public static class FeastProperties {
     /* Feast Serving build version */
     @NotBlank private String version = "unknown";
@@ -246,10 +251,30 @@ public class ApplicationProperties {
      * @return Returns the store specific configuration
      */
     public RedisClusterStoreConfig getRedisClusterConfig() {
+      String read_from = ReadFrom.UPSTREAM.toString();
+      if (!this.config.containsKey("read_from") || this.config.get("read_from") == null) {
+        log.info("'read_from' not defined in Redis cluster config, so setting to UPSTREAM");
+      } else {
+        read_from = this.config.get("read_from");
+      }
+
+      if (!this.config.containsKey("timeout") || this.config.get("timeout") == null) {
+        throw new RuntimeException("Redis cluster config does not have 'timeout' specified");
+      }
+
+      boolean ssl = false;
+      if (!this.config.containsKey("ssl") || this.config.get("ssl") == null) {
+        log.info("'ssl' not defined in Redis cluster config, so setting to false");
+      } else {
+        ssl = Boolean.parseBoolean(this.config.getOrDefault("ssl", "false"));
+      }
+      Duration timeout = Duration.parse(this.config.get("timeout"));
       return new RedisClusterStoreConfig(
           this.config.get("connection_string"),
-          ReadFrom.valueOf(this.config.get("read_from")),
-          Duration.parse(this.config.get("timeout")));
+          ReadFrom.valueOf(read_from),
+              timeout,
+              ssl,
+          this.config.getOrDefault("password", ""));
     }
 
     public RedisStoreConfig getRedisConfig() {

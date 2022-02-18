@@ -191,3 +191,9 @@ sdk/go/protos/
 
 #benchmarks
 .benchmarks
+
+# Examples registry
+**/registry.db
+**/*.aof
+**/*.rdb
+**/nodes.conf
