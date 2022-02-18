@@ -79,6 +79,7 @@ public class RedisClusterClient implements RedisClientAdapter {
                   if (config.getSsl()) {
                     redisURI.setSsl(true);
                   }
+                  redisURI.setTimeout(config.getTimeout());
                   return redisURI;
                 })
             .collect(Collectors.toList());

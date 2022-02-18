@@ -257,7 +257,8 @@ public class ApplicationProperties {
       }
 
       if (!this.config.containsKey("timeout") || this.config.get("timeout") == null) {
-        throw new RuntimeException("Redis cluster config does not have 'timeout' specified");
+        throw new IllegalArgumentException(
+            "Redis cluster config does not have 'timeout' specified");
       }
 
       boolean ssl = false;
