@@ -265,7 +265,7 @@ public class ApplicationProperties {
       if (!this.config.containsKey("ssl") || this.config.get("ssl") == null) {
         log.info("'ssl' not defined in Redis cluster config, so setting to false");
       } else {
-        ssl = Boolean.parseBoolean(this.config.getOrDefault("ssl", "false"));
+        ssl = Boolean.parseBoolean(this.config.get("ssl"));
       }
       Duration timeout = Duration.parse(this.config.get("timeout"));
       return new RedisClusterStoreConfig(
