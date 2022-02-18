@@ -48,7 +48,10 @@ message EntitySpecV2 {
     string join_key = 4;
 
     // User defined metadata
-    map<string,string> labels = 8;
+    map<string,string> tags = 8;
+
+    // Owner of the entity.
+    string owner = 10;
 }
 
 message EntityMeta {
