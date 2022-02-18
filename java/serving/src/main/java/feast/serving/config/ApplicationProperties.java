@@ -27,19 +27,17 @@ import feast.common.logging.config.LoggingProperties;
 import feast.storage.connectors.redis.retriever.RedisClusterStoreConfig;
 import feast.storage.connectors.redis.retriever.RedisStoreConfig;
 import io.lettuce.core.ReadFrom;
-import org.slf4j.Logger;
-
 import java.time.Duration;
 import java.util.*;
 import javax.annotation.PostConstruct;
 import javax.validation.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import org.slf4j.Logger;
 
 /** Feast Serving properties. */
 public class ApplicationProperties {
-  private static final Logger log =
-          org.slf4j.LoggerFactory.getLogger(ApplicationProperties.class);
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ApplicationProperties.class);
 
   public static class FeastProperties {
     /* Feast Serving build version */
@@ -272,8 +270,8 @@ public class ApplicationProperties {
       return new RedisClusterStoreConfig(
           this.config.get("connection_string"),
           ReadFrom.valueOf(read_from),
-              timeout,
-              ssl,
+          timeout,
+          ssl,
           this.config.getOrDefault("password", ""));
     }
 
