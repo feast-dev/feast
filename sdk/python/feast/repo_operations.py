@@ -224,7 +224,7 @@ def apply_total_with_repo_instance(
 
 
 def log_infra_changes(
-    views_to_keep: Set[FeatureView], views_to_delete: List[FeatureView]
+    views_to_keep: Set[FeatureView], views_to_delete: Set[FeatureView]
 ):
     from colorama import Fore, Style
 
