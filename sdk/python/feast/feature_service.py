@@ -11,8 +11,10 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
 from feast.protos.feast.core.FeatureService_pb2 import (
-    FeatureServiceMeta,
-    FeatureServiceSpec,
+    FeatureServiceMeta as FeatureServiceMetaProto,
+)
+from feast.protos.feast.core.FeatureService_pb2 import (
+    FeatureServiceSpec as FeatureServiceSpecProto,
 )
 from feast.usage import log_exceptions
 
@@ -28,7 +30,8 @@ class FeatureService:
             projections, representing the features in the feature service.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
-        owner: The owner of the feature service.
+        owner: The owner of the feature service, typically the email of the primary
+            maintainer.
         created_timestamp: The time when the feature service was created.
         last_updated_timestamp: The time when the feature service was last updated.
     """
@@ -163,15 +166,15 @@ class FeatureService:
     def last_updated_timestamp(self, last_updated_timestamp: datetime):
         self._last_updated_timestamp = last_updated_timestamp
 
-    @staticmethod
-    def from_proto(feature_service_proto: FeatureServiceProto):
+    @classmethod
+    def from_proto(cls, feature_service_proto: FeatureServiceProto):
         """
         Converts a FeatureServiceProto to a FeatureService object.
 
         Args:
             feature_service_proto: A protobuf representation of a FeatureService.
         """
-        fs = FeatureService(
+        fs = cls(
             name=feature_service_proto.spec.name,
             features=[],
             tags=dict(feature_service_proto.spec.tags),
@@ -203,13 +206,13 @@ class FeatureService:
         Returns:
             A FeatureServiceProto protobuf.
         """
-        meta = FeatureServiceMeta()
+        meta = FeatureServiceMetaProto()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
         if self.last_updated_timestamp:
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
 
-        spec = FeatureServiceSpec(
+        spec = FeatureServiceSpecProto(
             name=self.name,
             features=[
                 projection.to_proto() for projection in self.feature_view_projections

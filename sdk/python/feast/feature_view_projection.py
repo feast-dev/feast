@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from attr import dataclass
 
@@ -11,10 +11,11 @@ from feast.protos.feast.core.FeatureViewProjection_pb2 import (
 @dataclass
 class FeatureViewProjection:
     """
-    A feature view projection represents a set of features from a single feature view.
+    A feature view projection represents a selection of one or more features from a
+    single feature view.
 
     Attributes:
-        name: The unique name of the feature view projection.
+        name: The unique name of the feature view from which this projection is created.
         name_alias: An optional alias for the name.
         features: The list of features represented by the feature view projection.
         join_key_map: A map to modify join key columns during retrieval of this feature
@@ -22,8 +23,8 @@ class FeatureViewProjection:
     """
 
     name: str
-    name_alias: str = ""
-    features: List[Feature] = []
+    name_alias: Optional[str]
+    features: List[Feature]
     join_key_map: Dict[str, str] = {}
 
     def name_to_use(self):
@@ -32,7 +33,7 @@ class FeatureViewProjection:
     def to_proto(self) -> FeatureViewProjectionProto:
         feature_reference_proto = FeatureViewProjectionProto(
             feature_view_name=self.name,
-            feature_view_name_alias=self.name_alias,
+            feature_view_name_alias=self.name_alias or "",
             join_key_map=self.join_key_map,
         )
         for feature in self.features:
@@ -56,5 +57,7 @@ class FeatureViewProjection:
     @staticmethod
     def from_definition(feature_grouping):
         return FeatureViewProjection(
-            name=feature_grouping.name, features=feature_grouping.features,
+            name=feature_grouping.name,
+            name_alias=None,
+            features=feature_grouping.features,
         )
