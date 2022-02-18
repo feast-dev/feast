@@ -3,6 +3,7 @@ version: '3'
 services:
   redis:
     image: redis:6.2
+    command: redis-server --requirepass testpw
     ports:
       - "6379:6379"
   feast:
