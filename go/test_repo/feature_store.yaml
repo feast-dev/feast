@@ -9,3 +9,4 @@ offline_store:
 flags:
   alpha_features: true
   go_feature_server: true
+
