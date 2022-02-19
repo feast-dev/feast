@@ -16,7 +16,7 @@
 
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
-PROTO_TYPE_SUBDIRS = core serving types storage third_party/grpc/connector third_party/grpc/health/v1
+PROTO_TYPE_SUBDIRS = core serving types storage third_party/grpc/connector
 PROTO_SERVICE_SUBDIRS = core serving
 OS := linux
 ifeq ($(shell uname -s), Darwin)

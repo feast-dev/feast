@@ -39,6 +39,10 @@ def global_feature_view(
     )
 
 
+# return RequestDataSource(
+#         name="conv_rate_input", schema={"val_to_add": ValueType.INT32}
+#     )
+
 def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["conv_rate_plus_100"] = features_df["conv_rate"] + 100
@@ -52,6 +56,23 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def conv_rate_plus_100_feature_view(
+    inputs: Dict[str, Union[RequestDataSource, FeatureView]],
+    infer_features: bool = False,
+    features: Optional[List[Feature]] = None,
+) -> OnDemandFeatureView:
+    _features = features or [
+        Feature("conv_rate_plus_100", ValueType.DOUBLE),
+        Feature("conv_rate_plus_val_to_add", ValueType.DOUBLE),
+        Feature("conv_rate_plus_100_rounded", ValueType.INT32),
+    ]
+    return OnDemandFeatureView(
+        name=conv_rate_plus_100.__name__,
+        inputs=inputs,
+        features=[] if infer_features else _features,
+        udf=conv_rate_plus_100,
+    )
+
+def conv_rate_plus_100_feature_view_without_odfv(
     inputs: Dict[str, Union[RequestDataSource, FeatureView]],
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,

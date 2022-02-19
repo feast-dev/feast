@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"strconv"
+	// "log"
 )
 
 type redisType int
@@ -138,6 +139,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	features = append(features, tsKey)
 
 	redisKeys := make([]*[]byte, len(entityKeys))
+	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
 
 		var key, err = BuildRedisKey(r.project, entityKeys[i])
@@ -145,6 +147,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 			return nil, err
 		}
 		redisKeys[i] = key
+		redisKeyToEntityIndex[string(*key)] = i
 	}
 
 	// Retrieve features from Redis
@@ -167,8 +170,12 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		panic(err)
 	}
 
-	entityIndex := 0
-	for _, v := range m {
+	var entityIndex int
+	var resContainsNonNil bool
+	for redisKey, v := range m {
+
+		entityIndex = redisKeyToEntityIndex[redisKey]
+		resContainsNonNil = false
 
 		results[entityIndex] = make([]Feature, featureCount)
 		res, err := v.Result()
@@ -178,20 +185,39 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 		var timeStamp timestamppb.Timestamp
 		timeStampInterface := res[featureCount]
-		if timeStampString, ok := timeStampInterface.(string); !ok {
-			return nil, errors.New("Error parsing value from redis")
-		} else {
-			if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-				return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
+		// log.Println(timeStampInterface, res)
+		if timeStampInterface != nil {
+			if timeStampString, ok := timeStampInterface.(string); !ok {
+				return nil, errors.New("Error parsing value from redis")
+			} else {
+				if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
+					return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
+				}
 			}
 		}
-		
+
 		res = res[:featureCount]
 		
 		for featureIndex,resString := range res {
-			if valueString, ok := resString.(string); !ok {
+			if resString == nil {
+
+				// TODO (Ly): Can there be nil result
+				// within each feature
+				// or they will all be returned
+				// as string proto of types.Value_NullVal proto?
+
+				featureName := features[ featureIndex ]
+				ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
+					FeatureName: featureName}
+				feature := Feature { 	reference: ref,
+										timestamp: timeStamp,
+										value: types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL} } }
+				results[entityIndex][featureIndex] = feature
+
+			} else if valueString, ok := resString.(string); !ok {
 				return nil, errors.New("Error parsing value from redis")
 			} else {
+				resContainsNonNil = true
 				var value types.Value
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 					return nil, errors.New("Error converting parsed redis value to types.Value")
@@ -206,8 +232,11 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				}
 			}
 		}
-		
-		entityIndex += 1
+
+		if !resContainsNonNil {
+			results[entityIndex] = nil
+		}
+
 	}
 
 

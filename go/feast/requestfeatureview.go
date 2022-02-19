@@ -2,14 +2,14 @@ package feast
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
-	"github.com/feast-dev/feast/go/protos/feast/types"
+	// "github.com/feast-dev/feast/go/protos/feast/types"
 )
 
 // TODO (Ly): parse attributes of proto into RequestFeatureView
 // as needed
 type RequestFeatureView struct {
 	base *BaseFeatureView
-	schema map[string]types.ValueType_Enum
+	// schema map[string]types.ValueType_Enum
 }
 
 func NewRequestFeatureViewFromProto(proto *core.RequestFeatureView) *RequestFeatureView {
@@ -25,7 +25,7 @@ func NewRequestFeatureViewFromProto(proto *core.RequestFeatureView) *RequestFeat
 													ValueType: valueType,
 													}
 		}
-		requestFeatureView.schema = dataSourceRequestOptions.RequestDataOptions.Schema
+		// requestFeatureView.schema = dataSourceRequestOptions.RequestDataOptions.Schema
 		requestFeatureView.base = NewBaseFeatureView(proto.Spec.Name, features)
 		return requestFeatureView
 	}
@@ -33,8 +33,6 @@ func NewRequestFeatureViewFromProto(proto *core.RequestFeatureView) *RequestFeat
 
 func (fs *RequestFeatureView) NewRequestFeatureViewFromBase(base *BaseFeatureView) *RequestFeatureView {
 
-	featureView := &RequestFeatureView	{	base: base,
-											schema: fs.schema,
-										}
+	featureView := &RequestFeatureView	{	base: base }
 	return featureView
 }

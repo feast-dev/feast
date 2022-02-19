@@ -64,44 +64,46 @@ REDIS_CLUSTER_CONFIG = {
 # module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(python_feature_server=True),
+    # IntegrationTestRepoConfig(),
+    # IntegrationTestRepoConfig(python_feature_server=True),
 ]
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
-            # Redis configurations
-            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
+            # IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(
+                online_store=REDIS_CONFIG,
+                go_feature_server=True,
+            ),
             # GCP configurations
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store="datastore",
-            ),
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # AWS configurations
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=DYNAMO_CONFIG,
-                python_feature_server=True,
-            ),
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # Snowflake configurations
-            IntegrationTestRepoConfig(
-                provider="aws",  # no list features, no feature server
-                offline_store_creator=SnowflakeDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
+            # IntegrationTestRepoConfig(
+            #     provider="gcp",
+            #     offline_store_creator=BigQueryDataSourceCreator,
+            #     online_store="datastore",
+            # ),
+            # IntegrationTestRepoConfig(
+            #     provider="gcp",
+            #     offline_store_creator=BigQueryDataSourceCreator,
+            #     online_store=REDIS_CONFIG,
+            # ),
+            # # AWS configurations
+            # IntegrationTestRepoConfig(
+            #     provider="aws",
+            #     offline_store_creator=RedshiftDataSourceCreator,
+            #     online_store=DYNAMO_CONFIG,
+            #     python_feature_server=True,
+            # ),
+            # IntegrationTestRepoConfig(
+            #     provider="aws",
+            #     offline_store_creator=RedshiftDataSourceCreator,
+            #     online_store=REDIS_CONFIG,
+            # ),
+            # # Snowflake configurations
+            # IntegrationTestRepoConfig(
+            #     provider="aws",  # no list features, no feature server
+            #     offline_store_creator=SnowflakeDataSourceCreator,
+            #     online_store=REDIS_CONFIG,
+            # ),
         ]
     )
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
@@ -281,6 +283,25 @@ def construct_universal_feature_views(
         location=create_location_stats_feature_view(data_sources.location),
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),
     )
+
+def construct_universal_feature_views_without_odfv(
+    data_sources: Dict[str, DataSource],
+) -> Dict[str, FeatureView]:
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(
+        data_sources["driver"]
+    )
+    return {
+        "customer": create_customer_daily_profile_feature_view(
+            data_sources["customer"]
+        ),
+        "global": create_global_stats_feature_view(data_sources["global"]),
+        "driver": driver_hourly_stats,
+        "order": create_order_feature_view(data_sources["orders"]),
+        "location": create_location_stats_feature_view(data_sources["location"]),
+        "field_mapping": create_field_mapping_feature_view(
+            data_sources["field_mapping"]
+        ),
+    }
 
 
 @dataclass
