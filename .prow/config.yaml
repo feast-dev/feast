@@ -64,6 +64,9 @@ tide:
   merge_method:
     feast-dev/feast: squash
     feast-dev/feast-spark: squash
+  merge_commit_template:
+    feast-dev/feast:
+      title: '{{.Title}}'
   blocker_label: merge-blocker
   squash_label: tide/squash
 
