@@ -10,6 +10,18 @@ from feast.protos.feast.core.FeatureViewProjection_pb2 import (
 
 @dataclass
 class FeatureViewProjection:
+    """
+    A feature view projection represents a selection of one or more features from a
+    single feature view.
+
+    Attributes:
+        name: The unique name of the feature view from which this projection is created.
+        name_alias: An optional alias for the name.
+        features: The list of features represented by the feature view projection.
+        join_key_map: A map to modify join key columns during retrieval of this feature
+            view projection.
+    """
+
     name: str
     name_alias: Optional[str]
     features: List[Feature]
@@ -18,10 +30,10 @@ class FeatureViewProjection:
     def name_to_use(self):
         return self.name_alias or self.name
 
-    def to_proto(self):
+    def to_proto(self) -> FeatureViewProjectionProto:
         feature_reference_proto = FeatureViewProjectionProto(
             feature_view_name=self.name,
-            feature_view_name_alias=self.name_alias,
+            feature_view_name_alias=self.name_alias or "",
             join_key_map=self.join_key_map,
         )
         for feature in self.features:
@@ -31,16 +43,16 @@ class FeatureViewProjection:
 
     @staticmethod
     def from_proto(proto: FeatureViewProjectionProto):
-        ref = FeatureViewProjection(
+        feature_view_projection = FeatureViewProjection(
             name=proto.feature_view_name,
             name_alias=proto.feature_view_name_alias,
             features=[],
             join_key_map=dict(proto.join_key_map),
         )
         for feature_column in proto.feature_columns:
-            ref.features.append(Feature.from_proto(feature_column))
+            feature_view_projection.features.append(Feature.from_proto(feature_column))
 
-        return ref
+        return feature_view_projection
 
     @staticmethod
     def from_definition(feature_grouping):

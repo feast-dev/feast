@@ -11,29 +11,36 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
 from feast.protos.feast.core.FeatureService_pb2 import (
-    FeatureServiceMeta,
-    FeatureServiceSpec,
+    FeatureServiceMeta as FeatureServiceMetaProto,
+)
+from feast.protos.feast.core.FeatureService_pb2 import (
+    FeatureServiceSpec as FeatureServiceSpecProto,
 )
 from feast.usage import log_exceptions
 
 
 class FeatureService:
     """
-    A feature service is a logical grouping of features for retrieval (training or serving).
-    The features grouped by a feature service may come from any number of feature views.
+    A feature service defines a logical group of features from one or more feature views.
+    This group of features can be retrieved together during training or serving.
 
-    Args:
-        name: Unique name of the feature service.
-        features: A list of Features that are grouped as part of this FeatureService.
-            The list may contain Feature Views, Feature Tables, or a subset of either.
-        tags (optional): A dictionary of key-value pairs used for organizing Feature
-            Services.
+    Attributes:
+        name: The unique name of the feature service.
+        feature_view_projections: A list containing feature views and feature view
+            projections, representing the features in the feature service.
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the feature service, typically the email of the primary
+            maintainer.
+        created_timestamp: The time when the feature service was created.
+        last_updated_timestamp: The time when the feature service was last updated.
     """
 
     _name: str
     _feature_view_projections: List[FeatureViewProjection]
+    _description: str
     _tags: Dict[str, str]
-    _description: Optional[str] = None
+    _owner: str
     _created_timestamp: Optional[datetime] = None
     _last_updated_timestamp: Optional[datetime] = None
 
@@ -42,8 +49,9 @@ class FeatureService:
         self,
         name: str,
         features: List[Union[FeatureView, OnDemandFeatureView]],
-        tags: Optional[Dict[str, str]] = None,
-        description: Optional[str] = None,
+        tags: Dict[str, str] = None,
+        description: str = "",
+        owner: str = "",
     ):
         """
         Creates a FeatureService object.
@@ -59,12 +67,13 @@ class FeatureService:
                 self._feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(
-                    "The FeatureService {fs_name} has been provided with an invalid type"
+                    f"The feature service {name} has been provided with an invalid type "
                     f'{type(feature_grouping)} as part of the "features" argument.)'
                 )
 
-        self._tags = tags or {}
         self._description = description
+        self._tags = tags or {}
+        self._owner = owner
         self._created_timestamp = None
         self._last_updated_timestamp = None
 
@@ -83,7 +92,13 @@ class FeatureService:
             raise TypeError(
                 "Comparisons should only involve FeatureService class objects."
             )
-        if self.tags != other.tags or self.name != other.name:
+
+        if (
+            self.name != other.name
+            or self.description != other.description
+            or self.tags != other.tags
+            or self.owner != other.owner
+        ):
             return False
 
         if sorted(self.feature_view_projections) != sorted(
@@ -112,6 +127,14 @@ class FeatureService:
         self._feature_view_projections = feature_view_projections
 
     @property
+    def description(self) -> str:
+        return self._description
+
+    @description.setter
+    def description(self, description: str):
+        self._description = description
+
+    @property
     def tags(self) -> Dict[str, str]:
         return self._tags
 
@@ -120,12 +143,12 @@ class FeatureService:
         self._tags = tags
 
     @property
-    def description(self) -> Optional[str]:
-        return self._description
+    def owner(self) -> str:
+        return self._owner
 
-    @description.setter
-    def description(self, description: str):
-        self._description = description
+    @owner.setter
+    def owner(self, owner: str):
+        self._owner = owner
 
     @property
     def created_timestamp(self) -> Optional[datetime]:
@@ -143,23 +166,20 @@ class FeatureService:
     def last_updated_timestamp(self, last_updated_timestamp: datetime):
         self._last_updated_timestamp = last_updated_timestamp
 
-    @staticmethod
-    def from_proto(feature_service_proto: FeatureServiceProto):
+    @classmethod
+    def from_proto(cls, feature_service_proto: FeatureServiceProto):
         """
         Converts a FeatureServiceProto to a FeatureService object.
 
         Args:
             feature_service_proto: A protobuf representation of a FeatureService.
         """
-        fs = FeatureService(
+        fs = cls(
             name=feature_service_proto.spec.name,
             features=[],
             tags=dict(feature_service_proto.spec.tags),
-            description=(
-                feature_service_proto.spec.description
-                if feature_service_proto.spec.description != ""
-                else None
-            ),
+            description=feature_service_proto.spec.description,
+            owner=feature_service_proto.spec.owner,
         )
         fs.feature_view_projections.extend(
             [
@@ -181,29 +201,28 @@ class FeatureService:
 
     def to_proto(self) -> FeatureServiceProto:
         """
-        Converts a FeatureService to its protobuf representation.
+        Converts a feature service to its protobuf representation.
 
         Returns:
             A FeatureServiceProto protobuf.
         """
-        meta = FeatureServiceMeta()
+        meta = FeatureServiceMetaProto()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
 
-        spec = FeatureServiceSpec(
+        spec = FeatureServiceSpecProto(
             name=self.name,
             features=[
                 projection.to_proto() for projection in self.feature_view_projections
             ],
+            tags=self.tags,
+            description=self.description,
+            owner=self.owner,
         )
 
-        if self.tags:
-            spec.tags.update(self.tags)
-        if self.description:
-            spec.description = self.description
-
-        feature_service_proto = FeatureServiceProto(spec=spec, meta=meta)
-        return feature_service_proto
+        return FeatureServiceProto(spec=spec, meta=meta)
 
     def validate(self):
         pass

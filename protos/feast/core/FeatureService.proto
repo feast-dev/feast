@@ -32,6 +32,9 @@ message FeatureServiceSpec {
 
   // Description of the feature service.
   string description = 5;
+
+  // Owner of the feature service.
+  string owner = 6;
 }
 
 
