@@ -285,9 +285,10 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 	}
 	for _, featureView := range featureViews {
 		// fmt.Println(featureViewProto.GetSpec().GetName())
-		fvs[featureView.base.name] = featureView
+		fvs[featureView.base.projection.nameToUse()] = featureView
 	}
 
+	// TODO (Ly): wrap all protos to featureview objects
 	requestFvs := make(map[string]*RequestFeatureView)
 	requestFeatureViewProtos, err := fs.registry.listRequestFeatureViews(fs.config.Project)
 	if err != nil {
@@ -295,9 +296,11 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 		// return nil, nil, nil, err
 	}
 	for _, requestFeatureViewProto := range requestFeatureViewProtos {
-		requestFvs[requestFeatureViewProto.Spec.Name] = NewRequestFeatureViewFromProto(requestFeatureViewProto)
+		requestFeatureView := NewRequestFeatureViewFromProto(requestFeatureViewProto)
+		requestFvs[requestFeatureView.base.projection.nameToUse()] = requestFeatureView
 	}
 
+	// TODO (Ly): wrap all protos to featureview objects
 	odFvs := make(map[string]*OnDemandFeatureView)
 	onDemandFeatureViewProtos, err := fs.registry.listOnDemandFeatureViews(fs.config.Project)
 	if err != nil {
@@ -305,7 +308,8 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 		// return nil, nil, nil, err
 	}
 	for _, onDemandFeatureViewProto := range onDemandFeatureViewProtos {
-		odFvs[onDemandFeatureViewProto.Spec.Name] = NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
+		onDemandFeatureView := NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
+		odFvs[onDemandFeatureView.base.projection.nameToUse()] = onDemandFeatureView
 	}
 
 	if featureService, ok := parsedKind.(*FeatureService); ok {
@@ -317,8 +321,9 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 		requestFvsToUse := make([]*RequestFeatureView, 0)
 		odFvsToUse := make([]*OnDemandFeatureView, 0)
 
+		log.Println("getFeatureViewsToUse featureService")
 		for _, featureProjection := range featureService.projections {
-			
+			log.Println(featureProjection.name, featureProjection.nameAlias)
 			// Create copies of FeatureView that may
 			// contains the same *core.FeatureView but
 			// each differentiated by a *FeatureViewProjection
@@ -347,6 +352,7 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 				"%s and that you have registered it by running \"apply\".", featureService.name, featureViewName, featureViewName))
 			}
 		}
+		return fvsToUse, requestFvsToUse, odFvsToUse, nil
 	}
 
 	fvsToUse := make([]*FeatureView, len(fvs))
@@ -444,10 +450,10 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 		for _, featureRef := range featureRefs {
 			collidedFeatureRefs[featureRef] += 1
 			if collidedFeatureRefs[featureRef] > 1 {
-				return errors.New(fmt.Sprintf("Collided FeatureRef detected: %s, %v", featureRef, featureRefs))
-				// return errors.New("To resolve this collision, please ensure that the feature views or their own features "+
-                // "have different names. If you're intentionally joining the same feature view twice on "+
-                // "different sets of entities, please rename one of the feature views with '.with_name'.")
+				// return errors.New(fmt.Sprintf("Collided FeatureRef detected: %s, %v", featureRef, featureRefs))
+				return errors.New("To resolve this collision, please ensure that the feature views or their own features "+
+                "have different names. If you're intentionally joining the same feature view twice on "+
+                "different sets of entities, please rename one of the feature views with '.with_name'.")
 			}
 		}
 	} else {
@@ -467,9 +473,9 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 			collidedFeatureRefs[featureName] += 1
 
 			if collidedFeatureRefs[featureName] > 1 {
-				return errors.New(fmt.Sprintf("Collided FeatureName detected: %s, %v", featureName, featureRefs))
-				// return errors.New("To resolve this collision, either use the full feature name by setting "+
-                // "'full_feature_names=True', or ensure that the features in question have different names.")
+				// return errors.New(fmt.Sprintf("Collided FeatureName detected: %s, %v", featureName, featureRefs))
+				return errors.New("To resolve this collision, either use the full feature name by setting "+
+                "'full_feature_names=True', or ensure that the features in question have different names.")
 			}
 		}
 	}
@@ -827,8 +833,10 @@ func groupFeatureRefs(	features []string,
 	requestViewIndex := make(map[string]*RequestFeatureView)
 	onDemandViewIndex := make(map[string]*OnDemandFeatureView)
 
+	log.Println("groupFeatureRefs allFeatureViews")
 	for _, featureView := range allFeatureViews {
-		viewIndex[featureView.base.name] = featureView
+		log.Println(featureView.base.projection.nameAlias, featureView.base.projection.name)
+		viewIndex[featureView.base.projection.nameToUse()] = featureView
 	}
 
 	log.Println("groupFeatureRefs allRequestFeatureViews")
@@ -836,7 +844,7 @@ func groupFeatureRefs(	features []string,
 	for _, requestView := range allRequestFeatureViews {
 		log.Println(requestView.base.name)
 		s += fmt.Sprintf("%v\n", *requestView)
-		requestViewIndex[requestView.base.name] = requestView
+		requestViewIndex[requestView.base.projection.nameToUse()] = requestView
 	}
 	s += "\n\n=======\n"
 	
@@ -844,7 +852,7 @@ func groupFeatureRefs(	features []string,
 	for _, onDemandView := range allOndemandFeatureViews {
 		log.Println(onDemandView.base.name)
 		s += fmt.Sprintf("%v\n", *onDemandView)
-		onDemandViewIndex[onDemandView.base.name] = onDemandView
+		onDemandViewIndex[onDemandView.base.projection.nameToUse()] = onDemandView
 	}
 	log.Println(s)
 
