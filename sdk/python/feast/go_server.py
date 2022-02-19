@@ -46,9 +46,9 @@ class GoServer:
             errors.InvalidFeaturesParameterType(features)
 
         # print("GoServer get_online_features")
-        # for key, values in entities.items():
-        #     print(key)
-        #     request.entities[key].val.extend(python_values_to_proto_values(values))
+        for key, values in entities.items():
+            # print(key)
+            request.entities[key].val.extend(python_values_to_proto_values(values))
         # print("==============")
         
         try:
