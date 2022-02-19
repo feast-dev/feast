@@ -445,6 +445,9 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 			collidedFeatureRefs[featureRef] += 1
 			if collidedFeatureRefs[featureRef] > 1 {
 				return errors.New(fmt.Sprintf("Collided FeatureRef detected: %s, %v", featureRef, featureRefs))
+				// return errors.New("To resolve this collision, please ensure that the feature views or their own features "+
+                // "have different names. If you're intentionally joining the same feature view twice on "+
+                // "different sets of entities, please rename one of the feature views with '.with_name'.")
 			}
 		}
 	} else {
@@ -465,6 +468,8 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 
 			if collidedFeatureRefs[featureName] > 1 {
 				return errors.New(fmt.Sprintf("Collided FeatureName detected: %s, %v", featureName, featureRefs))
+				// return errors.New("To resolve this collision, either use the full feature name by setting "+
+                // "'full_feature_names=True', or ensure that the features in question have different names.")
 			}
 		}
 	}
