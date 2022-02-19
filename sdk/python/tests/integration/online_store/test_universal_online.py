@@ -566,7 +566,7 @@ def get_online_features_dict(
 
 @pytest.mark.integration
 @pytest.mark.universal
-@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+@pytest.mark.parametrize("full_feature_names", [True], ids=lambda v: str(v))
 def test_online_retrieval_without_odfv(environment, universal_data_sources, full_feature_names):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources

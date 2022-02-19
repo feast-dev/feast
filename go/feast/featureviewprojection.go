@@ -12,10 +12,10 @@ type FeatureViewProjection struct {
 }
 
 func (fv *FeatureViewProjection) nameToUse() string {
-	if len(fv.name) == 0 {
-		return fv.nameAlias
+	if len(fv.nameAlias) == 0 {
+		return fv.name
 	}
-	return fv.name
+	return fv.nameAlias
 }
 
 func NewFeatureViewProjectionFromProto(proto *core.FeatureViewProjection) *FeatureViewProjection {
