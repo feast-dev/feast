@@ -95,7 +95,7 @@ def test_apply_entity_success(test_feature_store):
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -109,8 +109,8 @@ def test_apply_entity_success(test_feature_store):
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_feature_store.teardown()
@@ -129,7 +129,7 @@ def test_apply_entity_integration(test_feature_store):
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -143,8 +143,8 @@ def test_apply_entity_integration(test_feature_store):
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_feature_store.get_entity("driver_car_id")
@@ -152,8 +152,8 @@ def test_apply_entity_integration(test_feature_store):
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_feature_store.teardown()
