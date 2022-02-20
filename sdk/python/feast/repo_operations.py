@@ -209,8 +209,8 @@ def apply_total_with_repo_instance(
     (
         all_to_apply,
         all_to_delete,
-        views_to_delete,
         views_to_keep,
+        views_to_delete,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
     click.echo(registry_diff.to_string())
@@ -224,7 +224,7 @@ def apply_total_with_repo_instance(
 
 
 def log_infra_changes(
-    views_to_keep: List[FeatureView], views_to_delete: List[FeatureView]
+    views_to_keep: Set[FeatureView], views_to_delete: Set[FeatureView]
 ):
     from colorama import Fore, Style
 
