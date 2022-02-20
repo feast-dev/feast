@@ -34,6 +34,8 @@ config_updater:
   maps:
     .prow/config.yaml:
       name: config
+    .prow.yaml:
+      name: job-config
 
 external_plugins:
   feast-dev/feast:
