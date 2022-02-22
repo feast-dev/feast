@@ -142,7 +142,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
 
-		var key, err = BuildRedisKey(r.project, entityKeys[i])
+		var key, err = buildRedisKey(r.project, entityKeys[i])
 		if err != nil {
 			return nil, err
 		}
@@ -247,8 +247,8 @@ func (r *RedisOnlineStore) Destruct() {
 
 }
 
-func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
-	serKey, err := SerializeEntityKey(entityKey)
+func buildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
+	serKey, err := serializeEntityKey(entityKey)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func BuildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
 	return &fullKey, nil
 }
 
-func SerializeEntityKey(entityKey types.EntityKey) (*[]byte, error) {
+func serializeEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 	//    Serialize entity key to a bytestring so that it can be used as a lookup key in a hash table.
 
 	// Ensure that we have the right amount of join keys and entity values
@@ -294,7 +294,7 @@ func SerializeEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 		offset := (2 * len(keys)) + (i * 3)
 		value := m[keys[i]].GetVal()
 
-		valueBytes, valueTypeBytes, err := SerializeValue(value)
+		valueBytes, valueTypeBytes, err := serializeValue(value)
 		if err != nil {
 			return valueBytes, err
 		}
@@ -319,7 +319,7 @@ func SerializeEntityKey(entityKey types.EntityKey) (*[]byte, error) {
 	return &entityKeyBuffer, nil
 }
 
-func SerializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
+func serializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
 	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
 	switch x := (value).(type) {
 	case *types.Value_StringVal:
