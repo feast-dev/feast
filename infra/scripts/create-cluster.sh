@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Settings
 # Make sure you run "brew install redis"
 
