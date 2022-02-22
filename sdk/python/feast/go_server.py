@@ -18,6 +18,9 @@ import feast
 
 
 class GoServer:
+    FeatureNameCollisionError_STRING = "FeatureNameCollisionError"
+    ValueError_STRING = "ValueError"
+
     def __init__(self, repo_path: str, config: RepoConfig):
         self._repo_path = repo_path
         self._config = config
@@ -25,7 +28,6 @@ class GoServer:
         self.httpServerStarted = False
         self.pipeClosed = False
         self._connect()
-        print("start grpc conenction")
 
     def get_online_features(
             self,
@@ -45,24 +47,34 @@ class GoServer:
         else:
             errors.InvalidFeaturesParameterType(features)
 
-        # print("GoServer get_online_features")
         for key, values in entities.items():
-            # print(key)
             request.entities[key].val.extend(python_values_to_proto_values(values))
-        # print("==============")
         
         try:
             response = self.client.GetOnlineFeatures(request=request)
         except grpc.RpcError as rpc_error:
             # If the server became unavailable, it could mean that the subprocess died or fell into a bad state
             # So the resolution is to establish a new Go subprocess and set up a new connection with it
+
+            # Socket might not have closed
+            # if this is a grpc problem
             self.stop()
             if rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
                 self._connect()
                 # Retry request with the new Go subprocess
                 response = self.client.GetOnlineFeatures(request=request)
             else:
-                raise
+                error_message = rpc_error.details()
+                if error_message.startswith(self.FeatureNameCollisionError_STRING):
+                    parsed_error_message = error_message.split(": ")[1].split("; ")
+                    collided_feature_refs = parsed_error_message[0].split(", ")
+                    full_feature_names = parsed_error_message[1] == "true"
+                    raise errors.FeatureNameCollisionError(collided_feature_refs, full_feature_names)
+                elif error_message.startswith(self.ValueError_STRING):
+                    parsed_error_message = error_message.split(": ")[1]
+                    raise ValueError(parsed_error_message)
+                else:
+                    raise
 
         return OnlineResponse(response)
 
@@ -108,6 +120,9 @@ class GoServer:
                 self.grpcServerStarted = True
                 break
             except subprocess.CalledProcessError as error:
+                # If there is an exception
+                # go subprocess probably closed so pipe is closed
+                self.pipeClosed = True
                 self.stop()
                 raise errors.GoSubprocessConnectionFailed() from error
         channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
@@ -136,30 +151,31 @@ class GoServer:
                 self.httpServerStarted = True
                 break
             except subprocess.CalledProcessError as error:
+                # If there is an exception
+                # go subprocess probably closed so pipe is closed
+                self.pipeClosed = True
                 self.stop()
                 raise errors.GoSubprocessConnectionFailed() from error
 
     def stop(self):
 
-        if self.pipeClosed:
-            return
-
-        for i in range(10):
-            try:
-                self.process.stdin.write(bytes(f"stop\n", encoding='utf8'))
-                self.process.stdin.flush()
-                break
-            except subprocess.CalledProcessError as error:
-                self.process.terminate()
-                raise errors.GoSubprocessConnectionFailed() from error 
-        # self.process.terminate()
-        self.process.stdin.close()
-        # os.killpg(os.getpgid(self.process.pid), signal.SIGINT)
-        # self.process.terminate()
+        # Only send sigkill if there's a problem telling go subprocess to stop
+        # Otherwise, let go subprocess clean up and shut down itself
+        if not self.pipeClosed:
+            for i in range(10):
+                try:
+                    self.process.stdin.write(bytes(f"stop\n", encoding='utf8'))
+                    self.process.stdin.flush()
+                    # time.sleep(0.1)
+                    # self.process.stdin.close()
+                    break
+                except subprocess.CalledProcessError as error:
+                    self.process.terminate()
+                    raise errors.GoSubprocessConnectionFailed() from error 
+       
         self.grpcServerStarted = False
         self.httpServerStarted = False
         self.pipeClosed = True
-        print("stop grpc connection")
                 
 def _get_unused_port() -> str:
     sock = socket.socket()

@@ -18,7 +18,6 @@ var DUMMY_ENTITY types.Value = types.Value{Val: &types.Value_StringVal{StringVal
 type FeatureView struct {
 	base *BaseFeatureView
 	ttl *durationpb.Duration
-	// entities []string
 	// make entities set so that search for dummy entity is faster
 	entities map[string]bool
 }
