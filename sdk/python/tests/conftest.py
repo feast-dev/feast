@@ -31,6 +31,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     REDIS_CLUSTER_CONFIG,
+    DEFAULT_GO_SERVER_REPO_CONFIGS,
     REDIS_CONFIG,
     Environment,
     TestData,
@@ -53,6 +54,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "universal: mark tests that use the universal feature repo"
     )
+    config.addinivalue_line(
+        "markers", "noodfv: mark tests that use the noodfv feature repo"
+    )
 
 
 def pytest_addoption(parser):
@@ -68,12 +72,16 @@ def pytest_addoption(parser):
     parser.addoption(
         "--universal", action="store_true", default=False, help="Run universal tests",
     )
+    parser.addoption(
+        "--noodfv", action="store_true", default=False, help="Run tests without on demand transforms",
+    )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
     should_run_universal = config.getoption("--universal") is True
+    should_run_without_odfv = config.getoption("--noodfv") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -97,6 +105,12 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     if should_run_universal:
         items.clear()
         for t in universal_tests:
+            items.append(t)
+    
+    noodfv_tests = [t for t in items if "noodfv" in t.keywords]
+    if should_run_without_odfv:
+        items.clear()
+        for t in noodfv_tests:
             items.append(t)
 
 
@@ -161,6 +175,33 @@ def environment(request, worker_id: str):
         time.sleep(3)
 
     def cleanup():
+        e.feature_store.teardown()
+        if proc.is_alive():
+            proc.kill()
+
+    request.addfinalizer(cleanup)
+
+    return e
+
+@pytest.fixture(
+    params=DEFAULT_GO_SERVER_REPO_CONFIGS, scope="session", ids=[str(c) for c in DEFAULT_GO_SERVER_REPO_CONFIGS]
+)
+def go_server_environment(request, worker_id: str):
+    e = construct_test_environment(request.param, worker_id=worker_id)
+    proc = Process(
+        target=start_test_local_server,
+        args=(e.feature_store.repo_path, e.get_local_server_port()),
+        daemon=True,
+    )
+    if e.python_feature_server and e.test_repo_config.provider == "local":
+        proc.start()
+        # Wait for server to start
+        time.sleep(3)
+
+    def cleanup():
+        if e.feature_store:
+            e.feature_store.stop_go_server()
+
         e.feature_store.teardown()
         if proc.is_alive():
             proc.kill()

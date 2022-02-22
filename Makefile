@@ -78,6 +78,9 @@ test-python-universal-local:
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
+test-python-universal-go-server:
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal --noodfv sdk/python/tests
+
 format-python:
 	# Sort
 	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/

@@ -119,7 +119,7 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 	return t, nil
 }
 
-func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]Feature, error) {
+func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]FeatureData, error) {
 	featureCount := len(features)
 	var hsetKeys = make([]string, featureCount+1)
 	h := murmur3.New32()
@@ -154,14 +154,14 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	// TODO: Move context object out
 	ctx := context.Background()
 
-	results := make([][]Feature, len(entityKeys))
+	results := make([][]FeatureData, len(entityKeys))
 	pipe := r.client.Pipeline()
-	m := map[string]*redis.SliceCmd{}
+	commands := map[string]*redis.SliceCmd{}
 
 	for _, redisKey := range redisKeys {
 		keyString := string(*redisKey)
 		// TODO: Add pipelining (without transactions)
-		m[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
 		
 	}
 
@@ -172,12 +172,12 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 	var entityIndex int
 	var resContainsNonNil bool
-	for redisKey, v := range m {
+	for redisKey, v := range commands {
 
 		entityIndex = redisKeyToEntityIndex[redisKey]
 		resContainsNonNil = false
 
-		results[entityIndex] = make([]Feature, featureCount)
+		results[entityIndex] = make([]FeatureData, featureCount)
 		res, err := v.Result()
 		if err != nil {
 			return nil, err
@@ -185,7 +185,6 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 		var timeStamp timestamppb.Timestamp
 		timeStampInterface := res[featureCount]
-		// log.Println(timeStampInterface, res)
 		if timeStampInterface != nil {
 			if timeStampString, ok := timeStampInterface.(string); !ok {
 				return nil, errors.New("Error parsing value from redis")
@@ -209,9 +208,9 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				featureName := features[ featureIndex ]
 				ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
 					FeatureName: featureName}
-				feature := Feature { 	reference: ref,
-										timestamp: timeStamp,
-										value: types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL} } }
+				feature := FeatureData { 	reference: ref,
+											timestamp: timeStamp,
+											value: types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL} } }
 				results[entityIndex][featureIndex] = feature
 
 			} else if valueString, ok := resString.(string); !ok {
@@ -225,7 +224,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 					featureName := features[ featureIndex ]
 					ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
 						FeatureName: featureName}
-					feature := Feature { 	reference: ref,
+					feature := FeatureData { 	reference: ref,
 											timestamp: timeStamp,
 											value: value }
 					results[entityIndex][featureIndex] = feature

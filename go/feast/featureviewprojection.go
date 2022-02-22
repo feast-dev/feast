@@ -7,7 +7,7 @@ import (
 type FeatureViewProjection struct {
 	name string
 	nameAlias string
-	features []*core.FeatureSpecV2
+	features []*Feature
 	joinKeyMap map[string]string
 }
 
@@ -19,11 +19,17 @@ func (fv *FeatureViewProjection) nameToUse() string {
 }
 
 func NewFeatureViewProjectionFromProto(proto *core.FeatureViewProjection) *FeatureViewProjection {
-	return &FeatureViewProjection 	{	name: proto.FeatureViewName,
+	featureProjection := &FeatureViewProjection 	{	name: proto.FeatureViewName,
 										nameAlias: proto.FeatureViewNameAlias,
-										features: proto.FeatureColumns,
 										joinKeyMap: proto.JoinKeyMap,
 									}
+	 
+	features := make([]*Feature, len(proto.FeatureColumns))
+	for index, featureSpecV2 := range proto.FeatureColumns {
+		features[index] = NewFeatureFromProto(featureSpecV2)
+	}
+	featureProjection.features = features
+	return featureProjection
 }
 
 func NewFeatureViewProjectionFromDefinition(base *BaseFeatureView) *FeatureViewProjection {

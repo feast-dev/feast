@@ -10,7 +10,7 @@ import (
 type GRPCClient struct{ client connector.OnlineStoreClient
 						destructor func()	}
 
-func (m *GRPCClient) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]Feature, error) {
+func (m *GRPCClient) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]FeatureData, error) {
 	entityKeysRef := make([]*types.EntityKey, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
 		entityKeysRef[i] = &entityKeys[i]
@@ -24,14 +24,14 @@ func (m *GRPCClient) OnlineRead(entityKeys []types.EntityKey, view string, featu
 		return nil, err
 	}
 	feature2D := results.GetResults()
-	featureResults := make([][]Feature, len(feature2D))
+	featureResults := make([][]FeatureData, len(feature2D))
 	for entityIndex, featureList := range feature2D {
 		connectorList := featureList.GetFeatureList()
-		featureResults[entityIndex] = make([]Feature, len(connectorList))
+		featureResults[entityIndex] = make([]FeatureData, len(connectorList))
 		for featureIndex, feature := range connectorList {
-			featureResults[entityIndex][featureIndex] = Feature{ 	reference: *feature.GetReference(),
-																	timestamp: *feature.GetTimestamp(),
-																	value: *feature.GetValue() }
+			featureResults[entityIndex][featureIndex] = FeatureData{ 	reference: *feature.GetReference(),
+																		timestamp: *feature.GetTimestamp(),
+																		value: *feature.GetValue() }
 		}
 	}
 	return featureResults, nil

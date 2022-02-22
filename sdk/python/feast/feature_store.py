@@ -1167,7 +1167,6 @@ class FeatureStore:
             # Lazily start the go server on the first request
             if self._go_server is None:
                 self._go_server = GoServer(str(self.repo_path.absolute()), self.config)
-            # self._go_server.start_grpc_server()
             return self._go_server.get_online_features(features, columnar, full_feature_names)
 
         return self._get_online_features(
@@ -1186,14 +1185,14 @@ class FeatureStore:
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
-        _feature_refs = self._get_features(features, allow_cache=True) # Ly : List[str]
+        _feature_refs = self._get_features(features, allow_cache=True)
         (
             requested_feature_views,
             requested_request_feature_views,
             requested_on_demand_feature_views,
         ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
-        ) # LY: Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]
+        )
 
         entity_name_to_join_key_map, entity_type_map = self._get_entity_maps(
             requested_feature_views
@@ -1229,11 +1228,8 @@ class FeatureStore:
             requested_feature_views,
             requested_request_feature_views,
             requested_on_demand_feature_views,
-        )   # Ly : Tuple[
-            # List[Tuple[FeatureView, List[str]]],
-            # List[Tuple[OnDemandFeatureView, List[str]]],
-            # List[Tuple[RequestFeatureView, List[str]]],
-            # Set[str]
+        )
+
         set_usage_attribute("odfv", bool(grouped_odfv_refs))
         set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
 
@@ -1250,7 +1246,7 @@ class FeatureStore:
 
         needed_request_data, needed_request_fv_features = self.get_needed_request_data(
             grouped_odfv_refs, grouped_request_fv_refs
-        ) # Tuple[Set[str], Set[str]]
+        )
 
         join_key_values: Dict[str, List[Value]] = {}
         request_data_features: Dict[str, List[Value]] = {}
@@ -1769,11 +1765,17 @@ class FeatureStore:
 
         return views_to_use
 
-    # def __exit__(self, exc_type, exc_value, traceback):
-    #     if enable_go_feature_server(self.config):
-    #         # Lazily start the go server on the first request
-    #         if self._go_server is not None:
-    #             self._go_server.stop()
+    def stop_go_server(self):
+        if enable_go_feature_server(self.config):
+            # Lazily start the go server on the first request
+            if self._go_server is not None:
+                self._go_server.stop()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if enable_go_feature_server(self.config):
+            # Lazily start the go server on the first request
+            if self._go_server is not None:
+                self._go_server.stop()
 
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:

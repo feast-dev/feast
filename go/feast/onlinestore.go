@@ -7,7 +7,7 @@ import (
 )
 
 
-type Feature struct {
+type FeatureData struct {
 	reference serving.FeatureReferenceV2
 	timestamp timestamp.Timestamp
 	value     types.Value
@@ -32,7 +32,7 @@ type OnlineStore interface {
 	// Feature object as pointers in GetOnlineFeaturesResponse)
 	// => allocate memory for each field once in OnlineRead
 	// and reuse them in GetOnlineFeaturesResponse?
-	OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]Feature, error)
+	OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]FeatureData, error)
 	// Destruct must be call once user is done using OnlineStore
 	Destruct()
 }

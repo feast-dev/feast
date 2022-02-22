@@ -67,43 +67,47 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # IntegrationTestRepoConfig(),
     # IntegrationTestRepoConfig(python_feature_server=True),
 ]
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    DEFAULT_FULL_REPO_CONFIGS.extend(
-        [
-            # IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-            IntegrationTestRepoConfig(
+
+DEFAULT_GO_SERVER_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
+    IntegrationTestRepoConfig(
                 online_store=REDIS_CONFIG,
                 go_feature_server=True,
             ),
+]
+
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    DEFAULT_FULL_REPO_CONFIGS.extend(
+        [
+            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
             # GCP configurations
-            # IntegrationTestRepoConfig(
-            #     provider="gcp",
-            #     offline_store_creator=BigQueryDataSourceCreator,
-            #     online_store="datastore",
-            # ),
-            # IntegrationTestRepoConfig(
-            #     provider="gcp",
-            #     offline_store_creator=BigQueryDataSourceCreator,
-            #     online_store=REDIS_CONFIG,
-            # ),
-            # # AWS configurations
-            # IntegrationTestRepoConfig(
-            #     provider="aws",
-            #     offline_store_creator=RedshiftDataSourceCreator,
-            #     online_store=DYNAMO_CONFIG,
-            #     python_feature_server=True,
-            # ),
-            # IntegrationTestRepoConfig(
-            #     provider="aws",
-            #     offline_store_creator=RedshiftDataSourceCreator,
-            #     online_store=REDIS_CONFIG,
-            # ),
-            # # Snowflake configurations
-            # IntegrationTestRepoConfig(
-            #     provider="aws",  # no list features, no feature server
-            #     offline_store_creator=SnowflakeDataSourceCreator,
-            #     online_store=REDIS_CONFIG,
-            # ),
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store="datastore",
+            ),
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            # AWS configurations
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=DYNAMO_CONFIG,
+                python_feature_server=True,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            # Snowflake configurations
+            IntegrationTestRepoConfig(
+                provider="aws",  # no list features, no feature server
+                offline_store_creator=SnowflakeDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
         ]
     )
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)

@@ -8,16 +8,15 @@ import (
 	"io/ioutil"
 )
 
+/*
+	Store protos of FeatureView, FeatureService, Entity,
+		OnDemandFeatureView, RequestFeatureView
+	but return to user copies of non-proto versions of these objects
+*/
+
 type Registry struct {
 	path 				string
-	// TODO: add more cache and fields
-	// as needed
-	// cachedRegistry		*core.Registry
-
-	// Each of the following map
-	// maps from project to list of fields
-	// Further optimization could be to create a Project Object
-	// so that we reduces the repeated project names in each map
+	
 	cachedFeatureServices		map[string]map[string]*core.FeatureService
 	cachedEntities				map[string]map[string]*core.Entity
 	cachedFeatureViews			map[string]map[string]*core.FeatureView
@@ -30,7 +29,6 @@ type Registry struct {
 }
 
 func NewRegistry(path string) (*Registry, error) {
-	fmt.Println(path)
 	// Read the local registry
 	in, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -41,18 +39,57 @@ func NewRegistry(path string) (*Registry, error) {
 		return nil, err
 	}
 	r := &Registry{	path: path,
-					// cachedRegistry: registry,
 					cachedFeatureServices: make(map[string]map[string]*core.FeatureService),
 					cachedEntities: make(map[string]map[string]*core.Entity),
 					cachedFeatureViews: make(map[string]map[string]*core.FeatureView),
 					cachedOnDemandFeatureViews: make(map[string]map[string]*core.OnDemandFeatureView),
 					cachedRequestFeatureViews: make(map[string]map[string]*core.RequestFeatureView),
 				}
-	r.LoadEntities(registry)
-	r.LoadFeatureServices(registry)
-	r.LoadFeatureViews(registry)
-	r.LoadOnDemandFeatureViews(registry)
-	r.LoadRequestFeatureViews(registry)
+	loadEntitiesDone := make(chan struct{}, 1)
+	loadFeatureServicesDone := make(chan struct{}, 1)
+	loadFeatureViewsDone := make(chan struct{}, 1)
+	loadOnDemandFeatureViewsDone := make(chan struct{}, 1)
+	loadRequestFeatureViewsDone := make(chan struct{}, 1)
+	
+	go func() {
+		r.LoadEntities(registry)
+		loadEntitiesDone <- struct{}{}
+	}()
+
+	go func() {
+		r.LoadFeatureServices(registry)
+		loadFeatureServicesDone <- struct{}{}
+	}()
+
+	go func() {
+		r.LoadFeatureViews(registry)
+		loadFeatureViewsDone <- struct{}{}
+	}()
+
+	go func() {
+		r.LoadOnDemandFeatureViews(registry)
+		loadOnDemandFeatureViewsDone <- struct{}{}
+	}()
+
+	go func() {
+		r.LoadRequestFeatureViews(registry)
+		loadRequestFeatureViewsDone <- struct{}{}
+	}()
+	doneCount := 0
+	for doneCount < 5 {
+		select {
+		case <- loadEntitiesDone:
+			doneCount += 1
+		case <- loadFeatureServicesDone:
+			doneCount += 1
+		case <- loadFeatureViewsDone:
+			doneCount += 1
+		case <- loadOnDemandFeatureViewsDone:
+			doneCount += 1
+		case <- loadRequestFeatureViewsDone:
+			doneCount += 1
+		}
+	}
 	return r, nil
 }
 
@@ -62,7 +99,6 @@ func (r *Registry) LoadEntities(registry *core.Registry) {
 		if _, ok := r.cachedEntities[entity.Spec.Project]; !ok {
 			r.cachedEntities[entity.Spec.Project] = make(map[string]*core.Entity)
 		}
-		// newEntity := *entity
 		r.cachedEntities[entity.Spec.Project][entity.Spec.Name] = entity
 	}
 }
@@ -73,7 +109,6 @@ func (r *Registry) LoadFeatureServices(registry *core.Registry) {
 		if _, ok := r.cachedFeatureServices[featureService.Spec.Project]; !ok {
 			r.cachedFeatureServices[featureService.Spec.Project] = make(map[string]*core.FeatureService)
 		}
-		// newFeatureService := *featureService
 		r.cachedFeatureServices[featureService.Spec.Project][featureService.Spec.Name] = featureService
 	}
 }
@@ -84,8 +119,6 @@ func (r *Registry) LoadFeatureViews(registry *core.Registry) {
 		if _, ok := r.cachedFeatureViews[featureView.Spec.Project]; !ok {
 			r.cachedFeatureViews[featureView.Spec.Project] = make(map[string]*core.FeatureView)
 		}
-		// fmt.Println(featureView.Spec.Name, "hiiii")
-		// newFeatureView := *featureView
 		r.cachedFeatureViews[featureView.Spec.Project][featureView.Spec.Name] = featureView
 	}
 }
@@ -96,7 +129,6 @@ func (r *Registry) LoadOnDemandFeatureViews(registry *core.Registry) {
 		if _, ok := r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project]; !ok {
 			r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project] = make(map[string]*core.OnDemandFeatureView)
 		}
-		// newOnDemandFeatureView := *onDemandFeatureView
 		r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project][onDemandFeatureView.Spec.Name] = onDemandFeatureView
 	}
 }
@@ -113,7 +145,7 @@ func (r *Registry) LoadRequestFeatureViews(registry *core.Registry) {
 	}
 }
 
-// TODO (Ly): Support and fix these functions if needed
+// TODO (Ly): Create Entity Object and return a list of Entities instead
 func (r *Registry) listEntities(project string) ([]*core.Entity, error) {
 	if entities, ok := r.cachedEntities[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in listEntities", project))
@@ -128,59 +160,59 @@ func (r *Registry) listEntities(project string) ([]*core.Entity, error) {
 	}
 }
 
-func (r *Registry) listFeatureViews(project string) ([]*core.FeatureView, error) {
-	if featureViews, ok := r.cachedFeatureViews[project]; !ok {
+func (r *Registry) listFeatureViews(project string) ([]*FeatureView, error) {
+	if featureViewProtos, ok := r.cachedFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in listFeatureViews", project))
 	} else {
-		featureViewList := make([]*core.FeatureView, len(featureViews))
+		featureViews := make([]*FeatureView, len(featureViewProtos))
 		index := 0
-		for _, featureView := range featureViews {
-			featureViewList[index] = featureView
+		for _, featureViewProto := range featureViewProtos {
+			featureViews[index] = NewFeatureViewFromProto(featureViewProto)
 			index += 1
 		}
-		return featureViewList, nil
+		return featureViews, nil
 	}
 }
 
-func (r *Registry) listFeatureServices(project string) ([]*core.FeatureService, error) {
-	if featureServices, ok := r.cachedFeatureServices[project]; !ok {
+func (r *Registry) listFeatureServices(project string) ([]*FeatureService, error) {
+	if featureServiceProtos, ok := r.cachedFeatureServices[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in listFeatureServices", project))
 	} else {
-		featureServiceList := make([]*core.FeatureService, len(featureServices))
+		featureServices := make([]*FeatureService, len(featureServiceProtos))
 		index := 0
-		for _, featureService := range featureServices {
-			featureServiceList[index] = featureService
+		for _, featureServiceProto := range featureServiceProtos {
+			featureServices[index] = NewFeatureServiceFromProto(featureServiceProto)
 			index += 1
 		}
-		return featureServiceList, nil
+		return featureServices, nil
 	}
 }
 
-func (r *Registry) listOnDemandFeatureViews(project string) ([]*core.OnDemandFeatureView, error) {
-	if onDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
+func (r *Registry) listOnDemandFeatureViews(project string) ([]*OnDemandFeatureView, error) {
+	if onDemandFeatureViewProtos, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in listOnDemandFeatureViews", project))
 	} else {
-		onDemandFeatureViewList := make([]*core.OnDemandFeatureView, len(onDemandFeatureViews))
+		onDemandFeatureViews := make([]*OnDemandFeatureView, len(onDemandFeatureViewProtos))
 		index := 0
-		for _, onDemandFeatureView := range onDemandFeatureViews {
-			onDemandFeatureViewList[index] = onDemandFeatureView
+		for _, onDemandFeatureViewProto := range onDemandFeatureViewProtos {
+			onDemandFeatureViews[index] = NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
 			index += 1
 		}
-		return onDemandFeatureViewList, nil
+		return onDemandFeatureViews, nil
 	}
 }
 
-func (r *Registry) listRequestFeatureViews(project string) ([]*core.RequestFeatureView, error) {
-	if requestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
+func (r *Registry) listRequestFeatureViews(project string) ([]*RequestFeatureView, error) {
+	if requestFeatureViewProtos, ok := r.cachedRequestFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in listRequestFeatureViews", project))
 	} else {
-		requestFeatureViewList := make([]*core.RequestFeatureView, len(requestFeatureViews))
+		requestFeatureViews := make([]*RequestFeatureView, len(requestFeatureViewProtos))
 		index := 0
-		for _, requestFeatureView := range requestFeatureViews {
-			requestFeatureViewList[index] = requestFeatureView
+		for _, requestFeatureViewProto := range requestFeatureViewProtos {
+			requestFeatureViews[index] = NewRequestFeatureViewFromProto(requestFeatureViewProto)
 			index += 1
 		}
-		return requestFeatureViewList, nil
+		return requestFeatureViews, nil
 	}
 }
 
@@ -196,50 +228,50 @@ func (r *Registry) getEntity(project, entityName string) (*core.Entity, error) {
 	}
 }
 
-func (r *Registry) getFeatureView(project, featureViewName string) (*core.FeatureView, error) {
+func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView, error) {
 	if featureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in getFeatureView", project))
 	} else {
-		if featureView, ok := featureViews[featureViewName]; !ok {
-			return nil, errors.New(fmt.Sprintf("FeatureView %s not found inside project %s", featureView, project))
+		if featureViewProto, ok := featureViews[featureViewName]; !ok {
+			return nil, errors.New(fmt.Sprintf("FeatureView %s not found inside project %s", featureViewName, project))
 		} else {
-			return featureView, nil
+			return NewFeatureViewFromProto(featureViewProto), nil
 		}
 	}
 }
 
-func (r *Registry) getFeatureService(project, featureServiceName string) (*core.FeatureService, error) {
+func (r *Registry) getFeatureService(project, featureServiceName string) (*FeatureService, error) {
 	if featureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in getFeatureService", project))
 	} else {
-		if featureService, ok := featureServices[featureServiceName]; !ok {
+		if featureServiceProto, ok := featureServices[featureServiceName]; !ok {
 			return nil, errors.New(fmt.Sprintf("FeatureService %s not found inside project %s", featureServiceName, project))
 		} else {
-			return featureService, nil
+			return NewFeatureServiceFromProto(featureServiceProto), nil
 		}
 	}
 }
 
-func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string) (*core.OnDemandFeatureView, error) {
+func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string) (*OnDemandFeatureView, error) {
 	if onDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in getOnDemandFeatureView", project))
 	} else {
-		if onDemandFeatureView, ok := onDemandFeatureViews[onDemandFeatureViewName]; !ok {
+		if onDemandFeatureViewProto, ok := onDemandFeatureViews[onDemandFeatureViewName]; !ok {
 			return nil, errors.New(fmt.Sprintf("OnDemandFeatureView %s not found inside project %s", onDemandFeatureViewName, project))
 		} else {
-			return onDemandFeatureView, nil
+			return NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto), nil
 		}
 	}
 }
 
-func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string) (*core.RequestFeatureView, error) {
+func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string) (*RequestFeatureView, error) {
 	if requestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in getRequestFeatureView", project))
 	} else {
-		if requestFeatureView, ok := requestFeatureViews[requestFeatureViewName]; !ok {
+		if requestFeatureViewProto, ok := requestFeatureViews[requestFeatureViewName]; !ok {
 			return nil, errors.New(fmt.Sprintf("RequestFeatureView %s not found inside project %s", requestFeatureViewName, project))
 		} else {
-			return requestFeatureView, nil
+			return NewRequestFeatureViewFromProto(requestFeatureViewProto), nil
 		}
 	}
 }
