@@ -2,7 +2,8 @@
 
 const execSync = require("child_process").execSync;
 
-// We have to dynamically generate all the supported branches for Feast because we use the `vA.B-branch` pattern for maintenance branches
+// We have to dynamically generate all the supported branches for Feast because we use the `vA.B-branch` pattern for
+// maintenance branches
 MAJOR_VERSION_MAX=0
 MINOR_VERSION_MIN=15
 MINOR_VERSION_MAX=50
@@ -18,7 +19,7 @@ for (let step_major = 0; step_major <= MAJOR_VERSION_MAX; step_major++) {
     }
 }
 
-// Get the current branch (we want to validate that the correct kind of release is being created
+// Get the current branch (we want to validate that the correct kind of release is being created)
 const branch = execSync("git rev-parse --abbrev-ref HEAD").toString("utf8");
 
 // Below is the configuration for semantic release
