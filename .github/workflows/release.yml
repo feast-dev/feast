@@ -6,27 +6,34 @@ on:
       dry_run:
         description: 'Dry Run'
         required: true
-        default: true
+        default: 'true'
         type: boolean
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
 
 jobs:
   release:
     name: release
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16'
-      - name: Release (Dry Run)
-        if: github.event.inputs.dry_run == 'true'
-        run: |
-          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
-      - name: Release
-        if: github.event.inputs.dry_run == 'false'
-        run: |
-          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+    - name: Release (Dry Run)
+      if: github.event.inputs.dry_run == 'true'
+      run: |
+        npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
+    - name: Release
+      if: github.event.inputs.dry_run == 'false'
+      run: |
+        npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
