@@ -52,27 +52,27 @@ func NewRegistry(path string) (*Registry, error) {
 	loadRequestFeatureViewsDone := make(chan struct{}, 1)
 	
 	go func() {
-		r.LoadEntities(registry)
+		r.loadEntities(registry)
 		loadEntitiesDone <- struct{}{}
 	}()
 
 	go func() {
-		r.LoadFeatureServices(registry)
+		r.loadFeatureServices(registry)
 		loadFeatureServicesDone <- struct{}{}
 	}()
 
 	go func() {
-		r.LoadFeatureViews(registry)
+		r.loadFeatureViews(registry)
 		loadFeatureViewsDone <- struct{}{}
 	}()
 
 	go func() {
-		r.LoadOnDemandFeatureViews(registry)
+		r.loadOnDemandFeatureViews(registry)
 		loadOnDemandFeatureViewsDone <- struct{}{}
 	}()
 
 	go func() {
-		r.LoadRequestFeatureViews(registry)
+		r.loadRequestFeatureViews(registry)
 		loadRequestFeatureViewsDone <- struct{}{}
 	}()
 	doneCount := 0
@@ -93,7 +93,7 @@ func NewRegistry(path string) (*Registry, error) {
 	return r, nil
 }
 
-func (r *Registry) LoadEntities(registry *core.Registry) {
+func (r *Registry) loadEntities(registry *core.Registry) {
 	entities := registry.Entities
 	for _, entity := range entities {
 		if _, ok := r.cachedEntities[entity.Spec.Project]; !ok {
@@ -103,7 +103,7 @@ func (r *Registry) LoadEntities(registry *core.Registry) {
 	}
 }
 
-func (r *Registry) LoadFeatureServices(registry *core.Registry) {
+func (r *Registry) loadFeatureServices(registry *core.Registry) {
 	featureServices := registry.FeatureServices
 	for _, featureService := range featureServices {
 		if _, ok := r.cachedFeatureServices[featureService.Spec.Project]; !ok {
@@ -113,7 +113,7 @@ func (r *Registry) LoadFeatureServices(registry *core.Registry) {
 	}
 }
 
-func (r *Registry) LoadFeatureViews(registry *core.Registry) {
+func (r *Registry) loadFeatureViews(registry *core.Registry) {
 	featureViews := registry.FeatureViews
 	for _, featureView := range featureViews {
 		if _, ok := r.cachedFeatureViews[featureView.Spec.Project]; !ok {
@@ -123,7 +123,7 @@ func (r *Registry) LoadFeatureViews(registry *core.Registry) {
 	}
 }
 
-func (r *Registry) LoadOnDemandFeatureViews(registry *core.Registry) {
+func (r *Registry) loadOnDemandFeatureViews(registry *core.Registry) {
 	onDemandFeatureViews := registry.OnDemandFeatureViews
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		if _, ok := r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project]; !ok {
@@ -133,7 +133,7 @@ func (r *Registry) LoadOnDemandFeatureViews(registry *core.Registry) {
 	}
 }
 
-func (r *Registry) LoadRequestFeatureViews(registry *core.Registry) {
+func (r *Registry) loadRequestFeatureViews(registry *core.Registry) {
 	requestFeatureViews := registry.RequestFeatureViews
 	for _, requestFeatureView := range requestFeatureViews {
 		if _, ok := r.cachedRequestFeatureViews[requestFeatureView.Spec.Project]; !ok {
