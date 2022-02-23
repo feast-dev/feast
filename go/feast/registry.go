@@ -16,16 +16,11 @@ import (
 
 type Registry struct {
 	path 				string
-	
 	cachedFeatureServices		map[string]map[string]*core.FeatureService
 	cachedEntities				map[string]map[string]*core.Entity
 	cachedFeatureViews			map[string]map[string]*core.FeatureView
 	cachedOnDemandFeatureViews	map[string]map[string]*core.OnDemandFeatureView
 	cachedRequestFeatureViews	map[string]map[string]*core.RequestFeatureView
-
-	// TODO (Ly): Support cache reload
-    // cachedRegistryProtoCreated 	time.Time
-    // cachedRegistryProtoTtl		time.Time
 }
 
 func NewRegistry(path string) (*Registry, error) {
@@ -50,6 +45,25 @@ func NewRegistry(path string) (*Registry, error) {
 	loadFeatureViewsDone := make(chan struct{}, 1)
 	loadOnDemandFeatureViewsDone := make(chan struct{}, 1)
 	loadRequestFeatureViewsDone := make(chan struct{}, 1)
+	doneLoad := make(chan struct{}, 1)
+	go func() {
+		doneCount := 0
+		for doneCount < 5 {
+			select {
+			case <- loadEntitiesDone:
+				doneCount += 1
+			case <- loadFeatureServicesDone:
+				doneCount += 1
+			case <- loadFeatureViewsDone:
+				doneCount += 1
+			case <- loadOnDemandFeatureViewsDone:
+				doneCount += 1
+			case <- loadRequestFeatureViewsDone:
+				doneCount += 1
+			}
+		}
+		doneLoad <- struct{}{}
+	}()
 	
 	go func() {
 		r.loadEntities(registry)
@@ -75,21 +89,7 @@ func NewRegistry(path string) (*Registry, error) {
 		r.loadRequestFeatureViews(registry)
 		loadRequestFeatureViewsDone <- struct{}{}
 	}()
-	doneCount := 0
-	for doneCount < 5 {
-		select {
-		case <- loadEntitiesDone:
-			doneCount += 1
-		case <- loadFeatureServicesDone:
-			doneCount += 1
-		case <- loadFeatureViewsDone:
-			doneCount += 1
-		case <- loadOnDemandFeatureViewsDone:
-			doneCount += 1
-		case <- loadRequestFeatureViewsDone:
-			doneCount += 1
-		}
-	}
+	<- doneLoad
 	return r, nil
 }
 
@@ -146,14 +146,14 @@ func (r *Registry) loadRequestFeatureViews(registry *core.Registry) {
 }
 
 // TODO (Ly): Create Entity Object and return a list of Entities instead
-func (r *Registry) listEntities(project string) ([]*core.Entity, error) {
+func (r *Registry) listEntities(project string) ([]*Entity, error) {
 	if entities, ok := r.cachedEntities[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in listEntities", project))
 	} else {
-		entityList := make([]*core.Entity, len(entities))
+		entityList := make([]*Entity, len(entities))
 		index := 0
 		for _, entity := range entities {
-			entityList[index] = entity
+			entityList[index] = NewEntityFromProto(entity)
 			index += 1
 		}
 		return entityList, nil
@@ -216,14 +216,14 @@ func (r *Registry) listRequestFeatureViews(project string) ([]*RequestFeatureVie
 	}
 }
 
-func (r *Registry) getEntity(project, entityName string) (*core.Entity, error) {
+func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
 	if entities, ok := r.cachedEntities[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("Project %s not found in getEntity", project))
 	} else {
 		if entity, ok := entities[entityName]; !ok {
 			return nil, errors.New(fmt.Sprintf("Entity %s not found inside project %s", entityName, project))
 		} else {
-			return entity, nil
+			return NewEntityFromProto(entity), nil
 		}
 	}
 }

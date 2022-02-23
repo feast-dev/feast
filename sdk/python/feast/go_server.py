@@ -138,7 +138,7 @@ class GoServer:
                 if i == 49:
                     self.stop()
                     raise errors.GoSubprocessConnectionFailed() from e
-                # Sleep for 0.1 second before retrying
+            # Sleep for 0.1 second before retrying
             time.sleep(0.1)
 
     def start_http_server(self, host: str, port: int):

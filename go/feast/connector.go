@@ -3,10 +3,12 @@ package feast
 import (
 	"errors"
 	"fmt"
-	"os"
+	// "os"
 	"os/exec"
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/go-hclog"
+	// "github.com/hashicorp/go-hclog"
+	"log"
+	"io/ioutil"
 )
 
 func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
@@ -26,16 +28,16 @@ func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
 
 func connectorClient(KV_PLUGIN string) (OnlineStore, error) {
 	// We don't want to see the plugin logs.
-	// log.SetOutput(ioutil.Discard)
+	log.SetOutput(ioutil.Discard)
 
 	// We're a host. Start by launching the plugin process.
 	cmd := exec.Command("sh", "-c", KV_PLUGIN )
 
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   "plugin",
-		Output: os.Stdout,
-		Level:  hclog.Debug,
-	})
+	// logger := hclog.New(&hclog.LoggerOptions{
+	// 	Name:   "plugin",
+	// 	Output: os.Stdout,
+	// 	Level:  hclog.Debug,
+	// })
 
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: Handshake,
@@ -43,7 +45,7 @@ func connectorClient(KV_PLUGIN string) (OnlineStore, error) {
 		Cmd:             cmd,
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC},
-		Logger:          logger,
+		// Logger:          logger,
 	})
 	
 	// Connect via RPC

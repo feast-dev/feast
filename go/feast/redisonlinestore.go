@@ -170,74 +170,116 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		panic(err)
 	}
 
-	var entityIndex int
-	var resContainsNonNil bool
-	for redisKey, v := range commands {
+	finishedChan := make(chan struct{}, 1)
+	doneChan := make(chan struct{}, 1)
+	errorChan := make(chan error, 1)
 
-		entityIndex = redisKeyToEntityIndex[redisKey]
-		resContainsNonNil = false
-
-		results[entityIndex] = make([]FeatureData, featureCount)
-		res, err := v.Result()
-		if err != nil {
-			return nil, err
+	loadMain := func() {
+		doneCount := 0
+		numRedisKey := len(redisKeys)
+		for doneCount < numRedisKey {
+			<- finishedChan
+			doneCount += 1
 		}
+		doneChan <- struct{}{}
+	}
+	go loadMain()
 
-		var timeStamp timestamppb.Timestamp
-		timeStampInterface := res[featureCount]
-		if timeStampInterface != nil {
-			if timeStampString, ok := timeStampInterface.(string); !ok {
-				return nil, errors.New("Error parsing value from redis")
-			} else {
-				if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-					return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
+	for redisKey, values := range commands {
+		go func(redisKey string, values *redis.SliceCmd) {
+			entityIndex := redisKeyToEntityIndex[redisKey]
+			resContainsNonNil := false
+
+			results[entityIndex] = make([]FeatureData, featureCount)
+			res, err := values.Result()
+			if err != nil {
+				select {
+				case errorChan <- err:
+				default:
+				}
+				return
+			}
+
+			var timeStamp timestamppb.Timestamp
+			timeStampInterface := res[featureCount]
+			if timeStampInterface != nil {
+				if timeStampString, ok := timeStampInterface.(string); !ok {
+					select {
+					case errorChan <- errors.New("Error parsing value from redis"):
+					default:
+					}
+					return
+				} else {
+					if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
+						select {
+						case errorChan <- errors.New("Error converting parsed redis value to timestamppb.Timestamp"):
+						default:
+						}
+						return
+					}
 				}
 			}
-		}
 
-		res = res[:featureCount]
-		
-		for featureIndex,resString := range res {
-			if resString == nil {
+			res = res[:featureCount]
+			
+			for featureIndex,resString := range res {
+				if resString == nil {
 
-				// TODO (Ly): Can there be nil result
-				// within each feature
-				// or they will all be returned
-				// as string proto of types.Value_NullVal proto?
+					// TODO (Ly): Can there be nil result
+					// within each feature
+					// or they will all be returned
+					// as string proto of types.Value_NullVal proto?
 
-				featureName := features[ featureIndex ]
-				ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
-					FeatureName: featureName}
-				feature := FeatureData { 	reference: ref,
-											timestamp: timeStamp,
-											value: types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL} } }
-				results[entityIndex][featureIndex] = feature
-
-			} else if valueString, ok := resString.(string); !ok {
-				return nil, errors.New("Error parsing value from redis")
-			} else {
-				resContainsNonNil = true
-				var value types.Value
-				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
-					return nil, errors.New("Error converting parsed redis value to types.Value")
-				} else {
 					featureName := features[ featureIndex ]
 					ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
 						FeatureName: featureName}
 					feature := FeatureData { 	reference: ref,
-											timestamp: timeStamp,
-											value: value }
+												timestamp: timeStamp,
+												value: types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL} } }
 					results[entityIndex][featureIndex] = feature
+
+				} else if valueString, ok := resString.(string); !ok {
+					select {
+					case errorChan <- errors.New("Error parsing value from redis"):
+					default:
+					}
+					return
+				} else {
+					resContainsNonNil = true
+					var value types.Value
+					if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+						select {
+						case errorChan <- errors.New("Error converting parsed redis value to types.Value"):
+						default:
+						}
+						return
+					} else {
+						featureName := features[ featureIndex ]
+						ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
+							FeatureName: featureName}
+						feature := FeatureData { 	reference: ref,
+												timestamp: timeStamp,
+												value: value }
+						results[entityIndex][featureIndex] = feature
+					}
 				}
 			}
-		}
 
-		if !resContainsNonNil {
-			results[entityIndex] = nil
-		}
+			if !resContainsNonNil {
+				results[entityIndex] = nil
+			}
+
+			finishedChan <- struct{}{}
+		}(redisKey, values)
+		
 
 	}
 
+	select {
+	case err := <- errorChan:
+		return nil, err
+	case <- doneChan:
+	}
 
 	return results, nil
 }
