@@ -110,6 +110,9 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
         ]
     )
+elif os.getenv("FEAST_IS_GO_SERVER_TEST", "True") == "True":
+    DEFAULT_FULL_REPO_CONFIGS.extend(DEFAULT_GO_SERVER_REPO_CONFIGS)
+    
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:

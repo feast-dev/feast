@@ -653,8 +653,8 @@ def test_online_store_cleanup(environment, universal_data_sources):
 @pytest.mark.universal
 @pytest.mark.noodfv
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval_without_odfv(go_server_environment, universal_data_sources, full_feature_names):
-    fs = go_server_environment.feature_store
+def test_online_retrieval_without_odfv(environment, universal_data_sources, full_feature_names):
+    fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views_without_odfv(data_sources)
 
@@ -682,8 +682,8 @@ def test_online_retrieval_without_odfv(go_server_environment, universal_data_sou
     )
     fs.apply(feast_objects)
     fs.materialize(
-        go_server_environment.start_date - timedelta(days=1),
-        go_server_environment.end_date + timedelta(days=1),
+        environment.start_date - timedelta(days=1),
+        environment.end_date + timedelta(days=1),
     )
 
     entity_sample = datasets["orders"].sample(10)[
@@ -739,7 +739,7 @@ def test_online_retrieval_without_odfv(go_server_environment, universal_data_sou
     # Remove the on demand feature view output features, since they're not present in the source dataframe
 
     online_features_dict = get_online_features_dict(
-        environment=go_server_environment,
+        environment=environment,
         features=feature_refs,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -787,7 +787,7 @@ def test_online_retrieval_without_odfv(go_server_environment, universal_data_sou
 
     # Check what happens for missing values
     missing_responses_dict = get_online_features_dict(
-        environment=go_server_environment,
+        environment=environment,
         features=feature_refs,
         entity_rows=[
             {"driver": 0, "customer_id": 0}
@@ -815,7 +815,7 @@ def test_online_retrieval_without_odfv(go_server_environment, universal_data_sou
         )
     ]
     assert_feature_service_entity_mapping_correctness(
-        go_server_environment,
+        environment,
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
@@ -830,7 +830,7 @@ def test_online_retrieval_without_odfv(go_server_environment, universal_data_sou
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.noodfv
-def test_online_store_cleanup_go_server(go_server_environment, universal_data_sources):
+def test_online_store_cleanup_go_server(environment, universal_data_sources):
     """
     Some online store implementations (like Redis) keep features from different features views
     but with common entities together.
@@ -846,20 +846,20 @@ def test_online_store_cleanup_go_server(go_server_environment, universal_data_so
         6. Delete another feature view (and create again)
         7. Verify that features for both feature view were deleted
     """
-    fs = go_server_environment.feature_store
+    fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     driver_stats_fv = construct_universal_feature_views_without_odfv(data_sources)["driver"]
 
     df = pd.DataFrame(
         {
-            "ts_1": [go_server_environment.end_date] * len(entities["driver"]),
-            "created_ts": [go_server_environment.end_date] * len(entities["driver"]),
+            "ts_1": [environment.end_date] * len(entities["driver"]),
+            "created_ts": [environment.end_date] * len(entities["driver"]),
             "driver_id": entities["driver"],
             "value": np.random.random(size=len(entities["driver"])),
         }
     )
 
-    ds = go_server_environment.data_source_creator.create_data_source(
+    ds = environment.data_source_creator.create_data_source(
         df, destination_name="simple_driver_dataset"
     )
 
@@ -870,8 +870,8 @@ def test_online_store_cleanup_go_server(go_server_environment, universal_data_so
     fs.apply([driver(), simple_driver_fv, driver_stats_fv])
 
     fs.materialize(
-        go_server_environment.start_date - timedelta(days=1),
-        go_server_environment.end_date + timedelta(days=1),
+        environment.start_date - timedelta(days=1),
+        environment.end_date + timedelta(days=1),
     )
     expected_values = df.sort_values(by="driver_id")
 

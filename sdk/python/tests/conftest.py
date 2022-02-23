@@ -183,32 +183,6 @@ def environment(request, worker_id: str):
 
     return e
 
-@pytest.fixture(
-    params=DEFAULT_GO_SERVER_REPO_CONFIGS, scope="session", ids=[str(c) for c in DEFAULT_GO_SERVER_REPO_CONFIGS]
-)
-def go_server_environment(request, worker_id: str):
-    e = construct_test_environment(request.param, worker_id=worker_id)
-    proc = Process(
-        target=start_test_local_server,
-        args=(e.feature_store.repo_path, e.get_local_server_port()),
-        daemon=True,
-    )
-    if e.python_feature_server and e.test_repo_config.provider == "local":
-        proc.start()
-        # Wait for server to start
-        time.sleep(3)
-
-    def cleanup():
-        e.feature_store.stop_go_server()
-
-        e.feature_store.teardown()
-        if proc.is_alive():
-            proc.kill()
-
-    request.addfinalizer(cleanup)
-
-    return e
-
 
 @pytest.fixture(
     params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
