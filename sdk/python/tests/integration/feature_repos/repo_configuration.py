@@ -64,15 +64,8 @@ REDIS_CLUSTER_CONFIG = {
 # module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    # IntegrationTestRepoConfig(),
-    # IntegrationTestRepoConfig(python_feature_server=True),
-]
-
-DEFAULT_GO_SERVER_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
-    IntegrationTestRepoConfig(
-                online_store=REDIS_CONFIG,
-                go_feature_server=True,
-            ),
+    IntegrationTestRepoConfig(),
+    IntegrationTestRepoConfig(python_feature_server=True),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
@@ -110,8 +103,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
         ]
     )
-elif os.getenv("FEAST_IS_GO_SERVER_TEST", "True") == "True":
-    DEFAULT_FULL_REPO_CONFIGS.extend(DEFAULT_GO_SERVER_REPO_CONFIGS)
     
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
@@ -122,6 +113,31 @@ if full_repo_configs_module is not None:
         raise FeastModuleImportError(
             "FULL_REPO_CONFIGS", full_repo_configs_module
         ) from e
+elif os.getenv("FEAST_IS_GO_SERVER_TEST", "True") == "True":
+    FULL_REPO_CONFIGS = [
+        IntegrationTestRepoConfig(
+            online_store=REDIS_CONFIG,
+            go_feature_server=True,
+        ),
+        IntegrationTestRepoConfig(
+            provider="gcp",
+            offline_store_creator=BigQueryDataSourceCreator,
+            online_store=REDIS_CONFIG,
+            go_feature_server=True,
+        ),
+        IntegrationTestRepoConfig(
+            provider="aws",
+            offline_store_creator=RedshiftDataSourceCreator,
+            online_store=REDIS_CONFIG,
+            go_feature_server=True,
+        ),
+        IntegrationTestRepoConfig(
+            provider="aws",  # no list features, no feature server
+            offline_store_creator=SnowflakeDataSourceCreator,
+            online_store=REDIS_CONFIG,
+            go_feature_server=True,
+        ),
+    ]
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 

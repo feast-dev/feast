@@ -176,6 +176,7 @@ def environment(request, worker_id: str):
 
     def cleanup():
         e.feature_store.teardown()
+        e.feature_store.stop_go_server()
         if proc.is_alive():
             proc.kill()
 
