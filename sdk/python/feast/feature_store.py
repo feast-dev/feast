@@ -131,7 +131,6 @@ class FeatureStore:
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
-        # print("New feature store")
 
     @log_exceptions
     def version(self) -> str:
@@ -1797,13 +1796,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
-        if enable_go_feature_server(self.config):
-            # Lazily start the go server on the first request
-            if self._go_server is None:
-                self._go_server = GoServer(str(self.repo_path.absolute()), self.config)
-            self._go_server.start_http_server(host, port)
-        else:
-            feature_server.start_server(self, host, port, no_access_log)
+        feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
