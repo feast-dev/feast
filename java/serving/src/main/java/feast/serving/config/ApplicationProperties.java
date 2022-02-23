@@ -33,9 +33,12 @@ import javax.annotation.PostConstruct;
 import javax.validation.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import org.slf4j.Logger;
 
 /** Feast Serving properties. */
 public class ApplicationProperties {
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ApplicationProperties.class);
+
   public static class FeastProperties {
     /* Feast Serving build version */
     @NotBlank private String version = "unknown";
@@ -246,10 +249,33 @@ public class ApplicationProperties {
      * @return Returns the store specific configuration
      */
     public RedisClusterStoreConfig getRedisClusterConfig() {
+      String read_from;
+      if (!this.config.containsKey("read_from") || this.config.get("read_from") == null) {
+        log.info("'read_from' not defined in Redis cluster config, so setting to UPSTREAM");
+        read_from = ReadFrom.UPSTREAM.toString();
+      } else {
+        read_from = this.config.get("read_from");
+      }
+
+      if (!this.config.containsKey("timeout") || this.config.get("timeout") == null) {
+        throw new IllegalArgumentException(
+            "Redis cluster config does not have 'timeout' specified");
+      }
+
+      Boolean ssl = null;
+      if (!this.config.containsKey("ssl") || this.config.get("ssl") == null) {
+        log.info("'ssl' not defined in Redis cluster config, so setting to false");
+        ssl = false;
+      } else {
+        ssl = Boolean.parseBoolean(this.config.get("ssl"));
+      }
+      Duration timeout = Duration.parse(this.config.get("timeout"));
       return new RedisClusterStoreConfig(
           this.config.get("connection_string"),
-          ReadFrom.valueOf(this.config.get("read_from")),
-          Duration.parse(this.config.get("timeout")));
+          ReadFrom.valueOf(read_from),
+          timeout,
+          ssl,
+          this.config.getOrDefault("password", ""));
     }
 
     public RedisStoreConfig getRedisConfig() {

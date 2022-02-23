@@ -71,7 +71,16 @@ public class RedisClusterClient implements RedisClientAdapter {
             .map(
                 hostPort -> {
                   String[] hostPortSplit = hostPort.trim().split(":");
-                  return RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
+                  RedisURI redisURI =
+                      RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
+                  if (!config.getPassword().isEmpty()) {
+                    redisURI.setPassword(config.getPassword());
+                  }
+                  if (config.getSsl()) {
+                    redisURI.setSsl(true);
+                  }
+                  redisURI.setTimeout(config.getTimeout());
+                  return redisURI;
                 })
             .collect(Collectors.toList());
 

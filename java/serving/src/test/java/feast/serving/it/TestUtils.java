@@ -83,7 +83,8 @@ public class TestUtils {
             new ApplicationProperties.Store(
                 "online",
                 "REDIS",
-                ImmutableMap.of("host", redisHost, "port", redisPort.toString()))));
+                ImmutableMap.of(
+                    "host", redisHost, "port", redisPort.toString(), "password", "testpw"))));
 
     return feastProperties;
   }
