@@ -252,7 +252,7 @@ public class ApplicationProperties {
       String read_from;
       if (!this.config.containsKey("read_from") || this.config.get("read_from") == null) {
         log.info("'read_from' not defined in Redis cluster config, so setting to UPSTREAM");
-         read_from = ReadFrom.UPSTREAM.toString();
+        read_from = ReadFrom.UPSTREAM.toString();
       } else {
         read_from = this.config.get("read_from");
       }
