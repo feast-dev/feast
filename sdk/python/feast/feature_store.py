@@ -1230,7 +1230,6 @@ class FeatureStore:
             requested_request_feature_views,
             requested_on_demand_feature_views,
         )
-
         set_usage_attribute("odfv", bool(grouped_odfv_refs))
         set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
 
@@ -1767,16 +1766,13 @@ class FeatureStore:
         return views_to_use
 
     def stop_go_server(self):
-        if enable_go_feature_server(self.config):
-            # Lazily start the go server on the first request
-            if self._go_server is not None:
-                self._go_server.stop()
+        """Force the Go feature server to shut down."""
+        if enable_go_feature_server(self.config) and self._go_server is not None:
+            self._go_server.stop()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if enable_go_feature_server(self.config):
-            # Lazily start the go server on the first request
-            if self._go_server is not None:
-                self._go_server.stop()
+        if enable_go_feature_server(self.config) and self._go_server is not None:
+            self._go_server.stop()
 
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
