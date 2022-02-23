@@ -67,7 +67,6 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     IntegrationTestRepoConfig(),
     IntegrationTestRepoConfig(python_feature_server=True),
 ]
-
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
@@ -103,7 +102,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
         ]
     )
-
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
@@ -304,25 +302,7 @@ def construct_universal_feature_views(
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),
     )
 
-
-def construct_universal_feature_views_without_odfv(
-    data_sources: Dict[str, DataSource],
-) -> Dict[str, FeatureView]:
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
-    )
-    return {
-        "customer": create_customer_daily_profile_feature_view(
-            data_sources["customer"]
-        ),
-        "global": create_global_stats_feature_view(data_sources["global"]),
-        "driver": driver_hourly_stats,
-        "order": create_order_feature_view(data_sources["orders"]),
-        "location": create_location_stats_feature_view(data_sources["location"]),
-        "field_mapping": create_field_mapping_feature_view(
-            data_sources["field_mapping"]
-        ),
-    }
+    return universal_feature_views
 
 
 @dataclass

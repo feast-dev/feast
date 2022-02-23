@@ -22,7 +22,6 @@ from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
-    construct_universal_feature_views_without_odfv,
 )
 from tests.integration.feature_repos.universal.entities import (
     customer,
@@ -658,7 +657,7 @@ def test_online_retrieval_without_odfv(
 ):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    feature_views = construct_universal_feature_views_without_odfv(data_sources)
+    feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
 
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
@@ -825,7 +824,7 @@ def test_online_retrieval_without_odfv(
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.noodfv
-def test_online_store_cleanup_go_server(environment, universal_data_sources):
+def test_online_store_cleanup_without_odfv(environment, universal_data_sources):
     """
     Some online store implementations (like Redis) keep features from different features views
     but with common entities together.
@@ -843,7 +842,7 @@ def test_online_store_cleanup_go_server(environment, universal_data_sources):
     """
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    driver_stats_fv = construct_universal_feature_views_without_odfv(data_sources)[
+    driver_stats_fv = construct_universal_feature_views(data_sources, with_odfv=False)[
         "driver"
     ]
 
