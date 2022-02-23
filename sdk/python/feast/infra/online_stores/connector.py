@@ -12,33 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import StrictStr
-from pydantic.typing import Literal
 from datetime import datetime
-from typing import (
-    Any,
-    ByteString,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.infra.infra_object import InfraObject
+from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.infra.infra_object import InfraObject
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-
 from feast.repo_config import FeastConfigBaseModel
-from feast.infra.online_stores.online_store import OnlineStore
+
 
 class ConnectorOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Connector store"""
@@ -56,6 +43,7 @@ class ConnectorOnlineStore(OnlineStore):
     OnlineStore is an object used for all interaction between Feast and the service used for online storage of
     features.
     """
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -121,4 +109,3 @@ class ConnectorOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         pass
-

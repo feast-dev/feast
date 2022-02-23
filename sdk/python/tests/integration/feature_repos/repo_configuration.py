@@ -95,7 +95,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
         ]
     )
-    
+
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
@@ -107,10 +107,7 @@ if full_repo_configs_module is not None:
         ) from e
 elif os.getenv("FEAST_IS_GO_SERVER_TEST", "True") == "True":
     FULL_REPO_CONFIGS = [
-        IntegrationTestRepoConfig(
-            online_store=REDIS_CONFIG,
-            go_feature_server=True,
-        ),
+        IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
         IntegrationTestRepoConfig(
             provider="gcp",
             offline_store_creator=BigQueryDataSourceCreator,
@@ -261,6 +258,7 @@ def construct_universal_feature_views(
             data_sources["field_mapping"]
         ),
     }
+
 
 def construct_universal_feature_views_without_odfv(
     data_sources: Dict[str, DataSource],

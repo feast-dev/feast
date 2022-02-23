@@ -43,6 +43,7 @@ def global_feature_view(
 #         name="conv_rate_input", schema={"val_to_add": ValueType.INT32}
 #     )
 
+
 def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["conv_rate_plus_100"] = features_df["conv_rate"] + 100
@@ -71,6 +72,7 @@ def conv_rate_plus_100_feature_view(
         features=[] if infer_features else _features,
         udf=conv_rate_plus_100,
     )
+
 
 def conv_rate_plus_100_feature_view_without_odfv(
     inputs: Dict[str, Union[RequestDataSource, FeatureView]],

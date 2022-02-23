@@ -403,5 +403,3 @@ def test_online_to_df():
         ]
         expected_df = pd.DataFrame({k: reversed(v) for (k, v) in df_dict.items()})
         assert_frame_equal(result_df[ordered_column], expected_df)
-
-
