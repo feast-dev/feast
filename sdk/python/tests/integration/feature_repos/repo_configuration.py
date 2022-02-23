@@ -258,7 +258,9 @@ def construct_universal_feature_views(
                 "input_request": create_conv_rate_request_data_source(),
             }
         )
-        universal_feature_views["driver_age_request_fv"] = create_driver_age_request_feature_view()
+        universal_feature_views[
+            "driver_age_request_fv"
+        ] = create_driver_age_request_feature_view()
 
     return universal_feature_views
 
