@@ -220,20 +220,87 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 		joinKeyValues[DUMMY_ENTITY_ID] = dummyEntityColumn
 	}
 
-	for table, requestedFeatures := range groupedRefs {
-		tableEntityValues, idxs, err := fs.getUniqueEntities( table, joinKeyValues, entityNameToJoinKeyMap)
-		if err != nil {
-			return nil, err
-		}
-		featureData, err := fs.readFromOnlineStore(tableEntityValues, requestedFeatures, table)
-		if err != nil {
-			return nil, err
-		}
-		fs.populateResponseFromFeatureData(featureData, idxs, onlineFeatureResponse, fullFeatureNames, requestedFeatures, table)
+	/*
+		TODO (Ly): Precompute indices that need to be written by each table
+		and have separate goroutines for each write. For simplicity, I obmit
+		this optimization for now
+	*/
+	
+	
+	// Writer
+	type featureDataWriter struct {
+		featureData [][]FeatureData
+		idxs [][]int
+		requestedFeatures []string
+		table *FeatureView
 	}
-
-	// TODO (Ly): ODFV, skip augmentResponseWithOnDemandTransforms
-	fs.dropUnneededColumns(onlineFeatureResponse, requestedResultRowNames)
+	// Write one new read at a time
+	featureDataWriterChan := make(chan *featureDataWriter, 1)
+	errorFromReadChan := make(chan error, 1)
+	writeCount := len(groupedRefs)
+	stopReadChans := make([]chan struct{}, writeCount)
+	writeDone := make(chan struct{}, 1)
+	for index = 0; index < writeCount; index++ {
+		stopReadChans[index] = make(chan struct{}, 1)
+	}
+	go func() {
+		wrote := 0
+		var featureDataWrite *featureDataWriter
+		for wrote < writeCount {
+			featureDataWrite = <- featureDataWriterChan
+			fs.populateResponseFromFeatureData(	featureDataWrite.featureData,
+												featureDataWrite.idxs,
+												onlineFeatureResponse,
+												fullFeatureNames,
+												featureDataWrite.requestedFeatures,
+												featureDataWrite.table,
+												)
+			wrote += 1
+		}
+		// TODO (Ly): ODFV, skip augmentResponseWithOnDemandTransforms
+		fs.dropUnneededColumns(onlineFeatureResponse, requestedResultRowNames)
+		writeDone <- struct{}{}
+	}()
+	
+	index = 0
+	for table, requestedFeatures := range groupedRefs {
+		select {
+		case err := <- errorFromReadChan:
+			for index = 0; index < writeCount; index++ {
+				stopReadChans[index] <- struct{}{}
+			}
+			return nil, err
+		default:
+			
+			stopReadChans[index] = make(chan struct{}, 1)
+			go func(stopChan chan struct{}, table *FeatureView, requestedFeatures []string) {
+				select {
+				case <- stopChan:
+				default:
+					tableEntityValues, idxs, err := fs.getUniqueEntities( table, joinKeyValues, entityNameToJoinKeyMap)
+					if err != nil {
+						select {
+						case errorFromReadChan <- err:
+						default:
+						}
+						return
+					}
+					featureData, err := fs.readFromOnlineStore(tableEntityValues, requestedFeatures, table)
+					if err != nil {
+						// Don't block if another read failed in the middle of read
+						select {
+						case errorFromReadChan <- err:
+						default:
+						}
+					} else {
+						featureDataWriterChan <- &featureDataWriter{ featureData, idxs, requestedFeatures, table }
+					}
+				}
+			}(stopReadChans[index], table, requestedFeatures)
+			index += 1
+		}
+	}
+	<- writeDone
 	return onlineFeatureResponse, nil
 }
 

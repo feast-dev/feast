@@ -139,7 +139,7 @@ class GoServer:
                     self.stop()
                     raise errors.GoSubprocessConnectionFailed() from e
                 # Sleep for 0.1 second before retrying
-                time.sleep(0.1)
+            time.sleep(0.1)
 
     def start_http_server(self, host: str, port: int):
         if self.httpServerStarted:
@@ -162,16 +162,16 @@ class GoServer:
         # Only send sigkill if there's a problem telling go subprocess to stop
         # Otherwise, let go subprocess clean up and shut down itself
         if not self.pipeClosed:
-            for i in range(10):
-                try:
-                    self.process.stdin.write(bytes(f"stop\n", encoding='utf8'))
-                    self.process.stdin.flush()
-                    # time.sleep(0.1)
-                    # self.process.stdin.close()
-                    break
-                except subprocess.CalledProcessError as error:
-                    self.process.terminate()
-                    raise errors.GoSubprocessConnectionFailed() from error 
+            try:
+                self.process.stdin.write(bytes(f"stop\n", encoding='utf8'))
+                self.process.stdin.flush()
+                # TODO (Ly): Review: We don't close stdin here
+                # since if the call succeeds go process closes
+                # itself and stdin?
+                # self.process.stdin.close()
+            except subprocess.CalledProcessError as error:
+                self.process.terminate()
+                raise errors.GoSubprocessConnectionFailed() from error
        
         self.grpcServerStarted = False
         self.httpServerStarted = False

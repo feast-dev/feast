@@ -36,7 +36,6 @@ func main() {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 		return
 	}
-	log.Println(repoPath, repoConfig)
 	config, err := feast.NewRepoConfig(repoPath, repoConfig)
 	if err != nil {
 		log.Fatalln(err)
@@ -55,7 +54,6 @@ func main() {
 		grpcPort = defaultFeastGrpcPort
 	}
 
-	// fmt.Println("starting for loop")
 	reader := bufio.NewReader(os.Stdin)
 	writer := bufio.NewWriter(os.Stdout)
 	serverCounts := 0
@@ -63,35 +61,17 @@ func main() {
 
 		text, _ := reader.ReadString('\n')
 		text = strings.Trim(text, "\n")
-		// fmt.Println("Received from stdin", text)
 		commands := strings.Split(text, " ")
 		if len(commands) == 0 {
 			log.Fatalln(errors.New("Invalid command. Should be [startGrpc] or [startHttp host:port] or [stop]"))
 			return
 		} else if commands[0] == "startGrpc" {
-			// fmt.Fprintf(writer, "Success!")
 			writer.Flush()
 			go func() {
 				startGrpcServer(fs, grpcPort)
-				// server := servingServiceServer{
-				// 	fs: fs,
-				// }
-				// log.Printf("Starting a gRPC server at port %s...", grpcPort)
-				// lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
-				// if err != nil {
-				// 	log.Fatalln(err)
-				// }
-				// grpcServer := grpc.NewServer()
-				// defer grpcServer.Stop()
-				// serving.RegisterServingServiceServer(grpcServer, &server)
-				// err = grpcServer.Serve(lis)
-				// if err != nil {
-				// 	log.Fatalln(err)
-				// }
 			}()
 			serverCounts += 1
 		} else if commands[0] == "startHttp" {
-			// fmt.Fprintf(writer, "Success!")
 			writer.Flush()
 			if len(commands) < 2 {
 				log.Fatalln(errors.New("Invalid command. Should be: startHttp host:port"))
@@ -109,7 +89,6 @@ func main() {
 }
 
 func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
-	fmt.Println("startGrpcServer", grpcPort)
 	server := servingServiceServer{
 		fs: fs,
 	}
@@ -130,7 +109,6 @@ func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
 }
 
 func startHttpServer(fs *feast.FeatureStore, address string) {
-	fmt.Println("startHttpServer", address)
 	http.HandleFunc("/get-online-features", func(w http.ResponseWriter, req *http.Request) {
 		reqBodyBytes, err := io.ReadAll(req.Body)
 		var grpcRequest serving.GetOnlineFeaturesRequest
