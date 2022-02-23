@@ -34,7 +34,6 @@ from typing import (
 
 import pandas as pd
 from colorama import Fore, Style
-from feast.flags_helper import enable_go_feature_server
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
@@ -60,6 +59,8 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
+from feast.flags_helper import enable_go_feature_server
+from feast.go_server import GoServer
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
@@ -85,7 +86,6 @@ from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
-from feast.go_server import GoServer
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1167,7 +1167,9 @@ class FeatureStore:
             # Lazily start the go server on the first request
             if self._go_server is None:
                 self._go_server = GoServer(str(self.repo_path.absolute()), self.config)
-            return self._go_server.get_online_features(features, columnar, full_feature_names)
+            return self._go_server.get_online_features(
+                features, columnar, full_feature_names
+            )
 
         return self._get_online_features(
             features=features,

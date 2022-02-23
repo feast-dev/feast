@@ -73,7 +73,10 @@ def pytest_addoption(parser):
         "--universal", action="store_true", default=False, help="Run universal tests",
     )
     parser.addoption(
-        "--noodfv", action="store_true", default=False, help="Run tests without on demand transforms",
+        "--noodfv",
+        action="store_true",
+        default=False,
+        help="Run tests without on demand transforms",
     )
 
 
@@ -106,7 +109,7 @@ def pytest_collection_modifyitems(config, items: List[Item]):
         items.clear()
         for t in universal_tests:
             items.append(t)
-    
+
     noodfv_tests = [t for t in items if "noodfv" in t.keywords]
     if should_run_without_odfv:
         items.clear()

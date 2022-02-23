@@ -564,6 +564,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         destinations_df,
     )
 
+
 @pytest.mark.integration
 @pytest.mark.universal
 def test_online_store_cleanup(environment, universal_data_sources):
@@ -643,17 +644,18 @@ def test_online_store_cleanup(environment, universal_data_sources):
     # So recreating table that was just deleted might need some retries
     wait_retry_backoff(eventually_apply, timeout_secs=60)
 
-    online_features = fs.get_online_features(
-        features=features, entity_rows=entity_rows
-    )
+    online_features = fs.get_online_features(features=features, entity_rows=entity_rows)
     online_features = online_features.to_dict()
     assert all(v is None for v in online_features["value"])
+
 
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.noodfv
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval_without_odfv(environment, universal_data_sources, full_feature_names):
+def test_online_retrieval_without_odfv(
+    environment, universal_data_sources, full_feature_names
+):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views_without_odfv(data_sources)
@@ -673,12 +675,7 @@ def test_online_retrieval_without_odfv(environment, universal_data_sources, full
     feast_objects = []
     feast_objects.extend(feature_views.values())
     feast_objects.extend(
-        [
-            driver(),
-            customer(),
-            location(),
-            feature_service_entity_mapping,
-        ]
+        [driver(), customer(), location(), feature_service_entity_mapping]
     )
     fs.apply(feast_objects)
     fs.materialize(
@@ -720,7 +717,7 @@ def test_online_retrieval_without_odfv(environment, universal_data_sources, full
     global_df = datasets["global"]
 
     entity_rows = [
-        {"driver": d, "customer_id": c }
+        {"driver": d, "customer_id": c}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -789,9 +786,7 @@ def test_online_retrieval_without_odfv(environment, universal_data_sources, full
     missing_responses_dict = get_online_features_dict(
         environment=environment,
         features=feature_refs,
-        entity_rows=[
-            {"driver": 0, "customer_id": 0}
-        ],
+        entity_rows=[{"driver": 0, "customer_id": 0}],
         full_feature_names=full_feature_names,
     )
     assert missing_responses_dict is not None
@@ -848,7 +843,9 @@ def test_online_store_cleanup_go_server(environment, universal_data_sources):
     """
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    driver_stats_fv = construct_universal_feature_views_without_odfv(data_sources)["driver"]
+    driver_stats_fv = construct_universal_feature_views_without_odfv(data_sources)[
+        "driver"
+    ]
 
     df = pd.DataFrame(
         {
@@ -907,11 +904,10 @@ def test_online_store_cleanup_go_server(environment, universal_data_sources):
     # So recreating table that was just deleted might need some retries
     wait_retry_backoff(eventually_apply, timeout_secs=60)
 
-    online_features = fs.get_online_features(
-        features=features, entity_rows=entity_rows
-    )
+    online_features = fs.get_online_features(features=features, entity_rows=entity_rows)
     online_features = online_features.to_dict()
     assert all(v is None for v in online_features["value"])
+
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if (

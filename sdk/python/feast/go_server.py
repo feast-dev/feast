@@ -1,20 +1,24 @@
+import atexit
 import os
-import signal
 import platform
 import socket
 import subprocess
-import atexit
 import time
-from typing import Union, List, Dict, Any
+from typing import Any, Dict, List, Union
+
 import grpc
-from feast import errors
-from feast.type_map import python_values_to_proto_values
-from feast.feature_service import FeatureService
-from feast.repo_config import RepoConfig
-from feast.online_response import OnlineResponse
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest, GetFeastServingInfoRequest
-from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
+
 import feast
+from feast import errors
+from feast.feature_service import FeatureService
+from feast.online_response import OnlineResponse
+from feast.protos.feast.serving.ServingService_pb2 import (
+    GetFeastServingInfoRequest,
+    GetOnlineFeaturesRequest,
+)
+from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.repo_config import RepoConfig
+from feast.type_map import python_values_to_proto_values
 
 
 class GoServer:
@@ -30,10 +34,10 @@ class GoServer:
         self._connect()
 
     def get_online_features(
-            self,
-            features: Union[List[str], FeatureService],
-            entities: Dict[str, List[Any]],
-            full_feature_names: bool = False,
+        self,
+        features: Union[List[str], FeatureService],
+        entities: Dict[str, List[Any]],
+        full_feature_names: bool = False,
     ) -> OnlineResponse:
 
         if not self.grpcServerStarted:
@@ -49,7 +53,7 @@ class GoServer:
 
         for key, values in entities.items():
             request.entities[key].val.extend(python_values_to_proto_values(values))
-        
+
         try:
             response = self.client.GetOnlineFeatures(request=request)
         except grpc.RpcError as rpc_error:
@@ -69,7 +73,9 @@ class GoServer:
                     parsed_error_message = error_message.split(": ")[1].split("; ")
                     collided_feature_refs = parsed_error_message[0].split(", ")
                     full_feature_names = parsed_error_message[1] == "true"
-                    raise errors.FeatureNameCollisionError(collided_feature_refs, full_feature_names)
+                    raise errors.FeatureNameCollisionError(
+                        collided_feature_refs, full_feature_names
+                    )
                 elif error_message.startswith(self.ValueError_STRING):
                     parsed_error_message = error_message.split(": ")[1]
                     raise ValueError(parsed_error_message)
@@ -88,23 +94,28 @@ class GoServer:
             # pass a random unused port to go subprocess, so that there's no conflicts
             # if multiple Python processes start Go subprocess on the same host
             "FEAST_GRPC_PORT": unused_port,
-            **os.environ
+            **os.environ,
         }
         cwd = feast.__path__[0]
 
         if "dev" in feast.__version__:
-            self.process = subprocess.Popen(["go", "run", "github.com/feast-dev/feast/go/server"],
-                                            cwd=cwd, env=env,
-                                            stdin=subprocess.PIPE )
+            self.process = subprocess.Popen(
+                ["go", "run", "github.com/feast-dev/feast/go/server"],
+                cwd=cwd,
+                env=env,
+                stdin=subprocess.PIPE,
+            )
         else:
             goos = platform.system().lower()
             goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
             executable = feast.__path__[0] + f"/binaries/go_server_{goos}_{goarch}"
-            self.process = subprocess.Popen([executable], cwd=cwd, env=env, stdin=subprocess.PIPE)
+            self.process = subprocess.Popen(
+                [executable], cwd=cwd, env=env, stdin=subprocess.PIPE
+            )
 
         # Make sure the subprocess is terminated when the parent process dies
         # Note: this doesn't handle cases where the parent process is abruptly killed (e.g. with SIGKILL)
-        atexit.register(lambda: self.stop() )
+        atexit.register(lambda: self.stop())
         self.start_grpc_server()
         self.pipeClosed = False
 
@@ -112,10 +123,10 @@ class GoServer:
         if self.grpcServerStarted:
             return
         # Try connecting to the go server using a gPRC client
-        
+
         for i in range(5):
             try:
-                self.process.stdin.write(b'startGrpc\n')
+                self.process.stdin.write(b"startGrpc\n")
                 self.process.stdin.flush()
                 self.grpcServerStarted = True
                 break
@@ -146,7 +157,9 @@ class GoServer:
             return
         for i in range(10):
             try:
-                self.process.stdin.write(bytes(f"startHttp {host}:{port}\n", encoding='utf8'))
+                self.process.stdin.write(
+                    bytes(f"startHttp {host}:{port}\n", encoding="utf8")
+                )
                 self.process.stdin.flush()
                 self.httpServerStarted = True
                 break
@@ -163,7 +176,7 @@ class GoServer:
         # Otherwise, let go subprocess clean up and shut down itself
         if not self.pipeClosed:
             try:
-                self.process.stdin.write(bytes(f"stop\n", encoding='utf8'))
+                self.process.stdin.write(bytes("stop\n", encoding="utf8"))
                 self.process.stdin.flush()
                 # TODO (Ly): Review: We don't close stdin here
                 # since if the call succeeds go process closes
@@ -172,11 +185,12 @@ class GoServer:
             except subprocess.CalledProcessError as error:
                 self.process.terminate()
                 raise errors.GoSubprocessConnectionFailed() from error
-       
+
         self.grpcServerStarted = False
         self.httpServerStarted = False
         self.pipeClosed = True
-                
+
+
 def _get_unused_port() -> str:
     sock = socket.socket()
     # binding port 0 means os will choose an unused port for us
