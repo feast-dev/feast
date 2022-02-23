@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import warnings
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -21,6 +22,8 @@ from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
+
+warnings.simplefilter("once", DeprecationWarning)
 
 
 class Entity:
@@ -59,6 +62,7 @@ class Entity:
         description: str = "",
         join_key: Optional[str] = None,
         tags: Dict[str, str] = None,
+        labels: Optional[Dict[str, str]] = None,
         owner: str = "",
     ):
         """Creates an Entity object."""
@@ -66,7 +70,19 @@ class Entity:
         self._value_type = value_type
         self._join_key = join_key if join_key else name
         self._description = description
-        self._tags = tags or {}
+
+        if labels is not None:
+            self._tags = labels
+            warnings.warn(
+                (
+                    "The parameter 'labels' is being deprecated. Please use 'tags' instead. "
+                    "Feast 0.20 and onwards will not support the parameter 'labels'."
+                ),
+                DeprecationWarning,
+            )
+        else:
+            self._tags = labels or tags or {}
+
         self._owner = owner
         self._created_timestamp = None
         self._last_updated_timestamp = None
@@ -131,6 +147,14 @@ class Entity:
 
     @tags.setter
     def tags(self, tags: Dict[str, str]):
+        self._tags = tags
+
+    @property
+    def labels(self) -> Dict[str, str]:
+        return self._tags
+
+    @labels.setter
+    def labels(self, tags: Dict[str, str]):
         self._tags = tags
 
     @property
