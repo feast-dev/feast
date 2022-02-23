@@ -59,7 +59,6 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     IntegrationTestRepoConfig(),
     IntegrationTestRepoConfig(python_feature_server=True),
 ]
-
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
@@ -95,7 +94,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
         ]
     )
-
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
@@ -234,50 +232,35 @@ def construct_universal_data_sources(
 
 
 def construct_universal_feature_views(
-    data_sources: Dict[str, DataSource],
+    data_sources: Dict[str, DataSource], with_odfv: bool = True
 ) -> Dict[str, FeatureView]:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(
         data_sources["driver"]
     )
-    return {
+
+    universal_feature_views = {
         "customer": create_customer_daily_profile_feature_view(
             data_sources["customer"]
         ),
         "global": create_global_stats_feature_view(data_sources["global"]),
         "driver": driver_hourly_stats,
-        "driver_odfv": conv_rate_plus_100_feature_view(
+        "order": create_order_feature_view(data_sources["orders"]),
+        "location": create_location_stats_feature_view(data_sources["location"]),
+        "field_mapping": create_field_mapping_feature_view(
+            data_sources["field_mapping"]
+        ),
+    }
+
+    if with_odfv:
+        universal_feature_views["driver_odfv"] = conv_rate_plus_100_feature_view(
             {
                 "driver": driver_hourly_stats,
                 "input_request": create_conv_rate_request_data_source(),
             }
-        ),
-        "driver_age_request_fv": create_driver_age_request_feature_view(),
-        "order": create_order_feature_view(data_sources["orders"]),
-        "location": create_location_stats_feature_view(data_sources["location"]),
-        "field_mapping": create_field_mapping_feature_view(
-            data_sources["field_mapping"]
-        ),
-    }
+        )
+        universal_feature_views["driver_age_request_fv"] = create_driver_age_request_feature_view()
 
-
-def construct_universal_feature_views_without_odfv(
-    data_sources: Dict[str, DataSource],
-) -> Dict[str, FeatureView]:
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
-    )
-    return {
-        "customer": create_customer_daily_profile_feature_view(
-            data_sources["customer"]
-        ),
-        "global": create_global_stats_feature_view(data_sources["global"]),
-        "driver": driver_hourly_stats,
-        "order": create_order_feature_view(data_sources["orders"]),
-        "location": create_location_stats_feature_view(data_sources["location"]),
-        "field_mapping": create_field_mapping_feature_view(
-            data_sources["field_mapping"]
-        ),
-    }
+    return universal_feature_views
 
 
 @dataclass
