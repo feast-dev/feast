@@ -30,7 +30,6 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
-    DEFAULT_GO_SERVER_REPO_CONFIGS,
     REDIS_CONFIG,
     Environment,
     construct_test_environment,
@@ -176,6 +175,7 @@ def environment(request, worker_id: str):
 
     def cleanup():
         e.feature_store.teardown()
+        e.feature_store.stop_go_server()
         if proc.is_alive():
             proc.kill()
 
