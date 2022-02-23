@@ -199,8 +199,7 @@ def go_server_environment(request, worker_id: str):
         time.sleep(3)
 
     def cleanup():
-        if e.feature_store:
-            e.feature_store.stop_go_server()
+        e.feature_store.stop_go_server()
 
         e.feature_store.teardown()
         if proc.is_alive():
