@@ -233,10 +233,10 @@ class DataSource(ABC):
         date_partition_column (optional): Timestamp column used for partitioning.
     """
 
-    _event_timestamp_column: str
-    _created_timestamp_column: str
-    _field_mapping: Dict[str, str]
-    _date_partition_column: str
+    event_timestamp_column: str
+    created_timestamp_column: str
+    field_mapping: Dict[str, str]
+    date_partition_column: str
 
     def __init__(
         self,
@@ -246,14 +246,14 @@ class DataSource(ABC):
         date_partition_column: Optional[str] = None,
     ):
         """Creates a DataSource object."""
-        self._event_timestamp_column = (
+        self.event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
-        self._created_timestamp_column = (
+        self.created_timestamp_column = (
             created_timestamp_column if created_timestamp_column else ""
         )
-        self._field_mapping = field_mapping if field_mapping else {}
-        self._date_partition_column = (
+        self.field_mapping = field_mapping if field_mapping else {}
+        self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
 
@@ -270,62 +270,6 @@ class DataSource(ABC):
             return False
 
         return True
-
-    @property
-    def field_mapping(self) -> Dict[str, str]:
-        """
-        Returns the field mapping of this data source.
-        """
-        return self._field_mapping
-
-    @field_mapping.setter
-    def field_mapping(self, field_mapping):
-        """
-        Sets the field mapping of this data source.
-        """
-        self._field_mapping = field_mapping
-
-    @property
-    def event_timestamp_column(self) -> str:
-        """
-        Returns the event timestamp column of this data source.
-        """
-        return self._event_timestamp_column
-
-    @event_timestamp_column.setter
-    def event_timestamp_column(self, event_timestamp_column):
-        """
-        Sets the event timestamp column of this data source.
-        """
-        self._event_timestamp_column = event_timestamp_column
-
-    @property
-    def created_timestamp_column(self) -> str:
-        """
-        Returns the created timestamp column of this data source.
-        """
-        return self._created_timestamp_column
-
-    @created_timestamp_column.setter
-    def created_timestamp_column(self, created_timestamp_column):
-        """
-        Sets the created timestamp column of this data source.
-        """
-        self._created_timestamp_column = created_timestamp_column
-
-    @property
-    def date_partition_column(self) -> str:
-        """
-        Returns the date partition column of this data source.
-        """
-        return self._date_partition_column
-
-    @date_partition_column.setter
-    def date_partition_column(self, date_partition_column):
-        """
-        Sets the date partition column of this data source.
-        """
-        self._date_partition_column = date_partition_column
 
     @staticmethod
     @abstractmethod
