@@ -114,11 +114,6 @@ class GoSubprocessConnectionFailed(Exception):
         )
 
 
-class GoServerError(Exception):
-    def __init__(self, error_message):
-        super().__init__(f"Go server raises exception: {error_message}")
-
-
 class FeastModuleImportError(Exception):
     def __init__(self, module_name: str, class_name: str):
         super().__init__(
