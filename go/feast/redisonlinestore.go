@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strings"
 	"strconv"
-	// "log"
 )
 
 type redisType int
@@ -42,7 +41,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 
 	var address []string
 	var password string
-	var db int
+	var db int // Default to 0
 
 	// Parse redis_type and write it into conf.t
 	t, err := getRedisType(onlineStoreConfig)
@@ -53,7 +52,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 	// Parse connection_string and write it into conf.address, conf.password, and conf.ssl
 	redisConnJson, ok := onlineStoreConfig["connection_string"]
 	if !ok {
-		// default to "localhost:6379"
+		// Default to "localhost:6379"
 		redisConnJson = "localhost:6379"
 	}
 	if redisConnStr, ok := redisConnJson.(string); !ok {
@@ -69,7 +68,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 					password = kv[1]
 				} else if kv[0] == "ssl" {
 					// TODO (woop): Add support for TLS/SSL
-					//ssl = kv[1] == "true"
+					// ssl = kv[1] == "true"
 				} else if(kv[0]=="db") {
 					db, err = strconv.Atoi(kv[1])
 					if err != nil {
@@ -87,9 +86,8 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 	if t == redisNode {
 		store.client = redis.NewClient(&redis.Options{
 			Addr:     address[0],
-			Password: password, // no password set
-			DB:       db,        // use default DB
-
+			Password: password,  // No password set
+			DB:       db,
 		})
 	} else {
 		return nil, errors.New("only single node Redis is supported at this time")
@@ -103,7 +101,7 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 
 	redisTypeJson, ok := onlineStoreConfig["redis_type"]
 	if !ok {
-		// default to "redis"
+		// Default to "redis"
 		redisTypeJson = "redis"
 	} else if redisTypeStr, ok := redisTypeJson.(string); !ok {
 		return -1, errors.New(fmt.Sprintf("Failed to convert redis_type to string: %+v", redisTypeJson))
@@ -142,7 +140,7 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
 
-		var key, err = buildRedisKey(r.project, entityKeys[i])
+		var key, err = buildRedisKey(r.project, &entityKeys[i])
 		if err != nil {
 			return nil, err
 		}
@@ -160,125 +158,76 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 	for _, redisKey := range redisKeys {
 		keyString := string(*redisKey)
-		// TODO: Add pipelining (without transactions)
 		commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
-		
 	}
 
 	_, err := pipe.Exec(ctx)
 	if err != nil {
-		panic(err)
-	}
-
-	finishedChan := make(chan struct{}, 1)
-	doneChan := make(chan struct{}, 1)
-	errorChan := make(chan error, 1)
-
-	loadMain := func() {
-		doneCount := 0
-		numRedisKey := len(redisKeys)
-		for doneCount < numRedisKey {
-			<- finishedChan
-			doneCount += 1
-		}
-		doneChan <- struct{}{}
-	}
-	go loadMain()
-
-	for redisKey, values := range commands {
-		go func(redisKey string, values *redis.SliceCmd) {
-			entityIndex := redisKeyToEntityIndex[redisKey]
-			resContainsNonNil := false
-
-			results[entityIndex] = make([]FeatureData, featureCount)
-			res, err := values.Result()
-			if err != nil {
-				select {
-				case errorChan <- err:
-				default:
-				}
-				return
-			}
-
-			var timeStamp timestamppb.Timestamp
-			timeStampInterface := res[featureCount]
-			if timeStampInterface != nil {
-				if timeStampString, ok := timeStampInterface.(string); !ok {
-					select {
-					case errorChan <- errors.New("Error parsing value from redis"):
-					default:
-					}
-					return
-				} else {
-					if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-						select {
-						case errorChan <- errors.New("Error converting parsed redis value to timestamppb.Timestamp"):
-						default:
-						}
-						return
-					}
-				}
-			}
-
-			res = res[:featureCount]
-			
-			for featureIndex,resString := range res {
-				if resString == nil {
-
-					// TODO (Ly): Can there be nil result
-					// within each feature
-					// or they will all be returned
-					// as string proto of types.Value_NullVal proto?
-
-					featureName := features[ featureIndex ]
-					ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
-						FeatureName: featureName}
-					feature := FeatureData { 	reference: ref,
-												timestamp: timeStamp,
-												value: types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL} } }
-					results[entityIndex][featureIndex] = feature
-
-				} else if valueString, ok := resString.(string); !ok {
-					select {
-					case errorChan <- errors.New("Error parsing value from redis"):
-					default:
-					}
-					return
-				} else {
-					resContainsNonNil = true
-					var value types.Value
-					if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
-						select {
-						case errorChan <- errors.New("Error converting parsed redis value to types.Value"):
-						default:
-						}
-						return
-					} else {
-						featureName := features[ featureIndex ]
-						ref := serving.FeatureReferenceV2{ 	FeatureViewName: view,
-							FeatureName: featureName}
-						feature := FeatureData { 	reference: ref,
-												timestamp: timeStamp,
-												value: value }
-						results[entityIndex][featureIndex] = feature
-					}
-				}
-			}
-
-			if !resContainsNonNil {
-				results[entityIndex] = nil
-			}
-
-			finishedChan <- struct{}{}
-		}(redisKey, values)
-		
-
-	}
-
-	select {
-	case err := <- errorChan:
 		return nil, err
-	case <- doneChan:
+	}
+
+	var entityIndex int
+	var resContainsNonNil bool
+	for redisKey, values := range commands {
+
+		entityIndex = redisKeyToEntityIndex[redisKey]
+		resContainsNonNil = false
+
+		results[entityIndex] = make([]FeatureData, featureCount)
+		res, err := values.Result()
+		if err != nil {
+			return nil, err
+		}
+
+		var timeStamp timestamppb.Timestamp
+		timeStampInterface := res[featureCount]
+		if timeStampInterface != nil {
+			if timeStampString, ok := timeStampInterface.(string); !ok {
+				return nil, errors.New("Error parsing value from redis")
+			} else {
+				if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
+					return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
+				}
+			}
+		}
+
+		res = res[:featureCount]
+		
+		for featureIndex,resString := range res {
+			if resString == nil {
+
+				// TODO (Ly): Can there be nil result
+				// within each feature
+				// or they will all be returned
+				// as string proto of types.Value_NullVal proto?
+
+				featureName := features[ featureIndex ]
+				results[entityIndex][featureIndex] = FeatureData 	{ 	reference: serving.FeatureReferenceV2{ FeatureViewName: view, FeatureName: featureName },
+																		timestamp: timestamppb.Timestamp{ Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos },
+																		value: types.Value{ Val: &types.Value_NullVal{NullVal: types.Null_NULL } },
+																	}
+
+			} else if valueString, ok := resString.(string); !ok {
+				return nil, errors.New("Error parsing value from redis")
+			} else {
+				resContainsNonNil = true
+				var value types.Value
+				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+					return nil, errors.New("Error converting parsed redis value to types.Value")
+				} else {
+					featureName := features[ featureIndex ]
+					results[entityIndex][featureIndex] = FeatureData 	{ 	reference: serving.FeatureReferenceV2{ FeatureViewName: view, FeatureName: featureName },
+																			timestamp: timestamppb.Timestamp{ Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos },
+																			value: types.Value{Val: value.Val},
+																		}
+				}
+			}
+		}
+
+		if !resContainsNonNil {
+			results[entityIndex] = nil
+		}
+
 	}
 
 	return results, nil
@@ -289,18 +238,17 @@ func (r *RedisOnlineStore) Destruct() {
 
 }
 
-func buildRedisKey(project string, entityKey types.EntityKey) (*[]byte, error) {
+func buildRedisKey(project string, entityKey *types.EntityKey) (*[]byte, error) {
 	serKey, err := serializeEntityKey(entityKey)
 	if err != nil {
 		return nil, err
 	}
-
 	fullKey := append(*serKey, []byte(project)...)
 	return &fullKey, nil
 }
 
-func serializeEntityKey(entityKey types.EntityKey) (*[]byte, error) {
-	//    Serialize entity key to a bytestring so that it can be used as a lookup key in a hash table.
+func serializeEntityKey(entityKey *types.EntityKey) (*[]byte, error) {
+	// Serialize entity key to a bytestring so that it can be used as a lookup key in a hash table.
 
 	// Ensure that we have the right amount of join keys and entity values
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {

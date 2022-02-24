@@ -5,14 +5,12 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
-// TODO (Ly): parse attributes of proto into OnDemandFeatureView
 type OnDemandFeatureView struct {
 	base *BaseFeatureView
 	inputFeatureViewProjections map[string]*FeatureViewProjection
 	inputRequestDataSources map[string]*core.DataSource_RequestDataOptions
 }
 
-// TODO (Ly): Potential memory error for features
 func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandFeatureView {
 	onDemandFeatureView := &OnDemandFeatureView{	base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
 													inputFeatureViewProjections: make(map[string]*FeatureViewProjection),

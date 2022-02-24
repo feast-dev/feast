@@ -174,6 +174,7 @@ class GoServer:
         if self.grpc_server_started:
             return
 
+        # Try 5 times to wait for pipe to open
         for i in range(5):
             try:
                 self.process.stdin.write(b"startGrpc\n")
@@ -193,6 +194,9 @@ class GoServer:
         # Make sure the connection can be used for feature retrieval before returning
         # from constructor. We try connecting to the Go subprocess for 5 seconds (50
         # times with 0.1 second intervals).
+        # TODO (Ly): Review: increase time.sleep(0.2) to 0.2 so wait 10 seconds
+        # since python connector plugin can take up to 8 seconds to spin up.
+        # 5 seconds is not enough sometimes to spin up grpc server itself
         for i in range(50):
             try:
                 self.client.GetFeastServingInfo(request=GetFeastServingInfoRequest())
@@ -219,9 +223,10 @@ class GoServer:
             except subprocess.CalledProcessError as error:
                 # If there is a problem telling the Go subprocess to stop,
                 # directly terminate it.
-                self.process.terminate()
-                raise GoSubprocessConnectionFailed() from error
-
+                if not isinstance(error, BrokenPipeError):
+                    self.process.terminate()
+                    raise
+                
         self.grpc_server_started = False
         self.pipe_closed = True
 

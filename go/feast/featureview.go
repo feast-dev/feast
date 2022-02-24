@@ -14,18 +14,16 @@ const (
 
 var DUMMY_ENTITY types.Value = types.Value{Val: &types.Value_StringVal{StringVal: DUMMY_ENTITY_VAL} }
 
-// Wrapper around core.FeatureView to add projection
 type FeatureView struct {
 	base *BaseFeatureView
 	ttl *durationpb.Duration
-	// make entities set so that search for dummy entity is faster
+	// Make entities set so that search for dummy entity is faster
 	entities map[string]bool
 }
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
-	featureView := &FeatureView{	base: NewBaseFeatureView(	proto.Spec.Name, proto.Spec.Features),
+	featureView := &FeatureView	{	base: NewBaseFeatureView(	proto.Spec.Name, proto.Spec.Features),
 									ttl: &(*proto.Spec.Ttl),
-									// entities: proto.Spec.Entities,
 								}
 	if len(proto.Spec.Entities) == 0 {
 		featureView.entities = map[string]bool{DUMMY_ENTITY_NAME:true}
@@ -39,8 +37,8 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 }
 
 func (fs *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureView {
-	ttl := *fs.ttl
-	featureView := &FeatureView{	base: base,
+	ttl := durationpb.Duration{Seconds: fs.ttl.Seconds, Nanos: fs.ttl.Nanos}
+	featureView := &FeatureView	{	base: base,
 									ttl: &ttl,
 									entities: fs.entities,
 								}

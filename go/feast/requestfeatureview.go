@@ -2,11 +2,8 @@ package feast
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
-	// "github.com/feast-dev/feast/go/protos/feast/types"
 )
 
-// TODO (Ly): parse attributes of proto into RequestFeatureView
-// as needed
 type RequestFeatureView struct {
 	base *BaseFeatureView
 }
