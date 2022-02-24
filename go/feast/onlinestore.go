@@ -6,7 +6,6 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
-
 type FeatureData struct {
 	reference serving.FeatureReferenceV2
 	timestamp timestamp.Timestamp
@@ -46,4 +45,3 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 		return result, ok
 	}
 }
-

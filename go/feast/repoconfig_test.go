@@ -38,8 +38,6 @@ online_store:
 	assert.Empty(t, config.Flags)
 }
 
-
-
 func TestNewRepoConfigRegistryMap(t *testing.T) {
 	dir, err := os.MkdirTemp("", "feature_repo_*")
 	assert.Nil(t, err)

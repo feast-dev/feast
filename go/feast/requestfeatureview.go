@@ -17,9 +17,9 @@ func NewRequestFeatureViewFromProto(proto *core.RequestFeatureView) *RequestFeat
 		features := make([]*core.FeatureSpecV2, numFeatures)
 		index := 0
 		for featureName, valueType := range dataSourceRequestOptions.RequestDataOptions.Schema {
-			features[index] = &core.FeatureSpecV2{ 	Name: featureName,
-													ValueType: valueType,
-													}
+			features[index] = &core.FeatureSpecV2{Name: featureName,
+				ValueType: valueType,
+			}
 		}
 		requestFeatureView.base = NewBaseFeatureView(proto.Spec.Name, features)
 		return requestFeatureView
@@ -28,6 +28,6 @@ func NewRequestFeatureViewFromProto(proto *core.RequestFeatureView) *RequestFeat
 
 func (fs *RequestFeatureView) NewRequestFeatureViewFromBase(base *BaseFeatureView) *RequestFeatureView {
 
-	featureView := &RequestFeatureView	{	base: base }
+	featureView := &RequestFeatureView{base: base}
 	return featureView
 }

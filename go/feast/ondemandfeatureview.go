@@ -6,16 +6,16 @@ import (
 )
 
 type OnDemandFeatureView struct {
-	base *BaseFeatureView
+	base                        *BaseFeatureView
 	inputFeatureViewProjections map[string]*FeatureViewProjection
-	inputRequestDataSources map[string]*core.DataSource_RequestDataOptions
+	inputRequestDataSources     map[string]*core.DataSource_RequestDataOptions
 }
 
 func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandFeatureView {
-	onDemandFeatureView := &OnDemandFeatureView{	base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
-													inputFeatureViewProjections: make(map[string]*FeatureViewProjection),
-													inputRequestDataSources: make(map[string]*core.DataSource_RequestDataOptions),
-												}
+	onDemandFeatureView := &OnDemandFeatureView{base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
+		inputFeatureViewProjections: make(map[string]*FeatureViewProjection),
+		inputRequestDataSources:     make(map[string]*core.DataSource_RequestDataOptions),
+	}
 	for inputName, onDemandInput := range proto.Spec.Inputs {
 		if onDemandInputFeatureView, ok := onDemandInput.Input.(*core.OnDemandInput_FeatureView); ok {
 			featureViewProto := onDemandInputFeatureView.FeatureView
@@ -37,11 +37,11 @@ func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandF
 
 func (fs *OnDemandFeatureView) NewOnDemandFeatureViewFromBase(base *BaseFeatureView) *OnDemandFeatureView {
 
-	featureView := &OnDemandFeatureView{	base: base }
+	featureView := &OnDemandFeatureView{base: base}
 	return featureView
 }
 
-func (fs *OnDemandFeatureView) getRequestDataSchema() map[string]types.ValueType_Enum{
+func (fs *OnDemandFeatureView) getRequestDataSchema() map[string]types.ValueType_Enum {
 	schema := make(map[string]types.ValueType_Enum)
 	for _, requestDataSource := range fs.inputRequestDataSources {
 		for fieldName, fieldValueType := range requestDataSource.Schema {
