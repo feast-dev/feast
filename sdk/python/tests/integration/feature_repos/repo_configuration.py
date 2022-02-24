@@ -128,12 +128,12 @@ GO_REPO_CONFIGS = [
         online_store=REDIS_CONFIG,
         go_feature_server=True,
     ),
-    # IntegrationTestRepoConfig(
-    #     provider="aws",  # no list features, no feature server
-    #     offline_store_creator=SnowflakeDataSourceCreator,
-    #     online_store=REDIS_CONFIG,
-    #     go_feature_server=True,
-    # ),
+    IntegrationTestRepoConfig(
+        provider="aws",  # no list features, no feature server
+        offline_store_creator=SnowflakeDataSourceCreator,
+        online_store=REDIS_CONFIG,
+        go_feature_server=True,
+    ),
 ]
 
 

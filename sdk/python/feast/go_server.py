@@ -227,7 +227,7 @@ class GoServer:
                     self.process.terminate()
                 else:
                     raise
-                
+
         self.grpc_server_started = False
         self.pipe_closed = True
 
