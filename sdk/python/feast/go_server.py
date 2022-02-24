@@ -225,6 +225,7 @@ class GoServer:
                 # directly terminate it.
                 if not isinstance(error, BrokenPipeError):
                     self.process.terminate()
+                else:
                     raise
                 
         self.grpc_server_started = False
