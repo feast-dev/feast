@@ -235,8 +235,8 @@ class Registry:
 
         now = datetime.utcnow()
         if not entity.created_timestamp:
-            entity._created_timestamp = now
-        entity._last_updated_timestamp = now
+            entity.created_timestamp = now
+        entity.last_updated_timestamp = now
 
         entity_proto = entity.to_proto()
         entity_proto.spec.project = project
