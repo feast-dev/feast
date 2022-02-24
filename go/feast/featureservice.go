@@ -6,11 +6,11 @@ import (
 )
 
 type FeatureService struct {
-	name string
-	project string
-	createdTimestamp *timestamppb.Timestamp
+	name                 string
+	project              string
+	createdTimestamp     *timestamppb.Timestamp
 	lastUpdatedTimestamp *timestamppb.Timestamp
-	projections []*FeatureViewProjection
+	projections          []*FeatureViewProjection
 }
 
 func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
@@ -18,10 +18,10 @@ func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
 	for index, projectionProto := range proto.Spec.Features {
 		projections[index] = NewFeatureViewProjectionFromProto(projectionProto)
 	}
-	return 	&FeatureService	{	name: proto.Spec.Name,
-								project: proto.Spec.Project,
-								createdTimestamp: proto.Meta.CreatedTimestamp,
-								lastUpdatedTimestamp: proto.Meta.LastUpdatedTimestamp,
-								projections: projections,
-							}
+	return &FeatureService{name: proto.Spec.Name,
+		project:              proto.Spec.Project,
+		createdTimestamp:     proto.Meta.CreatedTimestamp,
+		lastUpdatedTimestamp: proto.Meta.LastUpdatedTimestamp,
+		projections:          projections,
+	}
 }

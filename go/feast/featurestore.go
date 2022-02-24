@@ -2,13 +2,13 @@ package feast
 
 import (
 	"errors"
+	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	"strings"
 	"sort"
-	"fmt"
+	"strings"
 )
 
 type FeatureStore struct {
@@ -18,7 +18,7 @@ type FeatureStore struct {
 }
 
 type entityKeyRow struct {
-	entityKey *types.EntityKey
+	entityKey  *types.EntityKey
 	rowIndices []int
 }
 
@@ -29,7 +29,7 @@ func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	registry, err := NewRegistry(config.getRegistryPath())
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err := fs.getFeatureViewsToUse(parsedKind, true, false)
 
 	// TODO (Ly): Remove this BLOCK once odfv is supported
-	if len(requestedRequestFeatureViews) + len(requestedOnDemandFeatureViews) > 0 {
+	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
 		return nil, errors.New("Ondemand transform is not supported in this iteration, please wait!")
 	}
 	// END BLOCK
@@ -79,12 +79,12 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	if err != nil {
 		return nil, err
 	}
-	
+
 	groupedRefs, groupedOdfvRefs, groupedRequestFvRefs, err := groupFeatureRefs(featureRefs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	requestedResultRowNames := make(map[string]struct{})
 	if fullFeatureNames {
 		for _, featureReference := range featureRefs {
@@ -110,7 +110,7 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 
 	featureViews := make([]*FeatureView, len(groupedRefs))
 	index := 0
-	for featureView, _ := range groupedRefs {
+	for featureView := range groupedRefs {
 		featureViews[index] = featureView
 		index += 1
 	}
@@ -149,17 +149,17 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	// 	return nil, err
 	// }
 
-	onlineFeatureResponse := &serving.GetOnlineFeaturesResponse	{	Metadata: &serving.GetOnlineFeaturesResponseMetadata	{
-																				FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
-																			},
-																	Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, numRows),	
-																}
+	onlineFeatureResponse := &serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{
+		FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
+	},
+		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, numRows),
+	}
 	// Allocate memory for each GetOnlineFeaturesResponse_FeatureVector
 	for index = 0; index < numRows; index++ {
-		onlineFeatureResponse.Results[index] = &serving.GetOnlineFeaturesResponse_FeatureVector	{	Values: make([]*types.Value, 0),
-																									Statuses: make([]serving.FieldStatus, 0),
-																									EventTimestamps: make([]*timestamppb.Timestamp, 0),
-																								}
+		onlineFeatureResponse.Results[index] = &serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, 0),
+			Statuses:        make([]serving.FieldStatus, 0),
+			EventTimestamps: make([]*timestamppb.Timestamp, 0),
+		}
 	}
 	// Merge joinKeyValues into requestDataFeatures
 	for entityName, vals := range joinKeyValues {
@@ -169,7 +169,7 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	fs.populateResultRowsFromColumnar(onlineFeatureResponse, requestDataFeatures)
 
 	entitylessCase := false
-	
+
 	for _, featureView := range featureViews {
 		if _, ok := featureView.entities[DUMMY_ENTITY_NAME]; ok {
 			entitylessCase = true
@@ -186,18 +186,18 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 	}
 
 	for table, requestedFeatures := range groupedRefs {
-		tableEntityValues, idxs, err := fs.getUniqueEntities( table, joinKeyValues, entityNameToJoinKeyMap)
+		tableEntityValues, idxs, err := fs.getUniqueEntities(table, joinKeyValues, entityNameToJoinKeyMap)
 		if err != nil {
 			return nil, err
 		}
 		featureData, err := fs.readFromOnlineStore(tableEntityValues, requestedFeatures, table)
-		fs.populateResponseFromFeatureData(		featureData,
-												idxs,
-												onlineFeatureResponse,
-												fullFeatureNames,
-												requestedFeatures,
-												table,
-												)
+		fs.populateResponseFromFeatureData(featureData,
+			idxs,
+			onlineFeatureResponse,
+			fullFeatureNames,
+			requestedFeatures,
+			table,
+		)
 	}
 	// TODO (Ly): ODFV, skip augmentResponseWithOnDemandTransforms
 	fs.dropUnneededColumns(onlineFeatureResponse, requestedResultRowNames)
@@ -231,8 +231,8 @@ func (fs *FeatureStore) parseKind(kind interface{}) (interface{}, error) {
 */
 
 func (fs *FeatureStore) getFeatures(parsedKind interface{}, allowCache bool) ([]string, error) {
-	
-	if features, ok :=  parsedKind.([]string); !ok {
+
+	if features, ok := parsedKind.([]string); !ok {
 		var featureService *FeatureService
 		if featureService, ok = parsedKind.(*FeatureService); !ok {
 			return nil, errors.New("Cannot parse FeatureService from request")
@@ -257,14 +257,14 @@ func (fs *FeatureStore) getFeatures(parsedKind interface{}, allowCache bool) ([]
 		return all FeatureView, OnDemandFeatureView, RequestFeatureView from the registry
 	Otherwise, a FeatureService was passed, return a list of copies of FeatureViewProjection
 		copied from FeatureView, OnDemandFeatureView, RequestFeatureView existed in the registry
-	
+
 	TODO (Ly): Since the implementation of registry has changed, a better approach here is just
 		retrieving featureViews asked in the passed in list of feature references instead of
 		retrieving all feature views. Similar argument to FeatureService applies.
 
 */
 func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache, hideDummyEntity bool) ([]*FeatureView, []*RequestFeatureView, []*OnDemandFeatureView, error) {
-	
+
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
@@ -278,7 +278,7 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 	for _, featureView := range featureViews {
 		fvs[featureView.base.name] = featureView
 	}
-	
+
 	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
 	if err != nil {
 		// TODO (Ly): Review: return an empty list instead of
@@ -298,7 +298,7 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
-	
+
 	if featureService, ok := parsedKind.(*FeatureService); ok {
 
 		fvsToUse := make([]*FeatureView, 0)
@@ -329,9 +329,9 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 				}
 				odFvsToUse = append(odFvsToUse, odFv.NewOnDemandFeatureViewFromBase(base))
 			} else {
-				return nil, nil, nil, errors.New(fmt.Sprintf("The provided feature service %s contains a reference to a feature view" +
-				"%s which doesn't exist. Please make sure that you have created the feature view" +
-				"%s and that you have registered it by running \"apply\".", featureService.name, featureViewName, featureViewName))
+				return nil, nil, nil, errors.New(fmt.Sprintf("The provided feature service %s contains a reference to a feature view"+
+					"%s which doesn't exist. Please make sure that you have created the feature view"+
+					"%s and that you have registered it by running \"apply\".", featureService.name, featureViewName, featureViewName))
 			}
 		}
 		return fvsToUse, requestFvsToUse, odFvsToUse, nil
@@ -345,7 +345,7 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 		fvsToUse[index] = fv
 		index += 1
 	}
-	
+
 	index = 0
 	for _, fv := range requestFvs {
 		requestFvsToUse[index] = fv
@@ -376,12 +376,12 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*FeatureView) (map
 	for _, entity := range entities {
 		entityNameToJoinKeyMap[entity.name] = entity.joinKey
 	}
-	
+
 	for _, featureView = range requestedFeatureViews {
 
 		entityNames = featureView.entities
 		joinKeyMap = featureView.base.projection.joinKeyMap
-		for entityName, _ = range entityNames {
+		for entityName = range entityNames {
 
 			entity, err := fs.registry.getEntity(fs.config.Project, entityName)
 			if err != nil {
@@ -433,7 +433,7 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 		if len(collidedFeatureRefs) >= 1 {
 			collidedFeatureRefList := make([]string, len(collidedFeatureRefs))
 			index := 0
-			for featureName, _ := range collidedFeatureRefs {
+			for featureName := range collidedFeatureRefs {
 				collidedFeatureRefList[index] = featureName
 				index += 1
 			}
@@ -442,9 +442,9 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 	} else {
 		var featureName string
 		for _, featureRef := range featureRefs {
-			
+
 			parsedFeatureName := strings.Split(featureRef, ":")
-			
+
 			if len(parsedFeatureName) == 0 {
 				return errors.New("FeatureReference should be in the format: 'FeatureViewName:FeatureName'")
 			} else if len(parsedFeatureName) == 1 {
@@ -452,8 +452,8 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 			} else {
 				featureName = parsedFeatureName[1]
 			}
-			
-			collidedFeatureRefs[featureName] += 1			
+
+			collidedFeatureRefs[featureName] += 1
 		}
 
 		for featureName, occurrences := range collidedFeatureRefs {
@@ -465,7 +465,7 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 			collidedFeatureRefList := make([]string, 0)
 			for _, featureRef := range featureRefs {
 				parsedFeatureName := strings.Split(featureRef, ":")
-			
+
 				if len(parsedFeatureName) == 0 {
 					return errors.New("FeatureReference should be in the format: 'FeatureViewName:FeatureName'")
 				} else if len(parsedFeatureName) == 1 {
@@ -473,10 +473,10 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 				} else {
 					featureName = parsedFeatureName[1]
 				}
-				if _,ok := collidedFeatureRefs[featureName]; ok {
+				if _, ok := collidedFeatureRefs[featureName]; ok {
 					collidedFeatureRefList = append(collidedFeatureRefList, featureRef)
 				}
-				
+
 			}
 			return errors.New(fmt.Sprintf("FeatureNameCollisionError: %s; %t", strings.Join(collidedFeatureRefList, ", "), fullFeatureNames))
 		}
@@ -484,19 +484,19 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 	return nil
 }
 
-func (fs *FeatureStore) getNeededRequestData(	groupedOdfvRefs map[*OnDemandFeatureView][]string,
-												groupedRequestFvRefs map[*RequestFeatureView][]string) (map[string]struct{}, map[string]struct{}, error){
+func (fs *FeatureStore) getNeededRequestData(groupedOdfvRefs map[*OnDemandFeatureView][]string,
+	groupedRequestFvRefs map[*RequestFeatureView][]string) (map[string]struct{}, map[string]struct{}, error) {
 	neededRequestData := make(map[string]struct{})
 	neededRequestFvFeatures := make(map[string]struct{})
 
-	for onDemandFeatureView, _ := range groupedOdfvRefs {
+	for onDemandFeatureView := range groupedOdfvRefs {
 		requestSchema := onDemandFeatureView.getRequestDataSchema()
-		for fieldName, _ := range requestSchema {
+		for fieldName := range requestSchema {
 			neededRequestData[fieldName] = struct{}{}
 		}
 	}
 
-	for requestFeatureView, _ := range groupedRequestFvRefs {
+	for requestFeatureView := range groupedRequestFvRefs {
 		for _, feature := range requestFeatureView.base.features {
 			neededRequestFvFeatures[feature.name] = struct{}{}
 		}
@@ -505,20 +505,20 @@ func (fs *FeatureStore) getNeededRequestData(	groupedOdfvRefs map[*OnDemandFeatu
 	return neededRequestData, neededRequestFvFeatures, nil
 }
 
-func (fs *FeatureStore) ensureRequestedDataExist(	neededRequestData map[string]struct{},
-													neededRequestFvFeatures map[string]struct{},
-													requestDataFeatures map[string]*types.RepeatedValue) error {
+func (fs *FeatureStore) ensureRequestedDataExist(neededRequestData map[string]struct{},
+	neededRequestFvFeatures map[string]struct{},
+	requestDataFeatures map[string]*types.RepeatedValue) error {
 	// TODO (Ly): Review: Skip checking even if composite set of
 	// neededRequestData neededRequestFvFeatures is different from
 	// request_data_features but same length?
-	if len(neededRequestData) + len(neededRequestFvFeatures) != len(requestDataFeatures) {
+	if len(neededRequestData)+len(neededRequestFvFeatures) != len(requestDataFeatures) {
 		missingFeatures := make([]string, 0)
-		for feature, _ := range neededRequestData {
+		for feature := range neededRequestData {
 			if _, ok := requestDataFeatures[feature]; !ok {
 				missingFeatures = append(missingFeatures, feature)
 			}
 		}
-		for feature, _ := range neededRequestFvFeatures {
+		for feature := range neededRequestFvFeatures {
 			if _, ok := requestDataFeatures[feature]; !ok {
 				missingFeatures = append(missingFeatures, feature)
 			}
@@ -536,10 +536,10 @@ func (fs *FeatureStore) populateResultRowsFromColumnar(response *serving.GetOnli
 	timeStamp := timestamppb.Now()
 	for entityName, values := range data {
 		response.Metadata.FeatureNames.Val = append(response.Metadata.FeatureNames.Val, entityName)
-		
+
 		for rowIndex, value := range values.GetVal() {
 			featureVector := response.Results[rowIndex]
-			featureTimeStamp := timestamppb.Timestamp{ Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos }
+			featureTimeStamp := timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos}
 			featureValue := types.Value{Val: value.Val}
 			featureVector.Values = append(featureVector.Values, &featureValue)
 			featureVector.Statuses = append(featureVector.Statuses, serving.FieldStatus_PRESENT)
@@ -548,10 +548,10 @@ func (fs *FeatureStore) populateResultRowsFromColumnar(response *serving.GetOnli
 	}
 }
 
-func (fs *FeatureStore) getUniqueEntities	(	table *FeatureView,
-												joinKeyValues map[string]*types.RepeatedValue,
-												entityNameToJoinKeyMap map[string]string,
-											) 	([]*types.EntityKey, [][]int, error) {
+func (fs *FeatureStore) getUniqueEntities(table *FeatureView,
+	joinKeyValues map[string]*types.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string,
+) ([]*types.EntityKey, [][]int, error) {
 
 	tableEntityValues := fs.getTableEntityValues(table, joinKeyValues, entityNameToJoinKeyMap)
 	keys := make([]string, len(tableEntityValues))
@@ -603,22 +603,22 @@ func (fs *FeatureStore) getUniqueEntities	(	table *FeatureView,
 	return uniqueEntityKeys, indices, nil
 }
 
-func (fs *FeatureStore) getTableEntityValues(	table *FeatureView,
-												joinKeyValues map[string]*types.RepeatedValue,
-												entityNameToJoinKeyMap map[string]string) map[string]*types.RepeatedValue {
-	
+func (fs *FeatureStore) getTableEntityValues(table *FeatureView,
+	joinKeyValues map[string]*types.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string) map[string]*types.RepeatedValue {
+
 	tableJoinKeys := make(map[string]bool)
-	for enityName, _ := range table.entities {
+	for enityName := range table.entities {
 		tableJoinKeys[entityNameToJoinKeyMap[enityName]] = true
 	}
 
 	aliasToJoinKeyMap := make(map[string]string)
-	for k,v := range table.base.projection.joinKeyMap {
+	for k, v := range table.base.projection.joinKeyMap {
 		aliasToJoinKeyMap[v] = k
 	}
 
 	entityValues := make(map[string]*types.RepeatedValue)
-	
+
 	for k, v := range joinKeyValues {
 		entityKey := k
 		if _, ok := aliasToJoinKeyMap[k]; ok {
@@ -632,25 +632,25 @@ func (fs *FeatureStore) getTableEntityValues(	table *FeatureView,
 	return entityValues
 }
 
-func (fs *FeatureStore) readFromOnlineStore(	entityRows []*types.EntityKey,
-												requestedFeatures []string,
-												table *FeatureView,
-											) 	( [][]FeatureData, error ) {
+func (fs *FeatureStore) readFromOnlineStore(entityRows []*types.EntityKey,
+	requestedFeatures []string,
+	table *FeatureView,
+) ([][]FeatureData, error) {
 	numRows := len(entityRows)
 	entityRowsValue := make([]types.EntityKey, numRows)
 	for index, entityKey := range entityRows {
-		entityRowsValue[index] = types.EntityKey{ JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues }
+		entityRowsValue[index] = types.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(entityRowsValue, table.base.name, requestedFeatures)
 }
 
-func (fs *FeatureStore) populateResponseFromFeatureData(	featureData2D [][]FeatureData,
-															indexes [][]int,
-															onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
-															fullFeatureNames bool,
-															requestedFeatures []string,
-															table *FeatureView,) {
-	
+func (fs *FeatureStore) populateResponseFromFeatureData(featureData2D [][]FeatureData,
+	indexes [][]int,
+	onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
+	fullFeatureNames bool,
+	requestedFeatures []string,
+	table *FeatureView) {
+
 	requestedFeatureRefs := make([]string, len(requestedFeatures))
 
 	for index, featureName := range requestedFeatures {
@@ -664,7 +664,7 @@ func (fs *FeatureStore) populateResponseFromFeatureData(	featureData2D [][]Featu
 	numFeatures := len(requestedFeatureRefs)
 
 	for entityIndex, featureList := range featureData2D {
-		
+
 		values := make([]*types.Value, numFeatures)
 		statuses := make([]serving.FieldStatus, numFeatures)
 		eventTimeStamps := make([]*timestamppb.Timestamp, numFeatures)
@@ -678,22 +678,22 @@ func (fs *FeatureStore) populateResponseFromFeatureData(	featureData2D [][]Featu
 				eventTimeStamps[index] = &eventTimeStamp
 			}
 		} else {
-			for index, _ := range featureList {
+			for index := range featureList {
 				featureData := &featureList[index]
 				value := types.Value{Val: featureData.value.Val}
 				status := serving.FieldStatus_PRESENT
-				eventTimeStamp := timestamppb.Timestamp{Seconds: featureData.timestamp.Seconds, Nanos: featureData.timestamp.Nanos }
+				eventTimeStamp := timestamppb.Timestamp{Seconds: featureData.timestamp.Seconds, Nanos: featureData.timestamp.Nanos}
 
 				values[index] = &value
-	
+
 				if _, ok := value.Val.(*types.Value_NullVal); ok {
 					values[index] = nil
 					status = serving.FieldStatus_NOT_FOUND
-				} else if fs.checkOutsideMaxAge(&eventTimeStamp, timestamppb.Now(), table.ttl ) {
+				} else if fs.checkOutsideMaxAge(&eventTimeStamp, timestamppb.Now(), table.ttl) {
 					values[index] = &value
 					status = serving.FieldStatus_OUTSIDE_MAX_AGE
 				}
-				
+
 				statuses[index] = status
 				eventTimeStamps[index] = &eventTimeStamp
 			}
@@ -709,11 +709,11 @@ func (fs *FeatureStore) populateResponseFromFeatureData(	featureData2D [][]Featu
 }
 
 // TODO (Ly): Complete this function + ODFV
-func (fs *FeatureStore) augmentResponseWithOnDemandTransforms( 	onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
-																featureRefs []string,
-																requestedOnDemandFeatureViews []*OnDemandFeatureView,
-																fullFeatureNames bool,
-															) {
+func (fs *FeatureStore) augmentResponseWithOnDemandTransforms(onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
+	featureRefs []string,
+	requestedOnDemandFeatureViews []*OnDemandFeatureView,
+	fullFeatureNames bool,
+) {
 	requestedOdfvMap := make(map[string]*OnDemandFeatureView)
 	requestedOdfvNames := make([]string, len(requestedOnDemandFeatureViews))
 	for index, requestedOdfv := range requestedOnDemandFeatureViews {
@@ -730,7 +730,7 @@ func (fs *FeatureStore) augmentResponseWithOnDemandTransforms( 	onlineFeaturesRe
 		viewName := parsedFeatureName[0]
 		featureName := parsedFeatureName[1]
 		if _, ok := requestedOdfvMap[viewName]; ok {
-			
+
 			viewNameToUse := requestedOdfvMap[viewName].base.projection.nameToUse()
 			if fullFeatureNames {
 				featureName = fmt.Sprintf("%s__%s", viewNameToUse, featureName)
@@ -740,12 +740,12 @@ func (fs *FeatureStore) augmentResponseWithOnDemandTransforms( 	onlineFeaturesRe
 	}
 }
 
-func (fs *FeatureStore) dropUnneededColumns(	onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
-												requestedResultRowNames map[string]struct{},) {
+func (fs *FeatureStore) dropUnneededColumns(onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
+	requestedResultRowNames map[string]struct{}) {
 	metaDataLen := len(onlineFeaturesResponse.Metadata.FeatureNames.Val)
 	neededMask := make([]bool, metaDataLen)
 	for index, featureName := range onlineFeaturesResponse.Metadata.FeatureNames.Val {
-		
+
 		if _, ok := requestedResultRowNames[featureName]; !ok {
 			neededMask[index] = false
 		} else {
@@ -760,7 +760,7 @@ func (fs *FeatureStore) dropUnneededColumns(	onlineFeaturesResponse *serving.Get
 				onlineFeaturesResponse.Results[rowIndex].Statuses[firstIndex] = onlineFeaturesResponse.Results[rowIndex].Statuses[index]
 				onlineFeaturesResponse.Results[rowIndex].EventTimestamps[firstIndex] = onlineFeaturesResponse.Results[rowIndex].EventTimestamps[index]
 				onlineFeaturesResponse.Metadata.FeatureNames.Val[firstIndex] = onlineFeaturesResponse.Metadata.FeatureNames.Val[index]
-				
+
 			}
 			firstIndex += 1
 		}
@@ -787,7 +787,7 @@ func (fs *FeatureStore) listFeatureViews(allowCache, hideDummyEntity bool) ([]*F
 }
 
 func (fs *FeatureStore) listEntities(allowCache, hideDummyEntity bool) ([]*Entity, error) {
-	
+
 	allEntities, err := fs.registry.listEntities(fs.config.Project)
 	if err != nil {
 		return nil, err
@@ -801,16 +801,16 @@ func (fs *FeatureStore) listEntities(allowCache, hideDummyEntity bool) ([]*Entit
 	return entities, nil
 }
 
-func groupFeatureRefs(	features []string,
-						allFeatureViews []*FeatureView,
-						allRequestFeatureViews []*RequestFeatureView,
-						allOndemandFeatureViews []*OnDemandFeatureView,
-					) 	(	map[*FeatureView][]string,
-							map[*OnDemandFeatureView][]string,
-							map[*RequestFeatureView][]string,
-							error,
-						)	{
-	
+func groupFeatureRefs(features []string,
+	allFeatureViews []*FeatureView,
+	allRequestFeatureViews []*RequestFeatureView,
+	allOndemandFeatureViews []*OnDemandFeatureView,
+) (map[*FeatureView][]string,
+	map[*OnDemandFeatureView][]string,
+	map[*RequestFeatureView][]string,
+	error,
+) {
+
 	viewIndex := make(map[string]*FeatureView)
 	requestViewIndex := make(map[string]*RequestFeatureView)
 	onDemandViewIndex := make(map[string]*OnDemandFeatureView)
@@ -865,31 +865,31 @@ func groupFeatureRefs(	features []string,
 	for fv, featureNamesMap := range fvFeatures {
 		index := 0
 		fvResults[fv] = make([]string, len(featureNamesMap))
-		for featureName, _ := range featureNamesMap {
+		for featureName := range featureNamesMap {
 			fvResults[fv][index] = featureName
 			index += 1
 		}
-		
+
 	}
 
 	for fv, featureNamesMap := range requestfvFeatures {
 		index := 0
 		requestfvResults[fv] = make([]string, len(featureNamesMap))
-		for featureName, _ := range featureNamesMap {
+		for featureName := range featureNamesMap {
 			requestfvResults[fv][index] = featureName
 			index += 1
 		}
-		
+
 	}
 
 	for fv, featureNamesMap := range odfvFeatures {
 		index := 0
 		odfvResults[fv] = make([]string, len(featureNamesMap))
-		for featureName, _ := range featureNamesMap {
+		for featureName := range featureNamesMap {
 			odfvResults[fv][index] = featureName
 			index += 1
 		}
-		
+
 	}
 
 	return fvResults, odfvResults, requestfvResults, nil

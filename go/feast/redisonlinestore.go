@@ -5,15 +5,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/golang/protobuf/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/go-redis/redis/v8"
+	"github.com/golang/protobuf/proto"
 	"github.com/spaolacci/murmur3"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	"sort"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type redisType int
@@ -69,7 +69,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 				} else if kv[0] == "ssl" {
 					// TODO (woop): Add support for TLS/SSL
 					// ssl = kv[1] == "true"
-				} else if(kv[0]=="db") {
+				} else if kv[0] == "db" {
 					db, err = strconv.Atoi(kv[1])
 					if err != nil {
 						return nil, err
@@ -86,7 +86,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 	if t == redisNode {
 		store.client = redis.NewClient(&redis.Options{
 			Addr:     address[0],
-			Password: password,  // No password set
+			Password: password, // No password set
 			DB:       db,
 		})
 	} else {
@@ -192,8 +192,8 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		}
 
 		res = res[:featureCount]
-		
-		for featureIndex,resString := range res {
+
+		for featureIndex, resString := range res {
 			if resString == nil {
 
 				// TODO (Ly): Can there be nil result
@@ -201,11 +201,11 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				// or they will all be returned
 				// as string proto of types.Value_NullVal proto?
 
-				featureName := features[ featureIndex ]
-				results[entityIndex][featureIndex] = FeatureData 	{ 	reference: serving.FeatureReferenceV2{ FeatureViewName: view, FeatureName: featureName },
-																		timestamp: timestamppb.Timestamp{ Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos },
-																		value: types.Value{ Val: &types.Value_NullVal{NullVal: types.Null_NULL } },
-																	}
+				featureName := features[featureIndex]
+				results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: view, FeatureName: featureName},
+					timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
+					value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
+				}
 
 			} else if valueString, ok := resString.(string); !ok {
 				return nil, errors.New("Error parsing value from redis")
@@ -215,11 +215,11 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 					return nil, errors.New("Error converting parsed redis value to types.Value")
 				} else {
-					featureName := features[ featureIndex ]
-					results[entityIndex][featureIndex] = FeatureData 	{ 	reference: serving.FeatureReferenceV2{ FeatureViewName: view, FeatureName: featureName },
-																			timestamp: timestamppb.Timestamp{ Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos },
-																			value: types.Value{Val: value.Val},
-																		}
+					featureName := features[featureIndex]
+					results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: view, FeatureName: featureName},
+						timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
+						value:     types.Value{Val: value.Val},
+					}
 				}
 			}
 		}

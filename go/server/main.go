@@ -82,7 +82,7 @@ func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
 		return
 	}
 	grpcServer := grpc.NewServer()
-	
+
 	serving.RegisterServingServiceServer(grpcServer, &server)
 	err = grpcServer.Serve(lis)
 	if err != nil {

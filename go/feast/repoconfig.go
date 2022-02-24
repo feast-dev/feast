@@ -2,10 +2,10 @@ package feast
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/ghodss/yaml"
 	"os"
 	"path/filepath"
-	"errors"
 )
 
 type RepoConfig struct {
@@ -59,7 +59,7 @@ func NewRepoConfig(repoPath string, configJSON string) (*RepoConfig, error) {
 				} else {
 					return nil, errors.New("Registry path must be a string")
 				}
-				
+
 			} else {
 				return nil, errors.New("Registry path not found")
 			}
@@ -78,7 +78,7 @@ func (r *RepoConfig) getRegistryPath() string {
 				if path, ok := pathInterface.(string); ok {
 					return path
 				}
-				
+
 			}
 		}
 	}

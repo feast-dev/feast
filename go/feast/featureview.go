@@ -7,26 +7,26 @@ import (
 )
 
 const (
-	DUMMY_ENTITY_ID = "__dummy_id"
+	DUMMY_ENTITY_ID   = "__dummy_id"
 	DUMMY_ENTITY_NAME = "__dummy"
-	DUMMY_ENTITY_VAL = ""
+	DUMMY_ENTITY_VAL  = ""
 )
 
-var DUMMY_ENTITY types.Value = types.Value{Val: &types.Value_StringVal{StringVal: DUMMY_ENTITY_VAL} }
+var DUMMY_ENTITY types.Value = types.Value{Val: &types.Value_StringVal{StringVal: DUMMY_ENTITY_VAL}}
 
 type FeatureView struct {
 	base *BaseFeatureView
-	ttl *durationpb.Duration
+	ttl  *durationpb.Duration
 	// Make entities set so that search for dummy entity is faster
 	entities map[string]bool
 }
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
-	featureView := &FeatureView	{	base: NewBaseFeatureView(	proto.Spec.Name, proto.Spec.Features),
-									ttl: &(*proto.Spec.Ttl),
-								}
+	featureView := &FeatureView{base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
+		ttl: &(*proto.Spec.Ttl),
+	}
 	if len(proto.Spec.Entities) == 0 {
-		featureView.entities = map[string]bool{DUMMY_ENTITY_NAME:true}
+		featureView.entities = map[string]bool{DUMMY_ENTITY_NAME: true}
 	} else {
 		featureView.entities = make(map[string]bool)
 		for _, entityName := range proto.Spec.Entities {
@@ -38,10 +38,9 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 
 func (fs *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureView {
 	ttl := durationpb.Duration{Seconds: fs.ttl.Seconds, Nanos: fs.ttl.Nanos}
-	featureView := &FeatureView	{	base: base,
-									ttl: &ttl,
-									entities: fs.entities,
-								}
+	featureView := &FeatureView{base: base,
+		ttl:      &ttl,
+		entities: fs.entities,
+	}
 	return featureView
 }
-

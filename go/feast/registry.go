@@ -15,12 +15,12 @@ import (
 */
 
 type Registry struct {
-	path 				string
-	cachedFeatureServices		map[string]map[string]*core.FeatureService
-	cachedEntities				map[string]map[string]*core.Entity
-	cachedFeatureViews			map[string]map[string]*core.FeatureView
-	cachedOnDemandFeatureViews	map[string]map[string]*core.OnDemandFeatureView
-	cachedRequestFeatureViews	map[string]map[string]*core.RequestFeatureView
+	path                       string
+	cachedFeatureServices      map[string]map[string]*core.FeatureService
+	cachedEntities             map[string]map[string]*core.Entity
+	cachedFeatureViews         map[string]map[string]*core.FeatureView
+	cachedOnDemandFeatureViews map[string]map[string]*core.OnDemandFeatureView
+	cachedRequestFeatureViews  map[string]map[string]*core.RequestFeatureView
 }
 
 func NewRegistry(path string) (*Registry, error) {
@@ -33,13 +33,13 @@ func NewRegistry(path string) (*Registry, error) {
 	if err := proto.Unmarshal(in, registry); err != nil {
 		return nil, err
 	}
-	r := &Registry{	path: path,
-					cachedFeatureServices: make(map[string]map[string]*core.FeatureService),
-					cachedEntities: make(map[string]map[string]*core.Entity),
-					cachedFeatureViews: make(map[string]map[string]*core.FeatureView),
-					cachedOnDemandFeatureViews: make(map[string]map[string]*core.OnDemandFeatureView),
-					cachedRequestFeatureViews: make(map[string]map[string]*core.RequestFeatureView),
-				}
+	r := &Registry{path: path,
+		cachedFeatureServices:      make(map[string]map[string]*core.FeatureService),
+		cachedEntities:             make(map[string]map[string]*core.Entity),
+		cachedFeatureViews:         make(map[string]map[string]*core.FeatureView),
+		cachedOnDemandFeatureViews: make(map[string]map[string]*core.OnDemandFeatureView),
+		cachedRequestFeatureViews:  make(map[string]map[string]*core.RequestFeatureView),
+	}
 	loadEntitiesDone := make(chan struct{}, 1)
 	loadFeatureServicesDone := make(chan struct{}, 1)
 	loadFeatureViewsDone := make(chan struct{}, 1)
@@ -50,21 +50,21 @@ func NewRegistry(path string) (*Registry, error) {
 		doneCount := 0
 		for doneCount < 5 {
 			select {
-			case <- loadEntitiesDone:
+			case <-loadEntitiesDone:
 				doneCount += 1
-			case <- loadFeatureServicesDone:
+			case <-loadFeatureServicesDone:
 				doneCount += 1
-			case <- loadFeatureViewsDone:
+			case <-loadFeatureViewsDone:
 				doneCount += 1
-			case <- loadOnDemandFeatureViewsDone:
+			case <-loadOnDemandFeatureViewsDone:
 				doneCount += 1
-			case <- loadRequestFeatureViewsDone:
+			case <-loadRequestFeatureViewsDone:
 				doneCount += 1
 			}
 		}
 		doneLoad <- struct{}{}
 	}()
-	
+
 	go func() {
 		r.loadEntities(registry)
 		loadEntitiesDone <- struct{}{}
@@ -89,7 +89,7 @@ func NewRegistry(path string) (*Registry, error) {
 		r.loadRequestFeatureViews(registry)
 		loadRequestFeatureViewsDone <- struct{}{}
 	}()
-	<- doneLoad
+	<-doneLoad
 	return r, nil
 }
 

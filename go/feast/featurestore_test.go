@@ -42,21 +42,21 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 		Registry: getRegistryPath(),
 		Provider: "local",
 		OnlineStore: map[string]interface{}{
-			"type": "redis",
+			"type":              "redis",
 			"connection_string": "localhost:6379",
 		},
 	}
 
-	featureViewNames := []string{	"driver_hourly_stats:conv_rate",
-									"driver_hourly_stats:acc_rate",
-									"driver_hourly_stats:avg_daily_trips",
-								}
+	featureViewNames := []string{"driver_hourly_stats:conv_rate",
+		"driver_hourly_stats:acc_rate",
+		"driver_hourly_stats:avg_daily_trips",
+	}
 	featureList := serving.FeatureList{Val: featureViewNames}
 	featureListRequest := serving.GetOnlineFeaturesRequest_Features{Features: &featureList}
-	entities := map[string]*types.RepeatedValue{"driver_id": 	{	Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}},
-																	{Val: &types.Value_Int64Val{Int64Val: 1002}},
-																	{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
-																}
+	entities := map[string]*types.RepeatedValue{"driver_id": {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}},
+		{Val: &types.Value_Int64Val{Int64Val: 1002}},
+		{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
+	}
 	request := serving.GetOnlineFeaturesRequest{Kind: &featureListRequest, Entities: entities, FullFeatureNames: true}
 
 	fs, err := NewFeatureStore(&config)
@@ -64,5 +64,5 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 	response, err := fs.GetOnlineFeatures(&request)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, response.Results)
-	
+
 }
