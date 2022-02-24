@@ -27,9 +27,6 @@ online_store:
 	config, err := NewRepoConfig(dir, "")
 	assert.Nil(t, err)
 	assert.Equal(t, "feature_repo", config.Project)
-	// assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.Registry["path"].(string))
-	// assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.Registry)
-	// assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.Registry["path"].(string))
 	assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.getRegistryPath())
 	assert.Equal(t, "local", config.Provider)
 	assert.Equal(t, map[string]interface{}{
@@ -64,8 +61,6 @@ online_store:
 	config, err := NewRepoConfig(dir, "")
 	assert.Nil(t, err)
 	assert.Equal(t, "feature_repo", config.Project)
-	// assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.Registry["path"].(string))
-	// assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.Registry["path"].(string))
 	assert.Equal(t, filepath.Join(dir, "data/registry.db"), config.getRegistryPath())
 	assert.Equal(t, "local", config.Provider)
 	assert.Equal(t, map[string]interface{}{

@@ -23,10 +23,10 @@ type OnlineStore interface {
 	// The inner array will have the same size as featureReferences,
 	// while the outer array will have the same size as entityKeys.
 
-	// TODO (Ly): Consider returning [][]Feature, []timstamps, error
-	// instead and remove timestamp from Feature struct to mimic Python's code
-	// and reduces repeated memory storage for the same timstamp (which is stored as value)
-	// Also consider each attribute in Feature as a pointer instead since the current
+	// TODO (Ly): Can we return [][]FeatureData, []timstamps, error
+	// instead and remove timestamp from FeatureData struct to mimic Python's code
+	// and reduces repeated memory storage for the same timstamp (which is stored as value and not as a pointer).
+	// Should each attribute in FeatureData be stored as a pointer instead since the current
 	// design forces value copied in OnlineRead + GetOnlineFeatures
 	// (array is destructed so we cannot use the same fields in each
 	// Feature object as pointers in GetOnlineFeaturesResponse)
@@ -34,6 +34,7 @@ type OnlineStore interface {
 	// and reuse them in GetOnlineFeaturesResponse?
 	OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]FeatureData, error)
 	// Destruct must be call once user is done using OnlineStore
+	// This is to comply with the Connector since we have to close the plugin
 	Destruct()
 }
 

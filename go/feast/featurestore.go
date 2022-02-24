@@ -13,7 +13,7 @@ import (
 
 type FeatureStore struct {
 	config      *RepoConfig
-	registry    *Registry // TODO (Ly): change this to a Registry Object so we can add cache
+	registry    *Registry
 	onlineStore OnlineStore
 }
 
@@ -29,7 +29,6 @@ func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	// registry, err := NewRegistry(config.Registry["path"].(string))
 	
 	registry, err := NewRegistry(config.getRegistryPath())
 	if err != nil {
@@ -42,37 +41,8 @@ func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
 	}, nil
 }
 
-/*
-TODO(Ly):
-	- Current flow is:
-	1. getFeatures parse features to a list of featureReferences strings of the form
-		FeatureViewName:FeatureName
-	2. getFeatureViewsToUse return all FeatureView, OnDemandFeatureView, RequestFeatureView
-		if passed in features is list or all FeatureView, OnDemandFeatureView, RequestFeatureView
-		used by FeatureService
-	3. groupFeatureRefs extract featureReferences and return requested feature per FeatureViewProjection
-		(could be a clone to the original FeatureView)
-	
-	=> Suggested flow:
-	1. Parse feature references from requested features
-	2. If features is a list, retrieve a group of FeatureView, OnDemandFeatureView, OnDemandFeatureView
-		from the registry using getFeatureView, getOnDemandFeatureView, getOnDemandFeatureView and their
-		asked features.
-		Otherwise, return FeatureView, OnDemandFeatureView, OnDemandFeatureView with cloned features
-		and their asked for features in 1 function groupFeatureRefs
-	=> Steps:
-	1. Remove function getFeatureViewsToUse and replace with the modified groupFeatureRefs as suggested above
-
-TODO2 (Ly):
-	- Add goroutine to each OnlineRead call and make sure all parameters and return values are copied
-		to avoid race condition
-
-*/
-
 func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
 
-	// TODO (Ly): Remove hackathon code with
-	// similar function calls as in python's sdk
 	kind := request.GetKind()
 	fullFeatureNames := request.GetFullFeatureNames()
 	parsedKind, err := fs.parseKind(kind)
@@ -191,17 +161,13 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 																									EventTimestamps: make([]*timestamppb.Timestamp, 0),
 																								}
 	}
-	// Merge requestDataFeatures into joinKeyValues
+	// Merge joinKeyValues into requestDataFeatures
 	for entityName, vals := range joinKeyValues {
 		requestDataFeatures[entityName] = vals
 	}
 
 	fs.populateResultRowsFromColumnar(onlineFeatureResponse, requestDataFeatures)
 
-	// END BLOCK
-
-	// Add the Entityless case after populating result rows to avoid having to remove
-	// it later.
 	entitylessCase := false
 	
 	for _, featureView := range featureViews {
@@ -219,86 +185,22 @@ func (fs *FeatureStore) GetOnlineFeatures(request *serving.GetOnlineFeaturesRequ
 		joinKeyValues[DUMMY_ENTITY_ID] = dummyEntityColumn
 	}
 
-	/*
-		TODO (Ly): Precompute indices that need to be written by each table
-		and have separate goroutines for each write. For simplicity, I obmit
-		this optimization for now
-	*/
-	
-	
-	// Writer
-	type featureDataWriter struct {
-		featureData [][]FeatureData
-		idxs [][]int
-		requestedFeatures []string
-		table *FeatureView
-	}
-	// Write one new read at a time
-	featureDataWriterChan := make(chan *featureDataWriter, 1)
-	errorFromReadChan := make(chan error, 1)
-	writeCount := len(groupedRefs)
-	stopReadChans := make([]chan struct{}, writeCount)
-	writeDone := make(chan struct{}, 1)
-	for index = 0; index < writeCount; index++ {
-		stopReadChans[index] = make(chan struct{}, 1)
-	}
-	go func() {
-		wrote := 0
-		var featureDataWrite *featureDataWriter
-		for wrote < writeCount {
-			featureDataWrite = <- featureDataWriterChan
-			fs.populateResponseFromFeatureData(	featureDataWrite.featureData,
-												featureDataWrite.idxs,
+	for table, requestedFeatures := range groupedRefs {
+		tableEntityValues, idxs, err := fs.getUniqueEntities( table, joinKeyValues, entityNameToJoinKeyMap)
+		if err != nil {
+			return nil, err
+		}
+		featureData, err := fs.readFromOnlineStore(tableEntityValues, requestedFeatures, table)
+		fs.populateResponseFromFeatureData(		featureData,
+												idxs,
 												onlineFeatureResponse,
 												fullFeatureNames,
-												featureDataWrite.requestedFeatures,
-												featureDataWrite.table,
+												requestedFeatures,
+												table,
 												)
-			wrote += 1
-		}
-		// TODO (Ly): ODFV, skip augmentResponseWithOnDemandTransforms
-		fs.dropUnneededColumns(onlineFeatureResponse, requestedResultRowNames)
-		writeDone <- struct{}{}
-	}()
-	
-	index = 0
-	for table, requestedFeatures := range groupedRefs {
-		stopReadChans[index] = make(chan struct{}, 1)
-		go func(stopChan chan struct{}, table *FeatureView, requestedFeatures []string) {
-			select {
-			case <- stopChan:
-			default:
-				tableEntityValues, idxs, err := fs.getUniqueEntities( table, joinKeyValues, entityNameToJoinKeyMap)
-				if err != nil {
-					select {
-					case errorFromReadChan <- err:
-					default:
-					}
-					return
-				}
-				featureData, err := fs.readFromOnlineStore(tableEntityValues, requestedFeatures, table)
-				if err != nil {
-					// Don't block if another read failed in the middle of read
-					select {
-					case errorFromReadChan <- err:
-					default:
-					}
-				} else {
-					featureDataWriterChan <- &featureDataWriter{ featureData, idxs, requestedFeatures, table }
-				}
-			}
-		}(stopReadChans[index], table, requestedFeatures)
-		index += 1
 	}
-
-	select {
-	case err := <- errorFromReadChan:
-		for index = 0; index < writeCount; index++ {
-			stopReadChans[index] <- struct{}{}
-		}
-		return nil, err
-	case <- writeDone:
-	}
+	// TODO (Ly): ODFV, skip augmentResponseWithOnDemandTransforms
+	fs.dropUnneededColumns(onlineFeatureResponse, requestedResultRowNames)
 	return onlineFeatureResponse, nil
 }
 
@@ -339,8 +241,6 @@ func (fs *FeatureStore) getFeatures(parsedKind interface{}, allowCache bool) ([]
 		var featureViewName string
 		features = make([]string, 0)
 		for _, featureProjection := range featureService.projections {
-			// TODO (Ly): have a FeatureService class that
-			// contains nameToUse() method as in Python's sdk
 			featureViewName = featureProjection.nameToUse()
 			for _, feature := range featureProjection.features {
 				features = append(features, fmt.Sprintf("%s:%s", featureViewName, feature.name))
@@ -368,79 +268,38 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
-	fvsDoneChan := make(chan struct{}, 1)
-	requestFvsDoneChan := make(chan struct{}, 1)
-	odFvDoneChan := make(chan struct{}, 1)
-	errorChan := make(chan error, 1)
-	doneLoad := make(chan struct{}, 1)
 
-	// Don't use stopChans here since there's no blocking write
-	// waiting to be enqueued to write
-	// stopChans := make([]chan struct{}, 3)
-	// for index := 0; index < 3; index++ {
-	// 	stopChans[index] = make(chan struct{}, 1)
-	// }
-	loadMain := func() {
-		doneCount := 0
-		for doneCount < 3 {
-			select {
-			case <- errorChan:
-			case <- fvsDoneChan:
-				doneCount += 1
-			case <- requestFvsDoneChan:
-				doneCount += 1
-			case <- odFvDoneChan:
-				doneCount += 1
-			}
-		}
-		doneLoad <- struct{}{}
+	featureViews, err := fs.listFeatureViews(allowCache, hideDummyEntity)
+	if err != nil {
+		// TODO (Ly): Review: return an empty list instead of
+		// error if no FeatureView is found in this project
+		featureViews = make([]*FeatureView, 0)
 	}
-	go loadMain()
+	for _, featureView := range featureViews {
+		fvs[featureView.base.name] = featureView
+	}
 	
+	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
+	if err != nil {
+		// TODO (Ly): Review: return an empty list instead of
+		// error if no RequestFeatureView is found in this project
+		requestFeatureViews = make([]*RequestFeatureView, 0)
+	}
+	for _, requestFeatureView := range requestFeatureViews {
+		requestFvs[requestFeatureView.base.name] = requestFeatureView
+	}
 
-	go func() {
-		featureViews, err := fs.listFeatureViews(allowCache, hideDummyEntity)
-		if err != nil {
-			select {
-			case errorChan <- err:
-			default:
-			}
-		}
-		for _, featureView := range featureViews {
-			fvs[featureView.base.name] = featureView
-		}
-		fvsDoneChan <- struct{}{}
-	}()
+	onDemandFeatureViews, err := fs.registry.listOnDemandFeatureViews(fs.config.Project)
+	if err != nil {
+		// TODO (Ly): Review: return an empty list instead of
+		// error if no OnDemandFeatureView is found in this project
+		onDemandFeatureViews = make([]*OnDemandFeatureView, 0)
+	}
+	for _, onDemandFeatureView := range onDemandFeatureViews {
+		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
+	}
 	
-	go func() {
-		requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
-		if err != nil {
-			requestFeatureViews = make([]*RequestFeatureView, 0)
-			// return nil, nil, nil, err
-		}
-		for _, requestFeatureView := range requestFeatureViews {
-			requestFvs[requestFeatureView.base.name] = requestFeatureView
-		}
-		requestFvsDoneChan <- struct{}{}
-	}()
-
-	go func() {
-		onDemandFeatureViews, err := fs.registry.listOnDemandFeatureViews(fs.config.Project)
-		if err != nil {
-			onDemandFeatureViews = make([]*OnDemandFeatureView, 0)
-			// return nil, nil, nil, err
-		}
-		for _, onDemandFeatureView := range onDemandFeatureViews {
-			odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
-		}
-		odFvDoneChan <- struct{}{}
-	}()
-	
-	<- doneLoad
 	if featureService, ok := parsedKind.(*FeatureService); ok {
-		
-		// TODO (Ly): Review: Skip checking featureService from registry since
-		// we're only given featureServiceName
 
 		fvsToUse := make([]*FeatureView, 0)
 		requestFvsToUse := make([]*RequestFeatureView, 0)
@@ -448,7 +307,7 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 
 		for _, featureProjection := range featureService.projections {
 			// Create copies of FeatureView that may
-			// contains the same *core.FeatureView but
+			// contains the same *FeatureView but
 			// each differentiated by a *FeatureViewProjection
 			featureViewName := featureProjection.name
 			if fv, ok := fvs[featureViewName]; ok {
@@ -477,44 +336,28 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 		}
 		return fvsToUse, requestFvsToUse, odFvsToUse, nil
 	}
-	go loadMain()
 
 	fvsToUse := make([]*FeatureView, len(fvs))
 	requestFvsToUse := make([]*RequestFeatureView, len(requestFvs))
 	odFvsToUse := make([]*OnDemandFeatureView, len(odFvs))
-	go func() {
-		index := 0
-		for _, fv := range fvs {
-			fvsToUse[index] = fv
-			index += 1
-		}
-		fvsDoneChan <- struct{}{}
-	}()
+	index := 0
+	for _, fv := range fvs {
+		fvsToUse[index] = fv
+		index += 1
+	}
 	
-	go func() {
-		index := 0
-		for _, fv := range requestFvs {
-			requestFvsToUse[index] = fv
-			index += 1
-		}
-		requestFvsDoneChan <- struct{}{}
-	}()
-	go func() {
-		index := 0
-		for _, fv := range odFvs {
-			odFvsToUse[index] = fv
-			index += 1
-		}
-		odFvDoneChan <- struct{}{}
-	}()
-	<- doneLoad
+	index = 0
+	for _, fv := range requestFvs {
+		requestFvsToUse[index] = fv
+		index += 1
+	}
+	index = 0
+	for _, fv := range odFvs {
+		odFvsToUse[index] = fv
+		index += 1
+	}
 	return fvsToUse, requestFvsToUse, odFvsToUse, nil
 }
-
-/*
-TODO (Ly): Review: that for every method that uses registry
-check if that entity / featureView are in this project
-*/
 
 func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*FeatureView) (map[string]string, error) {
 
@@ -533,62 +376,32 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*FeatureView) (map
 	for _, entity := range entities {
 		entityNameToJoinKeyMap[entity.name] = entity.joinKey
 	}
-
-	doneUpdateEntityMap := make(chan struct{}, 1)
-	errorChan := make(chan error, 1)
-	finishedUpdate := make(chan struct{}, 1)
-	go func() {
-		numFvs := len(requestedFeatureViews)
-		doneCount := 0
-		for doneCount < numFvs {
-			<- finishedUpdate
-			doneCount += 1
-		}
-		doneUpdateEntityMap <- struct{}{}
-	}()
 	
 	for _, featureView = range requestedFeatureViews {
 
-		// TODO (Ly): Review: Can we use goroutine here since
-		// all goroutines write to the same entityNameToJoinKeyMap
-		// but each only update unique keys within a featureview?
-		// ignore race condition warning?
+		entityNames = featureView.entities
+		joinKeyMap = featureView.base.projection.joinKeyMap
+		for entityName, _ = range entityNames {
 
-		go func(featureView *FeatureView) {
-			entityNames = featureView.entities
-			joinKeyMap = featureView.base.projection.joinKeyMap
-			for entityName, _ = range entityNames {
-				// TODO (Ly): Remove this with fs.registry.getEntity()
-				entity, err := fs.registry.getEntity(fs.config.Project, entityName)
-				if err != nil {
-					select {
-					case errorChan <- err:
-					default:
-						return
-					}
-				}
-				entityName := entity.name
-				joinKey := entity.joinKey
-
-				// TODO (Ly): Review: weird that both uses the same map?
-				// from python's sdk
-				if entityNameMapped, ok := joinKeyMap[joinKey]; ok {
-					entityName = entityNameMapped
-				}
-				if joinKeyMapped, ok := joinKeyMap[joinKey]; ok {
-					joinKey = joinKeyMapped
-				}
-				entityNameToJoinKeyMap[entityName] = joinKey
-				// TODO (Ly): Review: Can we skip entity_type_map
-				// in go's version?
+			entity, err := fs.registry.getEntity(fs.config.Project, entityName)
+			if err != nil {
+				return nil, err
 			}
-			finishedUpdate <- struct{}{}
-		}(featureView)
-	}
-	select {
-	case err := <- errorChan:
-		return nil, err
-	case <- doneUpdateEntityMap:
+			entityName := entity.name
+			joinKey := entity.joinKey
+
+			// TODO (Ly): Review: weird that both uses the same map?
+			// from python's sdk
+			if entityNameMapped, ok := joinKeyMap[joinKey]; ok {
+				entityName = entityNameMapped
+			}
+			if joinKeyMapped, ok := joinKeyMap[joinKey]; ok {
+				joinKey = joinKeyMapped
+			}
+			entityNameToJoinKeyMap[entityName] = joinKey
+			// TODO (Ly): Review: Can we skip entity_type_map
+			// in go's version?
+		}
 	}
 	return entityNameToJoinKeyMap, nil
 }
@@ -671,14 +484,11 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 	return nil
 }
 
-// TODO (Ly): return empty ODFV and Request FV for now
 func (fs *FeatureStore) getNeededRequestData(	groupedOdfvRefs map[*OnDemandFeatureView][]string,
 												groupedRequestFvRefs map[*RequestFeatureView][]string) (map[string]struct{}, map[string]struct{}, error){
 	neededRequestData := make(map[string]struct{})
 	neededRequestFvFeatures := make(map[string]struct{})
-	// TODO (Ly): Implement getRequestDataSchema in OnDemandFeatureView
-	// and convert features from DataSource in RequestFeatureView
-	// to complete this function
+
 	for onDemandFeatureView, _ := range groupedOdfvRefs {
 		requestSchema := onDemandFeatureView.getRequestDataSchema()
 		for fieldName, _ := range requestSchema {
@@ -729,8 +539,8 @@ func (fs *FeatureStore) populateResultRowsFromColumnar(response *serving.GetOnli
 		
 		for rowIndex, value := range values.GetVal() {
 			featureVector := response.Results[rowIndex]
-			featureTimeStamp := *timeStamp
-			featureValue := *value
+			featureTimeStamp := timestamppb.Timestamp{ Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos }
+			featureValue := types.Value{Val: value.Val}
 			featureVector.Values = append(featureVector.Values, &featureValue)
 			featureVector.Statuses = append(featureVector.Statuses, serving.FieldStatus_PRESENT)
 			featureVector.EventTimestamps = append(featureVector.EventTimestamps, &featureTimeStamp)
@@ -738,7 +548,6 @@ func (fs *FeatureStore) populateResultRowsFromColumnar(response *serving.GetOnli
 	}
 }
 
-// TODO (Ly): Test this function
 func (fs *FeatureStore) getUniqueEntities	(	table *FeatureView,
 												joinKeyValues map[string]*types.RepeatedValue,
 												entityNameToJoinKeyMap map[string]string,
@@ -769,7 +578,7 @@ func (fs *FeatureStore) getUniqueEntities	(	table *FeatureView,
 	}
 
 	for index, entityKey := range entityKeys {
-		key, err := serializeEntityKey(*entityKey)
+		key, err := serializeEntityKey(entityKey)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -830,7 +639,7 @@ func (fs *FeatureStore) readFromOnlineStore(	entityRows []*types.EntityKey,
 	numRows := len(entityRows)
 	entityRowsValue := make([]types.EntityKey, numRows)
 	for index, entityKey := range entityRows {
-		entityRowsValue[index] = *entityKey
+		entityRowsValue[index] = types.EntityKey{ JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues }
 	}
 	return fs.onlineStore.OnlineRead(entityRowsValue, table.base.name, requestedFeatures)
 }
@@ -853,7 +662,7 @@ func (fs *FeatureStore) populateResponseFromFeatureData(	featureData2D [][]Featu
 	}
 	onlineFeaturesResponse.Metadata.FeatureNames.Val = append(onlineFeaturesResponse.Metadata.FeatureNames.Val, requestedFeatureRefs...)
 	numFeatures := len(requestedFeatureRefs)
-	var nullTimeStamp timestamppb.Timestamp
+
 	for entityIndex, featureList := range featureData2D {
 		
 		values := make([]*types.Value, numFeatures)
@@ -862,18 +671,18 @@ func (fs *FeatureStore) populateResponseFromFeatureData(	featureData2D [][]Featu
 		if featureList == nil {
 			for index := 0; index < numFeatures; index++ {
 				status := serving.FieldStatus_NOT_FOUND
-				eventTimeStamp := nullTimeStamp
+				eventTimeStamp := timestamppb.Timestamp{}
 
 				values[index] = nil
 				statuses[index] = status
 				eventTimeStamps[index] = &eventTimeStamp
 			}
 		} else {
-			for index, featureData := range featureList {
-			
-				value := featureData.value
+			for index, _ := range featureList {
+				featureData := &featureList[index]
+				value := types.Value{Val: featureData.value.Val}
 				status := serving.FieldStatus_PRESENT
-				eventTimeStamp := featureData.timestamp
+				eventTimeStamp := timestamppb.Timestamp{Seconds: featureData.timestamp.Seconds, Nanos: featureData.timestamp.Nanos }
 
 				values[index] = &value
 	
@@ -916,8 +725,6 @@ func (fs *FeatureStore) augmentResponseWithOnDemandTransforms( 	onlineFeaturesRe
 	for _, featureRef := range featureRefs {
 		parsedFeatureName := strings.Split(featureRef, ":")
 		if len(parsedFeatureName) < 2 {
-			// log.Fatalln(err)
-			// return nil, errors.New("FeatureReference should be in the format: 'FeatureViewName:FeatureName'")
 			continue
 		}
 		viewName := parsedFeatureName[0]
@@ -933,7 +740,6 @@ func (fs *FeatureStore) augmentResponseWithOnDemandTransforms( 	onlineFeaturesRe
 	}
 }
 
-// TODO (Ly): Review: Test this function
 func (fs *FeatureStore) dropUnneededColumns(	onlineFeaturesResponse *serving.GetOnlineFeaturesResponse,
 												requestedResultRowNames map[string]struct{},) {
 	metaDataLen := len(onlineFeaturesResponse.Metadata.FeatureNames.Val)
@@ -967,8 +773,6 @@ func (fs *FeatureStore) dropUnneededColumns(	onlineFeaturesResponse *serving.Get
 	}
 }
 
-// TODO (Ly): Implement allowCache option as in Python's sdk
-// and dummy entity?
 func (fs *FeatureStore) listFeatureViews(allowCache, hideDummyEntity bool) ([]*FeatureView, error) {
 	featureViews, err := fs.registry.listFeatureViews(fs.config.Project)
 	if err != nil {
@@ -982,8 +786,6 @@ func (fs *FeatureStore) listFeatureViews(allowCache, hideDummyEntity bool) ([]*F
 	return featureViews, nil
 }
 
-// TODO (Ly): Implement allowCache option as in Python's sdk
-// and dummy entity?
 func (fs *FeatureStore) listEntities(allowCache, hideDummyEntity bool) ([]*Entity, error) {
 	
 	allEntities, err := fs.registry.listEntities(fs.config.Project)
@@ -1091,210 +893,6 @@ func groupFeatureRefs(	features []string,
 	}
 
 	return fvResults, odfvResults, requestfvResults, nil
-}
-
-func (fs *FeatureStore) optimizedGetFeatureViewsToUse(	parsedKind interface{}, allowCache, hideDummyEntity bool,
-														) (map[string]*FeatureView, map[string]*RequestFeatureView, map[string]*OnDemandFeatureView, error) {
-	
-	allocatedFeatureViews := make(map[string]*FeatureView)
-	allocatedOnDemandFeatureViews := make(map[string]*OnDemandFeatureView)
-	allocatedRequestFeatureViews := make(map[string]*RequestFeatureView)
-
-	if featureService, ok := parsedKind.(*FeatureService); ok {
-		
-		// TODO (Ly): Review: Skip checking featureService from registry since
-		// we're only given featureServiceName
-
-		for _, featureProjection := range featureService.projections {
-			// Create copies of FeatureView that may
-			// contains the same *core.FeatureView but
-			// each differentiated by a *FeatureViewProjection
-			featureViewName := featureProjection.name
-			if fv, err := fs.getFeatureView(fs.config.Project, featureViewName, allowCache, hideDummyEntity); err == nil {
-				base, err := fv.base.withProjection(featureProjection)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-
-				if _, ok := allocatedFeatureViews[base.projection.nameToUse()]; !ok {
-					allocatedFeatureViews[base.projection.nameToUse()] = fv.NewFeatureViewFromBase(base)
-				}
-
-			} else if requestFv, err := fs.registry.getRequestFeatureView(fs.config.Project, featureViewName); err == nil {
-				base, err := requestFv.base.withProjection(featureProjection)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				if _, ok := allocatedRequestFeatureViews[base.projection.nameToUse()]; !ok {
-					allocatedRequestFeatureViews[base.projection.nameToUse()] = requestFv.NewRequestFeatureViewFromBase(base)
-				}
-			} else if odFv, err := fs.registry.getOnDemandFeatureView(fs.config.Project, featureViewName); err == nil {
-				base, err := odFv.base.withProjection(featureProjection)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				if _, ok := allocatedOnDemandFeatureViews[base.projection.nameToUse()]; !ok {
-					allocatedOnDemandFeatureViews[base.projection.nameToUse()] = odFv.NewOnDemandFeatureViewFromBase(base)
-				}
-			} else {
-				return nil, nil, nil, errors.New(fmt.Sprintf("The provided feature service %s contains a reference to a feature view" +
-				"%s which doesn't exist. Please make sure that you have created the feature view" +
-				"%s and that you have registered it by running \"apply\".", featureService.name, featureViewName, featureViewName))
-			}
-		}
-		
-	} else if featureRefs, ok := parsedKind.([]string); ok {
-		for _, featureRef := range featureRefs {
-			parsedFeatureName := strings.Split(featureRef, ":")
-			if len(parsedFeatureName) < 2 {
-				return nil, nil, nil, errors.New("FeatureReference should be in the format: 'FeatureViewName:FeatureName'")
-			}
-			featureViewName := parsedFeatureName[0]
-			if fv, err := fs.getFeatureView(fs.config.Project, featureViewName, allowCache, hideDummyEntity); err == nil {
-		
-				if _, ok := allocatedFeatureViews[featureViewName]; !ok {
-					allocatedFeatureViews[featureViewName] = fv
-				}
-
-			} else if requestFv, err := fs.registry.getRequestFeatureView(fs.config.Project, featureViewName); err == nil {
-				
-				if _, ok := allocatedRequestFeatureViews[featureViewName]; !ok {
-					allocatedRequestFeatureViews[featureViewName] = requestFv
-				}
-
-			} else if odFv, err := fs.registry.getOnDemandFeatureView(fs.config.Project, featureViewName); err == nil {
-				
-				if _, ok := allocatedOnDemandFeatureViews[featureViewName]; !ok {
-					allocatedOnDemandFeatureViews[featureViewName] = odFv
-				}
-
-			} else {
-				return nil, nil, nil, errors.New(fmt.Sprintf("The provided feature service %s contains a reference to a feature view" +
-				"%s which doesn't exist. Please make sure that you have created the feature view" +
-				"%s and that you have registered it by running \"apply\".", featureService.name, featureViewName, featureViewName))
-			}
-		}
-		
-	} else {
-		return nil, nil, nil, errors.New("Unexpected parsedKind")
-	}
-	return allocatedFeatureViews, allocatedRequestFeatureViews, allocatedOnDemandFeatureViews, nil
-}
-
-/*
-	same as getEntityMaps but support return type for optimizedGetFeatureViewsToUse
-*/
-
-func (fs *FeatureStore) optimizedGetEntityMaps(requestedFeatureViews map[string]*FeatureView) (map[string]string, error) {
-
-	entityNameToJoinKeyMap := make(map[string]string)
-	var entityNames map[string]bool
-	var entityName string
-	var joinKeyMap map[string]string
-	var featureView *FeatureView
-
-	entities, err := fs.listEntities(true, false)
-
-	if err != nil {
-		entities = make([]*Entity, 0)
-	}
-
-	for _, entity := range entities {
-		entityNameToJoinKeyMap[entity.name] = entity.joinKey
-	}
-
-	doneUpdateEntityMap := make(chan struct{}, 1)
-	errorChan := make(chan error, 1)
-	finishedUpdate := make(chan struct{}, 1)
-	go func() {
-		numFvs := len(requestedFeatureViews)
-		doneCount := 0
-		for doneCount < numFvs {
-			<- finishedUpdate
-			doneCount += 1
-		}
-		doneUpdateEntityMap <- struct{}{}
-	}()
-	
-	for _, featureView = range requestedFeatureViews {
-
-		// TODO (Ly): Review: Can we use goroutine here since
-		// all goroutines write to the same entityNameToJoinKeyMap
-		// but each only update unique keys within a featureview?
-		// ignore race condition warning?
-
-		go func(featureView *FeatureView) {
-			entityNames = featureView.entities
-			joinKeyMap = featureView.base.projection.joinKeyMap
-			for entityName, _ = range entityNames {
-				// TODO (Ly): Remove this with fs.registry.getEntity()
-				entity, err := fs.registry.getEntity(fs.config.Project, entityName)
-				if err != nil {
-					select {
-					case errorChan <- err:
-					default:
-						return
-					}
-				}
-				entityName := entity.name
-				joinKey := entity.joinKey
-
-				// TODO (Ly): Review: weird that both uses the same map?
-				// from python's sdk
-				if entityNameMapped, ok := joinKeyMap[joinKey]; ok {
-					entityName = entityNameMapped
-				}
-				if joinKeyMapped, ok := joinKeyMap[joinKey]; ok {
-					joinKey = joinKeyMapped
-				}
-				entityNameToJoinKeyMap[entityName] = joinKey
-				// TODO (Ly): Review: Can we skip entity_type_map
-				// in go's version?
-			}
-			finishedUpdate <- struct{}{}
-		}(featureView)
-	}
-	select {
-	case err := <- errorChan:
-		return nil, err
-	case <- doneUpdateEntityMap:
-	}
-	return entityNameToJoinKeyMap, nil
-}
-
-func optimizedGroupFeatureRefs(	featureRefs []string,
-								requestedFeatureViews map[string]*FeatureView,
-								requestedRequestFeatureViews map[string]*RequestFeatureView,
-								requestedOndemandFeatureViews map[string]*OnDemandFeatureView,
-							) 	(	map[*FeatureView][]string,
-									map[*OnDemandFeatureView][]string,
-									map[*RequestFeatureView][]string,
-									error,
-								)	{
-	groupedRefs := make(map[*FeatureView][]string)
-	groupedRequestFvRefs := make(map[*RequestFeatureView][]string)
-	groupedOdfvRefs := make(map[*OnDemandFeatureView][]string)
-
-	for _, featureRef := range featureRefs {
-		parsedFeatureName := strings.Split(featureRef, ":")
-		if len(parsedFeatureName) < 2 {
-			return nil, nil, nil, errors.New("FeatureReference should be in the format: 'FeatureViewName:FeatureName'")
-		}
-		featureViewName := parsedFeatureName[0]
-		featureName := parsedFeatureName[1]
-		if fv, ok := requestedFeatureViews[featureViewName]; ok {
-			groupedRefs[fv] = append(groupedRefs[fv], featureName)
-		} else if requestFv, ok := requestedRequestFeatureViews[featureViewName]; ok {
-			groupedRequestFvRefs[requestFv] = append(groupedRequestFvRefs[requestFv], featureName)
-		} else if odFv, ok := requestedOndemandFeatureViews[featureViewName]; ok {
-			groupedOdfvRefs[odFv] = append(groupedOdfvRefs[odFv], featureName)
-		} else {
-			// Shoudn't reach here since requestedFeatureViews, requestedRequestFeatureViews
-			// requestedOndemandFeatureViews should have been parsed from featureRefs
-			return nil, nil, nil, errors.New(fmt.Sprintf("Requested FeatureReference %s is not found", featureRef))
-		}
-	}
-	return groupedRefs, groupedOdfvRefs, groupedRequestFvRefs, nil
 }
 
 func (fs *FeatureStore) getFeatureView(project, featureViewName string, allowCache, hideDummyEntity bool) (*FeatureView, error) {
