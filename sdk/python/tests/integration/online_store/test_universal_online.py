@@ -643,20 +643,20 @@ def test_online_store_cleanup(environment, universal_data_sources):
     # So recreating table that was just deleted might need some retries
     wait_retry_backoff(eventually_apply, timeout_secs=60)
 
-    online_features = fs.get_online_features(features=features, entity_rows=entity_rows)
-    online_features = online_features.to_dict()
+    online_features = fs.get_online_features(
+        features=features, entity_rows=entity_rows
+    ).to_dict()
     assert all(v is None for v in online_features["value"])
 
 
 @pytest.mark.integration
-@pytest.mark.universal
-@pytest.mark.noodfv
+@pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval_without_odfv(
-    environment, universal_data_sources, full_feature_names
+def test_online_retrieval_with_go_server(
+    go_environment, go_data_sources, full_feature_names
 ):
-    fs = environment.feature_store
-    entities, datasets, data_sources = universal_data_sources
+    fs = go_environment.feature_store
+    entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
 
     feature_service_entity_mapping = FeatureService(
@@ -678,8 +678,8 @@ def test_online_retrieval_without_odfv(
     )
     fs.apply(feast_objects)
     fs.materialize(
-        environment.start_date - timedelta(days=1),
-        environment.end_date + timedelta(days=1),
+        go_environment.start_date - timedelta(days=1),
+        go_environment.end_date + timedelta(days=1),
     )
 
     entity_sample = datasets["orders"].sample(10)[
@@ -735,7 +735,7 @@ def test_online_retrieval_without_odfv(
     # Remove the on demand feature view output features, since they're not present in the source dataframe
 
     online_features_dict = get_online_features_dict(
-        environment=environment,
+        environment=go_environment,
         features=feature_refs,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -783,7 +783,7 @@ def test_online_retrieval_without_odfv(
 
     # Check what happens for missing values
     missing_responses_dict = get_online_features_dict(
-        environment=environment,
+        environment=go_environment,
         features=feature_refs,
         entity_rows=[{"driver": 0, "customer_id": 0}],
         full_feature_names=full_feature_names,
@@ -809,7 +809,7 @@ def test_online_retrieval_without_odfv(
         )
     ]
     assert_feature_service_entity_mapping_correctness(
-        environment,
+        go_environment,
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
@@ -822,40 +822,28 @@ def test_online_retrieval_without_odfv(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
-@pytest.mark.noodfv
-def test_online_store_cleanup_without_odfv(environment, universal_data_sources):
+@pytest.mark.goserver
+def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     """
-    Some online store implementations (like Redis) keep features from different features views
-    but with common entities together.
-    This might end up with deletion of all features attached to the entity,
-    when only one feature view was deletion target (see https://github.com/feast-dev/feast/issues/2150).
-
-    Plan:
-        1. Register two feature views with common entity "driver"
-        2. Materialize data
-        3. Check if features are available (via online retrieval)
-        4. Delete one feature view
-        5. Check that features for other are still available
-        6. Delete another feature view (and create again)
-        7. Verify that features for both feature view were deleted
+    This test mirrors test_online_store_cleanup for the Go feature server. It removes
+    on demand feature views since the Go feature server doesn't support them.
     """
-    fs = environment.feature_store
-    entities, datasets, data_sources = universal_data_sources
+    fs = go_environment.feature_store
+    entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(data_sources, with_odfv=False)[
         "driver"
     ]
 
     df = pd.DataFrame(
         {
-            "ts_1": [environment.end_date] * len(entities["driver"]),
-            "created_ts": [environment.end_date] * len(entities["driver"]),
+            "ts_1": [go_environment.end_date] * len(entities["driver"]),
+            "created_ts": [go_environment.end_date] * len(entities["driver"]),
             "driver_id": entities["driver"],
             "value": np.random.random(size=len(entities["driver"])),
         }
     )
 
-    ds = environment.data_source_creator.create_data_source(
+    ds = go_environment.data_source_creator.create_data_source(
         df, destination_name="simple_driver_dataset"
     )
 
@@ -866,8 +854,8 @@ def test_online_store_cleanup_without_odfv(environment, universal_data_sources):
     fs.apply([driver(), simple_driver_fv, driver_stats_fv])
 
     fs.materialize(
-        environment.start_date - timedelta(days=1),
-        environment.end_date + timedelta(days=1),
+        go_environment.start_date - timedelta(days=1),
+        go_environment.end_date + timedelta(days=1),
     )
     expected_values = df.sort_values(by="driver_id")
 

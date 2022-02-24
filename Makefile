@@ -78,8 +78,8 @@ test-python-universal-local:
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
-test-python-universal-go-server:
-	FEAST_USAGE=False IS_TEST=True FEAST_IS_GO_SERVER_TEST=True python -m pytest -n 8 --integration --universal --noodfv sdk/python/tests
+test-python-go-server:
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --goserver sdk/python/tests
 
 format-python:
 	# Sort
