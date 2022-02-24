@@ -5,7 +5,6 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Wrapper around core.FeatureView to add projection
 type FeatureService struct {
 	name string
 	project string
