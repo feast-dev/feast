@@ -30,6 +30,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
+    GO_REPO_CONFIGS,
     REDIS_CONFIG,
     Environment,
     construct_test_environment,
@@ -54,7 +55,7 @@ def pytest_configure(config):
         "markers", "universal: mark tests that use the universal feature repo"
     )
     config.addinivalue_line(
-        "markers", "noodfv: mark tests that use the noodfv feature repo"
+        "markers", "goserver: mark tests that use the go feature server"
     )
 
 
@@ -72,10 +73,10 @@ def pytest_addoption(parser):
         "--universal", action="store_true", default=False, help="Run universal tests",
     )
     parser.addoption(
-        "--noodfv",
+        "--goserver",
         action="store_true",
         default=False,
-        help="Run tests without on demand transforms",
+        help="Run tests that use the go feature server",
     )
 
 
@@ -83,7 +84,7 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
     should_run_universal = config.getoption("--universal") is True
-    should_run_without_odfv = config.getoption("--noodfv") is True
+    should_run_without_odfv = config.getoption("--goserver") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -109,10 +110,10 @@ def pytest_collection_modifyitems(config, items: List[Item]):
         for t in universal_tests:
             items.append(t)
 
-    noodfv_tests = [t for t in items if "noodfv" in t.keywords]
+    goserver_tests = [t for t in items if "goserver" in t.keywords]
     if should_run_without_odfv:
         items.clear()
-        for t in noodfv_tests:
+        for t in goserver_tests:
             items.append(t)
 
 
@@ -178,12 +179,25 @@ def environment(request, worker_id: str):
 
     def cleanup():
         e.feature_store.teardown()
-        e.feature_store.stop_go_server()
         if proc.is_alive():
             proc.kill()
 
     request.addfinalizer(cleanup)
 
+    return e
+
+
+@pytest.fixture(
+    params=GO_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_REPO_CONFIGS]
+)
+def go_environment(request, worker_id: str):
+    e = construct_test_environment(request.param, worker_id=worker_id)
+
+    def cleanup():
+        e.feature_store.teardown()
+        e.feature_store.stop_go_server()
+
+    request.addfinalizer(cleanup)
     return e
 
 
@@ -213,6 +227,24 @@ def universal_data_sources(request, environment):
     def cleanup():
         # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         environment.data_source_creator.teardown()
+
+    request.addfinalizer(cleanup)
+    return entities, datasets, datasources
+
+
+@pytest.fixture(scope="session")
+def go_data_sources(request, go_environment):
+    entities = construct_universal_entities()
+    datasets = construct_universal_datasets(
+        entities, go_environment.start_date, go_environment.end_date
+    )
+    datasources = construct_universal_data_sources(
+        datasets, go_environment.data_source_creator
+    )
+
+    def cleanup():
+        # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
+        go_environment.data_source_creator.teardown()
 
     request.addfinalizer(cleanup)
     return entities, datasets, datasources
