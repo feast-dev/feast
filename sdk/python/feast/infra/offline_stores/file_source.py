@@ -91,7 +91,7 @@ class FileSource(DataSource):
         """
         Returns the path of this file data source.
         """
-        return self._file_options.file_url
+        return self.file_options.file_url
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
