@@ -22,7 +22,7 @@ class BigQuerySource(DataSource):
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
     ):
-        self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
+        self.bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
         super().__init__(
             event_timestamp_column,
@@ -47,25 +47,11 @@ class BigQuerySource(DataSource):
 
     @property
     def table_ref(self):
-        return self._bigquery_options.table_ref
+        return self.bigquery_options.table_ref
 
     @property
     def query(self):
-        return self._bigquery_options.query
-
-    @property
-    def bigquery_options(self):
-        """
-        Returns the bigquery options of this data source
-        """
-        return self._bigquery_options
-
-    @bigquery_options.setter
-    def bigquery_options(self, bigquery_options):
-        """
-        Sets the bigquery options of this data source
-        """
-        self._bigquery_options = bigquery_options
+        return self.bigquery_options.query
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):

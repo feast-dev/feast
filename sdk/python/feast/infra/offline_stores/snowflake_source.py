@@ -50,7 +50,7 @@ class SnowflakeSource(DataSource):
         # The default Snowflake schema is named "PUBLIC".
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
-        self._snowflake_options = SnowflakeOptions(
+        self.snowflake_options = SnowflakeOptions(
             database=database, schema=_schema, table=table, query=query
         )
 
@@ -95,32 +95,22 @@ class SnowflakeSource(DataSource):
     @property
     def database(self):
         """Returns the database of this snowflake source."""
-        return self._snowflake_options.database
+        return self.snowflake_options.database
 
     @property
     def schema(self):
         """Returns the schema of this snowflake source."""
-        return self._snowflake_options.schema
+        return self.snowflake_options.schema
 
     @property
     def table(self):
         """Returns the table of this snowflake source."""
-        return self._snowflake_options.table
+        return self.snowflake_options.table
 
     @property
     def query(self):
         """Returns the snowflake options of this snowflake source."""
-        return self._snowflake_options.query
-
-    @property
-    def snowflake_options(self):
-        """Returns the snowflake options of this snowflake source."""
-        return self._snowflake_options
-
-    @snowflake_options.setter
-    def snowflake_options(self, _snowflake_options):
-        """Sets the snowflake options of this snowflake source."""
-        self._snowflake_options = _snowflake_options
+        return self.snowflake_options.query
 
     def to_proto(self) -> DataSourceProto:
         """
