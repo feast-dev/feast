@@ -21,21 +21,21 @@ def test_join_key_default():
     assert entity.join_key == "my-entity"
 
 
-def test_entity_class_contains_labels():
+def test_entity_class_contains_tags():
     entity = Entity(
         "my-entity",
         description="My entity",
         value_type=ValueType.STRING,
-        labels={"key1": "val1", "key2": "val2"},
+        tags={"key1": "val1", "key2": "val2"},
     )
-    assert "key1" in entity.labels.keys() and entity.labels["key1"] == "val1"
-    assert "key2" in entity.labels.keys() and entity.labels["key2"] == "val2"
+    assert "key1" in entity.tags.keys() and entity.tags["key1"] == "val1"
+    assert "key2" in entity.tags.keys() and entity.tags["key2"] == "val2"
 
 
-def test_entity_without_labels_empty_dict():
+def test_entity_without_tags_empty_dict():
     entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
-    assert entity.labels == dict()
-    assert len(entity.labels) == 0
+    assert entity.tags == dict()
+    assert len(entity.tags) == 0
 
 
 def test_entity_without_description():

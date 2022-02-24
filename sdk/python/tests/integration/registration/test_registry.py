@@ -74,7 +74,7 @@ def test_apply_entity_success(test_registry):
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -90,8 +90,8 @@ def test_apply_entity_success(test_registry):
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project)
@@ -99,8 +99,8 @@ def test_apply_entity_success(test_registry):
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_registry.delete_entity("driver_car_id", project)
@@ -123,7 +123,7 @@ def test_apply_entity_integration(test_registry):
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -139,8 +139,8 @@ def test_apply_entity_integration(test_registry):
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project)
@@ -148,8 +148,8 @@ def test_apply_entity_integration(test_registry):
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_registry.teardown()
@@ -437,7 +437,7 @@ def test_commit():
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -454,8 +454,8 @@ def test_commit():
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project, allow_cache=True)
@@ -463,8 +463,8 @@ def test_commit():
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     # Create new registry that points to the same store
@@ -489,8 +489,8 @@ def test_commit():
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project)
@@ -498,8 +498,8 @@ def test_commit():
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_registry.teardown()
