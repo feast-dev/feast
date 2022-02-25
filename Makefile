@@ -31,7 +31,7 @@ lint: lint-python lint-java lint-go
 
 test: test-python test-java test-go
 
-protos: compile-protos-go compile-protos-python compile-protos-docs
+protos: compile-protos-docs
 
 build: protos build-java build-docker build-html
 
@@ -48,10 +48,6 @@ lock-python-ci-dependencies:
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
-
-compile-protos-python:
-	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/feast/protos/ --python_out=../sdk/python/feast/protos/ --mypy_out=../sdk/python/feast/protos/ feast/$(dir)/*.proto;)
-	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -I@ sed -i.bak 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 
 install-python:
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
@@ -126,10 +122,6 @@ install-go-ci-dependencies:
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -u golang.org/x/lint/golint
 
-compile-protos-go:
-	mkdir -p ./go/protos
-	$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go-grpc_out=paths=source_relative:../go/protos --go_out=paths=source_relative:../go/protos feast/$(dir)/*.proto;)
-
 test-go:
 	go test ./...
 
@@ -198,7 +190,7 @@ compile-protos-docs:
 	mkdir -p dist/grpc;
 	cd ${ROOT_DIR}/protos && protoc --docs_out=../dist/grpc feast/*/*.proto
 
-build-sphinx: compile-protos-python
+build-sphinx:
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
 
 build-templates:
