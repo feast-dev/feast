@@ -204,9 +204,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
 def test_write_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
-    )
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_entity = driver()
 
     # Register Feature View and Entity
@@ -391,7 +389,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         datasets.customer_df["customer_id"].isin(sample_customers)
     ]
 
-    location_pairs = np.array(list(itertools.permutations(entities["location"], 2)))
+    location_pairs = np.array(list(itertools.permutations(entities.location_vals, 2)))
     sample_location_pairs = location_pairs[
         np.random.choice(len(location_pairs), 10)
     ].T.tolist()

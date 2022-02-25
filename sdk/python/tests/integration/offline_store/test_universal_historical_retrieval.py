@@ -469,7 +469,7 @@ def test_historical_features_with_entities_from_query(
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    orders_table = table_name_from_data_source(data_sources["orders"])
+    orders_table = table_name_from_data_source(data_sources.orders)
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
