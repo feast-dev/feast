@@ -70,7 +70,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
-  integration-test-python:
+  integration-test-python-and-go:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
       || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
@@ -166,3 +166,14 @@ jobs:
           env_vars: OS,PYTHON
           fail_ci_if_error: true
           verbose: true
+      - name: Test go
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
+        env:
+          FEAST_USAGE: "False"
+          IS_TEST: "True"
+          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
+          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
+          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
+          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
+          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+        run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --goserver --durations=5
