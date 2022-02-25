@@ -86,6 +86,10 @@ from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
 
+FeastObject = Union[
+    FeatureView, OnDemandFeatureView, RequestFeatureView, Entity, FeatureService,
+]
+
 
 class FeatureStore:
     """
@@ -539,27 +543,9 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                ]
-            ],
+            List[FeastObject],
         ],
-        objects_to_delete: Optional[
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                ]
-            ]
-        ] = None,
+        objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.

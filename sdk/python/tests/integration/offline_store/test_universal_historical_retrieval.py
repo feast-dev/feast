@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 import pytest
+from conftest import TestData
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from pytz import utc
 
@@ -278,10 +279,14 @@ def get_expected_training_df(
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_historical_features(environment, universal_data_sources, full_feature_names):
+def test_historical_features(
+    environment, universal_data_sources: TestData, full_feature_names
+):
     store = environment.feature_store
 
     (entities, datasets, data_sources) = universal_data_sources
+
+    entities.driver
     feature_views = construct_universal_feature_views(data_sources)
 
     entity_df_with_request_data = datasets["entity"].copy(deep=True)

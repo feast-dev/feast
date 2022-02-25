@@ -1,9 +1,13 @@
+import dataclasses
 import random
+from typing import List
 
 import pytest
 
 from feast import FeatureService
+from feast.feature_store import FeastObject
 from tests.integration.feature_repos.repo_configuration import (
+    TestData,
     construct_universal_feature_views,
 )
 from tests.integration.feature_repos.universal.entities import (
@@ -15,7 +19,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.benchmark
 @pytest.mark.integration
-def test_online_retrieval(environment, universal_data_sources, benchmark):
+def test_online_retrieval(environment, universal_data_sources: TestData, benchmark):
 
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
@@ -26,15 +30,15 @@ def test_online_retrieval(environment, universal_data_sources, benchmark):
         features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
     )
 
-    feast_objects = []
-    feast_objects.extend(feature_views.values())
+    feast_objects: List[FeastObject] = []
+    feast_objects.extend(dataclasses.asdict(feature_views).values())
     feast_objects.extend([driver(), customer(), location(), feature_service])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
 
-    sample_drivers = random.sample(entities["driver"], 10)
+    sample_drivers = random.sample(entities.driver_vals, 10)
 
-    sample_customers = random.sample(entities["customer"], 10)
+    sample_customers = random.sample(entities.customer_vals, 10)
 
     entity_rows = [
         {"driver": d, "customer_id": c, "val_to_add": 50}

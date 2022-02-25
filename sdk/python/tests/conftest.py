@@ -32,10 +32,9 @@ from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     REDIS_CONFIG,
     Environment,
+    TestData,
     construct_test_environment,
-    construct_universal_data_sources,
-    construct_universal_datasets,
-    construct_universal_entities,
+    construct_universal_test_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -184,21 +183,13 @@ def local_redis_environment(request, worker_id):
 
 
 @pytest.fixture(scope="session")
-def universal_data_sources(request, environment):
-    entities = construct_universal_entities()
-    datasets = construct_universal_datasets(
-        entities, environment.start_date, environment.end_date
-    )
-    datasources = construct_universal_data_sources(
-        datasets, environment.data_source_creator
-    )
-
+def universal_data_sources(request, environment) -> TestData:
     def cleanup():
         # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         environment.data_source_creator.teardown()
 
     request.addfinalizer(cleanup)
-    return entities, datasets, datasources
+    return construct_universal_test_data(environment)
 
 
 @pytest.fixture(scope="session")
