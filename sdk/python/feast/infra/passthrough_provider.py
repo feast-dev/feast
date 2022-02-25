@@ -131,6 +131,8 @@ class PassthroughProvider(Provider):
 
         entities = []
         for entity_name in feature_view.entities:
+            print("Entity Names!!")
+            print(entity_name)
             entities.append(registry.get_entity(entity_name, project))
 
         (
