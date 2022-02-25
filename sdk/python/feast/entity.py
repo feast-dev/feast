@@ -45,14 +45,14 @@ class Entity:
         last_updated_timestamp: The time when the entity was last updated.
     """
 
-    _name: str
-    _value_type: ValueType
-    _join_key: str
-    _description: str
-    _tags: Dict[str, str]
-    _owner: str
-    _created_timestamp: Optional[datetime]
-    _last_updated_timestamp: Optional[datetime]
+    name: str
+    value_type: ValueType
+    join_key: str
+    description: str
+    tags: Dict[str, str]
+    owner: str
+    created_timestamp: Optional[datetime]
+    last_updated_timestamp: Optional[datetime]
 
     @log_exceptions
     def __init__(
@@ -66,13 +66,13 @@ class Entity:
         owner: str = "",
     ):
         """Creates an Entity object."""
-        self._name = name
-        self._value_type = value_type
-        self._join_key = join_key if join_key else name
-        self._description = description
+        self.name = name
+        self.value_type = value_type
+        self.join_key = join_key if join_key else name
+        self.description = description
 
         if labels is not None:
-            self._tags = labels
+            self.tags = labels
             warnings.warn(
                 (
                     "The parameter 'labels' is being deprecated. Please use 'tags' instead. "
@@ -81,11 +81,11 @@ class Entity:
                 DeprecationWarning,
             )
         else:
-            self._tags = labels or tags or {}
+            self.tags = labels or tags or {}
 
-        self._owner = owner
-        self._created_timestamp = None
-        self._last_updated_timestamp = None
+        self.owner = owner
+        self.created_timestamp = None
+        self.last_updated_timestamp = None
 
     def __hash__(self) -> int:
         return hash((id(self), self.name))
@@ -108,78 +108,6 @@ class Entity:
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, name: str):
-        self._name = name
-
-    @property
-    def value_type(self) -> ValueType:
-        return self._value_type
-
-    @value_type.setter
-    def value_type(self, value_type: ValueType):
-        self._value_type = value_type
-
-    @property
-    def join_key(self) -> str:
-        return self._join_key
-
-    @join_key.setter
-    def join_key(self, join_key: str):
-        self._join_key = join_key
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    @description.setter
-    def description(self, description: str):
-        self._description = description
-
-    @property
-    def tags(self) -> Dict[str, str]:
-        return self._tags
-
-    @tags.setter
-    def tags(self, tags: Dict[str, str]):
-        self._tags = tags
-
-    @property
-    def labels(self) -> Dict[str, str]:
-        return self._tags
-
-    @labels.setter
-    def labels(self, tags: Dict[str, str]):
-        self._tags = tags
-
-    @property
-    def owner(self) -> str:
-        return self._owner
-
-    @owner.setter
-    def owner(self, owner: str):
-        self._owner = owner
-
-    @property
-    def created_timestamp(self) -> Optional[datetime]:
-        return self._created_timestamp
-
-    @created_timestamp.setter
-    def created_timestamp(self, created_timestamp: datetime):
-        self._created_timestamp = created_timestamp
-
-    @property
-    def last_updated_timestamp(self) -> Optional[datetime]:
-        return self._last_updated_timestamp
-
-    @last_updated_timestamp.setter
-    def last_updated_timestamp(self, last_updated_timestamp: datetime):
-        self._last_updated_timestamp = last_updated_timestamp
 
     def is_valid(self):
         """

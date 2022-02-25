@@ -59,7 +59,7 @@ class FileSource(DataSource):
         else:
             file_url = path
 
-        self._file_options = FileOptions(
+        self.file_options = FileOptions(
             file_format=file_format,
             file_url=file_url,
             s3_endpoint_override=s3_endpoint_override,
@@ -87,25 +87,11 @@ class FileSource(DataSource):
         )
 
     @property
-    def file_options(self):
-        """
-        Returns the file options of this data source
-        """
-        return self._file_options
-
-    @file_options.setter
-    def file_options(self, file_options):
-        """
-        Sets the file options of this data source
-        """
-        self._file_options = file_options
-
-    @property
     def path(self):
         """
-        Returns the file path of this feature data source
+        Returns the path of this file data source.
         """
-        return self._file_options.file_url
+        return self.file_options.file_url
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -144,7 +130,7 @@ class FileSource(DataSource):
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
         filesystem, path = FileSource.create_filesystem_and_path(
-            self.path, self._file_options.s3_endpoint_override
+            self.path, self.file_options.s3_endpoint_override
         )
         schema = ParquetFile(
             path if filesystem is None else filesystem.open_input_file(path)

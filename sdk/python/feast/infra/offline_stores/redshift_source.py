@@ -48,7 +48,7 @@ class RedshiftSource(DataSource):
         # The default Redshift schema is named "public".
         _schema = "public" if table and not schema else schema
 
-        self._redshift_options = RedshiftOptions(
+        self.redshift_options = RedshiftOptions(
             table=table, schema=_schema, query=query
         )
 
@@ -91,27 +91,17 @@ class RedshiftSource(DataSource):
     @property
     def table(self):
         """Returns the table of this Redshift source."""
-        return self._redshift_options.table
+        return self.redshift_options.table
 
     @property
     def schema(self):
         """Returns the schema of this Redshift source."""
-        return self._redshift_options.schema
+        return self.redshift_options.schema
 
     @property
     def query(self):
         """Returns the Redshift options of this Redshift source."""
-        return self._redshift_options.query
-
-    @property
-    def redshift_options(self):
-        """Returns the Redshift options of this Redshift source."""
-        return self._redshift_options
-
-    @redshift_options.setter
-    def redshift_options(self, _redshift_options):
-        """Sets the Redshift options of this Redshift source."""
-        self._redshift_options = _redshift_options
+        return self.redshift_options.query
 
     def to_proto(self) -> DataSourceProto:
         """

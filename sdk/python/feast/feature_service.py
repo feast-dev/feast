@@ -36,13 +36,13 @@ class FeatureService:
         last_updated_timestamp: The time when the feature service was last updated.
     """
 
-    _name: str
-    _feature_view_projections: List[FeatureViewProjection]
-    _description: str
-    _tags: Dict[str, str]
-    _owner: str
-    _created_timestamp: Optional[datetime] = None
-    _last_updated_timestamp: Optional[datetime] = None
+    name: str
+    feature_view_projections: List[FeatureViewProjection]
+    description: str
+    tags: Dict[str, str]
+    owner: str
+    created_timestamp: Optional[datetime] = None
+    last_updated_timestamp: Optional[datetime] = None
 
     @log_exceptions
     def __init__(
@@ -59,23 +59,23 @@ class FeatureService:
         Raises:
             ValueError: If one of the specified features is not a valid type.
         """
-        self._name = name
-        self._feature_view_projections = []
+        self.name = name
+        self.feature_view_projections = []
 
         for feature_grouping in features:
             if isinstance(feature_grouping, BaseFeatureView):
-                self._feature_view_projections.append(feature_grouping.projection)
+                self.feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(
                     f"The feature service {name} has been provided with an invalid type "
                     f'{type(feature_grouping)} as part of the "features" argument.)'
                 )
 
-        self._description = description
-        self._tags = tags or {}
-        self._owner = owner
-        self._created_timestamp = None
-        self._last_updated_timestamp = None
+        self.description = description
+        self.tags = tags or {}
+        self.owner = owner
+        self.created_timestamp = None
+        self.last_updated_timestamp = None
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -107,64 +107,6 @@ class FeatureService:
             return False
 
         return True
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, name: str):
-        self._name = name
-
-    @property
-    def feature_view_projections(self) -> List[FeatureViewProjection]:
-        return self._feature_view_projections
-
-    @feature_view_projections.setter
-    def feature_view_projections(
-        self, feature_view_projections: List[FeatureViewProjection]
-    ):
-        self._feature_view_projections = feature_view_projections
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    @description.setter
-    def description(self, description: str):
-        self._description = description
-
-    @property
-    def tags(self) -> Dict[str, str]:
-        return self._tags
-
-    @tags.setter
-    def tags(self, tags: Dict[str, str]):
-        self._tags = tags
-
-    @property
-    def owner(self) -> str:
-        return self._owner
-
-    @owner.setter
-    def owner(self, owner: str):
-        self._owner = owner
-
-    @property
-    def created_timestamp(self) -> Optional[datetime]:
-        return self._created_timestamp
-
-    @created_timestamp.setter
-    def created_timestamp(self, created_timestamp: datetime):
-        self._created_timestamp = created_timestamp
-
-    @property
-    def last_updated_timestamp(self) -> Optional[datetime]:
-        return self._last_updated_timestamp
-
-    @last_updated_timestamp.setter
-    def last_updated_timestamp(self, last_updated_timestamp: datetime):
-        self._last_updated_timestamp = last_updated_timestamp
 
     @classmethod
     def from_proto(cls, feature_service_proto: FeatureServiceProto):
