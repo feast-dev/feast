@@ -35,6 +35,67 @@ from tests.integration.feature_repos.universal.feature_views import (
 from tests.utils.data_source_utils import prep_file_source
 
 
+@pytest.mark.integration
+def test_entity_ttl_online_store(local_redis_environment, universal_data_sources):
+    if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
+        return
+    fs = local_redis_environment.feature_store
+    # setting ttl setting in online store to 1 second
+    fs.config.online_store.key_ttl_seconds = 1
+    entities, datasets, data_sources = universal_data_sources
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(
+        data_sources["driver"]
+    )
+    driver_entity = driver()
+
+    # Register Feature View and Entity
+    fs.apply([driver_hourly_stats, driver_entity])
+
+    # fake data to ingest into Online Store
+    data = {
+        "driver_id": [1],
+        "conv_rate": [0.5],
+        "acc_rate": [0.6],
+        "avg_daily_trips": [4],
+        "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+        "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+    }
+    df_ingest = pd.DataFrame(data)
+
+    # directly ingest data into the Online Store
+    fs.write_to_online_store("driver_stats", df_ingest)
+
+    # assert the right data is in the Online Store
+    df = fs.get_online_features(
+        features=[
+            "driver_stats:avg_daily_trips",
+            "driver_stats:acc_rate",
+            "driver_stats:conv_rate",
+        ],
+        entity_rows=[{"driver": 1}],
+    ).to_df()
+    assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_equal_to(4)
+    assertpy.assert_that(df["acc_rate"].iloc[0]).is_close_to(0.6, 1e-6)
+    assertpy.assert_that(df["conv_rate"].iloc[0]).is_close_to(0.5, 1e-6)
+
+    # simulate time passing for testing ttl
+    time.sleep(1)
+
+    # retrieve the same entity again
+    df = fs.get_online_features(
+        features=[
+            "driver_stats:avg_daily_trips",
+            "driver_stats:acc_rate",
+            "driver_stats:conv_rate",
+        ],
+        entity_rows=[{"driver": 1}],
+    ).to_df()
+    # assert that the entity features expired in the online store
+    assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_none()
+    assertpy.assert_that(df["acc_rate"].iloc[0]).is_none()
+    assertpy.assert_that(df["conv_rate"].iloc[0]).is_none()
+
+
 # TODO: make this work with all universal (all online store types)
 @pytest.mark.integration
 def test_write_to_online_store_event_check(local_redis_environment):
