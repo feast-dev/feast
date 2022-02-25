@@ -1,4 +1,3 @@
-import dataclasses
 import random
 from typing import List
 
@@ -7,7 +6,6 @@ import pytest
 from feast import FeatureService
 from feast.feast_object import FeastObject
 from tests.integration.feature_repos.repo_configuration import (
-    TestData,
     construct_universal_feature_views,
 )
 from tests.integration.feature_repos.universal.entities import (
@@ -19,19 +17,18 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.benchmark
 @pytest.mark.integration
-def test_online_retrieval(environment, universal_data_sources: TestData, benchmark):
-
+def test_online_retrieval(environment, universal_data_sources, benchmark):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
     feature_service = FeatureService(
         "convrate_plus100",
-        features=[feature_views["driver"][["conv_rate"]], feature_views["driver_odfv"]],
+        features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
     )
 
     feast_objects: List[FeastObject] = []
-    feast_objects.extend(dataclasses.asdict(feature_views).values())
+    feast_objects.extend(feature_views.values())
     feast_objects.extend([driver(), customer(), location(), feature_service])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)

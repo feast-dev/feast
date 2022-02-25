@@ -1,3 +1,4 @@
+import dataclasses
 import importlib
 import json
 import os
@@ -254,6 +255,9 @@ class UniversalFeatureViews:
     order: DataSource
     location: DataSource
     field_mapping: DataSource
+
+    def values(self):
+        return dataclasses.asdict(self).values()
 
 
 def construct_universal_feature_views(

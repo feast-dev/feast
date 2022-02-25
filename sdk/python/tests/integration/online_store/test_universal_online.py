@@ -337,9 +337,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     feature_service = FeatureService(
         "convrate_plus100",
         features=[
-            feature_views["driver"][["conv_rate"]],
-            feature_views["driver_odfv"],
-            feature_views["driver_age_request_fv"],
+            feature_views.driver[["conv_rate"]],
+            feature_views.driver_odfv,
+            feature_views.driver_age_request_fv,
         ],
     )
     feature_service_entity_mapping = FeatureService(
@@ -588,14 +588,15 @@ def test_online_store_cleanup(environment, universal_data_sources):
     """
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    driver_stats_fv = construct_universal_feature_views(data_sources)["driver"]
+    driver_stats_fv = construct_universal_feature_views(data_sources).driver
 
+    driver_entities = entities.driver_vals
     df = pd.DataFrame(
         {
-            "ts_1": [environment.end_date] * len(entities["driver"]),
-            "created_ts": [environment.end_date] * len(entities["driver"]),
-            "driver_id": entities["driver"],
-            "value": np.random.random(size=len(entities["driver"])),
+            "ts_1": [environment.end_date] * len(driver_entities),
+            "created_ts": [environment.end_date] * len(driver_entities),
+            "driver_id": driver_entities,
+            "value": np.random.random(size=len(driver_entities)),
         }
     )
 
@@ -616,7 +617,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     expected_values = df.sort_values(by="driver_id")
 
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver": driver_id} for driver_id in sorted(entities["driver"])]
+    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows
