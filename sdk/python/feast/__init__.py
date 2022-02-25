@@ -15,6 +15,7 @@ from .feature_store import FeatureStore
 from .feature_view import FeatureView
 from .on_demand_feature_view import OnDemandFeatureView
 from .repo_config import RepoConfig
+from .request_feature_view import RequestFeatureView
 from .value_type import ValueType
 
 logging.basicConfig(
@@ -44,5 +45,6 @@ __all__ = [
     "BigQuerySource",
     "FileSource",
     "RedshiftSource",
+    "RequestFeatureView",
     "SnowflakeSource",
 ]

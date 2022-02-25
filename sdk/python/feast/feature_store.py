@@ -50,6 +50,7 @@ from feast.errors import (
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import (
     DUMMY_ENTITY,
@@ -85,10 +86,6 @@ from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
-
-FeastObject = Union[
-    FeatureView, OnDemandFeatureView, RequestFeatureView, Entity, FeatureService,
-]
 
 
 class FeatureStore:

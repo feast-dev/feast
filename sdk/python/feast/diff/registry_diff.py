@@ -4,8 +4,8 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cas
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
+from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
-from feast.feature_store import FeastObject
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (

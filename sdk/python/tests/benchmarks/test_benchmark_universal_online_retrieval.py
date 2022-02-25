@@ -5,7 +5,7 @@ from typing import List
 import pytest
 
 from feast import FeatureService
-from feast.feature_store import FeastObject
+from feast.feast_object import FeastObject
 from tests.integration.feature_repos.repo_configuration import (
     TestData,
     construct_universal_feature_views,
