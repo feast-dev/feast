@@ -252,9 +252,9 @@ class UniversalFeatureViews:
     driver: FeatureView
     driver_odfv: OnDemandFeatureView
     driver_age_request_fv: FeatureView
-    order: DataSource
-    location: DataSource
-    field_mapping: DataSource
+    order: FeatureView
+    location: FeatureView
+    field_mapping: FeatureView
 
     def values(self):
         return dataclasses.asdict(self).values()

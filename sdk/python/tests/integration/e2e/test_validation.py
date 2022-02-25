@@ -67,7 +67,7 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
-    entity_df = datasets["entity"].drop(
+    entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
     )
 
@@ -101,7 +101,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
-    entity_df = datasets["entity"].drop(
+    entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
     )
 
