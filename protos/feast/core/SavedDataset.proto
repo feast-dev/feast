@@ -23,8 +23,8 @@ option java_outer_classname = "SavedDatasetProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 import "google/protobuf/timestamp.proto";
-import "feast/core/FeatureViewProjection.proto";
 import "feast/core/DataSource.proto";
+import "feast/core/FeatureService.proto";
 
 message SavedDatasetSpec {
   // Name of the dataset. Must be unique since it's possible to overwrite dataset by name
@@ -43,6 +43,9 @@ message SavedDatasetSpec {
   bool full_feature_names = 5;
 
   SavedDatasetStorage storage = 6;
+
+  // Optional and only populated if generated from a feature service fetch
+  string feature_service_name = 8;
 
   // User defined metadata
   map<string, string> tags = 7;

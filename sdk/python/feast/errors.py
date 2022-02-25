@@ -10,6 +10,13 @@ class DataSourceNotFoundException(Exception):
         )
 
 
+class DataSourceNoNameException(Exception):
+    def __init__(self):
+        super().__init__(
+            "Unable to infer a name for this data source. Either table_ref or name must be specified."
+        )
+
+
 class FeastObjectNotFoundException(Exception):
     pass
 
@@ -62,6 +69,14 @@ class RequestDataNotFoundInEntityRowsException(FeastObjectNotFoundException):
         super().__init__(
             f"Required request data source features {feature_names} not found in the entity rows, but required by feature views"
         )
+
+
+class DataSourceObjectNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(f"Data source {name} does not exist in project {project}")
+        else:
+            super().__init__(f"Data source {name} does not exist")
 
 
 class S3RegistryBucketNotExist(FeastObjectNotFoundException):

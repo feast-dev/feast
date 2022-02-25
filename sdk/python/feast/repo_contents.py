@@ -13,6 +13,7 @@
 # limitations under the License.
 from typing import NamedTuple, Set
 
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -26,6 +27,7 @@ class RepoContents(NamedTuple):
     Represents the objects in a Feast feature repo.
     """
 
+    data_sources: Set[DataSource]
     feature_views: Set[FeatureView]
     on_demand_feature_views: Set[OnDemandFeatureView]
     request_feature_views: Set[RequestFeatureView]
@@ -34,6 +36,7 @@ class RepoContents(NamedTuple):
 
     def to_registry_proto(self) -> RegistryProto:
         registry_proto = RegistryProto()
+        registry_proto.data_sources.extend([e.to_proto() for e in self.data_sources])
         registry_proto.entities.extend([e.to_proto() for e in self.entities])
         registry_proto.feature_views.extend(
             [fv.to_proto() for fv in self.feature_views]

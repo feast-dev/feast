@@ -26,6 +26,7 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
+// Next available id: 22
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
@@ -45,6 +46,13 @@ message DataSource {
     REQUEST_SOURCE = 7;
 
   }
+
+  // Unique name of data source within the project
+  string name = 20;
+
+  // Name of Feast project that this data source belongs to.
+  string project = 21;
+
   SourceType type = 1;
 
   // Defines mapping between fields in the sourced data
@@ -156,9 +164,7 @@ message DataSource {
 
   // Defines options for DataSource that sources features from request data
   message RequestDataOptions {
-    // Name of the request data source
-    string name = 1;
-
+    reserved 1;
     // Mapping of feature name to type
     map<string, feast.types.ValueType.Enum> schema = 2;
   }

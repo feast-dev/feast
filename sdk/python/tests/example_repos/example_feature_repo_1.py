@@ -16,7 +16,9 @@ driver_locations_source = BigQuerySource(
 )
 
 customer_profile_source = BigQuerySource(
-    table_ref="feast-oss.public.customers", event_timestamp_column="event_timestamp",
+    name="customer_profile_source",
+    table_ref="feast-oss.public.customers",
+    event_timestamp_column="event_timestamp",
 )
 
 customer_driver_combined_source = BigQuerySource(

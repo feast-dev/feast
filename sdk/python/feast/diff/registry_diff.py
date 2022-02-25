@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cast
 
 from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
-from feast.feast_object import FeastObject
+from feast.feast_object import FeastObject, FeastObjectSpecProto
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -89,6 +91,7 @@ def tag_objects_for_keep_delete_update_add(
 
 FeastObjectProto = TypeVar(
     "FeastObjectProto",
+    DataSourceProto,
     EntityProto,
     FeatureViewProto,
     FeatureServiceProto,
@@ -108,23 +111,33 @@ def diff_registry_objects(
     assert current_proto.DESCRIPTOR.full_name == new_proto.DESCRIPTOR.full_name
     property_diffs = []
     transition: TransitionType = TransitionType.UNCHANGED
-    if current_proto.spec != new_proto.spec:
-        for _field in current_proto.spec.DESCRIPTOR.fields:
+
+    current_spec: FeastObjectSpecProto
+    new_spec: FeastObjectSpecProto
+    if isinstance(current_proto, DataSourceProto) or isinstance(
+        new_proto, DataSourceProto
+    ):
+        assert type(current_proto) == type(new_proto)
+        current_spec = cast(DataSourceProto, current_proto)
+        new_spec = cast(DataSourceProto, new_proto)
+    else:
+        current_spec = current_proto.spec
+        new_spec = new_proto.spec
+    if current_spec != new_spec:
+        for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
                 continue
-            if getattr(current_proto.spec, _field.name) != getattr(
-                new_proto.spec, _field.name
-            ):
+            if getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
                 transition = TransitionType.UPDATE
                 property_diffs.append(
                     PropertyDiff(
                         _field.name,
-                        getattr(current_proto.spec, _field.name),
-                        getattr(new_proto.spec, _field.name),
+                        getattr(current_spec, _field.name),
+                        getattr(new_spec, _field.name),
                     )
                 )
     return FeastObjectDiff(
-        name=new_proto.spec.name,
+        name=new_spec.name,
         feast_object_type=object_type,
         current_feast_object=current,
         new_feast_object=new,
@@ -281,6 +294,12 @@ def apply_diff_to_registry(
             TransitionType.CREATE,
             TransitionType.UPDATE,
         ]:
+            if feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
+                registry.apply_data_source(
+                    cast(DataSource, feast_object_diff.new_feast_object),
+                    project,
+                    commit=False,
+                )
             if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
                 registry.apply_entity(
                     cast(Entity, feast_object_diff.new_feast_object),

@@ -2,7 +2,11 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
+from feast.errors import (
+    DataSourceNoNameException,
+    DataSourceNotFoundException,
+    RedshiftCredentialsError,
+)
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -15,6 +19,7 @@ from feast.value_type import ValueType
 class RedshiftSource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
         schema: Optional[str] = None,
@@ -27,6 +32,7 @@ class RedshiftSource(DataSource):
         Creates a RedshiftSource object.
 
         Args:
+            name (optional): Name for the source. Defaults to the table_ref if not specified.
             event_timestamp_column (optional): Event timestamp column used for point in
                 time joins of feature values.
             table (optional): Redshift table where the features are stored.
@@ -38,7 +44,18 @@ class RedshiftSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features.
         """
+        if table is None and query is None:
+            raise ValueError('No "table" argument provided.')
+        _name = name
+        if not _name:
+            if table:
+                _name = table
+            else:
+                raise DataSourceNoNameException()
+
+        # TODO(adchia): figure out what to do if user uses the query to start
         super().__init__(
+            _name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
