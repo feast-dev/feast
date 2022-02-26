@@ -40,7 +40,7 @@ AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
-    "Click==8.*",
+    "Click>=7.*",
     "colorama>=0.3.9",
     "dill==0.3.*",
     "fastavro>=1.1.0",
@@ -66,7 +66,7 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0",
     "proto-plus<1.19.7",
     "tensorflow-metadata>=1.0.0,<2.0.0",
-    "dask>=2021.*",
+    "dask>=2021.*,<2022.02.0",
 ]
 
 GCP_REQUIRED = [
