@@ -40,56 +40,12 @@ func NewRegistry(path string) (*Registry, error) {
 		cachedOnDemandFeatureViews: make(map[string]map[string]*core.OnDemandFeatureView),
 		cachedRequestFeatureViews:  make(map[string]map[string]*core.RequestFeatureView),
 	}
-	loadEntitiesDone := make(chan struct{}, 1)
-	loadFeatureServicesDone := make(chan struct{}, 1)
-	loadFeatureViewsDone := make(chan struct{}, 1)
-	loadOnDemandFeatureViewsDone := make(chan struct{}, 1)
-	loadRequestFeatureViewsDone := make(chan struct{}, 1)
-	doneLoad := make(chan struct{}, 1)
-	go func() {
-		doneCount := 0
-		for doneCount < 5 {
-			select {
-			case <-loadEntitiesDone:
-				doneCount += 1
-			case <-loadFeatureServicesDone:
-				doneCount += 1
-			case <-loadFeatureViewsDone:
-				doneCount += 1
-			case <-loadOnDemandFeatureViewsDone:
-				doneCount += 1
-			case <-loadRequestFeatureViewsDone:
-				doneCount += 1
-			}
-		}
-		doneLoad <- struct{}{}
-	}()
+	r.loadEntities(registry)
+	r.loadFeatureServices(registry)
+	r.loadFeatureViews(registry)
+	r.loadOnDemandFeatureViews(registry)
+	r.loadRequestFeatureViews(registry)
 
-	go func() {
-		r.loadEntities(registry)
-		loadEntitiesDone <- struct{}{}
-	}()
-
-	go func() {
-		r.loadFeatureServices(registry)
-		loadFeatureServicesDone <- struct{}{}
-	}()
-
-	go func() {
-		r.loadFeatureViews(registry)
-		loadFeatureViewsDone <- struct{}{}
-	}()
-
-	go func() {
-		r.loadOnDemandFeatureViews(registry)
-		loadOnDemandFeatureViewsDone <- struct{}{}
-	}()
-
-	go func() {
-		r.loadRequestFeatureViews(registry)
-		loadRequestFeatureViewsDone <- struct{}{}
-	}()
-	<-doneLoad
 	return r, nil
 }
 

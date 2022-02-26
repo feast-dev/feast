@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/feast-dev/feast/go/feast"
+	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -28,7 +28,7 @@ func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	config, err := feast.NewRepoConfig(getRepoPath(), "")
+	config, err := feast.NewRepoConfigFromFile(getRepoPath())
 	if err != nil {
 		panic(err)
 	}

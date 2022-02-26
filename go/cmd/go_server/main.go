@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/feast"
+	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"google.golang.org/grpc"
 	"log"
@@ -22,6 +22,8 @@ const (
 	defaultFeastHttpPort = "8081"
 )
 
+// TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
+
 func main() {
 
 	repoPath := os.Getenv(flagFeastRepoPath)
@@ -31,11 +33,23 @@ func main() {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 		return
 	}
-	config, err := feast.NewRepoConfig(repoPath, repoConfig)
-	if err != nil {
-		log.Fatalln(err)
-		return
+
+	var config *feast.RepoConfig
+	var err error
+	if len(repoConfig) > 0 {
+		config, err = feast.NewRepoConfigFromJson(repoPath, repoConfig)
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
+	} else {
+		config, err = feast.NewRepoConfigFromFile(repoPath)
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
 	}
+
 	log.Println("Initializing feature store...")
 	fs, err := feast.NewFeatureStore(config)
 	if err != nil {

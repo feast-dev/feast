@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/feast-dev/feast/go/feast"
+	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 )
 

@@ -17,7 +17,7 @@ func getRegistryPath() map[string]interface{} {
 		panic("couldn't find file path of the test file")
 	}
 	registry := map[string]interface{}{
-		"path": filepath.Join(filename, "..", "..", "test_repo/data/registry.db"),
+		"path": filepath.Join(filename, "..", "..", "..", "test_repo/data/registry.db"),
 	}
 	return registry
 }

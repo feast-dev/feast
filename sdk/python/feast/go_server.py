@@ -48,12 +48,14 @@ class GoServer:
         _config: The RepoConfig for the Feast repo for which this go server is defined.
         grpc_server_started: Whether the gRPC server has been started.
         pipe_closed: Whether the pipe to the Go subprocess has been closed.
+        grpc_port: A high number port used to start grpc server
     """
 
     _repo_path: str
     _config: RepoConfig
     grpc_server_started: bool
     pipe_closed: bool
+    grpc_port: str = "54321"
 
     def __init__(self, repo_path: str, config: RepoConfig):
         """Creates a GoServer object."""
@@ -61,7 +63,7 @@ class GoServer:
         self._config = config
         self.grpc_server_started = False
         self.pipe_closed = False
-        self._connect()
+        self._start_go_server()
 
     def get_online_features(
         self,
@@ -91,7 +93,7 @@ class GoServer:
             ValueError: If some other error occurs.
         """
         if not self.grpc_server_started:
-            self._connect()
+            self._start_go_server()
 
         request = GetOnlineFeaturesRequest(full_feature_names=full_feature_names)
         if isinstance(features, FeatureService):
@@ -114,7 +116,7 @@ class GoServer:
             # Socket might not have closed if this is a grpc problem.
             self.stop()
             if rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
-                self._connect()
+                self._start_go_server()
                 # Retry request with the new Go subprocess
                 response = self.client.GetOnlineFeatures(request=request)
             else:
@@ -134,7 +136,7 @@ class GoServer:
 
         return OnlineResponse(response)
 
-    def _connect(self):
+    def _start_go_server(self):
         """Start the Go subprocess on a random unused port and connect to it."""
         # We pass a random unused port to the Go subprocess, so there are no conflicts
         # if multiple Python processes start a Go subprocess on the same host
@@ -149,7 +151,7 @@ class GoServer:
 
         if "dev" in feast.__version__:
             self.process = subprocess.Popen(
-                ["go", "run", "github.com/feast-dev/feast/go/server"],
+                ["go", "run", "github.com/feast-dev/feast/go/cmd/go_server"],
                 cwd=cwd,
                 env=env,
                 stdin=subprocess.PIPE,
@@ -220,13 +222,8 @@ class GoServer:
                 # since if the call succeeds go process closes
                 # itself and stdin?
                 # self.process.stdin.close()
-            except subprocess.CalledProcessError as error:
-                # If there is a problem telling the Go subprocess to stop,
-                # directly terminate it.
-                if not isinstance(error, BrokenPipeError):
-                    self.process.terminate()
-                else:
-                    raise
+            except BrokenPipeError as e:
+                self.process.terminate()
 
         self.grpc_server_started = False
         self.pipe_closed = True

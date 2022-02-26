@@ -3,6 +3,7 @@ package feast
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/ghodss/yaml"
 	"os"
 	"path/filepath"
@@ -30,43 +31,61 @@ type RepoConfig struct {
 // and converts the YAML format into RepoConfig struct.
 // It first uses repoPath to read feature_store.yaml if it exists,
 // however if it doesn't then it checks configJSON and tries parsing that.
-func NewRepoConfig(repoPath string, configJSON string) (*RepoConfig, error) {
+func NewRepoConfigFromJson(repoPath, configJSON string) (*RepoConfig, error) {
+	config := RepoConfig{}
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		return nil, err
+	}
+
+	if err := config.setParsedConfigRegistryAbsolutePath(repoPath); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+func NewRepoConfigFromFile(repoPath string) (*RepoConfig, error) {
 	data, err := os.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
 	config := RepoConfig{}
 	if err != nil {
-		if err = json.Unmarshal([]byte(configJSON), &config); err != nil {
-			return nil, err
-		}
+		return nil, errors.New(fmt.Sprintf("FEAST_REPO_PATH: %s not found", repoPath))
 	} else {
 		if err = yaml.Unmarshal(data, &config); err != nil {
 			return nil, err
 		}
 	}
 
-	if path, ok := config.Registry.(string); ok {
+	if err := config.setParsedConfigRegistryAbsolutePath(repoPath); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+func (r *RepoConfig) setParsedConfigRegistryAbsolutePath(repoPath string) error {
+	if path, ok := r.Registry.(string); ok {
 		if !filepath.IsAbs(path) {
-			config.Registry = filepath.Join(repoPath, path)
+			r.Registry = filepath.Join(repoPath, path)
 		}
 	} else {
-		if registryInterface, ok := config.Registry.(map[string]interface{}); !ok {
-			return nil, errors.New("Registry must be either a string or a map")
+		if registryInterface, ok := r.Registry.(map[string]interface{}); !ok {
+			return errors.New("Registry must be either a string or a map")
 		} else {
 			if pathInterface, ok := registryInterface["path"]; ok {
 				if path, ok := pathInterface.(string); ok {
 					if !filepath.IsAbs(path) {
-						config.Registry.(map[string]interface{})["path"] = filepath.Join(repoPath, path)
+						r.Registry.(map[string]interface{})["path"] = filepath.Join(repoPath, path)
 					}
 				} else {
-					return nil, errors.New("Registry path must be a string")
+					return errors.New("Registry path must be a string")
 				}
 
 			} else {
-				return nil, errors.New("Registry path not found")
+				return errors.New("Registry path not found")
 			}
 		}
 	}
-
-	return &config, nil
+	return nil
 }
 
 func (r *RepoConfig) getRegistryPath() string {

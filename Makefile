@@ -126,10 +126,10 @@ test-go:
 	go test ./...
 
 format-go:
-	gofmt -s -w go/**/*.go
+	gofmt -s -w go/**/**/*.go
 
 lint-go:
-	go vet ./go/feast ./go/server
+	go vet ./go/internal/feast ./go/cmd/go_server
 
 # Docker
 
