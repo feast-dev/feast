@@ -326,13 +326,17 @@ def _python_value_to_proto_value(
                     ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
                     for ts in int_timestamps_lists
                 ]
-
-            return [
-                ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
-                if value is not None
-                else ProtoValue()
-                for value in values
-            ]
+            # TODO: Make this better.
+            val_list = []
+            for value in values:
+                if(value.dtype == "bool"):
+                    value = [bool(e) for e in value]
+                    val_list.append(ProtoValue(**{field_name: proto_type(val=value)}))
+                elif value is not None:
+                    val_list.append(ProtoValue(**{field_name: proto_type(val=value)}))  # type: ignore
+                else:
+                    val_list.append(ProtoValue())
+            return val_list
 
     # Handle scalar types below
     else:
@@ -353,9 +357,8 @@ def _python_value_to_proto_value(
             ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
             if valid_scalar_types:
                 assert type(sample) in valid_scalar_types
-
             return [
-                ProtoValue(**{field_name: func(value)})
+                ProtoValue(**{field_name: func(bool(value) if type(value) is np.bool_ else value)})
                 if not pd.isnull(value)
                 else ProtoValue()
                 for value in values

@@ -169,7 +169,6 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
     )
     entity = driver()
     fs.apply([fv, entity])
-    print("Applying")
     features = [f"{fv.name}:value"]
     entity_df = pd.DataFrame()
     entity_df["driver_id"] = (
@@ -181,15 +180,11 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
         ts - timedelta(hours=4),
         ts - timedelta(hours=2),
     ]
-    print("Retrieving historical features")
     historical_features = fs.get_historical_features(
         entity_df=entity_df, features=features,
     )
-    print("retrieved historical features")
     # Note: Pandas doesn't play well with nan values in ints. BQ will also coerce to floats if there are NaNs
     historical_features_df = historical_features.to_df()
-    print(historical_features_df)
-
     if config.feature_is_list:
         assert_feature_list_types(
             environment.test_repo_config.provider,

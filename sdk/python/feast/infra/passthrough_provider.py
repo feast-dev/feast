@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from multiprocessing.dummy import JoinableQueue
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
@@ -131,8 +132,6 @@ class PassthroughProvider(Provider):
 
         entities = []
         for entity_name in feature_view.entities:
-            print("Entity Names!!")
-            print(entity_name)
             entities.append(registry.get_entity(entity_name, project))
 
         (
@@ -154,12 +153,9 @@ class PassthroughProvider(Provider):
         )
 
         table = offline_job.to_arrow()
-
         if feature_view.batch_source.field_mapping is not None:
             table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
-
         join_keys = {entity.join_key: entity.value_type for entity in entities}
-
         with tqdm_builder(table.num_rows) as pbar:
             for batch in table.to_batches(DEFAULT_BATCH_SIZE):
                 rows_to_write = _convert_arrow_to_proto(batch, feature_view, join_keys)
