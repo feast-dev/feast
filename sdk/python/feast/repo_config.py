@@ -1,4 +1,3 @@
-from curses import raw
 import os
 from pathlib import Path
 from typing import Any
@@ -346,11 +345,9 @@ def get_feature_server_config_from_type(feature_server_type: str):
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
     config_path = repo_path / "feature_store.yaml"
-    print("INNNNNN")
-    print(repo_path)
+
     with open(config_path) as f:
         raw_config = yaml.safe_load(os.path.expandvars(f.read()))
-        print(raw_config)
         try:
             c = RepoConfig(**raw_config)
             c.repo_path = repo_path

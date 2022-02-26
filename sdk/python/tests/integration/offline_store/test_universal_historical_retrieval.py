@@ -346,10 +346,12 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         event_timestamp,
         full_feature_names,
     )
+
     # Only need the shadow entities features in the FeatureService test
     expected_df = full_expected_df.drop(
         columns=["origin__temperature", "destination__temperature"],
     )
+
     job_from_df = store.get_historical_features(
         entity_df=entity_df_with_request_data,
         features=[
@@ -369,6 +371,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         ],
         full_feature_names=full_feature_names,
     )
+
     start_time = datetime.utcnow()
     actual_df_from_df_entities = job_from_df.to_df()
 

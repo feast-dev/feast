@@ -609,7 +609,7 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__base AS (
     SELECT
-    subquery.*,
+        subquery.*,
         entity_dataframe.entity_timestamp,
         entity_dataframe.{{featureview.name}}__entity_row_unique_id
     FROM {{ featureview.name }}__subquery AS subquery

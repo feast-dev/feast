@@ -351,12 +351,14 @@ def _convert_arrow_to_proto(
     columns = [(f.name, f.dtype) for f in feature_view.features] + list(
         join_keys.items()
     )
+
     proto_values_by_column = {
         column: python_values_to_proto_values(
             table.column(column).to_numpy(zero_copy_only=False), value_type
         )
         for column, value_type in columns
     }
+
     entity_keys = [
         EntityKeyProto(
             join_keys=join_keys,

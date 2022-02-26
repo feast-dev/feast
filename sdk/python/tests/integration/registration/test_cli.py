@@ -36,7 +36,6 @@ from tests.utils.online_read_write_test import basic_rw_test
 def test_universal_cli(environment: Environment):
     project = f"test_universal_cli_{str(uuid.uuid4()).replace('-', '')[:8]}"
     runner = CliRunner()
-    os.system(f"EXPORT PYTHONPATH=$PYTHONPATH:/$(pwd)")
 
     with tempfile.TemporaryDirectory() as repo_dir_name:
         try:

@@ -564,8 +564,8 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     )
 
 
-# @pytest.mark.integration
-# @pytest.mark.universal
+@pytest.mark.integration
+@pytest.mark.universal
 def test_online_store_cleanup(environment, universal_data_sources):
     """
     Some online store implementations (like Redis) keep features from different features views
