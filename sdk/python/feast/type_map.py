@@ -329,7 +329,7 @@ def _python_value_to_proto_value(
             # TODO: Make this better.
             val_list = []
             for value in values:
-                if(value.dtype == "bool"):
+                if value.dtype == "bool":
                     value = [bool(e) for e in value]
                     val_list.append(ProtoValue(**{field_name: proto_type(val=value)}))
                 elif value is not None:
@@ -358,7 +358,13 @@ def _python_value_to_proto_value(
             if valid_scalar_types:
                 assert type(sample) in valid_scalar_types
             return [
-                ProtoValue(**{field_name: func(bool(value) if type(value) is np.bool_ else value)})
+                ProtoValue(
+                    **{
+                        field_name: func(
+                            bool(value) if type(value) is np.bool_ else value
+                        )
+                    }
+                )
                 if not pd.isnull(value)
                 else ProtoValue()
                 for value in values
