@@ -211,7 +211,7 @@ class BuildProtoCommand(Command):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
         subprocess.check_call(
-            self.python_protoc
+            self.go_protoc
             + [
                 "-I",
                 self.proto_folder,
