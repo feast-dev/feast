@@ -530,6 +530,7 @@ class FeatureStore:
             list(desired_repo_contents.on_demand_feature_views),
             list(desired_repo_contents.request_feature_views),
         )
+        _validate_data_sources(list(desired_repo_contents.data_sources))
         self._make_inferences(
             list(desired_repo_contents.data_sources),
             list(desired_repo_contents.entities),
@@ -1967,3 +1968,18 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
             )
         else:
             fv_names.add(case_insensitive_fv_name)
+
+
+def _validate_data_sources(data_sources: List[DataSource]):
+    """ Verify data sources have case-insensitively unique names"""
+    ds_names = set()
+    for fv in data_sources:
+        case_insensitive_ds_name = fv.name.lower()
+        if case_insensitive_ds_name in ds_names:
+            raise ValueError(
+                f"More than one data source with name {case_insensitive_ds_name} found. "
+                f"Please ensure that all data source names are case-insensitively unique. "
+                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+            )
+        else:
+            ds_names.add(case_insensitive_ds_name)

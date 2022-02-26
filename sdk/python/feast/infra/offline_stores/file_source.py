@@ -17,7 +17,6 @@ from feast.value_type import ValueType
 
 
 class FileSource(DataSource):
-
     def __init__(
         self,
         path: str,
@@ -151,6 +150,7 @@ class FileSource(DataSource):
 
     def get_table_query_string(self) -> str:
         pass
+
 
 class FileOptions:
     """

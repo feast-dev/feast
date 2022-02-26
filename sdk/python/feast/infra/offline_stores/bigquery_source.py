@@ -1,3 +1,4 @@
+import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from feast import type_map
@@ -17,6 +18,7 @@ class BigQuerySource(DataSource):
         self,
         name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
+        table: Optional[str] = None,
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
@@ -27,7 +29,8 @@ class BigQuerySource(DataSource):
 
          Args:
              name (optional): Name for the source. Defaults to the table_ref if not specified.
-             table_ref (optional): The BigQuery table where features can be found.
+             table (optional): The BigQuery table where features can be found.
+             table_ref (optional): (Deprecated) The BigQuery table where features can be found.
              event_timestamp_column: Event timestamp column used for point in time joins of feature values.
              created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
              field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
@@ -37,16 +40,26 @@ class BigQuerySource(DataSource):
 
          Example:
              >>> from feast import BigQuerySource
-             >>> my_bigquery_source = BigQuerySource(table_ref="gcp_project:bq_dataset.bq_table")
+             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
          """
-        if table_ref is None and query is None:
-            raise ValueError('No "table_ref" argument provided.')
-        self.bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
+        if table is None and table_ref is None and query is None:
+            raise ValueError('No "table" argument provided.')
+        if table_ref:
+            warnings.warn(
+                (
+                    "The argument 'table_ref' is being deprecated. Please use 'table' "
+                    "instead. Feast 0.20 and onwards will not support the argument 'table_ref'."
+                ),
+                DeprecationWarning,
+            )
+        self.bigquery_options = BigQueryOptions(table_ref=table, query=query)
 
         # If no name, use the table_ref as the default name
         _name = name
         if not _name:
-            if table_ref:
+            if table:
+                _name = table
+            elif table_ref:
                 _name = table_ref
             else:
                 raise DataSourceNoNameException()

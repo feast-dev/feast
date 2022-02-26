@@ -1,9 +1,22 @@
 import pandas as pd
 import pytest
 
-from feast import Entity, Feature, RepoConfig, ValueType, FileSource, BigQuerySource, SnowflakeSource, RedshiftSource
+from feast import (
+    BigQuerySource,
+    Entity,
+    Feature,
+    FileSource,
+    RedshiftSource,
+    RepoConfig,
+    SnowflakeSource,
+    ValueType,
+)
 from feast.data_source import RequestDataSource
-from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
+from feast.errors import (
+    DataSourceNoNameException,
+    RegistryInferenceFailure,
+    SpecifiedFeaturesNotPresentError,
+)
 from feast.feature_view import FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -60,46 +73,34 @@ def test_update_entities_with_inferred_types_from_feature_views(
 
 def test_infer_datasource_names_file():
     file_path = "path/to/test.csv"
-    data_source = FileSource(
-        path=file_path
-    )
+    data_source = FileSource(path=file_path)
     assert data_source.name == file_path
 
     source_name = "my_name"
-    data_source = FileSource(
-        name=source_name,
-        path=file_path
-    )
+    data_source = FileSource(name=source_name, path=file_path)
     assert data_source.name == source_name
 
 
 def test_infer_datasource_names_dwh():
-    table_ref = "project.table"
+    table = "project.table"
     dwh_classes = [BigQuerySource, RedshiftSource, SnowflakeSource]
 
     for dwh_class in dwh_classes:
-        data_source = dwh_class(
-            table_ref=table_ref
-        )
-        assert data_source.name == table_ref
+        data_source = dwh_class(table=table)
+        assert data_source.name == table
 
         source_name = "my_name"
-        data_source_with_table_ref = dwh_class(
-            name=source_name,
-            table_ref=table_ref
-        )
-        assert data_source_with_table_ref.name == source_name
+        data_source_with_table = dwh_class(name=source_name, table=table)
+        assert data_source_with_table.name == source_name
         data_source_with_query = dwh_class(
-            name=source_name,
-            query=f"SELECT * from {table_ref}"
+            name=source_name, query=f"SELECT * from {table}"
         )
         assert data_source_with_query.name == source_name
 
         # If we have a query and no name, throw an error
-        with pytest.raises(ValueError):
-            data_source = dwh_class(
-                query="test_query"
-            )
+        with pytest.raises(DataSourceNoNameException):
+            print(f"Testing dwh {dwh_class}")
+            data_source = dwh_class(query="test_query")
 
 
 @pytest.mark.integration
