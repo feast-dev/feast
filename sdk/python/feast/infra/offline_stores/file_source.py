@@ -17,13 +17,13 @@ from feast.value_type import ValueType
 
 
 class FileSource(DataSource):
+
     def __init__(
         self,
-        name: str = "",
+        path: str,
+        name: Optional[str] = "",
         event_timestamp_column: Optional[str] = "",
-        file_url: Optional[str] = None,
-        path: Optional[str] = None,
-        file_format: FileFormat = None,
+        file_format: Optional[FileFormat] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
@@ -149,6 +149,8 @@ class FileSource(DataSource):
         else:
             return None, path
 
+    def get_table_query_string(self) -> str:
+        pass
 
 class FileOptions:
     """
