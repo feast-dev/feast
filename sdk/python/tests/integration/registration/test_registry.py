@@ -463,14 +463,24 @@ def test_apply_data_source(test_registry: Registry):
     test_registry.apply_data_source(batch_source, project, commit=False)
     test_registry.apply_feature_view(fv1, project, commit=True)
 
-    registry_feature_view = test_registry.list_feature_views(project)[0]
+    registry_feature_views = test_registry.list_feature_views(project)
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
     assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources[0]
+    assert registry_data_source == batch_source
 
     # Check that change to batch source propagates
     batch_source.event_timestamp_column = "new_ts_col"
     test_registry.apply_data_source(batch_source, project, commit=False)
     test_registry.apply_feature_view(fv1, project, commit=True)
-    registry_feature_view = test_registry.list_feature_views(project)[0]
+    registry_feature_views = test_registry.list_feature_views(project)
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
     assert registry_feature_view.batch_source == batch_source
     registry_batch_source = test_registry.list_data_sources(project)[0]
     assert registry_batch_source == batch_source
