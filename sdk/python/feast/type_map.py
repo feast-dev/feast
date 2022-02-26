@@ -335,7 +335,7 @@ def _python_value_to_proto_value(
                 elif value is not None:
                     val_list.append(ProtoValue(**{field_name: proto_type(val=value)}))  # type: ignore
                 else:
-                    val_list.append(ProtoValue()) # type: ignore
+                    val_list.append(ProtoValue())  # type: ignore
             return val_list
 
     # Handle scalar types below
@@ -361,7 +361,7 @@ def _python_value_to_proto_value(
                 ProtoValue(
                     **{
                         field_name: func(
-                            bool(value) if type(value) is np.bool_ else value # type: ignore
+                            bool(value) if type(value) is np.bool_ else value  # type: ignore
                         )
                     }
                 )
