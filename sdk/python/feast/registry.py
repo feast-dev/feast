@@ -81,7 +81,7 @@ class FeastObjectType(Enum):
         registry: "Registry", project: str
     ) -> Dict["FeastObjectType", List[Any]]:
         return {
-            FeastObjectType.DATA_SOURCE: registry.list_data_sources(),
+            FeastObjectType.DATA_SOURCE: registry.list_data_sources(project=project),
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
@@ -888,7 +888,9 @@ class Registry:
         """
         registry_dict: Dict[str, Any] = defaultdict(list)
         registry_dict["project"] = project
-        for data_source in sorted(self.list_data_sources(), key=lambda ds: ds.name,):
+        for data_source in sorted(
+            self.list_data_sources(project=project), key=lambda ds: ds.name
+        ):
             registry_dict["dataSources"].append(
                 self._message_to_sorted_dict(data_source.to_proto())
             )
