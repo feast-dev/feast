@@ -97,7 +97,8 @@ class RedshiftSource(DataSource):
             )
 
         return (
-            self.redshift_options.table == other.redshift_options.table
+            self.name == other.name
+            and self.redshift_options.table == other.redshift_options.table
             and self.redshift_options.schema == other.redshift_options.schema
             and self.redshift_options.query == other.redshift_options.query
             and self.event_timestamp_column == other.event_timestamp_column

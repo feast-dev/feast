@@ -98,7 +98,8 @@ class SnowflakeSource(DataSource):
             )
 
         return (
-            self.snowflake_options.database == other.snowflake_options.database
+            self.name == other.name
+            and self.snowflake_options.database == other.snowflake_options.database
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query

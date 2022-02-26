@@ -83,7 +83,8 @@ class BigQuerySource(DataSource):
             )
 
         return (
-            self.bigquery_options.table_ref == other.bigquery_options.table_ref
+            self.name == other.name
+            and self.bigquery_options.table_ref == other.bigquery_options.table_ref
             and self.bigquery_options.query == other.bigquery_options.query
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column

@@ -74,7 +74,8 @@ class FileSource(DataSource):
             raise TypeError("Comparisons should only involve FileSource class objects.")
 
         return (
-            self.file_options.file_url == other.file_options.file_url
+            self.name == other.name
+            and self.file_options.file_url == other.file_options.file_url
             and self.file_options.file_format == other.file_options.file_format
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column

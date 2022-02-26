@@ -273,7 +273,7 @@ class FeatureStore:
         Returns:
             A list of data sources.
         """
-        return self._registry.list_data_sources(allow_cache=allow_cache)
+        return self._registry.list_data_sources(self.project, allow_cache=allow_cache)
 
     @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:

@@ -32,14 +32,14 @@ from feast.value_type import ValueType
 
 
 @pytest.fixture
-def local_registry():
+def local_registry() -> Registry:
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
     return Registry(registry_config, None)
 
 
 @pytest.fixture
-def gcs_registry():
+def gcs_registry() -> Registry:
     from google.cloud import storage
 
     storage_client = storage.Client()
@@ -58,7 +58,7 @@ def gcs_registry():
 
 
 @pytest.fixture
-def s3_registry():
+def s3_registry() -> Registry:
     registry_config = RegistryConfig(
         path=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
         cache_ttl_seconds=600,
@@ -420,6 +420,58 @@ def test_apply_feature_view_integration(test_registry):
     test_registry.delete_feature_view("my_feature_view_1", project)
     feature_views = test_registry.list_feature_views(project)
     assert len(feature_views) == 0
+
+    test_registry.teardown()
+
+    # Will try to reload registry, which will fail because the file has been deleted
+    with pytest.raises(FileNotFoundError):
+        test_registry._get_registry_proto()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+)
+def test_apply_data_source(test_registry: Registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
+        date_partition_column="date_partition_col",
+    )
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        features=[
+            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        ],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        batch_source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project, commit=False)
+    test_registry.apply_feature_view(fv1, project, commit=True)
+
+    registry_feature_view = test_registry.list_feature_views(project)[0]
+    assert registry_feature_view.batch_source == batch_source
+
+    batch_source.event_timestamp_column = "new_ts_col"
+    test_registry.apply_data_source(batch_source, project)
+    registry_feature_view = test_registry.list_feature_views(project)[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_batch_source = test_registry.list_data_sources(project)[0]
+    assert registry_batch_source == batch_source
 
     test_registry.teardown()
 

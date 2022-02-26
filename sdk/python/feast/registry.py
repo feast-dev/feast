@@ -282,11 +282,14 @@ class Registry:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
 
-    def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
+    def list_data_sources(
+        self, project: str, allow_cache: bool = False
+    ) -> List[DataSource]:
         """
         Retrieve a list of data sources from the registry
 
         Args:
+            project: Filter data source based on project name
             allow_cache: Whether to allow returning data sources from a cached registry
 
         Returns:
@@ -295,7 +298,8 @@ class Registry:
         registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         data_sources = []
         for data_source_proto in registry_proto.data_sources:
-            data_sources.append(DataSource.from_proto(data_source_proto))
+            if data_source_proto.project == project:
+                data_sources.append(DataSource.from_proto(data_source_proto))
         return data_sources
 
     def apply_data_source(
