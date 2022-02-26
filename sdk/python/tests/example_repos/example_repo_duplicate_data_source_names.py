@@ -1,5 +1,3 @@
-from google.protobuf.duration_pb2 import Duration
-
 from feast import FileSource
 
 driver_hourly_stats = FileSource(
