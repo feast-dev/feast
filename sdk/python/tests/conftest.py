@@ -22,9 +22,6 @@ from typing import List
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
-from sdk.python.tests.integration.feature_repos.repo_configuration import (
-    REDIS_CLUSTER_CONFIG,
-)
 
 from feast import FeatureStore
 from tests.data.data_creator import create_dataset
@@ -34,6 +31,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     REDIS_CONFIG,
+    REDIS_CLUSTER_CONFIG,
     Environment,
     TestData,
     construct_test_environment,
