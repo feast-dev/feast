@@ -116,24 +116,6 @@ else:
 
 GO_REPO_CONFIGS = [
     IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store=REDIS_CONFIG,
-        go_feature_server=True,
-    ),
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=REDIS_CONFIG,
-        go_feature_server=True,
-    ),
-    IntegrationTestRepoConfig(
-        provider="aws",  # no list features, no feature server
-        offline_store_creator=SnowflakeDataSourceCreator,
-        online_store=REDIS_CONFIG,
-        go_feature_server=True,
-    ),
 ]
 
 
