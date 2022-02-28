@@ -78,7 +78,8 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis>=4.1.0",
+    "redis>=3.5.3",
+    "redis-py-cluster>=2.1.3",
     "hiredis>=2.0.0",
 ]
 
