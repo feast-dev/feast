@@ -30,8 +30,8 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
-    REDIS_CONFIG,
     REDIS_CLUSTER_CONFIG,
+    REDIS_CONFIG,
     Environment,
     TestData,
     construct_test_environment,
