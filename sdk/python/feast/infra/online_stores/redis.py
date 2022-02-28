@@ -68,6 +68,9 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     """Connection string containing the host, port, and configuration parameters for Redis
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
+    key_ttl_seconds: Optional[int] = None
+    """(Optional) redis key bin ttl (in seconds) for expiring entities"""
+
 
 class RedisOnlineStore(OnlineStore):
     _client: Optional[Union[Redis, RedisCluster]] = None
@@ -227,9 +230,11 @@ class RedisOnlineStore(OnlineStore):
                     entity_hset[f_key] = val.SerializeToString()
 
                 pipe.hset(redis_key_bin, mapping=entity_hset)
-                # TODO: support expiring the entity / features in Redis
-                # otherwise entity features remain in redis until cleaned up in separate process
-                # client.expire redis_key_bin based a ttl setting
+
+                if online_store_config.key_ttl_seconds:
+                    pipe.expire(
+                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
+                    )
             results = pipe.execute()
             if progress:
                 progress(len(results))
