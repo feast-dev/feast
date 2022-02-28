@@ -131,7 +131,7 @@ cryptography==3.3.2
     #   pyjwt
     #   pyopenssl
     #   snowflake-connector-python
-dask==2022.2.1
+dask==2022.1.1
     # via feast (setup.py)
 debugpy==1.5.1
     # via ipykernel
