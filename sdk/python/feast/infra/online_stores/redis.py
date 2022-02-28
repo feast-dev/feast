@@ -68,7 +68,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     """Connection string containing the host, port, and configuration parameters for Redis
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
-    key_ttl_seconds: int = None
+    key_ttl_seconds: Optional[int] = None
     """(Optional) redis key bin ttl (in seconds) for expiring entities"""
 
 
