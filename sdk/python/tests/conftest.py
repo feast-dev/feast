@@ -22,6 +22,9 @@ from typing import List
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
+from sdk.python.tests.integration.feature_repos.repo_configuration import (
+    REDIS_CLUSTER_CONFIG,
+)
 
 from feast import FeatureStore
 from tests.data.data_creator import create_dataset
@@ -36,8 +39,6 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_test_environment,
     construct_universal_test_data,
 )
-
-from sdk.python.tests.integration.feature_repos.repo_configuration import REDIS_CLUSTER_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,9 @@ def environment(request, worker_id: str):
 
 
 @pytest.fixture(
-    params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG], scope="session", ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]]
+    params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
+    scope="session",
+    ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]],
 )
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
