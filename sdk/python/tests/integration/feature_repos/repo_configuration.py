@@ -72,6 +72,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
         [
             # Redis configurations
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",

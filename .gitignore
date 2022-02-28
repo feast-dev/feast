@@ -54,7 +54,7 @@ vendor
 .terraform/
 *.tfvars
 
-# python 
+# python
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -107,6 +107,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+infra/scripts/*.conf
 
 # Translations
 *.mo

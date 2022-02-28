@@ -37,6 +37,8 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_test_data,
 )
 
+from sdk.python.tests.integration.feature_repos.repo_configuration import REDIS_CLUSTER_CONFIG
+
 logger = logging.getLogger(__name__)
 
 
@@ -169,10 +171,12 @@ def environment(request, worker_id: str):
     return e
 
 
-@pytest.fixture()
+@pytest.fixture(
+    params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG], scope="session", ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]]
+)
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
-        IntegrationTestRepoConfig(online_store=REDIS_CONFIG), worker_id=worker_id
+        IntegrationTestRepoConfig(online_store=request.param), worker_id=worker_id
     )
 
     def cleanup():
