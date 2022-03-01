@@ -357,14 +357,6 @@ def _get_feature_view_query_context(
             project=project,
             entity_df_timestamp_range=entity_df_timestamp_range,
         )
-    else:
-        # for feast<0.17
-        query_context = offline_utils.get_feature_view_query_context(
-            feature_refs=feature_refs,
-            feature_views=feature_views,
-            registry=registry,
-            project=project,
-        )
     return query_context
 
 
