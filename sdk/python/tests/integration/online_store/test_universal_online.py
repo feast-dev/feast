@@ -44,7 +44,7 @@ def test_entity_ttl_online_store(local_redis_environment, universal_data_sources
     fs.config.online_store.key_ttl_seconds = 1
     entities, datasets, data_sources = universal_data_sources
     driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
+        data_sources.driver
     )
     driver_entity = driver()
 
