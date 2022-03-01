@@ -282,9 +282,10 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     store = environment.feature_store
 
     (entities, datasets, data_sources) = universal_data_sources
+
     feature_views = construct_universal_feature_views(data_sources)
 
-    entity_df_with_request_data = datasets["entity"].copy(deep=True)
+    entity_df_with_request_data = datasets.entity_df.copy(deep=True)
     entity_df_with_request_data["val_to_add"] = [
         i for i in range(len(entity_df_with_request_data))
     ]
@@ -295,20 +296,20 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     feature_service = FeatureService(
         name="convrate_plus100",
         features=[
-            feature_views["driver"][["conv_rate"]],
-            feature_views["driver_odfv"],
-            feature_views["driver_age_request_fv"],
+            feature_views.driver[["conv_rate"]],
+            feature_views.driver_odfv,
+            feature_views.driver_age_request_fv,
         ],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
         features=[
-            feature_views["location"]
-            .with_name("origin")
-            .with_join_key_map({"location_id": "origin_id"}),
-            feature_views["location"]
-            .with_name("destination")
-            .with_join_key_map({"location_id": "destination_id"}),
+            feature_views.location.with_name("origin").with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+            feature_views.location.with_name("destination").with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
         ],
     )
 
@@ -325,22 +326,22 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-        if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in datasets["orders"].columns
+        if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in datasets.orders_df.columns
         else "e_ts"
     )
     full_expected_df = get_expected_training_df(
-        datasets["customer"],
-        feature_views["customer"],
-        datasets["driver"],
-        feature_views["driver"],
-        datasets["orders"],
-        feature_views["order"],
-        datasets["location"],
-        feature_views["location"],
-        datasets["global"],
-        feature_views["global"],
-        datasets["field_mapping"],
-        feature_views["field_mapping"],
+        datasets.customer_df,
+        feature_views.customer,
+        datasets.driver_df,
+        feature_views.driver,
+        datasets.orders_df,
+        feature_views.order,
+        datasets.location_df,
+        feature_views.location,
+        datasets.global_df,
+        feature_views.global_fv,
+        datasets.field_mapping_df,
+        feature_views.field_mapping,
         entity_df_with_request_data,
         event_timestamp,
         full_feature_names,
@@ -426,7 +427,7 @@ def test_historical_features_with_missing_request_data(
     # If request data is missing that's needed for on demand transform, throw an error
     with pytest.raises(RequestDataNotFoundInEntityDfException):
         store.get_historical_features(
-            entity_df=datasets["entity"],
+            entity_df=datasets.entity_df,
             features=[
                 "customer_profile:current_balance",
                 "customer_profile:avg_passenger_count",
@@ -443,7 +444,7 @@ def test_historical_features_with_missing_request_data(
     # If request data is missing that's needed for a request feature view, throw an error
     with pytest.raises(RequestDataNotFoundInEntityDfException):
         store.get_historical_features(
-            entity_df=datasets["entity"],
+            entity_df=datasets.entity_df,
             features=[
                 "customer_profile:current_balance",
                 "customer_profile:avg_passenger_count",
@@ -468,7 +469,7 @@ def test_historical_features_with_entities_from_query(
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    orders_table = table_name_from_data_source(data_sources["orders"])
+    orders_table = table_name_from_data_source(data_sources.orders)
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
@@ -503,23 +504,23 @@ def test_historical_features_with_entities_from_query(
 
     event_timestamp = (
         DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-        if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in datasets["orders"].columns
+        if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in datasets.orders_df.columns
         else "e_ts"
     )
     full_expected_df = get_expected_training_df(
-        datasets["customer"],
-        feature_views["customer"],
-        datasets["driver"],
-        feature_views["driver"],
-        datasets["orders"],
-        feature_views["order"],
-        datasets["location"],
-        feature_views["location"],
-        datasets["global"],
-        feature_views["global"],
-        datasets["field_mapping"],
-        feature_views["field_mapping"],
-        datasets["entity"],
+        datasets.customer_df,
+        feature_views.customer,
+        datasets.driver_df,
+        feature_views.driver,
+        datasets.orders_df,
+        feature_views.order,
+        datasets.location_df,
+        feature_views.location,
+        datasets.global_df,
+        feature_views.global_fv,
+        datasets.field_mapping_df,
+        feature_views.field_mapping,
+        datasets.entity_df,
         event_timestamp,
         full_feature_names,
     )
@@ -567,7 +568,7 @@ def test_historical_features_persisting(
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
-    entity_df = datasets["entity"].drop(
+    entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
     )
 
@@ -594,18 +595,18 @@ def test_historical_features_persisting(
 
     event_timestamp = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
     expected_df = get_expected_training_df(
-        datasets["customer"],
-        feature_views["customer"],
-        datasets["driver"],
-        feature_views["driver"],
-        datasets["orders"],
-        feature_views["order"],
-        datasets["location"],
-        feature_views["location"],
-        datasets["global"],
-        feature_views["global"],
-        datasets["field_mapping"],
-        feature_views["field_mapping"],
+        datasets.customer_df,
+        feature_views.customer,
+        datasets.driver_df,
+        feature_views.driver,
+        datasets.orders_df,
+        feature_views.order,
+        datasets.location_df,
+        feature_views.location,
+        datasets.global_df,
+        feature_views.global_fv,
+        datasets.field_mapping_df,
+        feature_views.field_mapping,
         entity_df,
         event_timestamp,
         full_feature_names,

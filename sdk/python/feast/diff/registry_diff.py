@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, Iterable, List, Set, Tuple, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cast
 
 from feast.base_feature_view import BaseFeatureView
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.entity import Entity
+from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -20,15 +21,13 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
 
-FeastObject = TypeVar("FeastObject", Entity, BaseFeatureView, FeatureService)
-
 
 @dataclass
-class FeastObjectDiff(Generic[FeastObject]):
+class FeastObjectDiff:
     name: str
     feast_object_type: FeastObjectType
-    current_feast_object: FeastObject
-    new_feast_object: FeastObject
+    current_feast_object: Optional[FeastObject]
+    new_feast_object: Optional[FeastObject]
     feast_object_property_diffs: List[PropertyDiff]
     transition_type: TransitionType
 
@@ -257,20 +256,25 @@ def apply_diff_to_registry(
         # will automatically delete the existing object.
         if feast_object_diff.transition_type == TransitionType.DELETE:
             if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
-                registry.delete_entity(
-                    feast_object_diff.current_feast_object.name, project, commit=False
-                )
+                entity_obj = cast(Entity, feast_object_diff.current_feast_object)
+                registry.delete_entity(entity_obj.name, project, commit=False)
             elif feast_object_diff.feast_object_type == FeastObjectType.FEATURE_SERVICE:
+                feature_service_obj = cast(
+                    FeatureService, feast_object_diff.current_feast_object
+                )
                 registry.delete_feature_service(
-                    feast_object_diff.current_feast_object.name, project, commit=False
+                    feature_service_obj.name, project, commit=False
                 )
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
+                feature_view_obj = cast(
+                    BaseFeatureView, feast_object_diff.current_feast_object
+                )
                 registry.delete_feature_view(
-                    feast_object_diff.current_feast_object.name, project, commit=False,
+                    feature_view_obj.name, project, commit=False,
                 )
 
         if feast_object_diff.transition_type in [
@@ -279,11 +283,15 @@ def apply_diff_to_registry(
         ]:
             if feast_object_diff.feast_object_type == FeastObjectType.ENTITY:
                 registry.apply_entity(
-                    feast_object_diff.new_feast_object, project, commit=False
+                    cast(Entity, feast_object_diff.new_feast_object),
+                    project,
+                    commit=False,
                 )
             elif feast_object_diff.feast_object_type == FeastObjectType.FEATURE_SERVICE:
                 registry.apply_feature_service(
-                    feast_object_diff.new_feast_object, project, commit=False
+                    cast(FeatureService, feast_object_diff.new_feast_object),
+                    project,
+                    commit=False,
                 )
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
@@ -291,7 +299,9 @@ def apply_diff_to_registry(
                 FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
                 registry.apply_feature_view(
-                    feast_object_diff.new_feast_object, project, commit=False
+                    cast(BaseFeatureView, feast_object_diff.new_feast_object),
+                    project,
+                    commit=False,
                 )
 
     if commit:

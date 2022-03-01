@@ -43,9 +43,7 @@ def test_entity_ttl_online_store(local_redis_environment, universal_data_sources
     # setting ttl setting in online store to 1 second
     fs.config.online_store.key_ttl_seconds = 1
     entities, datasets, data_sources = universal_data_sources
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
-    )
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_entity = driver()
 
     # Register Feature View and Entity
@@ -204,9 +202,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
 def test_write_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
-    )
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_entity = driver()
 
     # Register Feature View and Entity
@@ -337,20 +333,20 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     feature_service = FeatureService(
         "convrate_plus100",
         features=[
-            feature_views["driver"][["conv_rate"]],
-            feature_views["driver_odfv"],
-            feature_views["driver_age_request_fv"],
+            feature_views.driver[["conv_rate"]],
+            feature_views.driver_odfv,
+            feature_views.driver_age_request_fv,
         ],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
         features=[
-            feature_views["location"]
-            .with_name("origin")
-            .with_join_key_map({"location_id": "origin_id"}),
-            feature_views["location"]
-            .with_name("destination")
-            .with_join_key_map({"location_id": "destination_id"}),
+            feature_views.location.with_name("origin").with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+            feature_views.location.with_name("destination").with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
         ],
     )
 
@@ -371,38 +367,38 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         environment.end_date + timedelta(days=1),
     )
 
-    entity_sample = datasets["orders"].sample(10)[
+    entity_sample = datasets.orders_df.sample(10)[
         ["customer_id", "driver_id", "order_id", "event_timestamp"]
     ]
-    orders_df = datasets["orders"][
+    orders_df = datasets.orders_df[
         (
-            datasets["orders"]["customer_id"].isin(entity_sample["customer_id"])
-            & datasets["orders"]["driver_id"].isin(entity_sample["driver_id"])
+            datasets.orders_df["customer_id"].isin(entity_sample["customer_id"])
+            & datasets.orders_df["driver_id"].isin(entity_sample["driver_id"])
         )
     ]
 
     sample_drivers = entity_sample["driver_id"]
-    drivers_df = datasets["driver"][
-        datasets["driver"]["driver_id"].isin(sample_drivers)
+    drivers_df = datasets.driver_df[
+        datasets.driver_df["driver_id"].isin(sample_drivers)
     ]
 
     sample_customers = entity_sample["customer_id"]
-    customers_df = datasets["customer"][
-        datasets["customer"]["customer_id"].isin(sample_customers)
+    customers_df = datasets.customer_df[
+        datasets.customer_df["customer_id"].isin(sample_customers)
     ]
 
-    location_pairs = np.array(list(itertools.permutations(entities["location"], 2)))
+    location_pairs = np.array(list(itertools.permutations(entities.location_vals, 2)))
     sample_location_pairs = location_pairs[
         np.random.choice(len(location_pairs), 10)
     ].T.tolist()
-    origins_df = datasets["location"][
-        datasets["location"]["location_id"].isin(sample_location_pairs[0])
+    origins_df = datasets.location_df[
+        datasets.location_df["location_id"].isin(sample_location_pairs[0])
     ]
-    destinations_df = datasets["location"][
-        datasets["location"]["location_id"].isin(sample_location_pairs[1])
+    destinations_df = datasets.location_df[
+        datasets.location_df["location_id"].isin(sample_location_pairs[1])
     ]
 
-    global_df = datasets["global"]
+    global_df = datasets.global_df
 
     entity_rows = [
         {"driver": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
@@ -588,14 +584,15 @@ def test_online_store_cleanup(environment, universal_data_sources):
     """
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
-    driver_stats_fv = construct_universal_feature_views(data_sources)["driver"]
+    driver_stats_fv = construct_universal_feature_views(data_sources).driver
 
+    driver_entities = entities.driver_vals
     df = pd.DataFrame(
         {
-            "ts_1": [environment.end_date] * len(entities["driver"]),
-            "created_ts": [environment.end_date] * len(entities["driver"]),
-            "driver_id": entities["driver"],
-            "value": np.random.random(size=len(entities["driver"])),
+            "ts_1": [environment.end_date] * len(driver_entities),
+            "created_ts": [environment.end_date] * len(driver_entities),
+            "driver_id": driver_entities,
+            "value": np.random.random(size=len(driver_entities)),
         }
     )
 
@@ -616,7 +613,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     expected_values = df.sort_values(by="driver_id")
 
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver": driver_id} for driver_id in sorted(entities["driver"])]
+    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows

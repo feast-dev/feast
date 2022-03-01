@@ -50,6 +50,7 @@ from feast.errors import (
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import (
     DUMMY_ENTITY,
@@ -539,27 +540,9 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                ]
-            ],
+            List[FeastObject],
         ],
-        objects_to_delete: Optional[
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                ]
-            ]
-        ] = None,
+        objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
