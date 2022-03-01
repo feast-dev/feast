@@ -656,6 +656,7 @@ def test_online_retrieval_with_go_server(
     go_environment, go_data_sources, full_feature_names
 ):
     fs = go_environment.feature_store
+    fs.go_server_port = go_environment.test_repo_config.go_server_port+full_feature_names
     entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
 
@@ -828,6 +829,7 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     on demand feature views since the Go feature server doesn't support them.
     """
     fs = go_environment.feature_store
+    fs.go_server_port = go_environment.test_repo_config.go_server_port+2
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
         data_sources, with_odfv=False
@@ -901,86 +903,12 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
 
     import threading
-    from multiprocessing import Process
     import psutil
 
-    def test():
-        global call_get_online_features_3_times
-        fs = go_cycle_environment.feature_store
-        entities, datasets, data_sources = go_data_sources
-        driver_stats_fv = construct_universal_feature_views(
-            data_sources, with_odfv=False
-        )["driver"]
+    print("hello world")
+    fs = go_cycle_environment.feature_store
+    fs.go_server_port = go_cycle_environment.test_repo_config.go_server_port
 
-        df = pd.DataFrame(
-            {
-                "ts_1": [go_cycle_environment.end_date] * len(entities["driver"]),
-                "created_ts": [go_cycle_environment.end_date] * len(entities["driver"]),
-                "driver_id": entities["driver"],
-                "value": np.random.random(size=len(entities["driver"])),
-            }
-        )
-
-        ds = go_cycle_environment.data_source_creator.create_data_source(
-            df, destination_name="simple_driver_dataset"
-        )
-
-        simple_driver_fv = driver_feature_view(
-            data_source=ds, name="test_universal_online_simple_driver"
-        )
-
-        fs.apply([driver(), simple_driver_fv, driver_stats_fv])
-
-        fs.materialize(
-            go_cycle_environment.start_date - timedelta(days=1),
-            go_cycle_environment.end_date + timedelta(days=1),
-        )
-        expected_values = df.sort_values(by="driver_id")
-        features = [f"{simple_driver_fv.name}:value"]
-        entity_rows = [
-            {"driver": driver_id} for driver_id in sorted(entities["driver"])
-        ]
-        # fs, features, entity_rows, expected_values = set_up_simple_driver_fs(go_cycle_environment, go_data_sources)
-        def call_get_online_features_3_times():
-            
-            for _ in range(3):
-                online_features = fs.get_online_features(
-                    features=features, entity_rows=entity_rows
-                ).to_dict()
-                assert np.allclose(expected_values["value"], online_features["value"])
-
-        # Start go server process 10 times that calls get_online_features 3 times and return and check if at any time go server
-        # fails to clean up resources
-        p = Process(target=call_get_online_features_3_times)
-        if __name__ == "__main__":
-            p.start()
-            p.join()
-            p.kill()
-
-    test()
-    # Check that background thread has terminated
-    for id, thread in threading._active.items():
-        assert thread.name != "GoServerBackgroundThread"
-
-    # Check if go server subprocess is still active even if background thread and process are killed
-    go_server_still_alive = False
-    for proc in psutil.process_iter():
-        try:
-            # Get process name & pid from process object.
-            process_name = proc.name()
-            if "goserver" in process_name:
-                # Kill process first and raise exception later
-                go_server_still_alive = True
-                proc.terminate()
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    if go_server_still_alive:
-        assert "Go server is not killed" and False
-
-
-def set_up_simple_driver_fs(go_environment, go_data_sources):
-    fs = go_environment.feature_store
-    fs._go_server = None
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
         data_sources, with_odfv=False
@@ -988,14 +916,14 @@ def set_up_simple_driver_fs(go_environment, go_data_sources):
 
     df = pd.DataFrame(
         {
-            "ts_1": [go_environment.end_date] * len(entities["driver"]),
-            "created_ts": [go_environment.end_date] * len(entities["driver"]),
+            "ts_1": [go_cycle_environment.end_date] * len(entities["driver"]),
+            "created_ts": [go_cycle_environment.end_date] * len(entities["driver"]),
             "driver_id": entities["driver"],
             "value": np.random.random(size=len(entities["driver"])),
         }
     )
 
-    ds = go_environment.data_source_creator.create_data_source(
+    ds = go_cycle_environment.data_source_creator.create_data_source(
         df, destination_name="simple_driver_dataset"
     )
 
@@ -1006,15 +934,45 @@ def set_up_simple_driver_fs(go_environment, go_data_sources):
     fs.apply([driver(), simple_driver_fv, driver_stats_fv])
 
     fs.materialize(
-        go_environment.start_date - timedelta(days=1),
-        go_environment.end_date + timedelta(days=1),
+        go_cycle_environment.start_date - timedelta(days=1),
+        go_cycle_environment.end_date + timedelta(days=1),
     )
     expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
     entity_rows = [
         {"driver": driver_id} for driver_id in sorted(entities["driver"])
     ]
-    return fs, features, entity_rows, expected_values
+   
+    # Start go server process 10 times that calls get_online_features 3 times and return and check if at any time go server
+    # fails to clean up resources
+    
+    child_pid = os.fork()
+    if child_pid == 0:
+        print("I am the child")
+        online_features = fs.get_online_features(
+            features=features, entity_rows=entity_rows
+        ).to_dict()
+        assert np.allclose(expected_values["value"], online_features["value"])
+    else:
+        os.wait()
+        # Check that background thread has terminated
+        for id, thread in threading._active.items():
+            assert thread.name != "GoServerBackgroundThread"
+
+        # Check if go server subprocess is still active even if background thread and process are killed
+        go_server_still_alive = False
+        for proc in psutil.process_iter():
+            try:
+                # Get process name & pid from process object.
+                process_name = proc.name()
+                if "goserver" in process_name:
+                    # Kill process first and raise exception later
+                    go_server_still_alive = True
+                    proc.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        if go_server_still_alive:
+            assert "Go server is not killed"
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if (

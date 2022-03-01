@@ -47,17 +47,21 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.repo_config import RepoConfig
 from feast.type_map import python_values_to_proto_values
-from feast.flags_helper import enable_go_feature_server_use_thread
+from feast.flags_helper import enable_go_feature_server_use_thread, is_test
 
 
 class GoServerConnection:
-    def __init__(self, config: RepoConfig, repo_path: str):
+    def __init__(self, config: RepoConfig, repo_path: str, go_server_port: int = -1):
         self.client = None
         self._process = None
         self._config = config
         self._repo_path = repo_path
+        self._go_server_port = go_server_port
     
     def _get_unused_port(self) -> str:
+        if is_test():
+            return str(self._go_server_port)
+
         port = 54321
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -103,6 +107,9 @@ class GoServerConnection:
     
     def wait_for_process(self, timeout):
         self._process.wait(timeout)
+    
+    def set_port(self, port):
+        self._port = port
 
     # Make sure the connection can be used for feature retrieval before returning from
     # constructor. We try connecting to the Go subprocess for 5 seconds or at most 50 times
@@ -129,21 +136,50 @@ class GoServer:
     _repo_path: str
     _config: RepoConfig
 
-    def __init__(self, repo_path: str, config: RepoConfig):
+    def __init__(self, repo_path: str, config: RepoConfig, go_server_port: int = -1):
         """Creates a GoServer object."""
         self._repo_path = repo_path
         self._config = config
         self._go_server_started = threading.Event()
-        self._shared_connection = GoServerConnection(config, repo_path)
+        self._shared_connection = GoServerConnection(config, repo_path, go_server_port)
         self._dev_mode = "dev" in feast.__version__
+        if not is_test() and self._dev_mode:
+            self._build_binaries()
+            
         if self._check_use_thread():
-            print("Using thread go server", config)
+            print("_start_go_server_use_thread")
             self._start_go_server_use_thread()
         else:
+            print("_start_go_server")
             self._start_go_server()
 
     def _check_use_thread(self):
         return enable_go_feature_server_use_thread(self._config)
+
+    def set_port(self, port):
+        self._shared_connection.set_port(port)
+
+    def _build_binaries(self):
+
+        goos = platform.system().lower()
+        goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
+        binaries_path = (pathlib.Path(__file__).parent / "../feast/binaries").resolve()
+        print(binaries_path)
+        binaries_path_abs = str(binaries_path.absolute())
+        if binaries_path.exists():
+            shutil.rmtree(binaries_path_abs)
+        os.mkdir(binaries_path_abs)
+        
+        subprocess.check_output(
+            [
+                "go",
+                "build",
+                "-o",
+                f"{binaries_path_abs}/goserver_{goos}_{goarch}",
+                "github.com/feast-dev/feast/go/cmd/goserver",
+            ],
+            env={"GOOS": goos, "GOARCH": goarch, **os.environ},
+        )
 
     def get_online_features(
         self,

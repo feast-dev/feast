@@ -209,7 +209,6 @@ def environment(request, worker_id: str):
     params=GO_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_REPO_CONFIGS]
 )
 def go_environment(request, worker_id: str):
-    
     e = construct_test_environment(request.param, worker_id=worker_id)
     def cleanup():
         e.feature_store.teardown()
@@ -224,7 +223,6 @@ def go_environment(request, worker_id: str):
 )
 def go_cycle_environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
-    
     def cleanup():
         e.feature_store.teardown()
         if e.feature_store._go_server:

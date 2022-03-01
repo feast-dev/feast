@@ -115,12 +115,12 @@ else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
 GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = False),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = False, go_server_port = 54323),
 ]
 
 GO_CYCLE_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = True),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = False),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = True, go_server_port = 54321),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = False, go_server_port = 54322),
 ]
 
 
@@ -387,7 +387,7 @@ def construct_test_environment(
     with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
         yaml.safe_dump(json.loads(config.json()), f)
 
-    fs = FeatureStore(repo_dir_name)
+    fs = FeatureStore(repo_dir_name, go_server_port=test_repo_config.go_server_port)
     # We need to initialize the registry, because if nothing is applied in the test before tearing down
     # the feature store, that will cause the teardown method to blow up.
     fs.registry._initialize_registry()
@@ -397,7 +397,7 @@ def construct_test_environment(
         feature_store=fs,
         data_source_creator=offline_creator,
         python_feature_server=test_repo_config.python_feature_server,
-        worker_id=worker_id,
+        worker_id=worker_id
     )
 
     return environment
