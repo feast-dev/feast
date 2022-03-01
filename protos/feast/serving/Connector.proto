@@ -7,7 +7,7 @@ import "feast/types/Value.proto";
 import "feast/types/EntityKey.proto";
 import "feast/serving/ServingService.proto";
 
-option go_package = "github.com/feast-dev/feast/go/protos/feast/third_party/grpc/connector";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
 
 message ConnectorFeature {
 	feast.serving.FeatureReferenceV2 reference = 1;

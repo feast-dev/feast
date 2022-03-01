@@ -34,6 +34,7 @@ type RedisOnlineStore struct {
 
 	// Redis client connector
 	client *redis.Client
+	ctx    context.Context
 }
 
 func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
@@ -56,7 +57,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 		redisConnJson = "localhost:6379"
 	}
 	if redisConnStr, ok := redisConnJson.(string); !ok {
-		return nil, errors.New(fmt.Sprintf("Failed to convert connection_string to string: %+v", redisConnJson))
+		return nil, errors.New(fmt.Sprintf("failed to convert connection_string to string: %+v", redisConnJson))
 	} else {
 		parts := strings.Split(redisConnStr, ",")
 		for _, part := range parts {
@@ -75,10 +76,10 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 						return nil, err
 					}
 				} else {
-					return nil, errors.New(fmt.Sprintf("Unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0]))
+					return nil, errors.New(fmt.Sprintf("unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0]))
 				}
 			} else {
-				return nil, errors.New(fmt.Sprintf("Unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part))
+				return nil, errors.New(fmt.Sprintf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part))
 			}
 		}
 	}
@@ -104,14 +105,14 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 		// Default to "redis"
 		redisTypeJson = "redis"
 	} else if redisTypeStr, ok := redisTypeJson.(string); !ok {
-		return -1, errors.New(fmt.Sprintf("Failed to convert redis_type to string: %+v", redisTypeJson))
+		return -1, errors.New(fmt.Sprintf("failed to convert redis_type to string: %+v", redisTypeJson))
 	} else {
 		if redisTypeStr == "redis" {
 			t = redisNode
 		} else if redisTypeStr == "redis_cluster" {
 			t = redisCluster
 		} else {
-			return -1, errors.New(fmt.Sprintf("Failed to convert redis_type to enum: %s. Must be one of 'redis', 'redis_cluster'", redisTypeStr))
+			return -1, errors.New(fmt.Sprintf("failed to convert redis_type to enum: %s. Must be one of 'redis', 'redis_cluster'", redisTypeStr))
 		}
 	}
 	return t, nil
@@ -150,7 +151,6 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 	// Retrieve features from Redis
 	// TODO: Move context object out
-	ctx := context.Background()
 
 	results := make([][]FeatureData, len(entityKeys))
 	pipe := r.client.Pipeline()
@@ -158,10 +158,10 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 	for _, redisKey := range redisKeys {
 		keyString := string(*redisKey)
-		commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		commands[keyString] = pipe.HMGet(r.ctx, keyString, hsetKeys...)
 	}
 
-	_, err := pipe.Exec(ctx)
+	_, err := pipe.Exec(r.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -183,10 +183,10 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		timeStampInterface := res[featureCount]
 		if timeStampInterface != nil {
 			if timeStampString, ok := timeStampInterface.(string); !ok {
-				return nil, errors.New("Error parsing value from redis")
+				return nil, errors.New("error parsing value from redis")
 			} else {
 				if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-					return nil, errors.New("Error converting parsed redis value to timestamppb.Timestamp")
+					return nil, errors.New("error converting parsed redis value to timestamppb.Timestamp")
 				}
 			}
 		}
@@ -208,12 +208,12 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				}
 
 			} else if valueString, ok := resString.(string); !ok {
-				return nil, errors.New("Error parsing value from redis")
+				return nil, errors.New("error parsing value from redis")
 			} else {
 				resContainsNonNil = true
 				var value types.Value
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
-					return nil, errors.New("Error converting parsed redis value to types.Value")
+					return nil, errors.New("error converting parsed redis value to types.Value")
 				} else {
 					featureName := features[featureIndex]
 					results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: view, FeatureName: featureName},
@@ -252,7 +252,7 @@ func serializeEntityKey(entityKey *types.EntityKey) (*[]byte, error) {
 
 	// Ensure that we have the right amount of join keys and entity values
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
-		return nil, errors.New(fmt.Sprintf("The amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues))
+		return nil, errors.New(fmt.Sprintf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues))
 	}
 
 	// Make sure that join keys are sorted so that we have consistent key building

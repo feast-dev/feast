@@ -1,6 +1,9 @@
 package feast
 
 import (
+	"errors"
+	"fmt"
+	"github.com/feast-dev/feast/go/internal/config"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -43,5 +46,18 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 	} else {
 		result, ok := onlineStoreType.(string)
 		return result, ok
+	}
+}
+
+func getOnlineStore(config *config.RepoConfig) (OnlineStore, error) {
+	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", config.OnlineStore))
+	}
+	if onlineStoreType == "redis" {
+		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
+		return onlineStore, err
+	} else {
+		return nil, errors.New("only Redis is supported as an online store for now")
 	}
 }

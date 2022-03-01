@@ -129,7 +129,7 @@ format-go:
 	gofmt -s -w go/**/**/*.go
 
 lint-go:
-	go vet ./go/internal/feast ./go/cmd/go_server
+	go vet ./go/internal/feast ./go/cmd/goserver
 
 # Docker
 

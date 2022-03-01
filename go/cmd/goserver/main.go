@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/config"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
-	"strings"
 )
 
 const (
@@ -27,23 +25,24 @@ const (
 func main() {
 
 	repoPath := os.Getenv(flagFeastRepoPath)
-	repoConfig := os.Getenv(flagFeastRepoConfig)
+	repoConfigJson := os.Getenv(flagFeastRepoConfig)
 
-	if repoPath == "" && repoConfig == "" {
+	if repoPath == "" && repoConfigJson == "" {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 		return
 	}
+	// TODO(Ly): Review: Should we return and error here if both repoPath and repoConfigJson are set and use the cwd for NewRepoConfigFromJson?
 
-	var config *feast.RepoConfig
+	var repoConfig *config.RepoConfig
 	var err error
-	if len(repoConfig) > 0 {
-		config, err = feast.NewRepoConfigFromJson(repoPath, repoConfig)
+	if len(repoConfigJson) > 0 {
+		repoConfig, err = config.NewRepoConfigFromJson(repoPath, repoConfigJson)
 		if err != nil {
 			log.Fatalln(err)
 			return
 		}
 	} else {
-		config, err = feast.NewRepoConfigFromFile(repoPath)
+		repoConfig, err = config.NewRepoConfigFromFile(repoPath)
 		if err != nil {
 			log.Fatalln(err)
 			return
@@ -51,7 +50,7 @@ func main() {
 	}
 
 	log.Println("Initializing feature store...")
-	fs, err := feast.NewFeatureStore(config)
+	fs, err := feast.NewFeatureStore(repoConfig)
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -62,27 +61,7 @@ func main() {
 	if !ok {
 		grpcPort = defaultFeastGrpcPort
 	}
-
-	reader := bufio.NewReader(os.Stdin)
-	writer := bufio.NewWriter(os.Stdout)
-	serverCounts := 0
-	for {
-		text, _ := reader.ReadString('\n')
-		text = strings.Trim(text, "\n")
-		commands := strings.Split(text, " ")
-		if len(commands) == 0 {
-			log.Fatalln(errors.New("Invalid command. Should be [startGrpc] or [stop]"))
-			return
-		} else if commands[0] == "startGrpc" {
-			writer.Flush()
-			go func() {
-				startGrpcServer(fs, grpcPort)
-			}()
-			serverCounts += 1
-		} else if commands[0] == "stop" {
-			break
-		}
-	}
+	startGrpcServer(fs, grpcPort)
 }
 
 func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
@@ -96,7 +75,7 @@ func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
 		return
 	}
 	grpcServer := grpc.NewServer()
-
+	defer grpcServer.Stop()
 	serving.RegisterServingServiceServer(grpcServer, &server)
 	err = grpcServer.Serve(lis)
 	if err != nil {

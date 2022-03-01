@@ -1,6 +1,7 @@
 package feast
 
 import (
+	"github.com/feast-dev/feast/go/internal/config"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
@@ -17,14 +18,14 @@ func getRegistryPath() map[string]interface{} {
 		panic("couldn't find file path of the test file")
 	}
 	registry := map[string]interface{}{
-		"path": filepath.Join(filename, "..", "..", "..", "test_repo/data/registry.db"),
+		"path": filepath.Join(filename, "..", "..", "..", "feature_repo/data/registry.db"),
 	}
 	return registry
 }
 
 func TestNewFeatureStore(t *testing.T) {
-	config := RepoConfig{
-		Project:  "test_repo",
+	config := config.RepoConfig{
+		Project:  "feature_repo",
 		Registry: getRegistryPath(),
 		Provider: "local",
 		OnlineStore: map[string]interface{}{
@@ -37,8 +38,8 @@ func TestNewFeatureStore(t *testing.T) {
 }
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {
-	config := RepoConfig{
-		Project:  "test_repo",
+	config := config.RepoConfig{
+		Project:  "feature_repo",
 		Registry: getRegistryPath(),
 		Provider: "local",
 		OnlineStore: map[string]interface{}{

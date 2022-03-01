@@ -1765,11 +1765,6 @@ class FeatureStore:
 
         return views_to_use
 
-    def stop_go_server(self):
-        """Force the Go feature server to shut down."""
-        if enable_go_feature_server(self.config) and self._go_server is not None:
-            self._go_server.stop()
-
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""

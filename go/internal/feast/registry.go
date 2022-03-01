@@ -3,50 +3,99 @@ package feast
 import (
 	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/config"
+	"github.com/feast-dev/feast/go/internal/infra"
 	"github.com/feast-dev/feast/go/protos/feast/core"
-	"github.com/golang/protobuf/proto"
-	"io/ioutil"
+	"net/url"
+	"time"
 )
 
+var REGISTRY_SCHEMA_VERSION string = "1"
+var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
+	"gs":   "GCSRegistryStore",
+	"s3":   "S3RegistryStore",
+	"file": "LocalRegistryStore",
+	"":     "LocalRegistryStore",
+}
+
 /*
-	Store protos of FeatureView, FeatureService, Entity,
-		OnDemandFeatureView, RequestFeatureView
+	Store protos of FeatureView, FeatureService, Entity, OnDemandFeatureView, RequestFeatureView
 	but return to user copies of non-proto versions of these objects
 */
 
 type Registry struct {
-	path                       string
+	registryStore              infra.RegistryStore
 	cachedFeatureServices      map[string]map[string]*core.FeatureService
 	cachedEntities             map[string]map[string]*core.Entity
 	cachedFeatureViews         map[string]map[string]*core.FeatureView
 	cachedOnDemandFeatureViews map[string]map[string]*core.OnDemandFeatureView
 	cachedRequestFeatureViews  map[string]map[string]*core.RequestFeatureView
+
+	cachedRegistryProtoCreated time.Time
+	cachedRegistryProtoTtl     time.Duration
 }
 
-func NewRegistry(path string) (*Registry, error) {
-	// Read the local registry
-	in, err := ioutil.ReadFile(path)
+func NewRegistry(registryConfig *config.RegistryConfig, repoPath string) (*Registry, error) {
+	registryStoreType := registryConfig.RegistryStoreType
+	registryPath := registryConfig.Path
+	r := &Registry{
+		cachedRegistryProtoTtl: time.Duration(registryConfig.CacheTtlSeconds),
+	}
+
+	if len(registryStoreType) == 0 {
+		registryStore, err := getRegistryStoreFromSheme(registryPath, registryConfig, repoPath)
+		if err != nil {
+			return nil, err
+		}
+		r.registryStore = registryStore
+	} else {
+		registryStore, err := getRegistryStoreFromType(registryStoreType, registryConfig, repoPath)
+		if err != nil {
+			return nil, err
+		}
+		r.registryStore = registryStore
+	}
+
+	return r, nil
+}
+
+func (r *Registry) initializeRegistry() {
+	err := r.getRegistryProto(false)
 	if err != nil {
-		return nil, err
+		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
+		r.registryStore.UpdateRegistryProto(registryProto)
+		r.load(registryProto)
 	}
-	registry := &core.Registry{}
-	if err := proto.Unmarshal(in, registry); err != nil {
-		return nil, err
+}
+
+func (r *Registry) refresh() error {
+	return r.getRegistryProto(false)
+}
+
+func (r *Registry) getRegistryProto(allowCache bool) error {
+	expired := r.cachedFeatureServices == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoCreated.Add(r.cachedRegistryProtoTtl)))
+	if allowCache && !expired {
+		return nil
 	}
-	r := &Registry{path: path,
-		cachedFeatureServices:      make(map[string]map[string]*core.FeatureService),
-		cachedEntities:             make(map[string]map[string]*core.Entity),
-		cachedFeatureViews:         make(map[string]map[string]*core.FeatureView),
-		cachedOnDemandFeatureViews: make(map[string]map[string]*core.OnDemandFeatureView),
-		cachedRequestFeatureViews:  make(map[string]map[string]*core.RequestFeatureView),
+	registryProto, err := r.registryStore.GetRegistryProto()
+	if err != nil {
+		return err
 	}
+	r.load(registryProto)
+	return nil
+}
+
+func (r *Registry) load(registry *core.Registry) {
+	r.cachedFeatureServices = make(map[string]map[string]*core.FeatureService)
+	r.cachedEntities = make(map[string]map[string]*core.Entity)
+	r.cachedFeatureViews = make(map[string]map[string]*core.FeatureView)
+	r.cachedOnDemandFeatureViews = make(map[string]map[string]*core.OnDemandFeatureView)
+	r.cachedRequestFeatureViews = make(map[string]map[string]*core.RequestFeatureView)
 	r.loadEntities(registry)
 	r.loadFeatureServices(registry)
 	r.loadFeatureViews(registry)
 	r.loadOnDemandFeatureViews(registry)
 	r.loadRequestFeatureViews(registry)
-
-	return r, nil
 }
 
 func (r *Registry) loadEntities(registry *core.Registry) {
@@ -95,16 +144,18 @@ func (r *Registry) loadRequestFeatureViews(registry *core.Registry) {
 		if _, ok := r.cachedRequestFeatureViews[requestFeatureView.Spec.Project]; !ok {
 			r.cachedRequestFeatureViews[requestFeatureView.Spec.Project] = make(map[string]*core.RequestFeatureView)
 		}
-
-		// newRequestFeatureView := *requestFeatureView
 		r.cachedRequestFeatureViews[requestFeatureView.Spec.Project][requestFeatureView.Spec.Name] = requestFeatureView
 	}
 }
 
-// TODO (Ly): Create Entity Object and return a list of Entities instead
-func (r *Registry) listEntities(project string) ([]*Entity, error) {
+/*
+	Look up Entities inside project
+	Returns empty list if project not found
+*/
+
+func (r *Registry) listEntities(project string) []*Entity {
 	if entities, ok := r.cachedEntities[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in listEntities", project))
+		return []*Entity{}
 	} else {
 		entityList := make([]*Entity, len(entities))
 		index := 0
@@ -112,13 +163,18 @@ func (r *Registry) listEntities(project string) ([]*Entity, error) {
 			entityList[index] = NewEntityFromProto(entity)
 			index += 1
 		}
-		return entityList, nil
+		return entityList
 	}
 }
 
-func (r *Registry) listFeatureViews(project string) ([]*FeatureView, error) {
+/*
+	Look up Feature Views inside project
+	Returns empty list if project not found
+*/
+
+func (r *Registry) listFeatureViews(project string) []*FeatureView {
 	if featureViewProtos, ok := r.cachedFeatureViews[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in listFeatureViews", project))
+		return []*FeatureView{}
 	} else {
 		featureViews := make([]*FeatureView, len(featureViewProtos))
 		index := 0
@@ -126,13 +182,18 @@ func (r *Registry) listFeatureViews(project string) ([]*FeatureView, error) {
 			featureViews[index] = NewFeatureViewFromProto(featureViewProto)
 			index += 1
 		}
-		return featureViews, nil
+		return featureViews
 	}
 }
 
-func (r *Registry) listFeatureServices(project string) ([]*FeatureService, error) {
+/*
+	Look up Feature Views inside project
+	Returns empty list if project not found
+*/
+
+func (r *Registry) listFeatureServices(project string) []*FeatureService {
 	if featureServiceProtos, ok := r.cachedFeatureServices[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in listFeatureServices", project))
+		return []*FeatureService{}
 	} else {
 		featureServices := make([]*FeatureService, len(featureServiceProtos))
 		index := 0
@@ -140,13 +201,18 @@ func (r *Registry) listFeatureServices(project string) ([]*FeatureService, error
 			featureServices[index] = NewFeatureServiceFromProto(featureServiceProto)
 			index += 1
 		}
-		return featureServices, nil
+		return featureServices
 	}
 }
 
-func (r *Registry) listOnDemandFeatureViews(project string) ([]*OnDemandFeatureView, error) {
+/*
+	Look up On Demand Feature Views inside project
+	Returns empty list if project not found
+*/
+
+func (r *Registry) listOnDemandFeatureViews(project string) []*OnDemandFeatureView {
 	if onDemandFeatureViewProtos, ok := r.cachedOnDemandFeatureViews[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in listOnDemandFeatureViews", project))
+		return []*OnDemandFeatureView{}
 	} else {
 		onDemandFeatureViews := make([]*OnDemandFeatureView, len(onDemandFeatureViewProtos))
 		index := 0
@@ -154,13 +220,18 @@ func (r *Registry) listOnDemandFeatureViews(project string) ([]*OnDemandFeatureV
 			onDemandFeatureViews[index] = NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
 			index += 1
 		}
-		return onDemandFeatureViews, nil
+		return onDemandFeatureViews
 	}
 }
 
-func (r *Registry) listRequestFeatureViews(project string) ([]*RequestFeatureView, error) {
+/*
+	Look up Request Feature Views inside project
+	Returns empty list if project not found
+*/
+
+func (r *Registry) listRequestFeatureViews(project string) []*RequestFeatureView {
 	if requestFeatureViewProtos, ok := r.cachedRequestFeatureViews[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in listRequestFeatureViews", project))
+		return []*RequestFeatureView{}
 	} else {
 		requestFeatureViews := make([]*RequestFeatureView, len(requestFeatureViewProtos))
 		index := 0
@@ -168,16 +239,16 @@ func (r *Registry) listRequestFeatureViews(project string) ([]*RequestFeatureVie
 			requestFeatureViews[index] = NewRequestFeatureViewFromProto(requestFeatureViewProto)
 			index += 1
 		}
-		return requestFeatureViews, nil
+		return requestFeatureViews
 	}
 }
 
 func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
 	if entities, ok := r.cachedEntities[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in getEntity", project))
+		return nil, errors.New(fmt.Sprintf("project %s not found in getEntity", project))
 	} else {
 		if entity, ok := entities[entityName]; !ok {
-			return nil, errors.New(fmt.Sprintf("Entity %s not found inside project %s", entityName, project))
+			return nil, errors.New(fmt.Sprintf("entity %s not found inside project %s", entityName, project))
 		} else {
 			return NewEntityFromProto(entity), nil
 		}
@@ -186,10 +257,10 @@ func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
 
 func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView, error) {
 	if featureViews, ok := r.cachedFeatureViews[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in getFeatureView", project))
+		return nil, errors.New(fmt.Sprintf("project %s not found in getFeatureView", project))
 	} else {
 		if featureViewProto, ok := featureViews[featureViewName]; !ok {
-			return nil, errors.New(fmt.Sprintf("FeatureView %s not found inside project %s", featureViewName, project))
+			return nil, errors.New(fmt.Sprintf("featureView %s not found inside project %s", featureViewName, project))
 		} else {
 			return NewFeatureViewFromProto(featureViewProto), nil
 		}
@@ -198,10 +269,10 @@ func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView
 
 func (r *Registry) getFeatureService(project, featureServiceName string) (*FeatureService, error) {
 	if featureServices, ok := r.cachedFeatureServices[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in getFeatureService", project))
+		return nil, errors.New(fmt.Sprintf("project %s not found in getFeatureService", project))
 	} else {
 		if featureServiceProto, ok := featureServices[featureServiceName]; !ok {
-			return nil, errors.New(fmt.Sprintf("FeatureService %s not found inside project %s", featureServiceName, project))
+			return nil, errors.New(fmt.Sprintf("featureService %s not found inside project %s", featureServiceName, project))
 		} else {
 			return NewFeatureServiceFromProto(featureServiceProto), nil
 		}
@@ -210,10 +281,10 @@ func (r *Registry) getFeatureService(project, featureServiceName string) (*Featu
 
 func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string) (*OnDemandFeatureView, error) {
 	if onDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in getOnDemandFeatureView", project))
+		return nil, errors.New(fmt.Sprintf("project %s not found in getOnDemandFeatureView", project))
 	} else {
 		if onDemandFeatureViewProto, ok := onDemandFeatureViews[onDemandFeatureViewName]; !ok {
-			return nil, errors.New(fmt.Sprintf("OnDemandFeatureView %s not found inside project %s", onDemandFeatureViewName, project))
+			return nil, errors.New(fmt.Sprintf("onDemandFeatureView %s not found inside project %s", onDemandFeatureViewName, project))
 		} else {
 			return NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto), nil
 		}
@@ -222,12 +293,31 @@ func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName strin
 
 func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string) (*RequestFeatureView, error) {
 	if requestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
-		return nil, errors.New(fmt.Sprintf("Project %s not found in getRequestFeatureView", project))
+		return nil, errors.New(fmt.Sprintf("project %s not found in getRequestFeatureView", project))
 	} else {
 		if requestFeatureViewProto, ok := requestFeatureViews[requestFeatureViewName]; !ok {
-			return nil, errors.New(fmt.Sprintf("RequestFeatureView %s not found inside project %s", requestFeatureViewName, project))
+			return nil, errors.New(fmt.Sprintf("requestFeatureView %s not found inside project %s", requestFeatureViewName, project))
 		} else {
 			return NewRequestFeatureViewFromProto(requestFeatureViewProto), nil
 		}
 	}
+}
+
+func getRegistryStoreFromSheme(registryPath string, registryConfig *config.RegistryConfig, repoPath string) (infra.RegistryStore, error) {
+	uri, err := url.Parse(registryPath)
+	if err != nil {
+		return nil, err
+	}
+	if registryStoreType, ok := REGISTRY_STORE_CLASS_FOR_SCHEME[uri.Scheme]; ok {
+		return getRegistryStoreFromType(registryStoreType, registryConfig, repoPath)
+	}
+	return nil, errors.New(fmt.Sprintf("registry path %s has unsupported scheme %s. Supported schemes are file, s3 and gs.", registryPath, uri.Scheme))
+}
+
+func getRegistryStoreFromType(registryStoreType string, registryConfig *config.RegistryConfig, repoPath string) (infra.RegistryStore, error) {
+	switch registryStoreType {
+	case "LocalRegistryStore":
+		return infra.NewLocalRegistryStore(registryConfig, repoPath), nil
+	}
+	return nil, errors.New("only LocalRegistryStore as a RegistryStore is supported at this moment")
 }
