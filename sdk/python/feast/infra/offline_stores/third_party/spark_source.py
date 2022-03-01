@@ -145,7 +145,9 @@ class SparkSource(DataSource):
 
 class SparkOptions:
     def __init__(
-        self, table: str, query: str,
+        self,
+        table: Optional[str] = None,
+        query: Optional[str] = None,
     ):
         self._table = table
         self._query = query
@@ -212,8 +214,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
     _proto_attr_name = "spark_storage"
 
     spark_options: SparkOptions
-
-    def __init__(self, table_ref: str, query: str):
+    def __init__(self, table_ref: Optional[str] = None, query: Optional[str] = None):
         self.spark_options = SparkOptions(table=table_ref, query=query)
 
     @staticmethod
@@ -222,7 +223,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
         #         storage_proto
         # )
         # spark_options = SparkOptions(table=options.table, query=options.query)
-        return SavedDatasetSparkStorage(table="", query=None)
+        return SavedDatasetSparkStorage(table_ref="", query=None)
 
     def to_proto(self) -> SavedDatasetStorageProto:
         return SavedDatasetStorageProto()

@@ -75,8 +75,8 @@ class SparkOfflineStore(OfflineStore):
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
-        start_date = _format_datetime(start_date)
-        end_date = _format_datetime(end_date)
+        start_date_str = _format_datetime(start_date)
+        end_date_str = _format_datetime(end_date)
         query = f"""
                 SELECT
                     {field_string}
@@ -85,7 +85,7 @@ class SparkOfflineStore(OfflineStore):
                     SELECT {field_string},
                     ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS feast_row_
                     FROM {from_expression} t1
-                    WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+                    WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}')
                 ) t2
                 WHERE feast_row_ = 1
                 """
@@ -229,18 +229,12 @@ class SparkRetrievalJob(RetrievalJob):
         *_, last = map(self.spark_session.sql, statements)
         return last
 
-    def to_df(self) -> pandas.DataFrame:
-        return self.to_spark_df().toPandas()  # noqa, DataFrameLike instead of DataFrame
-
     def _to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
-        return self.to_df()
+        return self.to_spark_df().toPandas()
 
     def _to_arrow_internal(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
-        return self.to_arrow()
-
-    def to_arrow(self) -> pyarrow.Table:
         df = self.to_df()
         return pyarrow.Table.from_pandas(df)  # noqa
 
@@ -268,7 +262,7 @@ def get_spark_session_or_start_new_with_repoconfig(
         spark_conf = store_config.spark_conf
         if spark_conf:
             spark_builder = spark_builder.config(
-                conf=SparkConf().setAll(spark_conf.items())
+                conf=SparkConf().setAll([(k, v) for k, v in spark_conf.items()])
             )  # noqa
 
         spark_session = spark_builder.getOrCreate()
@@ -330,23 +324,12 @@ def _upload_entity_df_and_get_entity_schema(
         raise InvalidEntityType(type(entity_df))
 
 
-def _format_datetime(t: datetime):
+def _format_datetime(t: datetime) -> str:
     # Since Hive does not support timezone, need to transform to utc.
     if t.tzinfo:
         t = t.astimezone(tz=utc)
-    t = t.strftime("%Y-%m-%d %H:%M:%S.%f")
-    return t
-
-    return spark_session
-
-
-def _format_datetime(t: datetime):
-    # Since Hive does not support timezone, need to transform to utc.
-    if t.tzinfo:
-        t = t.astimezone(tz=utc)
-    t = t.strftime("%Y-%m-%d %H:%M:%S.%f")
-    return t
-
+    dt = t.strftime("%Y-%m-%d %H:%M:%S.%f")
+    return dt
 
 def _get_feature_view_query_context(
     entity_df: Union[pd.DataFrame, str],
@@ -366,7 +349,6 @@ def _get_feature_view_query_context(
             entity_df=entity_df,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
             spark_session=spark_session,
-            table_name=table_name,
         )
         query_context = offline_utils.get_feature_view_query_context(
             feature_refs=feature_refs,

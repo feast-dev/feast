@@ -33,6 +33,9 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.data_sources.spark_data_source_creator import (
+    SparkDataSourceCreator,
+)
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_data_source,
@@ -74,6 +77,9 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
             IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
+            # IntegrationTestRepoConfig(
+            #     provider="local", offline_store_creator=SparkDataSourceCreator,
+            # )
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,

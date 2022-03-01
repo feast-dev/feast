@@ -35,7 +35,7 @@ class SparkDataSourceCreator(DataSourceCreator):
         if not self.spark_session:
             self.spark_session = (
                 SparkSession.builder.config(
-                    conf=SparkConf().setAll(self.spark_conf.items())
+                    conf=SparkConf().setAll([(k, v) for k, v in self.spark_conf.items()])
                 )
                 .appName("pytest-pyspark-local-testing")
                 .getOrCreate()
@@ -80,12 +80,19 @@ class SparkDataSourceCreator(DataSourceCreator):
 
         # https://stackoverflow.com/questions/51871200/analysisexception-it-is-not-allowed-to-add-database-prefix
         # destination_name = self.get_prefixed_table_name(destination_name)
-
-        df = self.spark_session.createDataFrame(df).createOrReplaceTempView(
+        if not self.spark_session:
+            self.spark_session = (
+                SparkSession.builder.config(
+                    conf=SparkConf().setAll([(k, v) for k, v in self.spark_conf.items()])
+                )
+                .appName("pytest-pyspark-local-testing")
+                .getOrCreate()
+            )
+        self.spark_session.createDataFrame(df).createOrReplaceTempView(
             destination_name
         )
-
         self.tables.append(destination_name)
+
         return SparkSource(
             table=destination_name,
             event_timestamp_column=event_timestamp_column,
