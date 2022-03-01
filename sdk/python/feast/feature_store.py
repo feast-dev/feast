@@ -758,8 +758,6 @@ class FeatureStore:
             all_request_feature_views,
             all_on_demand_feature_views,
         ) = self._get_feature_views_to_use(features)
-        print("features and refs")
-        print(_feature_refs)
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
@@ -798,8 +796,6 @@ class FeatureStore:
         # Drop refs that refer to RequestFeatureViews since they don't need to be fetched and
         # already exist in the entity_df
         _feature_refs = [ref for ref in _feature_refs if ref not in request_fv_refs]
-        print("Feature refssss")
-        print(_feature_refs)
         provider = self._get_provider()
 
         job = provider.get_historical_features(
