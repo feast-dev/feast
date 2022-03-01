@@ -59,7 +59,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
     Attributes:
         _dynamodb_client: Boto3 DynamoDB client.
-        _dynamodb_resource Boto3 DynamoDB resource. 
+        _dynamodb_resource: Boto3 DynamoDB resource.
     """
 
     _dynamodb_client = None
@@ -153,7 +153,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         Args:
             config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureView
+            table: Feast FeatureView.
             data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
             a dict containing feature values, an event timestamp for the row, and
             the created timestamp for the row if it exists.
@@ -192,12 +192,12 @@ class DynamoDBOnlineStore(OnlineStore):
         """
         Retrieve feature values from the online DynamoDB store.
 
-        Note: This method is currently not optimized to retrieve a lot of data at a time 
+        Note: This method is currently not optimized to retrieve a lot of data at a time
         as it does sequential gets from the DynamoDB table.
 
         Args:
             config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureView
+            table: Feast FeatureView.
             entity_keys: a list of entity keys that should be read from the FeatureStore.
         """
         online_config = config.online_store
