@@ -145,9 +145,7 @@ class SparkSource(DataSource):
 
 class SparkOptions:
     def __init__(
-        self,
-        table: Optional[str] = None,
-        query: Optional[str] = None,
+        self, table: Optional[str] = None, query: Optional[str] = None,
     ):
         self._table = table
         self._query = query
@@ -214,6 +212,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
     _proto_attr_name = "spark_storage"
 
     spark_options: SparkOptions
+
     def __init__(self, table_ref: Optional[str] = None, query: Optional[str] = None):
         self.spark_options = SparkOptions(table=table_ref, query=query)
 

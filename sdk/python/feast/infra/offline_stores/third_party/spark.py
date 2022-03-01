@@ -331,6 +331,7 @@ def _format_datetime(t: datetime) -> str:
     dt = t.strftime("%Y-%m-%d %H:%M:%S.%f")
     return dt
 
+
 def _get_feature_view_query_context(
     entity_df: Union[pd.DataFrame, str],
     entity_df_event_timestamp_col: str,

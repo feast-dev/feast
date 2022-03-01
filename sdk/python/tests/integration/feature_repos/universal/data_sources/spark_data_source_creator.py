@@ -35,7 +35,9 @@ class SparkDataSourceCreator(DataSourceCreator):
         if not self.spark_session:
             self.spark_session = (
                 SparkSession.builder.config(
-                    conf=SparkConf().setAll([(k, v) for k, v in self.spark_conf.items()])
+                    conf=SparkConf().setAll(
+                        [(k, v) for k, v in self.spark_conf.items()]
+                    )
                 )
                 .appName("pytest-pyspark-local-testing")
                 .getOrCreate()
@@ -83,14 +85,14 @@ class SparkDataSourceCreator(DataSourceCreator):
         if not self.spark_session:
             self.spark_session = (
                 SparkSession.builder.config(
-                    conf=SparkConf().setAll([(k, v) for k, v in self.spark_conf.items()])
+                    conf=SparkConf().setAll(
+                        [(k, v) for k, v in self.spark_conf.items()]
+                    )
                 )
                 .appName("pytest-pyspark-local-testing")
                 .getOrCreate()
             )
-        self.spark_session.createDataFrame(df).createOrReplaceTempView(
-            destination_name
-        )
+        self.spark_session.createDataFrame(df).createOrReplaceTempView(destination_name)
         self.tables.append(destination_name)
 
         return SparkSource(
