@@ -33,9 +33,6 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.spark_data_source_creator import (
-    SparkDataSourceCreator,
-)
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_data_source,
