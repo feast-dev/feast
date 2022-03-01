@@ -46,7 +46,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:12345,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
