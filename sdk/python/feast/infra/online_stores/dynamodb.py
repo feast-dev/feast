@@ -56,6 +56,10 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
 class DynamoDBOnlineStore(OnlineStore):
     """
     Online feature store for AWS DynamoDB.
+
+    Attributes:
+        _dynamodb_client: Boto3 DynamoDB client.
+        _dynamodb_resource: Boto3 DynamoDB resource.
     """
 
     _dynamodb_client = None
@@ -71,6 +75,14 @@ class DynamoDBOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        """
+        Update tables from the DynamoDB Online Store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            tables_to_delete: Tables to delete from the DynamoDB Online Store.
+            tables_to_keep: Tables to keep in the DynamoDB Online Store.
+        """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_client = self._get_dynamodb_client(online_config.region)
@@ -109,6 +121,13 @@ class DynamoDBOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
+        """
+        Delete tables from the DynamoDB Online Store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            tables: Tables to delete from the feature repo.
+        """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
@@ -126,6 +145,21 @@ class DynamoDBOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+        """
+        Write a batch of feature rows to online DynamoDB store.
+
+        Note: This method applies a ``batch_writer`` to automatically handle any unprocessed items
+        and resend them as needed, this is useful if you're loading a lot of data at a time.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
+            a dict containing feature values, an event timestamp for the row, and
+            the created timestamp for the row if it exists.
+            progress: Optional function to be called once every mini-batch of rows is written to
+            the online store. Can be used to display progress.
+        """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
@@ -155,6 +189,17 @@ class DynamoDBOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Retrieve feature values from the online DynamoDB store.
+
+        Note: This method is currently not optimized to retrieve a lot of data at a time
+        as it does sequential gets from the DynamoDB table.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            entity_keys: a list of entity keys that should be read from the FeatureStore.
+        """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
