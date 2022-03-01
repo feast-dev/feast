@@ -34,8 +34,10 @@ jobs:
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
         run: pip install pip-tools
-      - name: Install dependencies
-        run: make install-python-ci-dependencies
+      - name: Install Python
+        run: |
+          make install-python-ci-dependencies
+          make install-python
       - name: Lint python
         run: make lint-python
 

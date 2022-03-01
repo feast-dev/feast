@@ -31,17 +31,17 @@ lint: lint-python lint-java lint-go
 
 test: test-python test-java test-go
 
-protos: compile-protos-docs
+protos: compile-protos-go compile-protos-python compile-protos-docs
 
 build: protos build-java build-docker build-html
 
-install-ci-dependencies: install-python-ci-dependencies install-java-ci-dependencies install-go-ci-dependencies
-
 # Python SDK
+
+compile-protos-python:
+	python setup.py build_protos
 
 install-python-ci-dependencies:
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
-	cd sdk/python && python setup.py develop
 
 lock-python-ci-dependencies:
 	cd sdk/python && python -m piptools compile -U --extra ci --output-file requirements/py$(PYTHON)-ci-requirements.txt
@@ -119,8 +119,10 @@ build-java-no-tests:
 # Go SDK
 
 install-go-ci-dependencies:
-	go get -u github.com/golang/protobuf/protoc-gen-go
-	go get -u golang.org/x/lint/golint
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+compile-protos-go:
+	python setup.py build_protos
 
 test-go:
 	go test ./...
