@@ -196,6 +196,7 @@ def universal_data_sources(request, environment) -> TestData:
     request.addfinalizer(cleanup)
     return construct_universal_test_data(environment)
 
+
 @pytest.fixture(scope="session")
 def redis_universal_data_sources(request, local_redis_environment):
     entities = construct_universal_entities()

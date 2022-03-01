@@ -96,7 +96,6 @@ def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_s
     assertpy.assert_that(df["conv_rate"].iloc[0]).is_none()
 
 
-
 # TODO: make this work with all universal (all online store types)
 @pytest.mark.integration
 def test_write_to_online_store_event_check(local_redis_environment):
