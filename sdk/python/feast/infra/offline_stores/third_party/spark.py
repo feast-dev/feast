@@ -1,6 +1,5 @@
 import inspect
 from datetime import datetime
-from ntpath import join
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -8,8 +7,7 @@ import pandas
 import pandas as pd
 import pyarrow
 import pyspark
-from dateutil import parser
-from feast_spark_offline_store.spark_source import SavedDatasetSparkStorage, SparkSource
+from feast_spark_offline_store.spark_source import SparkSource
 from feast_spark_offline_store.spark_type_map import spark_schema_to_np_dtypes
 from pydantic import StrictStr
 from pyspark import SparkConf
@@ -19,7 +17,7 @@ from pytz import utc
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
-from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
@@ -150,9 +148,11 @@ class SparkOfflineStore(OfflineStore):
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
         )
-        on_demand_feature_views = OnDemandFeatureView.get_requested_odfvs(
-            feature_refs=feature_refs, project=project, registry=registry
-        )
+
+        # TODO: Figure out what this is used for
+        # on_demand_feature_views = OnDemandFeatureView.get_requested_odfvs(
+        #     feature_refs=feature_refs, project=project, registry=registry
+        # )
 
         return SparkRetrievalJob(
             spark_session=spark_session,
