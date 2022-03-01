@@ -1,15 +1,16 @@
 import inspect
-from typing import List, Union, Optional, Dict, Tuple
-from ntpath import join
-from pydantic import StrictStr
 from datetime import datetime
+from ntpath import join
+from typing import Dict, List, Optional, Tuple, Union
 
-import pandas
-from dateutil import parser
-import pyspark
-import pyarrow
 import numpy as np
+import pandas
 import pandas as pd
+import pyarrow
+import pyspark
+from dateutil import parser
+from feast_spark_offline_store.spark_source import SavedDatasetSparkStorage, SparkSource
+from feast_spark_offline_store.spark_type_map import spark_schema_to_np_dtypes
 from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
@@ -17,30 +18,18 @@ from pytz import utc
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.saved_dataset import SavedDatasetStorage
-
-import pandas as pd
-
-from feast.repo_config import FeastConfigBaseModel
-
-from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
-from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob, RetrievalMetadata
-from feast.infra.offline_stores import offline_utils
-
-
-
 from feast.errors import InvalidEntityType
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
-from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.offline_stores.offline_store import (
+    OfflineStore,
+    RetrievalJob,
+    RetrievalMetadata,
+)
 from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-
-from pyspark.sql import SparkSession
-from pyspark import SparkConf
-from feast_spark_offline_store.spark_source import SparkSource, SavedDatasetSparkStorage
-from feast_spark_offline_store.spark_type_map import spark_schema_to_np_dtypes
+from feast.saved_dataset import SavedDatasetStorage
 
 
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
@@ -84,8 +73,7 @@ class SparkOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
-        field_string = ", ".join(
-            join_key_columns + feature_name_columns + timestamps)
+        field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
         start_date = _format_datetime(start_date)
         end_date = _format_datetime(end_date)
@@ -208,6 +196,7 @@ class SparkOfflineStore(OfflineStore):
             end_date=end_date,
         )
 
+
 # TODO fix internal abstract methods _to_df_internal _to_arrow_internal
 class SparkRetrievalJob(RetrievalJob):
     def __init__(
@@ -312,12 +301,13 @@ def _get_entity_df_event_timestamp_range(
         df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
         entity_df_event_timestamp_range = (
             df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
-            df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0]
+            df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0],
         )
     else:
         raise InvalidEntityType(type(entity_df))
 
     return entity_df_event_timestamp_range
+
 
 def _upload_entity_df_and_get_entity_schema(
     spark_session: SparkSession,
@@ -339,13 +329,13 @@ def _upload_entity_df_and_get_entity_schema(
     else:
         raise InvalidEntityType(type(entity_df))
 
+
 def _format_datetime(t: datetime):
     # Since Hive does not support timezone, need to transform to utc.
     if t.tzinfo:
         t = t.astimezone(tz=utc)
     t = t.strftime("%Y-%m-%d %H:%M:%S.%f")
     return t
-
 
     return spark_session
 

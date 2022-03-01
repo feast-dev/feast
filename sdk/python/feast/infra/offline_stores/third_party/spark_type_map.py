@@ -1,8 +1,9 @@
-from typing import Dict, List, Tuple, Iterator
+from collections import defaultdict
+from typing import Dict, Iterator, List, Tuple
+
+from numpy import dtype
 
 from feast import ValueType
-from collections import defaultdict
-from numpy import dtype
 
 
 def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
@@ -27,8 +28,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<boolean>": ValueType.BOOL_LIST,
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
     }
-    #TODO: this is just incorrect fix
-    if(type(spark_type_as_str) != str or spark_type_as_str not in type_map):
+    # TODO: this is just incorrect fix
+    if type(spark_type_as_str) != str or spark_type_as_str not in type_map:
         return ValueType.NULL
     return type_map[spark_type_as_str.lower()]
 

@@ -1,16 +1,18 @@
-from typing import Optional, Dict, Callable, Any, Tuple, Iterable
-from feast.data_source import DataSource
-from feast.repo_config import RepoConfig
+import pickle
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+
+from feast_spark_offline_store.spark_type_map import spark_to_feast_value_type
 from pyspark.sql.utils import AnalysisException
-from feast.value_type import ValueType
+
+from feast.data_source import DataSource
+from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
+from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast_spark_offline_store.spark_type_map import spark_to_feast_value_type
-import pickle
-from feast.errors import DataSourceNotFoundException
+from feast.value_type import ValueType
 
 
 class SparkSource(DataSource):
@@ -143,9 +145,7 @@ class SparkSource(DataSource):
 
 class SparkOptions:
     def __init__(
-        self,
-        table: str,
-        query: str,
+        self, table: str, query: str,
     ):
         self._table = table
         self._query = query
@@ -190,8 +190,7 @@ class SparkOptions:
         spark_configuration = pickle.loads(spark_options_proto.configuration)
 
         spark_options = cls(
-            table=spark_configuration.table,
-            query=spark_configuration.query,
+            table=spark_configuration.table, query=spark_configuration.query,
         )
         return spark_options
 
@@ -213,6 +212,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
     _proto_attr_name = "spark_storage"
 
     spark_options: SparkOptions
+
     def __init__(self, table_ref: str, query: str):
         self.spark_options = SparkOptions(table=table_ref, query=query)
 

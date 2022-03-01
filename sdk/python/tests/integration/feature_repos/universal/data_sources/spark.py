@@ -1,34 +1,45 @@
-from typing import List, Union, Optional, Dict, Tuple
+import uuid
+from typing import Dict, List, Optional, Tuple, Union
+
+import pandas as pd
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
+
+from feast.data_source import DataSource
 from feast.infra.offline_stores.third_party.spark import SparkOfflineStoreConfig
-from feast.infra.offline_stores.third_party.spark_source import SparkSource, SavedDatasetSparkStorage
+from feast.infra.offline_stores.third_party.spark_source import (
+    SavedDatasetSparkStorage,
+    SparkSource,
+)
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 
 
-import uuid
-import pandas as pd
-
-from feast.data_source import DataSource
-
-from pyspark.sql import SparkSession
-from pyspark import SparkConf
 class SparkDataSourceCreator(DataSourceCreator):
     tables: List[str] = []
     spark_offline_store_config = None
     spark_session = None
 
     def __init__(self, project_name: str):
-        self.spark_conf = {'master': 'local[*]', 'spark.ui.enabled': 'false', 'spark.eventLog.enabled': 'false', 'spark.sql.parser.quotedRegexColumnNames': 'true', 'spark.sql.session.timeZone': 'UTC'}
+        self.spark_conf = {
+            "master": "local[*]",
+            "spark.ui.enabled": "false",
+            "spark.eventLog.enabled": "false",
+            "spark.sql.parser.quotedRegexColumnNames": "true",
+            "spark.sql.session.timeZone": "UTC",
+        }
         self.project_name = project_name
         if not self.spark_offline_store_config:
             self.create_offline_store_config()
         if not self.spark_session:
-            self.spark_session = (SparkSession
-                .builder
-                .config(conf=SparkConf().setAll(self.spark_conf.items()))
-                .appName('pytest-pyspark-local-testing')
-                .getOrCreate())
+            self.spark_session = (
+                SparkSession.builder.config(
+                    conf=SparkConf().setAll(self.spark_conf.items())
+                )
+                .appName("pytest-pyspark-local-testing")
+                .getOrCreate()
+            )
         self.tables: List[str] = []
 
     def teardown(self):
@@ -36,7 +47,9 @@ class SparkDataSourceCreator(DataSourceCreator):
 
     def create_offline_store_config(self):
         self.spark_offline_store_config = SparkOfflineStoreConfig()
-        self.spark_offline_store_config.type = "feast_spark_offline_store.spark.SparkOfflineStore"
+        self.spark_offline_store_config.type = (
+            "feast_spark_offline_store.spark.SparkOfflineStore"
+        )
         self.spark_offline_store_config.spark_conf = self.spark_conf
         return self.spark_offline_store_config
 
@@ -50,20 +63,27 @@ class SparkDataSourceCreator(DataSourceCreator):
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
-            #df["event_timestamp"] = pd.to_datetime(df["event_timestamp"], utc=True)
+        # df["event_timestamp"] = pd.to_datetime(df["event_timestamp"], utc=True)
         if event_timestamp_column in df:
-            df[event_timestamp_column] = pd.to_datetime(df[event_timestamp_column], utc=True)
+            df[event_timestamp_column] = pd.to_datetime(
+                df[event_timestamp_column], utc=True
+            )
         # Make sure the field mapping is correct and convert the datetime datasources.
         if field_mapping:
-            timestamp_mapping = {value:key for key, value in field_mapping.items()}
-            if(event_timestamp_column in timestamp_mapping and timestamp_mapping[event_timestamp_column] in df):
+            timestamp_mapping = {value: key for key, value in field_mapping.items()}
+            if (
+                event_timestamp_column in timestamp_mapping
+                and timestamp_mapping[event_timestamp_column] in df
+            ):
                 col = timestamp_mapping[event_timestamp_column]
                 df[col] = pd.to_datetime(df[col], utc=True)
 
         # https://stackoverflow.com/questions/51871200/analysisexception-it-is-not-allowed-to-add-database-prefix
         # destination_name = self.get_prefixed_table_name(destination_name)
 
-        df = self.spark_session.createDataFrame(df).createOrReplaceTempView(destination_name)
+        df = self.spark_session.createDataFrame(df).createOrReplaceTempView(
+            destination_name
+        )
 
         self.tables.append(destination_name)
         return SparkSource(
