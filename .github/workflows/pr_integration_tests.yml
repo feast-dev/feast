@@ -48,6 +48,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1"
       - name: Get pip cache dir
