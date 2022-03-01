@@ -47,12 +47,73 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.repo_config import RepoConfig
 from feast.type_map import python_values_to_proto_values
+from feast.flags_helper import enable_go_feature_server_use_thread
 
 
 class GoServerConnection:
-    def __init__(self):
+    def __init__(self, config: RepoConfig, repo_path: str):
         self.client = None
-        self.process = None
+        self._process = None
+        self._config = config
+        self._repo_path = repo_path
+    
+    def _get_unused_port(self) -> str:
+        port = 54321
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            while True:
+                # Break once found an unused port starting with 54321
+                if s.connect_ex(("localhost", port)) != 0:
+                    break
+                port += 1
+
+        return str(port)
+
+    def connect(self) -> bool:
+        self.unused_port = self._get_unused_port()
+        env = {
+            "FEAST_REPO_CONFIG": self._config.json(),
+            "FEAST_REPO_PATH": self._repo_path,
+            "FEAST_GRPC_PORT": self.unused_port,
+            **os.environ,
+        }
+        cwd = feast.__path__[0]
+        goos = platform.system().lower()
+        goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
+        executable = feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
+        # Automatically reconnect with go subprocess exits
+        self._process = subprocess.Popen([executable], cwd=cwd, env=env,)
+
+        channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
+        self.client = ServingServiceStub(channel)
+
+        try:
+            self._check_grpc_connection()
+            return True
+        except grpc.RpcError:
+            return False
+
+    def kill_process(self):
+        if self._process:
+            # self._process.terminate()
+            self._process.send_signal(signal.SIGINT)
+
+    def is_process_alive(self):
+        return self._process and self._process.poll()
+    
+    def wait_for_process(self, timeout):
+        self._process.wait(timeout)
+
+    # Make sure the connection can be used for feature retrieval before returning from
+    # constructor. We try connecting to the Go subprocess for 5 seconds or at most 50 times
+    @retry(
+        stop=(stop_after_delay(10) | stop_after_attempt(50)),
+        wait=wait_exponential(multiplier=0.1, min=0.1, max=5),
+    )
+    def _check_grpc_connection(self):
+        self.client.GetFeastServingInfo(
+            request=GetFeastServingInfoRequest()
+        )
 
 
 class GoServer:
@@ -63,27 +124,26 @@ class GoServer:
     Attributes:
         _repo_path: The path to the Feast repo for which this go server is defined.
         _config: The RepoConfig for the Feast repo for which this go server is defined.
-        grpc_server_started: Whether the gRPC server has been started.
-        pipe_closed: Whether the pipe to the Go subprocess has been closed.
-        grpc_port: A high number port used to start grpc server
     """
 
     _repo_path: str
     _config: RepoConfig
-    _process: subprocess.Popen
 
     def __init__(self, repo_path: str, config: RepoConfig):
         """Creates a GoServer object."""
         self._repo_path = repo_path
         self._config = config
         self._go_server_started = threading.Event()
-        self._shared_connection = GoServerConnection()
+        self._shared_connection = GoServerConnection(config, repo_path)
         self._dev_mode = "dev" in feast.__version__
-        self._process = None
-        if self._dev_mode:
-            self._start_go_server_dev()
+        if self._check_use_thread():
+            print("Using thread go server", config)
+            self._start_go_server_use_thread()
         else:
             self._start_go_server()
+
+    def _check_use_thread(self):
+        return enable_go_feature_server_use_thread(self._config)
 
     def get_online_features(
         self,
@@ -113,7 +173,7 @@ class GoServer:
             ValueError: If some other error occurs.
         """
         # Wait for go server subprocess to restart before asking for features
-        if not self._dev_mode and not self._go_server_started.is_set():
+        if self._check_use_thread() and not self._go_server_started.is_set():
             self._go_server_started.wait()
 
         request = GetOnlineFeaturesRequest(full_feature_names=full_feature_names)
@@ -135,8 +195,8 @@ class GoServer:
             if rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
                 # If the server became unavailable, it could mean that the subprocess died or fell
                 # into a bad state, so the resolution is to wait for go server to restart in the background
-                if self._dev_mode:
-                    self._start_go_server_dev()
+                if  not self._check_use_thread():
+                    self._start_go_server()
                 elif not self._go_server_started.is_set():
                     self._go_server_started.wait()
                 # Retry request with the new Go subprocess
@@ -162,32 +222,12 @@ class GoServer:
 
         return OnlineResponse(response)
 
-    def _start_go_server(self):
-        goos = platform.system().lower()
-        goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
-        if self._dev_mode:
-            binaries_path = (pathlib.Path(__file__).parent / "binaries").resolve()
-            binaries_path_abs = str(binaries_path.absolute())
-            if binaries_path.exists():
-                shutil.rmtree(binaries_path_abs)
-            os.mkdir(binaries_path_abs)
-            subprocess.check_output(
-                [
-                    "go",
-                    "build",
-                    "-o",
-                    f"{binaries_path_abs}/goserver_{goos}_{goarch}",
-                    "github.com/feast-dev/feast/go/cmd/goserver",
-                ],
-                env={"GOOS": goos, "GOARCH": goarch, **os.environ},
-            )
-
+    def _start_go_server_use_thread(self):
+        
         self._go_server_background_thread = GoServerBackgroundThread(
             "GoServerBackgroundThread",
             self._shared_connection,
             self._go_server_started,
-            self._config,
-            self._repo_path,
         )
         self._go_server_background_thread.start()
         atexit.register(lambda: self._go_server_background_thread.stop_go_server())
@@ -201,76 +241,34 @@ class GoServer:
         # Wait for go server subprocess to start for the first time before returning
         self._go_server_started.wait()
 
-    def _start_go_server_dev(self):
-        if self._process and self._process.poll():
-            self._process.send_signal(signal.SIGINT)
+    def _start_go_server(self):
+        if self._shared_connection.is_process_alive():
+            self._shared_connection.kill_process()
 
-        self.unused_port = self._get_unused_port()
-        env = {
-            "FEAST_REPO_CONFIG": self._config.json(),
-            "FEAST_REPO_PATH": self._repo_path,
-            "FEAST_GRPC_PORT": self.unused_port,
-            **os.environ,
-        }
-        cwd = feast.__path__[0]
-        goos = platform.system().lower()
-        goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
-        executable = feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
-        # Automatically reconnect with go subprocess exits
-        self._process = subprocess.Popen([executable], cwd=cwd, env=env,)
-
-        atexit.register(lambda: self._process.send_signal(signal.SIGINT))
-        signal.signal(signal.SIGTERM, lambda: self._process.send_signal(signal.SIGINT))
-        signal.signal(signal.SIGINT, lambda: self._process.send_signal(signal.SIGINT))
-
-        channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
-        self._shared_connection.client = ServingServiceStub(channel)
-
-        try:
-            self._check_grpc_connection()
-        except grpc.RpcError:
-            raise GoSubprocessConnectionFailed
-
-    def _get_unused_port(self) -> str:
-        port = 54321
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            while True:
-                # Break once found an unused port starting with 54321
-                if s.connect_ex(("localhost", port)) != 0:
-                    break
-                port += 1
-
-        return str(port)
-
-    # Make sure the connection can be used for feature retrieval before returning from
-    # constructor. We try connecting to the Go subprocess for 5 seconds or at most 50 times
-    @retry(stop=(stop_after_delay(10) | stop_after_attempt(50)), wait=wait_fixed(0.1))
-    def _check_grpc_connection(self):
-        self._shared_connection.client.GetFeastServingInfo(
-            request=GetFeastServingInfoRequest()
-        )
-
+        self._shared_connection.connect()
+        atexit.register(lambda: self._shared_connection.kill_process())
+        signal.signal(signal.SIGTERM, lambda: self._shared_connection.kill_process())
+        signal.signal(signal.SIGINT, lambda: self._shared_connection.kill_process())
+    
+    def kill_go_server_explicitly(self):
+        if self._check_use_thread():
+            self._go_server_background_thread.stop_go_server()
+        else:
+            self._shared_connection.kill_process()
 
 # https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
 class GoServerBackgroundThread(threading.Thread):
-    process: subprocess.Popen
 
     def __init__(
         self,
         name: str,
         shared_connection: GoServerConnection,
         go_server_started: threading.Event,
-        config: RepoConfig,
-        repo_path: str,
     ):
         threading.Thread.__init__(self)
         self.name = name
         self._shared_connection = shared_connection
         self._go_server_started = go_server_started
-        self._config = config
-        self._repo_path = repo_path
-        self._process = None
 
     def run(self):
         # Target function of the thread class
@@ -279,21 +277,21 @@ class GoServerBackgroundThread(threading.Thread):
                 self._go_server_started.clear()
 
                 # If we fail to connect to grpc stub, terminate subprocess and repeat
-                if not self._connect():
-                    self._process.send_signal(signal.SIGINT)
+                if not self._shared_connection.connect():
+                    self._shared_connection.kill_process()
                     continue
                 self._go_server_started.set()
                 while True:
                     try:
                         # Making a blocking wait by setting timeout to a very long time so we don't waste cpu cycle
-                        self.process.wait(3600)
+                        self._shared_connection.wait_for_process(3600)
                     except subprocess.TimeoutExpired:
-                        if self._process and not self._process.poll():
-                            break
+                        pass
+                    if not self._shared_connection.is_process_alive():
+                        break
         finally:
             # Main thread exits
-            if self._process:
-                self._process.send_signal(signal.SIGINT)
+            self._shared_connection.kill_process()
 
     def stop_go_server(self):
         thread_id = self._get_id()
@@ -312,49 +310,3 @@ class GoServerBackgroundThread(threading.Thread):
             if thread is self:
                 return id
 
-    def _get_unused_port(self) -> str:
-        port = 54321
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            while True:
-                # Break once found an unused port starting with 54321
-                if s.connect_ex(("localhost", port)) != 0:
-                    break
-                port += 1
-
-        return str(port)
-
-    def _connect(self) -> bool:
-        self.unused_port = self._get_unused_port()
-        env = {
-            "FEAST_REPO_CONFIG": self._config.json(),
-            "FEAST_REPO_PATH": self._repo_path,
-            "FEAST_GRPC_PORT": self.unused_port,
-            **os.environ,
-        }
-        cwd = feast.__path__[0]
-        goos = platform.system().lower()
-        goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
-        executable = feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
-        # Automatically reconnect with go subprocess exits
-        self._process = subprocess.Popen([executable], cwd=cwd, env=env,)
-
-        channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
-        self._shared_connection.client = ServingServiceStub(channel)
-
-        try:
-            self._check_grpc_connection()
-            return True
-        except grpc.RpcError:
-            return False
-
-    # Make sure the connection can be used for feature retrieval before returning from
-    # constructor. We try connecting to the Go subprocess for 5 seconds or at most 50 times
-    @retry(
-        stop=(stop_after_delay(10) | stop_after_attempt(50)),
-        wait=wait_exponential(multiplier=0.1, min=0.1, max=5),
-    )
-    def _check_grpc_connection(self):
-        self._shared_connection.client.GetFeastServingInfo(
-            request=GetFeastServingInfoRequest()
-        )

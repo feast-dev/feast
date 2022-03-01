@@ -33,6 +33,7 @@ from tests.integration.feature_repos.repo_configuration import (
     REDIS_CLUSTER_CONFIG,
     DEFAULT_GO_SERVER_REPO_CONFIGS,
     GO_REPO_CONFIGS,
+    GO_CYCLE_REPO_CONFIGS,
     REDIS_CONFIG,
     Environment,
     TestData,
@@ -58,6 +59,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "goserver: mark tests that use the go feature server"
     )
+    config.addinivalue_line(
+        "markers", "goserverlifecycle: mark tests that use the go feature server"
+    )
 
 
 def pytest_addoption(parser):
@@ -79,13 +83,20 @@ def pytest_addoption(parser):
         default=False,
         help="Run tests that use the go feature server",
     )
+    parser.addoption(
+        "--goserverlifecycle",
+        action="store_true",
+        default=False,
+        help="Run tests on go feature server lifecycle",
+    )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
     should_run_universal = config.getoption("--universal") is True
-    should_run_without_goserver = config.getoption("--goserver") is True
+    should_run_goserver = config.getoption("--goserver") is True
+    should_run_goserverlifecycle = config.getoption("--goserverlifecycle") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -112,9 +123,15 @@ def pytest_collection_modifyitems(config, items: List[Item]):
             items.append(t)
 
     goserver_tests = [t for t in items if "goserver" in t.keywords]
-    if should_run_without_goserver:
+    if should_run_goserver:
         items.clear()
         for t in goserver_tests:
+            items.append(t)
+    
+    goserverlifecycle_tests = [t for t in items if "goserverlifecycle" in t.keywords]
+    if should_run_goserverlifecycle:
+        items.clear()
+        for t in goserverlifecycle_tests:
             items.append(t)
 
 
@@ -192,14 +209,57 @@ def environment(request, worker_id: str):
     params=GO_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_REPO_CONFIGS]
 )
 def go_environment(request, worker_id: str):
+    
     e = construct_test_environment(request.param, worker_id=worker_id)
-
     def cleanup():
         e.feature_store.teardown()
+        if e.feature_store._go_server:
+            e.feature_store._go_server.kill_go_server_explicitly()
 
     request.addfinalizer(cleanup)
     return e
 
+@pytest.fixture(
+    params=GO_CYCLE_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_CYCLE_REPO_CONFIGS]
+)
+def go_cycle_environment(request, worker_id: str):
+    e = construct_test_environment(request.param, worker_id=worker_id)
+    
+    def cleanup():
+        e.feature_store.teardown()
+        if e.feature_store._go_server:
+            e.feature_store._go_server.kill_go_server_explicitly()
+
+    request.addfinalizer(cleanup)
+    return e
+
+@pytest.fixture(scope="session")
+def build_binaries():
+    import shutil
+    import subprocess
+    import os
+    import pathlib
+    import platform
+
+    goos = platform.system().lower()
+    goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
+    binaries_path = (pathlib.Path(__file__).parent / "../feast/binaries").resolve()
+    print(binaries_path)
+    binaries_path_abs = str(binaries_path.absolute())
+    if binaries_path.exists():
+        shutil.rmtree(binaries_path_abs)
+    os.mkdir(binaries_path_abs)
+    
+    subprocess.check_output(
+        [
+            "go",
+            "build",
+            "-o",
+            f"{binaries_path_abs}/goserver_{goos}_{goarch}",
+            "github.com/feast-dev/feast/go/cmd/goserver",
+        ],
+        env={"GOOS": goos, "GOARCH": goarch, **os.environ},
+    )
 
 @pytest.fixture(
     params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],

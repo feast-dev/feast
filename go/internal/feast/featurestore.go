@@ -224,14 +224,14 @@ func (fs *FeatureStore) DestructOnlineStore() {
 
 func (fs *FeatureStore) parseKind(kind interface{}) (*ParsedKind, error) {
 	if featureList, ok := kind.(*serving.GetOnlineFeaturesRequest_Features); ok {
-		return &ParsedKind{features: featureList.Features.GetVal()}, nil
+		return &ParsedKind{features: featureList.Features.GetVal(), featureService: nil}, nil
 	}
 	if featureServiceRequest, ok := kind.(*serving.GetOnlineFeaturesRequest_FeatureService); ok {
 		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
 		if err != nil {
 			return nil, err
 		}
-		return &ParsedKind{featureService: featureService}, nil
+		return &ParsedKind{features: nil, featureService: featureService}, nil
 	}
 	return nil, errors.New("cannot parse kind from GetOnlineFeaturesRequest")
 }
@@ -245,10 +245,7 @@ func (fs *FeatureStore) parseKind(kind interface{}) (*ParsedKind, error) {
 
 func (fs *FeatureStore) getFeatures(parsedKind *ParsedKind, allowCache bool) ([]string, error) {
 
-	if parsedKind.features == nil {
-		if parsedKind.featureService == nil {
-			return nil, errors.New("Cannot parse FeatureService from request")
-		}
+	if parsedKind.featureService != nil {
 
 		var featureViewName string
 		features := make([]string, 0)
@@ -275,7 +272,7 @@ func (fs *FeatureStore) getFeatures(parsedKind *ParsedKind, allowCache bool) ([]
 		retrieving all feature views. Similar argument to FeatureService applies.
 
 */
-func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache, hideDummyEntity bool) ([]*FeatureView, []*RequestFeatureView, []*OnDemandFeatureView, error) {
+func (fs *FeatureStore) getFeatureViewsToUse(parsedKind *ParsedKind, allowCache, hideDummyEntity bool) ([]*FeatureView, []*RequestFeatureView, []*OnDemandFeatureView, error) {
 
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
@@ -296,7 +293,8 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind interface{}, allowCache,
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
 
-	if featureService, ok := parsedKind.(*FeatureService); ok {
+	if parsedKind.featureService != nil {
+		featureService := parsedKind.featureService
 
 		fvsToUse := make([]*FeatureView, 0)
 		requestFvsToUse := make([]*RequestFeatureView, 0)
