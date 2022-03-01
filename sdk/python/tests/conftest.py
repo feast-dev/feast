@@ -196,6 +196,23 @@ def universal_data_sources(request, environment) -> TestData:
     request.addfinalizer(cleanup)
     return construct_universal_test_data(environment)
 
+@pytest.fixture(scope="session")
+def redis_universal_data_sources(request, local_redis_environment):
+    entities = construct_universal_entities()
+    datasets = construct_universal_datasets(
+        entities, local_redis_environment.start_date, local_redis_environment.end_date
+    )
+    datasources = construct_universal_data_sources(
+        datasets, local_redis_environment.data_source_creator
+    )
+
+    def cleanup():
+        # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
+        local_redis_environment.data_source_creator.teardown()
+
+    request.addfinalizer(cleanup)
+    return entities, datasets, datasources
+
 
 @pytest.fixture(scope="session")
 def e2e_data_sources(environment: Environment, request):
