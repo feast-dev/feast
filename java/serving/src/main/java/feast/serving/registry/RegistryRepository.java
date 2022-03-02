@@ -17,7 +17,6 @@
 package feast.serving.registry;
 
 import com.google.protobuf.Duration;
-import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureServiceProto;
 import feast.proto.core.FeatureViewProto;
@@ -25,9 +24,11 @@ import feast.proto.core.OnDemandFeatureViewProto;
 import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /*
  *
@@ -108,7 +109,8 @@ public class RegistryRepository {
     return getFeatureViewSpec(featureReference).getEntitiesList();
   }
 
-  public List<EntityProto.Entity> getEntities() {
-    return this.registry.getEntities();
+  public Map<String, String> getEntityJoinKeyLookup() {
+    return this.registry.getEntities().stream()
+        .collect(Collectors.toMap(e -> e.getSpec().getName(), e -> e.getSpec().getJoinKey()));
   }
 }

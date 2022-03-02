@@ -21,7 +21,6 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.common.models.Feature;
-import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureServiceProto;
 import feast.proto.core.FeatureViewProto;
 import feast.proto.core.FeatureViewProto.FeatureViewSpec;
@@ -119,7 +118,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .distinct()
             .map(this.registryRepository::getFeatureViewSpecByName)
             .collect(Collectors.toList());
-    List<EntityProto.Entity> entities = this.registryRepository.getEntities();
+    Map<String, String> entityNameToJoinKey = this.registryRepository.getEntityJoinKeyLookup();
     Map<String, List<String>> entityNamesPerFeatureView =
         featureViewSpecs.stream()
             .collect(
@@ -127,13 +126,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                     FeatureViewSpec::getName,
                     spec ->
                         spec.getEntitiesList().stream()
-                            .map(
-                                name ->
-                                    entities.stream()
-                                        .filter(e -> e.getSpec().getName().equals(name))
-                                        .findFirst()
-                                        .get())
-                            .map(e -> e.getSpec().getJoinKey())
+                            .map(entityNameToJoinKey::get)
                             .collect(Collectors.toList())));
 
     Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
