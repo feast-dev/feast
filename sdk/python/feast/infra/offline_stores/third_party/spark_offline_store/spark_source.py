@@ -3,11 +3,9 @@ import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.utils import AnalysisException
+from pyspark.sql import SparkSession
 
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (

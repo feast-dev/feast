@@ -24,7 +24,9 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
-from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import SparkSource
+from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import (
+    SparkSource,
+)
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage

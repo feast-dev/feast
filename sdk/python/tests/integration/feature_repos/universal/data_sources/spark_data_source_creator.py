@@ -6,7 +6,9 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast.data_source import DataSource
-from feast.infra.offline_stores.third_party.spark_offline_store.spark import SparkOfflineStoreConfig
+from feast.infra.offline_stores.third_party.spark_offline_store.spark import (
+    SparkOfflineStoreConfig,
+)
 from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
     SparkSource,
