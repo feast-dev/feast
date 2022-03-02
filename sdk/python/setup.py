@@ -92,6 +92,10 @@ SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3",
 ]
 
+SPARK_REQUIRED = [
+    "pyspark>=3.0",
+]
+
 GE_REQUIRED = [
     "great_expectations>=0.14.0,<0.15.0"
 ]
@@ -141,6 +145,7 @@ CI_REQUIRED = (
         + REDIS_REQUIRED
         + AWS_REQUIRED
         + SNOWFLAKE_REQUIRED
+        * SPARK_REQUIRED
         + GE_REQUIRED
 )
 
