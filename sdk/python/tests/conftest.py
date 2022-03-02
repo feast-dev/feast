@@ -298,20 +298,12 @@ def redis_universal_data_sources(request, local_redis_environment):
 
 @pytest.fixture(scope="session")
 def go_data_sources(request, go_environment):
-    entities = construct_universal_entities()
-    datasets = construct_universal_datasets(
-        entities, go_environment.start_date, go_environment.end_date
-    )
-    datasources = construct_universal_data_sources(
-        datasets, go_environment.data_source_creator
-    )
-
     def cleanup():
         # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         go_environment.data_source_creator.teardown()
 
     request.addfinalizer(cleanup)
-    return entities, datasets, datasources
+    return construct_universal_test_data(go_environment)
 
 
 @pytest.fixture(scope="session")

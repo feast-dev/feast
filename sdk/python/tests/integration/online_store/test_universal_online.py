@@ -662,17 +662,17 @@ def test_online_retrieval_with_go_server(
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
         features=[
-            feature_views["location"]
-            .with_name("origin")
-            .with_join_key_map({"location_id": "origin_id"}),
-            feature_views["location"]
-            .with_name("destination")
-            .with_join_key_map({"location_id": "destination_id"}),
+            feature_views.location.with_name("origin").with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+            feature_views.location.with_name("destination").with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
         ],
     )
 
     feast_objects = []
-    feast_objects.extend(feature_views.values())
+    feast_objects.extend([feature_view for feature_view in feature_views.values() if feature_view])
     feast_objects.extend(
         [driver(), customer(), location(), feature_service_entity_mapping]
     )
@@ -682,41 +682,41 @@ def test_online_retrieval_with_go_server(
         go_environment.end_date + timedelta(days=1),
     )
 
-    entity_sample = datasets["orders"].sample(10)[
+    entity_sample = datasets.orders_df.sample(10)[
         ["customer_id", "driver_id", "order_id", "event_timestamp"]
     ]
-    orders_df = datasets["orders"][
+    orders_df = datasets.orders_df[
         (
-            datasets["orders"]["customer_id"].isin(entity_sample["customer_id"])
-            & datasets["orders"]["driver_id"].isin(entity_sample["driver_id"])
+            datasets.orders_df["customer_id"].isin(entity_sample["customer_id"])
+            & datasets.orders_df["driver_id"].isin(entity_sample["driver_id"])
         )
     ]
 
     sample_drivers = entity_sample["driver_id"]
-    drivers_df = datasets["driver"][
-        datasets["driver"]["driver_id"].isin(sample_drivers)
+    drivers_df = datasets.driver_df[
+        datasets.driver_df["driver_id"].isin(sample_drivers)
     ]
 
     sample_customers = entity_sample["customer_id"]
-    customers_df = datasets["customer"][
-        datasets["customer"]["customer_id"].isin(sample_customers)
+    customers_df = datasets.customer_df[
+        datasets.customer_df["customer_id"].isin(sample_customers)
     ]
 
-    location_pairs = np.array(list(itertools.permutations(entities["location"], 2)))
+    location_pairs = np.array(list(itertools.permutations(entities.location_vals, 2)))
     sample_location_pairs = location_pairs[
         np.random.choice(len(location_pairs), 10)
     ].T.tolist()
-    origins_df = datasets["location"][
-        datasets["location"]["location_id"].isin(sample_location_pairs[0])
+    origins_df = datasets.location_df[
+        datasets.location_df["location_id"].isin(sample_location_pairs[0])
     ]
-    destinations_df = datasets["location"][
-        datasets["location"]["location_id"].isin(sample_location_pairs[1])
+    destinations_df = datasets.location_df[
+        datasets.location_df["location_id"].isin(sample_location_pairs[1])
     ]
 
-    global_df = datasets["global"]
+    global_df = datasets.global_df
 
     entity_rows = [
-        {"driver": d, "customer_id": c}
+        {"driver": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -830,16 +830,15 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     fs = go_environment.feature_store
     fs.set_go_server_port(go_environment.test_repo_config.go_server_port+2)
     entities, datasets, data_sources = go_data_sources
-    driver_stats_fv = construct_universal_feature_views(
-        data_sources, with_odfv=False
-    )["driver"]
+    driver_stats_fv = construct_universal_feature_views(data_sources, with_odfv=False).driver
 
+    driver_entities = entities.driver_vals
     df = pd.DataFrame(
         {
-            "ts_1": [go_environment.end_date] * len(entities["driver"]),
-            "created_ts": [go_environment.end_date] * len(entities["driver"]),
-            "driver_id": entities["driver"],
-            "value": np.random.random(size=len(entities["driver"])),
+            "ts_1": [go_environment.end_date] * len(driver_entities),
+            "created_ts": [go_environment.end_date] * len(driver_entities),
+            "driver_id": driver_entities,
+            "value": np.random.random(size=len(driver_entities)),
         }
     )
 
@@ -859,9 +858,7 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     )
     expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [
-        {"driver": driver_id} for driver_id in sorted(entities["driver"])
-    ]
+    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows

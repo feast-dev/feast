@@ -270,6 +270,7 @@ class UniversalFeatureViews:
 
 def construct_universal_feature_views(
     data_sources: UniversalDataSources,
+    with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     return UniversalFeatureViews(
@@ -281,14 +282,12 @@ def construct_universal_feature_views(
                 "driver": driver_hourly_stats,
                 "input_request": create_conv_rate_request_data_source(),
             }
-        ),
+        ) if with_odfv else None,
         driver_age_request_fv=create_driver_age_request_feature_view(),
         order=create_order_feature_view(data_sources.orders),
         location=create_location_stats_feature_view(data_sources.location),
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),
     )
-
-    return universal_feature_views
 
 
 @dataclass
