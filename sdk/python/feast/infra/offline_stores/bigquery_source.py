@@ -44,7 +44,7 @@ class BigQuerySource(DataSource):
          """
         if table is None and table_ref is None and query is None:
             raise ValueError('No "table" argument provided.')
-        if table_ref:
+        if not table and table_ref:
             warnings.warn(
                 (
                     "The argument 'table_ref' is being deprecated. Please use 'table' "
@@ -52,6 +52,7 @@ class BigQuerySource(DataSource):
                 ),
                 DeprecationWarning,
             )
+            table = table_ref
         self.bigquery_options = BigQueryOptions(table_ref=table, query=query)
 
         # If no name, use the table_ref as the default name
