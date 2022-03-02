@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 from distutils.cmd import Command
+from pathlib import Path
 
 from setuptools import find_packages
 
@@ -161,9 +162,11 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
+PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
 
-class BuildProtoCommand(Command):
-    description = "Builds the proto files into Python and Go files."
+
+class BuildPythonProtosCommand(Command):
+    description = "Builds the proto files into Python files."
     user_options = []
 
     def initialize_options(self):
@@ -172,19 +175,11 @@ class BuildProtoCommand(Command):
             "-m",
             "grpc_tools.protoc",
         ]  # find_executable("protoc")
-        self.go_protoc = ["protoc"]
         self.proto_folder = os.path.join(repo_root, "protos")
         self.python_folder = os.path.join(
             os.path.dirname(__file__) or os.getcwd(), "feast/protos"
         )
-        self.go_folder = os.path.join(repo_root, "go/protos")
-        self.sub_folders = [
-            "core",
-            "serving",
-            "types",
-            "storage",
-            "third_party/grpc/connector",
-        ]
+        self.sub_folders = PROTO_SUBDIRS
 
     def finalize_options(self):
         pass
@@ -192,7 +187,7 @@ class BuildProtoCommand(Command):
     def _generate_python_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
-        subprocess.check_output(
+        subprocess.check_call(
             self.python_protoc + [
                 "-I",
                 self.proto_folder,
@@ -203,28 +198,9 @@ class BuildProtoCommand(Command):
                 "--mypy_out",
                 self.python_folder,
             ] + proto_files,
-            stderr=subprocess.STDOUT
-        )
-
-    def _generate_go_protos(self, path: str):
-        proto_files = glob.glob(os.path.join(self.proto_folder, path))
-
-        subprocess.check_output(
-            self.go_protoc
-            + [
-                "-I",
-                self.proto_folder,
-                "--go_out",
-                self.go_folder,
-                "--grpc_python_out",
-                self.go_folder,
-            ]
-            + proto_files,
-            stderr=subprocess.STDOUT
         )
 
     def run(self):
-        # Build protos into Python files.
         for sub_folder in self.sub_folders:
             self._generate_python_protos(f"feast/{sub_folder}/*.proto")
 
@@ -245,7 +221,35 @@ class BuildProtoCommand(Command):
                 with open(path, "w") as file:
                     file.write(filedata)
 
-        # Build protos into Go files.
+
+class BuildGoProtosCommand(Command):
+    description = "Builds the proto files into Go files."
+    user_options = []
+
+    def initialize_options(self):
+        self.go_protoc = ["protoc"]
+        self.proto_folder = os.path.join(repo_root, "protos")
+        self.go_folder = os.path.join(repo_root, "go/protos")
+        self.sub_folders = PROTO_SUBDIRS
+
+    def finalize_options(self):
+        pass
+
+    def _generate_go_protos(self, path: str):
+        proto_files = glob.glob(os.path.join(self.proto_folder, path))
+
+        subprocess.check_call(
+            self.go_protoc
+            + [
+                "-I",
+                self.proto_folder,
+                "--go_out",
+                self.go_folder,
+            ]
+            + proto_files,
+        )
+
+    def run(self):
         go_dir = Path(repo_root) / "go" / "protos"
         go_dir.mkdir(exist_ok=True)
         for sub_folder in self.sub_folders:
@@ -256,7 +260,8 @@ class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
-        self.run_command("build_proto")
+        self.run_command("build_python_protos")
+        self.run_command("build_go_protos")
         build_py.run(self)
 
 
@@ -264,7 +269,8 @@ class DevelopCommand(develop):
     """Custom develop command."""
 
     def run(self):
-        self.run_command("build_proto")
+        self.run_command("build_python_protos")
+        self.run_command("build_go_protos")
         develop.run(self)
 
 
@@ -316,7 +322,8 @@ setup(
         ],
     },
     cmdclass={
-        "build_proto": BuildProtoCommand,
+        "build_python_protos": BuildPythonProtosCommand,
+        "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
     },

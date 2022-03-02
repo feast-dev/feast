@@ -16,8 +16,6 @@
 
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
-PROTO_TYPE_SUBDIRS = core serving types storage third_party/grpc/connector
-PROTO_SERVICE_SUBDIRS = core serving
 OS := linux
 ifeq ($(shell uname -s), Darwin)
 	OS = osx
@@ -37,9 +35,6 @@ build: protos build-java build-docker build-html
 
 # Python SDK
 
-compile-protos-python:
-	python setup.py build_protos
-
 install-python-ci-dependencies:
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
 
@@ -48,6 +43,9 @@ lock-python-ci-dependencies:
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
+
+compile-protos-python:
+	python setup.py build_python_protos
 
 install-python:
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
@@ -131,7 +129,7 @@ install-go-ci-dependencies:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
 compile-protos-go:
-	python setup.py build_protos
+	python setup.py build_go_protos
 
 test-go:
 	go test ./...
@@ -201,7 +199,7 @@ compile-protos-docs:
 	mkdir -p dist/grpc;
 	cd ${ROOT_DIR}/protos && protoc --docs_out=../dist/grpc feast/*/*.proto
 
-build-sphinx:
+build-sphinx: compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
 
 build-templates:
