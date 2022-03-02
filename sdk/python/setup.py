@@ -192,9 +192,8 @@ class BuildProtoCommand(Command):
     def _generate_python_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
-        subprocess.check_call(
-            self.python_protoc
-            + [
+        subprocess.check_output(
+            self.python_protoc + [
                 "-I",
                 self.proto_folder,
                 "--python_out",
@@ -203,14 +202,14 @@ class BuildProtoCommand(Command):
                 self.python_folder,
                 "--mypy_out",
                 self.python_folder,
-            ]
-            + proto_files
+            ] + proto_files,
+            stderr=subprocess.STDOUT
         )
 
     def _generate_go_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
-        subprocess.check_call(
+        subprocess.check_output(
             self.go_protoc
             + [
                 "-I",
@@ -220,7 +219,8 @@ class BuildProtoCommand(Command):
                 "--grpc_python_out",
                 self.go_folder,
             ]
-            + proto_files
+            + proto_files,
+            stderr=subprocess.STDOUT
         )
 
     def run(self):
