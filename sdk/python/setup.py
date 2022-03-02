@@ -93,7 +93,7 @@ SNOWFLAKE_REQUIRED = [
 ]
 
 SPARK_REQUIRED = [
-    "pyspark>=3.0",
+    "pyspark==3.2.1",
 ]
 
 GE_REQUIRED = [
@@ -249,6 +249,7 @@ setup(
         "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
+        "spark": SPARK_REQUIRED,
         "ge": GE_REQUIRED,
     },
     include_package_data=True,
