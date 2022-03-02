@@ -172,7 +172,7 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
             List.of(mockedFeatureRows.get(2), mockedFeatureRows.get(3)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureViewSpecByName(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
@@ -245,7 +245,7 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(0), mockedFeatureRows.get(1)),
             Arrays.asList(null, mockedFeatureRows.get(4)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureViewSpecByName(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
@@ -307,7 +307,7 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)),
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)));
 
-    when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
+    when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec(3600));
     when(registry.getFeatureViewSpecByName(any())).thenReturn(getFeatureViewSpec(3600));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))

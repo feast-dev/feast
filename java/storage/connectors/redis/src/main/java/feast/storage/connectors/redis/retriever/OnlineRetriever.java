@@ -59,7 +59,6 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
   public List<List<Feature>> getOnlineFeatures(
       List<Map<String, ValueProto.Value>> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
-      List<String> entityNames,
       Map<String, List<String>> entityNamesPerFeatureView) {
 
     List<String> featureViewNames =

@@ -136,7 +136,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
     List<List<feast.storage.api.retriever.Feature>> features =
         retriever.getOnlineFeatures(
-            entityRows, retrievedFeatureReferences, entityNames, entityNamesPerFeatureView);
+            entityRows, retrievedFeatureReferences, entityNamesPerFeatureView);
 
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
