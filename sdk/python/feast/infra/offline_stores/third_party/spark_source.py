@@ -118,15 +118,12 @@ class SparkSource(DataSource):
         assert data_source.HasField("custom_options")
 
         spark_options = SparkOptions.from_proto(data_source.custom_options)
-
         return SparkSource(
             field_mapping=dict(data_source.field_mapping),
             table=spark_options.table,
             query=spark_options.query,
-            # path=spark_options.path,
-            # jdbc=None,
-            # format=spark_options.format,
-            # options=spark_options.options,
+            path=spark_options.path,
+            file_format=spark_options.file_format,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
@@ -155,22 +152,22 @@ class SparkSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        from feast_spark_offline_store.spark import (
+        from feast.infra.offline_stores.third_party.spark import (
             get_spark_session_or_start_new_with_repoconfig,
         )
 
         spark_session = get_spark_session_or_start_new_with_repoconfig(
-            config.offline_store
+            store_config=config.offline_store
         )
+        df = spark_session.sql(f"SELECT * FROM {self.get_table_query_string()}")
         try:
             return (
                 (fields["name"], fields["type"])
-                for fields in spark_session.table(self.table).schema.jsonValue()[
-                    "fields"
-                ]
+                for fields in df.schema.jsonValue()["fields"]
             )
         except AnalysisException:
-            raise DataSourceNotFoundException(self.table)
+            raise DataSourceNotFoundException()  # TODO: review error handling
+
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
@@ -193,10 +190,13 @@ class SparkSource(DataSource):
 
 class SparkOptions:
     def __init__(
-        self, table: Optional[str] = None, query: Optional[str] = None,
+        self, table: Optional[str] = None, query: Optional[str] = None, path: Optional[str] = None, file_format: Optional[str] = None
     ):
         self._table = table
         self._query = query
+        self._path = path
+        self._file_format = file_format
+
 
     @property
     def table(self):
@@ -226,6 +226,35 @@ class SparkOptions:
         """
         self._query = query
 
+    @property
+    def path(self):
+        """
+        Returns the path
+        """
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        """
+        Sets the path
+        """
+        self._path = path
+
+    @property
+    def file_format(self):
+        """
+        Returns the file_format
+        """
+        return self._file_format
+
+    @file_format.setter
+    def file_format(self, file_format):
+        """
+        Sets the file_format
+        """
+        self._file_format = file_format
+
+
     @classmethod
     def from_proto(cls, spark_options_proto: DataSourceProto.CustomSourceOptions):
         """
@@ -238,7 +267,10 @@ class SparkOptions:
         spark_configuration = pickle.loads(spark_options_proto.configuration)
 
         spark_options = cls(
-            table=spark_configuration.table, query=spark_configuration.query,
+            table=spark_configuration.table,
+            query=spark_configuration.query,
+            path=spark_configuration.path,
+            file_format=spark_configuration.file_format,
         )
         return spark_options
 

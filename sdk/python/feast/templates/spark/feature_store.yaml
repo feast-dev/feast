@@ -2,7 +2,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-    type: feast_spark_offline_store.spark.SparkOfflineStore
+    type: spark
     spark_conf:
         spark.master: "local[*]"
         spark.ui.enabled: "false"
