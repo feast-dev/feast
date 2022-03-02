@@ -197,15 +197,15 @@ sdk/go/protos/
 
 
 # Feast UI dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
+ui/node_modules
+ui/.pnp
+ui/.pnp.js
+ui/coverage
+ui/build
+# dbt
+ui/feature_repo_bq/logs
+ui/feature_repo_bq/dbt-target
+ui/.vercel
 
 # misc
 .DS_Store
@@ -218,8 +218,3 @@ sdk/go/protos/
 **/yarn-debug.log*
 **/yarn-error.log*
 
-# dbt
-ui/feature_repo_bq/logs
-ui/feature_repo_bq/dbt-target
-
-**/.vercel

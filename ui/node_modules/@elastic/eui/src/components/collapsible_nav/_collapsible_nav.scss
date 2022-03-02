@@ -1,5 +1,0 @@
-// Extends <EuiFlyout>
-
-.euiCollapsibleNav:not([class*='push']) {
-  z-index: $euiZNavigation !important; // sass-lint:disable-line no-important
-}

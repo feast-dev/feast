@@ -1,8 +1,0 @@
-// Modifier naming and colors for step status'
-// Disabled/Loading/Incomplete are handled manually
-$euiStepStatusColors: (
-  default: $euiColorPrimary,
-  complete: $euiColorSuccess,
-  warning: $euiColorWarning,
-  danger: $euiColorDanger,
-);

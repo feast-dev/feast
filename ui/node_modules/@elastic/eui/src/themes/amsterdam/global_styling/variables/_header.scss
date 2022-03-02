@@ -1,7 +1,0 @@
-// Curated border color to fade into the shadow without looking too much like a border
-// It adds separation between the header and flyout
-$euiHeaderBorderColor: lightOrDarkTheme(shade($euiBorderColor, 3%), shade($euiColorEmptyShade, 35%));
-
-$euiHeaderHeight: $euiSizeXXL + $euiSizeS;
-$euiHeaderChildSize: $euiSizeXXL;
-$euiHeaderHeightCompensation: $euiHeaderHeight;

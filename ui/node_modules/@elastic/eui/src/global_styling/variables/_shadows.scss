@@ -1,4 +1,0 @@
-// Shadows
-// Transparency only affects the use of variable this outside of the shadow mixins (borders)
-$euiShadowColor: $euiColorMediumShade !default;
-$euiShadowColorLarge: shade(saturate($euiColorMediumShade, 25%), 50%) !default;

@@ -1,4 +1,0 @@
-# Required for glyphanger subsetting
-fonttools
-# Required for woff2
-brotli

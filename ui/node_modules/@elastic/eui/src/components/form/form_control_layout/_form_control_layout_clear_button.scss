@@ -1,7 +1,0 @@
-.euiFormControlLayoutClearButton {
-  @include euiFormControlLayoutClearIcon('.euiFormControlLayoutClearButton__icon');
-}
-
-.euiFormControlLayoutClearButton--small {
-  @include euiFormControlLayoutClearIcon('.euiFormControlLayoutClearButton__icon', $size: 's');
-}

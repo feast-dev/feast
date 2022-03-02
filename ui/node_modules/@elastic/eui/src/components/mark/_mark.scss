@@ -1,7 +1,0 @@
-.euiMark {
-  background-color: transparent;
-  font-weight: $euiFontWeightBold;
-  // Override the browser's black color.
-  // Can't use `inherit` because the text to background color contrast may not be sufficient
-  color: $euiTextColor;
-}
