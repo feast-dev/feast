@@ -77,6 +77,9 @@ test-python-universal:
 test-python-go-server:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --goserver sdk/python/tests
 
+test-python-go-server-with-thread:
+	FEAST_USAGE=False IS_TEST=True USE_GO_SERVER_THREAD=True python -m pytest -n 8 --integration --goserver sdk/python/tests
+
 test-python-go-server-lifecycle:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -rP -n 8 --goserverlifecycle sdk/python/tests
 

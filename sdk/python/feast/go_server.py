@@ -342,7 +342,6 @@ class GoServerBackgroundThread(threading.Thread):
             self._shared_connection.kill_process()
 
     def _get_id(self):
-
         # returns id of the respective thread
         if hasattr(self, "_thread_id"):
             return self._thread_id
