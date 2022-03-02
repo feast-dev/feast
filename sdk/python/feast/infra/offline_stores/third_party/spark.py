@@ -217,9 +217,7 @@ class SparkOfflineStore(OfflineStore):
             store_config=config.offline_store
         )
         return SparkRetrievalJob(
-            spark_session=spark_session,
-            query=query,
-            full_feature_names=False,
+            spark_session=spark_session, query=query, full_feature_names=False
         )
 
 
