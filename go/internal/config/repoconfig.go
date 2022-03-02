@@ -32,7 +32,7 @@ type RepoConfig struct {
 type RegistryConfig struct {
 	RegistryStoreType string `json:"registry_store_type"`
 	Path              string `json:"path"`
-	CacheTtlSeconds   int64  `json:"cache_ttl_seconds" default:600`
+	CacheTtlSeconds   int64  `json:"cache_ttl_seconds" default:"600"`
 }
 
 // NewRepoConfig reads file <repoPath>/feature_store.yaml and converts the YAML format into RepoConfig struct.
@@ -73,7 +73,8 @@ func NewRepoConfigFromFile(repoPath string) (*RepoConfig, error) {
 
 func (r *RepoConfig) GetRegistryConfig() *RegistryConfig {
 	if registryConfigMap, ok := r.Registry.(map[string]interface{}); ok {
-		registryConfig := RegistryConfig{}
+		// Default CacheTtlSeconds to 600
+		registryConfig := RegistryConfig{CacheTtlSeconds: 600}
 		for k, v := range registryConfigMap {
 			switch k {
 			case "path":

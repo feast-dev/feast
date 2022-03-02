@@ -9,7 +9,7 @@ def _env_flag_enabled(name: str) -> bool:
 
 
 def feature_flag_enabled(repo_config: RepoConfig, flag_name: str) -> bool:
-    if is_test() and not (flag_name == flags.FLAG_GO_FEATURE_SERVER or flag_name == flags.FLAG_GO_FEATURE_SERVER_USE_THREAD):
+    if is_test():
         return True
     return (
         _alpha_feature_flag_enabled(repo_config)
@@ -41,10 +41,3 @@ def enable_aws_lambda_feature_server(repo_config: RepoConfig) -> bool:
 
 def enable_direct_ingestion_to_online_store(repo_config: RepoConfig) -> bool:
     return feature_flag_enabled(repo_config, flags.FLAG_DIRECT_INGEST_TO_ONLINE_STORE)
-
-
-def enable_go_feature_server(repo_config: RepoConfig) -> bool:
-    return feature_flag_enabled(repo_config, flags.FLAG_GO_FEATURE_SERVER)
-
-def enable_go_feature_server_use_thread(repo_config: RepoConfig) -> bool:
-    return feature_flag_enabled(repo_config, flags.FLAG_GO_FEATURE_SERVER_USE_THREAD)

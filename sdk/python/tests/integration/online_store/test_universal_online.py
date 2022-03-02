@@ -648,7 +648,6 @@ def test_online_store_cleanup(environment, universal_data_sources):
     ).to_dict()
     assert all(v is None for v in online_features["value"])
 
-
 @pytest.mark.integration
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
@@ -656,7 +655,7 @@ def test_online_retrieval_with_go_server(
     go_environment, go_data_sources, full_feature_names
 ):
     fs = go_environment.feature_store
-    fs.go_server_port = go_environment.test_repo_config.go_server_port+full_feature_names
+    fs.set_go_server_port( go_environment.test_repo_config.go_server_port+full_feature_names)
     entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
 
@@ -829,7 +828,7 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     on demand feature views since the Go feature server doesn't support them.
     """
     fs = go_environment.feature_store
-    fs.go_server_port = go_environment.test_repo_config.go_server_port+2
+    fs.set_go_server_port(go_environment.test_repo_config.go_server_port+2)
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
         data_sources, with_odfv=False
@@ -898,16 +897,16 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
-# # TODO(Ly): Add psutil to test requirements in CI
+# TODO: Add psutil to test requirements in CI
+# Should only run this test on its own
 @pytest.mark.goserverlifecycle
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
 
     import threading
     import psutil
 
-    print("hello world")
     fs = go_cycle_environment.feature_store
-    fs.go_server_port = go_cycle_environment.test_repo_config.go_server_port
+    fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
 
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
@@ -943,36 +942,39 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
         {"driver": driver_id} for driver_id in sorted(entities["driver"])
     ]
    
-    # Start go server process 10 times that calls get_online_features 3 times and return and check if at any time go server
+    # Start go server process that calls get_online_features and return and check if at any time go server
     # fails to clean up resources
-    
+    import os
+    import signal
+    # Duplicate the current test suit in the child process
     child_pid = os.fork()
     if child_pid == 0:
-        print("I am the child")
         online_features = fs.get_online_features(
             features=features, entity_rows=entity_rows
         ).to_dict()
         assert np.allclose(expected_values["value"], online_features["value"])
-    else:
-        os.wait()
-        # Check that background thread has terminated
-        for id, thread in threading._active.items():
-            assert thread.name != "GoServerBackgroundThread"
-
-        # Check if go server subprocess is still active even if background thread and process are killed
-        go_server_still_alive = False
-        for proc in psutil.process_iter():
-            try:
-                # Get process name & pid from process object.
-                process_name = proc.name()
-                if "goserver" in process_name:
-                    # Kill process first and raise exception later
-                    go_server_still_alive = True
-                    proc.terminate()
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                pass
-        if go_server_still_alive:
-            assert "Go server is not killed"
+        os.kill(os.getpid(), signal.SIGTERM)
+        os._exit(0)
+    os.wait()
+    # At the same time checking that resources are clean up properly once child process is killed
+    # Check that background thread has terminated
+    for id, thread in threading._active.items():
+        assert thread.name != "GoServerBackgroundThread"
+   
+    # Check if go server subprocess is still active even if background thread and process are killed
+    go_server_still_alive = False
+    for proc in psutil.process_iter():
+        try:
+            # Get process name & pid from process object.
+            process_name = proc.name()
+            if "goserver" in process_name:
+                # Kill process first and raise exception later
+                go_server_still_alive = True
+                proc.terminate()
+                
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    assert not go_server_still_alive
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if (

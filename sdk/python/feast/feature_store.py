@@ -59,7 +59,7 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
-from feast.flags_helper import enable_go_feature_server
+
 from feast.go_server import GoServer
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -132,7 +132,7 @@ class FeatureStore:
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
-        self.go_server_port = go_server_port
+        self._go_server_port = go_server_port
 
     @log_exceptions
     def version(self) -> str:
@@ -1163,10 +1163,10 @@ class FeatureStore:
                     raise ValueError("All entity_rows must have the same keys.") from e
 
         # If Go feature server is enabled, send request to it instead of going through a regular Python logic
-        if enable_go_feature_server(self.config):
+        if self.config.go_feature_server:
             # Lazily start the go server on the first request
             if self._go_server is None:
-                self._go_server = GoServer(str(self.repo_path.absolute()), self.config, self.go_server_port)
+                self._go_server = GoServer(str(self.repo_path.absolute()), self.config, self._go_server_port)
             return self._go_server.get_online_features(
                 features, columnar, full_feature_names
             )
@@ -1785,6 +1785,16 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
+
+    def kill_go_server(self):
+        if self._go_server:
+            self._go_server.kill_go_server_explicitly()
+    
+    def set_go_server_port(self, port: int):
+        if self._go_server:
+            self._go_server.set_port(port)
+        else:
+            self._go_server_port = port
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

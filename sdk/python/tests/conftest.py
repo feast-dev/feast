@@ -225,12 +225,12 @@ def go_cycle_environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
     def cleanup():
         e.feature_store.teardown()
-        if e.feature_store._go_server:
-            e.feature_store._go_server.kill_go_server_explicitly()
 
     request.addfinalizer(cleanup)
     return e
 
+# Build go binary once at the start of pytest to instead of at each go server instance
+# so that we don't constantly remove and create binaries concurrently among tests
 @pytest.fixture(scope="session")
 def build_binaries():
     import shutil
@@ -242,7 +242,6 @@ def build_binaries():
     goos = platform.system().lower()
     goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
     binaries_path = (pathlib.Path(__file__).parent / "../feast/binaries").resolve()
-    print(binaries_path)
     binaries_path_abs = str(binaries_path.absolute())
     if binaries_path.exists():
         shutil.rmtree(binaries_path_abs)

@@ -25,7 +25,7 @@ type OnlineStore interface {
 	// The inner array will have the same size as featureReferences,
 	// while the outer array will have the same size as entityKeys.
 
-	// TODO (Ly): Can we return [][]FeatureData, []timstamps, error
+	// TODO: Can we return [][]FeatureData, []timstamps, error
 	// instead and remove timestamp from FeatureData struct to mimic Python's code
 	// and reduces repeated memory storage for the same timstamp (which is stored as value and not as a pointer).
 	// Should each attribute in FeatureData be stored as a pointer instead since the current

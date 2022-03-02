@@ -68,6 +68,7 @@ func (r *Registry) initializeRegistry() {
 	}
 }
 
+// TODO: Add a goroutine and automatically refresh every cachedRegistryProtoTtl
 func (r *Registry) refresh() error {
 	return r.getRegistryProto(false)
 }

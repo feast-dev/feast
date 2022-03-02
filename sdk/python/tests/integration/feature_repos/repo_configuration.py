@@ -115,12 +115,11 @@ else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
 GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = False, go_server_port = 54323),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_server_port = 54323),
 ]
 
 GO_CYCLE_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = True, go_server_port = 54321),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_feature_server_use_thread = False, go_server_port = 54322),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, alpha_features=True, go_feature_server=True, go_server_port = 54321),
 ]
 
 
@@ -367,11 +366,6 @@ def construct_test_environment(
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
         )
-    flags = {
-        'alpha_features': test_repo_config.alpha_features == True,
-        'go_feature_server': test_repo_config.go_feature_server == True,
-        'go_feature_server_use_thread': test_repo_config.go_feature_server_use_thread == True
-    }
     config = RepoConfig(
         registry=registry,
         project=project,
@@ -380,7 +374,7 @@ def construct_test_environment(
         online_store=online_store,
         repo_path=repo_dir_name,
         feature_server=feature_server,
-        flags=flags,
+        go_feature_server=test_repo_config.go_feature_server,
     )
 
     # Create feature_store.yaml out of the config

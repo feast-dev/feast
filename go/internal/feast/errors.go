@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// TODO: Add more errors here especially once that have been created in python sdk
+// and coordinate error exceptions in GoServer in python sdk
 type FeatureNameCollisionError struct {
 	featureRefCollisions []string
 	fullFeatureNames     bool

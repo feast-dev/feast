@@ -47,7 +47,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.repo_config import RepoConfig
 from feast.type_map import python_values_to_proto_values
-from feast.flags_helper import enable_go_feature_server_use_thread, is_test
+from feast.flags_helper import is_test
 
 
 class GoServerConnection:
@@ -141,20 +141,22 @@ class GoServer:
         self._repo_path = repo_path
         self._config = config
         self._go_server_started = threading.Event()
+        if is_test():
+            use_go_server_thread = os.getenv("USE_GO_SERVER_THREAD") == "True"
+            go_server_port += use_go_server_thread
         self._shared_connection = GoServerConnection(config, repo_path, go_server_port)
         self._dev_mode = "dev" in feast.__version__
         if not is_test() and self._dev_mode:
             self._build_binaries()
-            
+
         if self._check_use_thread():
-            print("_start_go_server_use_thread")
             self._start_go_server_use_thread()
         else:
-            print("_start_go_server")
             self._start_go_server()
 
     def _check_use_thread(self):
-        return enable_go_feature_server_use_thread(self._config)
+        use_go_server_thread = os.getenv("USE_GO_SERVER_THREAD") == "True"
+        return use_go_server_thread
 
     def set_port(self, port):
         self._shared_connection.set_port(port)
@@ -164,7 +166,6 @@ class GoServer:
         goos = platform.system().lower()
         goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
         binaries_path = (pathlib.Path(__file__).parent / "../feast/binaries").resolve()
-        print(binaries_path)
         binaries_path_abs = str(binaries_path.absolute())
         if binaries_path.exists():
             shutil.rmtree(binaries_path_abs)
@@ -268,10 +269,10 @@ class GoServer:
         self._go_server_background_thread.start()
         atexit.register(lambda: self._go_server_background_thread.stop_go_server())
         signal.signal(
-            signal.SIGTERM, lambda: self._go_server_background_thread.stop_go_server()
+            signal.SIGTERM, lambda sig, frame: self._go_server_background_thread.stop_go_server()
         )
         signal.signal(
-            signal.SIGINT, lambda: self._go_server_background_thread.stop_go_server()
+            signal.SIGINT, lambda sig, frame: self._go_server_background_thread.stop_go_server()
         )
 
         # Wait for go server subprocess to start for the first time before returning
@@ -283,8 +284,8 @@ class GoServer:
 
         self._shared_connection.connect()
         atexit.register(lambda: self._shared_connection.kill_process())
-        signal.signal(signal.SIGTERM, lambda: self._shared_connection.kill_process())
-        signal.signal(signal.SIGINT, lambda: self._shared_connection.kill_process())
+        signal.signal(signal.SIGTERM, lambda sig, frame: self._shared_connection.kill_process())
+        signal.signal(signal.SIGINT, lambda sig, frame: self._shared_connection.kill_process())
     
     def kill_go_server_explicitly(self):
         if self._check_use_thread():
@@ -334,8 +335,11 @@ class GoServerBackgroundThread(threading.Thread):
         res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
             thread_id, ctypes.py_object(SystemExit)
         )
+        # TODO: Review that kill process here but run also has to stop
         if res > 1:
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
+        else:
+            self._shared_connection.kill_process()
 
     def _get_id(self):
 
