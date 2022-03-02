@@ -107,13 +107,6 @@ class FeastFeatureServerTypeInvalidError(Exception):
         )
 
 
-class GoSubprocessConnectionFailed(Exception):
-    def __init__(self):
-        super().__init__(
-            "Failed to connect to the Go subprocess (locally running feature server)"
-        )
-
-
 class FeastModuleImportError(Exception):
     def __init__(self, module_name: str, class_name: str):
         super().__init__(

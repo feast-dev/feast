@@ -59,7 +59,6 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
-
 from feast.go_server import GoServer
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -108,7 +107,10 @@ class FeatureStore:
 
     @log_exceptions
     def __init__(
-        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None, go_server_port: int = -1
+        self,
+        repo_path: Optional[str] = None,
+        config: Optional[RepoConfig] = None,
+        go_server_port: int = -1,
     ):
         """
         Creates a FeatureStore object.
@@ -1166,7 +1168,9 @@ class FeatureStore:
         if self.config.go_feature_server:
             # Lazily start the go server on the first request
             if self._go_server is None:
-                self._go_server = GoServer(str(self.repo_path.absolute()), self.config, self._go_server_port)
+                self._go_server = GoServer(
+                    str(self.repo_path.absolute()), self.config, self._go_server_port
+                )
             return self._go_server.get_online_features(
                 features, columnar, full_feature_names
             )
@@ -1789,7 +1793,7 @@ class FeatureStore:
     def kill_go_server(self):
         if self._go_server:
             self._go_server.kill_go_server_explicitly()
-    
+
     def set_go_server_port(self, port: int):
         if self._go_server:
             self._go_server.set_port(port)

@@ -32,8 +32,8 @@ from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     REDIS_CLUSTER_CONFIG,
     DEFAULT_GO_SERVER_REPO_CONFIGS,
-    GO_REPO_CONFIGS,
     GO_CYCLE_REPO_CONFIGS,
+    GO_REPO_CONFIGS,
     REDIS_CONFIG,
     Environment,
     TestData,
@@ -127,7 +127,7 @@ def pytest_collection_modifyitems(config, items: List[Item]):
         items.clear()
         for t in goserver_tests:
             items.append(t)
-    
+
     goserverlifecycle_tests = [t for t in items if "goserverlifecycle" in t.keywords]
     if should_run_goserverlifecycle:
         items.clear()
@@ -210,6 +210,7 @@ def environment(request, worker_id: str):
 )
 def go_environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
+
     def cleanup():
         e.feature_store.teardown()
         if e.feature_store._go_server:
@@ -218,26 +219,31 @@ def go_environment(request, worker_id: str):
     request.addfinalizer(cleanup)
     return e
 
+
 @pytest.fixture(
-    params=GO_CYCLE_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_CYCLE_REPO_CONFIGS]
+    params=GO_CYCLE_REPO_CONFIGS,
+    scope="session",
+    ids=[str(c) for c in GO_CYCLE_REPO_CONFIGS],
 )
 def go_cycle_environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
+
     def cleanup():
         e.feature_store.teardown()
 
     request.addfinalizer(cleanup)
     return e
 
+
 # Build go binary once at the start of pytest to instead of at each go server instance
 # so that we don't constantly remove and create binaries concurrently among tests
 @pytest.fixture(scope="session")
 def build_binaries():
-    import shutil
-    import subprocess
     import os
     import pathlib
     import platform
+    import shutil
+    import subprocess
 
     goos = platform.system().lower()
     goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
@@ -246,7 +252,7 @@ def build_binaries():
     if binaries_path.exists():
         shutil.rmtree(binaries_path_abs)
     os.mkdir(binaries_path_abs)
-    
+
     subprocess.check_output(
         [
             "go",
@@ -263,7 +269,6 @@ def build_binaries():
     scope="session",
     ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]],
 )
-@pytest.fixture()
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
         IntegrationTestRepoConfig(online_store=request.param), worker_id=worker_id

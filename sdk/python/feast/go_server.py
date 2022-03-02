@@ -21,24 +21,16 @@ import signal
 import socket
 import subprocess
 import threading
+from subprocess import Popen
 from typing import Any, Dict, List, Union
 
 import grpc
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    stop_after_delay,
-    wait_exponential,
-    wait_fixed,
-)
+from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential
 
 import feast
-from feast.errors import (
-    FeatureNameCollisionError,
-    GoSubprocessConnectionFailed,
-    InvalidFeaturesParameterType,
-)
+from feast.errors import FeatureNameCollisionError, InvalidFeaturesParameterType
 from feast.feature_service import FeatureService
+from feast.flags_helper import is_test
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
@@ -47,17 +39,14 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.repo_config import RepoConfig
 from feast.type_map import python_values_to_proto_values
-from feast.flags_helper import is_test
 
 
 class GoServerConnection:
     def __init__(self, config: RepoConfig, repo_path: str, go_server_port: int = -1):
-        self.client = None
-        self._process = None
         self._config = config
         self._repo_path = repo_path
         self._go_server_port = go_server_port
-    
+
     def _get_unused_port(self) -> str:
         if is_test():
             return str(self._go_server_port)
@@ -86,10 +75,10 @@ class GoServerConnection:
         goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
         executable = feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
         # Automatically reconnect with go subprocess exits
-        self._process = subprocess.Popen([executable], cwd=cwd, env=env,)
+        self._process = Popen([executable], cwd=cwd, env=env,)
 
         channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
-        self.client = ServingServiceStub(channel)
+        self.client: ServingServiceStub = ServingServiceStub(channel)
 
         try:
             self._check_grpc_connection()
@@ -104,10 +93,10 @@ class GoServerConnection:
 
     def is_process_alive(self):
         return self._process and self._process.poll()
-    
+
     def wait_for_process(self, timeout):
         self._process.wait(timeout)
-    
+
     def set_port(self, port):
         self._port = port
 
@@ -118,9 +107,7 @@ class GoServerConnection:
         wait=wait_exponential(multiplier=0.1, min=0.1, max=5),
     )
     def _check_grpc_connection(self):
-        self.client.GetFeastServingInfo(
-            request=GetFeastServingInfoRequest()
-        )
+        self.client.GetFeastServingInfo(request=GetFeastServingInfoRequest())
 
 
 class GoServer:
@@ -170,7 +157,7 @@ class GoServer:
         if binaries_path.exists():
             shutil.rmtree(binaries_path_abs)
         os.mkdir(binaries_path_abs)
-        
+
         subprocess.check_output(
             [
                 "go",
@@ -232,7 +219,7 @@ class GoServer:
             if rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
                 # If the server became unavailable, it could mean that the subprocess died or fell
                 # into a bad state, so the resolution is to wait for go server to restart in the background
-                if  not self._check_use_thread():
+                if not self._check_use_thread():
                     self._start_go_server()
                 elif not self._go_server_started.is_set():
                     self._go_server_started.wait()
@@ -260,7 +247,7 @@ class GoServer:
         return OnlineResponse(response)
 
     def _start_go_server_use_thread(self):
-        
+
         self._go_server_background_thread = GoServerBackgroundThread(
             "GoServerBackgroundThread",
             self._shared_connection,
@@ -269,10 +256,12 @@ class GoServer:
         self._go_server_background_thread.start()
         atexit.register(lambda: self._go_server_background_thread.stop_go_server())
         signal.signal(
-            signal.SIGTERM, lambda sig, frame: self._go_server_background_thread.stop_go_server()
+            signal.SIGTERM,
+            lambda sig, frame: self._go_server_background_thread.stop_go_server(),
         )
         signal.signal(
-            signal.SIGINT, lambda sig, frame: self._go_server_background_thread.stop_go_server()
+            signal.SIGINT,
+            lambda sig, frame: self._go_server_background_thread.stop_go_server(),
         )
 
         # Wait for go server subprocess to start for the first time before returning
@@ -284,18 +273,22 @@ class GoServer:
 
         self._shared_connection.connect()
         atexit.register(lambda: self._shared_connection.kill_process())
-        signal.signal(signal.SIGTERM, lambda sig, frame: self._shared_connection.kill_process())
-        signal.signal(signal.SIGINT, lambda sig, frame: self._shared_connection.kill_process())
-    
+        signal.signal(
+            signal.SIGTERM, lambda sig, frame: self._shared_connection.kill_process()
+        )
+        signal.signal(
+            signal.SIGINT, lambda sig, frame: self._shared_connection.kill_process()
+        )
+
     def kill_go_server_explicitly(self):
         if self._check_use_thread():
             self._go_server_background_thread.stop_go_server()
         else:
             self._shared_connection.kill_process()
 
+
 # https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
 class GoServerBackgroundThread(threading.Thread):
-
     def __init__(
         self,
         name: str,
@@ -348,4 +341,3 @@ class GoServerBackgroundThread(threading.Thread):
         for id, thread in threading._active.items():
             if thread is self:
                 return id
-

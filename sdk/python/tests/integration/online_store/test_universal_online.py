@@ -648,6 +648,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     ).to_dict()
     assert all(v is None for v in online_features["value"])
 
+
 @pytest.mark.integration
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
@@ -655,7 +656,9 @@ def test_online_retrieval_with_go_server(
     go_environment, go_data_sources, full_feature_names
 ):
     fs = go_environment.feature_store
-    fs.set_go_server_port( go_environment.test_repo_config.go_server_port+full_feature_names)
+    fs.set_go_server_port(
+        go_environment.test_repo_config.go_server_port + full_feature_names
+    )
     entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
 
@@ -672,7 +675,9 @@ def test_online_retrieval_with_go_server(
     )
 
     feast_objects = []
-    feast_objects.extend([feature_view for feature_view in feature_views.values() if feature_view])
+    feast_objects.extend(
+        [feature_view for feature_view in feature_views.values() if feature_view]
+    )
     feast_objects.extend(
         [driver(), customer(), location(), feature_service_entity_mapping]
     )
@@ -820,6 +825,7 @@ def test_online_retrieval_with_go_server(
         destinations_df,
     )
 
+
 @pytest.mark.integration
 @pytest.mark.goserver
 def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
@@ -828,9 +834,11 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     on demand feature views since the Go feature server doesn't support them.
     """
     fs = go_environment.feature_store
-    fs.set_go_server_port(go_environment.test_repo_config.go_server_port+2)
+    fs.set_go_server_port(go_environment.test_repo_config.go_server_port + 2)
     entities, datasets, data_sources = go_data_sources
-    driver_stats_fv = construct_universal_feature_views(data_sources, with_odfv=False).driver
+    driver_stats_fv = construct_universal_feature_views(
+        data_sources, with_odfv=False
+    ).driver
 
     driver_entities = entities.driver_vals
     df = pd.DataFrame(
@@ -900,15 +908,16 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
 
     import threading
+
     import psutil
 
     fs = go_cycle_environment.feature_store
     fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
 
     entities, datasets, data_sources = go_data_sources
-    driver_stats_fv = construct_universal_feature_views(
-        data_sources, with_odfv=False
-    )["driver"]
+    driver_stats_fv = construct_universal_feature_views(data_sources, with_odfv=False)[
+        "driver"
+    ]
 
     df = pd.DataFrame(
         {
@@ -935,14 +944,13 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     )
     expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [
-        {"driver": driver_id} for driver_id in sorted(entities["driver"])
-    ]
-   
+    entity_rows = [{"driver": driver_id} for driver_id in sorted(entities["driver"])]
+
     # Start go server process that calls get_online_features and return and check if at any time go server
     # fails to clean up resources
     import os
     import signal
+
     # Duplicate the current test suit in the child process
     child_pid = os.fork()
     if child_pid == 0:
@@ -957,7 +965,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     # Check that background thread has terminated
     for id, thread in threading._active.items():
         assert thread.name != "GoServerBackgroundThread"
-   
+
     # Check if go server subprocess is still active even if background thread and process are killed
     go_server_still_alive = False
     for proc in psutil.process_iter():
@@ -968,10 +976,11 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
                 # Kill process first and raise exception later
                 go_server_still_alive = True
                 proc.terminate()
-                
+
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
     assert not go_server_still_alive
+
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
     if (
