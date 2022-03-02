@@ -102,6 +102,11 @@ jobs:
           # code from the PR.
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: ${{ matrix.redis-version }}
+          redis-port: 12345
       - name: Setup Python
         uses: actions/setup-python@v2
         id: setup-python
