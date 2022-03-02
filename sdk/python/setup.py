@@ -145,7 +145,7 @@ CI_REQUIRED = (
         + REDIS_REQUIRED
         + AWS_REQUIRED
         + SNOWFLAKE_REQUIRED
-        * SPARK_REQUIRED
+        + SPARK_REQUIRED
         + GE_REQUIRED
 )
 
