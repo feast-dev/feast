@@ -52,7 +52,7 @@ REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
     # Redis Cluster Port Forwarding is setup in "pr_integration_tests.yaml" under "Setup Redis Cluster".
-    "connection_string": "127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003",
+    "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
