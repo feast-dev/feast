@@ -202,9 +202,8 @@ ui/.pnp
 ui/.pnp.js
 ui/coverage
 ui/build
-# dbt
-ui/feature_repo_bq/logs
-ui/feature_repo_bq/dbt-target
+ui/feature_repo/data/online.db 
+ui/feature_repo/registry.db
 ui/.vercel
 
 # misc
