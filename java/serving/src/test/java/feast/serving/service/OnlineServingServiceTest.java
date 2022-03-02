@@ -174,6 +174,7 @@ public class OnlineServingServiceTest {
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
+    when(registry.getFeatureViewSpecByName(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
@@ -246,6 +247,7 @@ public class OnlineServingServiceTest {
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
     when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec());
+    when(registry.getFeatureViewSpecByName(any())).thenReturn(getFeatureViewSpec());
     when(registry.getFeatureSpec(mockedFeatureRows.get(0).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
@@ -306,24 +308,8 @@ public class OnlineServingServiceTest {
             List.of(mockedFeatureRows.get(5), mockedFeatureRows.get(1)));
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any(), any())).thenReturn(featureRows);
-    when(registry.getFeatureViewSpec(any()))
-        .thenReturn(
-            FeatureViewProto.FeatureViewSpec.newBuilder()
-                .setName("featureview_1")
-                .addEntities("entity1")
-                .addEntities("entity2")
-                .addFeatures(
-                    FeatureProto.FeatureSpecV2.newBuilder()
-                        .setName("feature_1")
-                        .setValueType(ValueProto.ValueType.Enum.STRING)
-                        .build())
-                .addFeatures(
-                    FeatureProto.FeatureSpecV2.newBuilder()
-                        .setName("feature_2")
-                        .setValueType(ValueProto.ValueType.Enum.STRING)
-                        .build())
-                .setTtl(Duration.newBuilder().setSeconds(3600))
-                .build());
+    when(registry.getFeatureViewSpec(any())).thenReturn(getFeatureViewSpec(3600));
+    when(registry.getFeatureViewSpecByName(any())).thenReturn(getFeatureViewSpec(3600));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
     when(registry.getFeatureSpec(mockedFeatureRows.get(5).getFeatureReference()))
@@ -362,6 +348,10 @@ public class OnlineServingServiceTest {
   }
 
   private FeatureViewProto.FeatureViewSpec getFeatureViewSpec() {
+    return getFeatureViewSpec(120);
+  }
+
+  private FeatureViewProto.FeatureViewSpec getFeatureViewSpec(int ttlSeconds) {
     return FeatureViewProto.FeatureViewSpec.newBuilder()
         .setName("featureview_1")
         .addEntities("entity1")
@@ -376,7 +366,7 @@ public class OnlineServingServiceTest {
                 .setName("feature_2")
                 .setValueType(ValueProto.ValueType.Enum.STRING)
                 .build())
-        .setTtl(Duration.newBuilder().setSeconds(120))
+        .setTtl(Duration.newBuilder().setSeconds(ttlSeconds))
         .build();
   }
 

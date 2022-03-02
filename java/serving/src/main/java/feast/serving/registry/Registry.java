@@ -66,6 +66,10 @@ public class Registry {
   public FeatureViewProto.FeatureViewSpec getFeatureViewSpec(
       ServingAPIProto.FeatureReferenceV2 featureReference) {
     String featureViewName = featureReference.getFeatureViewName();
+    return this.getFeatureViewSpecByName(featureViewName);
+  }
+
+  public FeatureViewProto.FeatureViewSpec getFeatureViewSpecByName(String featureViewName) {
     if (featureViewNameToSpec.containsKey(featureViewName)) {
       return featureViewNameToSpec.get(featureViewName);
     }

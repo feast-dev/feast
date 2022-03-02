@@ -23,6 +23,7 @@ import com.google.protobuf.Timestamp;
 import feast.common.models.Feature;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureServiceProto;
+import feast.proto.core.FeatureViewProto;
 import feast.proto.core.FeatureViewProto.FeatureViewSpec;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
@@ -112,11 +113,15 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       throw new RuntimeException("Requested features list must not be empty");
     }
 
+    List<FeatureViewProto.FeatureViewSpec> featureViewSpecs =
+        retrievedFeatureReferences.stream()
+            .map(FeatureReferenceV2::getFeatureViewName)
+            .distinct()
+            .map(this.registryRepository::getFeatureViewSpecByName)
+            .collect(Collectors.toList());
     List<EntityProto.Entity> entities = this.registryRepository.getEntities();
     Map<String, List<String>> entityNamesPerFeatureView =
-        retrievedFeatureReferences.stream()
-            .map(this.registryRepository::getFeatureViewSpec)
-            .distinct()
+        featureViewSpecs.stream()
             .collect(
                 Collectors.toMap(
                     FeatureViewSpec::getName,

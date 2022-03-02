@@ -78,6 +78,10 @@ public class RegistryRepository {
     return this.registry.getFeatureViewSpec(featureReference);
   }
 
+  public FeatureViewProto.FeatureViewSpec getFeatureViewSpecByName(String featureViewName) {
+    return this.registry.getFeatureViewSpecByName(featureViewName);
+  }
+
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
       ServingAPIProto.FeatureReferenceV2 featureReference) {
     return this.registry.getFeatureSpec(featureReference);
