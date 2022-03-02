@@ -1,0 +1,35 @@
+.euiSelectableTemplateSitewide__listItem {
+  .euiSelectableListItem__text {
+    text-decoration: none !important; // sass-lint:disable-line no-important
+  }
+
+  // TODO: Any better way to override this focus underline?
+  &[class*='-isFocused']:not([aria-disabled='true']),
+  &:hover:not([aria-disabled='true']) {
+    .euiSelectableTemplateSitewide__listItemTitle {
+      text-decoration: underline;
+    }
+  }
+}
+
+.euiSelectableTemplateSitewide__optionMetasList {
+  display: block;
+  margin-top: $euiSizeXS;
+  font-size: $euiFontSizeXS;
+  color: $euiTextSubduedColor;
+}
+
+.euiSelectableTemplateSitewide__optionMeta:not(:last-of-type)::after {
+  content: '•';
+  margin: 0 $euiSizeXS;
+  color: $euiTextSubduedColor;
+}
+
+// Established styles for types of meta
+@each $type in map-keys($euiSelectableTemplateSitewideTypes) {
+  .euiSelectableTemplateSitewide__optionMeta--#{$type} {
+    @each $property, $value in map-get($euiSelectableTemplateSitewideTypes, $type) {
+      #{$property}: $value;
+    }
+  }
+}

@@ -1,0 +1,9 @@
+.euiDatePopoverButton--start {
+  text-align: center;
+}
+
+.euiDatePopoverButton--end {
+  text-align: center;
+  border-top-right-radius: $euiFormControlBorderRadius;
+  border-bottom-right-radius: $euiFormControlBorderRadius;
+}

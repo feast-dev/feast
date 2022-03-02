@@ -1,0 +1,10 @@
+arrowParens: always
+endOfLine: lf
+alignTernaryLines: false
+tabWidth: 2
+semi: false
+singleQuote: true
+quoteProps: consistent
+bracketSpacing: true
+generatorStarSpacing: true
+spaceBeforeFunctionParen: true

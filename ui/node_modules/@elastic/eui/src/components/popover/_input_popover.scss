@@ -1,0 +1,7 @@
+.euiInputPopover {
+  max-width: $euiFormMaxWidth;
+
+  &.euiInputPopover--fullWidth {
+    max-width: 100%;
+  }
+}

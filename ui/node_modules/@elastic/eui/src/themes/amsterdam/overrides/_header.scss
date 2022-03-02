@@ -1,0 +1,30 @@
+@import '../global_styling/mixins/button';
+
+.euiHeader {
+  height: $euiHeaderHeight;
+  padding-left: $euiSizeS;
+  padding-right: $euiSizeS;
+}
+
+// Remove borders without deleting the prop just yet
+.euiHeaderSectionItem:after {
+  display: none !important; // sass-lint:disable-line no-important
+}
+
+.euiHeaderLogo {
+  @include euiBreakpoint('xs') {
+    padding-left: $euiSizeXS;
+  }
+
+  padding-left: $euiSizeS;
+  padding-right: $euiSizeS;
+  min-width: $euiHeaderChildSize;
+}
+
+.euiHeaderLogo__text {
+  @include euiTitle('xxs');
+}
+
+.euiHeader--default + .euiHeader--default {
+  border-top: $euiBorderThin;
+}

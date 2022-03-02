@@ -1,0 +1,29 @@
+// Prefixes are unique in this file
+// sass-lint:disable no-vendor-prefixes
+
+@mixin euiRangeTrackSize {
+  height: $euiRangeTrackHeight;
+  transition: all $euiAnimSpeedNormal ease-in;
+  width: $euiRangeTrackWidth;
+}
+
+@mixin euiRangeTrackPerBrowser {
+  &::-webkit-slider-runnable-track { @content; }
+  &::-moz-range-track { @content; }
+  &::-ms-fill-lower { @content; }
+  &::-ms-fill-upper { @content; }
+}
+
+@mixin euiRangeThumbStyle {
+  cursor: pointer;
+  border-color: $euiRangeThumbBorderColor;
+  padding: 0;
+  height: $euiRangeThumbHeight;
+  width: $euiRangeThumbWidth;
+}
+
+@mixin euiRangeThumbPerBrowser {
+  &::-webkit-slider-thumb { @content; }
+  &::-moz-range-thumb { @content; }
+  &::-ms-thumb { @content; }
+}

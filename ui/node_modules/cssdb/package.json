@@ -1,0 +1,72 @@
+{
+  "name": "cssdb",
+  "version": "5.1.0",
+  "type": "module",
+  "description": "A comprehensive list of CSS features and their positions in the process of becoming implemented web standards",
+  "author": "Jonathan Neal <jonathantneal@hotmail.com>",
+  "license": "CC0-1.0",
+  "repository": "csstools/cssdb",
+  "homepage": "https://github.com/csstools/cssdb#readme",
+  "bugs": "https://github.com/csstools/cssdb/issues",
+  "main": "cssdb.json",
+  "module": "cssdb.mjs",
+  "files": [
+    "cssdb.json",
+    "cssdb.mjs"
+  ],
+  "exports": {
+    ".": {
+      "import": "./cssdb.mjs",
+      "require": "./cssdb.json",
+      "default": "./cssdb.json"
+    }
+  },
+  "scripts": {
+    "start": "astro dev",
+    "prestart": "npm run create-badges",
+    "prebuild": "npm run create-badges",
+    "build": "astro build",
+    "prepublishOnly": "node tasks/esm-converter.mjs",
+    "create-badges": "node tasks/write-badges.js",
+    "test": "npm run test:css && npm run test:json",
+    "test:css": "stylelint src/styles/style.css",
+    "test:json": "node tasks/test.cjs"
+  },
+  "devDependencies": {
+    "@astropub/webapi": "^0.7.4",
+    "astro": "^0.22.1",
+    "browserslist": "^4.19.1",
+    "caniuse-lite": "^1.0.30001292",
+    "fse": "^4.0.1",
+    "postcss": "^8.4.5",
+    "postcss-preset-env": "^7.1.0",
+    "pre-commit": "^1.2.2",
+    "stylelint": "^14.2.0",
+    "stylelint-config-standard": "^24.0.0"
+  },
+  "stylelint": {
+    "extends": "stylelint-config-standard",
+    "rules": {
+      "indentation": "tab",
+      "property-no-unknown": [
+        true,
+        {
+          "ignoreProperties": [
+            "font-smoothing"
+          ]
+        }
+      ],
+      "selector-class-pattern": null,
+      "no-descending-specificity": null,
+      "number-leading-zero": "never"
+    }
+  },
+  "keywords": [
+    "css",
+    "features",
+    "list",
+    "specifications",
+    "stages",
+    "tc39"
+  ]
+}

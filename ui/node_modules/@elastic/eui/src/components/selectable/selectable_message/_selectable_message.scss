@@ -1,0 +1,18 @@
+/**
+  * 1. Prevent really long input from overflowing the container.
+  */
+.euiSelectableMessage {
+  padding: $euiSizeS;
+  text-align: center;
+  word-wrap: break-word; /* 1 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.euiSelectableMessage--bordered {
+  // Match border from selectable_list
+  overflow: hidden;
+  border: $euiBorderThin;
+  border-radius: $euiBorderRadius;
+}

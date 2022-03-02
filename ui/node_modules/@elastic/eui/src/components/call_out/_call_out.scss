@@ -1,0 +1,58 @@
+.euiCallOut {
+  padding: $euiSize;
+  border-left: $euiSizeXS / 2 solid transparent;
+
+  &.euiCallOut--small {
+    padding: $euiSizeS;
+  }
+
+  .euiCallOutHeader__icon {
+    flex: 0 0 auto;
+    // Vertically center icon with first line of title
+    transform: translateY(2px);
+  }
+
+  .euiCallOutHeader__title {
+    @include euiCallOutTitle;
+    margin-bottom: 0; // In case it's nested inside EuiText
+  }
+}
+
+// smaller font size for headers in small callout
+.euiCallOut--small .euiCallOutHeader__title {
+  @include euiCallOutTitle('s');
+}
+
+// Create callout modifiers based upon the map.
+@each $name, $color in $euiCallOutTypes {
+  .euiCallOut--#{$name} {
+    border-color: $color;
+    background-color: euiCallOutColor($name, 'background');
+
+    .euiCallOutHeader__icon {
+      fill: euiCallOutColor($name, 'foreground');
+    }
+
+    .euiCallOutHeader__title {
+      color: euiCallOutColor($name, 'foreground');
+    }
+  }
+}
+
+/**
+ * 1. Align icon with first line of title text if it wraps.
+ * 2. If content exists under the header, space it appropriately.
+ * 3. Apply margin to all but last item in the flex.
+ */
+.euiCallOutHeader {
+  display: flex;
+  align-items: baseline; /* 1 */
+
+  + * {
+    margin-top: $euiSizeS; /* 1 */
+  }
+
+  > * + * {
+    margin-left: $euiSizeS; /* 3 */
+  }
+}

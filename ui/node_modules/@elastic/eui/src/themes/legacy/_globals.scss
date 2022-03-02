@@ -1,0 +1,11 @@
+// Helper file for supplying EUI globals (invisibles only)
+// Must be imported AFTER a colors modifier file
+
+// Functions need to be first, since we use them in our variables and mixin definitions
+@import '../../global_styling/functions/index';
+
+// Variables come next, and are used in some mixins
+@import '../../global_styling/variables/index';
+
+// Mixins provide generic code expansion through helpers
+@import '../../global_styling/mixins/index';

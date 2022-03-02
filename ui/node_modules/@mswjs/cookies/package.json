@@ -1,0 +1,39 @@
+{
+  "name": "@mswjs/cookies",
+  "version": "0.1.7",
+  "description": "Virtual cookies store to manage Request/Response associations.",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "tsc -w",
+    "test": "jest",
+    "clean": "rimraf lib",
+    "build": "yarn clean && tsc",
+    "prepare": "yarn simple-git-hooks init",
+    "prepublishOnly": "yarn test && yarn build"
+  },
+  "repository": "git@github.com:mswjs/cookies.git",
+  "author": "Artem Zakharchenko",
+  "license": "MIT",
+  "files": [
+    "README.md",
+    "lib"
+  ],
+  "devDependencies": {
+    "@commitlint/cli": "^16.0.3",
+    "@commitlint/config-conventional": "^16.0.0",
+    "@types/jest": "^26.0.15",
+    "commitizen": "^4.2.4",
+    "cz-conventional-changelog": "^3.3.0",
+    "jest": "^26.6.3",
+    "rimraf": "^3.0.2",
+    "simple-git-hooks": "^2.7.0",
+    "ts-jest": "^26.4.4",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.5",
+    "whatwg-fetch": "^3.5.0"
+  },
+  "dependencies": {
+    "@types/set-cookie-parser": "^2.4.0",
+    "set-cookie-parser": "^2.4.6"
+  }
+}

@@ -1,0 +1,59 @@
+.euiColorStops__addTarget,
+.euiColorStops__addContainer {
+  z-index: 1;
+}
+
+.euiColorStops__addTarget {
+  border: 1px solid $euiColorDarkShade;
+  box-shadow: none;
+}
+
+.euiColorStopThumb.euiRangeThumb:not(:disabled) {
+  // sass-lint:disable-block no-important no-color-literals 
+  @include euiRangeThumbBorder;
+  @include euiRangeThumbBoxShadow;;
+
+  &:focus {
+    @include euiRangeThumbFocusBoxShadow;
+    outline: none;
+  }
+
+  // in Chrome/FF/Edge we don't want to focus on click
+  &:focus:not(:focus-visible)  {
+    @include euiRangeThumbBoxShadow;
+    outline: none;
+  }
+}
+
+.euiColorStops:not(.euiColorStops-isDisabled) {
+  .euiRangeTrack::after {
+    transition-property: box-shadow;
+    // this `transition-delay` prevents Safari of adding the focus ring (box-shadow) every time we click the `EuiColorStops`
+    // the focus still appear when we drag a color stop in Safari
+    transition-delay: $euiAnimSpeedExtraFast;
+  }
+
+  &:focus {
+    outline: none;
+
+    .euiRangeTrack::after {
+      // sass-lint:disable-block no-color-literals
+      box-shadow: 0 0 0 1px rgba($euiColorEmptyShade, .8),
+      0 0 0 3px $euiFocusRingColor;
+    }
+  }
+
+  &:focus:not(:focus-visible) {
+    .euiRangeTrack::after {
+      box-shadow: none;
+    }
+  }
+}
+
+.euiColorStops__highlight {
+  color: $euiRangeTrackColor;
+
+  .euiRangeHighlight__progress {
+    background-color: $euiRangeTrackColor;
+  }
+}

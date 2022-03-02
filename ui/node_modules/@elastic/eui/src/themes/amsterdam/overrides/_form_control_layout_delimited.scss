@@ -1,0 +1,41 @@
+.euiFormControlLayoutDelimited {
+  border-radius: $euiFormControlBorderRadius;
+
+  &.euiFormControlLayout--group {
+    .euiFormControlLayout__childrenWrapper:first-child {
+      border-radius: $euiFormControlBorderRadius 0 0 $euiFormControlBorderRadius;
+    }
+  }
+
+  .euiFormControlLayout__childrenWrapper:only-child {
+    border-radius: $euiFormControlBorderRadius;
+    overflow: hidden;
+  }
+
+  .euiFormControlLayout__prepend +
+  .euiFormControlLayout__childrenWrapper {
+    &:last-child {
+      border-radius: 0 $euiFormControlBorderRadius $euiFormControlBorderRadius 0;
+    }
+  }
+
+  &.euiFormControlLayout--compressed {
+    &.euiFormControlLayout--group {
+      .euiFormControlLayout__childrenWrapper:first-child {
+        border-radius: $euiFormControlCompressedBorderRadius 0 0 $euiFormControlCompressedBorderRadius;
+      }
+    }
+
+    .euiFormControlLayout__childrenWrapper:only-child {
+      border-radius: $euiFormControlCompressedBorderRadius;
+      overflow: hidden;
+    }
+
+    .euiFormControlLayout__prepend +
+    .euiFormControlLayout__childrenWrapper {
+      &:last-child {
+        border-radius: 0 $euiFormControlCompressedBorderRadius $euiFormControlCompressedBorderRadius 0;
+      }
+    }
+  }
+}

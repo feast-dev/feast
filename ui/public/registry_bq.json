@@ -1,0 +1,251 @@
+{
+  "project": "dbt_demo",
+  "dataSources": [
+    {
+      "type": "BATCH_BIGQUERY",
+      "eventTimestampColumn": "event_timestamp",
+      "bigqueryOptions": {
+        "tableRef": "kf-feast.danny_test_dataset.avg_conv_rate",
+        "dbtModelSerialized": "\nwith driver_stats as (\n    select\n        driver_id,\n        conv_rate,\n        event_timestamp\n    from danny_test_dataset.driver_stats_with_string\n)\nselect\n    driver_id,\n    AVG(conv_rate) OVER (ORDER BY event_timestamp ASC ROWS 5 PRECEDING) as average_conv_rate_over_last_5,\n    event_timestamp\nfrom driver_stats"
+      },
+      "name": "avg_conv_rate",
+      "meta": {
+        "latestEventTimestamp": "2021-09-15T17:00:00Z",
+        "earliestEventTimestamp": "2021-04-12T07:00:00Z"
+      }
+    },
+    {
+      "type": "BATCH_BIGQUERY",
+      "eventTimestampColumn": "event_timestamp",
+      "bigqueryOptions": {
+        "tableRef": "kf-feast.danny_test_dataset.driver_stats_with_string"
+      },
+      "name": "driver_stats_with_string",
+      "meta": {
+        "latestEventTimestamp": "2021-09-15T17:00:00Z",
+        "earliestEventTimestamp": "2021-04-12T07:00:00Z"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "spec": {
+        "name": "__dummy",
+        "valueType": "STRING",
+        "joinKey": "__dummy_id"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.830648Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:11:41.830695Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "driver_id",
+        "valueType": "INT64",
+        "description": "A driver",
+        "joinKey": "driver_id",
+        "labels": {
+          "team": "hack week",
+          "owner": "amanda@tecton.ai"
+        }
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.830563Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:11:41.830563Z"
+      }
+    }
+  ],
+  "featureViews": [
+    {
+      "spec": {
+        "name": "avg_conv_rate",
+        "entities": [
+          "driver_id"
+        ],
+        "features": [
+          {
+            "name": "average_conv_rate_over_last_5",
+            "valueType": "FLOAT"
+          }
+        ],
+        "tags": {
+          "experiments": "experiment-A,experiment-C",
+          "team": "driver_performance",
+          "date_added": "2022-02-10",
+          "access_group": "hack-team-2@tecton.ai"
+        },
+        "ttl": "31449600s",
+        "batchSource": {
+          "type": "BATCH_BIGQUERY",
+          "eventTimestampColumn": "event_timestamp",
+          "bigqueryOptions": {
+            "tableRef": "kf-feast.danny_test_dataset.avg_conv_rate",
+            "dbtModelSerialized": "\nwith driver_stats as (\n    select\n        driver_id,\n        conv_rate,\n        event_timestamp\n    from danny_test_dataset.driver_stats_with_string\n)\nselect\n    driver_id,\n    AVG(conv_rate) OVER (ORDER BY event_timestamp ASC ROWS 5 PRECEDING) as average_conv_rate_over_last_5,\n    event_timestamp\nfrom driver_stats"
+          },
+          "dataSourceClassType": "feast.infra.offline_stores.bigquery_source.BigQuerySource",
+          "name": "avg_conv_rate",
+          "meta": {
+            "latestEventTimestamp": "2021-09-15T17:00:00Z",
+            "earliestEventTimestamp": "2021-04-12T07:00:00Z"
+          }
+        },
+        "online": true
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.828799Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:11:41.828799Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "driver_hourly_stats",
+        "entities": [
+          "driver_id"
+        ],
+        "features": [
+          {
+            "name": "conv_rate",
+            "valueType": "FLOAT"
+          },
+          {
+            "name": "acc_rate",
+            "valueType": "FLOAT"
+          },
+          {
+            "name": "avg_daily_trips",
+            "valueType": "INT64"
+          }
+        ],
+        "tags": {
+          "access_group": "hack-team@tecton.ai",
+          "date_added": "2022-02-10",
+          "experiments": "experiment-B,experiment-C",
+          "team": "driver_performance"
+        },
+        "ttl": "31449600s",
+        "batchSource": {
+          "type": "BATCH_BIGQUERY",
+          "eventTimestampColumn": "event_timestamp",
+          "bigqueryOptions": {
+            "tableRef": "kf-feast.danny_test_dataset.driver_stats_with_string"
+          },
+          "dataSourceClassType": "feast.infra.offline_stores.bigquery_source.BigQuerySource",
+          "name": "driver_stats_with_string",
+          "meta": {
+            "latestEventTimestamp": "2021-09-15T17:00:00Z",
+            "earliestEventTimestamp": "2021-04-12T07:00:00Z"
+          }
+        },
+        "online": true
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.829463Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:11:41.829463Z"
+      }
+    }
+  ],
+  "featureServices": [
+    {
+      "spec": {
+        "name": "driver_ranking_v0",
+        "features": [
+          {
+            "featureViewName": "avg_conv_rate",
+            "featureColumns": [
+              {
+                "name": "average_conv_rate_over_last_5",
+                "valueType": "FLOAT"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "owner": "danny@tecton.ai",
+          "stage": "dev"
+        },
+        "description": "Driver ranking model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.830970Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "driver_ranking_v1",
+        "features": [
+          {
+            "featureViewName": "driver_hourly_stats",
+            "featureColumns": [
+              {
+                "name": "acc_rate",
+                "valueType": "FLOAT"
+              }
+            ]
+          },
+          {
+            "featureViewName": "avg_conv_rate",
+            "featureColumns": [
+              {
+                "name": "average_conv_rate_over_last_5",
+                "valueType": "FLOAT"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "owner": "amanda@tecton.ai",
+          "stage": "staging"
+        },
+        "description": "Driver ranking model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.830738Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "driver_ranking_v2",
+        "features": [
+          {
+            "featureViewName": "driver_hourly_stats",
+            "featureColumns": [
+              {
+                "name": "conv_rate",
+                "valueType": "FLOAT"
+              },
+              {
+                "name": "acc_rate",
+                "valueType": "FLOAT"
+              },
+              {
+                "name": "avg_daily_trips",
+                "valueType": "INT64"
+              }
+            ]
+          },
+          {
+            "featureViewName": "avg_conv_rate",
+            "featureColumns": [
+              {
+                "name": "average_conv_rate_over_last_5",
+                "valueType": "FLOAT"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "owner": "amanda@tecton.ai",
+          "stage": "prod"
+        },
+        "description": "Driver ranking model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:11:41.830861Z"
+      }
+    }
+  ],
+  "infra": [
+    {}
+  ]
+}

@@ -1,0 +1,6 @@
+$euiColorPickerValueRange0: rgba(255, 255, 255, 1);
+$euiColorPickerValueRange1: rgba(255, 255, 255, 0);
+$euiColorPickerSaturationRange0: rgba(0, 0, 0, 1);
+$euiColorPickerSaturationRange1: rgba(0, 0, 0, 0);
+$euiColorPickerIndicatorSize: $euiSizeM;
+$euiColorPickerWidth: ($euiSizeL * 5) + ($euiSizeS * 4); // 5 columns of swatches + margins + border

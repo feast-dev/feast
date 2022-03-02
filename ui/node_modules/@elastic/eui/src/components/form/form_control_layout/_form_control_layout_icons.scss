@@ -1,0 +1,33 @@
+.euiFormControlLayoutIcons {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: $euiFormControlPadding;
+  display: flex;
+  align-items: center;
+
+  > * + * {
+    margin-left: $euiFormControlPadding / 2;
+  }
+
+  .euiFormControlLayout--compressed & {
+    left: $euiFormControlCompressedPadding;
+  }
+}
+
+.euiFormControlLayoutIcons--right {
+  left: auto;
+  right: $euiFormControlPadding;
+
+  .euiFormControlLayout--compressed & {
+    left: auto;
+    right: $euiFormControlCompressedPadding;
+  }
+}
+
+// If the control is disabled, change the color of the icons
+*:disabled + .euiFormControlLayoutIcons {
+  cursor: not-allowed;
+  color: $euiFormControlDisabledColor;
+}

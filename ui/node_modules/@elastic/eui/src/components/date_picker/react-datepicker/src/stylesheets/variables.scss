@@ -1,0 +1,44 @@
+/*
+ * The MIT License (MIT)
+ * 
+ * Copyright (c) 2018 HackerOne Inc and individual contributors
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ */
+
+$datepicker__background-color: #f0f0f0 !default;
+$datepicker__border-color: #aeaeae !default;
+$datepicker__highlighted-color: #3dcc4a !default;
+$datepicker__muted-color: #ccc !default;
+$datepicker__selected-color: #216ba5 !default;
+$datepicker__text-color: #000 !default;
+$datepicker__header-color: #000 !default;
+$datepicker__navigation-disabled-color: lighten($datepicker__muted-color, 10%)
+  !default;
+
+$datepicker__border-radius: 0.3rem !default;
+$datepicker__day-margin: 0.166rem !default;
+$datepicker__font-size: 0.8rem !default;
+$datepicker__font-family: "Helvetica Neue", Helvetica, Arial,
+  sans-serif !default;
+$datepicker__item-size: 1.7rem !default;
+$datepicker__margin: 0.4rem !default;
+$datepicker__navigation-size: 0.45rem !default;
+$datepicker__triangle-size: 8px !default;

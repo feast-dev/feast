@@ -1,0 +1,12 @@
+// Sizing
+$euiCollapsibleNavGroupLightBackgroundColor: $euiPageBackgroundColor !default;
+
+$euiCollapsibleNavGroupDarkBackgroundColor: lightOrDarkTheme(
+  shade($euiColorDarkestShade, 20%),
+  shade($euiColorLightestShade, 50%),
+) !default;
+
+$euiCollapsibleNavGroupDarkHighContrastColor: makeGraphicContrastColor(
+  $euiColorPrimary,
+  $euiCollapsibleNavGroupDarkBackgroundColor
+) !default;

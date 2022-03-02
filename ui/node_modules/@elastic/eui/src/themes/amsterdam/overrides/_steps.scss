@@ -1,0 +1,102 @@
+// Make the disabled step title the same disabled text color
+.euiStepHorizontal-isDisabled .euiStepHorizontal__title,
+.euiStep-isDisabled .euiStep__title {
+  color: $euiColorDisabledText;
+}
+
+// STEP NUMBER CHANGES
+
+.euiStepNumber {
+  outline-color: $euiColorPrimary;
+
+  .euiStepNumber__icon {
+    position: relative;
+    top: -1px;
+  }
+
+  &--small {
+    .euiStepNumber__icon {
+      top: -1px;
+    }
+  }
+
+  &--complete,
+  &--danger {
+    // Thicken the checkmark by adding a slight stroke.
+    .euiStepNumber__icon {
+      stroke: currentColor;
+      stroke-width: .5px;
+    }
+  }
+
+  // Create modifiers based upon the map
+  @each $name, $color in $euiStepStatusColors {
+    &--#{$name} {
+      background-color: $color;
+      color: chooseLightOrDarkText($color, $euiColorGhost, $euiColorInk);
+      outline-color: chooseLightOrDarkText($color, $color, $euiColorInk) !important; // sass-lint:disable-line no-important
+    }
+  }
+
+  &.euiStepNumber--incomplete {
+    background-color: transparent;
+    color: $euiTextColor;
+    border: $euiBorderThick;
+
+    // Don't hide the step number when "hollow"
+    .euiStepNumber__number {
+      display: unset;
+      position: relative;
+      top: -2px;
+    }
+  }
+}
+
+.euiStepNumber--disabled {
+  $backgroundColorSimulated: mix($euiPageBackgroundColor, $euiButtonColorDisabled, 90%);
+  background-color: transparentize($euiButtonColorDisabled, .9);
+  color: makeDisabledContrastColor($euiButtonColorDisabled, $backgroundColorSimulated);
+}
+
+.euiStepHorizontal__title {
+  font-weight: $euiFontWeightBold;
+}
+
+.euiStepHorizontal {
+  // create the connecting lines
+  &::before,
+  &::after {
+    @include makeLineProgress;
+    background-color: $euiBorderColor;
+  }
+}
+
+// Make the line connect to the numbers
+
+.euiStep {
+  &:not(:last-of-type) {
+    background-position: left $euiSizeXL;
+  }
+
+  &--small {
+    &:not(:last-of-type) {
+      background-position: -#{$euiSizeXS} $euiSizeL;
+    }
+  }
+}
+
+.euiStep__content {
+  padding-bottom: ($euiSizeXL + $euiSizeS);
+  margin-bottom: 0;
+}
+
+// Remove forced background from horizontal steps
+.euiStepsHorizontal {
+  background: none;
+}
+
+// Fix outline in Chrome for horizontal steps
+.euiStepHorizontal:focus:not(.euiStepHorizontal-isDisabled) .euiStepHorizontal__number:not(:focus-visible) {
+  outline: $euiFocusRingSize solid $euiColorPrimary;
+}
+

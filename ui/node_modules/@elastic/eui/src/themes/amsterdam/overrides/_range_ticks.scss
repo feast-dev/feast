@@ -1,0 +1,42 @@
+.euiRangeTicks:not(.euiRangeTicks--compressed) {
+  .euiRangeTick {
+    padding-top: 0;
+  }
+
+  .euiRangeTick:not(.euiRangeTick--hasTickMark)::before,
+  .euiRangeTick__pseudo {
+    width: $euiSizeXS;
+    height: $euiSizeM / 2;
+    background-color: $euiColorLightShade;
+    border-radius: $euiBorderRadiusSmall;
+  }
+}
+
+.euiRangeTicks--compressed {
+  .euiRangeTick {
+    padding-top: $euiSize - 2px;
+
+    &::before,
+    .euiRangeTick__pseudo {
+      background-color: $euiColorLightShade;
+      border-radius: $euiBorderRadiusSmall;
+    }
+  }
+}
+
+.euiRangeTick {
+  &::before {
+    background-color: $euiColorLightShade;
+    border-radius: $euiBorderRadiusSmall;
+  }
+
+  &:enabled:hover,
+  &:focus,
+  &--selected {
+    color: $euiColorPrimary;
+  }
+
+  &--selected {
+    font-weight: $euiFontWeightMedium;
+  }
+}

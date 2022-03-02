@@ -1,0 +1,24 @@
+@each $gutterName, $gutterSize in $euiFacetGutterSizes {
+  .euiFacetGroup--#{$gutterName} {
+    .euiFacetButton {
+      // Split the margin between top and bottom
+      margin-top: $gutterSize / 2;
+      margin-bottom: $gutterSize / 2;
+    }
+
+    &.euiFacetGroup--horizontal {
+      // There needs to be an additional distance between horizontal buttons to ensure
+      // the number notification is closer in proximity to the text it belongs to rather than the button
+      $gutterAdjustment: $euiSizeM + $gutterSize;
+
+      // Collapse margin on the right side of the group to allow it to extend the full width
+      margin-left: -#{$gutterAdjustment};
+
+      .euiFacetButton {
+        margin-left: $gutterAdjustment;
+        // Adjust the max-width so it fits within the allotted margin
+        max-width: calc(100% - #{$gutterAdjustment});
+      }
+    }
+  }
+}

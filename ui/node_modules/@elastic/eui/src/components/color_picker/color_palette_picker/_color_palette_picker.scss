@@ -1,0 +1,9 @@
+.euiColorPalettePicker {
+  &__itemTitle {
+    @include euiFontSizeXS;
+  }
+
+  &__itemTitle + .euiColorPaletteDisplay {
+    margin-top: $euiSizeXS;
+  }
+}

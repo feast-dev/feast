@@ -1,0 +1,112 @@
+/**
+ * LEGEND
+ * __time-list-item :
+ *       --preselected : closest current time but not selected (also applied when using arrow keys to indicate focus)
+ *       --selected
+ *       --disabled
+ *       --injected
+ */
+
+.react-datepicker__header--time {
+  display: none;
+}
+
+.react-datepicker__time-container {
+  border-left: $euiBorderColor;
+  width: auto;
+  display: flex;
+  margin-top: $euiSizeXL + ($euiDatePickerGap * 2);
+  margin-left: $euiSizeS;
+  flex-grow: 1;
+  background-color: $euiPageBackgroundColor;
+  border-radius: $euiBorderRadius;
+
+  &--focus {
+    .react-datepicker__time-list-item--preselected {
+      text-decoration: underline;
+    }
+  }
+
+  @include euiBreakpoint('xs') {
+    margin-top: 0;
+  }
+}
+
+.react-datepicker__time,
+.react-datepicker__time-box {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.react-datepicker__time-list {
+  @include euiYScroll;
+  padding: $euiSizeXS $euiSizeM;
+  // Set the min-height with the following, but it should stretch to fit if the container is larger
+  height: 100px !important; // sass-lint:disable-line no-important
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  align-items: center;
+  gap: $euiSizeXS; // sass-lint:disable-line no-misspelled-properties
+}
+
+// Mainly a copy/paste of .euiEmptyButton
+.react-datepicker__time-list-item {
+  @include euiButton;
+  // sass-lint:disable-block no-important
+  transform: none !important; /* 1 */
+  animation: none !important; /* 1 */
+  transition-timing-function: ease-in; /* 2 */
+  transition-duration: $euiAnimSpeedFast; /* 2 */
+
+  padding: 0 $euiSizeS;
+  height: $euiButtonHeightXSmall;
+  line-height: $euiButtonHeightXSmall;
+  border-radius: $euiBorderRadiusSmall;
+  font-size: $euiFontSizeXS;
+
+  &--disabled,
+  &--disabled:hover {
+    text-decoration: none !important;
+    cursor: not-allowed;
+    color: $euiButtonColorDisabledText;
+    background-color: transparent;
+  }
+
+  &--injected,
+  &--injected:hover {
+    @include euiButtonDefaultStyle('success', false);
+  }
+
+  &--preselected,
+  &--preselected:hover {
+    background: $euiFocusBackgroundColor;
+  }
+
+  &--selected,
+  &--selected:hover {
+    @include euiButtonFillStyle;
+  }
+}
+
+
+// When in time only mode we make the dropdown look more like the combo box styling.
+.react-datepicker--time-only {
+  padding: 0 !important; // sass-lint:disable-line no-important
+
+  .react-datepicker__time-container {
+    background-color: transparent;
+    margin: 0;
+  }
+
+  .react-datepicker__time-list {
+    height: 204px !important; // sass-lint:disable-line no-important
+  }
+
+  .react-datepicker__time-list-item {
+    font-size: $euiFontSizeS;
+    min-width: $euiButtonMinWidth;
+    text-align: left;
+  }
+}

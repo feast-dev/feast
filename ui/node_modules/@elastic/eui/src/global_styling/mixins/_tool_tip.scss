@@ -1,0 +1,28 @@
+@mixin euiToolTipStyle($size: null) {
+  @include euiBottomShadow($color: $euiColorInk);
+  border-radius: $euiBorderRadius;
+  background-color: $euiTooltipBackgroundColor;
+  color: $euiColorGhost;
+  z-index: $euiZLevel9;
+  max-width: 256px;
+  overflow-wrap: break-word;
+
+  @if ($size == 's') {
+    @include euiFontSizeXS;
+    padding: $euiSizeS;
+  } @else {
+    @include euiFontSizeS;
+    padding: $euiSizeM;
+  }
+}
+
+@mixin euiToolTipTitle {
+  font-weight: $euiFontWeightBold;
+  border-bottom: solid $euiBorderWidthThin $euiTooltipBorderColor;
+  padding-bottom: $euiSizeXS;
+  margin-bottom: $euiSizeXS;
+}
+
+@mixin euiToolTipAnimation($side: 'top') {
+  animation: #{map-get($euiTooltipAnimations, $side)} $euiAnimSpeedSlow ease-out 0s forwards;
+}

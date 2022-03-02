@@ -1,0 +1,26 @@
+.euiPageHeaderSection:not(:first-of-type) {
+  margin-left: $euiSizeXL;
+}
+
+@include euiBreakpoint('xs', 's') {
+  .euiPageHeader--responsive .euiPageHeaderSection {
+    width: 100%;
+
+    &:not(:first-of-type) {
+      margin-left: 0;
+      margin-top: $euiSize;
+    }
+  }
+
+  .euiPageHeader--responsiveReverse .euiPageHeaderSection {
+    width: 100%;
+
+    &:not(:first-of-type) {
+      margin-left: 0;
+    }
+
+    &:not(:last-of-type) {
+      margin-top: $euiSize;
+    }
+  }
+}

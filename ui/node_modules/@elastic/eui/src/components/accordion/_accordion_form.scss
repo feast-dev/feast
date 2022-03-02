@@ -1,0 +1,40 @@
+.euiAccordionForm__extraAction {
+  opacity: 0;
+  transition: opacity $euiAnimSpeedNormal $euiAnimSlightResistance;
+
+  &:focus {
+    opacity: 1;
+  }
+}
+
+.euiAccordionForm__title {
+  display: inline-block;
+}
+
+.euiAccordionForm__button {
+  padding: $euiSize $euiSize $euiSize 0;
+
+  &:hover {
+    text-decoration: none;
+
+    .euiAccordionForm__title {
+      text-decoration: underline;
+    }
+  }
+}
+
+.euiAccordionForm {
+  border-top: $euiBorderThin;
+  border-bottom: $euiBorderThin;
+
+  & + .euiAccordionForm {
+    border-top: none;
+  }
+
+  &:hover {
+    .euiAccordionForm__extraAction {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+}

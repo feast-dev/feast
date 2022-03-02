@@ -1,0 +1,73 @@
+{
+  "name": "source-map-loader",
+  "version": "3.0.1",
+  "description": "extracts inlined source map and offers it to webpack",
+  "license": "MIT",
+  "repository": "webpack-contrib/source-map-loader",
+  "author": "Tobias Koppers @sokra",
+  "homepage": "https://github.com/webpack-contrib/source-map-loader",
+  "bugs": "https://github.com/webpack-contrib/source-map-loader/issues",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/webpack"
+  },
+  "main": "dist/cjs.js",
+  "engines": {
+    "node": ">= 12.13.0"
+  },
+  "scripts": {
+    "start": "npm run build -- -w",
+    "clean": "del-cli dist",
+    "prebuild": "npm run clean",
+    "build": "cross-env NODE_ENV=production babel src -d dist --copy-files",
+    "commitlint": "commitlint --from=master",
+    "security": "npm audit",
+    "lint:prettier": "prettier --list-different .",
+    "lint:js": "eslint --cache .",
+    "lint": "npm-run-all -l -p \"lint:**\"",
+    "test:only": "cross-env NODE_ENV=test jest",
+    "test:watch": "npm run test:only -- --watch",
+    "test:coverage": "npm run test:only -- --collectCoverageFrom=\"src/**/*.js\" --coverage",
+    "pretest": "npm run lint",
+    "test": "npm run test:coverage",
+    "prepare": "husky install && npm run build",
+    "release": "standard-version"
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "webpack": "^5.0.0"
+  },
+  "dependencies": {
+    "abab": "^2.0.5",
+    "iconv-lite": "^0.6.3",
+    "source-map-js": "^1.0.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.14.5",
+    "@babel/core": "^7.14.6",
+    "@babel/preset-env": "^7.14.7",
+    "@commitlint/cli": "^16.0.1",
+    "@commitlint/config-conventional": "^16.0.0",
+    "@webpack-contrib/eslint-config-webpack": "^3.0.0",
+    "babel-jest": "^27.0.6",
+    "cross-env": "^7.0.3",
+    "del": "^6.0.0",
+    "del-cli": "^4.0.0",
+    "eslint": "^8.6.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.23.4",
+    "husky": "^7.0.1",
+    "jest": "^27.0.6",
+    "lint-staged": "^12.1.5",
+    "memfs": "^3.2.2",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.3.2",
+    "standard-version": "^9.3.1",
+    "webpack": "^5.44.0"
+  },
+  "keywords": [
+    "webpack"
+  ]
+}

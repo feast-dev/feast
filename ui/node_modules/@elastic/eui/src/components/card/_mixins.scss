@@ -1,0 +1,11 @@
+@mixin euiCardBottomNodePosition {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: $euiCardBottomNodeHeight !important;  // sass-lint:disable-line no-important -- To override .euiButtonEmpty--xSmall
+  width: 100%;
+  overflow: hidden;
+  // Subtract 1px from border radius since it sits inside a border-radius
+  border-bottom-left-radius: $euiBorderRadius - 1px;
+  border-bottom-right-radius: $euiBorderRadius - 1px;
+}

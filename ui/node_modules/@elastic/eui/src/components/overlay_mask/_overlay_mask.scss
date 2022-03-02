@@ -1,0 +1,33 @@
+.euiOverlayMask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 10vh;
+  animation: euiAnimFadeIn $euiAnimSpeedFast ease-in;
+
+  $backgroundColor: $euiColorEmptyShade;
+
+  @if (lightness($euiTextColor) > 50) {
+    $backgroundColor: $euiColorLightShade;
+  }
+
+  background: transparentize($backgroundColor, .2);
+}
+
+.euiBody-hasOverlayMask {
+  overflow: hidden;
+}
+
+// Handling the z-index based on whether it should be displayed above or below the header
+.euiOverlayMask--aboveHeader {
+  z-index: $euiZMask;
+}
+
+.euiOverlayMask--belowHeader {
+  z-index: $euiZMaskBelowHeader;
+}

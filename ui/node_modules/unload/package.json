@@ -1,0 +1,93 @@
+{
+  "name": "unload",
+  "version": "2.2.0",
+  "description": "Execute code when the js-process exits. On all javascript-environments",
+  "author": "pubkey",
+  "license": "Apache-2.0",
+  "keywords": [
+    "unload",
+    "exit",
+    "onunload",
+    "SIGINT",
+    "uncaughtException",
+    "beforeExit"
+  ],
+  "scripts": {
+    "lint": "eslint src test",
+    "preversion": "npm run lint && npm run test",
+    "build:es6": "rimraf -rf dist/es && cross-env NODE_ENV=es6 babel src --out-dir dist/es",
+    "build:es5": "cross-env NODE_ENV=es5 babel src --out-dir dist/lib",
+    "build:test": "cross-env NODE_ENV=es5 babel test --out-dir test_tmp",
+    "build:browser": "browserify dist/lib/index.browserify.js > dist/browserify.js",
+    "build:worker": "browserify test/helper/worker.js > test_tmp/worker.js",
+    "build": "npm run clear && concurrently \"npm run build:es6\" \"npm run build:es5\" \"npm run build:test\" && npm run build:browser && npm run build:worker",
+    "clear": "rimraf -rf ./dist",
+    "pingserver": "node ./test/helper/ping-server.node.js",
+    "test:typings": "npm run build && mocha ./test_tmp/typings.test.js -b --timeout 12000 --exit",
+    "test:node": "npm run build && concurrently  --kill-others -s first \"npm run pingserver\" \"mocha -b test_tmp/nodejs.test.js\"",
+    "test:browser:server": "http-server . -p 8080 --cors --silent",
+    "test:browser": "npm run build && concurrently --kill-others -s first \"npm run test:browser:server\" \"npm run pingserver\" \"karma start ./config/karma.conf.js --single-run\"",
+    "test": "npm run test:node && npm run test:browser"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pubkey/unload.git"
+  },
+  "pre-commit": [
+    "lint"
+  ],
+  "main": "./dist/lib/index.js",
+  "module": "./dist/es/index.js",
+  "types": "./src/index.d.ts",
+  "devDependencies": {
+    "@babel/cli": "7.6.2",
+    "@babel/core": "7.6.2",
+    "@babel/plugin-check-constants": "7.0.0-beta.38",
+    "@babel/plugin-proposal-object-rest-spread": "7.6.2",
+    "@babel/plugin-transform-member-expression-literals": "7.2.0",
+    "@babel/plugin-transform-property-literals": "7.2.0",
+    "@babel/plugin-transform-runtime": "7.6.2",
+    "@babel/polyfill": "7.6.0",
+    "@babel/preset-env": "7.6.2",
+    "@babel/types": "7.6.1",
+    "assert": "2.0.0",
+    "async-test-util": "1.7.3",
+    "browserify": "16.5.0",
+    "child-process-promise": "2.2.1",
+    "child_process": "1.0.2",
+    "concurrently": "4.1.2",
+    "cors": "2.8.5",
+    "cross-env": "6.0.0",
+    "eslint": "6.4.0",
+    "express": "4.17.1",
+    "http-server": "0.11.1",
+    "karma": "4.3.0",
+    "karma-browserify": "6.1.0",
+    "karma-chrome-launcher": "3.1.0",
+    "karma-mocha": "1.3.0",
+    "mocha": "6.2.0",
+    "node": "12.11.0",
+    "node-cmd": "3.0.0",
+    "npm-run-all": "4.1.5",
+    "pre-commit": "1.2.2",
+    "request": "2.88.0",
+    "request-promise-native": "1.0.7",
+    "rimraf": "3.0.0",
+    "ts-node": "7.0.1",
+    "typescript": "3.6.3",
+    "uglify-js": "3.6.0",
+    "util": "0.12.1",
+    "watch": "1.0.2",
+    "watchify": "3.11.1"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.6.2",
+    "detect-node": "^2.0.4"
+  },
+  "// browser": "this field contains files that will be empty objects in webpack-builds",
+  "browser": {
+    "./src/node.js": false,
+    "./dist/es/node.js": false,
+    "./dist/lib/node.js": false
+  }
+}

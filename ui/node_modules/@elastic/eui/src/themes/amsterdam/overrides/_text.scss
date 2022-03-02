@@ -1,0 +1,3 @@
+.euiText--medium {
+  @include euiScaleText($euiFontSizeM, 'rem');
+}

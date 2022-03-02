@@ -1,0 +1,7 @@
+// sass-lint:disable indentation no-color-keywords no-color-literals
+
+@mixin euiSideNavEmbellish {
+  background:
+    linear-gradient(160deg, $euiSideNavEmphasizedBackgroundColor 0, $euiSideNavEmphasizedBackgroundColor $euiSizeXL, rgba(red, 0) 0),
+    linear-gradient(175deg, $euiSideNavEmphasizedBackgroundColor 0, $euiSideNavEmphasizedBackgroundColor $euiSize, rgba(red, 0) 0);
+}

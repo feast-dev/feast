@@ -1,0 +1,47 @@
+{
+    "name": "@types/http-proxy",
+    "version": "1.17.8",
+    "description": "TypeScript definitions for node-http-proxy",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/http-proxy",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Maxime LUCE",
+            "url": "https://github.com/SomaticIT",
+            "githubUsername": "SomaticIT"
+        },
+        {
+            "name": "Florian Oellerich",
+            "url": "https://github.com/Raigen",
+            "githubUsername": "Raigen"
+        },
+        {
+            "name": "Daniel Schmidt",
+            "url": "https://github.com/DanielMSchmidt",
+            "githubUsername": "DanielMSchmidt"
+        },
+        {
+            "name": "Jordan Abreu",
+            "url": "https://github.com/jabreu610",
+            "githubUsername": "jabreu610"
+        },
+        {
+            "name": "Samuel Bodin",
+            "url": "https://github.com/bodinsamuel",
+            "githubUsername": "bodinsamuel"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/http-proxy"
+    },
+    "scripts": {},
+    "dependencies": {
+        "@types/node": "*"
+    },
+    "typesPublisherContentHash": "e4282dd3fb39dbbc6e3609bb679300152eb67e0ac0ec8746bf262c5353a328c8",
+    "typeScriptVersion": "3.8"
+}

@@ -1,0 +1,63 @@
+//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/pow
+@function pow($number, $power) {
+  @if ($power != $power or ($power != 0 and $power == $power / 2)) {
+    @return $power;
+  }
+  @if ($power == 1) {
+    @return $number;
+  }
+  @if ($power == 0) {
+    @return 1;
+  }
+  @if ($power < 0) {
+    @return 1 / pow($number, -$power);
+  }
+  @if (0 < $power and $power < 2) {
+    $hasLeadingOne: false;
+    @if (floor($power) == 1) {
+      $power: $power - 1;
+      $hasLeadingOne: true;
+    } @else {
+      $hasLeadingOne: false;
+    }
+    $doublePower: pow($number, $power * 2);
+    $fullPower: nthRoot($doublePower, 2);
+    @if ($hasLeadingOne) {
+      $fullPower: $fullPower * $number;
+    }
+    @return $fullPower;
+  } @else if (getDecimal($power) != 0) {
+    $wholePower: floor($power);
+    $decimalPower: getDecimal($power);
+    @return pow($number, $wholePower) * pow($number, $decimalPower);
+  } @else {
+    $hasTrailingOne: $power % 2 == 1;
+    @if ($hasTrailingOne) {
+      $power: $power - 1;
+    }
+    $halfPower: pow($number, floor($power / 2));
+    $fullPower: $halfPower * $halfPower;
+    @if ($hasTrailingOne) {
+      $fullPower: $fullPower * $number;
+    }
+    @return $fullPower;
+  }
+}
+
+@function getDecimal($number) {
+  @if ($number < 0) {
+    $number: -$number;
+  }
+  @return $number % 1;
+}
+
+// From: http://rosettacode.org/wiki/Nth_root#JavaScript
+@function nthRoot($num, $n: 2, $prec: 12) {
+  $x: 1;
+
+  @for $i from 0 through $prec {
+    $x: 1 / $n * (($n - 1) * $x + ($num / pow($x, $n - 1)));
+  }
+
+  @return $x;
+}

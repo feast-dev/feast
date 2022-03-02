@@ -1,0 +1,18 @@
+
+.euiColorPickerSwatch {
+  display: inline-block;
+  height: $euiSizeL;
+  width: $euiSizeL;
+  border-radius: $euiBorderRadius / 2;
+  cursor: pointer;
+  border: solid 1px transparentize($euiColorFullShade, .9);
+  box-shadow: inset 0 0 0 1px transparentize($euiColorEmptyShade, .95);
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:focus {
+    @include euiFocusRing;
+  }
+}

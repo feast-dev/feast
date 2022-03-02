@@ -1,0 +1,15 @@
+.euiSubSteps {
+  padding: $euiSize;
+  background-color: $euiColorLightestShade;
+  margin-bottom: $euiSize;
+
+  > *:last-child {
+    margin-bottom: 0;
+  }
+
+  // change ordered list from numbers to lowercase letters
+  .euiText & ol,
+  & ol {
+    list-style-type: lower-alpha;
+  }
+}

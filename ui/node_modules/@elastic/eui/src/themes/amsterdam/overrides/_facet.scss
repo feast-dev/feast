@@ -1,0 +1,10 @@
+.euiFacetButton {
+  &:focus {
+    background-color: transparent;
+    box-shadow: none;
+
+    &:not(:disabled) .euiFacetButton__text {
+      @include euiLinkFocus;
+    }
+  }
+}

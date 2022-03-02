@@ -1,0 +1,46 @@
+.euiKeyPadMenuItem {
+  border: none !important; // sass-lint:disable-line no-important
+  box-shadow: none;
+
+  // Focus and Hover states (when not disabled)
+  &:not(.euiKeyPadMenuItem-isDisabled) {
+    &:hover,
+    &:focus:hover,
+    &:focus-within  {
+      @include euiBottomShadowSmall;
+    }
+
+    &:focus {
+      box-shadow: none;
+    }
+  }
+
+  &.euiKeyPadMenuItem-isSelected:not(.euiKeyPadMenuItem-isDisabled) {
+    box-shadow: none;
+
+    &:hover {
+      @include euiBottomShadowSmall;
+    }
+
+    &,
+    &:hover,
+    &:focus,
+    &:focus-within {
+      @include euiFocusBackground;
+      // Calculate the right text contrast ratio based on focus transparency
+      $backgroundColorSimulated: mix($euiColorEmptyShade, $euiColorPrimary, $euiFocusTransparencyPercent);
+      color: makeHighContrastColor($euiColorPrimaryText, $backgroundColorSimulated);
+    }
+  }
+
+  &.euiKeyPadMenuItem-isSelected.euiKeyPadMenuItem-isDisabled {
+    @include euiFocusBackground($euiColorDisabled);
+    // Calculate the right text contrast ratio based on focus transparency
+    $backgroundColorSimulated: mix($euiColorEmptyShade, $euiColorDisabled, $euiFocusTransparencyPercent);
+    color: makeDisabledContrastColor($euiColorDisabledText, $backgroundColorSimulated);
+  }
+}
+
+.euiKeyPadMenuItem__label {
+  font-weight: $euiFontWeightSemiBold;
+}

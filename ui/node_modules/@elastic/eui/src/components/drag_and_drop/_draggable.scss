@@ -1,0 +1,43 @@
+// sass-lint:disable no-empty-rulesets
+
+.euiDraggable {
+  &.euiDraggable--isDragging {
+    // Overriding inline styles on JS-inserted HTML elements
+    z-index: $euiZLevel9 !important; // sass-lint:disable-line no-important
+  }
+
+  &.euiDraggable--hasClone:not(.euiDraggable--isDragging) {
+    // Overriding inline styles on JS-inserted HTML elements
+    transform: none !important; // sass-lint:disable-line no-important
+  }
+
+  &.euiDraggable--withoutDropAnimation {
+    // Overriding inline styles on JS-inserted HTML elements
+    transition-duration: .001s !important; // sass-lint:disable-line no-important
+  }
+
+  &:focus > .euiDraggable__item,
+  &.euiDraggable--hasCustomDragHandle > .euiDraggable__item [data-react-beautiful-dnd-drag-handle]:focus {
+    @include euiFocusRing;
+  }
+
+  .euiDraggable__item {
+    &.euiDraggable__item--isDisabled {
+      cursor: not-allowed;
+    }
+
+    &.euiDraggable__item--isDragging {
+      // TODO: Resolve below
+      // Commenting this out for now,
+      // I'm thinking about adding an optional prop to auto-add these styles versus always having them
+      // @include euiBottomShadow;
+      // @include euiFocusRing;
+    }
+  }
+}
+
+@each $size, $spacing in $euiDragAndDropSpacing {
+  .euiDraggable--#{$size} {
+    padding: $spacing;
+  }
+}

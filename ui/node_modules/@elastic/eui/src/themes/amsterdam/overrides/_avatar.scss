@@ -1,0 +1,7 @@
+.euiAvatar--space,
+.euiAvatar--user {
+  // Remove faux outline
+  &:after {
+    display: none;
+  }
+}

@@ -1,0 +1,65 @@
+// Sizing
+$euiFormMaxWidth: $euiSizeXXL * 10 !default;
+$euiFormControlHeight: $euiSizeXXL !default;
+$euiFormControlCompressedHeight: $euiSizeXL !default;
+$euiFormControlPadding: $euiSizeM !default;
+$euiFormControlCompressedPadding: $euiSizeS !default;
+$euiFormControlBorderRadius: 0 !default;
+$euiFormControlCompressedBorderRadius: $euiBorderRadiusSmall !default;
+
+$euiRadioSize: $euiSize !default;
+$euiCheckBoxSize: $euiSize !default;
+$euiCheckboxBorderRadius: $euiBorderRadius !default;
+
+// Switch
+$euiSwitchHeight: $euiSize * 1.25 !default;
+$euiSwitchWidth: ($euiSize * 2.5) + $euiSizeXS !default;
+$euiSwitchThumbSize: $euiSwitchHeight !default;
+$euiSwitchIconHeight: $euiSize !default;
+
+$euiSwitchHeightCompressed: $euiSize !default;
+$euiSwitchWidthCompressed: $euiSize * 1.75 !default;
+$euiSwitchThumbSizeCompressed: $euiSwitchHeightCompressed !default;
+
+$euiSwitchHeightMini: $euiSwitchHeight * .5 !default;
+$euiSwitchWidthMini: $euiSwitchWidth * .5 !default;
+$euiSwitchThumbSizeMini: $euiSwitchHeightMini !default;
+
+// Coloring
+$euiFormBackgroundColor: tintOrShade($euiColorLightestShade, 60%, 40%) !default;
+$euiFormBackgroundDisabledColor: darken($euiColorLightestShade, 2%) !default;
+$euiFormBackgroundReadOnlyColor: transparentize(lightOrDarkTheme($euiColorLightShade, $euiColorInk), .95) !default;
+$euiFormBorderOpaqueColor: shadeOrTint(desaturate(adjust-hue($euiColorPrimary, 22), 22.95), 26%, 100%) !default;
+$euiFormBorderColor: transparentize($euiFormBorderOpaqueColor, .9) !default;
+$euiFormBorderDisabledColor: transparentize($euiFormBorderOpaqueColor, .9) !default;
+$euiFormCustomControlDisabledIconColor: shadeOrTint($euiColorMediumShade, 38%, 48.5%) !default; // exact 508c foreground for $euiColorLightShade
+$euiFormCustomControlBorderColor: shadeOrTint($euiColorLightestShade, 18%, 30%) !default;
+$euiFormControlDisabledColor: $euiColorMediumShade !default;
+$euiFormControlBoxShadow: 0 1px 1px -1px transparentize($euiShadowColor, .8), 0 3px 2px -2px transparentize($euiShadowColor, .8) !default;
+$euiFormControlPlaceholderText: makeHighContrastColor($euiTextSubduedColor, $euiFormBackgroundColor) !default;
+$euiFormInputGroupLabelBackground: tintOrShade($euiColorLightShade, 50%, 15%) !default;
+$euiFormInputGroupBorder: 1px solid shadeOrTint($euiFormInputGroupLabelBackground, 2%, 4%) !default;
+$euiSwitchOffColor: lightOrDarkTheme(transparentize($euiColorMediumShade, .8), transparentize($euiColorMediumShade, .3)) !default;
+
+// Control Layout
+$euiFormControlLayoutGroupInputHeight: $euiFormControlHeight - 2px !default;
+$euiFormControlLayoutGroupInputCompressedHeight: $euiFormControlCompressedHeight - 2px !default;
+$euiFormControlLayoutGroupInputCompressedBorderRadius: $euiFormControlCompressedBorderRadius / 2 !default;
+
+// Range
+$euiRangeTrackColor: $euiColorDarkShade !default;
+
+$euiRangeThumbRadius: 50% !default;
+$euiRangeThumbHeight: $euiSize !default;
+$euiRangeThumbWidth: $euiSize !default;
+$euiRangeThumbBorderColor: $euiRangeTrackColor !default;
+
+$euiRangeTrackWidth: 100% !default;
+$euiRangeTrackHeight: 2px !default;
+$euiRangeTrackBorderWidth: 0 !default;
+$euiRangeTrackBorderColor: $euiRangeTrackColor !default;
+$euiRangeTrackRadius: $euiBorderRadius !default;
+
+$euiRangeDisabledOpacity: .25 !default;
+
+$euiRangeHighlightHeight: $euiSizeXS !default;

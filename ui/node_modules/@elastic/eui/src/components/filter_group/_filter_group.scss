@@ -1,0 +1,61 @@
+.euiFilterGroup {
+  display: inline-flex;
+  max-width: 100%;
+  border-right: 1px solid $euiFormBorderColor;
+  box-shadow: 0 1px 2px -1px transparentize($euiShadowColor, .8), 0 3px 3px -2px transparentize($euiShadowColor, .8);
+  overflow: hidden;
+
+  > * {
+    flex: 1 1 auto;
+    min-width: $euiSize * 3;
+  }
+
+  > .euiFilterButton--noGrow  {
+    flex-grow: 0;
+  }
+
+  > .euiFilterButton-hasNotification {
+    min-width: $euiSize * 6;
+  }
+
+  > .euiFilterButton--hasIcon {
+    min-width: $euiSize * 8;
+  }
+
+  // Force popover anchors to expand for now
+  .euiPopover__anchor {
+    display: block;
+
+    .euiFilterButton {
+      width: 100%;
+    }
+  }
+}
+
+.euiFilterGroup--fullWidth {
+  display: flex;
+}
+
+// A fixed width is required in IE11 because of the shift in widths that can be caused
+// by the loading animation that precedes the results.
+.euiFilterGroup__popoverPanel {
+  width: $euiSize * 18;
+}
+
+@include euiBreakpoint('xs', 's') {
+  .euiFilterGroup {
+    flex-wrap: wrap;
+  }
+}
+
+@include euiBreakpoint('xs') {
+  // Force all tiny screens to take up the entire width
+  .euiFilterGroup {
+    display: flex;
+
+    .euiFilterButton {
+      // sass-lint:disable-block no-important
+      flex-grow: 1 !important;
+    }
+  }
+}

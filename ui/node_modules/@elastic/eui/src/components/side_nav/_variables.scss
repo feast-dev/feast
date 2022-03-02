@@ -1,0 +1,15 @@
+$euiSideNavEmphasizedBackgroundColor: transparentize($euiColorLightShade, .7);
+
+// Simulates the transparent backround on top of the page background to get an opaque color
+// in order to get the right contrast for text
+@function euiSideNavEmphasizedContrast($textColor, $ratio: $euiContrastRatioText) {
+  $backgroundColorSimulated: mix($euiPageBackgroundColor, $euiColorLightShade, 70%);
+  $color: makeHighContrastColor($textColor, $backgroundColorSimulated, $ratio);
+  @return $color;
+}
+
+// Ensure all the possible text color have proper contrast when "emphasized"
+$euiSideNavRootTextcolor: euiSideNavEmphasizedContrast($euiTitleColor);
+$euiSideNavBranchTextcolor: euiSideNavEmphasizedContrast($euiTextSubduedColor);
+$euiSideNavSelectedTextcolor: euiSideNavEmphasizedContrast($euiColorPrimary);
+$euiSideNavDisabledTextcolor: euiSideNavEmphasizedContrast($euiButtonColorDisabledText, $euiContrastRatioDisabled);

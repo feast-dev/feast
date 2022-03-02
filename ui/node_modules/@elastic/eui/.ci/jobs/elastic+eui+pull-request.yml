@@ -1,0 +1,27 @@
+---
+- job:
+    name: elastic+eui+pull-request
+    display-name: "elastic / eui # pull-request"
+    description: Jobs to run on EUI pull requests
+    project-type: multijob
+    concurrent: true
+    node: master
+    triggers:
+      - github-pull-request:
+          org-list:
+            - elastic
+          allow-whitelist-orgs-as-admins: true
+          trigger-phrase: '(.*(?:jenkins\W+)?test\W+(?:this|it)(?:\W+please)?.*)|^retest$'
+          github-hooks: true
+          status-context: eui-ci
+          cancel-builds-on-update: true
+    builders:
+      - multijob:
+          name: run child jobs
+          projects:
+            - name: elastic+eui+pull-request-test
+              predefined-parameters: branch_specifier=${ghprbActualCommit}
+            - name: elastic+eui+pull-request-deploy-docs
+              predefined-parameters: |
+                branch_specifier=${ghprbActualCommit}
+                pull_request_id=${ghprbPullId}

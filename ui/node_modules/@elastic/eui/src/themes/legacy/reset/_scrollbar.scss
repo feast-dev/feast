@@ -1,0 +1,6 @@
+// Declaring the top level scrollbar colors to match the theme also requires setting the sizes on Chrome
+// so that it knows to use custom styles. Therefore, we just reuse the same scrollbar mixin with `thick` size.
+
+html {
+  @include euiScrollBar($euiColorDarkShade, shadeOrTint($euiPageBackgroundColor, 3%, 7%), 'thick');
+}

@@ -1,0 +1,61 @@
+.euiDataGrid__controls {
+  background: $euiPageBackgroundColor;
+  position: relative;
+  z-index: 3; // Needs to sit above the content blow that sits below it
+  border: $euiBorderThin;
+  padding: $euiSizeXS $euiSizeXS $euiSizeXS 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.euiDataGrid__rightControls {
+  // These **should** just be icon buttons and so we'll restrict them to not wrap lines
+  white-space: nowrap;
+
+  // Keep this right-aligned if hasRoomForGridControls is hiding dataControls
+  &:only-child {
+    margin-left: auto;
+  }
+
+  // Ensure there's sufficient spacing between each toolbar icon/popover
+  > * + * {
+    margin-left: $euiSizeS;
+  }
+}
+
+.euiDataGrid__leftControls {
+  // Ensure there's sufficient spacing between each toolbar button/popover
+  > * + * {
+    margin-left: $euiSizeXS / 2;
+  }
+}
+
+.euiDataGrid__controlBtn--active,
+.euiDataGrid__controlBtn--active:focus {
+  font-weight: $euiFontWeightSemiBold;
+}
+
+@include euiDataGridStyles(bordersNone) {
+  .euiDataGrid__controls {
+    border: none;
+    background: $euiColorEmptyShade;
+  }
+}
+
+@include euiDataGridStyles(bordersHorizontal) {
+  .euiDataGrid__controls {
+    border-right: none;
+    border-left: none;
+    border-top: none;
+    background: $euiColorEmptyShade;
+  }
+}
+
+.euiDataGrid__controlPopoverWithDragDrop {
+  // Hack because the fixed positions of drag and drop don't work inside of transformed elements
+  // sass-lint:disable-block no-important
+  transform: none !important;
+  transition: none !important;
+  margin-top: -$euiSizeS;
+}

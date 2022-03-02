@@ -1,0 +1,61 @@
+.euiFilterButton {
+  background-color: $euiFormBackgroundColor;
+  height: $euiFormControlHeight;
+  width: auto;
+  border: 1px solid $euiFormBorderColor;
+  border-right: none;
+  font-size: $euiFontSizeS;
+
+  &:disabled {
+    color: $euiButtonColorDisabledText;
+    pointer-events: none;
+
+    .euiFilterButton__notification {
+      opacity: .5;
+    }
+  }
+
+  &:hover:not(:disabled),
+  &:focus:not(:disabled) {
+    // Remove underline from whole button so notifications don't get the underline
+    text-decoration: none;
+
+    .euiFilterButton__textShift {
+      // Add put it only on the actual text part
+      text-decoration: underline;
+    }
+  }
+}
+
+.euiFilterButton-hasActiveFilters {
+  font-weight: $euiFontWeightBold;
+}
+
+.euiFilterButton--hasIcon .euiButtonEmpty__content {
+  justify-content: space-between;
+}
+
+.euiFilterButton--withNext + .euiFilterButton {
+  margin-left: $euiSizeXS * -1;
+  border-left: none;
+}
+
+.euiFilterButton-isSelected {
+  background-color: $euiColorLightestShade;
+}
+
+.euiFilterButton__text-hasNotification {
+  display: flex;
+  align-items: center;
+}
+
+.euiFilterButton__notification {
+  margin-left: $euiSizeS;
+  vertical-align: text-bottom;
+}
+
+.euiFilterButton__textShift {
+  @include euiTextShift;
+  @include euiTextTruncate;
+  min-width: $euiSize * 3;
+}

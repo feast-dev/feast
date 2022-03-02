@@ -1,0 +1,62 @@
+/**
+ * 1. Account for inner box-shadow style border
+ */
+
+.euiDatePickerRange {
+  @include euiFormControlSize(auto, $includeAlternates: true);
+  // Match just the regular drop shadow of inputs
+  @include euiFormControlDefaultShadow;
+  display: flex;
+  align-items: center;
+  padding: 1px; /* 1 */
+
+  // Allow any child to fill entire range container
+  > * {
+    flex-grow: 1;
+  }
+
+  .euiFieldText.euiDatePicker {
+    // including all states
+    box-shadow: none !important; // sass-lint:disable-line no-important
+    text-align: center;
+  }
+
+  .euiDatePickerRange__start {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .euiDatePickerRange__end {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  .react-datepicker-popper .euiFieldText.euiDatePicker {
+    // set any subsequent children in popper back to left align
+    text-align: left;
+  }
+
+  &--inGroup {
+    box-shadow: none;
+    padding: 0;
+
+    .euiDatePicker {
+      height: $euiFormControlLayoutGroupInputHeight;
+    }
+  }
+
+  // Direct descendent selectors to override `> span`
+
+  > .euiDatePickerRange__delimeter {
+    // override .euiFormControlLayout--group .euiText
+    background-color: transparent !important; // sass-lint:disable-line no-important
+    line-height: 1 !important; // sass-lint:disable-line no-important
+    flex: 0 0 auto;
+    padding-left: $euiFormControlPadding / 2;
+    padding-right: $euiFormControlPadding / 2;
+  }
+}
+
+.euiDatePickerRange--readOnly {
+  background: $euiFormBackgroundDisabledColor;
+}

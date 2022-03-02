@@ -1,0 +1,88 @@
+// This wraps the range. It is needed because there is no way to do a linear gradient in ie11 for the track
+.euiHue {
+  // sass-lint:disable-block no-color-literals
+  background: linear-gradient(to right,
+    #FF3232 0%,
+    #FFF130 20%,
+    #45FF30 35%,
+    #28FFF0 52%,
+    #282CFF 71%,
+    #FF28FB 88%,
+    #FF0094 100%
+   );
+  height: $euiSizeL;
+  margin: $euiSizeXS 0;
+  position: relative;
+
+  // To make our fake range skinny, we add some pseudo borders to fake the height of the gradient
+  &:before,
+  &:after {
+    content: '';
+    left: 0;
+    position: absolute;
+    height: $euiSizeS;
+    background: $euiColorEmptyShade;
+    width: 100%;
+  }
+
+  &:after {
+    bottom: 0;
+  }
+}
+
+// The range itself is the same height
+.euiHue__range {
+  @include euiRangeThumbPerBrowser {
+    @include euiCustomControl($type: 'round');
+    @include euiRangeThumbStyle;
+  }
+
+  position: relative;
+  height: $euiSizeL;
+  width: calc(100% + 2px); // Allow for overlap
+  margin: 0 -1px; // Use ^ overlap to allow thumb to fully cover gradient ends
+  appearance: none;
+  background: transparent;
+  z-index: 2; // Needed to place the thumb above the :after pseudo border from .euiRange
+
+
+  // Resets for the range
+
+  // Disable linter for these very unique vendor controls
+  // sass-lint:disable-block no-vendor-prefixes
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    margin-top: 0;
+  }
+
+  &::-ms-thumb {
+    margin-top: 0;
+  }
+
+  &::-ms-track {
+    height: $euiSizeL;
+    background: transparent;
+    border-color: transparent;
+    color: transparent;
+  }
+
+  &::-moz-focus-outer {
+    border: none;
+  }
+
+  &::-ms-fill-lower,
+  &::-ms-fill-upper {
+    background: transparent;
+  }
+
+  // Thumb has trouble with animation, so we make something similar to `@include euiFocusRing`
+  &:focus {
+    @include euiRangeThumbPerBrowser {
+      box-shadow: 0 0 0 $euiFocusRingSize $euiFocusRingColor;
+      border-color: $euiColorPrimary;
+    }
+
+    // Focus is added to the thumb ^^ so we can remove the outer wrapping outline
+    outline: none;
+  }
+}

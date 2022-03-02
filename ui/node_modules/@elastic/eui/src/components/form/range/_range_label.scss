@@ -1,0 +1,18 @@
+.euiRangeLabel {
+  &--min,
+  &--max {
+    font-size: $euiFontSizeXS;
+  }
+
+  &--min {
+    margin-right: $euiSizeS;
+  }
+
+  &--max {
+    margin-left: $euiSizeS;
+  }
+
+  &--isDisabled {
+    opacity: $euiRangeDisabledOpacity;
+  }
+}

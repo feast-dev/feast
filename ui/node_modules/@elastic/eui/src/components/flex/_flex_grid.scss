@@ -1,0 +1,99 @@
+.euiFlexGrid {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+
+  > .euiFlexItem {
+    flex-grow: 0;
+
+    &.euiFlexItem--flexGrowZero {
+      // sass-lint:disable-block no-important
+      flex-grow: 0 !important;
+      flex-basis: auto !important;
+    }
+  }
+}
+
+/**
+  * 1. For vertical layouts we use columns instead of flex
+  */
+.euiFlexGrid--directionColumn {
+  display: block; /* 1 */
+  column-gap: 0; // The "gap" comes from the margin around the item
+
+  > .euiFlexItem {
+    display: inline-block; /* 1 */
+    line-height: initial; // Ensures the item itself doesn't impose any height
+  }
+}
+
+$gutterTypes: (
+  // We're using calc which requires the px unit
+  gutterNone: 0px, // sass-lint:disable-line zero-unit
+  gutterSmall: $euiSizeS,
+  gutterMedium: $euiSize,
+  gutterLarge: $euiSizeL,
+  gutterXLarge: $euiSizeXL,
+);
+
+$fractions: (
+  fourths: (
+    percentage: 25%,
+    count: 4,
+  ),
+  thirds: (
+    percentage: 33.3%,
+    count: 3,
+  ),
+  halves: (
+    percentage: 50%,
+    count: 2,
+  ),
+  single: (
+    percentage: 100%,
+    count: 1,
+  ),
+);
+
+@each $gutterName, $gutterSize in $gutterTypes {
+  $halfGutterSize: $gutterSize * .5;
+
+  /**
+   * Uncouple the gutter margin from the column widths to support cases where we use a FlexGrid
+   * without columns.
+   */
+  .euiFlexGrid--#{$gutterName} {
+    margin: -$halfGutterSize;
+    align-items: stretch;
+
+    > .euiFlexItem {
+      margin: $halfGutterSize;
+    }
+  }
+
+  @each $fraction, $map in $fractions {
+    .euiFlexGrid--#{$gutterName}.euiFlexGrid--#{$fraction} {
+      > .euiFlexItem {
+        flex-basis: calc(#{map-get($map, 'percentage')} - #{$gutterSize});
+      }
+
+      &.euiFlexGrid--directionColumn { /* 1 */
+        column-count: map-get($map, 'count');
+
+        > .euiFlexItem {
+          width: calc(100% - #{$gutterSize});
+        }
+      }
+    }
+  }
+}
+
+
+@include euiBreakpoint('xs', 's') {
+  .euiFlexGrid.euiFlexGrid--responsive {
+    // sass-lint:disable-block no-important
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    column-count: 1 !important;
+  }
+}

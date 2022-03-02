@@ -1,0 +1,63 @@
+{
+  "name": "postcss-dir-pseudo-class",
+  "version": "6.0.3",
+  "description": "Use the :dir pseudo-class in CSS",
+  "author": "Jonathan Neal <jonathantneal@hotmail.com>",
+  "license": "CC0-1.0",
+  "homepage": "https://github.com/csstools/postcss-plugins/tree/main/plugins/postcss-dir-pseudo-class#readme",
+  "bugs": "https://github.com/csstools/postcss-plugins/issues",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "files": [
+    "CHANGELOG.md",
+    "LICENSE.md",
+    "README.md",
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c ../../rollup/default.js",
+    "clean": "node -e \"fs.rmSync('./dist', { recursive: true, force: true });\"",
+    "lint": "eslint ./src --ext .js --ext .ts --ext .mjs --no-error-on-unmatched-pattern",
+    "prepublishOnly": "npm run clean && npm run build && npm run test",
+    "stryker": "stryker run --logLevel error",
+    "test": "postcss-tape --ci && npm run test:exports",
+    "test:exports": "node ./test/_import.mjs && node ./test/_require.cjs"
+  },
+  "engines": {
+    "node": "^12 || ^14 || >=16"
+  },
+  "dependencies": {
+    "postcss-selector-parser": "^6.0.8"
+  },
+  "devDependencies": {
+    "postcss": "^8.3.6",
+    "postcss-tape": "^6.0.1"
+  },
+  "peerDependencies": {
+    "postcss": "^8.3"
+  },
+  "keywords": [
+    "postcss",
+    "css",
+    "postcss-plugin",
+    "directionality",
+    "directions",
+    "selector",
+    "attribute",
+    "polyfill",
+    "left",
+    "left-to-right",
+    "ltr",
+    "right",
+    "right-to-left",
+    "rtl"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/csstools/postcss-plugins.git",
+    "directory": "plugins/postcss-dir-pseudo-class"
+  },
+  "volta": {
+    "extends": "../../package.json"
+  }
+}

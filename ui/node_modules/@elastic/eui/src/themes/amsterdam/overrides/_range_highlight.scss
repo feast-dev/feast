@@ -1,0 +1,31 @@
+.euiRangeHighlight {
+  z-index: 1;
+  pointer-events: none;
+
+  &__progress {
+    background-color: $euiRangeHighlightColor;
+    border-color: $euiRangeHighlightColor;
+
+    &--hasFocus {
+      background-color: $euiColorPrimary;
+    }
+  }
+
+  &--compressed {
+    top: calc(50% - #{($euiRangeTrackCompressedHeight/2)});
+
+    .euiRangeHighlight__progress {
+      height: $euiRangeHighlightCompressedHeight;
+    }
+
+    &.euiRangeHighlight--hasTicks {
+      top: ($euiRangeThumbHeight - $euiRangeTrackCompressedHeight) / 2;
+    }
+  }
+
+  &:not(.euiRangeHighlight--compressed) {
+    &.euiRangeHighlight--hasTicks {
+      top: ($euiRangeThumbHeight - $euiRangeTrackHeight) / 2;
+    }
+  }
+}

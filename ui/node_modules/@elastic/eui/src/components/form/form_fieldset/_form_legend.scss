@@ -1,0 +1,11 @@
+.euiFormLegend {
+  @include euiFormLabel;
+
+  &:not(.euiFormLegend-isHidden) {
+    margin-bottom: $euiSizeS;
+
+    &.euiFormLegend--compressed {
+      margin-bottom: $euiSizeXS;
+    }
+  }
+}

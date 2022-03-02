@@ -1,0 +1,111 @@
+/* This file is a heavy retheme of react-datepicker's Sass as of v1.4.0
+** https://github.com/Hacker0x01/react-datepicker
+*/
+
+
+.euiDatePicker {
+  display: block;
+
+  .euiFormControlLayout {
+    height: auto;
+  }
+
+  &.euiDatePicker--inline {
+    .euiFormControlLayout {
+      width: auto;
+    }
+  }
+
+  &.euiDatePicker--shadow {
+    .react-datepicker-popper {
+      @include euiBottomShadowMedium;
+      border: $euiBorderThin;
+      background-color: $euiColorEmptyShade;
+      border-radius: 0 0 $euiBorderRadius $euiBorderRadius;
+    }
+
+    // If the shadow is on, and it is inline, we need to put the shadow on the datepicker
+    // itself rather than the popper.
+    &.euiDatePicker--inline {
+      .react-datepicker {
+        @include euiBottomShadowMedium;
+        border: $euiBorderThin;
+        background-color: $euiColorEmptyShade;
+        border-radius: $euiBorderRadius;
+      }
+    }
+  }
+}
+
+.react-datepicker {
+  font-size: $euiFontSizeXS;
+  color: $euiTextColor;
+  display: flex;
+  border-radius: $euiBorderRadius;
+  padding: $euiDatePickerPadding;
+  justify-content: center;
+}
+
+.euiDatePicker.euiDatePicker--shadow .react-datepicker-popper {
+  z-index: $euiZContentMenu;
+  animation: euiAnimFadeIn $euiAnimSpeedFast ease-in;
+
+  &[data-placement^='top'] {
+    @include euiBottomShadowFlat;
+    border-radius: $euiBorderRadius $euiBorderRadius 0 0;
+  }
+
+  &[data-placement^='right'] {
+    margin-left: 0;
+  }
+
+  &[data-placement^='left'] {
+    margin-right: 0;
+  }
+}
+
+// Hidden things that we don't want to show/use, ever
+.react-datepicker__current-month,
+.react-datepicker-time__header {
+  display: none;
+}
+
+.react-datepicker__screenReaderOnly {
+  @include euiScreenReaderOnly;
+}
+
+.react-datepicker__focusTrap {
+  display: flex;
+  justify-content: center;
+}
+
+.react-datepicker__month-container {
+  flex-grow: 1;
+  margin-top: $euiSizeXL + $euiDatePickerGap;
+}
+
+.react-datepicker__header {
+  display: flex;
+  flex-direction: column;
+}
+
+.react-datepicker-time__header {
+  @include euiTextTruncate;
+}
+
+.react-datepicker__month {
+  text-align: center;
+  border-radius: $euiBorderRadius;
+}
+
+// On small screens put the times at the bottom
+@include euiBreakpoint('xs') {
+  .react-datepicker__focusTrap,
+  .react-datepicker {
+    flex-direction: column;
+  }
+
+  .react-datepicker__time-box {
+    margin-top: 0;
+  }
+}

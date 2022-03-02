@@ -1,0 +1,66 @@
+// In Amsterdam, focus rings default to the browser's `outline`
+// However, some components need to be forced to have the same behavior
+// This re-uses the same faux focus ring mixin, but adjusts the outline instead
+// @param {size} Old param from default theme that won't be used, so it should always be `null`
+// @param {offset} Accepts a specific number or 'inner' or 'outer' to adjust outline position
+@mixin euiFocusRing($size: null, $offset: false) {
+  // Safari & Firefox
+  outline: $euiFocusRingSize solid currentColor;
+
+  // Chrome
+  &:focus-visible {
+    outline-style: auto;
+  }
+
+  &:not(:focus-visible) {
+    outline: none;
+  }
+
+  // Adjusting position with offset
+  @if (type-of($offset) == number) {
+    outline-offset: #{$offset}px;
+  } @else if ($offset == 'inner') {
+    outline-offset: -$euiFocusRingSize;
+  } @else if ($offset == 'outer') {
+    outline-offset: $euiFocusRingSize;
+  }
+}
+
+// Amsterdam uses transparency instead of shading/tinting
+@mixin euiFocusBackground($color: $euiColorPrimary) {
+  background-color: transparentize($color, $euiFocusTransparency);
+}
+
+@mixin euiHoverState {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@mixin euiFocusState($color: $euiColorPrimary) {
+  @include euiHoverState;
+  @include euiFocusBackground($color);
+}
+
+@mixin euiDisabledState($color: $euiButtonColorDisabledText) {
+  cursor: not-allowed;
+  text-decoration: none;
+
+  @if ($color) {
+    color: $color;
+  }
+}
+
+@mixin euiInteractiveStates($focusColor: $euiColorPrimary, $disabledColor: $euiButtonColorDisabledText) {
+  &:hover {
+    @include euiHoverState;
+  }
+
+  &:focus {
+    @include euiFocusState($focusColor);
+  }
+
+  &:disabled {
+    @include euiDisabledState($disabledColor);
+  }
+}
+

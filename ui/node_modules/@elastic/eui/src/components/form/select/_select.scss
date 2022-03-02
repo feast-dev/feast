@@ -1,0 +1,46 @@
+/**
+ * 1. Leave room for caret.
+ * 2. Ensure the descenders don't get cut off
+ */
+
+.euiSelect {
+  @include euiFormControlStyle;
+  @include euiFormControlWithIcon($side: 'right'); /* 1 */
+  @include euiFormControlIsLoading($isNextToIcon: true);
+
+  appearance: none;
+  line-height: $euiFormControlHeight; /* 2 */
+  padding-top: 0; /* 2 */
+  padding-bottom: 0; /* 2 */
+
+  &--compressed {
+    @include euiFormControlWithIcon($side: 'right', $compressed: true); /* 1 */
+    line-height: $euiFormControlCompressedHeight; /* 2 */
+    padding-top: 0; /* 2 */
+    padding-bottom: 0; /* 2 */
+  }
+
+  &--inGroup {
+    line-height: $euiFormControlLayoutGroupInputHeight; /* 2 */
+  }
+
+  &--inGroup#{&}--compressed {
+    line-height: $euiFormControlLayoutGroupInputCompressedHeight; /* 2 */
+  }
+
+  // Turn off linter for some MS specific bits.
+  // sass-lint:disable no-vendor-prefixes
+  &::-ms-expand {
+    display: none;
+  }
+
+  &:focus::-ms-value {
+    color: $euiTextColor;
+    background: transparent;
+  }
+
+  &:-moz-focusring {
+    color: transparent;
+    text-shadow: 0 0 0 $euiTextColor;
+  }
+}

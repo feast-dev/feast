@@ -1,0 +1,59 @@
+.euiCollapsibleNavGroup {
+  &:not(:first-child) {
+    border-top: $euiBorderThin;
+  }
+
+  // This class does not accept a custom classname
+  .euiAccordion__triggerWrapper {
+    // Add padding to the trigger wrapper in case an `extraAction` is passed
+    // that doesn't get wrapped in the `__heading`
+    padding: $euiSize;
+  }
+}
+
+.euiCollapsibleNavGroup--light {
+  background-color: $euiCollapsibleNavGroupLightBackgroundColor;
+}
+
+.euiCollapsibleNavGroup--dark {
+  background-color: $euiCollapsibleNavGroupDarkBackgroundColor;
+  color: $euiColorGhost;
+
+  // Forcing better contrast of focus state on EuiAccordion toggle icon
+  .euiCollapsibleNavGroup__heading:focus .euiAccordion__iconWrapper {
+    color: $euiCollapsibleNavGroupDarkHighContrastColor;
+    animation-name: euiCollapsibleNavGroupDarkFocusRingAnimate !important; // sass-lint:disable-line no-important
+  }
+
+  .euiCollapsibleNavGroup__title {
+    color: inherit;
+    line-height: inherit;
+  }
+}
+
+.euiCollapsibleNavGroup__heading {
+  font-weight: $euiFontWeightSemiBold;
+
+  // If the heading is not in an accordion, it needs the padding
+  &:not(.euiAccordion__button) {
+    padding: $euiSize;
+  }
+}
+
+.euiCollapsibleNavGroup__children {
+  padding: $euiSizeS;
+}
+
+.euiCollapsibleNavGroup--withHeading .euiCollapsibleNavGroup__children {
+  padding-top: 0;
+}
+
+@keyframes euiCollapsibleNavGroupDarkFocusRingAnimate {
+  0% {
+    box-shadow: 0 0 0 $euiFocusRingAnimStartSize $euiFocusRingAnimStartColor;
+  }
+
+  100% {
+    box-shadow: 0 0 0 $euiFocusRingSize $euiCollapsibleNavGroupDarkHighContrastColor;
+  }
+}

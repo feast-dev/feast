@@ -1,0 +1,54 @@
+.euiRangeSlider {
+  // in firefox just setting the z-index to the thumb doesn't work
+  // so we need to set the z-index to all the range slider and make the track transparent
+  @include euiRangeTrackPerBrowser {
+    background-color: transparent;
+  }
+
+  // z-index higher than .euiRangeHighlight that is 1
+  // the track is transparent we just want the thumb to be on top of the .euiRangeHighlight
+  z-index: 2;
+
+  &--hasTicks {
+    height: $euiRangeThumbHeight;
+  }
+
+  &:focus {
+    @include euiRangeThumbPerBrowser {
+      @include euiRangeThumbFocus;
+    }
+
+    @include euiRangeTrackPerBrowser {
+      background-color: transparent;
+    }
+
+    outline: none;
+
+    ~ .euiRangeHighlight .euiRangeHighlight__progress {
+      background-color: $euiColorPrimary;
+    }
+  }
+
+  // in Chrome/FF/Edge we don't want to focus on click
+  &:focus:not(:focus-visible) {
+    @include euiRangeThumbPerBrowser {
+      @include euiRangeThumbBoxShadow;
+      background-color: $euiRangeThumbBackgroundColor;
+    }
+
+    ~ .euiRangeHighlight .euiRangeHighlight__progress {
+      background-color: $euiRangeHighlightColor;
+    }
+  }
+
+  &:disabled {
+    // sass-lint:disable-block mixins-before-declarations
+    @include euiRangeThumbPerBrowser {
+      background-color: $euiRangeThumbBackgroundColor;
+    }
+
+    ~ .euiRangeThumb {
+      background-color: $euiRangeThumbBackgroundColor;
+    }
+  }
+}

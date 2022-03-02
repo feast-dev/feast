@@ -1,0 +1,11 @@
+.euiPageContentBody {
+  @include euiPageRestrictWidth;
+}
+
+// Uses the same values as EuiPanel
+@each $modifier, $amount in $euiPanelPaddingModifiers {
+  .euiPageContentBody--#{$modifier} {
+    padding: $amount;
+  }
+}
+

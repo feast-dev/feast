@@ -1,0 +1,31 @@
+.euiQuickSelectPopover__content {
+  width: $euiFormMaxWidth;
+  max-width: 100%;
+}
+
+.euiQuickSelectPopover__section {
+  @include euiScrollBar;
+  max-height: $euiSizeM * 11;
+  overflow: hidden;
+  overflow-y: auto;
+  padding: $euiSizeS 0 $euiSizeXS; // Offset negative margin from flex items
+}
+
+// sass-lint:disable no-important
+.euiQuickSelectPopover__buttonText {
+  // Override specificity from universal and sibling selectors
+  margin-right: $euiSizeXS !important;
+}
+
+.euiQuickSelectPopover__anchor {
+  height: 100%;
+}
+
+.euiQuickSelectPopover__sectionItem {
+  font-size: $euiFontSizeS;
+  line-height: $euiFontSizeS;
+
+  &:not(:last-of-type) {
+    margin-bottom: $euiSizeS;
+  }
+}

@@ -1,0 +1,46 @@
+// These mobile children are hidden in everything but mobile view.
+.euiSideNav__mobileToggle {
+  height: auto;
+  border-bottom: $euiBorderThin;
+  width: 100%;
+  text-align: left;
+  border-radius: 0 !important; // sass-lint:disable-line no-important
+  font-size: $euiFontSizeM;
+  padding: 0 $euiSize; // This plus the inner padding is equal to paddingSize large for EuiPage
+
+  .euiSideNav__mobileToggleText {
+    padding: $euiSize 0;
+  }
+
+  .euiSideNav__mobileToggleContent {
+    justify-content: space-between;
+  }
+}
+
+.euiSideNav__heading {
+  margin-bottom: $euiSizeL;
+}
+
+// Loop through the breakpoints and apply mobile styles only to the right className
+@each $breakpoint in $euiBreakpointKeys {
+  @include euiBreakpoint($breakpoint) {
+    .euiSideNav__contentMobile-#{$breakpoint} {
+      overflow: hidden;
+      visibility: hidden;
+      opacity: 0;
+      max-height: 0;
+      padding: 0 $euiSizeL;
+
+      .euiSideNav-isOpenMobile & {
+        visibility: visible;
+        opacity: 1;
+        padding: $euiSizeL;
+        max-height: 5000px; /* 1 */
+
+        @include euiCanAnimate {
+          transition: all $euiAnimSpeedNormal $euiAnimSlightResistance;
+        }
+      }
+    }
+  }
+}

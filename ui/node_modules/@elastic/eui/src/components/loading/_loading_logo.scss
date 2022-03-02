@@ -1,0 +1,130 @@
+.euiLoadingLogo {
+  position: relative;
+  display: inline-block;
+
+  // sass-lint:disable-block mixins-before-declarations
+  @include euiCanAnimate {
+    &:before,
+    &:after {
+      position: absolute;
+      content: '';
+      width: 90%;
+      left: 5%;
+      border-radius: 50%;
+      opacity: .2;
+      z-index: 1;
+    }
+
+    &:before {
+      box-shadow: 0 0 8px $euiColorFullShade;
+      animation: 1s euiLoadingKibanaPulsateAndFade $euiAnimSlightResistance infinite;
+    }
+
+    &:after {
+      background-color: $euiColorFullShade;
+      animation: 1s euiLoadingKibanaPulsate $euiAnimSlightResistance infinite;
+    }
+  }
+
+  .euiLoadingLogo__icon {
+    display: block;
+
+    @include euiCanAnimate {
+      animation: 1s euiLoadingKibanaBounceMedium $euiAnimSlightResistance infinite;
+    }
+  }
+}
+
+/**
+ * 1. Requires pixel math for animation.
+ */
+.euiLoadingLogo--medium {
+  width: $euiSize;
+
+  &:before,
+  &:after {
+    height: $euiSizeXS - 1; /* 1 */
+    bottom: -$euiSizeXS;
+  }
+
+  .euiLoadingLogo__icon {
+    z-index: 999;
+    animation-name: euiLoadingKibanaBounceMedium;
+  }
+}
+
+.euiLoadingLogo--large {
+  width: $euiSizeL;
+
+  &:before,
+  &:after {
+    height: $euiSizeS - 2; /* 1 */
+    bottom: -$euiSizeS;
+  }
+
+  .euiLoadingLogo__icon {
+    animation-name: euiLoadingKibanaBounceLarge;
+  }
+}
+
+.euiLoadingLogo--xLarge {
+  width: $euiSizeXL;
+
+  &:before,
+  &:after {
+    height: $euiSizeS;
+    bottom: -$euiSizeM;
+  }
+
+  .euiLoadingLogo__icon {
+    animation-name: euiLoadingKibanaBounceXLarge;
+  }
+}
+
+@keyframes euiLoadingKibanaBounceMedium {
+  50% {
+    transform: translateY(-$euiSizeS);
+  }
+}
+
+@keyframes euiLoadingKibanaBounceLarge {
+  50% {
+    transform: translateY(-$euiSizeM);
+  }
+}
+
+@keyframes euiLoadingKibanaBounceXLarge {
+  50% {
+    transform: translateY(-$euiSize);
+  }
+}
+
+@keyframes euiLoadingKibanaPulsateAndFade {
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(.5);
+    opacity: .1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes euiLoadingKibanaPulsate {
+  0% {
+    opacity: .15;
+  }
+
+  50% {
+    transform: scale(.5);
+    opacity: .05;
+  }
+
+  100% {
+    opacity: .15;
+  }
+}

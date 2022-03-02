@@ -1,0 +1,47 @@
+// This extra import allows any variables that are created via functions to work when loaded into JS
+@import '../../global_styling/functions/index';
+
+// These colors stay the same no matter the theme
+$euiColorGhost: #FFF !default;
+$euiColorInk: #000 !default;
+
+// Core
+$euiColorPrimary: #006BB4 !default;
+$euiColorAccent: #DD0A73 !default;
+
+// Status
+$euiColorSuccess: #017D73 !default;
+$euiColorWarning: #F5A700 !default;
+$euiColorDanger: #BD271E !default;
+
+// Grays
+$euiColorEmptyShade: #FFF !default;
+$euiColorLightestShade: #F5F7FA !default;
+$euiColorLightShade: #D3DAE6 !default;
+$euiColorMediumShade: #98A2B3 !default;
+$euiColorDarkShade: #69707D !default;
+$euiColorDarkestShade: #343741 !default;
+$euiColorFullShade: #000 !default;
+
+// Backgrounds
+$euiPageBackgroundColor: tint($euiColorLightestShade, 50%) !default;
+$euiColorHighlight: #FFFCDD !default;
+
+// Every color below must be based mathematically on the set above and in a particular order.
+$euiTextColor: $euiColorDarkestShade !default;
+$euiTitleColor: shade($euiTextColor, 50%) !default;
+$euiTextSubduedColor: makeHighContrastColor($euiColorMediumShade) !default;
+$euiColorDisabled: tint($euiTextColor, 70%) !default;
+
+// Contrasty text variants
+$euiColorPrimaryText: makeHighContrastColor($euiColorPrimary) !default;
+$euiColorSuccessText: makeHighContrastColor($euiColorSuccess) !default;
+$euiColorAccentText: makeHighContrastColor($euiColorAccent) !default;
+$euiColorWarningText: makeHighContrastColor($euiColorWarning) !default;
+$euiColorDangerText: makeHighContrastColor($euiColorDanger) !default;
+$euiColorDisabledText: makeDisabledContrastColor($euiColorDisabled) !default;
+$euiLinkColor: $euiColorPrimaryText !default;
+
+// Charts
+$euiColorChartLines: shade($euiColorLightestShade, 3%) !default;
+$euiColorChartBand: $euiColorLightestShade !default;

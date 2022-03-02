@@ -1,0 +1,13 @@
+$euiControlBarBackground: lightOrDarkTheme($euiColorDarkestShade, $euiColorInk);
+$euiControlBarText: lighten(makeHighContrastColor($euiColorLightestShade, $euiControlBarBackground), 20%);
+$euiControlBarBorderColor: transparentize($euiColorGhost, .8);
+$euiControlBarInitialHeight: $euiSizeXXL;
+$euiControlBarMaxHeight: calc(100vh - #{$euiSize * 5});
+
+// Pixel heights ensure no blurriness caused by half pixel offsets
+$euiControlBarHeights: (
+  s: $euiSize * 15,
+  m: $euiSize * 30,
+  l: 100vh,
+);
+

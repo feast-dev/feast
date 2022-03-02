@@ -1,0 +1,33 @@
+.euiTitle {
+  + .euiTitle {
+    margin-top: $euiSizeL;
+  }
+}
+
+.euiTitle--uppercase {
+  text-transform: uppercase;
+}
+
+.euiTitle--xxxsmall {
+  @include euiTitle('xxxs');
+}
+
+.euiTitle--xxsmall {
+  @include euiTitle('xxs');
+}
+
+.euiTitle--xsmall {
+  @include euiTitle('xs');
+}
+
+.euiTitle--small {
+  @include euiTitle('s');
+}
+
+.euiTitle--medium {
+  @include euiTitle('m');
+}
+
+.euiTitle--large {
+  @include euiTitle('l');
+}

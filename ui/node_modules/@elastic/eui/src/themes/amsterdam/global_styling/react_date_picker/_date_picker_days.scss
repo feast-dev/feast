@@ -1,0 +1,133 @@
+/**
+ * LEGEND
+ * __day-name : Week headers like Su, Mo, etc
+ * __day : Number on the calendar
+ *       --highlighted
+ *       --disabled :               _this.isDisabled(),
+ *       --selected :               _this.isSameDay(_this.props.selected),
+    *       --range-start :            _this.isRangeStart(),
+    *       --range-end :              _this.isRangeEnd(),
+ *       --keyboard-selected :      _this.isKeyboardSelected(),
+ *       --in-range :               _this.isInRange(),
+    *       --in-selecting-range :     _this.isInSelectingRange(),
+    *       --selecting-range-start :  _this.isSelectingRangeStart(),
+    *       --selecting-range-end :    _this.isSelectingRangeEnd(),
+ *       --today :                  _this.isSameDay(now(_this.props.utcOffset)),
+ *       --weekend :                _this.isWeekend(),
+ *       --outside-month :          _this.isOutsideMonth()
+ */
+
+
+.react-datepicker__day-names,
+.react-datepicker__week {
+  white-space: nowrap;
+  display: flex;
+  justify-content: space-between;
+  flex-grow: 1;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day {
+  font-weight: $euiFontWeightMedium;
+  text-align: center;
+  color: $euiTitleColor;
+  display: inline-block;
+  width: $euiSizeXL;
+  line-height: $euiSizeXL;
+  border-radius: $euiBorderRadiusSmall;
+  margin: ($euiSizeXS / 2);
+}
+
+.react-datepicker__day-name {
+  color: $euiTextSubduedColor;
+}
+
+.react-datepicker__day {
+  cursor: pointer;
+  transition: transform $euiAnimSpeedExtraFast ease-in-out;
+
+  &:hover {
+    @include euiButtonDefaultStyle('primary', false);
+    text-decoration: underline;
+
+    @include euiCanAnimate {
+      // Setting the transform under can animate because its jarring
+      transform: scale(1.1);
+    }
+  }
+
+  &--today {
+    color: $euiColorPrimary;
+    font-weight: $euiFontWeightBold;
+  }
+
+  &--outside-month {
+    color: $euiTextSubduedColor;
+  }
+
+  &--highlighted,
+  &--highlighted:hover {
+    @include euiButtonDefaultStyle('success', false);
+  }
+
+  &--in-range,
+  &--in-range:hover {
+    @include euiButtonDefaultStyle('primary', false);
+  }
+
+  // Ranges use 2 side box-shadows that are the same as the button style
+  // to create a solid blue highlight, only rounded at the ends
+  &--in-range:not(&--selected):not(:hover),
+  &--in-range#{&}--disabled:not(.react-datepicker__day--selected),
+  &--in-range#{&}--disabled:not(.react-datepicker__day--selected):hover {
+    $backgroundColor: transparentize($euiColorPrimary, $euiButtonDefaultTransparency);
+
+    // sass-lint:disable-block indentation
+    box-shadow: -2px 0 $backgroundColor,
+                 2px 0 $backgroundColor;
+    border-radius: 0;
+
+    &:first-of-type {
+      box-shadow: 2px 0 $backgroundColor;
+    }
+
+    &:last-of-type {
+      box-shadow: -2px 0 $backgroundColor;
+    }
+  }
+
+  &--selected,
+  &--in-selecting-range,
+  &--selected:hover,
+  &--in-selecting-range:hover {
+    @include euiButtonFillStyle;
+  }
+
+  &--in-selecting-range:not(&--in-range) {
+    background-color: transparentize($euiColorDanger, .5); //todo
+  }
+
+  &--disabled,
+  &--disabled:hover {
+    $backgroundColorSimulated: mix($euiPageBackgroundColor, $euiButtonColorDisabled, 90%);
+    background-color: transparentize($euiButtonColorDisabled, .9);
+    color: makeDisabledContrastColor($euiButtonColorDisabled, $backgroundColorSimulated);
+    cursor: not-allowed;
+    text-decoration: none;
+    transform: none;
+
+    &.react-datepicker__day--in-range:not(.react-datepicker__day--selected),
+    &.react-datepicker__day--in-range:not(.react-datepicker__day--selected):hover {
+      $backgroundColorSimulated: mix($euiPageBackgroundColor, $euiColorPrimary, 80%);
+      color: makeDisabledContrastColor($backgroundColorSimulated, $backgroundColorSimulated);
+      background-color: transparentize($euiColorPrimary, $euiButtonDefaultTransparency);
+    }
+  }
+
+  &--disabled.react-datepicker__day--selected,
+  &--disabled.react-datepicker__day--selected:hover {
+    $backgroundColorSimulated: mix($euiPageBackgroundColor, $euiColorDanger, 80%);
+    color: makeDisabledContrastColor($euiColorDanger, $backgroundColorSimulated);
+    background-color: transparentize($euiColorDanger, $euiButtonDefaultTransparency);
+  }
+}

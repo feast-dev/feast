@@ -1,0 +1,41 @@
+/**
+ * 1. Allow EuiPanels to expand to fill the item.
+ * 2. IE11 hack forces inner content of flex items to respect a higher parent's width (mostly) and
+ *    not cause weird wrapping issues.
+ */
+.euiFlexItem {
+  @include internetExplorerOnly {
+    min-width: 1px; /* 2 */
+  }
+
+  display: flex; /* 1 */
+  flex-direction: column; /* 1 */
+
+  /*
+   * 1. We need the extra specificity here to override the FlexGroup > FlexItem styles.
+   * 2. FlexItem can be manually set to not grow if needed.
+   */
+  &.euiFlexItem--flexGrowZero { /* 1 */
+    flex-grow: 0; /* 2 */
+    flex-basis: auto; /* 2 */
+  }
+
+  @for $i from 1 through 10 {
+    &.euiFlexItem--flexGrow#{$i} {
+      flex-grow: $i;
+    }
+  }
+}
+
+// On mobile we force them to stack and act the same.
+@include euiBreakpoint('xs', 's') {
+  .euiFlexGroup--responsive > .euiFlexItem,
+  .euiFlexGrid--responsive > .euiFlexItem {
+    // sass-lint:disable-block no-important
+    width: 100% !important;
+    flex-basis: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: $euiSize !important;
+  }
+}

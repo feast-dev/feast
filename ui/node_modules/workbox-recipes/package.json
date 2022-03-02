@@ -1,0 +1,34 @@
+{
+  "name": "workbox-recipes",
+  "version": "6.4.2",
+  "license": "MIT",
+  "author": "Google's Web DevRel Team",
+  "description": "A service worker helper library to manage common request and caching patterns",
+  "repository": "googlechrome/workbox",
+  "bugs": "https://github.com/googlechrome/workbox/issues",
+  "homepage": "https://github.com/GoogleChrome/workbox",
+  "keywords": [
+    "workbox",
+    "workboxjs",
+    "service worker",
+    "sw",
+    "router",
+    "routing"
+  ],
+  "workbox": {
+    "browserNamespace": "workbox.recipes",
+    "packageType": "sw"
+  },
+  "main": "index.js",
+  "module": "index.mjs",
+  "types": "index.d.ts",
+  "dependencies": {
+    "workbox-cacheable-response": "6.4.2",
+    "workbox-core": "6.4.2",
+    "workbox-expiration": "6.4.2",
+    "workbox-precaching": "6.4.2",
+    "workbox-routing": "6.4.2",
+    "workbox-strategies": "6.4.2"
+  },
+  "gitHead": "9fae1320327a3a75bf71df9a76708978bd252428"
+}

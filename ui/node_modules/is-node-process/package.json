@@ -1,0 +1,31 @@
+{
+  "name": "is-node-process",
+  "description": "Reliably determines if the code is running in Node.js",
+  "version": "1.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "browser": "open test/browser.html",
+    "electron": "electron test/fixtures/electron.js",
+    "test": "jest",
+    "test:react-native": "cd test/fixtures/react-native && yarn test",
+    "build": "rollup -c rollup.config.ts",
+    "prepublishOnly": "yarn build && yarn test"
+  },
+  "files": [
+    "lib"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^13.0.2",
+    "@types/jest": "^26.0.24",
+    "electron": "^13.1.7",
+    "jest": "^27.0.6",
+    "playwright": "^1.12.3",
+    "rollup": "^2.53.2",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "spectron": "^15.0.0",
+    "ts-jest": "^27.0.3",
+    "typescript": "^4.3.5"
+  }
+}

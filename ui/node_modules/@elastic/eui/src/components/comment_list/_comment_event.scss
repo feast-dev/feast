@@ -1,0 +1,77 @@
+@include euiPanel($selector: '.euiCommentEvent--regular');
+
+.euiCommentEvent {
+  overflow: hidden;
+}
+
+.euiCommentEvent__header {
+  line-height: $euiLineHeight;
+  display: flex;
+  align-items: center;
+}
+
+.euiCommentEvent__headerData {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+
+  > div {
+    padding-right: $euiSizeXS;
+  }
+}
+
+.euiCommentEvent__headerUsername {
+  font-weight: $euiFontWeightSemiBold;
+}
+
+.euiCommentEvent--regular {
+  @include euiSlightShadow;
+  border-radius: $euiBorderRadius;
+  border: $euiBorderThin;
+
+  .euiCommentEvent__header {
+    min-height: $euiSizeXXL;
+    background-color: $euiColorLightestShade;
+    border-bottom: $euiBorderThin;
+    padding: $euiSizeXS $euiSizeS;
+
+    /**
+     * Fix for IE when using align-items:center in an item that has min-height
+        (https://github.com/philipwalton/flexbugs/issues/231#issuecomment-362790042)
+     */
+    // sass-lint:disable-block mixins-before-declarations
+    @include internetExplorerOnly {
+      &::after {
+        content: '';
+        // Calculates the minimum height based on full header's min-height minus the vertical padding
+        min-height: $euiSizeXXL - $euiSizeS;
+        font-size: 0;
+        display: block;
+      }
+    }
+  }
+
+  .euiCommentEvent__headerData {
+    // Push the actions far right
+    flex-grow: 1;
+  }
+
+  .euiCommentEvent__body {
+    padding: $euiSizeS;
+  }
+}
+
+.euiCommentEvent--update {
+  .euiCommentEvent__header {
+    justify-content: flex-start;
+    padding: $euiSizeXS 0;
+  }
+
+  .euiCommentEvent__headerData {
+    padding-right: $euiSizeS;
+  }
+
+  .euiCommentEvent__body {
+    padding-top: $euiSizeXS;
+  }
+}

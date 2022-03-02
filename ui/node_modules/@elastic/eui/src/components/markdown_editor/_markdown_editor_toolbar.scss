@@ -1,0 +1,29 @@
+.euiMarkdownEditorToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  background: $euiColorLightestShade;
+  border: $euiBorderThin;
+  border-color: $euiColorLightShade;
+  border-bottom: none;
+  padding: $euiSizeXS;
+
+  &__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 1;
+    align-items: center;
+
+    > * {
+      margin-right: $euiSizeXS;
+    }
+  }
+
+  &__divider {
+    content: '';
+    height: $euiSizeL;
+    display: block;
+    margin-left: $euiSizeXS;
+    padding-right: $euiSizeXS;
+    border-left: 1px solid $euiColorLightShade;
+  }
+}

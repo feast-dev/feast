@@ -1,0 +1,44 @@
+.euiHue {
+  position: relative;
+  height: $euiSizeM;
+  border-radius: $euiSizeM;
+  margin: $euiSizeS 0;
+
+  &::before,
+  &::after {
+    display: none;
+  }
+
+  &__range {
+    @include euiRangeThumbPerBrowser {
+      // sass-lint:disable-block no-color-literals
+      border: 3px solid $euiRangeThumbBorderColor;
+      box-shadow: 0 2px 2px -1px rgba($euiShadowColor, .2),
+      0 1px 5px -2px rgba($euiShadowColor, .2);
+      background-color: inherit;
+    }
+
+    top: - $euiSizeM / 2;
+
+    &:focus {
+      @include euiRangeThumbPerBrowser {
+        @include euiRangeThumbFocusBoxShadow;
+        border: 3px solid $euiRangeThumbBorderColor;
+      }
+
+      outline: none;
+    }
+
+    &:focus:not(:focus-visible) {
+      @include euiRangeThumbPerBrowser {
+        // sass-lint:disable-block no-color-literals
+        box-shadow: 0 2px 2px -1px rgba($euiShadowColor, .2),
+        0 1px 5px -2px rgba($euiShadowColor, .2);
+      }
+    }
+
+    &:focus:focus-visible {
+      outline: none;
+    }
+  }
+}

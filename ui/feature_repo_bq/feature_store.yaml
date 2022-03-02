@@ -1,0 +1,14 @@
+registry: gs://feast-demo-staging/demo-dbt-repo/registry.db
+project: dbt_demo
+provider: gcp
+online_store:
+  type: sqlite
+offline_store:
+    type: bigquery
+    dataset: "danny_test_dataset"
+    project_id: "kf-feast"
+flags:
+  alpha_features: true
+  on_demand_transforms: true
+
+

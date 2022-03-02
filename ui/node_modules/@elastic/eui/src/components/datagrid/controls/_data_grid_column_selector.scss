@@ -1,0 +1,19 @@
+.euiDataGridColumnSelector__item {
+  padding: $euiSizeXS;
+
+  &-isDragging {
+    @include euiBottomShadow;
+    background: $euiColorEmptyShade;
+  }
+}
+
+// Because we only want this to scroll vertically, we need to offset inner euiFlexGroup negative padding by adding padding
+.euiDataGridColumnSelector__columnList {
+  @include euiYScrollWithShadows;
+  max-height: 400px;
+  margin: 0 (-$euiSizeS);
+}
+
+.euiDataGridColumnSelector__itemLabel {
+  @include euiFontSizeXS;
+}

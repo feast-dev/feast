@@ -1,0 +1,65 @@
+.euiContextMenuItem {
+  display: block;
+  padding: $euiSizeM;
+  width: 100%;
+  text-align: left;
+  color: $euiTextColor;
+  outline-offset: -$euiFocusRingSize;
+
+  &:hover,
+  &:focus {
+    text-decoration: underline;
+  }
+
+  &:focus {
+    background-color: $euiFocusBackgroundColor;
+  }
+
+  &.euiContextMenuItem-isDisabled {
+    color: $euiButtonColorDisabledText;
+    cursor: default;
+
+    &:hover,
+    &:focus {
+      text-decoration: none;
+    }
+  }
+
+  &--small {
+    padding: ($euiSizeS * .75) $euiSizeS;
+
+    .euiContextMenuItem__text {
+      @include euiFontSizeS;
+    }
+  }
+}
+
+.euiContextMenuItem__inner {
+  display: flex;
+}
+
+.euiContextMenuItem__text {
+  flex-grow: 1;
+  overflow: hidden; // allows for text truncation
+}
+
+.euiContextMenuItem__arrow {
+  align-self: flex-end;
+}
+
+.euiContextMenu__itemLayout {
+  display: flex;
+  align-items: center;
+
+  &.euiContextMenu__itemLayout--bottom {
+    align-items: flex-end;
+  }
+
+  &.euiContextMenu__itemLayout--top {
+    align-items: flex-start;
+  }
+
+  .euiContextMenu__icon {
+    flex-shrink: 0;
+  }
+}

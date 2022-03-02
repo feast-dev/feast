@@ -1,0 +1,15 @@
+.euiPageHeader .euiPageHeaderContent {
+  width: 100%;
+}
+
+.euiPageHeaderContent__titleIcon {
+  top: -$euiSizeXS;
+  position: relative;
+  margin-right: $euiSize;
+}
+
+@include euiBreakpoint('m', 'l', 'xl') {
+  .euiPageHeaderContent__rightSideItems {
+    flex-direction: row-reverse;
+  }
+}

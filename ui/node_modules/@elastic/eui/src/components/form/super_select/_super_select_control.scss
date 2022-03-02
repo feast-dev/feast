@@ -1,0 +1,36 @@
+/**
+ * 1. Leave room for caret.
+ * 2. Ensure the descenders don't get cut off
+ * 3. Makes sure the height is correct when there's no selection
+ */
+
+.euiSuperSelectControl {
+  @include euiFormControlStyle;
+  @include euiFormControlWithIcon($side: 'right'); /* 1 */
+  @include euiFormControlIsLoading($isNextToIcon: true);
+
+  display: block; /* 3 */
+  text-align: left;
+  line-height: $euiFormControlHeight; /* 2 */
+  padding-top: 0; /* 2 */
+  padding-bottom: 0; /* 2 */
+  // Truncate the text
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &-isInvalid {
+    @include euiFormControlInvalidStyle;
+  }
+
+  &--compressed {
+    @include euiFormControlWithIcon($side: 'right', $compressed: true); /* 1 */
+    line-height: $euiFormControlCompressedHeight; /* 2 */
+    padding-top: 0; /* 2 */
+    padding-bottom: 0; /* 2 */
+  }
+
+  &.euiSuperSelect--isOpen__button { // since this is a button, we also want the visual indicator of active when options are shown
+    @include euiFormControlFocusStyle;
+  }
+}

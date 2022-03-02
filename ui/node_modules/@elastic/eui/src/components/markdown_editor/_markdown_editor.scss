@@ -1,0 +1,21 @@
+.euiMarkdownEditor {
+  &--isPreviewing {
+    .euiMarkdownEditor__toggleContainer {
+      display: none;
+    }
+  }
+
+  &--fullHeight {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    .euiMarkdownEditorTextArea {
+      resize: none;
+    }
+
+    .euiMarkdownEditorDropZone {
+      height: 100%;
+    }
+  }
+}

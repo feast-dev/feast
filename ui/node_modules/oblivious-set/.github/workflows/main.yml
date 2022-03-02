@@ -1,0 +1,16 @@
+name: CI
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 12.11.0
+        uses: actions/setup-node@v2
+        with:
+          node-version: 12.11.0
+      - run: npm install
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test

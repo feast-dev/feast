@@ -1,0 +1,27 @@
+.euiPopoverFooter {
+  @include euiPopoverFooter;
+}
+
+.euiPopoverFooter--paddingNone {
+  padding: 0;
+}
+
+@each $modifier, $amount in $euiPanelPaddingModifiers {
+  .euiPopoverFooter--#{$modifier} {
+    padding: $amount;
+  }
+}
+
+// If the popover's containing panel has padding applied,
+// ensure the title expands to cover that padding and
+// take on the same amount of padding horizontally
+
+@each $modifier, $amount in $euiPanelPaddingModifiers {
+  .euiPopover__panel.euiPanel--#{$modifier} .euiPopoverFooter {
+    margin: $amount ($amount * -1) ($amount * -1);
+
+    &:not([class*='euiPopoverFooter--padding']) {
+      padding: $euiSizeM $amount;
+    }
+  }
+}

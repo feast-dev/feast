@@ -1,0 +1,22 @@
+.euiRangeThumb {
+  @include euiRangeThumbBoxShadow;
+  @include euiRangeThumbBorder;
+  background-color: $euiRangeThumbBackgroundColor;
+  z-index: 2; // higher than .euiRangeHighlight that is 1
+  pointer-events: none;
+
+  &--hasTicks {
+    top: 0;
+    margin-top: 0;
+  }
+
+  &:focus {
+    @include euiRangeThumbFocus;
+    outline: none;
+  }
+
+  &:focus:focus-visible {
+    outline: none;
+  }
+}
+

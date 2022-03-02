@@ -1,0 +1,174 @@
+// sass-lint:disable no-vendor-prefixes
+// sass-lint:disable no-important
+
+@function fontSizeToRemOrEm($size, $sizingMethod: 'rem') {
+  @if ($sizingMethod == 'rem') {
+    @return #{$size / $euiFontSize}rem;
+  } @else if ($sizingMethod == 'em') {
+    @return #{$size / $euiFontSize}em;
+  }
+}
+
+// It can also be applied to calculate paddings
+@function marginToRemOrEm($elementSize, $elementFontSize, $sizingMethod: 'rem') {
+  @if ($sizingMethod == 'rem') {
+    @return #{$elementSize / $euiFontSize}rem;
+  } @else if ($sizingMethod == 'em') {
+    @return #{$elementSize / $elementFontSize}em;
+  }
+}
+
+// Spit out rem and px
+@mixin fontSize($size: $euiFontSize, $sizingMethod: 'rem') {
+  @if ($sizingMethod == 'rem') {
+    font-size: $size;
+    font-size: fontSizeToRemOrEm($size, 'rem');
+  } @else if ($sizingMethod == 'em') {
+    font-size: fontSizeToRemOrEm($size, 'em');
+  }
+}
+
+@mixin lineHeightFromBaseline($multiplier: 3) {
+  line-height: lineHeightFromBaseline($multiplier);
+}
+
+// Some mixins that help us deal with browser scaling of text more consistently.
+// Essentially, fonts across eui should scale against the root html element, not
+// against parent inheritance.
+
+// Our base fonts
+
+@mixin euiFont {
+  font-family: $euiFontFamily;
+  font-weight: $euiFontWeightRegular;
+  letter-spacing: -.005em;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  font-kerning: normal;
+}
+
+@mixin euiCodeFont {
+  font-family: $euiCodeFontFamily;
+  letter-spacing: normal;
+}
+
+@mixin euiText {
+  color: $euiTextColor;
+  font-weight: $euiFontWeightRegular;
+}
+
+@mixin euiTitle($size: 'm') {
+  @include euiTextBreakWord;
+  color: $euiTitleColor;
+
+  @if (map-has-key($euiTitles, $size)) {
+    @each $property, $value in map-get($euiTitles, $size) {
+      @if ($property == 'font-size') {
+        @include fontSize($value);
+      } @else {
+        #{$property}: $value;
+      }
+    }
+  } @else {
+    @include fontSize($size);
+    @include lineHeightFromBaseline(3);
+  }
+}
+
+// Font sizing extends, using rem mixin
+
+@mixin euiFontSizeXS {
+  @include fontSize($euiFontSizeXS);
+  line-height: $euiLineHeight;
+}
+
+@mixin euiFontSizeS {
+  @include fontSize($euiFontSizeS);
+  line-height: $euiLineHeight;
+}
+
+@mixin euiFontSize {
+  @include fontSize($euiFontSize);
+  line-height: $euiLineHeight;
+}
+
+@mixin euiFontSizeM {
+  @include fontSize($euiFontSizeM);
+  line-height: $euiLineHeight;
+}
+
+@mixin euiFontSizeL {
+  @include fontSize($euiFontSizeL);
+  line-height: $euiLineHeight;
+}
+
+@mixin euiFontSizeXL {
+  @each $property, $value in map-get($euiTitles, 'm') {
+    @if ($property == 'font-size') {
+      @include fontSize($value);
+    } @else {
+      #{$property}: $value;
+    }
+  }
+  line-height: 1.25;
+}
+
+@mixin euiFontSizeXXL {
+  @each $property, $value in map-get($euiTitles, 'l') {
+    @if ($property == 'font-size') {
+      @include fontSize($value);
+    } @else {
+      #{$property}: $value;
+    }
+  }
+  line-height: 1.25;
+}
+
+@mixin euiTextBreakWord {
+  // https://css-tricks.com/snippets/css/prevent-long-urls-from-breaking-out-of-container/
+  overflow-wrap: break-word !important; // makes sure the long string will wrap and not bust out of the container
+  word-wrap: break-word !important; // spec says, they are literally just alternate names for each other but some browsers support one and not the other
+  word-break: break-word; // IE doesn't understand but that's ok
+}
+
+// Text truncation
+//
+// Prevent text from wrapping onto multiple lines, and truncate with an
+// ellipsis.
+//
+// 1. Ensure that the node has a maximum width after which truncation can
+//    occur.
+// 2. Fix for IE 8/9 if `word-wrap: break-word` is in effect on ancestor
+//    nodes.
+
+@mixin euiTextTruncate {
+  // sass-lint:disable-block no-important
+  max-width: 100%; // 1
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  word-wrap: normal !important; // 2
+}
+
+@mixin euiNumberFormat {
+  font-feature-settings: $euiFontFeatureSettings, 'tnum' 1; // Fixed-width numbers for tabular data
+}
+
+
+// Text weight shifting
+//
+// When changing the font-weight based the state of the component
+// this mixin will ensure that the sizing is dependent on the boldest
+// weight so it doesn't shifter sibling content.
+
+@mixin euiTextShift($fontWeight: $euiFontWeightBold, $attr: 'data-text') {
+  &::after {
+    display: block;
+    content: attr(#{$attr});
+    font-weight: $fontWeight;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+  }
+}
+

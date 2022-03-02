@@ -1,0 +1,51 @@
+/*
+ * 1. Fix for Safari to ensure that it renders like a normal text input
+ *    and doesn't add extra spacing around text
+ * 2. Remove the X clear button from input type search in Chrome and IE
+*/
+
+.euiFieldSearch {
+  @include euiFormControlStyle;
+  @include euiFormControlWithIcon($isIconOptional: false);
+  @include euiFormControlIsLoading;
+
+  // sass-lint:disable-block no-vendor-prefixes
+  -webkit-appearance: textfield; /* 1 */
+
+  &::-webkit-search-decoration,
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;  /* 1, 2 */
+  }
+
+  &::-ms-clear {
+    display: none; /* 2 */
+  }
+
+  &.euiFieldSearch-isClearable {
+    @include euiFormControlLayoutPadding(1)
+  }
+
+  &.euiFieldSearch-isLoading {
+    @include euiFormControlLayoutPadding(1);
+  }
+
+  &.euiFieldSearch-isLoading.euiFieldSearch-isClearable {
+    @include euiFormControlLayoutPadding(2);
+  }
+
+  &.euiFieldSearch--compressed {
+    @include euiFormControlWithIcon($isIconOptional: false, $side: 'left', $compressed: true);
+
+    &.euiFieldSearch-isClearable {
+      @include euiFormControlLayoutPadding(1, $compressed: true);
+    }
+
+    &.euiFieldSearch-isLoading {
+      @include euiFormControlLayoutPadding(1, $compressed: true);
+    }
+
+    &.euiFieldSearch-isLoading.euiFieldSearch-isClearable {
+      @include euiFormControlLayoutPadding(2, $compressed: true);
+    }
+  }
+}

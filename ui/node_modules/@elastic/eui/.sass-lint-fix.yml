@@ -1,0 +1,12 @@
+files:
+  include:
+    - 'src/**/*.s+(a|c)ss'
+    - 'src-docs/**/*.s+(a|c)ss'
+syntax:
+    include:
+      - scss
+      - sass
+resolvers:
+  hex-notation: 1
+options:
+  optOut: false

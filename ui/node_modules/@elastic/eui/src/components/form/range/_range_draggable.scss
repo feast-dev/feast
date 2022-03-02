@@ -1,0 +1,35 @@
+.euiRangeDraggable {
+  height: $euiFormControlHeight / 2;
+  position: absolute;
+  top: $euiFormControlHeight / 4;
+  pointer-events: none;
+  z-index: 2;
+
+  &.euiRangeDraggable--compressed {
+    height: $euiFormControlCompressedHeight / 2;
+    top: $euiFormControlCompressedHeight / 4;
+  }
+
+  &.euiRangeDraggable--hasTicks {
+    top: 0;
+  }
+
+  .euiRangeDraggle__inner {
+    position: absolute;
+    left: $euiRangeThumbWidth;
+    right: $euiRangeThumbWidth;
+    top: 0;
+    bottom: 0;
+  }
+
+  &:not(.euiRangeDraggable--disabled) {
+    .euiRangeDraggle__inner {
+      cursor: grab;
+      pointer-events: all;
+
+      &:active {
+        cursor: grabbing;
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+.euiHorizontalRule {
+  border: none;
+  height: 1px;
+  background-color: $euiBorderColor;
+  flex-shrink: 0; // Ensure when used in flex group, it retains its size
+  flex-grow: 0; // Ensure when used in flex group, it retains its size
+
+  &.euiHorizontalRule--full {
+    width: 100%;
+  }
+
+  &.euiHorizontalRule--half {
+    width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  &.euiHorizontalRule--quarter {
+    width: 25%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+$ruleMargins: (
+  marginXSmall: $euiSizeS,
+  marginSmall: $euiSizeM,
+  marginMedium: $euiSize,
+  marginLarge: $euiSizeL,
+  marginXLarge: $euiSizeXL,
+  marginXXLarge: $euiSizeXXL,
+);
+
+@each $name, $size in $ruleMargins {
+  .euiHorizontalRule--#{$name} {
+    margin: $size 0;
+  }
+}

@@ -1,0 +1,109 @@
+/**
+ * 1. Not always needed, but fixes an IE11 issue when flex-groups are nested under display: flex elements.
+ * 2. IE requires a unit to grow.
+ */
+
+.euiFlexGroup {
+  display: flex;
+  align-items: stretch;
+  flex-grow: 1; /* 1 */
+
+  .euiFlexItem {
+    @include internetExplorerOnly {
+      min-width: 1px;
+    }
+
+    flex-grow: 1;
+    flex-basis: 0%; /* 2 */
+  }
+}
+
+$gutterTypes: (
+  gutterExtraSmall: $euiSizeXS,
+  gutterSmall: $euiSizeS,
+  gutterMedium: $euiSize,
+  gutterLarge: $euiSizeL,
+  gutterExtraLarge: $euiSizeXXL,
+);
+
+// Gutter Sizes
+@each $gutterName, $gutterSize in $gutterTypes {
+  $halfGutterSize: $gutterSize * .5;
+
+  .euiFlexGroup--#{$gutterName} {
+    margin: -$halfGutterSize;
+
+    & > .euiFlexItem {
+      margin: $halfGutterSize;
+    }
+  }
+}
+
+// Justify the grid
+.euiFlexGroup--justifyContentSpaceEvenly {
+  justify-content: space-evenly;
+}
+
+.euiFlexGroup--justifyContentSpaceBetween {
+  justify-content: space-between;
+}
+
+.euiFlexGroup--justifyContentSpaceAround {
+  justify-content: space-around;
+}
+
+.euiFlexGroup--justifyContentCenter {
+  justify-content: center;
+}
+
+.euiFlexGroup--justifyContentFlexEnd {
+  justify-content: flex-end;
+}
+
+// Align Items
+.euiFlexGroup--alignItemsFlexStart {
+  align-items: flex-start;
+}
+
+.euiFlexGroup--alignItemsCenter {
+  align-items: center;
+}
+
+.euiFlexGroup--alignItemsFlexEnd {
+  align-items: flex-end;
+}
+
+.euiFlexGroup--alignItemsBaseline {
+  align-items: baseline;
+}
+
+// Direction
+
+.euiFlexGroup--directionRow {
+  flex-direction: row;
+}
+
+.euiFlexGroup--directionRowReverse {
+  flex-direction: row-reverse;
+}
+
+.euiFlexGroup--directionColumn {
+  flex-direction: column;
+}
+
+.euiFlexGroup--directionColumnReverse {
+  flex-direction: column-reverse;
+}
+
+// Wrap
+.euiFlexGroup--wrap {
+  flex-wrap: wrap;
+}
+
+@include euiBreakpoint('xs', 's') {
+  .euiFlexGroup--responsive {
+    flex-wrap: wrap;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}

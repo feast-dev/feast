@@ -1,0 +1,11 @@
+$euiZDataGrid: $euiZHeader - 1;
+$euiZHeaderBelowDataGrid: $euiZHeader - 2;
+$euiZDataGridCellPopover: $euiZHeader; // Same z-index as EuiFlyout mask overlays - cell popovers should be under both modal and flyout overlays
+
+$euiDataGridColumnResizerWidth: 3px; // Odd number because it straddles a border
+$euiDataGridPopoverMaxHeight: $euiSize * 25;
+
+$euiDataGridCellPaddingS: $euiSizeXS;
+$euiDataGridCellPaddingM: $euiSizeM / 2;
+$euiDataGridCellPaddingL: $euiSizeS;
+$euiDataGridVerticalBorder: solid 1px tintOrShade($euiBorderColor, 60%, 30%);

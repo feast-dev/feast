@@ -1,0 +1,29 @@
+// Expand height of list via flex box
+.euiSelectableList {
+  &:focus-within {
+    @include euiFocusRing;
+  }
+}
+
+.euiSelectableList-fullHeight {
+  flex-grow: 1;
+}
+
+.euiSelectableList-bordered {
+  overflow: hidden;
+  border: $euiBorderThin;
+  border-radius: $euiBorderRadius;
+}
+
+.euiSelectableList__list {
+  @include euiOverflowShadow;
+  @include euiScrollBar;
+}
+
+.euiSelectableList__groupLabel {
+  @include euiTitle('xxxs');
+  display: flex;
+  align-items: center;
+  border-bottom: $euiSelectableListItemBorder;
+  padding: $euiSelectableListItemPadding;
+}

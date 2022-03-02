@@ -1,0 +1,5 @@
+@mixin euiPopoverTitle($size: null) {
+  @include euiTitle('xxs');
+  padding: $euiSizeM;
+  border-bottom: $euiBorderThin;
+}

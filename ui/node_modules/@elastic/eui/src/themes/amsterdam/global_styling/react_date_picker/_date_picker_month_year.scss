@@ -1,0 +1,148 @@
+/**
+ * LEGEND
+ * __header__dropdown : Contains the month and year, but affords for the navigational arrows
+
+ *   __month-dropdown-container: Contains both static/selected control and the dropdown
+ *     __month-read-view: The static control
+ *     __month-dropdown: The absolutely positioned list
+ *       __month-option: Each option in the list
+ *                       --selected_month
+ *                       --selected
+ *                       --preselected
+
+ *   __year-dropdown-container: Contains both static/selected control and the dropdown
+ *     __year-read-view: The static control
+ *     __year-dropdown: The absolutely positioned list
+ *       __year-option: Each option in the list
+ *                       --selected_year
+ *                       --selected
+ *                       --preselected
+ */
+
+// Absolutely positioned across the *whole* top of the calendar
+.react-datepicker__header__dropdown {
+  padding: $euiDatePickerGap * 2;
+  display: flex;
+  // sass-lint:disable-block no-misspelled-properties
+  gap: $euiDatePickerGap;
+  position: absolute;
+  top: 0;
+  left: $euiDatePickerButtonSize + $euiDatePickerGap;
+  right: $euiDatePickerButtonSize + $euiDatePickerGap;
+  justify-content: center;
+}
+
+/**
+ * Make the top selectors look like select inputs
+ */
+.react-datepicker__year-read-view,
+.react-datepicker__month-read-view,
+.react-datepicker__month-year-read-view {
+  @include euiFormControlStyle($borderOnly: false, $includeStates: false, $includeSizes: false);
+  @include euiFormControlStyleCompressed($borderOnly: true, $includeStates: false);
+  height: $euiFormControlCompressedHeight;
+  font-weight: $euiFontWeightMedium;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+
+  &:hover {
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  &--down-arrow {
+    @include datePickerCaret;
+    right: $euiSizeS;
+    height: $euiSizeM;
+    width: $euiSizeM;
+    display: inline-block;
+    background-size: cover;
+  }
+
+  &--selected-month,
+  &--selected-year {
+    @include euiTextTruncate;
+  }
+}
+
+.react-datepicker__year-dropdown-container,
+.react-datepicker__month-dropdown-container {
+  position: relative;
+  display: inline-block;
+  flex-grow: 1;
+  max-width: $euiFormMaxWidth;
+}
+
+// Using the unnamed div for the years dropdown because we want to be able to control the
+// flex direction of the years but you can't put overflow on a flex group
+.react-datepicker__year-dropdown-container > div:not([class*='read-view']),
+.react-datepicker__month-dropdown {
+  @include euiYScroll;
+  @include euiBottomShadowSmall;
+  height: auto;
+  max-height: 250px; // Set an explicit height, something at least smaller than the overall height
+  background-color: $euiColorEmptyShade;
+  position: absolute;
+  z-index: 1;
+  border-radius: $euiBorderRadius;
+  min-width: $euiDatePickerMinControlWidth;
+  width: 100%;
+}
+
+.react-datepicker__year-dropdown-container > div:not([class*='read-view']) {
+  // Reverse the direction of the years so that earlier is first
+  .react-datepicker__year-dropdown {
+    padding: $euiSizeXS;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+}
+
+.react-datepicker__month-dropdown-container {
+  flex-grow: 2;
+
+  .react-datepicker__month-dropdown {
+    padding: $euiSizeXS;
+    min-width: $euiDatePickerMaxControlWidth;
+  }
+}
+
+.react-datepicker__year-option,
+.react-datepicker__month-option,
+.react-datepicker__month-year-option {
+  padding: 0 $euiSizeS;
+  height: $euiButtonHeightXSmall;
+  line-height: $euiButtonHeightXSmall;
+  border-radius: $euiBorderRadiusSmall;
+  font-size: $euiFontSizeS;
+  margin:  $euiDatePickerGap 0;
+  cursor: pointer;
+
+  &:hover,
+  &:focus {
+    text-decoration: underline;
+  }
+
+  &--selected {
+    display: none;
+  }
+}
+
+.react-datepicker__year-option--preselected,
+.react-datepicker__month-option--preselected {
+  &,
+  &:hover {
+    background: $euiFocusBackgroundColor;
+  }
+}
+
+.react-datepicker__year-option--selected_year,
+.react-datepicker__month-option--selected_month {
+  &,
+  &:hover {
+    @include euiButtonFillStyle;
+  }
+}

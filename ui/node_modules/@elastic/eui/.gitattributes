@@ -1,0 +1,6 @@
+# force unix-style LF (\n) line endings for source files
+# this is necessary for prettier's linting and sass-vars-to-js-loader
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.scss text eol=lf

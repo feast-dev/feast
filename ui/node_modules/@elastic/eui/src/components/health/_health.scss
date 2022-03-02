@@ -1,0 +1,19 @@
+.euiHealth {
+  display: inline-block;
+}
+
+.euiHealth--textSizeXS {
+  @include euiFontSizeXS;
+}
+
+.euiHealth--textSizeS {
+  @include euiFontSizeS;
+}
+
+.euiHealth--textSizeM {
+  @include euiFontSizeM;
+}
+
+.euiHealth--textSizeInherit {
+  font-size: inherit;
+}

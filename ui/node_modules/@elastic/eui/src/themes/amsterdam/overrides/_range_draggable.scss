@@ -1,0 +1,25 @@
+.euiRangeDraggable {
+  &:focus {
+    outline: none;
+
+    ~ .euiRangeThumb {
+      @include euiRangeThumbFocus;
+    }
+  }
+
+  // in Chrome/FF/Edge we don't want to focus on click
+  &:focus:not(:focus-visible)  {
+    ~ .euiRangeThumb {
+      @include euiRangeThumbBoxShadow;
+      outline: none;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    ~ .euiRangeThumb {
+      @include euiRangeThumbFocus;
+    }
+  }
+}

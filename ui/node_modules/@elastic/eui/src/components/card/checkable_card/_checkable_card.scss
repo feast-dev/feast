@@ -1,0 +1,29 @@
+$euiCheckableCardPadding: map-get($euiPanelPaddingModifiers, 'paddingMedium');
+
+.euiCheckableCard {
+  transition: border-color $euiAnimSpeedNormal ease-in;
+
+  &:not(.euiCheckableCard-isDisabled) {
+    &.euiCheckableCard-isChecked {
+      border-color: $euiColorPrimary;
+    }
+  }
+}
+
+.euiCheckableCard__label {
+  cursor: pointer;
+  // Expand the label to cover the whole panel for easier click target
+  display: block;
+  width: calc(100% + #{$euiCheckableCardPadding * 2});
+  padding: $euiCheckableCardPadding;
+  margin: -$euiCheckableCardPadding;
+}
+
+.euiCheckableCard__label-isDisabled {
+  color: $euiFormControlDisabledColor;
+  cursor: not-allowed;
+}
+
+.euiCheckableCard__children {
+  margin-top: $euiSize;
+}

@@ -1,0 +1,72 @@
+// Visualization colors
+
+// Maps allow for easier JSON usage
+// Use map_merge($euiColorVisColors, $yourMap) to change individual colors after importing ths file
+// The `behindText` variant is a direct copy of the hex output by the JS euiPaletteColorBlindBehindText() function
+$euiPaletteColorBlind: (
+  euiColorVis0: (
+    graphic: #54B399,
+    behindText: #6DCCB1,
+  ),
+  euiColorVis1: (
+    graphic: #6092C0,
+    behindText: #79AAD9,
+  ),
+  euiColorVis2: (
+    graphic: #D36086,
+    behindText: #EE789D,
+  ),
+  euiColorVis3: (
+    graphic: #9170B8,
+    behindText: #A987D1,
+  ),
+  euiColorVis4: (
+    graphic: #CA8EAE,
+    behindText: #E4A6C7,
+  ),
+  euiColorVis5: (
+    graphic: #D6BF57,
+    behindText: #F1D86F,
+  ),
+  euiColorVis6: (
+    graphic: #B9A888,
+    behindText: #D2C0A0,
+  ),
+  euiColorVis7: (
+    graphic: #DA8B45,
+    behindText: #F5A35C,
+  ),
+  euiColorVis8: (
+    graphic: #AA6556,
+    behindText: #C47C6C,
+  ),
+  euiColorVis9: (
+    graphic: #E7664C,
+    behindText: #FF7E62,
+  )
+) !default;
+
+$euiPaletteColorBlindKeys: map-keys($euiPaletteColorBlind);
+
+$euiColorVis0: map-get(map-get($euiPaletteColorBlind, 'euiColorVis0'), 'graphic') !default;
+$euiColorVis1: map-get(map-get($euiPaletteColorBlind, 'euiColorVis1'), 'graphic') !default;
+$euiColorVis2: map-get(map-get($euiPaletteColorBlind, 'euiColorVis2'), 'graphic') !default;
+$euiColorVis3: map-get(map-get($euiPaletteColorBlind, 'euiColorVis3'), 'graphic') !default;
+$euiColorVis4: map-get(map-get($euiPaletteColorBlind, 'euiColorVis4'), 'graphic') !default;
+$euiColorVis5: map-get(map-get($euiPaletteColorBlind, 'euiColorVis5'), 'graphic') !default;
+$euiColorVis6: map-get(map-get($euiPaletteColorBlind, 'euiColorVis6'), 'graphic') !default;
+$euiColorVis7: map-get(map-get($euiPaletteColorBlind, 'euiColorVis7'), 'graphic') !default;
+$euiColorVis8: map-get(map-get($euiPaletteColorBlind, 'euiColorVis8'), 'graphic') !default;
+$euiColorVis9: map-get(map-get($euiPaletteColorBlind, 'euiColorVis9'), 'graphic') !default;
+
+// sass-lint:disable-block variable-name-format
+$euiColorVis0_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis0'), 'behindText') !default;
+$euiColorVis1_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis1'), 'behindText') !default;
+$euiColorVis2_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis2'), 'behindText') !default;
+$euiColorVis3_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis3'), 'behindText') !default;
+$euiColorVis4_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis4'), 'behindText') !default;
+$euiColorVis5_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis5'), 'behindText') !default;
+$euiColorVis6_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis6'), 'behindText') !default;
+$euiColorVis7_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis7'), 'behindText') !default;
+$euiColorVis8_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis8'), 'behindText') !default;
+$euiColorVis9_behindText: map-get(map-get($euiPaletteColorBlind, 'euiColorVis9'), 'behindText') !default;

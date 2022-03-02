@@ -1,0 +1,110 @@
+.euiRangeTrack {
+  &::after {
+    content: '';
+    display: block;
+    background: $euiRangeTrackColor;
+    border: $euiRangeTrackBorderWidth solid $euiRangeTrackBorderColor;
+    border-radius: $euiRangeTrackRadius;
+    position: absolute;
+    left: 0;
+  }
+
+  &:not(.euiRangeTrack--compressed)::after {
+    @include euiRangeTrackSize;
+  }
+
+  &--compressed::after {
+    @include euiRangeTrackSize($compressed: true);
+  }
+
+  &--compressed {
+    &.euiRangeTrack--hasLevels {
+      .euiRangeTicks {
+        height: $euiRangeThumbHeight + ($euiRangeTrackCompressedHeight / 2);
+        top: $euiRangeThumbHeight;
+      }
+
+      .euiRangeTick {
+        padding-top: $euiRangeTrackCompressedHeight;
+      }
+    }
+
+    &:not(.euiRangeTrack--hasLevels) {
+      .euiRangeTicks {
+        height: $euiRangeTrackCompressedHeight + $euiRangeThumbHeight;
+        top: $euiRangeTrackHeight * 2;
+      }
+
+      .euiRangeTick {
+        padding-top: $euiSizeM / 2;
+      }
+    }
+
+    &.euiRangeTrack--hasTicks::after {
+      top: ($euiRangeThumbHeight - $euiRangeTrackCompressedHeight) / 2;
+    }
+
+    &:not(.euiRangeTrack--hasTicks)::after {
+      top: calc(50% - #{($euiRangeTrackCompressedHeight/2)});
+    }
+
+    .euiRangeThumb--hasTicks {
+      top: 0;
+    }
+
+    .euiRangeLevels:not(.euiRangeLevels--hasTicks) {
+      top: $euiRangeThumbHeight + $euiRangeTrackCompressedHeight - 1;
+    }
+
+    .euiRangeLevels--hasTicks {
+      top: $euiRangeThumbHeight - $euiRangeTrackCompressedHeight - 1;
+    }
+  }
+
+  &:not(.euiRangeTrack--compressed) {
+    &.euiRangeTrack--hasLevels {
+      .euiRangeTicks {
+        height: $euiRangeThumbHeight + ($euiRangeThumbHeight / 4);
+        top: $euiRangeThumbHeight + ($euiRangeThumbHeight / 4);
+      }
+
+      .euiRangeTick {
+        padding-top: $euiRangeTrackHeight;
+      }
+    }
+
+    &:not(.euiRangeTrack--hasLevels) {
+      .euiRangeTicks {
+        height: $euiRangeHeight - $euiRangeThumbHeight;
+        top: $euiRangeThumbHeight;
+      }
+
+      .euiRangeTick {
+        // removing 1px to prevent label getting cut in Safari
+        padding-top: ($euiRangeTrackHeight * 2) - 1;
+      }
+    }
+
+    &.euiRangeTrack--hasTicks {
+      .euiRangeTooltip {
+        top: -($euiSizeXS / 2);
+      }
+
+      &::after {
+        top: ($euiRangeThumbHeight - $euiRangeTrackHeight) / 2;
+      }
+    }
+
+    &:not(.euiRangeTrack--hasTicks)::after {
+      top: calc(50% - #{($euiRangeTrackHeight/2)});
+    }
+
+    .euiRangeLevels:not(.euiRangeLevels--hasTicks) {
+      top: $euiRangeThumbHeight + $euiRangeTrackHeight + ($euiSizeXS / 2);
+    }
+
+    .euiRangeLevels--hasTicks {
+      top: $euiRangeTrackHeight * 2;
+    }
+  }
+}

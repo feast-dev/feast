@@ -1,0 +1,54 @@
+{
+  "name": "inter-ui",
+  "version": "3.19.3",
+  "description": "Font files for the Inter font family.",
+  "main": "inter.css",
+  "keywords": [
+    "inter",
+    "inter-ui",
+    "typeface",
+    "font",
+    "font family"
+  ],
+  "author": "Rasmus Andersson (https://rsms.me)",
+  "contributors": [
+    {
+      "name": "Philip Belesky",
+      "email": "contact@philipbelesky.com",
+      "url": "https://philipbelesky.com"
+    },
+    {
+      "name": "Manuel Meister",
+      "email": "manuel@meister.id",
+      "url": "https://meister.id"
+    },
+    {
+      "name": "Maxime Garcia",
+      "email": "maxime.garcia@gmail.com",
+      "url": "https://emaxime.com/"
+    },
+    {
+      "name": "Thomas Kräftner",
+      "email": "thomas@kraftner.com",
+      "url": "http://kraftner.com/"
+    }
+  ],
+  "license": "OFL-1.1",
+  "repository": "git@github.com:philipbelesky/inter-ui.git",
+  "private": false,
+  "devDependencies": {
+    "glyphhanger": "^3.2.0",
+    "sass": "1.35.1"
+  },
+  "scripts": {
+    "build-supersets": "npm run delete-supersets && npm run copy-supersets",
+    "delete-supersets": "rm -fr './Inter (web)' && mkdir './Inter (web)' && rm -fr './Inter (web hinted)' && mkdir './Inter (web hinted)'",
+    "copy-supersets": "cp -a './temp/Inter Hinted for Windows/Web/'*.woff* './Inter (web hinted)/' && cp -a './temp/Inter Web/'*.woff* './Inter (web)/'",
+    "generate-css": "sass --no-source-map inter.scss:inter.css inter-hinted.scss:inter-hinted.css inter-latin.scss:inter-latin.css inter-hinted-latin.scss:inter-hinted-latin.css",
+    "build-subsets": "npm run delete-subsets && npm run subset-hinted && npm run subset-unhinted && npm run subset-cleanup",
+    "delete-subsets": "rm -fr './Inter (web latin)' && mkdir './Inter (web latin)' && rm -fr './Inter (web hinted latin)' && mkdir './Inter (web hinted latin)'",
+    "subset-unhinted": "glyphhanger --subset='./temp/Inter Web/'*.woff* --LATIN --formats=woff2,woff                    && find './temp/Inter Web/' -type f -name '*subset.woff**' -exec cp {} './Inter (web latin)/' ';'                            && rename 's/-subset//' './Inter (web latin)/'*.woff*",
+    "subset-hinted": "glyphhanger --subset='./temp/Inter Hinted for Windows/Web/'*.woff* --LATIN --formats=woff2,woff && find './temp/Inter Hinted for Windows/Web/' -type f -name '*subset.woff**' -exec cp {} './Inter (web hinted latin)/' ';'  && rename 's/-subset//' './Inter (web hinted latin)/'*.woff*",
+    "subset-cleanup": "rm './Inter (web latin)/Inter.var.woff' && rm './Inter (web latin)/Inter-italic.var.woff' && rm './Inter (web latin)/Inter-roman.var.woff'"
+  }
+}

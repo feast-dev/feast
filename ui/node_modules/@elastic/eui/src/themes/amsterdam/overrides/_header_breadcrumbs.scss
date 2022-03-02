@@ -1,0 +1,71 @@
+// sass-lint:disable nesting-depth
+
+.euiHeaderBreadcrumbs {
+  line-height: $euiSize;
+  margin-left: $euiSizeS;
+  margin-right: $euiSizeS;
+
+  // Only the header breadcrumbs get the new Amsterdam style so that there can
+  // still be default text only breadcrumbs for places like EuiControlBar
+  .euiBreadcrumb__content {
+    @include euiButtonDefaultStyle($euiTextColor);
+    font-size: $euiFontSizeXS;
+    line-height: $euiSize;
+    font-weight: $euiFontWeightMedium;
+    padding: $euiSizeXS $euiSize;
+    clip-path: polygon(0 0, calc(100% - #{$euiSizeS}) 0, 100% 50%, calc(100% - #{$euiSizeS}) 100%, 0 100%, $euiSizeS 50%);
+
+    &.euiLink {
+      @include euiButtonDefaultStyle($euiColorPrimary);
+
+      &:focus {
+        @include euiFocusRing(null, 'inner');
+
+        // Turn clip path off and add full border-radius when in focus so the focus ring looks correct.
+        // This won't work in Safari, but that's ok
+        &:focus-visible {
+          border-radius: $euiBorderRadius;
+          clip-path: none;
+        }
+      }
+    }
+  }
+
+  .euiBreadcrumb {
+    // Remove separator
+    &::after {
+      display: none;
+    }
+
+    &:not(.euiBreadcrumb--last) {
+      margin-right: -$euiSizeXS;
+    }
+
+    &:first-child {
+      .euiBreadcrumb__content {
+        padding-left: $euiSizeM;
+        border-radius: $euiBorderRadius 0 0 $euiBorderRadius;
+        clip-path: polygon(0 0, calc(100% - #{$euiSizeS}) 0, 100% 50%, calc(100% - #{$euiSizeS}) 100%, 0 100%);
+      }
+    }
+
+    // In case the item is first AND last, aka only, just make it a fully rounded item.
+    // Needs to come after `:first-child` for specificity
+    &:only-child {
+      .euiBreadcrumb__content {
+        clip-path: none;
+        padding-left: $euiSizeM;
+        padding-right: $euiSizeM;
+        border-radius: $euiBorderRadius;
+      }
+    }
+  }
+
+  .euiBreadcrumb--last {
+    .euiBreadcrumb__content {
+      border-radius: 0 $euiBorderRadius $euiBorderRadius 0;
+      padding-right: $euiSizeM;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, #{$euiSizeS} 50%);
+    }
+  }
+}

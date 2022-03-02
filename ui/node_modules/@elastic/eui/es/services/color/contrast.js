@@ -1,0 +1,77 @@
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+/*
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0 and the Server Side Public License, v 1; you may not use this file except
+ * in compliance with, at your election, the Elastic License 2.0 or the Server
+ * Side Public License, v 1.
+ */
+import chroma from 'chroma-js';
+import { shade, tint, lightness as getLightness } from './manipulation';
+import { getOn } from '../theme/utils';
+/**
+ * Creates a new color that meets or exceeds WCAG level AA
+ * @param foreground - Color to manipulate
+ * @param ratio - Amount to change in absolute terms. 0-10.
+ * *
+ * @param themeOrBackground - Color to use as the contrast basis or just pass EuiTheme
+ */
+
+export var makeHighContrastColor = function makeHighContrastColor(_foreground) {
+  var ratio = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 4.55;
+  return function (themeOrBackground) {
+    var _getOn;
+
+    var foreground = _typeof(themeOrBackground) === 'object' ? (_getOn = getOn(themeOrBackground, _foreground)) !== null && _getOn !== void 0 ? _getOn : _foreground : _foreground;
+    var background = _typeof(themeOrBackground) === 'object' ? themeOrBackground.colors.body : themeOrBackground;
+
+    if (chroma(foreground).alpha() < 1 || chroma(background).alpha() < 1) {
+      console.warn("Contrast cannot be accurately calculated when colors have alpha channel opacity. Make sure the provided foreground and background colors have no transparency:\n\nForeground: ".concat(foreground, "\nBackground: ").concat(background));
+    }
+
+    var contrast = chroma.contrast(foreground, background); // Determine the lightness factor of the background color first to
+    // determine whether to shade or tint the foreground.
+
+    var brightness = getLightness(background);
+    var highContrastTextColor = foreground;
+
+    while (contrast < ratio) {
+      if (brightness > 50) {
+        highContrastTextColor = shade(highContrastTextColor, 0.05);
+      } else {
+        highContrastTextColor = tint(highContrastTextColor, 0.05);
+      }
+
+      contrast = chroma.contrast(highContrastTextColor, background);
+      var lightness = getLightness(highContrastTextColor);
+
+      if (lightness < 5) {
+        console.warn('High enough contrast could not be determined. Most likely your background color does not adjust for light mode.');
+        return highContrastTextColor;
+      }
+
+      if (lightness > 95) {
+        console.warn('High enough contrast could not be determined. Most likely your background color does not adjust for dark mode.');
+        return highContrastTextColor;
+      }
+    }
+
+    return chroma(highContrastTextColor).hex();
+  };
+};
+/**
+ * Creates a new color with increased contrast
+ * Disabled content only needs a contrast of at least 2 because there is no interaction available
+ * @param foreground - Color to manipulate
+ * @param ratio - Amount to change in absolute terms. 0-10.
+ * *
+ * @param themeOrBackground - Color to use as the contrast basis
+ */
+
+export var makeDisabledContrastColor = function makeDisabledContrastColor(color) {
+  var ratio = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 2;
+  return function (themeOrBackground) {
+    return makeHighContrastColor(color, ratio)(themeOrBackground);
+  };
+};

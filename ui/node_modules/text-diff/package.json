@@ -1,0 +1,25 @@
+{
+  "name": "text-diff",
+  "version": "1.0.1",
+  "description": "Compute a diff between two pieces of text with support for same-line diffs, and optionally display a visual diff as HTML. Module made from the text-diff-match-patch library.",
+  "main": "diff.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liddiard/text-diff.git"
+  },
+  "keywords": [
+    "diff",
+    "text",
+    "visual",
+    "difference"
+  ],
+  "author": "Harrison Liddiard <omniaura5@gmail.com> (http://harrisonliddiard.com)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/liddiard/text-diff/issues"
+  },
+  "homepage": "https://github.com/liddiard/text-diff#readme"
+}

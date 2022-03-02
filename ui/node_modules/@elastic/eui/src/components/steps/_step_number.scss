@@ -1,0 +1,61 @@
+.euiStepNumber {
+  @include createStepsNumber;
+
+  .euiStepNumber__icon {
+    vertical-align: middle;
+    position: relative;
+    top: -2px;
+  }
+
+  &--small {
+    @include createStepsNumber($euiStepNumberSmallSize, $euiFontSizeXS);
+
+    .euiStepNumber__icon {
+      top: -1px;
+    }
+  }
+
+  &--complete {
+    // Thicken the checkmark by adding a slight stroke.
+    .euiStepNumber__icon {
+      stroke: currentColor;
+      stroke-width: .5px;
+    }
+  }
+
+  @include euiCanAnimate {
+    &--complete,
+    &--warning,
+    &--danger {
+      animation: euiGrow $euiAnimSpeedFast $euiAnimSlightBounce;
+    }
+  }
+
+  &--loading {
+    background: transparent;
+  }
+
+  &.euiStepNumber-isHollow {
+    background-color: transparent;
+    border: 2px solid $euiColorPrimary;
+
+    .euiStepNumber__number {
+      display: none;
+    }
+  }
+
+  // Create modifiers based upon the map
+  @each $name, $color in $euiStepStatusColorsToFade {
+    &--#{$name} {
+      $backgroundColor: $color;
+      @if (saturation($color) > 0%) {
+        $backgroundColor: tintOrShade($color, 90%, 70%);
+      }
+
+      $textColor: makeHighContrastColor($color, $backgroundColor);
+
+      color: $textColor;
+      background-color: $backgroundColor;
+    }
+  }
+}

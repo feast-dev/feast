@@ -1,0 +1,117 @@
+.euiTreeView__wrapper .euiTreeView {
+  margin: 0;
+  list-style-type: none;
+}
+
+.euiTreeView .euiTreeView {
+  padding-left: $euiSizeL;
+}
+
+.euiTreeView__node {
+  max-height: $euiSizeXL;
+  line-height: $euiSizeXL;
+}
+
+.euiTreeView__node--expanded {
+  max-height: 100vh;
+}
+
+.euiTreeView__nodeInner {
+  @include euiTextTruncate;
+
+  padding-left: $euiSizeS;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: $euiSizeXL;
+  border-radius: $euiBorderRadius;
+  width: 100%;
+  text-align-last: left;
+
+  &:focus {
+    @include euiFocusRing('small', 'inner');
+  }
+
+  &:hover,
+  &:active,
+  &:focus {
+    @include euiFocusBackground($euiTextColor);
+  }
+
+  .euiTreeView__iconPlaceholder {
+    width: $euiSizeXL;
+  }
+
+}
+
+.euiTreeView__nodeLabel {
+  @include euiTextTruncate;
+}
+
+.euiTreeView__iconWrapper {
+  margin-top: -($euiSizeXS / 2);
+  margin-right: $euiSizeS;
+
+  // This helps tokens appear vertically centered
+  .euiToken {
+    margin-top: $euiSizeXS / 2;
+  }
+}
+
+.euiTreeView--compressed {
+  .euiTreeView__node {
+    max-height: $euiSizeL;
+    line-height: $euiSizeL;
+
+    .euiTreeView__nodeInner {
+      height: $euiSizeL;
+
+    }
+
+    .euiTreeView__iconWrapper {
+      margin: 0 ($euiSizeS * .75) 0 0;
+    }
+
+    .euiTreeView__nodeLabel {
+      margin-top: -1px;
+    }
+
+    .euiTreeView__iconPlaceholder {
+      width: $euiSizeL;
+    }
+  }
+
+  .euiTreeView__node--expanded {
+    max-height: 100vh;
+  }
+}
+
+.euiTreeView--withArrows {
+  .euiTreeView__expansionArrow {
+    margin-right: $euiSizeXS;
+  }
+
+  &.euiTreeView {
+    .euiTreeView__nodeInner--withArrows {
+      .euiTreeView__iconWrapper {
+        margin-left: 0;
+      }
+    }
+
+    .euiTreeView__iconWrapper {
+      margin-left: $euiSize + $euiSizeXS;
+    }
+  }
+
+  &.euiTreeView--compressed {
+    .euiTreeView__nodeInner--withArrows {
+      .euiTreeView__iconWrapper {
+        margin-left: 0;
+      }
+    }
+
+    .euiTreeView__iconWrapper {
+      margin-left: $euiSize;
+    }
+  }
+}

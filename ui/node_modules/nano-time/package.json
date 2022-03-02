@@ -1,0 +1,30 @@
+{
+  "name": "nano-time",
+  "version": "1.0.0",
+  "description": "Current Time in Nanoseconds",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sazze/node-nanotime.git"
+  },
+  "keywords": [
+    "nanoseconds",
+    "time",
+    "date",
+    "current",
+    "time",
+    "microseconds"
+  ],
+  "author": "Kevin Smithson <ksmithson@sazze.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sazze/node-nanotime/issues"
+  },
+  "homepage": "https://github.com/sazze/node-nanotime#readme",
+  "dependencies": {
+    "big-integer": "^1.6.16"
+  }
+}

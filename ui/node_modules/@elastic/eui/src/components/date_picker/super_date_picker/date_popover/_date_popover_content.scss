@@ -1,0 +1,19 @@
+.euiDatePopoverContent {
+  width: $euiFormMaxWidth;
+  max-width: 100%;
+}
+
+.euiDatePopoverContent__padded {
+  padding: $euiSizeS;
+}
+
+.euiDatePopoverContent__padded--large {
+  padding: $euiSize;
+}
+
+@include euiBreakpoint('xs') {
+  .euiDatePopoverContent {
+    // Small screens drop the time selector
+    width: $euiDatePickerCalendarWidth;
+  }
+}

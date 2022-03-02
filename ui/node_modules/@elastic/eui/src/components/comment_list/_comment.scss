@@ -1,0 +1,38 @@
+.euiComment {
+  font-size: $euiFontSizeS;
+  display: flex;
+  padding-bottom: $euiSize;
+  min-height: $euiSize * 3.5;
+
+  .euiCommentEvent {
+    flex-grow: 1;
+  }
+
+  .euiCommentTimeline {
+    position: relative;
+    flex-grow: 0;
+    margin-right: $euiSize;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: $euiSizeXXL / 2;
+      top: $euiSizeL;
+      width: $euiSizeXS / 2;
+      background-color: $euiColorLightShade;
+      height: calc(100% + #{$euiSizeL});
+    }
+  }
+}
+
+.euiComment:last-of-type {
+  .euiCommentTimeline {
+    &::before {
+      display: none;
+    }
+  }
+}
+
+.euiComment--update:not(.euiComment--hasBody) {
+  align-items: center;
+}

@@ -1,0 +1,28 @@
+// --------------------------------------------------------------------------------------
+// EUI global variables
+// --------------------------------------------------------------------------------------
+// This module contains all global variables available within EUI. Every variable in this
+// document should be prefixed with $eui. This lets us know where the variable is
+// coming from when looking inside the individual component files. Any component local
+// variables should be declared at the top of those documents prefixed with $componentName.
+
+// Global colors are established and importer per theme, before this manifest
+// Import order is important. Size, vis colors, ...etc are used in other variables.
+@import 'size';
+@import 'colors_vis';
+@import 'colors_code';
+@import 'animations';
+@import 'font_weight';
+@import 'typography';
+@import 'borders';
+@import 'responsive';
+@import 'shadows';
+@import 'states';
+@import 'z_index';
+
+@import 'buttons';
+@import 'form';
+@import 'header';
+@import 'page';
+@import 'panel';
+@import 'tool_tip';

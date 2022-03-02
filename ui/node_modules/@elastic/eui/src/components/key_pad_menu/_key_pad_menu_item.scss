@@ -1,0 +1,128 @@
+/**
+ * 1. If this class is applied to a button, we need to override the Chrome default font.
+ * 2. If it has a BetaBadge, make sure only the first letter shows
+ */
+.euiKeyPadMenuItem {
+  @include euiFont; /* 1 */
+  // Disable indentation for transition legibility
+  // sass-lint:disable-block indentation
+  display: block;
+  padding: $euiSizeXS;
+  height: $euiKeyPadMenuSize;
+  width: $euiKeyPadMenuSize;
+  border: $euiBorderThin;
+  border-color: transparent;
+  border-radius: $euiBorderRadius;
+  color: $euiTextColor; // Override possible link color
+
+  // sass-lint:disable-block mixins-before-declarations
+  @include euiCanAnimate {
+    transition:
+      background-color $euiAnimSpeedFast ease-in,
+      border-color $euiAnimSpeedFast ease-in,
+      box-shadow $euiAnimSpeedFast ease-in;
+  }
+
+  // Focus and Hover states (when not disabled)
+  &:not(.euiKeyPadMenuItem-isDisabled) {
+    &:hover,
+    &:focus,
+    &:focus-within {
+      @include euiHoverState;
+      @include euiSlightShadow;
+      border-color: $euiBorderColor;
+
+      // sass-lint:disable-block mixins-before-declarations
+      // sass-lint:disable-block nesting-depth
+      @include euiCanAnimate {
+        .euiKeyPadMenuItem__icon {
+          transform: translateY(0);
+        }
+      }
+    }
+
+    &:focus {
+      @include euiFocusState;
+    }
+  }
+
+  // Disabled state
+  &.euiKeyPadMenuItem-isDisabled {
+    @include euiDisabledState;
+
+    .euiKeyPadMenuItem__icon  {
+      filter: grayscale(100%);
+
+      svg * { // sass-lint:disable-line nesting-depth
+        fill: $euiButtonColorDisabledText;
+      }
+    }
+  }
+
+  // Selected state (when not disabled)
+  &.euiKeyPadMenuItem-isSelected:not(.euiKeyPadMenuItem-isDisabled) {
+    @include euiSlightShadow;
+    color: $euiTitleColor;
+  }
+
+  // Selected (even if disabled)
+  &.euiKeyPadMenuItem-isSelected {
+    border-color: $euiBorderColor;
+  }
+
+  // Hide the input if not selected, or being interacted with
+  &:not(:hover):not(:focus):not(:focus-within):not(.euiKeyPadMenuItem-isSelected),
+  // Also specifically if disabled but not selected
+  &.euiKeyPadMenuItem-isDisabled:not(.euiKeyPadMenuItem-isSelected) {
+    .euiKeyPadMenuItem__checkableInput {
+      @include euiScreenReaderOnly;
+    }
+  }
+}
+
+.euiKeyPadMenuItem__inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  .euiKeyPadMenuItem__checkableInput {
+    transform: scale(.75);
+    transform-origin: top right;
+  }
+
+  .euiKeyPadMenuItem__checkableInput,
+  .euiKeyPadMenuItem__betaBadge {
+    position: absolute;
+    top: $euiSizeXS;
+    right: $euiSizeXS;
+    z-index: 3;
+  }
+}
+
+.euiKeyPadMenuItem__icon {
+  transition: transform $euiAnimSpeedNormal $euiAnimSlightBounce;
+  margin-bottom: $euiSizeM;
+  transform: translateY(2px);
+}
+
+.euiKeyPadMenuItem__label {
+  font-size: $euiFontSizeXS;
+  font-weight: $euiFontWeightMedium;
+  line-height: $euiSize;
+  text-align: center;
+}
+
+.euiKeyPadMenuItem--checkable.euiKeyPadMenuItem-isSelected:not(.euiKeyPadMenuItem-isDisabled) {
+  &,
+  &:hover,
+  &:focus,
+  &:focus-within {
+    @include euiFocusBackground;
+    color: $euiColorPrimaryText;
+    border-color: $euiColorPrimaryText;
+  }
+}

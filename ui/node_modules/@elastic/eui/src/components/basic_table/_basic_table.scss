@@ -1,0 +1,44 @@
+.euiBasicTable {
+
+  &-loading {
+    position: relative;
+
+    tbody {
+      overflow: hidden;
+    }
+
+    tbody:before {
+      position: absolute;
+      content: '';
+      width: 100%;
+      height: $euiBorderWidthThick;
+      background-color: $euiColorPrimary;
+      animation: euiBasicTableLoading 1000ms linear;
+      animation-iteration-count: infinite;
+    }
+
+  }
+}
+
+
+@keyframes euiBasicTableLoading {
+  from {
+    left: 0;
+    width: 0;
+  }
+
+  20% {
+    left: 0;
+    width: 40%;
+  }
+
+  80% {
+    left: 60%;
+    width: 40%;
+  }
+
+  100% {
+    left: 100%;
+    width: 0;
+  }
+}

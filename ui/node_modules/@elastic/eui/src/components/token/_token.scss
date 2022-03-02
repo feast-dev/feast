@@ -1,0 +1,85 @@
+.euiToken {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    height: 100%;
+    margin: auto;
+  }
+}
+
+.euiToken--circle {
+  border-radius: 50%;
+}
+
+.euiToken--square {
+  // These are pretty small elements, the standard size
+  // is just slightly too large.
+  border-radius: $euiBorderRadius - 1px;
+}
+
+.euiToken--xsmall {
+  width: $euiSizeM;
+  height: $euiSizeM;
+
+  &.euiToken--rectangle {
+    padding: 0 $euiSizeXS;
+  }
+}
+
+.euiToken--small {
+  width: $euiSize;
+  height: $euiSize;
+
+  &.euiToken--rectangle {
+    padding: 0 $euiSizeXS;
+  }
+}
+
+.euiToken--medium {
+  width: $euiSizeL;
+  height: $euiSizeL;
+
+  &.euiToken--rectangle {
+    padding: 0 $euiSizeS;
+  }
+}
+
+.euiToken--large {
+  width: $euiSizeXL;
+  height: $euiSizeXL;
+
+  &.euiToken--rectangle {
+    padding: 0 ($euiSize * .5);
+  }
+}
+
+.euiToken--rectangle {
+  box-sizing: content-box;
+}
+
+@each $type in $euiTokenTypeKeys {
+  .euiToken--#{$type} {
+    $color: map-get(map-get($euiTokenTypes, $type), 'graphic');
+    $backgroundColor: tintOrShade($color, 90%, 70%);
+    $fillColor: makeHighContrastColor($color, $backgroundColor);
+
+    // Without a background, the fill color should be the graphic color
+    color: $color;
+
+    &.euiToken--light {
+      color: $fillColor;
+      background-color: $backgroundColor;
+      box-shadow: inset 0 0 0 1px tintOrShade($color, 70%, 60%);
+    }
+
+    // Dark tokens uses the main color as the background against light or dark text
+    $color: map-get(map-get($euiTokenTypes, $type), 'behindText');
+
+    &.euiToken--dark {
+      background-color: $color;
+      color: chooseLightOrDarkText($color, $euiColorGhost, $euiColorInk);
+    }
+  }
+}

@@ -1,0 +1,57 @@
+// Prefixes are unique in this file
+// sass-lint:disable no-vendor-prefixes
+
+@mixin euiRangeTrackSize($compressed: false) {
+  height: $euiRangeTrackHeight;
+  width: $euiRangeTrackWidth;
+
+  @if ($compressed) {
+    height: $euiRangeTrackCompressedHeight;
+  }
+}
+
+@mixin euiRangeTrackPerBrowser {
+  &::-webkit-slider-runnable-track { @content; }
+  &::-moz-range-track { @content; }
+  &::-ms-fill-lower { @content; }
+  &::-ms-fill-upper { @content; }
+}
+
+@mixin euiRangeThumbBorder {
+  border: 2px solid $euiRangeThumbBorderColor;
+}
+
+@mixin euiRangeThumbBoxShadow {
+  // sass-lint:disable-block no-color-literals
+  box-shadow: 0 0 0 1px $euiRangeThumbBorderColor,
+  0 2px 2px -1px rgba($euiShadowColor, .2),
+  0 1px 5px -2px rgba($euiShadowColor, .2);
+}
+
+@mixin euiRangeThumbFocusBoxShadow {
+  box-shadow: 0 0 0 2px $euiFocusRingColor;
+}
+
+@mixin euiRangeThumbStyle {
+  @include euiRangeThumbBoxShadow;
+  @include euiRangeThumbBorder;
+  cursor: pointer;
+  background-color: $euiRangeThumbBackgroundColor;
+  padding: 0;
+  height: $euiRangeThumbHeight;
+  width: $euiRangeThumbWidth;
+  box-sizing: border-box;  // required for firefox or the border makes the width and height to increase
+}
+
+@mixin euiRangeThumbPerBrowser {
+  &::-webkit-slider-thumb { @content; }
+  &::-moz-range-thumb { @content; }
+  &::-ms-thumb { @content; }
+}
+
+
+@mixin euiRangeThumbFocus {
+  @include euiRangeThumbBorder;
+  @include euiRangeThumbFocusBoxShadow;
+  background-color: $euiColorPrimary;
+}

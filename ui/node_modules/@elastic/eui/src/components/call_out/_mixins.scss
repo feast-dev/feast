@@ -1,0 +1,27 @@
+@function euiCallOutColor($type: 'primary', $returnBackgroundOrForeground: 'background') {
+  @if (map-has-key($euiCallOutTypes, $type)) {
+    $color: map-get($euiCallOutTypes, $type);
+    $backgroundColor: tintOrShade($color, 90%, 70%);
+    $foregroundColor: shadeOrTint(makeHighContrastColor($color, $backgroundColor), 0, 20%);
+
+    @if ($returnBackgroundOrForeground == 'background') {
+      @return $backgroundColor;
+    } @else if ($returnBackgroundOrForeground == 'foreground') {
+      @return $foregroundColor;
+    } @else {
+      @warn 'Incorrect value provided as $returnBackgroundOrForeground';
+    }
+  } @else {
+    @warn 'Incorrect type of call out provided. See the $euiCallOutTypes map for allowed values.';
+  }
+}
+
+@mixin euiCallOutTitle($size: null) {
+  @if ($size == 's') {
+    @include euiTitle('xxs');
+    font-weight: $euiFontWeightRegular;
+  } @else {
+    @include euiTitle('xs');
+    font-weight: $euiFontWeightRegular;
+  }
+}

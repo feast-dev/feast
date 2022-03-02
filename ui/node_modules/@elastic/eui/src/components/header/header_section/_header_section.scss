@@ -1,0 +1,14 @@
+.euiHeaderSection {
+  display: flex;
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+.euiHeaderSection--grow,
+.euiHeaderSection--left {
+  flex-grow: 1;
+}
+
+.euiHeaderSection--dontGrow {
+  flex-grow: 0;
+}

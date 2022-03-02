@@ -1,0 +1,44 @@
+.euiFilterSelectItem {
+  @include euiFontSizeS;
+  @include euiInteractiveStates;
+
+  padding: $euiSizeXS $euiSizeM;
+  display: block; // Necessary to make sure it doesn't force the whole popover to be too wide
+  width: 100%;
+  text-align: left;
+  color: $euiTextColor;
+  border-bottom: $euiBorderThin;
+  border-color: darken($euiColorLightestShade, 2%);
+  outline-offset: -$euiFocusRingSize;
+
+  &:focus,
+  &-isFocused {
+    @include euiFocusBackground;
+    color: $euiColorPrimary;
+  }
+}
+
+.euiFilterSelectItem__content {
+  @include euiTextTruncate;
+}
+
+
+.euiFilterSelect__items {
+  @include euiScrollBar;
+
+  overflow-y: auto;
+  max-height: $euiSize * 30;
+}
+
+.euiFilterSelect__note {
+  height: $euiSize * 4;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.euiFilterSelect__noteContent {
+  color: $euiColorDarkShade;
+  font-size: $euiFontSizeS;
+}

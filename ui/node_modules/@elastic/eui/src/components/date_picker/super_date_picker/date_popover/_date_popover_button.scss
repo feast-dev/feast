@@ -1,0 +1,54 @@
+.euiDatePopoverButton {
+  @include euiSuperDatePickerText;
+  background-size: 100%; // For the bottom "border" via background-image
+
+  &--compressed {
+    line-height: $euiFormControlLayoutGroupInputCompressedHeight;
+    height: $euiFormControlLayoutGroupInputCompressedHeight;
+  }
+
+  &:focus,
+  &-isSelected {
+    background-image: euiFormControlGradient();
+  }
+
+  &-needsUpdating {
+    $backgroundColor: tintOrShade($euiColorSuccess, 90%, 70%);
+    $textColor: makeHighContrastColor($euiColorSuccess, $backgroundColor);
+
+    background-color: $backgroundColor;
+    color: $textColor;
+
+    &:focus,
+    &.euiDatePopoverButton-isSelected {
+      background-image: euiFormControlGradient($euiColorSuccess);
+    }
+  }
+
+  &-isInvalid {
+    $backgroundColor: tintOrShade($euiColorDanger, 90%, 70%);
+    $textColor: makeHighContrastColor($euiColorDanger, $backgroundColor);
+
+    background-color: $backgroundColor;
+    color: $textColor;
+
+    &:focus,
+    &.euiDatePopoverButton-isSelected {
+      background-image: euiFormControlGradient($euiColorDanger);
+    }
+  }
+
+  &:disabled {
+    background-color: $euiFormBackgroundDisabledColor;
+    color: $euiColorDarkShade;
+    cursor: default;
+  }
+}
+
+.euiDatePopoverButton--start {
+  text-align: right;
+}
+
+.euiDatePopoverButton--end {
+  text-align: left;
+}

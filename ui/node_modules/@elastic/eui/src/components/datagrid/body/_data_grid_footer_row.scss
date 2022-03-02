@@ -1,0 +1,39 @@
+@include euiDataGridFooterCell {
+  font-weight: $euiFontWeightBold;
+}
+
+@include euiDataGridStyles(stickyFooter) {
+  .euiDataGridFooter {
+    position: sticky;
+    bottom: 0;
+  }
+}
+
+@include euiDataGridStyles(footerOverline) {
+  @include euiDataGridFooterCell {
+    border-top: $euiBorderThick;
+    // sass-lint:disable-block no-important
+    border-top-color: $euiTextColor !important;
+    background: $euiColorEmptyShade !important;
+  }
+}
+
+@include euiDataGridStyles(bordersNone) {
+  @include euiDataGridFooterCell {
+    border-left: none;
+    border-right: none;
+  }
+}
+
+@include euiDataGridStyles(bordersHorizontal) {
+  @include euiDataGridFooterCell {
+    border-left: none;
+    border-right: none;
+  }
+}
+
+@include euiDataGridStyles(footerShade) {
+  @include euiDataGridFooterCell {
+    background: tintOrShade($euiColorLightestShade, 0%, 10%);
+  }
+}

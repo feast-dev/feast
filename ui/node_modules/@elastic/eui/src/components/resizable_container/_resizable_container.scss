@@ -1,0 +1,8 @@
+.euiResizableContainer {
+  display: flex;
+  width: 100%;
+
+  &--vertical {
+    flex-direction: column;
+  }
+}

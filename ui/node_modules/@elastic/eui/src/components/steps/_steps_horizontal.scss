@@ -1,0 +1,135 @@
+@mixin makeLineProgress {
+  height: 2px;
+  background-color: $euiColorPrimary;
+}
+
+/**
+ * 1. Ensure the connecting lines stays behind the number
+ * 2. Make each step the same width
+ * 3. Make the content of each step align to the top, even if the steps are of varying heights,
+ *    e.g. due to some of their titles wrapping to multiple lines
+ */
+
+.euiStepsHorizontal {
+  display: flex;
+  align-items: stretch;
+  background: transparentize($euiColorLightestShade, .5);
+}
+
+.euiStepHorizontal__item {
+  flex-grow: 1; /* 2 */
+  flex-basis: 0%; /* 2 */
+
+  // Remove the respective lines if the first or last child
+  &:first-of-type > .euiStepHorizontal::before,
+  &:last-of-type > .euiStepHorizontal::after {
+    display: none;
+  }
+}
+
+// Button containing item
+.euiStepHorizontal {
+  padding: $euiSizeL $euiSize $euiSize;
+  display: flex; /* 3 */
+  flex-direction: column; /* 3 */
+  align-items: center; /* 3 */
+  justify-content: flex-start; /* 3 */
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+
+  // focus & hover state
+  &:focus:not(.euiStepHorizontal-isDisabled),
+  &:hover:not(.euiStepHorizontal-isDisabled) {
+    .euiStepHorizontal__title {
+      text-decoration: underline;
+    }
+  }
+
+  &:focus:not(.euiStepHorizontal-isDisabled) {
+    outline: none;
+
+    .euiStepHorizontal__number {
+      @include euiFocusRing(large);
+    }
+  }
+
+  // disabled state
+  &.euiStepHorizontal-isDisabled {
+    cursor: not-allowed;
+  }
+
+  // create the connecting lines
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: calc(50% - #{$euiStepNumberSize / 2});
+    height: 1px;
+    top: $euiSizeL + ($euiStepNumberSize / 2);
+    background-color: $euiColorLightShade;
+    z-index: $euiZLevel0; /* 1 */
+  }
+
+  &::before {
+    left: 0;
+  }
+
+  &::after {
+    right: 0;
+  }
+}
+
+.euiStepHorizontal__number {
+  position: relative; /* 1 */
+  z-index: $euiZLevel0 + 1; /* 1 */
+  transition: all $euiAnimSpeedFast ease-in-out;
+}
+
+.euiStepHorizontal__title {
+  @include euiTitle('xs');
+  margin-top: $euiSizeS;
+  font-weight: $euiFontWeightRegular;
+  text-align: center;
+
+  .euiStepHorizontal-isDisabled & {
+    color: $euiColorDarkShade;
+  }
+}
+
+// Complete state
+.euiStepHorizontal-isComplete {
+  &::before,
+  &::after {
+    @include makeLineProgress;
+  }
+}
+
+// Selected state
+.euiStepHorizontal-isSelected {
+  .euiStepHorizontal__number:not([class*='danger']):not([class*='warning']):not([class*='loading']) {
+    @include euiSlightShadow(desaturate($euiColorPrimary, 20%));
+  }
+
+  &::before {
+    @include makeLineProgress;
+  }
+}
+
+// RESPONSIVE
+@include euiBreakpoint('xs', 's') {
+  .euiStepHorizontal {
+    // reduce top padding and shift lines
+    padding-top: $euiSize;
+
+    &::before,
+    &::after {
+      top: $euiSize + $euiStepNumberSize / 2;
+    }
+  }
+
+  // hide titles
+  .euiStepHorizontal__title {
+    display: none;
+  }
+}

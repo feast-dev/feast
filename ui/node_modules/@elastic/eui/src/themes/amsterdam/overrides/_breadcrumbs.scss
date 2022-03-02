@@ -1,0 +1,12 @@
+
+// Inset outline otherwise the truncation cuts it off
+.euiBreadcrumb__content.euiLink:focus {
+  outline-offset: -1px;
+}
+
+// Fix all the font-weights to be consistent
+.euiBreadcrumb--last,
+.euiBreadcrumb__content,
+.euiBreadcrumbs__inPopover .euiBreadcrumb--last .euiBreadcrumb__content {
+  font-weight: $euiButtonFontWeight;
+}

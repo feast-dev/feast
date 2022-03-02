@@ -1,0 +1,6 @@
+/**
+ * 1. Portal content is absolutely positioned (e.g. tooltips, popovers, flyouts).
+ */
+.euiBody-hasPortalContent {
+  position: relative; /* 1 */
+}

@@ -1,0 +1,11 @@
+/**
+ * 1. Force each title to be the same height as an option, so that the virtualized scroll logic
+ *    works.
+ */
+.euiComboBoxTitle {
+  font-size: $euiFontSizeXS;
+  padding: ($euiSizeXS + $euiSizeS - 1px) $euiSizeS $euiSizeXS; /* 1 */
+  width: 100%;
+  font-weight: $euiFontWeightBold;
+  color: $euiColorFullShade;
+}

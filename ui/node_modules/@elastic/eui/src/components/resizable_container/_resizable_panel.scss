@@ -1,0 +1,51 @@
+.euiResizablePanel {
+  position: relative;
+}
+
+@each $modifier, $amount in $euiPanelPaddingModifiers {
+  .euiResizablePanel--#{$modifier} {
+    padding: $amount;
+  }
+}
+
+.euiResizablePanel__content {
+  height: 100%;
+
+  // Manually remove the border for default theme
+  &:not([class*='plain']) {
+    border-width: 0;
+  }
+}
+
+.euiResizablePanel__content--scrollable {
+  @include euiScrollBar;
+  overflow-y: auto;
+}
+
+.euiResizablePanel-isCollapsed {
+  overflow: hidden;
+
+  .euiResizablePanel__content * {
+    display: none;
+  }
+}
+
+.euiResizableContainer--horizontal {
+  .euiResizablePanel-isCollapsed {
+    min-width: 0 !important; // sass-lint:disable-line no-important
+  }
+
+  .euiResizablePanel--collapsible.euiResizablePanel-isCollapsed {
+    min-width: $euiSizeL !important; // sass-lint:disable-line no-important
+  }
+}
+
+.euiResizableContainer--vertical {
+  .euiResizablePanel-isCollapsed {
+    min-height: 0 !important; // sass-lint:disable-line no-important
+  }
+
+  .euiResizablePanel--collapsible.euiResizablePanel-isCollapsed {
+    min-height: $euiSizeL !important; // sass-lint:disable-line no-important
+  }
+}

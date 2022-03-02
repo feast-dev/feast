@@ -1,0 +1,44 @@
+// Header items are the small icon links that pop up menus.
+
+.euiHeaderSectionItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &:after {
+    position: absolute;
+    content: '';
+    top: $euiSize;
+    bottom: 0;
+    background: $euiBorderColor;
+    left: 0;
+  }
+}
+
+.euiHeaderSectionItem--borderLeft {
+  &:after {
+    left: 0;
+    width: 1px;
+  }
+}
+
+.euiHeaderSectionItem--borderRight {
+  &:after {
+    width: 1px;
+    left: auto;
+    right: 0;
+  }
+}
+
+@include euiBreakpoint('xs') {
+  .euiHeaderSectionItem {
+    min-width: $euiHeaderChildSize * .75;
+  }
+
+  .euiHeaderSectionItem--borderLeft,
+  .euiHeaderSectionItem--borderRight {
+    &:after {
+      display: none;
+    }
+  }
+}

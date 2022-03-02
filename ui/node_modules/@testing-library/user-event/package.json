@@ -1,0 +1,86 @@
+{
+  "name": "@testing-library/user-event",
+  "version": "13.5.0",
+  "description": "Fire events the same way the user does",
+  "main": "dist/index.js",
+  "keywords": [
+    "react-testing-library",
+    "dom-testing-library",
+    "react",
+    "testing"
+  ],
+  "author": "Giorgio Polvara <polvara@gmail.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=10",
+    "npm": ">=6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/testing-library/user-event"
+  },
+  "bugs": {
+    "url": "https://github.com/testing-library/user-event/issues"
+  },
+  "homepage": "https://github.com/testing-library/user-event#readme",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "kcd-scripts build",
+    "lint": "kcd-scripts lint",
+    "setup": "npm install && npm run validate -s",
+    "test": "kcd-scripts test",
+    "test:debug": "kcd-scripts --inspect-brk test --runInBand",
+    "test:update": "npm test -- --updateSnapshot --coverage",
+    "validate": "kcd-scripts validate",
+    "typecheck": "kcd-scripts typecheck"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.12.5"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^7.28.1",
+    "@testing-library/jest-dom": "^5.11.6",
+    "@testing-library/react": "^11.2.5",
+    "@types/estree": "0.0.45",
+    "@types/jest-in-case": "^1.0.3",
+    "@types/react": "^17.0.3",
+    "is-ci": "^2.0.0",
+    "jest-in-case": "^1.0.2",
+    "jest-serializer-ansi": "^1.0.3",
+    "kcd-scripts": "^11.1.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "typescript": "^4.1.2"
+  },
+  "peerDependencies": {
+    "@testing-library/dom": ">=7.21.4"
+  },
+  "eslintConfig": {
+    "extends": "./node_modules/kcd-scripts/eslint.js",
+    "rules": {
+      "jsx-a11y/click-events-have-key-events": "off",
+      "jsx-a11y/tabindex-no-positive": "off",
+      "no-func-assign": "off",
+      "no-return-assign": "off",
+      "react/prop-types": "off",
+      "testing-library/no-dom-import": "off"
+    },
+    "overrides": [
+      {
+        "files": [
+          "**/__tests__/**"
+        ],
+        "rules": {
+          "no-console": "off"
+        }
+      }
+    ]
+  },
+  "eslintIgnore": [
+    "node_modules",
+    "coverage",
+    "dist"
+  ]
+}
