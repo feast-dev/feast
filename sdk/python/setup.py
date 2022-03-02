@@ -188,7 +188,8 @@ class BuildPythonProtosCommand(Command):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
         subprocess.check_call(
-            self.python_protoc + [
+            self.python_protoc
+            + [
                 "-I",
                 self.proto_folder,
                 "--python_out",
@@ -197,7 +198,8 @@ class BuildPythonProtosCommand(Command):
                 self.python_folder,
                 "--mypy_out",
                 self.python_folder,
-            ] + proto_files,
+            ]
+            + proto_files,
         )
 
     def run(self):
@@ -240,12 +242,7 @@ class BuildGoProtosCommand(Command):
 
         subprocess.check_call(
             self.go_protoc
-            + [
-                "-I",
-                self.proto_folder,
-                "--go_out",
-                self.go_folder,
-            ]
+            + ["-I", self.proto_folder, "--go_out", self.go_folder]
             + proto_files,
         )
 
