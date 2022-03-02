@@ -1,5 +1,7 @@
 # [WIP] Feast Web UI
 
+![Sample UI](sample.png)
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Project structure
