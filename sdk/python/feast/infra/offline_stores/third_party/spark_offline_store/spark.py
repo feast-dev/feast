@@ -24,7 +24,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
-from feast.infra.offline_stores.third_party.spark_source import SparkSource
+from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import SparkSource
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -228,7 +228,7 @@ class SparkRetrievalJob(RetrievalJob):
         spark_session: SparkSession,
         query: str,
         full_feature_names: bool,
-        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
         super().__init__()

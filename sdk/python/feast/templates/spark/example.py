@@ -4,10 +4,10 @@
 
 from pathlib import Path
 
-from feast.infra.offline_stores.third_party.spark_source import SparkSource
 from google.protobuf.duration_pb2 import Duration
 
 from feast import Entity, Feature, FeatureView, ValueType
+from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import SparkSource
 
 # Constants related to the generated data sets
 CURRENT_DIR = Path(__file__).parent

@@ -152,7 +152,7 @@ class SparkSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        from feast.infra.offline_stores.third_party.spark import (
+        from feast.infra.offline_stores.third_party.spark_offline_store.spark import (
             get_spark_session_or_start_new_with_repoconfig,
         )
 
@@ -160,14 +160,10 @@ class SparkSource(DataSource):
             store_config=config.offline_store
         )
         df = spark_session.sql(f"SELECT * FROM {self.get_table_query_string()}")
-        try:
-            return (
-                (fields["name"], fields["type"])
-                for fields in df.schema.jsonValue()["fields"]
-            )
-        except AnalysisException:
-            raise DataSourceNotFoundException()  # TODO: review error handling
-
+        return (
+            (fields["name"], fields["type"])
+            for fields in df.schema.jsonValue()["fields"]
+        )
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
@@ -190,13 +186,16 @@ class SparkSource(DataSource):
 
 class SparkOptions:
     def __init__(
-        self, table: Optional[str] = None, query: Optional[str] = None, path: Optional[str] = None, file_format: Optional[str] = None
+        self,
+        table: Optional[str] = None,
+        query: Optional[str] = None,
+        path: Optional[str] = None,
+        file_format: Optional[str] = None,
     ):
         self._table = table
         self._query = query
         self._path = path
         self._file_format = file_format
-
 
     @property
     def table(self):
@@ -253,7 +252,6 @@ class SparkOptions:
         Sets the file_format
         """
         self._file_format = file_format
-
 
     @classmethod
     def from_proto(cls, spark_options_proto: DataSourceProto.CustomSourceOptions):
