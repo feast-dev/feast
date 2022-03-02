@@ -72,12 +72,14 @@ const RegularFeatureViewOverviewTab = ({
           </EuiFlexItem>
         )}
 
-        <EuiFlexItem>
-          <EuiStat
-            title={data.meta.lastUpdatedTimestamp.toLocaleDateString("en-CA")}
-            description="Last Updated"
-          />
-        </EuiFlexItem>
+        {data.meta.lastUpdatedTimestamp && (
+          <EuiFlexItem>
+            <EuiStat
+              title={data.meta.lastUpdatedTimestamp.toLocaleDateString("en-CA")}
+              description="Last Updated"
+            />
+          </EuiFlexItem>
+        )}
       </EuiFlexGroup>
       <EuiSpacer size="l" />
       <EuiFlexGroup>
@@ -93,7 +95,7 @@ const RegularFeatureViewOverviewTab = ({
                 features={data.spec.features}
               />
             ) : (
-              <EuiText>No Tags sepcified on this feature view.</EuiText>
+              <EuiText>No Tags specified on this feature view.</EuiText>
             )}
           </EuiPanel>
         </EuiFlexItem>
@@ -165,7 +167,7 @@ const RegularFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiPanel hasBorder={true}>
             <EuiTitle size="xs">
-                <h3>Batch Source</h3>
+              <h3>Batch Source</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             <BatchSourcePropertiesView batchSource={data.spec.batchSource} />

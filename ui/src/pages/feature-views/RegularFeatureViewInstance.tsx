@@ -7,6 +7,7 @@ import {
 } from "@elastic/eui";
 
 import FeatureViewIcon from "../../feature-view.svg";
+import { enabledFeatureStatistics } from "../,,/../../flags";
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
@@ -25,6 +26,28 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
   const navigate = useNavigate();
 
   const { customNavigationTabs } = useRegularFeatureViewCustomTabs(navigate);
+  let tabs = [
+    {
+      label: "Overview",
+      isSelected: useMatchExact(""),
+      onClick: () => {
+        navigate("");
+      },
+    },
+  ];
+
+  let statisticsIsSelected = useMatchSubpath("statistics");
+  if (enabledFeatureStatistics) {
+    tabs.push({
+      label: "Statistics",
+      isSelected: statisticsIsSelected,
+      onClick: () => {
+        navigate("statistics");
+      },
+    });
+  }
+
+  tabs.push(...customNavigationTabs);
 
   return (
     <React.Fragment>
@@ -32,23 +55,7 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
         restrictWidth
         iconType={FeatureViewIcon}
         pageTitle={`${data.spec.name}`}
-        tabs={[
-          {
-            label: "Overview",
-            isSelected: useMatchExact(""),
-            onClick: () => {
-              navigate("");
-            },
-          },
-          {
-            label: "Statistics",
-            isSelected: useMatchSubpath("statistics"),
-            onClick: () => {
-              navigate("statistics");
-            },
-          },
-          ...customNavigationTabs,
-        ]}
+        tabs={tabs}
       />
       <EuiPageContent
         hasBorder={false}
