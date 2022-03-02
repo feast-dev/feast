@@ -4,26 +4,19 @@
 
 from pathlib import Path
 
-from feast import Entity, Feature, FeatureView, ValueType
-
+from feast_spark_offline_store import SparkSource
 from google.protobuf.duration_pb2 import Duration
 
-from feast_spark_offline_store import SparkSource
+from feast import Entity, Feature, FeatureView, ValueType
 
 # Constants related to the generated data sets
 CURRENT_DIR = Path(__file__).parent
 
 
 # Entity definitions
-driver = Entity(
-    name="driver_id",
-    value_type=ValueType.INT64,
-    description="driver id",
-)
+driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
 customer = Entity(
-    name="customer_id",
-    value_type=ValueType.INT64,
-    description="customer id",
+    name="customer_id", value_type=ValueType.INT64, description="customer id",
 )
 
 # Sources
