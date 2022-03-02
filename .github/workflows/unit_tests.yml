@@ -39,10 +39,8 @@ jobs:
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
         run: pip install pip-tools
-      - name: Install Python
-        run: |
-          make install-python-ci-dependencies
-          make install-python
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
       - name: Test Python
         env:
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}

@@ -135,10 +135,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install pip-tools
         run: pip install pip-tools
-      - name: Install Python
-        run: |
-          make install-python-ci-dependencies PYTHON=3.7
-          make install-python
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
       - name: Publish Python Package
         run: |
           cd sdk/python
@@ -157,10 +155,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install pip-tools
         run: pip install pip-tools
-      - name: Install Python
-        run: |
-          make install-python-ci-dependencies PYTHON=3.7
-          make install-python
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
       - name: Publish Python Package
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.get-version.outputs.version_without_prefix }}

@@ -37,6 +37,9 @@ build: protos build-java build-docker build-html
 
 install-python-ci-dependencies:
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
+	# Required for generating Go protos in setup.py
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.0
+	cd sdk/python && python setup.py develop
 
 lock-python-ci-dependencies:
 	cd sdk/python && python -m piptools compile -U --extra ci --output-file requirements/py$(PYTHON)-ci-requirements.txt
