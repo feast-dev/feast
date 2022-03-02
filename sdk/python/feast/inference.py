@@ -85,7 +85,9 @@ def update_data_sources_with_inferred_event_timestamp_col(
         ):
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""
-            if isinstance(data_source, FileSource) or isinstance(data_source, SparkSource):
+            if isinstance(data_source, FileSource) or isinstance(
+                data_source, SparkSource
+            ):
                 ts_column_type_regex_pattern = r"^timestamp"
             elif isinstance(data_source, BigQuerySource):
                 ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"

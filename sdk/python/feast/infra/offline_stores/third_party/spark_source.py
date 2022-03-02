@@ -2,7 +2,6 @@ import pickle
 import warnings
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
-from feast.type_map import spark_to_feast_value_type
 from pyspark.sql.utils import AnalysisException
 
 from feast.data_source import DataSource
@@ -13,6 +12,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
 

@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
     Any,
     Dict,
+    Iterator,
     List,
     Optional,
     Sequence,
@@ -24,12 +26,10 @@ from typing import (
     Tuple,
     Type,
     Union,
-    Iterator,
     cast,
 )
 
 import numpy as np
-from collections import defaultdict
 import pandas as pd
 import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -577,6 +577,7 @@ def _non_empty_value(value: Any) -> bool:
     return value is not None and (
         not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
     )
+
 
 def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
     # TODO not all spark types are convertible

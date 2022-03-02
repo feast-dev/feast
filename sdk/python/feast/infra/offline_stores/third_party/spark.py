@@ -8,8 +8,6 @@ import pandas
 import pandas as pd
 import pyarrow
 import pyspark
-from feast.infra.offline_stores.third_party.spark_source import SparkSource
-from feast.type_map import spark_schema_to_np_dtypes
 from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
@@ -26,9 +24,11 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
+from feast.infra.offline_stores.third_party.spark_source import SparkSource
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import spark_schema_to_np_dtypes
 
 
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
@@ -219,7 +219,6 @@ class SparkOfflineStore(OfflineStore):
         return SparkRetrievalJob(
             spark_session=spark_session,
             query=query,
-            config=config,
             full_feature_names=False,
         )
 
