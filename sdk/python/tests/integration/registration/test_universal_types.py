@@ -184,10 +184,9 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
     historical_features = fs.get_historical_features(
         entity_df=entity_df, features=features,
     )
-
     # Note: Pandas doesn't play well with nan values in ints. BQ will also coerce to floats if there are NaNs
     historical_features_df = historical_features.to_df()
-
+    print(historical_features_df)
     if config.feature_is_list:
         assert_feature_list_types(
             environment.test_repo_config.provider,
@@ -285,6 +284,7 @@ def create_feature_view(
             value_type = ValueType.BOOL
         elif feature_dtype == "datetime":
             value_type = ValueType.UNIX_TIMESTAMP
+
     return driver_feature_view(data_source, name=name, value_type=value_type,)
 
 
@@ -347,6 +347,7 @@ def assert_expected_arrow_types(
 ):
     print("Asserting historical feature arrow types")
     historical_features_arrow = historical_features.to_arrow()
+    print(historical_features_arrow)
     feature_list_dtype_to_expected_historical_feature_arrow_type = {
         "int32": pa.types.is_int64,
         "int64": pa.types.is_int64,

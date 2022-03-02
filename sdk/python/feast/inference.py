@@ -8,6 +8,7 @@ from feast import (
     FileSource,
     RedshiftSource,
     SnowflakeSource,
+    SparkSource,
 )
 from feast.data_source import DataSource
 from feast.errors import RegistryInferenceFailure
@@ -84,7 +85,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
         ):
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""
-            if isinstance(data_source, FileSource):
+            if isinstance(data_source, FileSource) or isinstance(data_source, SparkSource):
                 ts_column_type_regex_pattern = r"^timestamp"
             elif isinstance(data_source, BigQuerySource):
                 ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"
@@ -97,7 +98,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     "DataSource",
                     """
                     DataSource inferencing of event_timestamp_column is currently only supported
-                    for FileSource and BigQuerySource.
+                    for FileSource, SparkSource, BigQuerySource, RedshiftSource, and SnowflakeSource.
                     """,
                 )
             #  for informing the type checker

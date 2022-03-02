@@ -758,6 +758,7 @@ class FeatureStore:
             all_request_feature_views,
             all_on_demand_feature_views,
         ) = self._get_feature_views_to_use(features)
+
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
@@ -767,7 +768,6 @@ class FeatureStore:
             all_request_feature_views,
             all_on_demand_feature_views,
         )
-
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
         request_feature_views = list(view for view, _ in request_fvs)

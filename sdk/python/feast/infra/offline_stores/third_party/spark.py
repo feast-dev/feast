@@ -8,8 +8,8 @@ import pandas
 import pandas as pd
 import pyarrow
 import pyspark
-from feast_spark_offline_store.spark_source import SparkSource
-from feast_spark_offline_store.spark_type_map import spark_schema_to_np_dtypes
+from feast.infra.offline_stores.third_party.spark_source import SparkSource
+from feast.type_map import spark_schema_to_np_dtypes
 from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
@@ -37,7 +37,6 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
     spark_conf: Optional[Dict[str, str]] = None
     """ Configuration overlay for the spark session """
-    # to ensure sparksession is the correct config, if not created yet
     # sparksession is not serializable and we dont want to pass it around as an argument
 
 
@@ -161,11 +160,6 @@ class SparkOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
         )
 
-        # TODO: Figure out what this is used for
-        # on_demand_feature_views = OnDemandFeatureView.get_requested_odfvs(
-        #     feature_refs=feature_refs, project=project, registry=registry
-        # )
-
         return SparkRetrievalJob(
             spark_session=spark_session,
             query=query,
@@ -196,22 +190,37 @@ class SparkOfflineStore(OfflineStore):
         have all already been mapped to column names of the source table and those column names are the values passed
         into this function.
         """
+        assert isinstance(data_source, SparkSource)
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
             "This API is unstable and it could and most probably will be changed in the future.",
             RuntimeWarning,
         )
+        from_expression = data_source.get_table_query_string()
 
-        return SparkOfflineStore.pull_latest_from_table_or_query(
+        field_string = (
+            '"'
+            + '", "'.join(
+                join_key_columns + feature_name_columns + [event_timestamp_column]
+            )
+            + '"'
+        )
+        start_date = start_date.astimezone(tz=utc)
+        end_date = end_date.astimezone(tz=utc)
+
+        query = f"""
+            SELECT {field_string}
+            FROM {from_expression}
+            WHERE "{event_timestamp_column}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+        """
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        return SparkRetrievalJob(
+            spark_session=spark_session,
+            query=query,
             config=config,
-            data_source=data_source,
-            join_key_columns=join_key_columns
-            + [event_timestamp_column],  # avoid deduplication
-            feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_timestamp_column,
-            created_timestamp_column=None,
-            start_date=start_date,
-            end_date=end_date,
+            full_feature_names=False,
         )
 
 

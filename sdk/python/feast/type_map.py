@@ -24,10 +24,12 @@ from typing import (
     Tuple,
     Type,
     Union,
+    Iterator,
     cast,
 )
 
 import numpy as np
+from collections import defaultdict
 import pandas as pd
 import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -575,3 +577,50 @@ def _non_empty_value(value: Any) -> bool:
     return value is not None and (
         not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
     )
+
+def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
+    # TODO not all spark types are convertible
+    type_map: Dict[str, ValueType] = {
+        "null": ValueType.UNKNOWN,
+        "byte": ValueType.BYTES,
+        "string": ValueType.STRING,
+        "int": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "long": ValueType.INT64,
+        "double": ValueType.DOUBLE,
+        "float": ValueType.FLOAT,
+        "boolean": ValueType.BOOL,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "array<byte>": ValueType.BYTES_LIST,
+        "array<string>": ValueType.STRING_LIST,
+        "array<int>": ValueType.INT32_LIST,
+        "array<bigint>": ValueType.INT64_LIST,
+        "array<double>": ValueType.DOUBLE_LIST,
+        "array<float>": ValueType.FLOAT_LIST,
+        "array<boolean>": ValueType.BOOL_LIST,
+        "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
+    }
+    # TODO: this is just incorrect fix
+    if type(spark_type_as_str) != str or spark_type_as_str not in type_map:
+        return ValueType.NULL
+    return type_map[spark_type_as_str.lower()]
+
+
+def spark_schema_to_np_dtypes(dtypes: List[Tuple[str, str]]) -> Iterator[np.dtype]:
+    # TODO recheck all typing (also tz for timestamp)
+    # https://spark.apache.org/docs/latest/api/python/user_guide/arrow_pandas.html#timestamp-with-time-zone-semantics
+
+    type_map = defaultdict(
+        lambda: np.dtype("O"),
+        {
+            "boolean": np.dtype("bool"),
+            "double": np.dtype("float64"),
+            "float": np.dtype("float64"),
+            "int": np.dtype("int64"),
+            "bigint": np.dtype("int64"),
+            "smallint": np.dtype("int64"),
+            "timestamp": np.dtype("datetime64[ns]"),
+        },
+    )
+
+    return (type_map[t] for _, t in dtypes)
