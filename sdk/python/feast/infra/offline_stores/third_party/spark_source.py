@@ -1,6 +1,6 @@
 import pickle
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 import warnings
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from feast_spark_offline_store.spark_type_map import spark_to_feast_value_type
 from pyspark.sql.utils import AnalysisException

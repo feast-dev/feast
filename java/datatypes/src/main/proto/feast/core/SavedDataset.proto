@@ -1,0 +1,77 @@
+//
+// Copyright 2021 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+
+syntax = "proto3";
+
+package feast.core;
+option java_package = "feast.proto.core";
+option java_outer_classname = "SavedDatasetProto";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+
+import "google/protobuf/timestamp.proto";
+import "feast/core/FeatureViewProjection.proto";
+import "feast/core/DataSource.proto";
+
+message SavedDatasetSpec {
+  // Name of the dataset. Must be unique since it's possible to overwrite dataset by name
+  string name = 1;
+
+  // Name of Feast project that this Dataset belongs to.
+  string project = 2;
+
+  // list of feature references with format "<view name>:<feature name>"
+  repeated string features = 3;
+
+  // entity columns + request columns from all feature views used during retrieval
+  repeated string join_keys = 4;
+
+  // Whether full feature names are used in stored data
+  bool full_feature_names = 5;
+
+  SavedDatasetStorage storage = 6;
+
+  // User defined metadata
+  map<string, string> tags = 7;
+}
+
+message SavedDatasetStorage {
+  oneof kind {
+    DataSource.FileOptions file_storage = 4;
+    DataSource.BigQueryOptions bigquery_storage = 5;
+    DataSource.RedshiftOptions redshift_storage = 6;
+    DataSource.SnowflakeOptions snowflake_storage = 7;
+  }
+}
+
+message SavedDatasetMeta {
+  // Time when this saved dataset is created
+  google.protobuf.Timestamp created_timestamp = 1;
+
+  // Time when this saved dataset is last updated
+  google.protobuf.Timestamp last_updated_timestamp = 2;
+
+  // Min timestamp in the dataset (needed for retrieval)
+  google.protobuf.Timestamp min_event_timestamp = 3;
+
+  // Max timestamp in the dataset (needed for retrieval)
+  google.protobuf.Timestamp max_event_timestamp = 4;
+}
+
+message SavedDataset {
+  SavedDatasetSpec spec = 1;
+  SavedDatasetMeta meta = 2;
+}
