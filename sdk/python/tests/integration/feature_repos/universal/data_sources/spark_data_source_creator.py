@@ -50,7 +50,7 @@ class SparkDataSourceCreator(DataSourceCreator):
     def create_offline_store_config(self):
         self.spark_offline_store_config = SparkOfflineStoreConfig()
         self.spark_offline_store_config.type = (
-            "sdk.python.feast.infra.third_party.spark.SparkOfflineStore"
+            "spark"
         )
         self.spark_offline_store_config.spark_conf = self.spark_conf
         return self.spark_offline_store_config

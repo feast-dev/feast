@@ -9,3 +9,5 @@ Please see [Offline Store](../../getting-started/architecture-and-components/off
 {% page-ref page="bigquery.md" %}
 
 {% page-ref page="redshift.md" %}
+
+{% page-ref page="snowflake.md" %}
