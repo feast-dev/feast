@@ -43,9 +43,7 @@ def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_s
     # setting ttl setting in online store to 1 second
     fs.config.online_store.key_ttl_seconds = 1
     entities, datasets, data_sources = redis_universal_data_sources
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(
-        data_sources["driver"]
-    )
+    driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_entity = driver()
 
     # Register Feature View and Entity
