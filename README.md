@@ -45,7 +45,11 @@ cd my_feature_repo
 feast apply
 ```
 
-### 4. Build a training dataset
+### 4. Explore your data in the web UI (experimental)
+
+![Web UI](ui/sample.png)
+
+### 5. Build a training dataset
 ```python
 from feast import FeatureStore
 import pandas as pd
@@ -86,7 +90,7 @@ print(training_df.head())
 
 ```
 
-### 5. Load feature values into your online store
+### 6. Load feature values into your online store
 ```commandline
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
@@ -96,7 +100,7 @@ feast materialize-incremental $CURRENT_TIME
 Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!
 ```
 
-### 6. Read online features at low latency
+### 7. Read online features at low latency
 ```python
 from pprint import pprint
 from feast import FeatureStore
@@ -165,7 +169,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
-  * [ ] Bigtable
+  * [ ] Bigtable (in progress)
   * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
@@ -192,16 +196,16 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Feature Logging (for training)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
+  * [ ] Training-serving skew detection (in progress)
   * [ ] Metric production
-  * [ ] Training-serving skew detection
   * [ ] Drift detection
 * **Feature Discovery and Governance**
   * [x] Python SDK for browsing feature registry
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
+  * [ ] Feast Web UI (in progress)
   * [ ] REST API for browsing feature registry
-  * [ ] Feast Web UI
   * [ ] Feature versioning
 
 
