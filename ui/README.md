@@ -2,6 +2,19 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Project structure
+The Web UI is powered by a JSON registry dump from Feast (running `feast registry-dump`). Running `yarn start` launches a UI
+powered by test data. 
+- `public/` contains assets as well as demo data loaded by the Web UI.
+  - There is a `projects-list.json` which represents all Feast projects the UI shows. 
+  - There is also a `registry.json` which is the registry dump for the feature repo.
+- `feature_repo/` contains a sample Feast repo which generates the `registry.json`
+- `src/` contains the Web UI source code. This parses the registry json blob in  `src/parsers` to make this data 
+available for the rest of the UI.
+- `src/custom-tabs` includes sample custom tabs. This is a WIP plugin system where users can inject their own tabs and 
+data to the UI.
+
+
 ## Available Scripts
 
 In the project directory, you can run:
