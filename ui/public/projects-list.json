@@ -7,12 +7,6 @@
       "registryPath": "/registry.json"
     },
     {
-      "name": "Big Query Project",
-      "description": "Doing stuff in Google Big Query",
-      "id": "big_query_project",
-      "registryPath": "/registry_bq.json"
-    },
-    {
       "name": "Empty Registry",
       "description": "Testing how things look when the registry is empty",
       "id": "empty_registry",
