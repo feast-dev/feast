@@ -1,8 +1,10 @@
 import pickle
+from enum import Enum
 import warnings
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from pyspark.sql.utils import AnalysisException
+from pyspark.sql import SparkSession, DataFrame
 
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException
@@ -14,18 +16,20 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
+from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 
+class SparkSourceFormat(Enum):
+    csv = "csv"
+    json = "json"
+    parquet = "parquet"
 
 class SparkSource(DataSource):
     def __init__(
         self,
         table: Optional[str] = None,
         query: Optional[str] = None,
-        # TODO support file readers
-        # path: Optional[str] = None,
-        # jdbc=None,
-        # format: Optional[str] = None,
-        # options: Optional[Dict[str, Any]] = None,
+        path: Optional[str] = None,
+        file_format: Optional[str] = None,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
@@ -42,14 +46,26 @@ class SparkSource(DataSource):
             "This API is unstable and it could and most probably will be changed in the future.",
             RuntimeWarning,
         )
+        self.allowed_formats = [format.value for format in SparkSourceFormat]
+
+        # Check that only one of the ways to load a spark dataframe can be used.
+        if sum([(arg is not None) for arg in [table, query, path]]) != 1:
+            raise ValueError("Exactly one of params(table, query, path) must be specified.")
+
+        if path is not None:
+            if file_format is None:
+                raise ValueError(
+                    "If 'path' is specified, then 'file_format' is required."
+                )
+            if file_format not in self.allowed_formats:
+                raise ValueError(f"'file_format' should be one of {self.allowed_formats}")
+
 
         self._spark_options = SparkOptions(
             table=table,
             query=query,
-            # path=path,
-            # jdbc=None,
-            # format=format,
-            # options=options,
+            path=path,
+            file_format=file_format,
         )
 
     @property
@@ -79,6 +95,21 @@ class SparkSource(DataSource):
         Returns the query of this feature data source
         """
         return self._spark_options.query
+
+
+    @property
+    def path(self):
+        """
+        Returns the path of the spark data source file.
+        """
+        return self._spark_options.path
+
+    @property
+    def file_format(self):
+        """
+        Returns the file format of this feature data source.
+        """
+        return self._spark_options.file_format
 
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
@@ -118,7 +149,6 @@ class SparkSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        # TODO see feast.type_map for examples
         return spark_to_feast_value_type
 
     def get_table_column_names_and_types(
@@ -145,9 +175,19 @@ class SparkSource(DataSource):
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
             return f"`{self.table}`"
-        else:
+        if self.query:
             return f"({self.query})"
 
+        # If both the table query string and the actual query are null, we can load from file.
+        spark_session = SparkSession.getActiveSession()
+        if spark_session is None:
+            raise AssertionError("Could not find an active spark session.")
+        df = spark_session.read.format(self.file_format).load(self.path)
+
+        tmp_table_name = get_temp_entity_table_name()
+        df.createOrReplaceTempView(tmp_table_name)
+
+        return f"`{tmp_table_name}`"
 
 class SparkOptions:
     def __init__(
@@ -212,7 +252,6 @@ class SparkOptions:
         )
 
         return spark_options_proto
-
 
 class SavedDatasetSparkStorage(SavedDatasetStorage):
     _proto_attr_name = "spark_storage"
