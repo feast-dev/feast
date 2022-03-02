@@ -18,7 +18,6 @@ package feast.storage.connectors.redis.retriever;
 
 import com.google.common.collect.Lists;
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.storage.RedisProto;
 import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
@@ -61,11 +60,7 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
       List<ServingAPIProto.FeatureReferenceV2> featureReferences,
       Map<String, List<String>> entityNamesPerFeatureView) {
 
-    List<String> featureViewNames =
-        featureReferences.stream()
-            .map(FeatureReferenceV2::getFeatureViewName)
-            .distinct()
-            .collect(Collectors.toList());
+    Set<String> featureViewNames = entityNamesPerFeatureView.keySet();
 
     Set<List<String>> uniqueEntityKeyCombinations =
         featureViewNames.stream().map(entityNamesPerFeatureView::get).collect(Collectors.toSet());
