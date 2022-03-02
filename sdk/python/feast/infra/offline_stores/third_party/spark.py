@@ -1,7 +1,7 @@
 import inspect
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
-
+import warnings
 import numpy as np
 import pandas
 import pandas as pd
@@ -58,6 +58,12 @@ class SparkOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         assert isinstance(data_source, SparkSource)
 
+        warnings.warn(
+            "The spark offline store is an experimental feature in alpha development. "
+            "This API is unstable and it could and most probably will be changed in the future.",
+            RuntimeWarning,
+        )
+
         print("Pulling latest features from spark offline store")
 
         from_expression = data_source.get_table_query_string()
@@ -106,6 +112,11 @@ class SparkOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        warnings.warn(
+            "The spark offline store is an experimental feature in alpha development. "
+            "This API is unstable and it could and most probably will be changed in the future.",
+            RuntimeWarning,
+        )
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
@@ -184,6 +195,12 @@ class SparkOfflineStore(OfflineStore):
         have all already been mapped to column names of the source table and those column names are the values passed
         into this function.
         """
+        warnings.warn(
+            "The spark offline store is an experimental feature in alpha development. "
+            "This API is unstable and it could and most probably will be changed in the future.",
+            RuntimeWarning,
+        )
+
         return SparkOfflineStore.pull_latest_from_table_or_query(
             config=config,
             data_source=data_source,

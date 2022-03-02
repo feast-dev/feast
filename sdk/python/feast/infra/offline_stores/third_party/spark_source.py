@@ -1,5 +1,6 @@
 import pickle
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+import warnings
 
 from feast_spark_offline_store.spark_type_map import spark_to_feast_value_type
 from pyspark.sql.utils import AnalysisException
@@ -35,6 +36,11 @@ class SparkSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+        )
+        warnings.warn(
+            "The spark data source API is an experimental feature in alpha development. "
+            "This API is unstable and it could and most probably will be changed in the future.",
+            RuntimeWarning,
         )
 
         self._spark_options = SparkOptions(
