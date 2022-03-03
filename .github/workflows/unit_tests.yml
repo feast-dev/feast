@@ -45,17 +45,9 @@ jobs:
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
         run: pip install pip-tools
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.19.4'
       - name: Install dependencies
         run: |
-          pwd
-          echo ${GOPATH}
-          echo ${PATH}
           export PATH=${PATH}:`go env GOPATH`/bin
-          echo ${PATH}
           make install-python-ci-dependencies
         env:
           GOPATH: /home/runner/work/feast/go

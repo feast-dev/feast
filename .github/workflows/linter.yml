@@ -40,7 +40,9 @@ jobs:
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies
+        run: |
+          export PATH=${PATH}:`go env GOPATH`/bin
+          make install-python-ci-dependencies
         env:
           GOPATH: /home/runner/work/feast/go
       - name: Lint python

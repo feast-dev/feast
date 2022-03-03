@@ -136,7 +136,9 @@ jobs:
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies PYTHON=3.7
+        run: |
+          export PATH=${PATH}:`go env GOPATH`/bin
+          make install-python-ci-dependencies PYTHON=3.7
         env:
           GOPATH: /home/runner/work/feast/go
       - name: Publish Python Package
@@ -158,7 +160,9 @@ jobs:
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies PYTHON=3.7
+        run: |
+          export PATH=${PATH}:`go env GOPATH`/bin
+          make install-python-ci-dependencies PYTHON=3.7
         env:
           GOPATH: /home/runner/work/feast/go
       - name: Publish Python Package
