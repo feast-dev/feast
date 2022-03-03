@@ -134,9 +134,11 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
         isinstance(config_dict["online_store"], dict)
         and "redis_type" in config_dict["online_store"]
     ):
-        del config_dict["online_store"]["redis_type"]
+        if str(config_dict["online_store"]["redis_type"]) == "RedisType.redis_cluster":
+            config_dict["online_store"]["redis_type"] = "redis_cluster"
+        elif str(config_dict["online_store"]["redis_type"]) == "RedisType.redis":
+            config_dict["online_store"]["redis_type"] = "redis"
     config_dict["repo_path"] = str(config_dict["repo_path"])
-
     return yaml.safe_dump(config_dict)
 
 
