@@ -140,6 +140,8 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
+        env:
+          GOPATH: /home/runner/work/feast/go
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest

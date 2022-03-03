@@ -15,6 +15,11 @@ jobs:
         with:
           python-version: "3.7"
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17.0"
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1"
@@ -36,6 +41,8 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
+        env:
+          GOPATH: /home/runner/work/feast/go
       - name: Lint python
         run: make lint-python
 
