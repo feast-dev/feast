@@ -130,6 +130,11 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
         repo_path=str(Path(repo_dir_name)),
     )
     config_dict = config.dict()
+    if (
+        isinstance(config_dict["online_store"], dict)
+        and "redis_type" in config_dict["online_store"]
+    ):
+        config_dict["online_store"]["redis_type"] = "redis_cluster"
     config_dict["repo_path"] = str(config_dict["repo_path"])
 
     return yaml.safe_dump(config_dict)
