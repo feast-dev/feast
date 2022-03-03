@@ -36,13 +36,13 @@ from tests.utils.data_source_utils import prep_file_source
 
 
 @pytest.mark.integration
-def test_entity_ttl_online_store(local_redis_environment, universal_data_sources):
+def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_sources):
     if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         return
     fs = local_redis_environment.feature_store
     # setting ttl setting in online store to 1 second
     fs.config.online_store.key_ttl_seconds = 1
-    entities, datasets, data_sources = universal_data_sources
+    entities, datasets, data_sources = redis_universal_data_sources
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_entity = driver()
 

@@ -30,6 +30,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
+    REDIS_CLUSTER_CONFIG,
     REDIS_CONFIG,
     Environment,
     TestData,
@@ -169,10 +170,14 @@ def environment(request, worker_id: str):
     return e
 
 
-@pytest.fixture()
+@pytest.fixture(
+    params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
+    scope="session",
+    ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]],
+)
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
-        IntegrationTestRepoConfig(online_store=REDIS_CONFIG), worker_id=worker_id
+        IntegrationTestRepoConfig(online_store=request.param), worker_id=worker_id
     )
 
     def cleanup():
@@ -190,6 +195,16 @@ def universal_data_sources(request, environment) -> TestData:
 
     request.addfinalizer(cleanup)
     return construct_universal_test_data(environment)
+
+
+@pytest.fixture(scope="session")
+def redis_universal_data_sources(request, local_redis_environment):
+    def cleanup():
+        # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
+        local_redis_environment.data_source_creator.teardown()
+
+    request.addfinalizer(cleanup)
+    return construct_universal_test_data(local_redis_environment)
 
 
 @pytest.fixture(scope="session")
