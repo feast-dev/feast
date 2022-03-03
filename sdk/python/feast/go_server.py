@@ -22,7 +22,7 @@ import socket
 import subprocess
 import threading
 from subprocess import Popen
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import grpc
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential
@@ -43,6 +43,7 @@ from feast.type_map import python_values_to_proto_values
 
 class GoServerConnection:
     def __init__(self, config: RepoConfig, repo_path: str, go_server_port: int = -1):
+        self._process: Optional[Popen[bytes]] = None
         self._config = config
         self._repo_path = repo_path
         self._go_server_port = go_server_port

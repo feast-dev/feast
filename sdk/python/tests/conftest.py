@@ -30,10 +30,9 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
-    REDIS_CLUSTER_CONFIG,
-    DEFAULT_GO_SERVER_REPO_CONFIGS,
     GO_CYCLE_REPO_CONFIGS,
     GO_REPO_CONFIGS,
+    REDIS_CLUSTER_CONFIG,
     REDIS_CONFIG,
     Environment,
     TestData,
@@ -263,6 +262,7 @@ def build_binaries():
         ],
         env={"GOOS": goos, "GOARCH": goarch, **os.environ},
     )
+
 
 @pytest.fixture(
     params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
