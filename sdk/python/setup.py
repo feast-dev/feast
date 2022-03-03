@@ -107,6 +107,7 @@ CI_REQUIRED = (
         "avro==1.10.0",
         "gcsfs",
         "urllib3>=1.25.4",
+        "psutil==5.9.0",
         "pytest>=6.0.0",
         "pytest-cov",
         "pytest-xdist",

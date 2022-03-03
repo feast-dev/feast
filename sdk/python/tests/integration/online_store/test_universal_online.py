@@ -902,7 +902,6 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
-# TODO: Add psutil to test requirements in CI
 # Should only run this test on its own
 @pytest.mark.goserverlifecycle
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
