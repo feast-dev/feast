@@ -325,7 +325,9 @@ def get_online_features_dict(
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval_timestamps(environment, universal_data_sources, full_feature_names):
+def test_online_retrieval_timestamps(
+    environment, universal_data_sources, full_feature_names
+):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -338,8 +340,14 @@ def test_online_retrieval_timestamps(environment, universal_data_sources, full_f
         "conv_rate": [0.5, 0.3],
         "acc_rate": [0.6, 0.4],
         "avg_daily_trips": [4, 5],
-        "event_timestamp": [pd.to_datetime(1646263500, utc=True, unit='s'), pd.to_datetime(1646263600, utc=True, unit='s')],
-        "created": [pd.to_datetime(1646263500, unit='s'), pd.to_datetime(1646263600, unit='s')],
+        "event_timestamp": [
+            pd.to_datetime(1646263500, utc=True, unit="s"),
+            pd.to_datetime(1646263600, utc=True, unit="s"),
+        ],
+        "created": [
+            pd.to_datetime(1646263500, unit="s"),
+            pd.to_datetime(1646263600, unit="s"),
+        ],
     }
     df_ingest = pd.DataFrame(data)
 
