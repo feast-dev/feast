@@ -167,8 +167,7 @@ class SparkSource(DataSource):
         try:
             df = spark_session.read.format(self.file_format).load(self.path)
         except Exception as e:
-            logger.log("Spark read of file source failed.")
-            logger.exception(traceback.format_exc())
+            logger.exception("Spark read of file source failed.\n" + traceback.format_exc())
         tmp_table_name = get_temp_entity_table_name()
         df.createOrReplaceTempView(tmp_table_name)
 
