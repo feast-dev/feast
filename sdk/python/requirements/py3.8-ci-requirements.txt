@@ -69,7 +69,7 @@ babel==2.9.1
     # via sphinx
 backcall==0.2.0
     # via ipython
-backports.zoneinfo==0.2.1
+backports-zoneinfo==0.2.1
     # via
     #   pytz-deprecation-shim
     #   tzlocal
@@ -77,11 +77,11 @@ black==19.10b0
     # via feast (setup.py)
 bleach==4.1.0
     # via nbconvert
-boto3==1.21.11
+boto3==1.21.12
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.24.11
+botocore==1.24.12
     # via
     #   boto3
     #   moto
@@ -646,10 +646,10 @@ responses==0.18.0
     # via moto
 rsa==4.8
     # via google-auth
-ruamel.yaml==0.17.17
+ruamel-yaml==0.17.17
     # via great-expectations
-ruamel.yaml.clib==0.2.6
-    # via ruamel.yaml
+ruamel-yaml-clib==0.2.6
+    # via ruamel-yaml
 s3transfer==0.5.2
     # via boto3
 scipy==1.8.0
