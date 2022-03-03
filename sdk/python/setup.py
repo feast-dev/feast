@@ -93,7 +93,7 @@ SNOWFLAKE_REQUIRED = [
 ]
 
 SPARK_REQUIRED = [
-    "pyspark==3.2.1",
+    "pyspark>=3.0.0",
 ]
 
 GE_REQUIRED = [
