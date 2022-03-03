@@ -329,7 +329,7 @@ def _python_value_to_proto_value(
                     for ts in int_timestamps_lists
                 ]
             if feast_value_type == ValueType.BOOL_LIST:
-                # ProtoValue no longer supports conversion of np.bool_ so we need it convert it.
+                # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
                 return [
                     ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
                     if value is not None
