@@ -431,7 +431,7 @@ nodeenv==1.6.0
     # via pre-commit
 notebook==6.4.8
     # via widgetsnbextension
-numpy==1.22.5
+numpy==1.21.5
     # via
     #   altair
     #   great-expectations
