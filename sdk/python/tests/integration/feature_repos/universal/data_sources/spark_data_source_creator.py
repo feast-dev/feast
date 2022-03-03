@@ -77,7 +77,7 @@ class SparkDataSourceCreator(DataSourceCreator):
             ):
                 col = timestamp_mapping[event_timestamp_column]
                 df[col] = pd.to_datetime(df[col], utc=True)
-
+        destination_name = self.get_prefixed_table_name(destination_name)
         if not self.spark_session:
             self.spark_session = (
                 SparkSession.builder.config(
@@ -103,3 +103,6 @@ class SparkDataSourceCreator(DataSourceCreator):
     def create_saved_dataset_destination(self) -> SavedDatasetSparkStorage:
         table = f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
         return SavedDatasetSparkStorage(table_ref=table, query="")
+
+    def get_prefixed_table_name(self, suffix: str) -> str:
+        return f"{self.project_name}_{suffix}"
