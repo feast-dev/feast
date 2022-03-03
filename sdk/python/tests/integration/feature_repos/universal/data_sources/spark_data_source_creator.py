@@ -78,8 +78,6 @@ class SparkDataSourceCreator(DataSourceCreator):
                 col = timestamp_mapping[event_timestamp_column]
                 df[col] = pd.to_datetime(df[col], utc=True)
 
-        # https://stackoverflow.com/questions/51871200/analysisexception-it-is-not-allowed-to-add-database-prefix
-        # destination_name = self.get_prefixed_table_name(destination_name)
         if not self.spark_session:
             self.spark_session = (
                 SparkSession.builder.config(
@@ -98,7 +96,6 @@ class SparkDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
-            # feature_view => datasource accompanied
             # maps certain column names to other names
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
@@ -106,6 +103,3 @@ class SparkDataSourceCreator(DataSourceCreator):
     def create_saved_dataset_destination(self) -> SavedDatasetSparkStorage:
         table = f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
         return SavedDatasetSparkStorage(table_ref=table, query="")
-
-    def get_prefixed_table_name(self, suffix: str) -> str:
-        return f"{self.project_name}.{suffix}"

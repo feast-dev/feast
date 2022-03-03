@@ -592,11 +592,13 @@ def _non_empty_value(value: Any) -> bool:
 
 def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
     # TODO not all spark types are convertible
+    # Current non-convertible types: interval, map, struct, structfield, decimal, binary
     type_map: Dict[str, ValueType] = {
         "null": ValueType.UNKNOWN,
         "byte": ValueType.BYTES,
         "string": ValueType.STRING,
         "int": ValueType.INT32,
+        "short": ValueType.INT32,
         "bigint": ValueType.INT64,
         "long": ValueType.INT64,
         "double": ValueType.DOUBLE,
@@ -612,7 +614,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<boolean>": ValueType.BOOL_LIST,
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
     }
-    # TODO: this is just incorrect fix
+    # TODO: Find better way of doing this.
     if type(spark_type_as_str) != str or spark_type_as_str not in type_map:
         return ValueType.NULL
     return type_map[spark_type_as_str.lower()]
