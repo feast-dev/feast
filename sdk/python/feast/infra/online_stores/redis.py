@@ -27,6 +27,7 @@ from typing import (
     Union,
 )
 
+import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
@@ -302,5 +303,5 @@ class RedisOnlineStore(OnlineStore):
         if not res:
             return None, None
         else:
-            timestamp = datetime.fromtimestamp(res_ts.seconds)
+            timestamp = datetime.fromtimestamp(res_ts.seconds, tz=pytz.utc)
             return timestamp, res
