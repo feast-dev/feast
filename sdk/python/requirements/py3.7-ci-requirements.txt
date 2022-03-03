@@ -284,9 +284,6 @@ idna==3.3
 imagesize==1.3.0
     # via sphinx
 importlib-metadata==4.2.0
-    # via great-expectations
-=======
-importlib-metadata==4.2.0
     # via
     #   click
     #   flake8
@@ -299,7 +296,6 @@ importlib-metadata==4.2.0
     #   pytest
     #   redis
     #   virtualenv
->>>>>>> 3279f1fa (Fix ci dependencies)
 importlib-resources==5.4.0
     # via jsonschema
 iniconfig==1.1.1
