@@ -1,4 +1,3 @@
-import inspect
 import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
@@ -23,7 +22,6 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
 from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import (
     SparkSource,
 )
