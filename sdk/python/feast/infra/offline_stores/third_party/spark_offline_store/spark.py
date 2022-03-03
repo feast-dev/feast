@@ -235,9 +235,17 @@ class SparkRetrievalJob(RetrievalJob):
         super().__init__()
         self.spark_session = spark_session
         self.query = query
-        self.full_feature_names = full_feature_names
-        self.on_demand_feature_views = on_demand_feature_views
-        self.metadata = metadata
+        self._full_feature_names = full_feature_names
+        self._on_demand_feature_views = on_demand_feature_views
+        self._metadata = metadata
+
+    @property
+    def full_feature_names(self) -> bool:
+        return self._full_feature_names
+
+    @property
+    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+        return self._on_demand_feature_views
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:
         statements = self.query.split(
@@ -260,6 +268,14 @@ class SparkRetrievalJob(RetrievalJob):
         Run the retrieval and persist the results in the same offline store used for read.
         """
         pass
+
+    @property
+    def metadata(self) -> Optional[RetrievalMetadata]:
+        """
+        Return metadata information about retrieval.
+        Should be available even before materializing the dataset itself.
+        """
+        return self._metadata
 
 
 def get_spark_session_or_start_new_with_repoconfig(
