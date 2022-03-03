@@ -905,8 +905,9 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
 @pytest.mark.integration
 @pytest.mark.goserverlifecycle
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
-    import psutil
     import threading
+
+    import psutil
 
     fs = go_cycle_environment.feature_store
     fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
