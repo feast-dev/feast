@@ -54,13 +54,15 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         kwargs = {}
 
     kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
-    [kwargs.update({k: '"'+v+'"'}) for k,v in kwargs.items() if k in ['role', 'warehouse', 'database',  'schema_']]
+    [
+        kwargs.update({k: '"' + v + '"'})
+        for k, v in kwargs.items()
+        if k in ["role", "warehouse", "database", "schema_"]
+    ]
 
     try:
         conn = snowflake.connector.connect(
-            application="feast",
-            autocommit=autocommit,
-            **kwargs
+            application="feast", autocommit=autocommit, **kwargs
         )
 
         return conn
