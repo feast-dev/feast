@@ -62,7 +62,7 @@ class SparkOfflineStore(OfflineStore):
 
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
-            "This API is unstable and it could and most probably will be changed in the future.",
+            "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
 
@@ -116,7 +116,7 @@ class SparkOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
-            "This API is unstable and it could and most probably will be changed in the future.",
+            "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
         spark_session = get_spark_session_or_start_new_with_repoconfig(
@@ -223,7 +223,6 @@ class SparkOfflineStore(OfflineStore):
         )
 
 
-# TODO fix internal abstract methods _to_df_internal _to_arrow_internal
 class SparkRetrievalJob(RetrievalJob):
     def __init__(
         self,
@@ -236,17 +235,9 @@ class SparkRetrievalJob(RetrievalJob):
         super().__init__()
         self.spark_session = spark_session
         self.query = query
-        self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
-        self._metadata = metadata
-
-    @property
-    def full_feature_names(self) -> bool:
-        return self._full_feature_names
-
-    @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
-        return self._on_demand_feature_views
+        self.full_feature_names = full_feature_names
+        self.on_demand_feature_views = on_demand_feature_views
+        self.metadata = metadata
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:
         statements = self.query.split(
@@ -270,14 +261,6 @@ class SparkRetrievalJob(RetrievalJob):
         """
         pass
 
-    @property
-    def metadata(self) -> Optional[RetrievalMetadata]:
-        """
-        Return metadata information about retrieval.
-        Should be available even before materializing the dataset itself.
-        """
-        return self._metadata
-
 
 def get_spark_session_or_start_new_with_repoconfig(
     store_config: SparkOfflineStoreConfig,
@@ -289,12 +272,12 @@ def get_spark_session_or_start_new_with_repoconfig(
         if spark_conf:
             spark_builder = spark_builder.config(
                 conf=SparkConf().setAll([(k, v) for k, v in spark_conf.items()])
-            )  # noqa
+            )
 
         spark_session = spark_builder.getOrCreate()
     spark_session.conf.set(
         "spark.sql.parser.quotedRegexColumnNames", "true"
-    )  # important!
+    )
     return spark_session
 
 
@@ -319,6 +302,7 @@ def _get_entity_df_event_timestamp_range(
         # If the entity_df is a string (SQL query), determine range
         # from table
         df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
+        # TODO(kzhang132): need utc conversion here.
         entity_df_event_timestamp_range = (
             df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
             df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0],
@@ -356,35 +340,6 @@ def _format_datetime(t: datetime) -> str:
         t = t.astimezone(tz=utc)
     dt = t.strftime("%Y-%m-%d %H:%M:%S.%f")
     return dt
-
-
-def _get_feature_view_query_context(
-    entity_df: Union[pd.DataFrame, str],
-    entity_df_event_timestamp_col: str,
-    feature_refs: List[str],
-    feature_views: List[FeatureView],
-    spark_session: SparkSession,
-    table_name: str,
-    registry: Registry,
-    project: str,
-) -> List[FeatureViewQueryContext]:
-    # interface of offline_utils.get_feature_view_query_context changed in feast==0.17
-    arg_spec = inspect.getfullargspec(func=offline_utils.get_feature_view_query_context)
-    if "entity_df_timestamp_range" in arg_spec.args:
-        # for feast>=0.17
-        entity_df_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df=entity_df,
-            entity_df_event_timestamp_col=entity_df_event_timestamp_col,
-            spark_session=spark_session,
-        )
-        query_context = offline_utils.get_feature_view_query_context(
-            feature_refs=feature_refs,
-            feature_views=feature_views,
-            registry=registry,
-            project=project,
-            entity_df_timestamp_range=entity_df_timestamp_range,
-        )
-    return query_context
 
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """/*

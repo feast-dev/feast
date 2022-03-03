@@ -55,7 +55,6 @@ class SparkDataSourceCreator(DataSourceCreator):
         self.spark_offline_store_config.spark_conf = self.spark_conf
         return self.spark_offline_store_config
 
-    # abstract
     def create_data_source(
         self,
         df: pd.DataFrame,

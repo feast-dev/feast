@@ -1,3 +1,5 @@
+import logging
+import traceback
 import pickle
 import warnings
 from enum import Enum
@@ -16,6 +18,7 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
+logger = logging.getLogger(__name__)
 
 class SparkSourceFormat(Enum):
     csv = "csv"
@@ -64,55 +67,40 @@ class SparkSource(DataSource):
                     f"'file_format' should be one of {self.allowed_formats}"
                 )
 
-        self._spark_options = SparkOptions(
+        self.spark_options = SparkOptions(
             table=table, query=query, path=path, file_format=file_format,
         )
-
-    @property
-    def spark_options(self):
-        """
-        Returns the spark options of this data source
-        """
-        return self._spark_options
-
-    @spark_options.setter
-    def spark_options(self, spark_options):
-        """
-        Sets the spark options of this data source
-        """
-        self._spark_options = spark_options
 
     @property
     def table(self):
         """
         Returns the table of this feature data source
         """
-        return self._spark_options.table
+        return self.spark_options.table
 
     @property
     def query(self):
         """
         Returns the query of this feature data source
         """
-        return self._spark_options.query
+        return self.spark_options.query
 
     @property
     def path(self):
         """
         Returns the path of the spark data source file.
         """
-        return self._spark_options.path
+        return self.spark_options.path
 
     @property
     def file_format(self):
         """
         Returns the file format of this feature data source.
         """
-        return self._spark_options.file_format
+        return self.spark_options.file_format
 
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
-
         assert data_source.HasField("custom_options")
 
         spark_options = SparkOptions.from_proto(data_source.custom_options)
@@ -166,6 +154,7 @@ class SparkSource(DataSource):
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
+            # Backticks make sure that spark sql knows this a table reference.
             return f"`{self.table}`"
         if self.query:
             return f"({self.query})"
@@ -174,8 +163,11 @@ class SparkSource(DataSource):
         spark_session = SparkSession.getActiveSession()
         if spark_session is None:
             raise AssertionError("Could not find an active spark session.")
-        df = spark_session.read.format(self.file_format).load(self.path)
-
+        try:
+            df = spark_session.read.format(self.file_format).load(self.path)
+        except Exception as e:
+            logger.log("Spark read of file source failed.")
+            logger.exception(traceback.format_exc())
         tmp_table_name = get_temp_entity_table_name()
         df.createOrReplaceTempView(tmp_table_name)
 
@@ -190,66 +182,10 @@ class SparkOptions:
         path: Optional[str] = None,
         file_format: Optional[str] = None,
     ):
-        self._table = table
-        self._query = query
-        self._path = path
-        self._file_format = file_format
-
-    @property
-    def table(self):
-        """
-        Returns the table
-        """
-        return self._table
-
-    @table.setter
-    def table(self, table):
-        """
-        Sets the table
-        """
-        self._table = table
-
-    @property
-    def query(self):
-        """
-        Returns the query
-        """
-        return self._query
-
-    @query.setter
-    def query(self, query):
-        """
-        Sets the query
-        """
-        self._query = query
-
-    @property
-    def path(self):
-        """
-        Returns the path
-        """
-        return self._path
-
-    @path.setter
-    def path(self, path):
-        """
-        Sets the path
-        """
-        self._path = path
-
-    @property
-    def file_format(self):
-        """
-        Returns the file_format
-        """
-        return self._file_format
-
-    @file_format.setter
-    def file_format(self, file_format):
-        """
-        Sets the file_format
-        """
-        self._file_format = file_format
+        self.table = table
+        self.query = query
+        self.path = path
+        self.file_format = file_format
 
     @classmethod
     def from_proto(cls, spark_options_proto: DataSourceProto.CustomSourceOptions):
@@ -294,10 +230,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
-        # options = SparkOptions.from_proto(
-        #         storage_proto
-        # )
-        # spark_options = SparkOptions(table=options.table, query=options.query)
+        # TODO: implementation is not correct. Needs fix and update to protos.
         return SavedDatasetSparkStorage(table_ref="", query=None)
 
     def to_proto(self) -> SavedDatasetStorageProto:

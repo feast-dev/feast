@@ -1,4 +1,4 @@
-# Snowflake
+# Spark
 
 ## Description
 
@@ -43,6 +43,3 @@ my_spark_source = SparkSource(
     created_timestamp_column="created",
 )
 ```
-
-
-Configuration options are available [here](https://rtd.feast.dev/en/latest/index.html#feast.data_source.SnowflakeSource).

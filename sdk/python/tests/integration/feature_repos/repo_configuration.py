@@ -33,9 +33,6 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.spark_data_source_creator import (
-    SparkDataSourceCreator,
-)
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_data_source,
@@ -55,7 +52,7 @@ REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
     # Redis Cluster Port Forwarding is setup in "pr_integration_tests.yaml" under "Setup Redis Cluster".
-    "connection_string": "127.0.0.1:32001,127.0.0.1:32002,127.0.0.1:32003",
+    "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
@@ -77,9 +74,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
             IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
-            IntegrationTestRepoConfig(
-                provider="local", offline_store_creator=SparkDataSourceCreator,
-            ),
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,

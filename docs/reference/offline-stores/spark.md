@@ -8,15 +8,13 @@ The Spark offline store is an offline store currently in alpha development that 
 
 This Spark offline store still does not achieve full test coverage and continues to fail some integration tests when integrating with the feast universal test suite. Please do NOT assume complete stability of the API.
 
-As of 3/1/2022, 179/194 integration tests pass.
-
 * Spark tables and views are allowed as sources that are loaded in from some Spark store(e.g in Hive or in memory).
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. Pandas dataframes will be converted to a Spark dataframe and processed as a temporary view.
 * A `SparkRetrievalJob` is returned when calling `get_historical_features()`.
   * This allows you to call
      * `to_df` to retrieve the pandas dataframe.
      * `to_arrow` to retrieve the dataframe as a pyarrow Table.
-     * `to_spark-df` to retrieve the dataframe the spark.
+     * `to_spark_df` to retrieve the dataframe the spark.
 
 ## Example
 
