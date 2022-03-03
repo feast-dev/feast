@@ -333,9 +333,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     feature_service = FeatureService(
         "convrate_plus100",
         features=[
-            feature_views["driver"][["conv_rate"]],
-            feature_views["driver_odfv"],
-            feature_views["driver_age_request_fv"],
+            feature_views.driver[["conv_rate"]],
+            feature_views.driver_odfv,
+            feature_views.driver_age_request_fv,
         ],
     )
     feature_service_entity_mapping = FeatureService(
@@ -902,13 +902,11 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
-# Should only run this test on its own
+@pytest.mark.integration
 @pytest.mark.goserverlifecycle
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
-
-    import threading
-
     import psutil
+    import threading
 
     fs = go_cycle_environment.feature_store
     fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
