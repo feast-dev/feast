@@ -328,14 +328,14 @@ def _python_value_to_proto_value(
                     ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
                     for ts in int_timestamps_lists
                 ]
-            if feast_value_type == ValueType.BOOL_LIST:
-                # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
-                return [
-                    ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
-                    if value is not None
-                    else ProtoValue()
-                    for value in values
-                ]
+            # if feast_value_type == ValueType.BOOL_LIST:
+            #     # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
+            #     return [
+            #         ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
+            #         if value is not None
+            #         else ProtoValue()
+            #         for value in values
+            #     ]
             return [
                 ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
                 if value is not None
@@ -361,20 +361,20 @@ def _python_value_to_proto_value(
         ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
         if valid_scalar_types:
             assert type(sample) in valid_scalar_types
-        if feast_value_type == ValueType.BOOL:
-            # ProtoValue no longer supports conversion of np.bool_ so we need it convert it.
-            return [
-                ProtoValue(
-                    **{
-                        field_name: func(
-                            bool(value) if type(value) is np.bool_ else value  # type: ignore
-                        )
-                    }
-                )
-                if not pd.isnull(value)
-                else ProtoValue()
-                for value in values
-            ]
+        # if feast_value_type == ValueType.BOOL:
+        #     # ProtoValue no longer supports conversion of np.bool_ so we need it convert it.
+        #     return [
+        #         ProtoValue(
+        #             **{
+        #                 field_name: func(
+        #                     bool(value) if type(value) is np.bool_ else value  # type: ignore
+        #                 )
+        #             }
+        #         )
+        #         if not pd.isnull(value)
+        #         else ProtoValue()
+        #         for value in values
+        #     ]
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
             return [
                 ProtoValue(**{field_name: func(value)})
