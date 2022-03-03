@@ -23,7 +23,7 @@ from feast.type_map import feast_value_type_to_python_type
 
 class OnlineResponse:
     """
-    Defines a online response in feast.
+    Defines an online response in feast.
     """
 
     def __init__(self, online_response_proto: GetOnlineFeaturesResponse):
@@ -66,3 +66,28 @@ class OnlineResponse:
         """
 
         return pd.DataFrame(self.to_dict())
+
+    def event_timestamps_dict(self) -> Dict[str, List[int]]:
+        """
+        Converts GetOnlineFeaturesResponse feature event timestamps into a dictionary form.
+        Includes the entity id
+        """
+        response: Dict[str, List[int]] = {}
+
+        for result in self.proto.results:
+            for idx, feature_ref in enumerate(self.proto.metadata.feature_names.val):
+                # obtain the entity id
+                if idx == 0:
+                    value = feast_value_type_to_python_type(result.values[idx])
+                # feature timestamps
+                else:
+                    value = result.event_timestamps[idx].seconds
+
+                if feature_ref not in response:
+                    response[feature_ref] = [value]
+                else:
+                    response[feature_ref].append(value)
+        return response
+
+    def event_timestamps_df(self) -> pd.DataFrame:
+        return pd.DataFrame(self.event_timestamps_dict())
