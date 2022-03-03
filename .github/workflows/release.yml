@@ -137,10 +137,9 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: |
+          export GOPATH=${HOME}/work/feast/go
           export PATH=${PATH}:`go env GOPATH`/bin
           make install-python-ci-dependencies PYTHON=3.7
-        env:
-          GOPATH: /home/runner/work/feast/go
       - name: Publish Python Package
         run: |
           cd sdk/python
@@ -161,10 +160,9 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: |
+          export GOPATH=${HOME}/work/feast/go
           export PATH=${PATH}:`go env GOPATH`/bin
           make install-python-ci-dependencies PYTHON=3.7
-        env:
-          GOPATH: /home/runner/work/feast/go
       - name: Publish Python Package
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.get-version.outputs.version_without_prefix }}

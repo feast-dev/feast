@@ -47,10 +47,9 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: |
+          export GOPATH=${HOME}/work/feast/go
           export PATH=${PATH}:`go env GOPATH`/bin
           make install-python-ci-dependencies
-        env:
-          GOPATH: /home/runner/work/feast/go
       - name: Test Python
         env:
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
