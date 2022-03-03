@@ -44,6 +44,8 @@ assertpy==1.1
     # via feast (setup.py)
 async-timeout==4.0.2
     # via aiohttp
+asynctest==0.13.0
+    # via aiohttp
 attrs==21.4.0
     # via
     #   aiohttp
@@ -59,7 +61,7 @@ azure-core==1.22.1
     #   azure-storage-blob
 azure-datalake-store==0.0.52
     # via adlfs
-azure-identity==1.7.1
+azure-identity==1.8.0
     # via adlfs
 azure-storage-blob==12.9.0
     # via adlfs
@@ -67,7 +69,7 @@ babel==2.9.1
     # via sphinx
 backcall==0.2.0
     # via ipython
-backports.zoneinfo==0.2.1
+backports-zoneinfo==0.2.1
     # via
     #   pytz-deprecation-shim
     #   tzlocal
@@ -75,11 +77,11 @@ black==19.10b0
     # via feast (setup.py)
 bleach==4.1.0
     # via nbconvert
-boto3==1.21.8
+boto3==1.21.11
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.24.8
+botocore==1.24.11
     # via
     #   boto3
     #   moto
@@ -195,7 +197,7 @@ google-api-core[grpc]==1.31.5
     #   google-cloud-core
     #   google-cloud-datastore
     #   google-cloud-firestore
-google-api-python-client==2.38.0
+google-api-python-client==2.39.0
     # via firebase-admin
 google-auth==1.35.0
     # via
@@ -210,7 +212,7 @@ google-auth-httplib2==0.1.0
     # via google-api-python-client
 google-auth-oauthlib==0.5.0
     # via gcsfs
-google-cloud-bigquery==2.34.0
+google-cloud-bigquery==2.34.1
     # via feast (setup.py)
 google-cloud-bigquery-storage==2.12.0
     # via feast (setup.py)
@@ -221,7 +223,7 @@ google-cloud-core==1.7.2
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-cloud-datastore==2.4.0
+google-cloud-datastore==2.5.0
     # via feast (setup.py)
 google-cloud-firestore==2.3.4
     # via firebase-admin
@@ -278,7 +280,17 @@ idna==3.3
 imagesize==1.3.0
     # via sphinx
 importlib-metadata==4.2.0
-    # via great-expectations
+    # via
+    #   click
+    #   flake8
+    #   great-expectations
+    #   jsonschema
+    #   moto
+    #   pep517
+    #   pluggy
+    #   pre-commit
+    #   pytest
+    #   virtualenv
 importlib-resources==5.4.0
     # via jsonschema
 iniconfig==1.1.1
@@ -342,13 +354,9 @@ jupyterlab-pygments==0.1.2
     # via nbconvert
 jupyterlab-widgets==1.0.2
     # via ipywidgets
-libcst==0.4.1
-    # via
-    #   google-cloud-bigquery-storage
-    #   google-cloud-datastore
 locket==0.2.1
     # via partd
-markupsafe==2.0.1
+markupsafe==2.1.0
     # via
     #   jinja2
     #   moto
@@ -391,9 +399,7 @@ multidict==6.0.2
 mypy==0.931
     # via feast (setup.py)
 mypy-extensions==0.4.3
-    # via
-    #   mypy
-    #   typing-inspect
+    # via mypy
 mypy-protobuf==3.1.0
     # via feast (setup.py)
 nbclient==0.5.11
@@ -496,6 +502,8 @@ protobuf==3.19.4
     #   mypy-protobuf
     #   proto-plus
     #   tensorflow-metadata
+psutil==5.9.0
+    # via feast (setup.py)
 ptyprocess==0.7.0
     # via
     #   pexpect
@@ -600,7 +608,6 @@ pyyaml==6.0
     # via
     #   dask
     #   feast (setup.py)
-    #   libcst
     #   pre-commit
     #   uvicorn
 pyzmq==22.3.0
@@ -613,7 +620,7 @@ redis==3.5.3
     #   redis-py-cluster
 redis-py-cluster==2.1.3
     # via feast (setup.py)
-regex==2022.1.18
+regex==2022.3.2
     # via black
 requests==2.27.1
     # via
@@ -643,10 +650,10 @@ responses==0.18.0
     # via moto
 rsa==4.8
     # via google-auth
-ruamel.yaml==0.17.17
+ruamel-yaml==0.17.17
     # via great-expectations
-ruamel.yaml.clib==0.2.6
-    # via ruamel.yaml
+ruamel-yaml-clib==0.2.6
+    # via ruamel-yaml
 s3transfer==0.5.2
     # via boto3
 scipy==1.7.3
@@ -703,7 +710,7 @@ tabulate==0.8.9
     # via feast (setup.py)
 tenacity==8.0.1
     # via feast (setup.py)
-tensorflow-metadata==1.6.0
+tensorflow-metadata==1.7.0
     # via feast (setup.py)
 termcolor==1.1.0
     # via great-expectations
@@ -735,7 +742,7 @@ tornado==6.1
     #   jupyter-client
     #   notebook
     #   terminado
-tqdm==4.62.3
+tqdm==4.63.0
     # via
     #   feast (setup.py)
     #   great-expectations
@@ -752,10 +759,10 @@ traitlets==5.1.1
     #   nbformat
     #   notebook
 typed-ast==1.5.2
-    # via black
-types-futures==3.3.8
-    # via types-protobuf
-types-protobuf==3.19.2
+    # via
+    #   black
+    #   mypy
+types-protobuf==3.19.12
     # via
     #   feast (setup.py)
     #   mypy-protobuf
@@ -773,17 +780,24 @@ types-setuptools==57.4.9
     # via feast (setup.py)
 types-tabulate==0.8.5
     # via feast (setup.py)
-types-urllib3==1.26.9
+types-urllib3==1.26.10
     # via types-requests
 typing-extensions==4.1.1
     # via
+    #   aiohttp
+    #   anyio
+    #   argon2-cffi
+    #   asgiref
+    #   async-timeout
     #   great-expectations
-    #   libcst
+    #   h11
+    #   importlib-metadata
+    #   jsonschema
     #   mypy
     #   pydantic
-    #   typing-inspect
-typing-inspect==0.7.1
-    # via libcst
+    #   starlette
+    #   uvicorn
+    #   yarl
 tzdata==2021.5
     # via pytz-deprecation-shim
 tzlocal==4.1
@@ -829,6 +843,7 @@ zipp==3.7.0
     # via
     #   importlib-metadata
     #   importlib-resources
+    #   pep517
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
