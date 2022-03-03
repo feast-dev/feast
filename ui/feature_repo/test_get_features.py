@@ -39,23 +39,6 @@ def credit_profiler(ds: PandasDataset) -> ExpectationSuite:
 def generate_saved_dataset():
     store = FeatureStore(repo_path=".")
     entity_df = pd.read_parquet(path="data/loan_table.parquet")
-    # entity_df = pd.DataFrame.from_dict(
-    #     {
-    #         "zipcode": [30721, 48893, 24092, 76031],
-    #         "dob_ssn": [
-    #             "19530219_5179",
-    #             "19781116_7723",
-    #             "19931128_5771",
-    #             "19500806_6783",
-    #         ],
-    #         "event_timestamp": [
-    #             datetime(2021, 4, 12, 10, 59, 42),
-    #             datetime(2021, 4, 12, 8, 12, 10),
-    #             datetime(2021, 4, 12, 16, 40, 26),
-    #             datetime(2021, 4, 12, 15, 1, 12),
-    #         ],
-    #     }
-    # )
 
     fs = store.get_feature_service("credit_score_v1")
     job = store.get_historical_features(entity_df=entity_df, features=fs,)
