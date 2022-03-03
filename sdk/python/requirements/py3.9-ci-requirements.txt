@@ -490,6 +490,8 @@ protobuf==3.19.4
     #   mypy-protobuf
     #   proto-plus
     #   tensorflow-metadata
+psutil==5.9.0
+    # via feast (setup.py)
 ptyprocess==0.7.0
     # via
     #   pexpect
