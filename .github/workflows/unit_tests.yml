@@ -54,7 +54,9 @@ jobs:
           pwd
           echo ${HOME}
           echo ${GITHUB_WORKSPACE}
+          echo ${PATH}
           echo ${GOPATH}
+          echo ${GOBIN}
           echo ${GOROOT}
           make install-python-ci-dependencies
         env:
