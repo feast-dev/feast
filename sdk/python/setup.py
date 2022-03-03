@@ -229,7 +229,11 @@ class BuildGoProtosCommand(Command):
     user_options = []
 
     def initialize_options(self):
-        self.go_protoc = ["protoc"]
+        self.go_protoc = [
+            "python",
+            "-m",
+            "grpc_tools.protoc",
+        ]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
         self.go_folder = os.path.join(repo_root, "go/protos")
         self.sub_folders = PROTO_SUBDIRS
