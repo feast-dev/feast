@@ -914,16 +914,17 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
 
     entities, datasets, data_sources = go_data_sources
-    driver_stats_fv = construct_universal_feature_views(data_sources, with_odfv=False)[
-        "driver"
-    ]
+    driver_stats_fv = construct_universal_feature_views(
+        data_sources, with_odfv=False
+    ).driver
 
+    driver_entities = entities.driver_vals
     df = pd.DataFrame(
         {
-            "ts_1": [go_cycle_environment.end_date] * len(entities["driver"]),
-            "created_ts": [go_cycle_environment.end_date] * len(entities["driver"]),
-            "driver_id": entities["driver"],
-            "value": np.random.random(size=len(entities["driver"])),
+            "ts_1": [go_cycle_environment.end_date] * len(driver_entities),
+            "created_ts": [go_cycle_environment.end_date] * len(driver_entities),
+            "driver_id": driver_entities,
+            "value": np.random.random(size=len(driver_entities)),
         }
     )
 
@@ -943,7 +944,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     )
     expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver": driver_id} for driver_id in sorted(entities["driver"])]
+    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
 
     # Start go server process that calls get_online_features and return and check if at any time go server
     # fails to clean up resources
