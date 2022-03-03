@@ -1,6 +1,6 @@
 import logging
-import traceback
 import pickle
+import traceback
 import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
@@ -19,6 +19,7 @@ from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
+
 
 class SparkSourceFormat(Enum):
     csv = "csv"

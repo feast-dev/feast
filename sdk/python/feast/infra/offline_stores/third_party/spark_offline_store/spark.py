@@ -291,9 +291,7 @@ def get_spark_session_or_start_new_with_repoconfig(
             )
 
         spark_session = spark_builder.getOrCreate()
-    spark_session.conf.set(
-        "spark.sql.parser.quotedRegexColumnNames", "true"
-    )
+    spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
     return spark_session
 
 
