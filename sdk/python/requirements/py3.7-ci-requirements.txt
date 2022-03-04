@@ -77,11 +77,11 @@ black==19.10b0
     # via feast (setup.py)
 bleach==4.1.0
     # via nbconvert
-boto3==1.21.11
+boto3==1.21.8
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.24.11
+botocore==1.24.8
     # via
     #   boto3
     #   moto
