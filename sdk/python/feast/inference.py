@@ -103,6 +103,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                     f"""
                     DataSource inferencing of event_timestamp_column is currently only supported
                     for FileSource, SparkSource, BigQuerySource, RedshiftSource, and SnowflakeSource.
+                    Attempting to infer from {data_source}.
                     """,
                 )
             #  for informing the type checker
