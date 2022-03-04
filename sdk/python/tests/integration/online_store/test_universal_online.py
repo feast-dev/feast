@@ -18,6 +18,7 @@ from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.online_response import TIMESTAMP_POSTFIX
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     Environment,
@@ -325,14 +326,14 @@ def get_online_features_dict(
 @pytest.mark.integration
 @pytest.mark.universal
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval_timestamps(
+def test_online_retrieval_with_event_timestamps(
     environment, universal_data_sources, full_feature_names
 ):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
-    fs.apply([driver(), feature_views["driver"], feature_views["global"]])
+    fs.apply([driver(), feature_views.driver, feature_views.global_fv])
 
     # fake data to ingest into Online Store
     data = {
@@ -362,16 +363,16 @@ def test_online_retrieval_timestamps(
         ],
         entity_rows=[{"driver": 1}, {"driver": 2}],
     )
-    df = response.event_timestamps_df()
+    df = response.to_df(True)
     assertpy.assert_that(len(df)).is_equal_to(2)
     assertpy.assert_that(df["driver_id"].iloc[0]).is_equal_to(1)
     assertpy.assert_that(df["driver_id"].iloc[1]).is_equal_to(2)
-    assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_equal_to(1646263500)
-    assertpy.assert_that(df["avg_daily_trips"].iloc[1]).is_equal_to(1646263600)
-    assertpy.assert_that(df["acc_rate"].iloc[0]).is_equal_to(1646263500)
-    assertpy.assert_that(df["acc_rate"].iloc[1]).is_equal_to(1646263600)
-    assertpy.assert_that(df["conv_rate"].iloc[0]).is_equal_to(1646263500)
-    assertpy.assert_that(df["conv_rate"].iloc[1]).is_equal_to(1646263600)
+    assertpy.assert_that(df["avg_daily_trips" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(1646263500)
+    assertpy.assert_that(df["avg_daily_trips" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(1646263600)
+    assertpy.assert_that(df["acc_rate" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(1646263500)
+    assertpy.assert_that(df["acc_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(1646263600)
+    assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(1646263500)
+    assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(1646263600)
 
 
 @pytest.mark.integration

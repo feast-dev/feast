@@ -20,6 +20,8 @@ from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.type_map import feast_value_type_to_python_type
 
+TIMESTAMP_POSTFIX: str = "__ts"
+
 
 class OnlineResponse:
     """
@@ -44,9 +46,12 @@ class OnlineResponse:
                     del result.event_timestamps[idx]
                 break
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, is_with_event_timestamps: bool = False) -> Dict[str, Any]:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
+
+        Args:
+        is_with_event_timestamps: bool Optionally include feature timestamps in the dictionary
         """
         response: Dict[str, List[Any]] = {}
 
@@ -58,36 +63,22 @@ class OnlineResponse:
                 else:
                     response[feature_ref].append(native_type_value)
 
+                if is_with_event_timestamps:
+                    event_ts = result.event_timestamps[idx].seconds
+                    timestamp_ref = feature_ref + TIMESTAMP_POSTFIX
+                    if timestamp_ref not in response:
+                        response[timestamp_ref] = [event_ts]
+                    else:
+                        response[timestamp_ref].append(event_ts)
+
         return response
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(self, is_with_event_timestamps: bool = False) -> pd.DataFrame:
         """
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
+
+        Args:
+        is_with_event_timestamps: bool Optionally include feature timestamps in the dataframe
         """
 
-        return pd.DataFrame(self.to_dict())
-
-    def event_timestamps_dict(self) -> Dict[str, List[int]]:
-        """
-        Converts GetOnlineFeaturesResponse feature event timestamps into a dictionary form.
-        Includes the entity id
-        """
-        response: Dict[str, List[int]] = {}
-
-        for result in self.proto.results:
-            for idx, feature_ref in enumerate(self.proto.metadata.feature_names.val):
-                # obtain the entity id
-                if idx == 0:
-                    value = feast_value_type_to_python_type(result.values[idx])
-                # feature timestamps
-                else:
-                    value = result.event_timestamps[idx].seconds
-
-                if feature_ref not in response:
-                    response[feature_ref] = [value]
-                else:
-                    response[feature_ref].append(value)
-        return response
-
-    def event_timestamps_df(self) -> pd.DataFrame:
-        return pd.DataFrame(self.event_timestamps_dict())
+        return pd.DataFrame(self.to_dict(is_with_event_timestamps))
