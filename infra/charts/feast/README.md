@@ -8,7 +8,7 @@ This repo contains Helm charts for Feast components that are being installed on 
    
 ## Chart: Feast
 
-Feature store for machine learning Current chart version is `0.19.0`
+Feature store for machine learning Current chart version is `0.18.2`
 
 ## Installation
 
@@ -55,8 +55,13 @@ For more details, please see: https://docs.feast.dev/how-to-guides/running-feast
 | Repository | Name | Version |
 |------------|------|---------|
 | https://charts.helm.sh/stable | redis | 10.5.6  |
+<<<<<<< HEAD
 | https://feast-helm-charts.storage.googleapis.com | feature-server(feature-server) | 0.19.0  |
 | https://feast-helm-charts.storage.googleapis.com | transformation-service(transformation-service) | 0.19.0  |
+=======
+| https://feast-helm-charts.storage.googleapis.com | feature-server(feature-server) | 0.18.2  |
+| https://feast-helm-charts.storage.googleapis.com | transformation-service(transformation-service) | 0.18.2  |
+>>>>>>> d1b7c673 (ci: Update versions of helm charts + java pom files)
 
 ## Values
 
