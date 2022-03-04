@@ -3,12 +3,12 @@ import logging
 from pkg_resources import DistributionNotFound, get_distribution
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.infra.offline_stores.file_source import FileSource
-from feast.infra.offline_stores.redshift_source import RedshiftSource
-from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.redshift_source import RedshiftSource
+from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
 from .data_source import KafkaSource, KinesisSource, SourceType
 from .entity import Entity

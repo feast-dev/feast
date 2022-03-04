@@ -17,13 +17,13 @@ from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
     RetrievalMetadata,
-)
-from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
-    SparkSource,
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
