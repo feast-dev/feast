@@ -362,7 +362,7 @@ def _python_value_to_proto_value(
         if valid_scalar_types:
             assert type(sample) in valid_scalar_types
         if feast_value_type == ValueType.BOOL:
-            # ProtoValue no longer supports conversion of np.bool_ so we need it convert it.
+            # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [
                 ProtoValue(
                     **{
