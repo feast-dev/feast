@@ -72,6 +72,8 @@ test-python:
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
+test-python-contrib-universal: setup_contrib_env test-python-universal
+
 test-python-universal-local:
 	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
@@ -199,3 +201,7 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
+
+setup_contrib_env:
+	export PYTHONPATH='.'
+	export FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration
