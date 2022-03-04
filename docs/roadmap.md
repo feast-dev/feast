@@ -37,7 +37,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
-  * [ ] Bigtable
+  * [ ] Bigtable (in progress)
   * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
@@ -64,14 +64,14 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Feature Logging (for training)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
+  * [ ] Training-serving skew detection (in progress)
   * [ ] Metric production
-  * [ ] Training-serving skew detection
   * [ ] Drift detection
 * **Feature Discovery and Governance**
   * [x] Python SDK for browsing feature registry
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
+  * [ ] Feast Web UI (in progress)
   * [ ] REST API for browsing feature registry
-  * [ ] Feast Web UI
   * [ ] Feature versioning
