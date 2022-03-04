@@ -137,13 +137,14 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 	// if err != nil {
 	// 	return nil, err
 	// }
-
+	
+	numOfReturnedFeatures := len(responseEntities) + len(featureRefs)
 	onlineFeatureResponse := &serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{
-		FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
+		FeatureNames: &serving.FeatureList{Val: make([]string, numOfReturnedFeatures)},
 	},
 		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, numRows),
 	}
-	numOfReturnedFeatures := len(responseEntities) + len(featureRefs)
+	
 	// Allocate memory for each GetOnlineFeaturesResponse_FeatureVector
 	for index := 0; index < numRows; index++ {
 		onlineFeatureResponse.Results[index] = &serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, numOfReturnedFeatures),
@@ -503,7 +504,7 @@ func (fs *FeatureStore) populateResponseEntities(response *serving.GetOnlineFeat
 	timeStamp := timestamppb.Now()
 	featureIndex := 0
 	for entityName, values := range responseEntities {
-		response.Metadata.FeatureNames.Val = append(response.Metadata.FeatureNames.Val, entityName)
+		response.Metadata.FeatureNames.Val[featureIndex] =entityName
 
 		for rowIndex, value := range values.GetVal() {
 			featureVector := response.Results[rowIndex]
@@ -535,7 +536,6 @@ func (fs *FeatureStore) populateResponseFromFeatureData(featureData2D [][]Featur
 	fvs map[string]*FeatureView,
 	offset int) {
 
-	onlineFeaturesResponse.Metadata.FeatureNames.Val = append(onlineFeaturesResponse.Metadata.FeatureNames.Val, groupRef.featureResponseMeta...)
 	numFeatures := len(groupRef.featureResponseMeta)
 
 	var value *types.Value
@@ -548,6 +548,7 @@ func (fs *FeatureStore) populateResponseFromFeatureData(featureData2D [][]Featur
 
 	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
 		indicesToUse = groupRef.indices[groupRef.indicesMapper[featureIndex]]
+		onlineFeaturesResponse.Metadata.FeatureNames.Val[offset+featureIndex] = groupRef.featureResponseMeta[featureIndex]
 		for rowIndex, rowEntityIndex := range indicesToUse {
 			if featureData2D[rowEntityIndex] == nil {
 				value = nil
