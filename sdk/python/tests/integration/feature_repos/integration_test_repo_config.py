@@ -23,9 +23,9 @@ class IntegrationTestRepoConfig:
     full_feature_names: bool = True
     infer_features: bool = False
     python_feature_server: bool = False
-    alpha_features: bool = False
     go_feature_server: bool = False
     go_server_port: int = -1
+    go_server_use_thread: bool = False
 
     def __repr__(self) -> str:
         return "-".join(

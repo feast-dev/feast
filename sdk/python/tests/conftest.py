@@ -234,36 +234,6 @@ def go_cycle_environment(request, worker_id: str):
     return e
 
 
-# Build go binary once at the start of pytest to instead of at each go server instance
-# so that we don't constantly remove and create binaries concurrently among tests
-@pytest.fixture(scope="session")
-def build_binaries():
-    import os
-    import pathlib
-    import platform
-    import shutil
-    import subprocess
-
-    goos = platform.system().lower()
-    goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
-    binaries_path = (pathlib.Path(__file__).parent / "../feast/binaries").resolve()
-    binaries_path_abs = str(binaries_path.absolute())
-    if binaries_path.exists():
-        shutil.rmtree(binaries_path_abs)
-    os.mkdir(binaries_path_abs)
-
-    subprocess.check_output(
-        [
-            "go",
-            "build",
-            "-o",
-            f"{binaries_path_abs}/goserver_{goos}_{goarch}",
-            "github.com/feast-dev/feast/go/cmd/goserver",
-        ],
-        env={"GOOS": goos, "GOARCH": goarch, **os.environ},
-    )
-
-
 @pytest.fixture(
     params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
     scope="session",

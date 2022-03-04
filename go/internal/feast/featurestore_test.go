@@ -1,7 +1,7 @@
 package feast
 
 import (
-	"github.com/feast-dev/feast/go/internal/config"
+	"context"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,7 @@ func getRegistryPath() map[string]interface{} {
 }
 
 func TestNewFeatureStore(t *testing.T) {
-	config := config.RepoConfig{
+	config := RepoConfig{
 		Project:  "feature_repo",
 		Registry: getRegistryPath(),
 		Provider: "local",
@@ -38,7 +38,7 @@ func TestNewFeatureStore(t *testing.T) {
 }
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {
-	config := config.RepoConfig{
+	config := RepoConfig{
 		Project:  "feature_repo",
 		Registry: getRegistryPath(),
 		Provider: "local",
@@ -62,8 +62,8 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 
 	fs, err := NewFeatureStore(&config)
 	assert.Nil(t, err)
-	response, err := fs.GetOnlineFeatures(&request)
+	ctx := context.Background()
+	response, err := fs.GetOnlineFeatures(ctx, &request)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, response.Results)
-
 }

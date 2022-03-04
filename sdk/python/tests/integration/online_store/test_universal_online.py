@@ -721,7 +721,7 @@ def test_online_retrieval_with_go_server(
     global_df = datasets.global_df
 
     entity_rows = [
-        {"driver": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
+        {"driver": d, "customer_id": c}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -911,6 +911,9 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
 
     fs = go_cycle_environment.feature_store
     fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
+    fs.set_go_server_use_thread(
+        go_cycle_environment.test_repo_config.go_server_use_thread
+    )
 
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
@@ -971,7 +974,8 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
         try:
             # Get process name & pid from process object.
             process_name = proc.name()
-            if "goserver" in process_name:
+            ppid = proc.ppid()
+            if "goserver" in process_name and ppid == child_pid:
                 # Kill process first and raise exception later
                 go_server_still_alive = True
                 proc.terminate()

@@ -12,10 +12,10 @@ type FeatureNameCollisionError struct {
 	fullFeatureNames     bool
 }
 
-func NewFeatureNameCollisionError(featureRefCollisions []string, fullFeatureNames bool) *FeatureNameCollisionError {
-	return &FeatureNameCollisionError{featureRefCollisions, fullFeatureNames}
+func NewFeatureNameCollisionError(featureRefCollisions []string, fullFeatureNames bool) FeatureNameCollisionError {
+	return FeatureNameCollisionError{featureRefCollisions, fullFeatureNames}
 }
 
-func (e *FeatureNameCollisionError) Error() string {
+func (e FeatureNameCollisionError) Error() string {
 	return fmt.Sprintf("featureNameCollisionError: %s; %t", strings.Join(e.featureRefCollisions, ", "), e.fullFeatureNames)
 }

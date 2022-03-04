@@ -1,0 +1,10 @@
+registry:
+ path: data/registry.db
+project: feature_repo
+provider: local
+online_store:
+ type: redis
+ connection_string: "localhost:6379"
+flags:
+  alpha_features: true
+  go_feature_server: true

@@ -34,7 +34,6 @@ type RedisOnlineStore struct {
 
 	// Redis client connector
 	client *redis.Client
-	ctx    context.Context
 }
 
 func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
@@ -118,24 +117,36 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 	return t, nil
 }
 
-func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]FeatureData, error) {
-	featureCount := len(features)
-	var hsetKeys = make([]string, featureCount+1)
+func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	featureCount := len(featureNames)
+	index := featureCount
+	featureViewIndices := make(map[string]int)
+	indicesFeatureView := make(map[int]string)
+	for _, featureViewName := range featureViewNames {
+		if _, ok := featureViewIndices[featureViewName]; !ok {
+			featureViewIndices[featureViewName] = index
+			indicesFeatureView[index] = featureViewName
+			index += 1
+		}
+	}
+	var hsetKeys = make([]string, index)
 	h := murmur3.New32()
 	intBuffer := h.Sum32()
 	byteBuffer := make([]byte, 4)
 
 	for i := 0; i < featureCount; i++ {
-		h.Write([]byte(view + ":" + features[i]))
+		h.Write([]byte(fmt.Sprintf("%s:%s", featureViewNames[i], featureNames[i])))
 		intBuffer = h.Sum32()
 		binary.LittleEndian.PutUint32(byteBuffer, intBuffer)
 		hsetKeys[i] = string(byteBuffer)
 		h.Reset()
 	}
-
-	tsKey := fmt.Sprintf("_ts:%s", view)
-	hsetKeys[featureCount] = tsKey
-	features = append(features, tsKey)
+	for i := featureCount; i < index; i++ {
+		view := indicesFeatureView[i]
+		tsKey := fmt.Sprintf("_ts:%s", view)
+		hsetKeys[i] = tsKey
+		featureNames = append(featureNames, tsKey)
+	}
 
 	redisKeys := make([]*[]byte, len(entityKeys))
 	redisKeyToEntityIndex := make(map[string]int)
@@ -158,10 +169,10 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 
 	for _, redisKey := range redisKeys {
 		keyString := string(*redisKey)
-		commands[keyString] = pipe.HMGet(r.ctx, keyString, hsetKeys...)
+		commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
 	}
 
-	_, err := pipe.Exec(r.ctx)
+	_, err := pipe.Exec(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -180,29 +191,29 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 		}
 
 		var timeStamp timestamppb.Timestamp
-		timeStampInterface := res[featureCount]
-		if timeStampInterface != nil {
-			if timeStampString, ok := timeStampInterface.(string); !ok {
-				return nil, errors.New("error parsing value from redis")
-			} else {
-				if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-					return nil, errors.New("error converting parsed redis value to timestamppb.Timestamp")
-				}
-			}
-		}
-
-		res = res[:featureCount]
 
 		for featureIndex, resString := range res {
+			if featureIndex == featureCount {
+				break
+			}
+
 			if resString == nil {
+				// TODO (Ly): Can there be nil result within each feature or they will all be returned as string proto of types.Value_NullVal proto?
+				featureName := featureNames[featureIndex]
+				featureViewName := featureViewNames[featureIndex]
+				timeStampIndex := featureViewIndices[featureViewName]
+				timeStampInterface := res[timeStampIndex]
+				if timeStampInterface != nil {
+					if timeStampString, ok := timeStampInterface.(string); !ok {
+						return nil, errors.New("error parsing value from redis")
+					} else {
+						if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
+							return nil, errors.New("error converting parsed redis value to timestamppb.Timestamp")
+						}
+					}
+				}
 
-				// TODO (Ly): Can there be nil result
-				// within each feature
-				// or they will all be returned
-				// as string proto of types.Value_NullVal proto?
-
-				featureName := features[featureIndex]
-				results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: view, FeatureName: featureName},
+				results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
 					timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
 					value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
 				}
@@ -215,8 +226,20 @@ func (r *RedisOnlineStore) OnlineRead(entityKeys []types.EntityKey, view string,
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 					return nil, errors.New("error converting parsed redis value to types.Value")
 				} else {
-					featureName := features[featureIndex]
-					results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: view, FeatureName: featureName},
+					featureName := featureNames[featureIndex]
+					featureViewName := featureViewNames[featureIndex]
+					timeStampIndex := featureViewIndices[featureViewName]
+					timeStampInterface := res[timeStampIndex]
+					if timeStampInterface != nil {
+						if timeStampString, ok := timeStampInterface.(string); !ok {
+							return nil, errors.New("error parsing value from redis")
+						} else {
+							if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
+								return nil, errors.New("error converting parsed redis value to timestamppb.Timestamp")
+							}
+						}
+					}
+					results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
 						timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
 						value:     types.Value{Val: value.Val},
 					}

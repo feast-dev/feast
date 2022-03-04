@@ -18,6 +18,5 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 }
 
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
-	s.fs.SetOnlineStoreContext(ctx)
-	return s.fs.GetOnlineFeatures(request)
+	return s.fs.GetOnlineFeatures(ctx, request)
 }

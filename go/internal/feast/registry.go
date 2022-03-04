@@ -3,8 +3,6 @@ package feast
 import (
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/config"
-	"github.com/feast-dev/feast/go/internal/infra"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"net/url"
 	"time"
@@ -24,7 +22,7 @@ var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
 */
 
 type Registry struct {
-	registryStore              infra.RegistryStore
+	registryStore              RegistryStore
 	cachedFeatureServices      map[string]map[string]*core.FeatureService
 	cachedEntities             map[string]map[string]*core.Entity
 	cachedFeatureViews         map[string]map[string]*core.FeatureView
@@ -35,7 +33,7 @@ type Registry struct {
 	cachedRegistryProtoTtl     time.Duration
 }
 
-func NewRegistry(registryConfig *config.RegistryConfig, repoPath string) (*Registry, error) {
+func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
 	registryStoreType := registryConfig.RegistryStoreType
 	registryPath := registryConfig.Path
 	r := &Registry{
@@ -304,7 +302,7 @@ func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string)
 	}
 }
 
-func getRegistryStoreFromSheme(registryPath string, registryConfig *config.RegistryConfig, repoPath string) (infra.RegistryStore, error) {
+func getRegistryStoreFromSheme(registryPath string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
 	uri, err := url.Parse(registryPath)
 	if err != nil {
 		return nil, err
@@ -315,10 +313,10 @@ func getRegistryStoreFromSheme(registryPath string, registryConfig *config.Regis
 	return nil, errors.New(fmt.Sprintf("registry path %s has unsupported scheme %s. Supported schemes are file, s3 and gs.", registryPath, uri.Scheme))
 }
 
-func getRegistryStoreFromType(registryStoreType string, registryConfig *config.RegistryConfig, repoPath string) (infra.RegistryStore, error) {
+func getRegistryStoreFromType(registryStoreType string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
 	switch registryStoreType {
 	case "LocalRegistryStore":
-		return infra.NewLocalRegistryStore(registryConfig, repoPath), nil
+		return NewLocalRegistryStore(registryConfig, repoPath), nil
 	}
 	return nil, errors.New("only LocalRegistryStore as a RegistryStore is supported at this moment")
 }

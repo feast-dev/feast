@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/feast-dev/feast/go/internal/config"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +20,7 @@ func getRepoPath() string {
 	if !ok {
 		panic("couldn't find file path of the test file")
 	}
-	return filepath.Join(filename, "..", "..", "test_repo")
+	return filepath.Join(filename, "..", "..", "feature_repo")
 }
 
 func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
@@ -29,7 +28,7 @@ func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	config, err := config.NewRepoConfigFromFile(getRepoPath())
+	config, err := feast.NewRepoConfigFromFile(getRepoPath())
 	if err != nil {
 		panic(err)
 	}

@@ -1,9 +1,9 @@
 package feast
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/config"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -34,7 +34,7 @@ type OnlineStore interface {
 	// Feature object as pointers in GetOnlineFeaturesResponse)
 	// => allocate memory for each field once in OnlineRead
 	// and reuse them in GetOnlineFeaturesResponse?
-	OnlineRead(entityKeys []types.EntityKey, view string, features []string) ([][]FeatureData, error)
+	OnlineRead(ctx context.Context, entityKeys []types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 	Destruct()
@@ -49,7 +49,7 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 	}
 }
 
-func getOnlineStore(config *config.RepoConfig) (OnlineStore, error) {
+func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", config.OnlineStore))

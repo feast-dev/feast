@@ -111,6 +111,7 @@ class FeatureStore:
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
         go_server_port: int = -1,
+        go_server_use_thread: bool = False,
     ):
         """
         Creates a FeatureStore object.
@@ -135,6 +136,7 @@ class FeatureStore:
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
         self._go_server_port = go_server_port
+        self._go_server_use_thread = go_server_use_thread
 
     @log_exceptions
     def version(self) -> str:
@@ -1169,7 +1171,10 @@ class FeatureStore:
             # Lazily start the go server on the first request
             if self._go_server is None:
                 self._go_server = GoServer(
-                    str(self.repo_path.absolute()), self.config, self._go_server_port
+                    str(self.repo_path.absolute()),
+                    self.config,
+                    self._go_server_port,
+                    self._go_server_use_thread,
                 )
             return self._go_server.get_online_features(
                 features, columnar, full_feature_names
@@ -1799,6 +1804,12 @@ class FeatureStore:
             self._go_server.set_port(port)
         else:
             self._go_server_port = port
+
+    def set_go_server_use_thread(self, use: bool):
+        if self._go_server:
+            self._go_server.set_use_thread(use)
+        else:
+            self._go_server_use_thread = use
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

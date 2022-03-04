@@ -18,7 +18,7 @@ type FeatureView struct {
 	base *BaseFeatureView
 	ttl  *durationpb.Duration
 	// Make entities set so that search for dummy entity is faster
-	entities map[string]bool
+	entities map[string]struct{}
 }
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
@@ -26,11 +26,11 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 		ttl: &(*proto.Spec.Ttl),
 	}
 	if len(proto.Spec.Entities) == 0 {
-		featureView.entities = map[string]bool{DUMMY_ENTITY_NAME: true}
+		featureView.entities = map[string]struct{}{DUMMY_ENTITY_NAME: {}}
 	} else {
-		featureView.entities = make(map[string]bool)
+		featureView.entities = make(map[string]struct{})
 		for _, entityName := range proto.Spec.Entities {
-			featureView.entities[entityName] = true
+			featureView.entities[entityName] = struct{}{}
 		}
 	}
 	return featureView

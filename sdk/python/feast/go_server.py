@@ -74,7 +74,11 @@ class GoServerConnection:
         cwd = feast.__path__[0]
         goos = platform.system().lower()
         goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
-        executable = feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
+        executable = (
+            feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
+            if not is_test()
+            else feast.__path__[0] + "/binaries/goserver"
+        )
         # Automatically reconnect with go subprocess exits
         self._process = Popen([executable], cwd=cwd, env=env,)
 
@@ -98,7 +102,7 @@ class GoServerConnection:
     def wait_for_process(self, timeout):
         self._process.wait(timeout)
 
-    def set_port(self, port):
+    def set_port(self, port: int):
         self._port = port
 
     # Make sure the connection can be used for feature retrieval before returning from
@@ -119,19 +123,27 @@ class GoServer:
     Attributes:
         _repo_path: The path to the Feast repo for which this go server is defined.
         _config: The RepoConfig for the Feast repo for which this go server is defined.
+        _go_server_port: port use to start go server subprocess.
+        _go_server_use_thread: set whether or not to use a background thread to monitor go server
     """
 
     _repo_path: str
     _config: RepoConfig
+    _go_server_port: int
+    _go_server_use_thread: bool
 
-    def __init__(self, repo_path: str, config: RepoConfig, go_server_port: int = -1):
+    def __init__(
+        self,
+        repo_path: str,
+        config: RepoConfig,
+        go_server_port: int = -1,
+        go_server_use_thread: bool = False,
+    ):
         """Creates a GoServer object."""
         self._repo_path = repo_path
         self._config = config
         self._go_server_started = threading.Event()
-        if is_test():
-            use_go_server_thread = os.getenv("USE_GO_SERVER_THREAD") == "True"
-            go_server_port += use_go_server_thread
+        self._use_thread = go_server_use_thread
         self._shared_connection = GoServerConnection(config, repo_path, go_server_port)
         self._dev_mode = "dev" in feast.__version__
         if not is_test() and self._dev_mode:
@@ -143,11 +155,13 @@ class GoServer:
             self._start_go_server()
 
     def _check_use_thread(self):
-        use_go_server_thread = os.getenv("USE_GO_SERVER_THREAD") == "True"
-        return use_go_server_thread
+        return self._use_thread
 
-    def set_port(self, port):
+    def set_port(self, port: int):
         self._shared_connection.set_port(port)
+
+    def set_use_thread(self, use: bool):
+        self._use_thread = use
 
     def _build_binaries(self):
 
