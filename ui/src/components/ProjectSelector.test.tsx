@@ -8,14 +8,12 @@ import App from "../App";
 import {
   projectsListWithDefaultProject,
   creditHistoryRegistry,
-  bigQueryProjectRegistry,
 } from "../mocks/handlers";
 
 // declare which API requests to mock
 const server = setupServer(
   projectsListWithDefaultProject,
-  creditHistoryRegistry,
-  bigQueryProjectRegistry
+  creditHistoryRegistry
 );
 
 // establish API mocking before all tests
