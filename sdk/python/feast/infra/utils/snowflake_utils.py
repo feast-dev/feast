@@ -60,7 +60,7 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         if k in ["role", "warehouse", "database", "schema_"]
     ]
     kwargs["schema"] = kwargs.pop("schema_")
-    print(kwargs)
+
     try:
         conn = snowflake.connector.connect(
             application="feast", autocommit=autocommit, **kwargs
