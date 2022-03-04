@@ -2,8 +2,8 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
+from s3fs import S3FileSystem
 from pyarrow.parquet import ParquetFile
-
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
 from feast.data_source import DataSource
@@ -153,11 +153,11 @@ class FileSource(DataSource):
 
     @staticmethod
     def create_filesystem_and_path(
-        path: str, s3_endpoint_override: str
+        path: str, s3_endpoint_override: str, is_ssl: bool
     ) -> Tuple[Optional[FileSystem], str]:
         if path.startswith("s3://"):
             s3fs = S3FileSystem(
-                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
+                use_ssl=True, client_kwargs=dict(endpoint_url=s3_endpoint_override) if s3_endpoint_override else None
             )
             return s3fs, path.replace("s3://", "")
         else:
