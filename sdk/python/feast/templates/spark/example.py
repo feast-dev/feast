@@ -7,7 +7,7 @@ from pathlib import Path
 from google.protobuf.duration_pb2 import Duration
 
 from feast import Entity, Feature, FeatureView, ValueType
-from feast.infra.offline_stores.third_party.spark_offline_store.spark_source import (
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
 
