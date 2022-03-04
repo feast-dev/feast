@@ -48,8 +48,6 @@ message OnDemandFeatureViewSpec {
     map<string, OnDemandInput> inputs = 4;
 
     UserDefinedFunction user_defined_function = 5;
-
-
 }
 
 message OnDemandFeatureViewMeta {

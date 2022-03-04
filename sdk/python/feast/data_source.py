@@ -139,6 +139,7 @@ class DataSource(ABC):
     DataSource that can be used to source features.
 
     Args:
+        name: Name of data source, which should be unique within a project
         event_timestamp_column (optional): Event timestamp column used for point in time
             joins of feature values.
         created_timestamp_column (optional): Timestamp column indicating when the row
@@ -149,6 +150,7 @@ class DataSource(ABC):
         date_partition_column (optional): Timestamp column used for partitioning.
     """
 
+    name: str
     event_timestamp_column: str
     created_timestamp_column: str
     field_mapping: Dict[str, str]
@@ -156,12 +158,14 @@ class DataSource(ABC):
 
     def __init__(
         self,
+        name: str,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
     ):
         """Creates a DataSource object."""
+        self.name = name
         self.event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
@@ -173,12 +177,16 @@ class DataSource(ABC):
             date_partition_column if date_partition_column else ""
         )
 
+    def __hash__(self):
+        return hash((id(self), self.name))
+
     def __eq__(self, other):
         if not isinstance(other, DataSource):
             raise TypeError("Comparisons should only involve DataSource class objects.")
 
         if (
-            self.event_timestamp_column != other.event_timestamp_column
+            self.name != other.name
+            or self.event_timestamp_column != other.event_timestamp_column
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
@@ -206,7 +214,9 @@ class DataSource(ABC):
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
 
-        if data_source.file_options.file_format and data_source.file_options.file_url:
+        if data_source.request_data_options and data_source.request_data_options.schema:
+            data_source_obj = RequestDataSource.from_proto(data_source)
+        elif data_source.file_options.file_format and data_source.file_options.file_url:
             from feast.infra.offline_stores.file_source import FileSource
 
             data_source_obj = FileSource.from_proto(data_source)
@@ -246,7 +256,7 @@ class DataSource(ABC):
     @abstractmethod
     def to_proto(self) -> DataSourceProto:
         """
-        Converts an DataSourceProto object to its protobuf representation.
+        Converts a DataSourceProto object to its protobuf representation.
         """
         raise NotImplementedError
 
@@ -296,6 +306,7 @@ class KafkaSource(DataSource):
 
     def __init__(
         self,
+        name: str,
         event_timestamp_column: str,
         bootstrap_servers: str,
         message_format: StreamFormat,
@@ -305,6 +316,7 @@ class KafkaSource(DataSource):
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
+            name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
@@ -335,6 +347,7 @@ class KafkaSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         return KafkaSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             bootstrap_servers=data_source.kafka_options.bootstrap_servers,
             message_format=StreamFormat.from_proto(
@@ -348,6 +361,7 @@ class KafkaSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.STREAM_KAFKA,
             field_mapping=self.field_mapping,
             kafka_options=self.kafka_options.to_proto(),
@@ -363,6 +377,9 @@ class KafkaSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.redshift_to_feast_value_type
 
+    def get_table_query_string(self) -> str:
+        raise NotImplementedError
+
 
 class RequestDataSource(DataSource):
     """
@@ -373,10 +390,6 @@ class RequestDataSource(DataSource):
         schema: Schema mapping from the input feature name to a ValueType
     """
 
-    @staticmethod
-    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        raise NotImplementedError
-
     name: str
     schema: Dict[str, ValueType]
 
@@ -384,8 +397,7 @@ class RequestDataSource(DataSource):
         self, name: str, schema: Dict[str, ValueType],
     ):
         """Creates a RequestDataSource object."""
-        super().__init__()
-        self.name = name
+        super().__init__(name)
         self.schema = schema
 
     def validate(self, config: RepoConfig):
@@ -402,20 +414,27 @@ class RequestDataSource(DataSource):
         schema = {}
         for key in schema_pb.keys():
             schema[key] = ValueType(schema_pb.get(key))
-        return RequestDataSource(
-            name=data_source.request_data_options.name, schema=schema
-        )
+        return RequestDataSource(name=data_source.name, schema=schema)
 
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
         for key, value in self.schema.items():
             schema_pb[key] = value.value
-        options = DataSourceProto.RequestDataOptions(name=self.name, schema=schema_pb)
+        options = DataSourceProto.RequestDataOptions(schema=schema_pb)
         data_source_proto = DataSourceProto(
-            type=DataSourceProto.REQUEST_SOURCE, request_data_options=options
+            name=self.name,
+            type=DataSourceProto.REQUEST_SOURCE,
+            request_data_options=options,
         )
 
         return data_source_proto
+
+    def get_table_query_string(self) -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        raise NotImplementedError
 
 
 class KinesisSource(DataSource):
@@ -430,6 +449,7 @@ class KinesisSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         return KinesisSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             record_format=StreamFormat.from_proto(
                 data_source.kinesis_options.record_format
@@ -445,8 +465,12 @@ class KinesisSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         pass
 
+    def get_table_query_string(self) -> str:
+        raise NotImplementedError
+
     def __init__(
         self,
+        name: str,
         event_timestamp_column: str,
         created_timestamp_column: str,
         record_format: StreamFormat,
@@ -456,6 +480,7 @@ class KinesisSource(DataSource):
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
+            name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
@@ -475,7 +500,8 @@ class KinesisSource(DataSource):
             )
 
         if (
-            self.kinesis_options.record_format != other.kinesis_options.record_format
+            self.name != other.name
+            or self.kinesis_options.record_format != other.kinesis_options.record_format
             or self.kinesis_options.region != other.kinesis_options.region
             or self.kinesis_options.stream_name != other.kinesis_options.stream_name
         ):
@@ -485,6 +511,7 @@ class KinesisSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.STREAM_KINESIS,
             field_mapping=self.field_mapping,
             kinesis_options=self.kinesis_options.to_proto(),

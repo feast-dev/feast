@@ -2,6 +2,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
+from feast.errors import DataSourceNoNameException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -14,6 +15,7 @@ from feast.value_type import ValueType
 class SnowflakeSource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = None,
         database: Optional[str] = None,
         schema: Optional[str] = None,
         table: Optional[str] = None,
@@ -27,6 +29,7 @@ class SnowflakeSource(DataSource):
         Creates a SnowflakeSource object.
 
         Args:
+            name (optional): Name for the source. Defaults to the table if not specified.
             database (optional): Snowflake database where the features are stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
@@ -40,7 +43,19 @@ class SnowflakeSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
 
         """
+        if table is None and query is None:
+            raise ValueError('No "table" argument provided.')
+
+        # If no name, use the table as the default name
+        _name = name
+        if not _name:
+            if table:
+                _name = table
+            else:
+                raise DataSourceNoNameException()
+
         super().__init__(
+            _name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
@@ -83,7 +98,8 @@ class SnowflakeSource(DataSource):
             )
 
         return (
-            self.snowflake_options.database == other.snowflake_options.database
+            self.name == other.name
+            and self.snowflake_options.database == other.snowflake_options.database
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query

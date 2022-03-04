@@ -52,6 +52,7 @@ def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuer
         df, event_timestamp_column
     )
     return BigQuerySource(
+        name=bq_source_using_table_ref.table_ref,
         query=f"SELECT * FROM {bq_source_using_table_ref.table_ref}",
         event_timestamp_column=event_timestamp_column,
     )

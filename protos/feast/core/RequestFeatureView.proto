@@ -22,8 +22,6 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "RequestFeatureViewProto";
 option java_package = "feast.proto.core";
 
-import "feast/core/FeatureView.proto";
-import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 
 message RequestFeatureView {

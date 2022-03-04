@@ -1,8 +1,9 @@
+import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException
+from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -15,21 +16,66 @@ from feast.value_type import ValueType
 class BigQuerySource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
+        table: Optional[str] = None,
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
     ):
-        self.bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
+        """Create a BigQuerySource from an existing table or query.
+
+         Args:
+             name (optional): Name for the source. Defaults to the table_ref if not specified.
+             table (optional): The BigQuery table where features can be found.
+             table_ref (optional): (Deprecated) The BigQuery table where features can be found.
+             event_timestamp_column: Event timestamp column used for point in time joins of feature values.
+             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
+             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
+                 or view. Only used for feature columns, not entities or timestamp columns.
+             date_partition_column (optional): Timestamp column used for partitioning.
+             query (optional): SQL query to execute to generate data for this data source.
+
+         Example:
+             >>> from feast import BigQuerySource
+             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
+         """
+        if table is None and table_ref is None and query is None:
+            raise ValueError('No "table" argument provided.')
+        if not table and table_ref:
+            warnings.warn(
+                (
+                    "The argument 'table_ref' is being deprecated. Please use 'table' "
+                    "instead. Feast 0.20 and onwards will not support the argument 'table_ref'."
+                ),
+                DeprecationWarning,
+            )
+            table = table_ref
+        self.bigquery_options = BigQueryOptions(table_ref=table, query=query)
+
+        # If no name, use the table_ref as the default name
+        _name = name
+        if not _name:
+            if table:
+                _name = table
+            elif table_ref:
+                _name = table_ref
+            else:
+                raise DataSourceNoNameException()
 
         super().__init__(
+            _name if _name else "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
         )
+
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
@@ -38,7 +84,8 @@ class BigQuerySource(DataSource):
             )
 
         return (
-            self.bigquery_options.table_ref == other.bigquery_options.table_ref
+            self.name == other.name
+            and self.bigquery_options.table_ref == other.bigquery_options.table_ref
             and self.bigquery_options.query == other.bigquery_options.query
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
@@ -59,6 +106,7 @@ class BigQuerySource(DataSource):
         assert data_source.HasField("bigquery_options")
 
         return BigQuerySource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table_ref=data_source.bigquery_options.table_ref,
             event_timestamp_column=data_source.event_timestamp_column,
@@ -69,6 +117,7 @@ class BigQuerySource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
@@ -132,7 +181,9 @@ class BigQueryOptions:
     DataSource BigQuery options used to source features from BigQuery query
     """
 
-    def __init__(self, table_ref: Optional[str], query: Optional[str]):
+    def __init__(
+        self, table_ref: Optional[str], query: Optional[str],
+    ):
         self._table_ref = table_ref
         self._query = query
 

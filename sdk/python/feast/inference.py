@@ -10,7 +10,7 @@ from feast import (
     SnowflakeSource,
     SparkSource,
 )
-from feast.data_source import DataSource
+from feast.data_source import DataSource, RequestDataSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig
@@ -79,6 +79,8 @@ def update_data_sources_with_inferred_event_timestamp_col(
     ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
 
     for data_source in data_sources:
+        if isinstance(data_source, RequestDataSource):
+            continue
         if (
             data_source.event_timestamp_column is None
             or data_source.event_timestamp_column == ""
@@ -98,9 +100,10 @@ def update_data_sources_with_inferred_event_timestamp_col(
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
-                    """
+                    f"""
                     DataSource inferencing of event_timestamp_column is currently only supported
                     for FileSource, SparkSource, BigQuerySource, RedshiftSource, and SnowflakeSource.
+                    Attempting to infer from {data_source}.
                     """,
                 )
             #  for informing the type checker
