@@ -63,9 +63,7 @@ func main() {
 }
 
 func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
-	server := servingServiceServer{
-		fs: fs,
-	}
+	server := newServingServiceServer(fs)
 	log.Printf("Starting a gRPC server at port %s...", grpcPort)
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
@@ -73,7 +71,7 @@ func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
 	}
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
-	serving.RegisterServingServiceServer(grpcServer, &server)
+	serving.RegisterServingServiceServer(grpcServer, server)
 	err = grpcServer.Serve(lis)
 	if err != nil {
 		log.Fatalln(err)
