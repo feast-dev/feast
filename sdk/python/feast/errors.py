@@ -13,7 +13,7 @@ class DataSourceNotFoundException(Exception):
 class DataSourceNoNameException(Exception):
     def __init__(self):
         super().__init__(
-            "Unable to infer a name for this data source. Either table_ref or name must be specified."
+            "Unable to infer a name for this data source. Either table or name must be specified."
         )
 
 
