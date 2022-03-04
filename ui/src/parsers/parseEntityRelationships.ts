@@ -46,7 +46,7 @@ const parseEntityRelationships = (objects: FeastRegistryType) => {
       links.push({
         source: {
           type: FEAST_FCO_TYPES["dataSource"],
-          name: fv.spec.batchSource.name
+          name: fv.spec.batchSource.name || ''
         },
         target: {
           type: FEAST_FCO_TYPES["featureView"],
@@ -77,7 +77,7 @@ const parseEntityRelationships = (objects: FeastRegistryType) => {
           links.push({
              source: {
                type: FEAST_FCO_TYPES["dataSource"],
-               name: source_fv?.spec.batchSource.name,
+               name: source_fv?.spec.batchSource.name || '',
              },
              target: {
                type: FEAST_FCO_TYPES["featureView"],
