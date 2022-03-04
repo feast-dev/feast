@@ -90,7 +90,13 @@ SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.14.0,<0.15.0"]
+SPARK_REQUIRED = [
+    "pyspark>=3.0.0",
+]
+
+GE_REQUIRED = [
+    "great_expectations>=0.14.0,<0.15.0"
+]
 
 CI_REQUIRED = (
     [
@@ -134,11 +140,12 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
     ]
-    + GCP_REQUIRED
-    + REDIS_REQUIRED
-    + AWS_REQUIRED
-    + SNOWFLAKE_REQUIRED
-    + GE_REQUIRED
+        + GCP_REQUIRED
+        + REDIS_REQUIRED
+        + AWS_REQUIRED
+        + SNOWFLAKE_REQUIRED
+        + SPARK_REQUIRED
+        + GE_REQUIRED
 )
 
 DEV_REQUIRED = ["mypy-protobuf>=3.1.0", "grpcio-testing==1.*"] + CI_REQUIRED
@@ -323,6 +330,7 @@ setup(
         "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
+        "spark": SPARK_REQUIRED,
         "ge": GE_REQUIRED,
     },
     include_package_data=True,

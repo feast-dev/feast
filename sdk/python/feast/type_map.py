@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
     Any,
     Dict,
+    Iterator,
     List,
     Optional,
     Sequence,
@@ -326,7 +328,14 @@ def _python_value_to_proto_value(
                     ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
                     for ts in int_timestamps_lists
                 ]
-
+            if feast_value_type == ValueType.BOOL_LIST:
+                # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
+                return [
+                    ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
+                    if value is not None
+                    else ProtoValue()
+                    for value in values
+                ]
             return [
                 ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
                 if value is not None
@@ -345,15 +354,28 @@ def _python_value_to_proto_value(
             # ProtoValue does actually accept `np.int_` but the typing complains.
             return [ProtoValue(unix_timestamp_val=ts) for ts in int_timestamps]  # type: ignore
 
+        (
+            field_name,
+            func,
+            valid_scalar_types,
+        ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
+        if valid_scalar_types:
+            assert type(sample) in valid_scalar_types
+        if feast_value_type == ValueType.BOOL:
+            # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
+            return [
+                ProtoValue(
+                    **{
+                        field_name: func(
+                            bool(value) if type(value) is np.bool_ else value  # type: ignore
+                        )
+                    }
+                )
+                if not pd.isnull(value)
+                else ProtoValue()
+                for value in values
+            ]
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
-            (
-                field_name,
-                func,
-                valid_scalar_types,
-            ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
-            if valid_scalar_types:
-                assert type(sample) in valid_scalar_types
-
             return [
                 ProtoValue(**{field_name: func(value)})
                 if not pd.isnull(value)
@@ -566,3 +588,53 @@ def _non_empty_value(value: Any) -> bool:
     return value is not None and (
         not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
     )
+
+
+def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
+    # TODO not all spark types are convertible
+    # Current non-convertible types: interval, map, struct, structfield, decimal, binary
+    type_map: Dict[str, ValueType] = {
+        "null": ValueType.UNKNOWN,
+        "byte": ValueType.BYTES,
+        "string": ValueType.STRING,
+        "int": ValueType.INT32,
+        "short": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "long": ValueType.INT64,
+        "double": ValueType.DOUBLE,
+        "float": ValueType.FLOAT,
+        "boolean": ValueType.BOOL,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "array<byte>": ValueType.BYTES_LIST,
+        "array<string>": ValueType.STRING_LIST,
+        "array<int>": ValueType.INT32_LIST,
+        "array<bigint>": ValueType.INT64_LIST,
+        "array<double>": ValueType.DOUBLE_LIST,
+        "array<float>": ValueType.FLOAT_LIST,
+        "array<boolean>": ValueType.BOOL_LIST,
+        "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
+    }
+    # TODO: Find better way of doing this.
+    if type(spark_type_as_str) != str or spark_type_as_str not in type_map:
+        return ValueType.NULL
+    return type_map[spark_type_as_str.lower()]
+
+
+def spark_schema_to_np_dtypes(dtypes: List[Tuple[str, str]]) -> Iterator[np.dtype]:
+    # TODO recheck all typing (also tz for timestamp)
+    # https://spark.apache.org/docs/latest/api/python/user_guide/arrow_pandas.html#timestamp-with-time-zone-semantics
+
+    type_map = defaultdict(
+        lambda: np.dtype("O"),
+        {
+            "boolean": np.dtype("bool"),
+            "double": np.dtype("float64"),
+            "float": np.dtype("float64"),
+            "int": np.dtype("int64"),
+            "bigint": np.dtype("int64"),
+            "smallint": np.dtype("int64"),
+            "timestamp": np.dtype("datetime64[ns]"),
+        },
+    )
+
+    return (type_map[t] for _, t in dtypes)
