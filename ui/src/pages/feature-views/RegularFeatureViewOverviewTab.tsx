@@ -60,7 +60,7 @@ const RegularFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />
         </EuiFlexItem>
-        {data.spec.batchSource.meta && (
+        {data.spec.batchSource.meta ? (
           <EuiFlexItem>
             <EuiStat
               title={data.spec.batchSource.meta.latestEventTimestamp.toLocaleDateString(
@@ -70,8 +70,9 @@ const RegularFeatureViewOverviewTab = ({
               titleColor="subdued"
             />
           </EuiFlexItem>
+        ) : (
+          <EuiText>No batchSource specified on this feature view.</EuiText>
         )}
-
         {data.meta.lastUpdatedTimestamp && (
           <EuiFlexItem>
             <EuiStat
