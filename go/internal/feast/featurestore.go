@@ -186,9 +186,6 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 	}
 
 	for _, groupRef := range groupedRefs {
-		if err != nil {
-			return nil, err
-		}
 		featureData, err := fs.readFromOnlineStore(ctx, groupRef.entityKeys, groupRef.featureViewNames, groupRef.featureNames)
 		if err != nil {
 			return nil, err
