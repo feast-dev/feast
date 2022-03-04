@@ -43,29 +43,27 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     if config.type == "snowflake.offline":
         config_header = "connections.feast_offline_store"
 
-    config = dict(config)
+    config_dict = dict(config)
 
     # read config file
     config_reader = configparser.ConfigParser()
-    config_reader.read([config["config_path"]])
+    config_reader.read([config_dict["config_path"]])
     if config_reader.has_section(config_header):
         kwargs = dict(config_reader[config_header])
     else:
         kwargs = {}
 
-    kwargs.update((k, v) for k, v in config.items() if v is not None)
+    kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
+    [
+        kwargs.update({k: '"' + v + '"'})
+        for k, v in kwargs.items()
+        if k in ["role", "warehouse", "database", "schema_"]
+    ]
+    kwargs["schema"] = kwargs.pop("schema_")
 
     try:
         conn = snowflake.connector.connect(
-            account=kwargs["account"],
-            user=kwargs["user"],
-            password=kwargs["password"],
-            role=f'''"{kwargs['role']}"''',
-            warehouse=f'''"{kwargs['warehouse']}"''',
-            database=f'''"{kwargs['database']}"''',
-            schema=f'''"{kwargs['schema_']}"''',
-            application="feast",
-            autocommit=autocommit,
+            application="feast", autocommit=autocommit, **kwargs
         )
 
         return conn
