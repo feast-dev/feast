@@ -367,12 +367,24 @@ def test_online_retrieval_with_event_timestamps(
     assertpy.assert_that(len(df)).is_equal_to(2)
     assertpy.assert_that(df["driver_id"].iloc[0]).is_equal_to(1)
     assertpy.assert_that(df["driver_id"].iloc[1]).is_equal_to(2)
-    assertpy.assert_that(df["avg_daily_trips" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(1646263500)
-    assertpy.assert_that(df["avg_daily_trips" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(1646263600)
-    assertpy.assert_that(df["acc_rate" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(1646263500)
-    assertpy.assert_that(df["acc_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(1646263600)
-    assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(1646263500)
-    assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(1646263600)
+    assertpy.assert_that(df["avg_daily_trips" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(
+        1646263500
+    )
+    assertpy.assert_that(df["avg_daily_trips" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(
+        1646263600
+    )
+    assertpy.assert_that(df["acc_rate" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(
+        1646263500
+    )
+    assertpy.assert_that(df["acc_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(
+        1646263600
+    )
+    assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[0]).is_equal_to(
+        1646263500
+    )
+    assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(
+        1646263600
+    )
 
 
 @pytest.mark.integration
