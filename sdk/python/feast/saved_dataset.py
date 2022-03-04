@@ -54,6 +54,7 @@ class SavedDataset:
     full_feature_names: bool
     storage: SavedDatasetStorage
     tags: Dict[str, str]
+    feature_service_name: Optional[str] = None
 
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
@@ -71,6 +72,7 @@ class SavedDataset:
         storage: SavedDatasetStorage,
         full_feature_names: bool = False,
         tags: Optional[Dict[str, str]] = None,
+        feature_service_name: Optional[str] = None,
     ):
         self.name = name
         self.features = features
@@ -78,6 +80,7 @@ class SavedDataset:
         self.storage = storage
         self.full_feature_names = full_feature_names
         self.tags = tags or {}
+        self.feature_service_name = feature_service_name
 
         self._retrieval_job = None
 
@@ -121,6 +124,9 @@ class SavedDataset:
             tags=dict(saved_dataset_proto.spec.tags.items()),
         )
 
+        if saved_dataset_proto.spec.feature_service_name:
+            ds.feature_service_name = saved_dataset_proto.spec.feature_service_name
+
         if saved_dataset_proto.meta.HasField("created_timestamp"):
             ds.created_timestamp = (
                 saved_dataset_proto.meta.created_timestamp.ToDatetime()
@@ -163,6 +169,8 @@ class SavedDataset:
             storage=self.storage.to_proto(),
             tags=self.tags,
         )
+        if self.feature_service_name:
+            spec.feature_service_name = self.feature_service_name
 
         feature_service_proto = SavedDatasetProto(spec=spec, meta=meta)
         return feature_service_proto

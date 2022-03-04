@@ -12,6 +12,7 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
+from feast.data_source import DataSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -94,6 +95,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 def parse_repo(repo_root: Path) -> RepoContents:
     """ Collect feature table definitions from feature repo """
     res = RepoContents(
+        data_sources=set(),
         entities=set(),
         feature_views=set(),
         feature_services=set(),
@@ -106,6 +108,8 @@ def parse_repo(repo_root: Path) -> RepoContents:
         module = importlib.import_module(module_path)
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
+            if isinstance(obj, DataSource):
+                res.data_sources.add(obj)
             if isinstance(obj, FeatureView):
                 res.feature_views.add(obj)
             elif isinstance(obj, Entity):
@@ -258,18 +262,11 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
-    from colorama import Fore, Style
-
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)
     registry_dict = registry.to_dict(project=project)
 
-    warning = (
-        "Warning: The registry-dump command is for debugging only and may contain "
-        "breaking changes in the future. No guarantees are made on this interface."
-    )
-    click.echo(f"{Style.BRIGHT}{Fore.YELLOW}{warning}{Style.RESET_ALL}")
     click.echo(json.dumps(registry_dict, indent=2, sort_keys=True))
 
 

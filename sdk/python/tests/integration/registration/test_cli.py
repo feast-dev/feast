@@ -69,6 +69,8 @@ def test_universal_cli(environment: Environment):
             assertpy.assert_that(result.returncode).is_equal_to(0)
             result = runner.run(["feature-services", "list"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(["data-sources", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
 
             # entity & feature view describe commands should succeed when objects exist
             result = runner.run(["entities", "describe", "driver"], cwd=repo_path)
@@ -83,6 +85,11 @@ def test_universal_cli(environment: Environment):
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
             assertpy.assert_that(fs.list_feature_views()).is_length(3)
+            result = runner.run(
+                ["data-sources", "describe", "customer_profile_source"], cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(fs.list_data_sources()).is_length(3)
 
             # entity & feature view describe commands should fail when objects don't exist
             result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
@@ -90,6 +97,8 @@ def test_universal_cli(environment: Environment):
             result = runner.run(["feature-views", "describe", "foo"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(1)
             result = runner.run(["feature-services", "describe", "foo"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            result = runner.run(["data-sources", "describe", "foo"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(1)
 
             # Doing another apply should be a no op, and should not cause errors

@@ -6,10 +6,20 @@ from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
 def test_cli_apply_duplicated_featureview_names() -> None:
-    """
-    Test apply feature views with duplicated names and single py file in a feature repo using CLI
-    """
+    run_simple_apply_test(
+        example_repo_file_name="example_feature_repo_with_duplicated_featureview_names.py",
+        expected_error=b"Please ensure that all feature view names are case-insensitively unique",
+    )
 
+
+def test_cli_apply_duplicate_data_source_names() -> None:
+    run_simple_apply_test(
+        example_repo_file_name="example_repo_duplicate_data_source_names.py",
+        expected_error=b"Please ensure that all data source names are case-insensitively unique",
+    )
+
+
+def run_simple_apply_test(example_repo_file_name: str, expected_error: bytes):
     with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
         runner = CliRunner()
         # Construct an example repo in a temporary dir
@@ -31,18 +41,10 @@ def test_cli_apply_duplicated_featureview_names() -> None:
         )
 
         repo_example = repo_path / "example.py"
-        repo_example.write_text(
-            get_example_repo(
-                "example_feature_repo_with_duplicated_featureview_names.py"
-            )
-        )
+        repo_example.write_text(get_example_repo(example_repo_file_name))
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
-        assert (
-            rc != 0
-            and b"Please ensure that all feature view names are case-insensitively unique"
-            in output
-        )
+        assert rc != 0 and expected_error in output
 
 
 def test_cli_apply_imported_featureview() -> None:

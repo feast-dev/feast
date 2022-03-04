@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 from pyspark.sql import SparkSession
 
 from feast.data_source import DataSource
+from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -30,6 +31,7 @@ class SparkSourceFormat(Enum):
 class SparkSource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = None,
         table: Optional[str] = None,
         query: Optional[str] = None,
         path: Optional[str] = None,
@@ -39,7 +41,15 @@ class SparkSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
     ):
+        # If no name, use the table_ref as the default name
+        _name = name
+        if not _name:
+            if table:
+                _name = table
+            else:
+                raise DataSourceNoNameException()
         super().__init__(
+            _name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
@@ -106,6 +116,7 @@ class SparkSource(DataSource):
 
         spark_options = SparkOptions.from_proto(data_source.custom_options)
         return SparkSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table=spark_options.table,
             query=spark_options.query,
@@ -118,6 +129,7 @@ class SparkSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
             field_mapping=self.field_mapping,
             custom_options=self.spark_options.to_proto(),
