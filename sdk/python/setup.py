@@ -26,6 +26,7 @@ try:
     from setuptools import setup
     from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
+    from setuptools.command.install import install
 except ImportError:
     from distutils.command.build_py import build_py
     from distutils.core import setup
@@ -164,6 +165,25 @@ else:
     use_scm_version = None
 
 PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+COMPILE_GO_PROTOS = None
+
+
+class InstallCommand(install):
+    user_options = install.user_options + [
+        ('compilegoprotos', None, None)
+    ]
+
+    def initialize_options(self):
+        install.initialize_options(self)
+        self.compilegoprotos = None
+
+    def finalize_options(self):
+        install.finalize_options(self)
+
+    def run(self):
+        global COMPILE_GO_PROTOS
+        COMPILE_GO_PROTOS = self.compilegoprotos
+        install.run(self)
 
 
 class BuildPythonProtosCommand(Command):
@@ -247,7 +267,11 @@ class BuildGoProtosCommand(Command):
 
         subprocess.check_call(
             self.go_protoc
-            + ["-I", self.proto_folder, "--go_out", self.go_folder]
+            + ["-I", self.proto_folder,
+               "--go_out", self.go_folder,
+               "--go_opt=module=github.com/feast-dev/feast/go/protos",
+               "--go-grpc_out", self.go_folder,
+               "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos"]
             + proto_files,
         )
 
@@ -263,7 +287,8 @@ class BuildCommand(build_py):
 
     def run(self):
         self.run_command("build_python_protos")
-        self.run_command("build_go_protos")
+        if COMPILE_GO_PROTOS:
+            self.run_command("build_go_protos")
         build_py.run(self)
 
 

@@ -16,11 +16,15 @@ import ctypes
 import os
 import pathlib
 import platform
+import random
 import shutil
 import signal
-import socket
+import string
 import subprocess
+import tempfile
 import threading
+import time
+from pathlib import Path
 from subprocess import Popen
 from typing import Any, Dict, List, Optional, Union
 
@@ -47,28 +51,23 @@ class GoServerConnection:
         self._config = config
         self._repo_path = repo_path
         self._go_server_port = go_server_port
+        self.temp_dir = tempfile.TemporaryDirectory()
 
-    def _get_unused_port(self) -> str:
-        if is_test():
-            return str(self._go_server_port)
+    def _get_unix_domain_file_path(self) -> Path:
+        # This method should return a file that go server should listen on and that the python channel
+        # should communicate to.
+        now = time.time_ns()
+        letters = string.ascii_lowercase
+        random_suffix = "".join(random.choice(letters) for _ in range(10))
 
-        port = 54321
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            while True:
-                # Break once found an unused port starting with 54321
-                if s.connect_ex(("localhost", port)) != 0:
-                    break
-                port += 1
-
-        return str(port)
+        return Path(self.temp_dir.name, f"{now}_{random_suffix}.sock")
 
     def connect(self) -> bool:
-        self.unused_port = self._get_unused_port()
+        self.sock_file = self._get_unix_domain_file_path()
         env = {
             "FEAST_REPO_CONFIG": self._config.json(),
             "FEAST_REPO_PATH": self._repo_path,
-            "FEAST_GRPC_PORT": self.unused_port,
+            "FEAST_GRPC_SOCK_FILE": str(self.sock_file),
             **os.environ,
         }
         cwd = feast.__path__[0]
@@ -82,7 +81,7 @@ class GoServerConnection:
         # Automatically reconnect with go subprocess exits
         self._process = Popen([executable], cwd=cwd, env=env,)
 
-        channel = grpc.insecure_channel(f"127.0.0.1:{self.unused_port}")
+        channel = grpc.insecure_channel(f"unix:{self.sock_file}")
         self.client: ServingServiceStub = ServingServiceStub(channel)
 
         try:

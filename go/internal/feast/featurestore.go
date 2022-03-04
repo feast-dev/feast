@@ -137,14 +137,14 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 	// if err != nil {
 	// 	return nil, err
 	// }
-	
+
 	numOfReturnedFeatures := len(responseEntities) + len(featureRefs)
 	onlineFeatureResponse := &serving.GetOnlineFeaturesResponse{Metadata: &serving.GetOnlineFeaturesResponseMetadata{
 		FeatureNames: &serving.FeatureList{Val: make([]string, numOfReturnedFeatures)},
 	},
 		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, numRows),
 	}
-	
+
 	// Allocate memory for each GetOnlineFeaturesResponse_FeatureVector
 	for index := 0; index < numRows; index++ {
 		onlineFeatureResponse.Results[index] = &serving.GetOnlineFeaturesResponse_FeatureVector{Values: make([]*types.Value, numOfReturnedFeatures),
@@ -504,7 +504,7 @@ func (fs *FeatureStore) populateResponseEntities(response *serving.GetOnlineFeat
 	timeStamp := timestamppb.Now()
 	featureIndex := 0
 	for entityName, values := range responseEntities {
-		response.Metadata.FeatureNames.Val[featureIndex] =entityName
+		response.Metadata.FeatureNames.Val[featureIndex] = entityName
 
 		for rowIndex, value := range values.GetVal() {
 			featureVector := response.Results[rowIndex]

@@ -11,7 +11,7 @@ type servingServiceServer struct {
 	serving.UnimplementedServingServiceServer
 }
 
-func newServingServiceServer (fs *feast.FeatureStore) *servingServiceServer {
+func newServingServiceServer(fs *feast.FeatureStore) *servingServiceServer {
 	return &servingServiceServer{fs: fs}
 }
 

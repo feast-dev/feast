@@ -11,17 +11,15 @@ import (
 )
 
 const (
-	flagFeastRepoPath    = "FEAST_REPO_PATH"
-	flagFeastRepoConfig  = "FEAST_REPO_CONFIG"
-	flagFeastGrpcPort    = "FEAST_GRPC_PORT"
-	feastServerVersion   = "0.18.0"
-	defaultFeastHttpPort = "8081"
+	flagFeastRepoPath   = "FEAST_REPO_PATH"
+	flagFeastRepoConfig = "FEAST_REPO_CONFIG"
+	feastServerVersion  = "0.18.0"
 )
 
 type FeastEnvConfig struct {
 	RepoPath   string `envconfig:"FEAST_REPO_PATH"`
 	RepoConfig string `envconfig:"FEAST_REPO_CONFIG"`
-	GrpcPort   string `default:"6566" envconfig:"FEAST_GRPC_PORT"`
+	SockFile   string `envconfig:"FEAST_GRPC_SOCK_FILE"`
 }
 
 // TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
@@ -59,13 +57,13 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer fs.DestructOnlineStore()
-	startGrpcServer(fs, feastEnvConfig.GrpcPort)
+	startGrpcServer(fs, feastEnvConfig.SockFile)
 }
 
-func startGrpcServer(fs *feast.FeatureStore, grpcPort string) {
+func startGrpcServer(fs *feast.FeatureStore, sockFile string) {
 	server := newServingServiceServer(fs)
-	log.Printf("Starting a gRPC server at port %s...", grpcPort)
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
+	log.Printf("Starting a gRPC server listening on %s\n", sockFile)
+	lis, err := net.Listen("unix", sockFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
