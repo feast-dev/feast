@@ -1508,10 +1508,10 @@ class FeatureStore:
 
         # Each row is a set of features for a given entity key. We only need to convert
         # the data to Protobuf once.
-        row_ts_proto = Timestamp()
         null_value = Value()
         read_row_protos = []
         for read_row in read_rows:
+            row_ts_proto = Timestamp()
             row_ts, feature_data = read_row
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
