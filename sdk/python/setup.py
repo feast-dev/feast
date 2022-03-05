@@ -287,7 +287,7 @@ class BuildCommand(build_py):
 
     def run(self):
         self.run_command("build_python_protos")
-        if os.getenv("COMPILE_GO_PROTOS", "false").lower() == "true":
+        if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
         build_py.run(self)
@@ -298,7 +298,7 @@ class DevelopCommand(develop):
 
     def run(self):
         self.run_command("build_python_protos")
-        if os.getenv("COMPILE_GO_PROTOS", "false").lower() == "true":
+        if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
         develop.run(self)
