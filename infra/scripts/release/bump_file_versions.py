@@ -27,7 +27,7 @@ def main() -> None:
 
     # Get git repo root directory
     repo_root = pathlib.Path(__file__).resolve().parent.parent.parent.parent
-    path_to_file_list = repo_root.joinpath("infra", "scripts", "version_bump", "files_to_bump.txt")
+    path_to_file_list = repo_root.joinpath("infra", "scripts", "release", "files_to_bump.txt")
 
     # Get files to bump versions within
     with open(path_to_file_list, "r") as f:
