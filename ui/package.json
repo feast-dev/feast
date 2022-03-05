@@ -101,8 +101,8 @@
     "rollup-plugin-svg": "^2.0.0",
     "rollup-plugin-svgo": "^1.1.0",
     "rollup-plugin-terser": "^7.0.2",
-    "typescript": "^4.4.2",
-    "tslib": "^2.3.1"
+    "tslib": "^2.3.1",
+    "typescript": "^4.4.2"
   },
   "description": "Web UI for the [Feast Feature Store](https://feast.dev/)",
   "repository": {
