@@ -6,5 +6,5 @@ from tests.integration.feature_repos.universal.data_sources.spark_data_source_cr
 )
 
 FULL_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(offline_store_creator=SparkDataSourceCreator,)
+    IntegrationTestRepoConfig(offline_store_creator=SparkDataSourceCreator)
 ]
