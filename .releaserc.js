@@ -23,26 +23,29 @@ module.exports = {
     branches: possible_branches,
     plugins: [
         "@semantic-release/commit-analyzer",
+        ["@semantic-release/exec", {
+            "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
+            "prepareCmd": "python ./infra/scripts/version_bump/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
+        }],
         "@semantic-release/release-notes-generator",
-        "@semantic-release/github",
         [
             "@semantic-release/changelog",
             {
-                changelogFile: "CHANGELOG.md"
+                changelogFile: "CHANGELOG.md",
+                changelogTitle: "# Changelog",
             }
         ],
         [
             "@semantic-release/git",
             {
                 assets: [
-                    "CHANGELOG.md"
+                    "CHANGELOG.md",
+                    "java/pom.xml",
+                    "infra/charts/**/*.*"
                 ],
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"
             }
         ],
-        ["@semantic-release/exec", {
-            "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
-            "prepareCmd": "./infra/version_bump/bump_file_versions.py ${lastRelease.version} ${nextRelease.type}"
-        }]
+        "@semantic-release/github"
     ]
 }
