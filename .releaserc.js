@@ -41,7 +41,8 @@ module.exports = {
             }
         ],
         ["@semantic-release/exec", {
-            "verifyReleaseCmd": "./infra/scripts/validate-release.sh ${nextRelease.type} " + current_branch
+            "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
+            "prepareCmd": "./infra/version_bump/bump_file_versions.py ${lastRelease.version} ${nextRelease.type}"
         }]
     ]
 }
