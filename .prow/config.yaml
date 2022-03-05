@@ -60,7 +60,6 @@ tide:
     - do-not-merge/invalid-owners-file
     - do-not-merge/work-in-progress
     - needs-rebase
-    - needs-kind
   merge_method:
     feast-dev/feast: squash
     feast-dev/feast-spark: squash
