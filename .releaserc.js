@@ -2,25 +2,21 @@
 
 const execSync = require("child_process").execSync;
 
-// We have to dynamically generate all the supported branches for Feast because we use the `vA.B-branch` pattern for
-// maintenance branches
-MAJOR_VERSION_MAX=0
-MINOR_VERSION_MIN=15
-MINOR_VERSION_MAX=50
+// Get the current branch
+const current_branch = execSync("git rev-parse --abbrev-ref HEAD").toString("utf8").trim();
 
-possible_branches = []
-possible_branches.push({
-    name: "master"
-})
-
-for (let step_major = 0; step_major <= MAJOR_VERSION_MAX; step_major++) {
-    for (let step_minor = MINOR_VERSION_MIN; step_minor <= MINOR_VERSION_MAX; step_minor++) {
-        possible_branches.push({name: `v${step_major}.${step_minor}-branch`})
+// Validate the current branch
+if (current_branch !== 'master') {
+    // Should be a release branch like v0.18-branch
+    is_valid = /v[0-9]\.[0-9][0-9]\-branch/gm.test(current_branch)
+    if (!is_valid) {
+        throw new Error(`Invalid branch name: ${current_branch}. Must be in release branch form like v0.18-branch or master`)
     }
 }
 
-// Get the current branch (we want to validate that the correct kind of release is being created)
-const branch = execSync("git rev-parse --abbrev-ref HEAD").toString("utf8");
+// We have to dynamically generate all the supported branches for Feast because we use the `vA.B-branch` pattern for
+// maintenance branches
+possible_branches = [{name: "master"}, {name: current_branch}]
 
 // Below is the configuration for semantic release
 module.exports = {
@@ -45,7 +41,7 @@ module.exports = {
             }
         ],
         ["@semantic-release/exec", {
-            "verifyReleaseCmd": "./infra/scripts/validate-release.sh ${nextRelease.type} " + branch
+            "verifyReleaseCmd": "./infra/scripts/validate-release.sh ${nextRelease.type} " + current_branch
         }]
     ]
 }
