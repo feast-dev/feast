@@ -24,7 +24,7 @@
 * Key ttl setting for redis online store ([#2341](https://github.com/feast-dev/feast/issues/2341)) ([236a108](https://github.com/feast-dev/feast/commit/236a108c87aed106e0a46e48172d31dc94ed9c2b))
 * Metadata changes & making data sources top level objects to power Feast UI ([#2336](https://github.com/feast-dev/feast/issues/2336)) ([43da230](https://github.com/feast-dev/feast/commit/43da2302dfcbf3b5e56ed068021b5821d544c05f))
 
-## [v0.18.1](https://github.com/feast-dev/feast/tree/v0.18.1) (2022-02-15)
+# [v0.18.1](https://github.com/feast-dev/feast/tree/v0.18.1) (2022-02-15)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.18.0...v0.18.1)
 
