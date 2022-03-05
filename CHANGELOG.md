@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/feast-dev/feast/compare/v0.19.0...v0.19.1) (2022-03-05)
+
+
+### Bug Fixes
+
+* Fix unhashable Snowflake and Redshift sources ([6f8a3b0](https://github.com/feast-dev/feast/commit/6f8a3b0b1f6c4ea96423a78da4515c5117bdc74c))
+
 # [0.19.0](https://github.com/feast-dev/feast/compare/v0.18.0...v0.19.0) (2022-03-05)
 
 
