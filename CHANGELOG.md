@@ -1,5 +1,29 @@
 # Changelog
 
+# [0.19.0](https://github.com/feast-dev/feast/compare/v0.18.0...v0.19.0) (2022-03-05)
+
+
+### Bug Fixes
+
+* Added additional value types to UI parser and removed references to registry-bq.json ([#2361](https://github.com/feast-dev/feast/issues/2361)) ([d202d51](https://github.com/feast-dev/feast/commit/d202d5170b7e6bf1e1b0f103aac247bfc04c2760))
+* Fix Redshift bug that stops waiting on statements after 5 minutes ([#2363](https://github.com/feast-dev/feast/issues/2363)) ([74f887f](https://github.com/feast-dev/feast/commit/74f887f72e109147a2e6214c2e3baade63d55fbe))
+* Method _should_use_plan only returns true for local sqlite provider ([#2344](https://github.com/feast-dev/feast/issues/2344)) ([fdb5f21](https://github.com/feast-dev/feast/commit/fdb5f215fe7f4946a6c88cfb34dc0c24eb5ac733))
+* Remove redis service to prevent more conflicts and add redis node to master_only ([#2354](https://github.com/feast-dev/feast/issues/2354)) ([993616f](https://github.com/feast-dev/feast/commit/993616fe152d097e2d918e5f56fc13e2e409175c))
+* Rollback Redis-py to Redis-py-cluster ([#2347](https://github.com/feast-dev/feast/issues/2347)) ([1ba86fb](https://github.com/feast-dev/feast/commit/1ba86fb0cc7f2e86b8c70477462faa68075f99cd))
+* Update github workflow to prevent redis from overlapping ports. ([#2350](https://github.com/feast-dev/feast/issues/2350)) ([c2a6c6c](https://github.com/feast-dev/feast/commit/c2a6c6cc34d64fd3483f0b2cef394f833e9124e2))
+
+
+### Features
+
+* Add owner field to Entity and rename labels to tags ([412d625](https://github.com/feast-dev/feast/commit/412d62516da184350de473c87dd2ab369ad4cf86))
+* Allow all snowflake python connector connection methods to be available to Feast ([#2356](https://github.com/feast-dev/feast/issues/2356)) ([ec7385c](https://github.com/feast-dev/feast/commit/ec7385c16f6899c5388b7a786fce6e0d543776f5))
+* Allowing password based authentication and SSL for Redis in Java feature server ([0af8adb](https://github.com/feast-dev/feast/commit/0af8adba1c56a2a29d02c2fc5aeccf51ee78fd5f))
+* Event timestamps response ([#2355](https://github.com/feast-dev/feast/issues/2355)) ([5481caf](https://github.com/feast-dev/feast/commit/5481caf37989c347bf4469f5f081f4f15f20fdb7))
+* Feast Spark Offline Store ([#2349](https://github.com/feast-dev/feast/issues/2349)) ([98b8d8d](https://github.com/feast-dev/feast/commit/98b8d8da7e8e717ec93197f253368551951ca675))
+* Initial merge of Web UI logic ([#2352](https://github.com/feast-dev/feast/issues/2352)) ([ce3bc59](https://github.com/feast-dev/feast/commit/ce3bc598501949f82197c7fa2409319282197276))
+* Key ttl setting for redis online store ([#2341](https://github.com/feast-dev/feast/issues/2341)) ([236a108](https://github.com/feast-dev/feast/commit/236a108c87aed106e0a46e48172d31dc94ed9c2b))
+* Metadata changes & making data sources top level objects to power Feast UI ([#2336](https://github.com/feast-dev/feast/issues/2336)) ([43da230](https://github.com/feast-dev/feast/commit/43da2302dfcbf3b5e56ed068021b5821d544c05f))
+
 ## [v0.18.1](https://github.com/feast-dev/feast/tree/v0.18.1) (2022-02-15)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.18.0...v0.18.1)
