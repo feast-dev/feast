@@ -46,7 +46,15 @@ module.exports = {
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"
             }
         ],
-        "@semantic-release/github"
+        [
+            "@semantic-release/github",
+            {
+                successComment: false,
+                failComment: false,
+                failTitle: false,
+                labels: false,
+            }
+        ],
     ]
 }
 
