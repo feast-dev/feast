@@ -12,7 +12,7 @@ import {
   EuiFieldSearch,
 } from "@elastic/eui";
 
-import FeatureServiceIcon from "../../feature-service.svg";
+import { FeatureServiceIcon32 } from "../../graphics/FeatureServiceIcon";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import FeatureServiceListingTable from "./FeatureServiceListingTable";
@@ -115,7 +115,7 @@ const Index = () => {
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={FeatureServiceIcon}
+        iconType={FeatureServiceIcon32}
         pageTitle="Feature Services"
       />
       <EuiPageContent

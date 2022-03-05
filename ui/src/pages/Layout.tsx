@@ -9,12 +9,12 @@ import {
   EuiSpacer,
 } from "@elastic/eui";
 import Sidebar from "./Sidebar";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 import ProjectSelector from "../components/ProjectSelector";
 import { useParams } from "react-router-dom";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import useLoadProjectsList from "../queries/useLoadProjectsList";
-import feastWorkMark from "../feast-workmark.svg";
+import FeastWordMark from "../graphics/FeastWordMark";
 
 const Layout = () => {
   let { projectName } = useParams();
@@ -36,7 +36,7 @@ const Layout = () => {
           role={"navigation"}
           aria-label={"Top Level"}
         >
-          <img src={feastWorkMark} width={"100%"} alt="Feast" />
+          <FeastWordMark />
           <EuiSpacer size="s" />
           <ProjectSelector />
           {registryPath && (

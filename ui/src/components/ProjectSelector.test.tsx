@@ -3,17 +3,19 @@ import { render } from "../test-utils";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import App from "../App";
+import FeastUISansProviders from "../FeastUISansProviders";
 
 import {
   projectsListWithDefaultProject,
   creditHistoryRegistry,
+  bigQueryProjectRegistry,
 } from "../mocks/handlers";
 
 // declare which API requests to mock
 const server = setupServer(
   projectsListWithDefaultProject,
-  creditHistoryRegistry
+  creditHistoryRegistry,
+  bigQueryProjectRegistry
 );
 
 // establish API mocking before all tests
@@ -25,7 +27,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("in a full App render, it shows the right initial project", async () => {
-  render(<App />);
+  render(<FeastUISansProviders />);
 
   const select = await screen.findByRole("combobox", {
     name: "Select a Feast Project",

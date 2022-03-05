@@ -3,7 +3,7 @@ import { EuiBasicTable } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import { FeastEntityType } from "../../parsers/feastEntities";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 
 interface EntitiesListingTableProps {
   entities: FeastEntityType[];

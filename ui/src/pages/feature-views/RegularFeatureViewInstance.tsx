@@ -1,13 +1,14 @@
 import React from "react";
-import { Route, Routes, useNavigate } from "react-router";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import {
   EuiPageHeader,
   EuiPageContent,
   EuiPageContentBody,
 } from "@elastic/eui";
 
-import FeatureViewIcon from "../../feature-view.svg";
+import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 import { enabledFeatureStatistics } from "../,,/../../flags";
+
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
@@ -15,8 +16,8 @@ import FeatureViewSummaryStatisticsTab from "./FeatureViewSummaryStatisticsTab";
 
 import {
   useRegularFeatureViewCustomTabs,
-  regularFeatureViewCustomTabRoutes,
-} from "../CustomTabUtils";
+  useRegularFeatureViewCustomTabRoutes,
+} from "../../custom-tabs/TabsRegistryContext";
 
 interface RegularFeatureInstanceProps {
   data: FeastFeatureViewType;
@@ -49,11 +50,13 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
 
   tabs.push(...customNavigationTabs);
 
+  const TabRoutes = useRegularFeatureViewCustomTabRoutes();
+
   return (
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={FeatureViewIcon}
+        iconType={FeatureViewIcon32}
         pageTitle={`${data.spec.name}`}
         tabs={tabs}
       />
@@ -74,7 +77,7 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
               path="/statistics"
               element={<FeatureViewSummaryStatisticsTab />}
             />
-            {regularFeatureViewCustomTabRoutes()}
+            {TabRoutes}
           </Routes>
         </EuiPageContentBody>
       </EuiPageContent>

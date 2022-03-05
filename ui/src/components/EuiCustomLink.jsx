@@ -1,7 +1,7 @@
 // File name: "EuiCustomLink.js".
 import React from "react";
 import { EuiLink } from "@elastic/eui";
-import { useNavigate, useHref } from "react-router";
+import { useNavigate, useHref } from "react-router-dom";
 
 const isModifiedEvent = (event) =>
   !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);

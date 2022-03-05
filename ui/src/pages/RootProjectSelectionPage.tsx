@@ -13,7 +13,7 @@ import {
 } from "@elastic/eui";
 import useLoadProjectsList from "../queries/useLoadProjectsList";
 import { useNavigate } from "react-router-dom";
-import feastIconBlue from "../feast-icon-blue.svg";
+import FeastIconBlue from "../graphics/FeastIconBlue";
 
 const RootProjectSelectionPage = () => {
   const { isLoading, isSuccess, data } = useLoadProjectsList();
@@ -35,7 +35,7 @@ const RootProjectSelectionPage = () => {
     return (
       <EuiFlexItem key={index}>
         <EuiCard
-          icon={<EuiIcon size="xxl" type={feastIconBlue} />}
+          icon={<EuiIcon size="xxl" type={FeastIconBlue} />}
           title={`${item.name}`}
           description={item?.description || ""}
           onClick={() => {
