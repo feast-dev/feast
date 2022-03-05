@@ -90,6 +90,10 @@ class RedshiftSource(DataSource):
             query=data_source.redshift_options.query,
         )
 
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, other):
         if not isinstance(other, RedshiftSource):
             raise TypeError(
