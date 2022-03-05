@@ -168,24 +168,6 @@ PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
 COMPILE_GO_PROTOS = None
 
 
-class InstallCommand(install):
-    user_options = install.user_options + [
-        ('compilegoprotos', None, None)
-    ]
-
-    def initialize_options(self):
-        install.initialize_options(self)
-        self.compilegoprotos = None
-
-    def finalize_options(self):
-        install.finalize_options(self)
-
-    def run(self):
-        global COMPILE_GO_PROTOS
-        COMPILE_GO_PROTOS = self.compilegoprotos
-        install.run(self)
-
-
 class BuildPythonProtosCommand(Command):
     description = "Builds the proto files into Python files."
     user_options = []
@@ -245,6 +227,24 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
+def _ensure_go_and_proto_toolchain():
+    try:
+        version = subprocess.check_output(["go", "version"])
+    except Exception as e:
+        raise RuntimeError("Unable to find go toolchain") from e
+
+    semver_string = re.search(r"go[\S]+", str(version)).group().lstrip("go")
+    parts = semver_string.split(".")
+    if not (int(parts[0]) >= 1 and int(parts[1]) >= 16):
+        raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
+
+    try:
+        subprocess.check_call(["protoc-gen-go", "--version"])
+        subprocess.check_call(["protoc-gen-go-grpc", "--version"])
+    except Exception as e:
+        raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
+
+
 class BuildGoProtosCommand(Command):
     description = "Builds the proto files into Go files."
     user_options = []
@@ -287,7 +287,8 @@ class BuildCommand(build_py):
 
     def run(self):
         self.run_command("build_python_protos")
-        if COMPILE_GO_PROTOS:
+        if os.getenv("COMPILE_GO_PROTOS", "false").lower() == "true":
+            _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
         build_py.run(self)
 
@@ -297,7 +298,9 @@ class DevelopCommand(develop):
 
     def run(self):
         self.run_command("build_python_protos")
-        self.run_command("build_go_protos")
+        if os.getenv("COMPILE_GO_PROTOS", "false").lower() == "true":
+            _ensure_go_and_proto_toolchain()
+            self.run_command("build_go_protos")
         develop.run(self)
 
 
