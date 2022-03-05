@@ -75,6 +75,7 @@ ReactDOM.render(
       reactQueryClient={queryClient}
       feastUIConfigs={{
         tabsRegistry: tabsRegistry,
+        featureFlags: {},
       }}
     />
   </React.StrictMode>,

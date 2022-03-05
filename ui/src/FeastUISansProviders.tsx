@@ -25,9 +25,13 @@ import NoProjectGuard from "./components/NoProjectGuard";
 import TabsRegistryContext, {
   FeastTabsRegistryInterface,
 } from "./custom-tabs/TabsRegistryContext";
+import FeatureFlagsContext, {
+  FeatureFlags,
+} from "./contexts/FeatureFlagsContext";
 
 interface FeastUIConfigs {
   tabsRegistry: FeastTabsRegistryInterface;
+  featureFlags?: FeatureFlags;
 }
 
 const FeastUISansProviders = ({
@@ -37,43 +41,48 @@ const FeastUISansProviders = ({
 }) => {
   return (
     <TabsRegistryContext.Provider value={feastUIConfigs?.tabsRegistry || {}}>
-      <EuiProvider colorMode="light">
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<RootProjectSelectionPage />} />
-            <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
-              <Route index element={<ProjectOverviewPage />} />
-              <Route path="data-source/" element={<DatasourceIndex />} />
-              <Route
-                path="data-source/:dataSourceName/*"
-                element={<DataSourceInstance />}
-              />
-              <Route path="feature-view/" element={<FeatureViewIndex />} />
-              <Route
-                path="feature-view/:featureViewName/*"
-                element={<FeatureViewInstance />}
-              />
-              <Route
-                path="feature-service/"
-                element={<FeatureServiceIndex />}
-              />
-              <Route
-                path="feature-service/:featureServiceName/*"
-                element={<FeatureServiceInstance />}
-              />
-              <Route path="entity/" element={<EntityIndex />} />
-              <Route path="entity/:entityName/*" element={<EntityInstance />} />
+      <FeatureFlagsContext.Provider value={feastUIConfigs?.featureFlags || {}}>
+        <EuiProvider colorMode="light">
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<RootProjectSelectionPage />} />
+              <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
+                <Route index element={<ProjectOverviewPage />} />
+                <Route path="data-source/" element={<DatasourceIndex />} />
+                <Route
+                  path="data-source/:dataSourceName/*"
+                  element={<DataSourceInstance />}
+                />
+                <Route path="feature-view/" element={<FeatureViewIndex />} />
+                <Route
+                  path="feature-view/:featureViewName/*"
+                  element={<FeatureViewInstance />}
+                />
+                <Route
+                  path="feature-service/"
+                  element={<FeatureServiceIndex />}
+                />
+                <Route
+                  path="feature-service/:featureServiceName/*"
+                  element={<FeatureServiceInstance />}
+                />
+                <Route path="entity/" element={<EntityIndex />} />
+                <Route
+                  path="entity/:entityName/*"
+                  element={<EntityInstance />}
+                />
 
-              <Route path="data-set/" element={<DatasetIndex />} />
-              <Route
-                path="data-set/:datasetName/*"
-                element={<DatasetInstance />}
-              />
+                <Route path="data-set/" element={<DatasetIndex />} />
+                <Route
+                  path="data-set/:datasetName/*"
+                  element={<DatasetInstance />}
+                />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NoMatch />} />
-        </Routes>
-      </EuiProvider>
+            <Route path="*" element={<NoMatch />} />
+          </Routes>
+        </EuiProvider>
+      </FeatureFlagsContext.Provider>
     </TabsRegistryContext.Provider>
   );
 };

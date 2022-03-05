@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import {
   EuiPageHeader,
@@ -7,7 +7,6 @@ import {
 } from "@elastic/eui";
 
 import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
-import { enabledFeatureStatistics } from "../,,/../../flags";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
@@ -18,12 +17,14 @@ import {
   useRegularFeatureViewCustomTabs,
   useRegularFeatureViewCustomTabRoutes,
 } from "../../custom-tabs/TabsRegistryContext";
+import FeatureFlagsContext from "../../contexts/FeatureFlagsContext";
 
 interface RegularFeatureInstanceProps {
   data: FeastFeatureViewType;
 }
 
 const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
+  const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const navigate = useNavigate();
 
   const { customNavigationTabs } = useRegularFeatureViewCustomTabs(navigate);

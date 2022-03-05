@@ -1,9 +1,9 @@
-import React from "react";
-import { enabledFeatureStatistics } from "../flags";
+import React, { useContext } from "react";
 import { EuiBasicTable, EuiLoadingSpinner, EuiBadge } from "@elastic/eui";
 import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
 import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
 import SparklineHistogram from "./SparklineHistogram";
+import FeatureFlagsContext from "../contexts/FeatureFlagsContext";
 
 interface FeaturesListProps {
   featureViewName: string;
@@ -11,6 +11,7 @@ interface FeaturesListProps {
 }
 
 const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
+  const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const { isLoading, isError, isSuccess, data } =
     useLoadFeatureViewSummaryStatistics(featureViewName);
 
