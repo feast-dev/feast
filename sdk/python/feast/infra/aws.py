@@ -262,7 +262,9 @@ class AwsProvider(PassthroughProvider):
         _logger.info(
             f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{dockerhub_image}{Style.RESET_ALL}"
         )
-        for line in docker_client.api.pull(dockerhub_image, stream=True, decode=True):
+        for line in docker_client.api.pull(
+            dockerhub_image.replace("_", "."), stream=True, decode=True
+        ):
             _logger.debug(f"  {line}")
 
         auth_token = ecr_client.get_authorization_token()["authorizationData"][0][
