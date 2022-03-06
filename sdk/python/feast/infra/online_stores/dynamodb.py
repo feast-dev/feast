@@ -202,7 +202,7 @@ class DynamoDBOnlineStore(OnlineStore):
             entity_keys: a list of entity keys that should be read from the FeatureStore.
             batch_size: the number of items to send in a batch_get_item request to DynamoDB.
                 DynamoDB record size limit is 400kb and can retrieve 16MB per call, it is recommended
-                to set batch_size value less than 40 to avoid ``UnprocessedKeys``` and 
+                to set batch_size value less than 40 to avoid ``UnprocessedKeys`` and
                 ``ValidationException`` errors.
         """
         online_config = config.online_store
