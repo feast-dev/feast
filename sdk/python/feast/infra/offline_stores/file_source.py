@@ -1,10 +1,11 @@
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
+import pyarrow.parquet as pq
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
-from s3fs import S3FileSystem
-import pyarrow.parquet as pq
 from pyarrow.parquet import ParquetFile
+from s3fs import S3FileSystem
+
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
 from feast.data_source import DataSource
@@ -134,11 +135,11 @@ class FileSource(DataSource):
             self.path, self.file_options.s3_endpoint_override
         )
         if filesystem:
-            pq.read_table(path, filesystem=filesystem).to_pandas().to_parquet(f"/tmp/{path.split('/')[-1]}")
+            pq.read_table(path, filesystem=filesystem).to_pandas().to_parquet(
+                f"/tmp/{path.split('/')[-1]}"
+            )
             path = f"/tmp/{path.split('/')[-1]}"
-        schema = ParquetFile(
-            path
-        ).schema_arrow
+        schema = ParquetFile(path).schema_arrow
         return zip(schema.names, map(str, schema.types))
 
     @staticmethod
@@ -147,7 +148,9 @@ class FileSource(DataSource):
     ) -> Tuple[Optional[FileSystem], str]:
         if path.startswith("s3://"):
             s3fs = S3FileSystem(
-                client_kwargs=dict(endpoint_url=s3_endpoint_override) if s3_endpoint_override else None
+                client_kwargs=dict(endpoint_url=s3_endpoint_override)
+                if s3_endpoint_override
+                else None
             )
             return s3fs, path.replace("s3://", "")
         else:
