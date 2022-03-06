@@ -1,7 +1,7 @@
 import { EuiSelect, useGeneratedHtmlId } from "@elastic/eui";
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import useLoadProjectsList from "../queries/useLoadProjectsList";
+import { useLoadProjectsList } from "../contexts/ProjectListContext";
 
 const ProjectSelector = () => {
   const { projectName } = useParams();

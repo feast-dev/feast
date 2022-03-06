@@ -11,7 +11,7 @@ import {
   EuiTitle,
   EuiHorizontalRule,
 } from "@elastic/eui";
-import useLoadProjectsList from "../queries/useLoadProjectsList";
+import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import { useNavigate } from "react-router-dom";
 import FeastIconBlue from "../graphics/FeastIconBlue";
 

@@ -28,60 +28,85 @@ import TabsRegistryContext, {
 import FeatureFlagsContext, {
   FeatureFlags,
 } from "./contexts/FeatureFlagsContext";
+import {
+  ProjectListContext,
+  ProjectsListContextInterface,
+} from "./contexts/ProjectListContext";
 
 interface FeastUIConfigs {
   tabsRegistry: FeastTabsRegistryInterface;
   featureFlags?: FeatureFlags;
+  projectListPromise?: Promise<any>;
 }
+
+const defaultProjectListPromise = () => {
+  return fetch("/projects-list.json", {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }).then((res) => {
+    return res.json();
+  });
+};
 
 const FeastUISansProviders = ({
   feastUIConfigs,
 }: {
   feastUIConfigs?: FeastUIConfigs;
 }) => {
+  const projectListContext: ProjectsListContextInterface =
+    feastUIConfigs?.projectListPromise
+      ? {
+          projectsListPromise: feastUIConfigs?.projectListPromise,
+          isCustom: true,
+        }
+      : { projectsListPromise: defaultProjectListPromise(), isCustom: false };
+
   return (
     <TabsRegistryContext.Provider value={feastUIConfigs?.tabsRegistry || {}}>
       <FeatureFlagsContext.Provider value={feastUIConfigs?.featureFlags || {}}>
-        <EuiProvider colorMode="light">
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<RootProjectSelectionPage />} />
-              <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
-                <Route index element={<ProjectOverviewPage />} />
-                <Route path="data-source/" element={<DatasourceIndex />} />
-                <Route
-                  path="data-source/:dataSourceName/*"
-                  element={<DataSourceInstance />}
-                />
-                <Route path="feature-view/" element={<FeatureViewIndex />} />
-                <Route
-                  path="feature-view/:featureViewName/*"
-                  element={<FeatureViewInstance />}
-                />
-                <Route
-                  path="feature-service/"
-                  element={<FeatureServiceIndex />}
-                />
-                <Route
-                  path="feature-service/:featureServiceName/*"
-                  element={<FeatureServiceInstance />}
-                />
-                <Route path="entity/" element={<EntityIndex />} />
-                <Route
-                  path="entity/:entityName/*"
-                  element={<EntityInstance />}
-                />
+        <ProjectListContext.Provider value={projectListContext}>
+          <EuiProvider colorMode="light">
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<RootProjectSelectionPage />} />
+                <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
+                  <Route index element={<ProjectOverviewPage />} />
+                  <Route path="data-source/" element={<DatasourceIndex />} />
+                  <Route
+                    path="data-source/:dataSourceName/*"
+                    element={<DataSourceInstance />}
+                  />
+                  <Route path="feature-view/" element={<FeatureViewIndex />} />
+                  <Route
+                    path="feature-view/:featureViewName/*"
+                    element={<FeatureViewInstance />}
+                  />
+                  <Route
+                    path="feature-service/"
+                    element={<FeatureServiceIndex />}
+                  />
+                  <Route
+                    path="feature-service/:featureServiceName/*"
+                    element={<FeatureServiceInstance />}
+                  />
+                  <Route path="entity/" element={<EntityIndex />} />
+                  <Route
+                    path="entity/:entityName/*"
+                    element={<EntityInstance />}
+                  />
 
-                <Route path="data-set/" element={<DatasetIndex />} />
-                <Route
-                  path="data-set/:datasetName/*"
-                  element={<DatasetInstance />}
-                />
+                  <Route path="data-set/" element={<DatasetIndex />} />
+                  <Route
+                    path="data-set/:datasetName/*"
+                    element={<DatasetInstance />}
+                  />
+                </Route>
               </Route>
-            </Route>
-            <Route path="*" element={<NoMatch />} />
-          </Routes>
-        </EuiProvider>
+              <Route path="*" element={<NoMatch />} />
+            </Routes>
+          </EuiProvider>
+        </ProjectListContext.Provider>
       </FeatureFlagsContext.Provider>
     </TabsRegistryContext.Provider>
   );
