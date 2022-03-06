@@ -43,7 +43,11 @@ cd my_feature_repo
 feast apply
 ```
 
-### 4. Build a training dataset
+### 4. Explore your data in the web UI (experimental)
+
+![Web UI](ui/sample.png)
+
+### 5. Build a training dataset
 ```python
 from feast import FeatureStore
 import pandas as pd
@@ -84,7 +88,7 @@ print(training_df.head())
 
 ```
 
-### 5. Load feature values into your online store
+### 6. Load feature values into your online store
 ```commandline
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
@@ -94,7 +98,7 @@ feast materialize-incremental $CURRENT_TIME
 Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!
 ```
 
-### 6. Read online features at low latency
+### 7. Read online features at low latency
 ```python
 from pprint import pprint
 from feast import FeatureStore

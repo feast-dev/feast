@@ -60,13 +60,12 @@ tide:
     - do-not-merge/invalid-owners-file
     - do-not-merge/work-in-progress
     - needs-rebase
-    - needs-kind
   merge_method:
     feast-dev/feast: squash
     feast-dev/feast-spark: squash
   merge_commit_template:
     feast-dev/feast:
-      title: '{{.Title}}'
+      title: '{{.Title}} (#{{.Number}})'
   blocker_label: merge-blocker
   squash_label: tide/squash
 

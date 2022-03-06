@@ -1,9 +1,6 @@
 ### Scratch files ###
 scratch*
 
-### Feast UI deprecated folder ####
-ui/
-
 ### Local Environment ###
 *local*.env
 
@@ -54,7 +51,7 @@ vendor
 .terraform/
 *.tfvars
 
-# python 
+# python
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -107,6 +104,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+infra/scripts/*.conf
 
 # Translations
 *.mo
@@ -197,3 +195,26 @@ sdk/go/protos/
 **/*.aof
 **/*.rdb
 **/nodes.conf
+
+
+# Feast UI dependencies
+ui/node_modules
+ui/.pnp
+ui/.pnp.js
+ui/coverage
+ui/build
+ui/feature_repo/data/online.db 
+ui/feature_repo/registry.db
+ui/.vercel
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+

@@ -27,6 +27,7 @@ from typing import (
     Union,
 )
 
+import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 from pydantic.typing import Literal
@@ -41,7 +42,7 @@ from feast.usage import log_exceptions_and_usage, tracing_span
 
 try:
     from redis import Redis
-    from redis.cluster import ClusterNode, RedisCluster
+    from rediscluster import RedisCluster
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -67,6 +68,9 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     connection_string: StrictStr = "localhost:6379"
     """Connection string containing the host, port, and configuration parameters for Redis
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
+
+    key_ttl_seconds: Optional[int] = None
+    """(Optional) redis key bin ttl (in seconds) for expiring entities"""
 
 
 class RedisOnlineStore(OnlineStore):
@@ -160,9 +164,7 @@ class RedisOnlineStore(OnlineStore):
                 online_store_config.connection_string
             )
             if online_store_config.redis_type == RedisType.redis_cluster:
-                kwargs["startup_nodes"] = [
-                    ClusterNode(**node) for node in startup_nodes
-                ]
+                kwargs["startup_nodes"] = startup_nodes
                 self._client = RedisCluster(**kwargs)
             else:
                 kwargs["host"] = startup_nodes[0]["host"]
@@ -227,9 +229,11 @@ class RedisOnlineStore(OnlineStore):
                     entity_hset[f_key] = val.SerializeToString()
 
                 pipe.hset(redis_key_bin, mapping=entity_hset)
-                # TODO: support expiring the entity / features in Redis
-                # otherwise entity features remain in redis until cleaned up in separate process
-                # client.expire redis_key_bin based a ttl setting
+
+                if online_store_config.key_ttl_seconds:
+                    pipe.expire(
+                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
+                    )
             results = pipe.execute()
             if progress:
                 progress(len(results))
@@ -299,5 +303,5 @@ class RedisOnlineStore(OnlineStore):
         if not res:
             return None, None
         else:
-            timestamp = datetime.fromtimestamp(res_ts.seconds)
+            timestamp = datetime.fromtimestamp(res_ts.seconds, tz=pytz.utc)
             return timestamp, res

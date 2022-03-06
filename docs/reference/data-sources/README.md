@@ -9,3 +9,5 @@ Please see [Data Source](../../getting-started/concepts/feature-view.md#data-sou
 {% page-ref page="bigquery.md" %}
 
 {% page-ref page="redshift.md" %}
+
+{% page-ref page="spark.md" %}

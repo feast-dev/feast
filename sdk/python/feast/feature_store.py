@@ -39,6 +39,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.entity import Entity
@@ -50,6 +51,7 @@ from feast.errors import (
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import (
     DUMMY_ENTITY,
@@ -260,6 +262,19 @@ class FeatureStore:
         )
 
     @log_exceptions_and_usage
+    def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
+        """
+        Retrieves the list of data sources from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning data sources from a cached registry.
+
+        Returns:
+            A list of data sources.
+        """
+        return self._registry.list_data_sources(self.project, allow_cache=allow_cache)
+
+    @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
@@ -284,6 +299,7 @@ class FeatureStore:
 
         Args:
             name: Name of feature service.
+            allow_cache: Whether to allow returning feature services from a cached registry.
 
         Returns:
             The specified feature service.
@@ -332,6 +348,22 @@ class FeatureStore:
             FeatureViewNotFoundException: The feature view could not be found.
         """
         return self._registry.get_on_demand_feature_view(name, self.project)
+
+    @log_exceptions_and_usage
+    def get_data_source(self, name: str) -> DataSource:
+        """
+        Retrieves the list of data sources from the registry.
+
+        Args:
+            name: Name of the data source.
+
+        Returns:
+            The specified data source.
+
+        Raises:
+            DataSourceObjectNotFoundException: The data source could not be found.
+        """
+        return self._registry.get_data_source(name, self.project)
 
     @log_exceptions_and_usage
     def delete_feature_view(self, name: str):
@@ -392,8 +424,10 @@ class FeatureStore:
 
     def _should_use_plan(self):
         """Returns True if _plan and _apply_diffs should be used, False otherwise."""
-        # Currently only the local provider supports _plan and _apply_diffs.
-        return self.config.provider == "local"
+        # Currently only the local provider with sqlite online store supports _plan and _apply_diffs.
+        return self.config.provider == "local" and (
+            self.config.online_store and self.config.online_store.type == "sqlite"
+        )
 
     def _validate_all_feature_views(
         self,
@@ -416,6 +450,7 @@ class FeatureStore:
 
     def _make_inferences(
         self,
+        data_sources_to_update: List[DataSource],
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
@@ -423,6 +458,10 @@ class FeatureStore:
         """Makes inferences for entities, feature views, and odfvs."""
         update_entities_with_inferred_types_from_feature_views(
             entities_to_update, views_to_update, self.config
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            data_sources_to_update, self.config
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
@@ -476,7 +515,13 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents({driver_hourly_stats_view}, set(), set(), {driver}, set())) # register entity and feature view
+            >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents(
+            ...     data_sources={driver_hourly_stats},
+            ...     feature_views={driver_hourly_stats_view},
+            ...     on_demand_feature_views=set(),
+            ...     request_feature_views=set(),
+            ...     entities={driver},
+            ...     feature_services=set())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
@@ -484,7 +529,9 @@ class FeatureStore:
             list(desired_repo_contents.on_demand_feature_views),
             list(desired_repo_contents.request_feature_views),
         )
+        _validate_data_sources(list(desired_repo_contents.data_sources))
         self._make_inferences(
+            list(desired_repo_contents.data_sources),
             list(desired_repo_contents.entities),
             list(desired_repo_contents.feature_views),
             list(desired_repo_contents.on_demand_feature_views),
@@ -526,38 +573,22 @@ class FeatureStore:
         apply_diff_to_registry(
             self._registry, registry_diff, self.project, commit=False
         )
+
         self._registry.update_infra(new_infra, self.project, commit=True)
 
     @log_exceptions_and_usage
     def apply(
         self,
         objects: Union[
+            DataSource,
             Entity,
             FeatureView,
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                ]
-            ],
+            List[FeastObject],
         ],
-        objects_to_delete: Optional[
-            List[
-                Union[
-                    FeatureView,
-                    OnDemandFeatureView,
-                    RequestFeatureView,
-                    Entity,
-                    FeatureService,
-                ]
-            ]
-        ] = None,
+        objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
@@ -613,22 +644,31 @@ class FeatureStore:
         ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
+        data_sources_to_update = [ob for ob in objects if isinstance(ob, DataSource)]
 
         if len(entities_to_update) + len(views_to_update) + len(
             request_views_to_update
-        ) + len(odfvs_to_update) + len(services_to_update) != len(objects):
+        ) + len(odfvs_to_update) + len(services_to_update) + len(
+            data_sources_to_update
+        ) != len(
+            objects
+        ):
             raise ValueError("Unknown object type provided as part of apply() call")
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
             views_to_update, odfvs_to_update, request_views_to_update
         )
-        self._make_inferences(entities_to_update, views_to_update, odfvs_to_update)
+        self._make_inferences(
+            data_sources_to_update, entities_to_update, views_to_update, odfvs_to_update
+        )
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
+        for ds in data_sources_to_update:
+            self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(
             views_to_update, odfvs_to_update, request_views_to_update
         ):
@@ -657,7 +697,14 @@ class FeatureStore:
             services_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, FeatureService)
             ]
+            data_sources_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, DataSource)
+            ]
 
+            for data_source in data_sources_to_delete:
+                self._registry.delete_data_source(
+                    data_source.name, project=self.project, commit=False
+                )
             for entity in entities_to_delete:
                 self._registry.delete_entity(
                     entity.name, project=self.project, commit=False
@@ -832,6 +879,7 @@ class FeatureStore:
         name: str,
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
+        feature_service: Optional[FeatureService] = None,
     ) -> SavedDataset:
         """
             Execute provided retrieval job and persist its outcome in given storage.
@@ -866,6 +914,7 @@ class FeatureStore:
             full_feature_names=from_.full_feature_names,
             storage=storage,
             tags=tags,
+            feature_service_name=feature_service.name if feature_service else None,
         )
 
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
@@ -873,13 +922,14 @@ class FeatureStore:
 
         from_.persist(storage)
 
-        self._registry.apply_saved_dataset(dataset, self.project, commit=True)
-
-        return dataset.with_retrieval_job(
+        dataset = dataset.with_retrieval_job(
             self._get_provider().retrieve_saved_dataset(
                 config=self.config, dataset=dataset
             )
         )
+
+        self._registry.apply_saved_dataset(dataset, self.project, commit=True)
+        return dataset
 
     @log_exceptions_and_usage
     def get_saved_dataset(self, name: str) -> SavedDataset:
@@ -1001,7 +1051,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view, self.project, start_date, end_date
+                feature_view, self.project, start_date, end_date,
             )
 
     @log_exceptions_and_usage
@@ -1088,7 +1138,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view, self.project, start_date, end_date
+                feature_view, self.project, start_date, end_date,
             )
 
     @log_exceptions_and_usage
@@ -1523,10 +1573,10 @@ class FeatureStore:
 
         # Each row is a set of features for a given entity key. We only need to convert
         # the data to Protobuf once.
-        row_ts_proto = Timestamp()
         null_value = Value()
         read_row_protos = []
         for read_row in read_rows:
+            row_ts_proto = Timestamp()
             row_ts, feature_data = read_row
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
@@ -1916,3 +1966,18 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
             )
         else:
             fv_names.add(case_insensitive_fv_name)
+
+
+def _validate_data_sources(data_sources: List[DataSource]):
+    """ Verify data sources have case-insensitively unique names"""
+    ds_names = set()
+    for fv in data_sources:
+        case_insensitive_ds_name = fv.name.lower()
+        if case_insensitive_ds_name in ds_names:
+            raise ValueError(
+                f"More than one data source with name {case_insensitive_ds_name} found. "
+                f"Please ensure that all data source names are case-insensitively unique. "
+                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+            )
+        else:
+            ds_names.add(case_insensitive_ds_name)

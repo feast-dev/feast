@@ -126,6 +126,56 @@ def endpoint(ctx: click.Context):
         _logger.info("There is no active feature server.")
 
 
+@cli.group(name="data-sources")
+def data_sources_cmd():
+    """
+    Access data sources
+    """
+    pass
+
+
+@data_sources_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def data_source_describe(ctx: click.Context, name: str):
+    """
+    Describe a data source
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    try:
+        data_source = store.get_data_source(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(data_source)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@data_sources_cmd.command(name="list")
+@click.pass_context
+def data_source_list(ctx: click.Context):
+    """
+    List all data sources
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    table = []
+    for datasource in store.list_data_sources():
+        table.append([datasource.name, datasource.__class__])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "CLASS"], tablefmt="plain"))
+
+
 @cli.group(name="entities")
 def entities_cmd():
     """
@@ -477,7 +527,9 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
 @click.option(
     "--template",
     "-t",
-    type=click.Choice(["local", "gcp", "aws", "snowflake"], case_sensitive=False),
+    type=click.Choice(
+        ["local", "gcp", "aws", "snowflake", "spark"], case_sensitive=False
+    ),
     help="Specify a template for the created project",
     default="local",
 )

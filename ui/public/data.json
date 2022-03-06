@@ -1,0 +1,6 @@
+[
+  { "name": "basketball", "league": "NBA" },
+  { "name": "hockey", "league": "NHL" },
+  { "name": "football", "league": "UEFA" },
+  { "name": "baseball", "league": "MLB" }
+]

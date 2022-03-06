@@ -116,12 +116,12 @@ public class DataGenerator {
       String name,
       String description,
       ValueProto.ValueType.Enum valueType,
-      Map<String, String> labels) {
+      Map<String, String> tags) {
     return EntityProto.EntitySpecV2.newBuilder()
         .setName(name)
         .setDescription(description)
         .setValueType(valueType)
-        .putAllLabels(labels)
+        .putAllTags(tags)
         .build();
   }
 

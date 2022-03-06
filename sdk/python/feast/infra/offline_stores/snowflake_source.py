@@ -2,6 +2,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
+from feast.errors import DataSourceNoNameException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -14,6 +15,7 @@ from feast.value_type import ValueType
 class SnowflakeSource(DataSource):
     def __init__(
         self,
+        name: Optional[str] = None,
         database: Optional[str] = None,
         schema: Optional[str] = None,
         table: Optional[str] = None,
@@ -27,6 +29,7 @@ class SnowflakeSource(DataSource):
         Creates a SnowflakeSource object.
 
         Args:
+            name (optional): Name for the source. Defaults to the table if not specified.
             database (optional): Snowflake database where the features are stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
@@ -40,7 +43,19 @@ class SnowflakeSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
 
         """
+        if table is None and query is None:
+            raise ValueError('No "table" argument provided.')
+
+        # If no name, use the table as the default name
+        _name = name
+        if not _name:
+            if table:
+                _name = table
+            else:
+                raise DataSourceNoNameException()
+
         super().__init__(
+            _name,
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
@@ -50,7 +65,7 @@ class SnowflakeSource(DataSource):
         # The default Snowflake schema is named "PUBLIC".
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
-        self._snowflake_options = SnowflakeOptions(
+        self.snowflake_options = SnowflakeOptions(
             database=database, schema=_schema, table=table, query=query
         )
 
@@ -76,6 +91,10 @@ class SnowflakeSource(DataSource):
             query=data_source.snowflake_options.query,
         )
 
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, other):
         if not isinstance(other, SnowflakeSource):
             raise TypeError(
@@ -83,7 +102,8 @@ class SnowflakeSource(DataSource):
             )
 
         return (
-            self.snowflake_options.database == other.snowflake_options.database
+            self.name == other.name
+            and self.snowflake_options.database == other.snowflake_options.database
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query
@@ -95,32 +115,22 @@ class SnowflakeSource(DataSource):
     @property
     def database(self):
         """Returns the database of this snowflake source."""
-        return self._snowflake_options.database
+        return self.snowflake_options.database
 
     @property
     def schema(self):
         """Returns the schema of this snowflake source."""
-        return self._snowflake_options.schema
+        return self.snowflake_options.schema
 
     @property
     def table(self):
         """Returns the table of this snowflake source."""
-        return self._snowflake_options.table
+        return self.snowflake_options.table
 
     @property
     def query(self):
         """Returns the snowflake options of this snowflake source."""
-        return self._snowflake_options.query
-
-    @property
-    def snowflake_options(self):
-        """Returns the snowflake options of this snowflake source."""
-        return self._snowflake_options
-
-    @snowflake_options.setter
-    def snowflake_options(self, _snowflake_options):
-        """Sets the snowflake options of this snowflake source."""
-        self._snowflake_options = _snowflake_options
+        return self.snowflake_options.query
 
     def to_proto(self) -> DataSourceProto:
         """

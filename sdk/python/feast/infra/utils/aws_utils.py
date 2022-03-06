@@ -11,7 +11,6 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
-    stop_after_delay,
     wait_exponential,
 )
 
@@ -103,7 +102,6 @@ class RedshiftStatementNotFinishedError(Exception):
 @retry(
     wait=wait_exponential(multiplier=1, max=30),
     retry=retry_if_exception_type(RedshiftStatementNotFinishedError),
-    stop=stop_after_delay(300),  # 300 seconds
     reraise=True,
 )
 def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:

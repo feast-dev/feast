@@ -1,0 +1,789 @@
+{
+  "project": "credit_scoring_aws",
+  "dataSources": [
+    {
+      "type": "BATCH_FILE",
+      "eventTimestampColumn": "event_timestamp",
+      "createdTimestampColumn": "created_timestamp",
+      "fileOptions": {
+        "fileUrl": "data/credit_history.parquet"
+      },
+      "name": "credit_history",
+      "meta": {
+        "latestEventTimestamp": "2021-08-29T22:01:04.746575Z",
+        "earliestEventTimestamp": "2020-04-26T22:01:04.746575Z"
+      }
+    },
+    {
+      "type": "REQUEST_SOURCE",
+      "requestDataOptions": {
+        "schema": {
+          "transaction_amt": "INT64"
+        }
+      },
+      "name": "transaction"
+    },
+    {
+      "type": "BATCH_FILE",
+      "eventTimestampColumn": "event_timestamp",
+      "createdTimestampColumn": "created_timestamp",
+      "fileOptions": {
+        "fileUrl": "data/zipcode_table.parquet"
+      },
+      "name": "zipcode",
+      "meta": {
+        "latestEventTimestamp": "2017-01-01T12:00:00Z",
+        "earliestEventTimestamp": "2017-01-01T12:00:00Z"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "spec": {
+        "name": "__dummy",
+        "valueType": "STRING",
+        "joinKey": "__dummy_id"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-09T20:40:53.101387Z",
+        "lastUpdatedTimestamp": "2022-02-09T20:40:53.101387Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "dob_ssn",
+        "valueType": "STRING",
+        "description": "Date of birth and last four digits of social security number",
+        "joinKey": "dob_ssn",
+        "labels": {
+          "team": "hack week",
+          "owner": "tony@tecton.ai"
+        }
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-09T20:40:53.101256Z",
+        "lastUpdatedTimestamp": "2022-02-09T20:40:53.101256Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "zipcode",
+        "valueType": "INT64",
+        "description": "A zipcode",
+        "joinKey": "zipcode",
+        "labels": {
+          "owner": "danny@tecton.ai",
+          "team": "hack week"
+        }
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-09T20:40:53.101335Z",
+        "lastUpdatedTimestamp": "2022-02-09T20:40:53.101335Z"
+      }
+    }
+  ],
+  "featureViews": [
+    {
+      "spec": {
+        "name": "credit_history",
+        "entities": ["dob_ssn"],
+        "features": [
+          {
+            "name": "credit_card_due",
+            "valueType": "INT64"
+          },
+          {
+            "name": "mortgage_due",
+            "valueType": "INT64"
+          },
+          {
+            "name": "student_loan_due",
+            "valueType": "INT64"
+          },
+          {
+            "name": "vehicle_loan_due",
+            "valueType": "INT64"
+          },
+          {
+            "name": "hard_pulls",
+            "valueType": "INT64"
+          },
+          {
+            "name": "missed_payments_2y",
+            "valueType": "INT64"
+          },
+          {
+            "name": "missed_payments_1y",
+            "valueType": "INT64"
+          },
+          {
+            "name": "missed_payments_6m",
+            "valueType": "INT64"
+          },
+          {
+            "name": "bankruptcies",
+            "valueType": "INT64"
+          }
+        ],
+        "tags": {
+          "access_group": "feast-team@tecton.ai",
+          "experiments": "experiment-A",
+          "date_added": "2022-02-6"
+        },
+        "ttl": "777600000s",
+        "batchSource": {
+          "type": "BATCH_FILE",
+          "eventTimestampColumn": "event_timestamp",
+          "createdTimestampColumn": "created_timestamp",
+          "fileOptions": {
+            "fileUrl": "data/credit_history.parquet"
+          },
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "name": "credit_history",
+          "meta": {
+            "latestEventTimestamp": "2021-08-29T22:01:04.746575Z",
+            "earliestEventTimestamp": "2020-04-26T22:01:04.746575Z"
+          }
+        },
+        "online": true
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-09T20:40:53.101460Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:15:13.735432Z",
+        "materializationIntervals": [
+          {
+            "startTime": "1997-06-20T20:41:14.456417Z",
+            "endTime": "2019-02-09T20:41:11Z"
+          },
+          {
+            "startTime": "2019-02-09T20:41:11Z",
+            "endTime": "2022-02-09T20:42:03Z"
+          },
+          {
+            "startTime": "2022-02-09T20:42:03Z",
+            "endTime": "2022-02-11T00:18:02Z"
+          }
+        ]
+      }
+    },
+    {
+      "spec": {
+        "name": "zipcode_features",
+        "entities": ["zipcode"],
+        "features": [
+          {
+            "name": "city",
+            "valueType": "STRING"
+          },
+          {
+            "name": "state",
+            "valueType": "STRING"
+          },
+          {
+            "name": "location_type",
+            "valueType": "STRING"
+          },
+          {
+            "name": "tax_returns_filed",
+            "valueType": "INT64"
+          },
+          {
+            "name": "population",
+            "valueType": "INT64"
+          },
+          {
+            "name": "total_wages",
+            "valueType": "INT64"
+          }
+        ],
+        "tags": {
+          "experiments": "experiment-A,experiment-B,experiment-C",
+          "date_added": "2022-02-7",
+          "access_group": "feast-team@tecton.ai"
+        },
+        "ttl": "315360000s",
+        "batchSource": {
+          "type": "BATCH_FILE",
+          "eventTimestampColumn": "event_timestamp",
+          "createdTimestampColumn": "created_timestamp",
+          "fileOptions": {
+            "fileUrl": "data/zipcode_table.parquet"
+          },
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "name": "zipcode",
+          "meta": {
+            "latestEventTimestamp": "2017-01-01T12:00:00Z",
+            "earliestEventTimestamp": "2017-01-01T12:00:00Z"
+          }
+        },
+        "online": true
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:12:50.182923Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:15:21.790447Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "zipcode_money_features",
+        "entities": ["zipcode"],
+        "features": [
+          {
+            "name": "tax_returns_filed",
+            "valueType": "INT64"
+          },
+          {
+            "name": "total_wages",
+            "valueType": "INT64"
+          }
+        ],
+        "tags": {
+          "experiments": "experiment-A,experiment-B,experiment-C",
+          "access_group": "feast-team@tecton.ai",
+          "date_added": "2022-02-7",
+          "test_apple": "2022-02-7",
+          "test_banana": "2022-02-7",
+          "test_cherry": "2022-02-7",
+          "test_danish": "2022-02-7",
+          "test_eggplant": "2022-02-7",
+          "test_figs": "2022-02-7",
+          "test_grape": "2022-02-7",
+          "test_honey": "2022-02-7",
+          "test_ice": "2022-02-7",
+          "test_jackfruit": "2022-02-7",
+          "test_kiwi_fruit": "2022-02-7",
+          "test_lychee": "2022-02-7",
+          "test_mango": "2022-02-7",
+          "test_orange": "2022-02-7",
+          "test_peach": "2022-02-7",
+          "test_question": "2022-02-7",
+          "test_ruby": "2022-02-7",
+          "test_starfruit": "2022-02-7",
+          "test_tamarind": "2022-02-7"
+        },
+        "ttl": "315360000s",
+        "batchSource": {
+          "type": "BATCH_FILE",
+          "eventTimestampColumn": "event_timestamp",
+          "createdTimestampColumn": "created_timestamp",
+          "fileOptions": {
+            "fileUrl": "data/zipcode_table.parquet"
+          },
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "name": "zipcode",
+          "meta": {
+            "latestEventTimestamp": "2017-01-01T12:00:00Z",
+            "earliestEventTimestamp": "2017-01-01T12:00:00Z"
+          }
+        },
+        "online": true
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:10:53.228047Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:15:15.949101Z"
+      }
+    }
+  ],
+  "featureServices": [
+    {
+      "spec": {
+        "name": "credit_score_v1",
+        "features": [
+          {
+            "featureViewName": "credit_history",
+            "featureColumns": [
+              {
+                "name": "credit_card_due",
+                "valueType": "INT64"
+              },
+              {
+                "name": "mortgage_due",
+                "valueType": "INT64"
+              },
+              {
+                "name": "missed_payments_1y",
+                "valueType": "INT64"
+              }
+            ]
+          },
+          {
+            "featureViewName": "zipcode_features",
+            "featureColumns": [
+              {
+                "name": "city",
+                "valueType": "STRING"
+              },
+              {
+                "name": "state",
+                "valueType": "STRING"
+              },
+              {
+                "name": "location_type",
+                "valueType": "STRING"
+              },
+              {
+                "name": "tax_returns_filed",
+                "valueType": "INT64"
+              },
+              {
+                "name": "population",
+                "valueType": "INT64"
+              },
+              {
+                "name": "total_wages",
+                "valueType": "INT64"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "owner": "tony@tecton.ai",
+          "stage": "staging"
+        },
+        "description": "Credit scoring model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:12:50.186773Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "credit_score_v2",
+        "features": [
+          {
+            "featureViewName": "credit_history",
+            "featureColumns": [
+              {
+                "name": "credit_card_due",
+                "valueType": "INT64"
+              },
+              {
+                "name": "mortgage_due",
+                "valueType": "INT64"
+              },
+              {
+                "name": "missed_payments_1y",
+                "valueType": "INT64"
+              }
+            ]
+          },
+          {
+            "featureViewName": "zipcode_features",
+            "featureColumns": [
+              {
+                "name": "city",
+                "valueType": "STRING"
+              },
+              {
+                "name": "state",
+                "valueType": "STRING"
+              },
+              {
+                "name": "location_type",
+                "valueType": "STRING"
+              },
+              {
+                "name": "tax_returns_filed",
+                "valueType": "INT64"
+              },
+              {
+                "name": "population",
+                "valueType": "INT64"
+              },
+              {
+                "name": "total_wages",
+                "valueType": "INT64"
+              }
+            ]
+          },
+          {
+            "featureViewName": "transaction_request_fv",
+            "featureColumns": [
+              {
+                "name": "transaction_amt",
+                "valueType": "INT64"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "stage": "prod",
+          "owner": "tony@tecton.ai"
+        },
+        "description": "Credit scoring model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:12:50.185785Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "credit_score_v3",
+        "features": [
+          {
+            "featureViewName": "credit_history",
+            "featureColumns": [
+              {
+                "name": "credit_card_due",
+                "valueType": "INT64"
+              },
+              {
+                "name": "mortgage_due",
+                "valueType": "INT64"
+              },
+              {
+                "name": "missed_payments_1y",
+                "valueType": "INT64"
+              }
+            ]
+          },
+          {
+            "featureViewName": "zipcode_features",
+            "featureColumns": [
+              {
+                "name": "city",
+                "valueType": "STRING"
+              },
+              {
+                "name": "state",
+                "valueType": "STRING"
+              },
+              {
+                "name": "location_type",
+                "valueType": "STRING"
+              },
+              {
+                "name": "tax_returns_filed",
+                "valueType": "INT64"
+              },
+              {
+                "name": "population",
+                "valueType": "INT64"
+              },
+              {
+                "name": "total_wages",
+                "valueType": "INT64"
+              }
+            ]
+          },
+          {
+            "featureViewName": "transaction_gt_last_credit_card_due",
+            "featureColumns": [
+              {
+                "name": "transaction_gt_last_credit_card_due",
+                "valueType": "BOOL"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "stage": "dev",
+          "owner": "tony@tecton.ai"
+        },
+        "description": "Credit scoring model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:12:50.186367Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "zipcode_model",
+        "features": [
+          {
+            "featureViewName": "zipcode_features",
+            "featureColumns": [
+              {
+                "name": "city",
+                "valueType": "STRING"
+              },
+              {
+                "name": "state",
+                "valueType": "STRING"
+              },
+              {
+                "name": "location_type",
+                "valueType": "STRING"
+              },
+              {
+                "name": "tax_returns_filed",
+                "valueType": "INT64"
+              },
+              {
+                "name": "population",
+                "valueType": "INT64"
+              },
+              {
+                "name": "total_wages",
+                "valueType": "INT64"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "stage": "dev",
+          "owner": "amanda@tecton.ai"
+        },
+        "description": "Location model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:12:50.187069Z"
+      }
+    },
+    {
+      "spec": {
+        "name": "zipcode_model_v2",
+        "features": [
+          {
+            "featureViewName": "zipcode_money_features",
+            "featureColumns": [
+              {
+                "name": "tax_returns_filed",
+                "valueType": "INT64"
+              },
+              {
+                "name": "total_wages",
+                "valueType": "INT64"
+              }
+            ]
+          }
+        ],
+        "tags": {
+          "owner": "amanda@tecton.ai",
+          "stage": "dev"
+        },
+        "description": "Location model"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:17:15.582561Z"
+      }
+    }
+  ],
+  "onDemandFeatureViews": [
+    {
+      "spec": {
+        "name": "transaction_gt_last_credit_card_due",
+        "features": [
+          {
+            "name": "transaction_gt_last_credit_card_due",
+            "valueType": "BOOL"
+          }
+        ],
+        "inputs": {
+          "transaction": {
+            "requestDataSource": {
+              "type": "REQUEST_SOURCE",
+              "requestDataOptions": {
+                "schema": {
+                  "transaction_amt": "INT64"
+                }
+              },
+              "name": "transaction"
+            }
+          },
+          "credit_history": {
+            "featureViewProjection": {
+              "featureViewName": "credit_history",
+              "featureColumns": [
+                {
+                  "name": "credit_card_due",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "mortgage_due",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "student_loan_due",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "vehicle_loan_due",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "hard_pulls",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "missed_payments_2y",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "missed_payments_1y",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "missed_payments_6m",
+                  "valueType": "INT64"
+                },
+                {
+                  "name": "bankruptcies",
+                  "valueType": "INT64"
+                }
+              ]
+            }
+          }
+        },
+        "userDefinedFunction": {
+          "name": "transaction_gt_last_credit_card_due",
+          "body": "@on_demand_feature_view(\n    inputs={\"credit_history\": credit_history, \"transaction\": input_request,},\n    features=[\n        Feature(name=\"transaction_gt_last_credit_card_due\", dtype=ValueType.BOOL),\n    ],\n)\ndef transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:\n    df = pd.DataFrame()\n    df[\"transaction_gt_last_credit_card_due\"] = (\n        inputs[\"transaction_amt\"] > inputs[\"credit_card_due\"]\n    )\n    return df\n"
+        }
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-11T20:17:15.581514Z",
+        "lastUpdatedTimestamp": "2022-02-11T20:17:15.581514Z"
+      }
+    }
+  ],
+  "requestFeatureViews": [
+    {
+      "spec": {
+        "name": "transaction_request_fv",
+        "requestDataSource": {
+          "type": "REQUEST_SOURCE",
+          "requestDataOptions": {
+            "schema": {
+              "transaction_amt": "INT64"
+            }
+          },
+          "name": "transaction"
+        }
+      }
+    }
+  ],
+  "savedDatasets": [
+    {
+      "spec": {
+        "name": "my_training_ds",
+        "features": [
+          "credit_history:credit_card_due",
+          "credit_history:mortgage_due",
+          "credit_history:missed_payments_1y",
+          "zipcode_features:city",
+          "zipcode_features:state",
+          "zipcode_features:location_type",
+          "zipcode_features:tax_returns_filed",
+          "zipcode_features:population",
+          "zipcode_features:total_wages"
+        ],
+        "joinKeys": [
+          "person_income",
+          "person_emp_length",
+          "created_timestamp",
+          "zipcode",
+          "person_home_ownership",
+          "loan_amnt",
+          "person_age",
+          "loan_int_rate",
+          "loan_status",
+          "loan_id",
+          "dob_ssn",
+          "loan_intent"
+        ],
+        "storage": {
+          "fileStorage": {
+            "fileFormat": {
+              "parquetFormat": {}
+            },
+            "fileUrl": "my_training_ds.parquet"
+          }
+        },
+        "featureService": {
+          "spec": {
+            "name": "credit_score_v1",
+            "features": [
+              {
+                "featureViewName": "credit_history",
+                "featureColumns": [
+                  {
+                    "name": "credit_card_due",
+                    "valueType": "INT64"
+                  },
+                  {
+                    "name": "mortgage_due",
+                    "valueType": "INT64"
+                  },
+                  {
+                    "name": "missed_payments_1y",
+                    "valueType": "INT64"
+                  }
+                ]
+              },
+              {
+                "featureViewName": "zipcode_features",
+                "featureColumns": [
+                  {
+                    "name": "city",
+                    "valueType": "STRING"
+                  },
+                  {
+                    "name": "state",
+                    "valueType": "STRING"
+                  },
+                  {
+                    "name": "location_type",
+                    "valueType": "STRING"
+                  },
+                  {
+                    "name": "tax_returns_filed",
+                    "valueType": "INT64"
+                  },
+                  {
+                    "name": "population",
+                    "valueType": "INT64"
+                  },
+                  {
+                    "name": "total_wages",
+                    "valueType": "INT64"
+                  }
+                ]
+              }
+            ],
+            "tags": {
+              "stage": "staging",
+              "owner": "tony@tecton.ai"
+            },
+            "description": "Credit scoring model"
+          },
+          "meta": {
+            "createdTimestamp": "2022-02-09T20:40:53.103078Z"
+          }
+        },
+        "profile": "{\"meta\": {\"great_expectations_version\": \"0.14.4\"}, \"expectations\": [{\"meta\": {}, \"kwargs\": {\"column\": \"credit_card_due\", \"min_value\": 0, \"mostly\": 0.99}, \"expectation_type\": \"expect_column_values_to_be_between\"}, {\"meta\": {}, \"kwargs\": {\"column\": \"missed_payments_1y\", \"min_value\": 0, \"max_value\": 5, \"mostly\": 0.99}, \"expectation_type\": \"expect_column_values_to_be_between\"}], \"data_asset_type\": \"Dataset\", \"expectation_suite_name\": \"default\", \"ge_cloud_id\": null}"
+      },
+      "meta": {
+        "createdTimestamp": "2022-02-09T20:44:03.377806Z",
+        "minEventTimestamp": "2020-08-25T20:34:41.361Z",
+        "maxEventTimestamp": "2021-08-25T20:34:41.361Z"
+      }
+    }
+  ],
+  "infra": [
+    {
+      "infraObjects": [
+        {
+          "infraObjectClassType": "feast.infra.online_stores.sqlite.SqliteTable",
+          "sqliteTable": {
+            "path": "/Users/dannychiao/GitHub/feast-ui/feature_repo/data/online.db",
+            "name": "credit_scoring_aws_credit_history"
+          }
+        },
+        {
+          "infraObjectClassType": "feast.infra.online_stores.sqlite.SqliteTable",
+          "sqliteTable": {
+            "path": "/Users/dannychiao/GitHub/feast-ui/feature_repo/data/online.db",
+            "name": "credit_scoring_aws_zipcode_features"
+          }
+        },
+        {
+          "infraObjectClassType": "feast.infra.online_stores.sqlite.SqliteTable",
+          "sqliteTable": {
+            "path": "/Users/dannychiao/GitHub/feast-ui/feature_repo/data/online.db",
+            "name": "credit_scoring_aws_zipcode_money_features"
+          }
+        }
+      ]
+    }
+  ]
+}

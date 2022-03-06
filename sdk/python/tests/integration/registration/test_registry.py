@@ -32,14 +32,14 @@ from feast.value_type import ValueType
 
 
 @pytest.fixture
-def local_registry():
+def local_registry() -> Registry:
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
     return Registry(registry_config, None)
 
 
 @pytest.fixture
-def gcs_registry():
+def gcs_registry() -> Registry:
     from google.cloud import storage
 
     storage_client = storage.Client()
@@ -58,7 +58,7 @@ def gcs_registry():
 
 
 @pytest.fixture
-def s3_registry():
+def s3_registry() -> Registry:
     registry_config = RegistryConfig(
         path=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
         cache_ttl_seconds=600,
@@ -74,7 +74,7 @@ def test_apply_entity_success(test_registry):
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -90,8 +90,8 @@ def test_apply_entity_success(test_registry):
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project)
@@ -99,8 +99,8 @@ def test_apply_entity_success(test_registry):
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_registry.delete_entity("driver_car_id", project)
@@ -123,7 +123,7 @@ def test_apply_entity_integration(test_registry):
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -139,8 +139,8 @@ def test_apply_entity_integration(test_registry):
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project)
@@ -148,8 +148,8 @@ def test_apply_entity_integration(test_registry):
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_registry.teardown()
@@ -428,6 +428,70 @@ def test_apply_feature_view_integration(test_registry):
         test_registry._get_registry_proto()
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+)
+def test_apply_data_source(test_registry: Registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
+        date_partition_column="date_partition_col",
+    )
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        features=[
+            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        ],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        batch_source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project, commit=False)
+    test_registry.apply_feature_view(fv1, project, commit=True)
+
+    registry_feature_views = test_registry.list_feature_views(project)
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources[0]
+    assert registry_data_source == batch_source
+
+    # Check that change to batch source propagates
+    batch_source.event_timestamp_column = "new_ts_col"
+    test_registry.apply_data_source(batch_source, project, commit=False)
+    test_registry.apply_feature_view(fv1, project, commit=True)
+    registry_feature_views = test_registry.list_feature_views(project)
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_batch_source = test_registry.list_data_sources(project)[0]
+    assert registry_batch_source == batch_source
+
+    test_registry.teardown()
+
+    # Will try to reload registry, which will fail because the file has been deleted
+    with pytest.raises(FileNotFoundError):
+        test_registry._get_registry_proto()
+
+
 def test_commit():
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
@@ -437,7 +501,7 @@ def test_commit():
         name="driver_car_id",
         description="Car driver id",
         value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -454,8 +518,8 @@ def test_commit():
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project, allow_cache=True)
@@ -463,8 +527,8 @@ def test_commit():
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     # Create new registry that points to the same store
@@ -489,8 +553,8 @@ def test_commit():
         and entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     entity = test_registry.get_entity("driver_car_id", project)
@@ -498,8 +562,8 @@ def test_commit():
         entity.name == "driver_car_id"
         and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
-        and "team" in entity.labels
-        and entity.labels["team"] == "matchmaking"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
     )
 
     test_registry.teardown()

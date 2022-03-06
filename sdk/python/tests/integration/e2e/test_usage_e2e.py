@@ -61,7 +61,7 @@ def test_usage_on(dummy_exporter, enabling_toggle):
             name="driver_car_id",
             description="Car driver id",
             value_type=ValueType.STRING,
-            labels={"team": "matchmaking"},
+            tags={"team": "matchmaking"},
         )
 
         test_feature_store.apply([entity])
@@ -100,7 +100,7 @@ def test_usage_off(dummy_exporter, enabling_toggle):
             name="driver_car_id",
             description="Car driver id",
             value_type=ValueType.STRING,
-            labels={"team": "matchmaking"},
+            tags={"team": "matchmaking"},
         )
         test_feature_store.apply([entity])
 

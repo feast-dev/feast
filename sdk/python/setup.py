@@ -40,7 +40,7 @@ AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
-    "Click==8.*",
+    "Click>=7.*",
     "colorama>=0.3.9",
     "dill==0.3.*",
     "fastavro>=1.1.0",
@@ -66,7 +66,7 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0",
     "proto-plus<1.19.7",
     "tensorflow-metadata>=1.0.0,<2.0.0",
-    "dask>=2021.*",
+    "dask>=2021.*,<2022.02.0",
 ]
 
 GCP_REQUIRED = [
@@ -78,7 +78,8 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis>=4.1.0",
+    "redis==3.5.3",
+    "redis-py-cluster>=2.1.3",
     "hiredis>=2.0.0",
 ]
 
@@ -89,6 +90,10 @@ AWS_REQUIRED = [
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3",
+]
+
+SPARK_REQUIRED = [
+    "pyspark>=3.0.0",
 ]
 
 GE_REQUIRED = [
@@ -140,6 +145,7 @@ CI_REQUIRED = (
         + REDIS_REQUIRED
         + AWS_REQUIRED
         + SNOWFLAKE_REQUIRED
+        + SPARK_REQUIRED
         + GE_REQUIRED
 )
 
@@ -243,6 +249,7 @@ setup(
         "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
+        "spark": SPARK_REQUIRED,
         "ge": GE_REQUIRED,
     },
     include_package_data=True,

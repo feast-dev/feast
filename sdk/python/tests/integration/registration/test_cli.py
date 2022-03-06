@@ -69,6 +69,8 @@ def test_universal_cli(environment: Environment):
             assertpy.assert_that(result.returncode).is_equal_to(0)
             result = runner.run(["feature-services", "list"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(["data-sources", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
 
             # entity & feature view describe commands should succeed when objects exist
             result = runner.run(["entities", "describe", "driver"], cwd=repo_path)
@@ -83,6 +85,11 @@ def test_universal_cli(environment: Environment):
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
             assertpy.assert_that(fs.list_feature_views()).is_length(3)
+            result = runner.run(
+                ["data-sources", "describe", "customer_profile_source"], cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(fs.list_data_sources()).is_length(3)
 
             # entity & feature view describe commands should fail when objects don't exist
             result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
@@ -90,6 +97,8 @@ def test_universal_cli(environment: Environment):
             result = runner.run(["feature-views", "describe", "foo"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(1)
             result = runner.run(["feature-services", "describe", "foo"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            result = runner.run(["data-sources", "describe", "foo"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(1)
 
             # Doing another apply should be a no op, and should not cause errors
@@ -134,9 +143,11 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
         isinstance(config_dict["online_store"], dict)
         and "redis_type" in config_dict["online_store"]
     ):
-        del config_dict["online_store"]["redis_type"]
+        if str(config_dict["online_store"]["redis_type"]) == "RedisType.redis_cluster":
+            config_dict["online_store"]["redis_type"] = "redis_cluster"
+        elif str(config_dict["online_store"]["redis_type"]) == "RedisType.redis":
+            config_dict["online_store"]["redis_type"] = "redis"
     config_dict["repo_path"] = str(config_dict["repo_path"])
-
     return yaml.safe_dump(config_dict)
 
 

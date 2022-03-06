@@ -21,14 +21,18 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
+import dill
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.json_format import MessageToJson
 from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
+    DataSourceNotFoundException,
+    DataSourceObjectNotFoundException,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
@@ -65,6 +69,7 @@ REGISTRY_STORE_CLASS_FOR_SCHEME = {
 
 
 class FeastObjectType(Enum):
+    DATA_SOURCE = "data source"
     ENTITY = "entity"
     FEATURE_VIEW = "feature view"
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
@@ -76,6 +81,7 @@ class FeastObjectType(Enum):
         registry: "Registry", project: str
     ) -> Dict["FeastObjectType", List[Any]]:
         return {
+            FeastObjectType.DATA_SOURCE: registry.list_data_sources(project=project),
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
@@ -94,6 +100,7 @@ class FeastObjectType(Enum):
         repo_contents: RepoContents,
     ) -> Dict["FeastObjectType", Set[Any]]:
         return {
+            FeastObjectType.DATA_SOURCE: repo_contents.data_sources,
             FeastObjectType.ENTITY: repo_contents.entities,
             FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
@@ -235,8 +242,8 @@ class Registry:
 
         now = datetime.utcnow()
         if not entity.created_timestamp:
-            entity._created_timestamp = now
-        entity._last_updated_timestamp = now
+            entity.created_timestamp = now
+        entity.last_updated_timestamp = now
 
         entity_proto = entity.to_proto()
         entity_proto.spec.project = project
@@ -274,6 +281,70 @@ class Registry:
             if entity_proto.spec.project == project:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
+
+    def list_data_sources(
+        self, project: str, allow_cache: bool = False
+    ) -> List[DataSource]:
+        """
+        Retrieve a list of data sources from the registry
+
+        Args:
+            project: Filter data source based on project name
+            allow_cache: Whether to allow returning data sources from a cached registry
+
+        Returns:
+            List of data sources
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        data_sources = []
+        for data_source_proto in registry_proto.data_sources:
+            if data_source_proto.project == project:
+                data_sources.append(DataSource.from_proto(data_source_proto))
+        return data_sources
+
+    def apply_data_source(
+        self, data_source: DataSource, project: str, commit: bool = True
+    ):
+        """
+        Registers a single data source with Feast
+
+        Args:
+            data_source: A data source that will be registered
+            project: Feast project that this data source belongs to
+            commit: Whether to immediately commit to the registry
+        """
+        registry = self._prepare_registry_for_changes()
+
+        for idx, existing_data_source_proto in enumerate(registry.data_sources):
+            if existing_data_source_proto.name == data_source.name:
+                del registry.data_sources[idx]
+        data_source_proto = data_source.to_proto()
+        data_source_proto.project = project
+        registry.data_sources.append(data_source_proto)
+        if commit:
+            self.commit()
+
+    def delete_data_source(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a data source or raises an exception if not found.
+
+        Args:
+            name: Name of data source
+            project: Feast project that this data source belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        self._prepare_registry_for_changes()
+        assert self.cached_registry_proto
+
+        for idx, data_source_proto in enumerate(
+            self.cached_registry_proto.data_sources
+        ):
+            if data_source_proto.name == name:
+                del self.cached_registry_proto.data_sources[idx]
+                if commit:
+                    self.commit()
+                return
+        raise DataSourceNotFoundException(name)
 
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
@@ -464,7 +535,8 @@ class Registry:
 
         Args:
             name: Name of on demand feature view
-            project: Feast project that this on demand feature  belongs to
+            project: Feast project that this on demand feature view belongs to
+            allow_cache: Whether to allow returning this on demand feature view from a cached registry
 
         Returns:
             Returns either the specified on demand feature view, or raises an exception if
@@ -479,6 +551,27 @@ class Registry:
             ):
                 return OnDemandFeatureView.from_proto(on_demand_feature_view)
         raise OnDemandFeatureViewNotFoundException(name, project=project)
+
+    def get_data_source(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> DataSource:
+        """
+        Retrieves a data source.
+
+        Args:
+            name: Name of data source
+            project: Feast project that this data source belongs to
+            allow_cache: Whether to allow returning this data source from a cached registry
+
+        Returns:
+            Returns either the specified data source, or raises an exception if none is found
+        """
+        registry = self._get_registry_proto(allow_cache=allow_cache)
+
+        for data_source in registry.data_sources:
+            if data_source.project == project and data_source.name == name:
+                return DataSource.from_proto(data_source)
+        raise DataSourceObjectNotFoundException(name, project=project)
 
     def apply_materialization(
         self,
@@ -693,7 +786,7 @@ class Registry:
         raise EntityNotFoundException(name, project)
 
     def apply_saved_dataset(
-        self, saved_dataset: SavedDataset, project: str, commit: bool = True
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
     ):
         """
         Registers a single entity with Feast
@@ -793,8 +886,14 @@ class Registry:
         Args:
             project: Feast project to convert to a dict
         """
-        registry_dict = defaultdict(list)
-
+        registry_dict: Dict[str, Any] = defaultdict(list)
+        registry_dict["project"] = project
+        for data_source in sorted(
+            self.list_data_sources(project=project), key=lambda ds: ds.name
+        ):
+            registry_dict["dataSources"].append(
+                self._message_to_sorted_dict(data_source.to_proto())
+            )
         for entity in sorted(
             self.list_entities(project=project), key=lambda entity: entity.name
         ):
@@ -819,9 +918,11 @@ class Registry:
             self.list_on_demand_feature_views(project=project),
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
-            registry_dict["onDemandFeatureViews"].append(
-                self._message_to_sorted_dict(on_demand_feature_view.to_proto())
+            odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
+            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(
+                on_demand_feature_view.udf
             )
+            registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
             key=lambda request_feature_view: request_feature_view.name,
