@@ -16,10 +16,72 @@ available for the rest of the UI.
 - `src/custom-tabs` includes sample custom tabs. This is a WIP plugin system where users can inject their own tabs and 
 data to the UI.
 
+## Usage
 
-## Available Scripts
+There are two modes of usage: importing the UI as a module, or running the entire build as a React app.
 
-In the project directory, you can run:
+### Importing the UI as a module
+
+This is the recommended way to use Feast UI for teams maintaining their own internal UI for their deployment of Feast.
+
+Start with bootstrapping a React app with `create-react-app`
+
+```
+npx create-react-app your-feast-ui
+```
+
+Then, in your app folder, install Feast UI and its peer dependencies. Assuming you use yarn
+
+```
+yarn add @feast-dev/feast-ui
+yarn add @elastic/eui @elastic/datemath @emotion/react moment prop-types inter-ui react-query react-router-dom use-query-params zod typescript query-string d3 @types/d3
+```
+
+Edit `index.js` in the React app to use Feast UI.
+
+```js
+import React from "react";
+import ReactDOM from "react-dom";
+import "./index.css";
+
+import FeastUI from "@feast-dev/feast-ui";
+import "@feast-dev/feast-ui/dist/feast-ui.css";
+
+ReactDOM.render(
+  <React.StrictMode>
+    <FeastUI />
+  </React.StrictMode>,
+  document.getElementById("root")
+);
+```
+
+When you start the React app, it will look for `project-list.json` to find a list of your projects. The JSON should looks something like this.
+
+```json
+{
+  "projects": [
+    {
+      "name": "Credit Score Project",
+      "description": "Project for credit scoring team and associated models.",
+      "id": "credit_score_project",
+      "registryPath": "/registry.json"
+    },
+  ]
+}
+```
+
+```
+// Start the React App
+yarn start
+```
+
+### Alternative: Run this Repo
+
+If you would like to simply try things out and see how the UI works, you can simply run the code in this repo. First:
+
+### `yarn install` 
+
+That will install the all the dependencies that the UI needs, as well as development dependencies. Then in the project directory, you can run:
 
 ### `yarn start`
 
@@ -34,28 +96,8 @@ You will also see any lint errors in the console.
 Launches the test runner in the interactive watch mode.\
 See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `yarn build`
+## On React and Create React App
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `yarn eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+This project was bootstrapped with Create React App, and uses its scripts to simplify UI development. You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
