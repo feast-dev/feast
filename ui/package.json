@@ -115,7 +115,7 @@
     "Store"
   ],
   "author": "tony@tecton.ai",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/feast-dev/feast/issues"
   }
