@@ -8,7 +8,6 @@ from feast import (
     FileSource,
     RedshiftSource,
     SnowflakeSource,
-    SparkSource,
 )
 from feast.data_source import DataSource, RequestDataSource
 from feast.errors import RegistryInferenceFailure
@@ -87,8 +86,10 @@ def update_data_sources_with_inferred_event_timestamp_col(
         ):
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""
-            if isinstance(data_source, FileSource) or isinstance(
-                data_source, SparkSource
+            # TODO(adchia): Move Spark source inference out of this logic
+            if (
+                isinstance(data_source, FileSource)
+                or "SparkSource" == data_source.__class__.__name__
             ):
                 ts_column_type_regex_pattern = r"^timestamp"
             elif isinstance(data_source, BigQuerySource):
