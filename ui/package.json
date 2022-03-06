@@ -1,5 +1,5 @@
 {
-  "name": "@tonyhschu/feast-ui-experimental",
+  "name": "@feast-dev/feast-ui",
   "version": "0.1.1",
   "private": false,
   "files": [
@@ -107,7 +107,7 @@
   "description": "Web UI for the [Feast Feature Store](https://feast.dev/)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/feast-dev/feast-ui.git"
+    "url": "git+https://github.com/feast-dev/feast.git"
   },
   "keywords": [
     "Feast",
@@ -117,6 +117,6 @@
   "author": "tony@tecton.ai",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/feast-dev/feast-ui/issues"
+    "url": "https://github.com/feast-dev/feast/issues"
   }
 }
