@@ -206,33 +206,38 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb_resource.Table(_get_table_name(config, table))
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        entity_ids = [
-            compute_entity_id(entity_key) for entity_key in entity_keys
-        ]
+        entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
 
         # DynamoDB record size limit is 400kb and can retrieve 16MB per call
         # More info: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
         batch_size = 10
         len_entity_ids = len(entity_ids)
-        iters = len_entity_ids // batch_size + 1 if len_entity_ids % batch_size > 0 else len_entity_ids // batch_size
+        iters = (
+            len_entity_ids // batch_size + 1
+            if len_entity_ids % batch_size > 0
+            else len_entity_ids // batch_size
+        )
         for i in range(iters):
             start_index = min(i * batch_size, len_entity_ids)
             end_index = min(i * batch_size + batch_size, len_entity_ids)
-            
+
             batch_entity_ids = {
                 table_instance.name: {
-                    'Keys': [
-                        {'entity_id': entity_id} for entity_id in entity_ids[start_index:end_index]
+                    "Keys": [
+                        {"entity_id": entity_id}
+                        for entity_id in entity_ids[start_index:end_index]
                     ]
                 }
             }
-            
+
             with tracing_span(name="remote_call"):
-                response = dynamodb_resource.batch_get_item(RequestItems=batch_entity_ids)
-            
+                response = dynamodb_resource.batch_get_item(
+                    RequestItems=batch_entity_ids
+                )
+
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
-            
+
             if table_responses:
                 res = {}
                 for tbl_res in table_responses:
