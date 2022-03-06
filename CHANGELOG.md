@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/feast-dev/feast/compare/v0.19.1...v0.19.2) (2022-03-06)
+
+
+### Bug Fixes
+
+* Fix default feast apply path without any extras ([#2373](https://github.com/feast-dev/feast/issues/2373)) ([73e4dde](https://github.com/feast-dev/feast/commit/73e4ddec1b725cf3e624e927a5da55feaf80e0ba))
+
 ## [0.19.1](https://github.com/feast-dev/feast/compare/v0.19.0...v0.19.1) (2022-03-05)
 
 
