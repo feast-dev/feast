@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import logging
 import os
 import time
 import unittest
@@ -34,6 +35,8 @@ from tests.integration.feature_repos.universal.feature_views import (
     driver_feature_view,
 )
 from tests.utils.data_source_utils import prep_file_source
+
+_logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
@@ -267,12 +270,12 @@ def _get_online_features_dict_remotely(
         response = requests.post(
             f"{endpoint}/get-online-features", json=request, timeout=30
         ).json()
-        print(f"Attempt: {attempt}, {response}")
+        _logger.info(f"Attempt: {attempt}, {response}")
         # Retry if the response is internal server error, which can happen when lambda is being restarted
         if response.get("message") != "Internal Server Error":
             break
         # Sleep between retries to give the server some time to start
-        time.sleep(1)
+        time.sleep(5)
     else:
         raise Exception("Failed to get online features from remote feature server")
     if "metadata" not in response:
