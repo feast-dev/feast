@@ -46,6 +46,7 @@ REQUIRED = [
     "fastavro>=1.1.0",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
+    "great_expectations>=0.14.0,<0.15.0",
     "grpcio>=1.34.0",
     "grpcio-reflection>=1.34.0",
     "Jinja2>=2.0.0",
@@ -96,10 +97,6 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0",
 ]
 
-GE_REQUIRED = [
-    "great_expectations>=0.14.0,<0.15.0"
-]
-
 CI_REQUIRED = (
         [
         "cryptography==3.3.2",
@@ -146,7 +143,6 @@ CI_REQUIRED = (
         + AWS_REQUIRED
         + SNOWFLAKE_REQUIRED
         + SPARK_REQUIRED
-        + GE_REQUIRED
 )
 
 DEV_REQUIRED = ["mypy-protobuf>=3.1.0", "grpcio-testing==1.*"] + CI_REQUIRED
@@ -250,7 +246,6 @@ setup(
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
-        "ge": GE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

@@ -13,7 +13,9 @@ The spark data source API allows for the retrieval of historical feature values 
 Using a table reference from SparkSession(for example, either in memory or a Hive Metastore)
 
 ```python
-from feast import SparkSource
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 
 my_spark_source = SparkSource(
     table="FEATURE_TABLE",
@@ -23,7 +25,9 @@ my_spark_source = SparkSource(
 Using a query
 
 ```python
-from feast import SparkSource
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 
 my_spark_source = SparkSource(
     query="SELECT timestamp as ts, created, f1, f2 "
@@ -34,7 +38,9 @@ my_spark_source = SparkSource(
 Using a file reference
 
 ```python
-from feast import SparkSource
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 
 my_spark_source = SparkSource(
     path=f"{CURRENT_DIR}/data/driver_hourly_stats",
