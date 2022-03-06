@@ -262,11 +262,12 @@ def _get_online_features_dict_remotely(
         request["features"] = features
     else:
         request["feature_service"] = features.name
-    for _ in range(25):
+    for attempt in range(25):
         # Send the request to the remote feature server and get the response in JSON format
         response = requests.post(
             f"{endpoint}/get-online-features", json=request, timeout=30
         ).json()
+        print(f"Attempt: {attempt}, {response}")
         # Retry if the response is internal server error, which can happen when lambda is being restarted
         if response.get("message") != "Internal Server Error":
             break
