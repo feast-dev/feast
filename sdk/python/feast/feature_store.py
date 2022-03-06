@@ -42,7 +42,6 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
-from feast.dqm.profilers.ge_profiler import GEProfiler
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -888,7 +887,6 @@ class FeatureStore:
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
         feature_service: Optional[FeatureService] = None,
-        profiler: Optional[GEProfiler] = None,
     ) -> SavedDataset:
         """
             Execute provided retrieval job and persist its outcome in given storage.
