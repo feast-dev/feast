@@ -233,6 +233,15 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
+def _generate_path_with_gopath():
+    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
+    go_path = go_path.strip()
+    path_val = os.getenv("PATH")
+    path_val = f"{path_val}:{go_path}/bin"
+
+    return path_val
+
+
 def _ensure_go_and_proto_toolchain():
     try:
         version = subprocess.check_output(["go", "version"])
@@ -244,9 +253,15 @@ def _ensure_go_and_proto_toolchain():
     if not (int(parts[0]) >= 1 and int(parts[1]) >= 16):
         raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
 
+    path_val = _generate_path_with_gopath()
+
     try:
-        subprocess.check_call(["protoc-gen-go", "--version"])
-        subprocess.check_call(["protoc-gen-go-grpc", "--version"])
+        subprocess.check_call(["protoc-gen-go", "--version"], env={
+            "PATH": path_val
+        })
+        subprocess.check_call(["protoc-gen-go-grpc", "--version"], env={
+            "PATH": path_val
+        })
     except Exception as e:
         raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
 
@@ -254,6 +269,7 @@ def _ensure_go_and_proto_toolchain():
 class BuildGoProtosCommand(Command):
     description = "Builds the proto files into Go files."
     user_options = []
+
 
     def initialize_options(self):
         self.go_protoc = [
@@ -264,6 +280,7 @@ class BuildGoProtosCommand(Command):
         self.proto_folder = os.path.join(repo_root, "protos")
         self.go_folder = os.path.join(repo_root, "go/protos")
         self.sub_folders = PROTO_SUBDIRS
+        self.path_val = _generate_path_with_gopath()
 
     def finalize_options(self):
         pass
@@ -279,6 +296,9 @@ class BuildGoProtosCommand(Command):
                "--go-grpc_out", self.go_folder,
                "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos"]
             + proto_files,
+            env={
+                "PATH": self.path_val
+            }
         )
 
     def _compile_go_feaure_server(self):
@@ -297,6 +317,7 @@ class BuildGoProtosCommand(Command):
         for sub_folder in self.sub_folders:
             self._generate_go_protos(f"feast/{sub_folder}/*.proto")
         self._compile_go_feaure_server()
+
 
 class BuildCommand(build_py):
     """Custom build command."""
