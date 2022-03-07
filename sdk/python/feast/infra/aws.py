@@ -119,6 +119,8 @@ class AwsProvider(PassthroughProvider):
         lambda_client = boto3.client("lambda")
         api_gateway_client = boto3.client("apigatewayv2")
         function = aws_utils.get_lambda_function(lambda_client, resource_name)
+        _logger.info("Using function name: %s", resource_name)
+        _logger.info("Found function: %s", function)
 
         if function is None:
             # If the Lambda function does not exist, create it.

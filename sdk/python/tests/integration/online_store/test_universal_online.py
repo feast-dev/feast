@@ -275,7 +275,7 @@ def _get_online_features_dict_remotely(
         if response.get("message") != "Internal Server Error":
             break
         # Sleep between retries to give the server some time to start
-        time.sleep(5)
+        time.sleep(15)
     else:
         raise Exception("Failed to get online features from remote feature server")
     if "metadata" not in response:
