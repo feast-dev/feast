@@ -22,6 +22,9 @@ from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
 )
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 from feast.on_demand_feature_view import on_demand_feature_view
 from tests.utils.data_source_utils import (
     prep_file_source,
@@ -83,7 +86,7 @@ def test_infer_datasource_names_file():
 
 def test_infer_datasource_names_dwh():
     table = "project.table"
-    dwh_classes = [BigQuerySource, RedshiftSource, SnowflakeSource]
+    dwh_classes = [BigQuerySource, RedshiftSource, SnowflakeSource, SparkSource]
 
     for dwh_class in dwh_classes:
         data_source = dwh_class(table=table)
@@ -98,9 +101,13 @@ def test_infer_datasource_names_dwh():
         assert data_source_with_query.name == source_name
 
         # If we have a query and no name, throw an error
-        with pytest.raises(DataSourceNoNameException):
-            print(f"Testing dwh {dwh_class}")
+        if dwh_class == SparkSource:
+            with pytest.raises(DataSourceNoNameException):
+                print(f"Testing dwh {dwh_class}")
+                data_source = dwh_class(query="test_query")
+        else:
             data_source = dwh_class(query="test_query")
+            assert data_source.name == ""
 
 
 @pytest.mark.integration

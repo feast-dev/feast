@@ -1,12 +1,9 @@
+import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import (
-    DataSourceNoNameException,
-    DataSourceNotFoundException,
-    RedshiftCredentialsError,
-)
+from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -19,7 +16,6 @@ from feast.value_type import ValueType
 class RedshiftSource(DataSource):
     def __init__(
         self,
-        name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
         schema: Optional[str] = None,
@@ -27,12 +23,12 @@ class RedshiftSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
+        name: Optional[str] = None,
     ):
         """
         Creates a RedshiftSource object.
 
         Args:
-            name (optional): Name for the source. Defaults to the table_ref if not specified.
             event_timestamp_column (optional): Event timestamp column used for point in
                 time joins of feature values.
             table (optional): Redshift table where the features are stored.
@@ -43,6 +39,7 @@ class RedshiftSource(DataSource):
                 source to column names in a feature table or view.
             date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features.
+            name (optional): Name for the source. Defaults to the table_ref if not specified.
         """
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
@@ -51,11 +48,15 @@ class RedshiftSource(DataSource):
             if table:
                 _name = table
             else:
-                raise DataSourceNoNameException()
+                warnings.warn(
+                    (
+                        "Starting in Feast 0.21, Feast will require either a name for a data source (if using query) or `table`."
+                    ),
+                    DeprecationWarning,
+                )
 
-        # TODO(adchia): figure out what to do if user uses the query to start
         super().__init__(
-            _name,
+            _name if _name else "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
