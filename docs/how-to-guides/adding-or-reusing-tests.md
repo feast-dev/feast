@@ -161,11 +161,11 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 * In `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
 * Run the full test suite with `make test-python-integration.`
 
-### Including a new offline / online store in the main Feast repo as part of the contributions.
+### Including a new offline / online store in the main Feast repo from external plugins with community maintainers.
 
-* This is for plugins that are not 100% stable. Place the APIs in feast/infra/offline_stores/contrib/
-* Extend `data_source_creator.py` for your offline store.
-* In `contrib_repo_configuration.py` add a new `IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
+* This folder is for plugins that are officially maintained with community owners. Place the APIs in feast/infra/offline_stores/contrib/.
+* Extend `data_source_creator.py` for your offline store and implement the required APIs.
+* In `contrib_repo_configuration.py` add a new `IntegrationTestRepoConfig` (depending on how many online stores you want to test).
 * Run the test suite on the contrib test suite with `make test-python-contrib-universal`.
 
 ### To include a new online store
