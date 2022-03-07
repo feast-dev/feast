@@ -10,8 +10,8 @@ const FeastEntitySchema = z.object({
     labels: z.record(z.string()).optional(),
   }),
   meta: z.object({
-    createdTimestamp: z.string().transform((val) => new Date(val)),
-    lastUpdatedTimestamp: z.string().transform((val) => new Date(val)),
+    createdTimestamp: z.string().transform((val) => new Date(val)).optional(),
+    lastUpdatedTimestamp: z.string().transform((val) => new Date(val)).optional(),
   }),
 });
 
