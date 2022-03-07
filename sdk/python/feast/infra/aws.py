@@ -349,8 +349,6 @@ def _get_docker_image_version() -> str:
                 "> git fetch --all --tags\n"
                 "> pip install -e sdk/python"
             )
-        else:
-            version = version
         return version
 
 
