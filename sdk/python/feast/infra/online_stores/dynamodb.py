@@ -187,8 +187,8 @@ class DynamoDBOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        batch_size: int = 10,
         requested_features: Optional[List[str]] = None,
+        batch_size: int = 10
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Retrieve feature values from the online DynamoDB store.
