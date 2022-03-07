@@ -9,6 +9,7 @@ import {
   EuiText,
   EuiFlexItem,
   EuiSpacer,
+  EuiStat,
   EuiDescriptionList,
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
@@ -71,12 +72,20 @@ const EntityOverviewTab = () => {
                 <EuiDescriptionList>
                   <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data.meta.createdTimestamp.toLocaleDateString("en-CA")}
+                    {data.meta.createdTimestamp ? (
+                      data.meta.createdTimestamp.toLocaleDateString("en-CA")
+                    ) : (
+                      <EuiText>No createdTimestamp specified on this entity.</EuiText>
+                    )}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>Updated</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data.meta.lastUpdatedTimestamp.toLocaleDateString("en-CA")}
+                    {data.meta.lastUpdatedTimestamp ? (
+                      data.meta.lastUpdatedTimestamp.toLocaleDateString("en-CA")
+                    ) : (
+                      <EuiText>No lastUpdatedTimestamp specified on this entity.</EuiText>
+                    )}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>
