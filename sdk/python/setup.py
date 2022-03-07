@@ -172,7 +172,6 @@ else:
     use_scm_version = None
 
 PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
-COMPILE_GO_PROTOS = None
 
 
 class BuildPythonProtosCommand(Command):
@@ -282,12 +281,22 @@ class BuildGoProtosCommand(Command):
             + proto_files,
         )
 
+    def _compile_go_feaure_server(self):
+        print("Compile go feature server")
+        subprocess.check_call(["go",
+                               "build",
+                               "-work",
+                               "-x",
+                               "-o",
+                               f"{repo_root}/sdk/python/feast/binaries/goserver",
+                               f"github.com/feast-dev/feast/go/cmd/goserver"])
+
     def run(self):
         go_dir = Path(repo_root) / "go" / "protos"
         go_dir.mkdir(exist_ok=True)
         for sub_folder in self.sub_folders:
             self._generate_go_protos(f"feast/{sub_folder}/*.proto")
-
+        self._compile_go_feaure_server()
 
 class BuildCommand(build_py):
     """Custom build command."""
