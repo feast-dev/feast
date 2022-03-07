@@ -145,10 +145,8 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: |
-          export GOPATH=${HOME}/work/feast/go
-          export PATH=${PATH}:`go env GOPATH`/bin
           make install-python-ci-dependencies
-          make compile-protos-python
+          make install-go-ci-dependencies
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest

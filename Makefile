@@ -123,18 +123,23 @@ build-java-no-tests:
 # Go SDK
 
 install-go-ci-dependencies:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.0
+	go mod tidy
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go-grpc@v1.1.0
 
-compile-protos-go:
-	python setup.py build_go_protos
+compile-protos-go: install-go-ci-dependencies
+	python sdk/python/setup.py build_go_protos
 
-test-go:
+compile-go-feature-server: compile-protos-go
+	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/goserver github.com/feast-dev/feast/go/cmd/goserver
+
+test-go: install-go-ci-dependencies
 	go test ./...
 
 format-go:
 	gofmt -s -w go/**/**/*.go
 
-lint-go:
+lint-go: compile-protos-go
 	go vet ./go/internal/feast ./go/cmd/goserver
 
 # Docker
