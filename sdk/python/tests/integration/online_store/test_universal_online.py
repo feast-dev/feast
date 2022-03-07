@@ -262,7 +262,7 @@ def _get_online_features_dict_remotely(
         request["features"] = features
     else:
         request["feature_service"] = features.name
-    for attempt in range(25):
+    for _ in range(25):
         # Send the request to the remote feature server and get the response in JSON format
         response = requests.post(
             f"{endpoint}/get-online-features", json=request, timeout=30

@@ -47,7 +47,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 # Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
-REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:12345,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
@@ -71,6 +71,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
