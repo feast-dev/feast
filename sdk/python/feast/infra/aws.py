@@ -283,7 +283,7 @@ class AwsProvider(PassthroughProvider):
         )
         _logger.debug(f"  {login_status}")
 
-        image = docker_client.images.get(dockerhub_image)
+        image = docker_client.images.get(dockerhub_image.replace("_", "."))
         image_remote_name = f"{repository_uri}:{docker_image_version}"
         _logger.info(
             f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}"
