@@ -36,8 +36,6 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 from tests.utils.data_source_utils import prep_file_source
 
-_logger = logging.getLogger(__name__)
-
 
 @pytest.mark.integration
 def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_sources):
@@ -270,7 +268,6 @@ def _get_online_features_dict_remotely(
         response = requests.post(
             f"{endpoint}/get-online-features", json=request, timeout=30
         ).json()
-        _logger.info(f"Attempt: {attempt}, {response}")
         # Retry if the response is internal server error, which can happen when lambda is being restarted
         if response.get("message") != "Internal Server Error":
             break

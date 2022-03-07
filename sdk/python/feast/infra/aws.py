@@ -288,7 +288,7 @@ class AwsProvider(PassthroughProvider):
         _logger.info(
             f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}"
         )
-        image.tag(image_remote_name)
+        image.tag(image_remote_name.replace('_', '.'))
         for line in docker_client.api.push(
             repository_uri, tag=docker_image_version, stream=True, decode=True
         ):
