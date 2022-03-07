@@ -125,7 +125,7 @@ build-java-no-tests:
 install-go-ci-dependencies:
 	go mod tidy
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go-grpc@v1.1.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 
 compile-protos-go: install-go-ci-dependencies
 	python sdk/python/setup.py build_go_protos
