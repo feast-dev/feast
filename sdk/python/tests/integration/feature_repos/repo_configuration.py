@@ -47,7 +47,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 # Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
-REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:12345,db=0"}
+REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
@@ -70,9 +70,7 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
-            # Redis configurations
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
@@ -263,7 +261,7 @@ class UniversalFeatureViews:
 
 
 def construct_universal_feature_views(
-    data_sources: UniversalDataSources,
+    data_sources: UniversalDataSources, with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     return UniversalFeatureViews(
@@ -275,7 +273,9 @@ def construct_universal_feature_views(
                 "driver": driver_hourly_stats,
                 "input_request": create_conv_rate_request_data_source(),
             }
-        ),
+        )
+        if with_odfv
+        else None,
         driver_age_request_fv=create_driver_age_request_feature_view(),
         order=create_order_feature_view(data_sources.orders),
         location=create_location_stats_feature_view(data_sources.location),
@@ -358,7 +358,6 @@ def construct_test_environment(
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
         )
-
     config = RepoConfig(
         registry=registry,
         project=project,

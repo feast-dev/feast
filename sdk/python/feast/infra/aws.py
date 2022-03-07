@@ -264,9 +264,7 @@ class AwsProvider(PassthroughProvider):
         _logger.info(
             f"Pulling remote image {Style.BRIGHT + Fore.GREEN}{dockerhub_image}{Style.RESET_ALL}"
         )
-        for line in docker_client.api.pull(
-            dockerhub_image.replace("_", "."), stream=True, decode=True
-        ):
+        for line in docker_client.api.pull(dockerhub_image, stream=True, decode=True):
             _logger.debug(f"  {line}")
 
         auth_token = ecr_client.get_authorization_token()["authorizationData"][0][
@@ -283,12 +281,12 @@ class AwsProvider(PassthroughProvider):
         )
         _logger.debug(f"  {login_status}")
 
-        image = docker_client.images.get(dockerhub_image.replace("_", "."))
+        image = docker_client.images.get(dockerhub_image)
         image_remote_name = f"{repository_uri}:{docker_image_version}"
         _logger.info(
             f"Pushing local image to remote {Style.BRIGHT + Fore.GREEN}{image_remote_name}{Style.RESET_ALL}"
         )
-        image.tag(image_remote_name.replace('_', '.'))
+        image.tag(image_remote_name)
         for line in docker_client.api.push(
             repository_uri, tag=docker_image_version, stream=True, decode=True
         ):
@@ -313,7 +311,7 @@ class AwsProvider(PassthroughProvider):
 
 def _get_lambda_name(project: str):
     lambda_prefix = AWS_LAMBDA_FEATURE_SERVER_REPOSITORY
-    lambda_suffix = f"{project}-{_get_docker_image_version()}"
+    lambda_suffix = f"{project}-{_get_docker_image_version().replace('.', '_')}"
     # AWS Lambda name can't have the length greater than 64 bytes.
     # This usually occurs during integration tests where feast version is long
     if len(lambda_prefix) + len(lambda_suffix) >= 63:
@@ -342,7 +340,7 @@ def _get_docker_image_version() -> str:
     else:
         version = get_version()
         if "dev" in version:
-            version = version[: version.find("dev") - 1].replace(".", "_")
+            version = version[: version.find("dev") - 1]
             _logger.warning(
                 "You are trying to use AWS Lambda feature server while Feast is in a development mode. "
                 f"Feast will use a docker image version {version} derived from Feast SDK "
@@ -352,7 +350,7 @@ def _get_docker_image_version() -> str:
                 "> pip install -e sdk/python"
             )
         else:
-            version = version.replace(".", "_")
+            version = version
         return version
 
 

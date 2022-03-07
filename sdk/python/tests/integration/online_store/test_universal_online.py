@@ -1,6 +1,5 @@
 import datetime
 import itertools
-import logging
 import os
 import time
 import unittest
