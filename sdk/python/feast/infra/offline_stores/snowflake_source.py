@@ -1,8 +1,8 @@
+import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -15,7 +15,6 @@ from feast.value_type import ValueType
 class SnowflakeSource(DataSource):
     def __init__(
         self,
-        name: Optional[str] = None,
         database: Optional[str] = None,
         schema: Optional[str] = None,
         table: Optional[str] = None,
@@ -24,12 +23,12 @@ class SnowflakeSource(DataSource):
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
+        name: Optional[str] = None,
     ):
         """
         Creates a SnowflakeSource object.
 
         Args:
-            name (optional): Name for the source. Defaults to the table if not specified.
             database (optional): Snowflake database where the features are stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
@@ -41,7 +40,7 @@ class SnowflakeSource(DataSource):
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to column names in a feature table or view.
             date_partition_column (optional): Timestamp column used for partitioning.
-
+            name (optional): Name for the source. Defaults to the table if not specified.
         """
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
@@ -52,10 +51,15 @@ class SnowflakeSource(DataSource):
             if table:
                 _name = table
             else:
-                raise DataSourceNoNameException()
+                warnings.warn(
+                    (
+                        "Starting in Feast 0.21, Feast will require either a name for a data source (if using query) or `table`."
+                    ),
+                    DeprecationWarning,
+                )
 
         super().__init__(
-            _name,
+            _name if _name else "",
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,

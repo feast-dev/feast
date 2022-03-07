@@ -202,4 +202,3 @@ Starting 6006
 * You should be able to run the integration tests and have the redis cluster tests pass.
 * If you would like to run your own redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
 * To stop the cluster, run `./create-cluster stop` and then `./create-cluster clean`.
-

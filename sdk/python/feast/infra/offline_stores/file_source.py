@@ -20,19 +20,18 @@ class FileSource(DataSource):
     def __init__(
         self,
         path: str,
-        name: Optional[str] = "",
         event_timestamp_column: Optional[str] = "",
         file_format: Optional[FileFormat] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         s3_endpoint_override: Optional[str] = None,
+        name: Optional[str] = "",
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 
         Args:
 
-            name (optional): Name for the file source. Defaults to the path.
             path: File path to file containing feature data. Must contain an event_timestamp column, entity columns and
                 feature columns.
             event_timestamp_column: Event timestamp column used for point in time joins of feature values.
@@ -42,6 +41,7 @@ class FileSource(DataSource):
                 or view. Only used for feature columns, not entities or timestamp columns.
             date_partition_column (optional): Timestamp column used for partitioning.
             s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
+            name (optional): Name for the file source. Defaults to the path.
 
         Examples:
             >>> from feast import FileSource

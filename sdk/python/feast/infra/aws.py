@@ -119,6 +119,8 @@ class AwsProvider(PassthroughProvider):
         lambda_client = boto3.client("lambda")
         api_gateway_client = boto3.client("apigatewayv2")
         function = aws_utils.get_lambda_function(lambda_client, resource_name)
+        _logger.debug("Using function name: %s", resource_name)
+        _logger.debug("Found function: %s", function)
 
         if function is None:
             # If the Lambda function does not exist, create it.
@@ -309,7 +311,7 @@ class AwsProvider(PassthroughProvider):
 
 def _get_lambda_name(project: str):
     lambda_prefix = AWS_LAMBDA_FEATURE_SERVER_REPOSITORY
-    lambda_suffix = f"{project}-{_get_docker_image_version()}"
+    lambda_suffix = f"{project}-{_get_docker_image_version().replace('.', '_')}"
     # AWS Lambda name can't have the length greater than 64 bytes.
     # This usually occurs during integration tests where feast version is long
     if len(lambda_prefix) + len(lambda_suffix) >= 63:
@@ -338,7 +340,7 @@ def _get_docker_image_version() -> str:
     else:
         version = get_version()
         if "dev" in version:
-            version = version[: version.find("dev") - 1].replace(".", "_")
+            version = version[: version.find("dev") - 1]
             _logger.warning(
                 "You are trying to use AWS Lambda feature server while Feast is in a development mode. "
                 f"Feast will use a docker image version {version} derived from Feast SDK "
@@ -347,8 +349,6 @@ def _get_docker_image_version() -> str:
                 "> git fetch --all --tags\n"
                 "> pip install -e sdk/python"
             )
-        else:
-            version = version.replace(".", "_")
         return version
 
 
