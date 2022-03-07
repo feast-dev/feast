@@ -1,7 +1,7 @@
-import time
 from dataclasses import dataclass
 
 import pytest
+from moto import mock_dynamodb2
 
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import (
@@ -12,7 +12,6 @@ from feast.repo_config import RepoConfig
 from tests.utils.online_store_utils import (
     _create_n_customer_test_samples,
     _create_test_table,
-    _delete_test_table,
     _insert_data_test_table,
 )
 
@@ -39,11 +38,11 @@ def repo_config():
     )
 
 
+@mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
 def test_online_read(repo_config, n_samples):
     """Test DynamoDBOnlineStore online_read method."""
     _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
-    time.sleep(10)  # Wait for table to be available
     data = _create_n_customer_test_samples(n=n_samples)
     _insert_data_test_table(data, PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
 
@@ -54,6 +53,5 @@ def test_online_read(repo_config, n_samples):
         table=MockFeatureView(name=f"{TABLE_NAME}_{n_samples}"),
         entity_keys=entity_keys,
     )
-    _delete_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
     assert len(returned_items) == len(data)
     assert [item[1] for item in returned_items] == list(features)
