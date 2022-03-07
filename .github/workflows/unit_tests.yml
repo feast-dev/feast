@@ -47,8 +47,8 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: |
-          make install-python-ci-dependencies
           make install-go-ci-dependencies
+          make install-python-ci-dependencies
       - name: Test Python
         env:
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}

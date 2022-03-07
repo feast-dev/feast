@@ -43,6 +43,7 @@ jobs:
         run: |
           export GOPATH=${HOME}/work/feast/go
           export PATH=${PATH}:`go env GOPATH`/bin
+          make install-go-ci-dependencies
           make install-python-ci-dependencies
       - name: Lint python
         run: make lint-python
