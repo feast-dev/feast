@@ -3,7 +3,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
+from feast.errors import DataSourceNotFoundException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -16,7 +16,6 @@ from feast.value_type import ValueType
 class BigQuerySource(DataSource):
     def __init__(
         self,
-        name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
         table_ref: Optional[str] = None,
@@ -24,11 +23,11 @@ class BigQuerySource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
+        name: Optional[str] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
          Args:
-             name (optional): Name for the source. Defaults to the table_ref if not specified.
              table (optional): The BigQuery table where features can be found.
              table_ref (optional): (Deprecated) The BigQuery table where features can be found.
              event_timestamp_column: Event timestamp column used for point in time joins of feature values.
@@ -37,13 +36,13 @@ class BigQuerySource(DataSource):
                  or view. Only used for feature columns, not entities or timestamp columns.
              date_partition_column (optional): Timestamp column used for partitioning.
              query (optional): SQL query to execute to generate data for this data source.
-
+             name (optional): Name for the source. Defaults to the table_ref if not specified.
          Example:
              >>> from feast import BigQuerySource
              >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
          """
         if table is None and table_ref is None and query is None:
-            raise ValueError('No "table" argument provided.')
+            raise ValueError('No "table" or "query" argument provided.')
         if not table and table_ref:
             warnings.warn(
                 (
@@ -63,7 +62,12 @@ class BigQuerySource(DataSource):
             elif table_ref:
                 _name = table_ref
             else:
-                raise DataSourceNoNameException()
+                warnings.warn(
+                    (
+                        "Starting in Feast 0.21, Feast will require either a name for a data source (if using query) or `table`."
+                    ),
+                    DeprecationWarning,
+                )
 
         super().__init__(
             _name if _name else "",
