@@ -66,7 +66,7 @@
   * [Snowflake](reference/offline-stores/snowflake.md)
   * [BigQuery](reference/offline-stores/bigquery.md)
   * [Redshift](reference/offline-stores/redshift.md)
-  * [Spark](reference/data-sources/spark.md)
+  * [Spark](reference/offline-stores/spark.md)
 * [Online stores](reference/online-stores/README.md)
   * [SQLite](reference/online-stores/sqlite.md)
   * [Redis](reference/online-stores/redis.md)
