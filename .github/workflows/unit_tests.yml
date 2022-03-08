@@ -47,7 +47,7 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: |
-          make install-go-ci-dependencies
+          make compile-protos-go
           make install-python-ci-dependencies
       - name: Test Python
         env:
