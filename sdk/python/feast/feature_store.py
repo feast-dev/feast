@@ -111,7 +111,6 @@ class FeatureStore:
         self,
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
-        go_server_port: int = -1,
         go_server_use_thread: bool = False,
     ):
         """
@@ -136,7 +135,6 @@ class FeatureStore:
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
-        self._go_server_port = go_server_port
         self._go_server_use_thread = go_server_use_thread
 
     @log_exceptions
@@ -1238,7 +1236,6 @@ class FeatureStore:
                 self._go_server = GoServer(
                     str(self.repo_path.absolute()),
                     self.config,
-                    self._go_server_port,
                     self._go_server_use_thread,
                 )
             return self._go_server.get_online_features(
@@ -1863,12 +1860,6 @@ class FeatureStore:
     def kill_go_server(self):
         if self._go_server:
             self._go_server.kill_go_server_explicitly()
-
-    def set_go_server_port(self, port: int):
-        if self._go_server:
-            self._go_server.set_port(port)
-        else:
-            self._go_server_port = port
 
     def set_go_server_use_thread(self, use: bool):
         if self._go_server:
