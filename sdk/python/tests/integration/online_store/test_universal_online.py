@@ -721,9 +721,6 @@ def test_online_retrieval_with_go_server(
     go_environment, go_data_sources, full_feature_names
 ):
     fs = go_environment.feature_store
-    fs.set_go_server_port(
-        go_environment.test_repo_config.go_server_port + full_feature_names
-    )
     entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
 
@@ -899,7 +896,6 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     on demand feature views since the Go feature server doesn't support them.
     """
     fs = go_environment.feature_store
-    fs.set_go_server_port(go_environment.test_repo_config.go_server_port + 2)
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
         data_sources, with_odfv=False
@@ -976,7 +972,6 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     import psutil
 
     fs = go_cycle_environment.feature_store
-    fs.set_go_server_port(go_cycle_environment.test_repo_config.go_server_port)
     fs.set_go_server_use_thread(
         go_cycle_environment.test_repo_config.go_server_use_thread
     )
