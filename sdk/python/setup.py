@@ -306,7 +306,7 @@ class BuildGoProtosCommand(Command):
             print(f"Stderr: {e.stderr}")
             print(f"Stdout: {e.stdout}")
 
-    def _compile_go_feaure_server(self):
+    def _compile_go_feature_server(self):
         print("Compile go feature server")
         subprocess.check_call(["go",
                                "build",
@@ -321,7 +321,7 @@ class BuildGoProtosCommand(Command):
         go_dir.mkdir(exist_ok=True)
         for sub_folder in self.sub_folders:
             self._generate_go_protos(f"feast/{sub_folder}/*.proto")
-        self._compile_go_feaure_server()
+        self._compile_go_feature_server()
 
 
 class BuildCommand(build_py):
