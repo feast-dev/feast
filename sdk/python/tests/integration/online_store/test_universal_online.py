@@ -965,7 +965,9 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
 
 @pytest.mark.integration
 @pytest.mark.goserverlifecycle
-@pytest.mark.skip("os.fork is scary")
+@pytest.mark.skip(
+    "todo(achals) os.fork doesn't work with pytest-xdist. Need to redo this test."
+)
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     import threading
 
