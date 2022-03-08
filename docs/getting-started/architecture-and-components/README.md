@@ -4,7 +4,7 @@
 
 {% page-ref page="feature-repository.md" %}
 
-{% page-ref page="untitled.md" %}
+{% page-ref page="registry.md" %}
 
 {% page-ref page="offline-store.md" %}
 
