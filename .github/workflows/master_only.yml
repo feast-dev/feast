@@ -115,10 +115,7 @@ jobs:
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: |
-          export GOPATH=${HOME}/work/feast/go
-          export PATH=${PATH}:`go env GOPATH`/bin
-          make install-python-ci-dependencies
+        run: make install-python-ci-dependencies
       - name: Start Redis
         uses: supercharge/redis-github-action@1.4.0
         with:
