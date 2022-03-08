@@ -127,7 +127,8 @@ install-go-ci-dependencies:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 
 compile-protos-go: install-go-ci-dependencies
-	python sdk/python/setup.py develop
+	pip install -e "sdk/python[ci]"
+	python sdk/python/setup.py build_go_protos
 
 compile-go-feature-server: compile-protos-go
 	go mod tidy
