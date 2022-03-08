@@ -60,6 +60,7 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
+from feast.go_server import GoServer
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
@@ -103,10 +104,14 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
     _provider: Provider
+    _go_server: Optional[GoServer]
 
     @log_exceptions
     def __init__(
-        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
+        self,
+        repo_path: Optional[str] = None,
+        config: Optional[RepoConfig] = None,
+        go_server_use_thread: bool = False,
     ):
         """
         Creates a FeatureStore object.
@@ -129,6 +134,8 @@ class FeatureStore:
         self._registry = Registry(registry_config, repo_path=self.repo_path)
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
+        self._go_server = None
+        self._go_server_use_thread = go_server_use_thread
 
     @log_exceptions
     def version(self) -> str:
@@ -1222,6 +1229,19 @@ class FeatureStore:
                 except KeyError as e:
                     raise ValueError("All entity_rows must have the same keys.") from e
 
+        # If Go feature server is enabled, send request to it instead of going through a regular Python logic
+        if self.config.go_feature_server:
+            # Lazily start the go server on the first request
+            if self._go_server is None:
+                self._go_server = GoServer(
+                    str(self.repo_path.absolute()),
+                    self.config,
+                    self._go_server_use_thread,
+                )
+            return self._go_server.get_online_features(
+                features, columnar, full_feature_names
+            )
+
         return self._get_online_features(
             features=features,
             entity_values=columnar,
@@ -1578,6 +1598,7 @@ class FeatureStore:
         for read_row in read_rows:
             row_ts_proto = Timestamp()
             row_ts, feature_data = read_row
+            # TODO (Ly): reuse whatever timestamp if row_ts is None?
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
             event_timestamps = [row_ts_proto] * len(requested_features)
@@ -1835,6 +1856,16 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
+
+    def kill_go_server(self):
+        if self._go_server:
+            self._go_server.kill_go_server_explicitly()
+
+    def set_go_server_use_thread(self, use: bool):
+        if self._go_server:
+            self._go_server.set_use_thread(use)
+        else:
+            self._go_server_use_thread = use
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

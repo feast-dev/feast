@@ -22,7 +22,11 @@ click==8.0.3
     # via
     #   feast (setup.py)
     #   uvicorn
+cloudpickle==2.0.0
+    # via dask
 colorama==0.4.4
+    # via feast (setup.py)
+dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.4
     # via feast (setup.py)
@@ -32,6 +36,8 @@ fastavro==1.4.9
     # via
     #   feast (setup.py)
     #   pandavro
+fsspec==2022.2.0
+    # via dask
 google-api-core==2.4.0
     # via feast (setup.py)
 google-auth==2.3.3
@@ -61,6 +67,8 @@ jinja2==3.0.3
     # via feast (setup.py)
 jsonschema==4.4.0
     # via feast (setup.py)
+locket==0.2.1
+    # via partd
 markupsafe==2.0.1
     # via jinja2
 mmh3==3.0.0
@@ -70,12 +78,16 @@ numpy==1.21.5
     #   pandas
     #   pandavro
     #   pyarrow
+packaging==21.3
+    # via dask
 pandas==1.3.5
     # via
     #   feast (setup.py)
     #   pandavro
 pandavro==1.5.2
     # via feast (setup.py)
+partd==1.2.0
+    # via dask
 proto-plus==1.19.6
     # via feast (setup.py)
 protobuf==3.19.3
@@ -98,6 +110,8 @@ pydantic==1.9.0
     # via
     #   fastapi
     #   feast (setup.py)
+pyparsing==3.0.7
+    # via packaging
 pyrsistent==0.18.1
     # via jsonschema
 python-dateutil==2.8.2
@@ -108,6 +122,7 @@ pytz==2021.3
     # via pandas
 pyyaml==6.0
     # via
+    #   dask
     #   feast (setup.py)
     #   uvicorn
 requests==2.27.1
@@ -133,6 +148,10 @@ tensorflow-metadata==1.6.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
+toolz==0.11.2
+    # via
+    #   dask
+    #   partd
 tqdm==4.62.3
     # via feast (setup.py)
 typing-extensions==4.0.1
