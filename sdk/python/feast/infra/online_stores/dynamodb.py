@@ -188,7 +188,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        batch_size: int = 10,
+        batch_size: int = 20,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Retrieve feature values from the online DynamoDB store.
@@ -205,6 +205,10 @@ class DynamoDBOnlineStore(OnlineStore):
                 to set batch_size value less than 40 to avoid ``UnprocessedKeys`` and
                 ``ValidationException`` errors.
         """
+        if batch_size > 40:
+            raise ValueError(
+                f"batch_size value must be less than 40, input value is {batch_size}"
+            )
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
