@@ -890,6 +890,9 @@ def test_online_retrieval_with_go_server(
 
 @pytest.mark.integration
 @pytest.mark.goserver
+@pytest.mark.skip(
+    "todo(achals) goserver processes don't actually clean up properly. Need to redo this component of the server."
+)
 def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     """
     This test mirrors test_online_store_cleanup for the Go feature server. It removes

@@ -117,10 +117,9 @@ else:
 
 GO_REPO_CONFIGS = [
     IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
-    # todo(achals) goserver processes don't actually clean up properly."
-    # IntegrationTestRepoConfig(
-    #     online_store=REDIS_CONFIG, go_feature_server=True, go_server_use_thread=True,
-    # ),
+    IntegrationTestRepoConfig(
+        online_store=REDIS_CONFIG, go_feature_server=True, go_server_use_thread=True,
+    ),
 ]
 
 GO_CYCLE_REPO_CONFIGS = [
