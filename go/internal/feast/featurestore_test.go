@@ -24,6 +24,7 @@ func getRegistryPath() map[string]interface{} {
 }
 
 func TestNewFeatureStore(t *testing.T) {
+	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	config := RepoConfig{
 		Project:  "feature_repo",
 		Registry: getRegistryPath(),
@@ -38,6 +39,7 @@ func TestNewFeatureStore(t *testing.T) {
 }
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {
+	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	config := RepoConfig{
 		Project:  "feature_repo",
 		Registry: getRegistryPath(),

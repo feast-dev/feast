@@ -58,6 +58,7 @@ func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
 }
 
 func TestGetFeastServingInfo(t *testing.T) {
+	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	ctx := context.Background()
 	client, closer := getClient(ctx)
 	defer closer()
@@ -67,6 +68,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 }
 
 func TestGetOnlineFeatures(t *testing.T) {
+	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	ctx := context.Background()
 	client, closer := getClient(ctx)
 	defer closer()
