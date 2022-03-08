@@ -159,11 +159,13 @@ class DatastoreOnlineStore(OnlineStore):
         write_batch_size = online_config.write_batch_size
         feast_project = config.project
 
-        pool = ThreadPool(processes=write_concurrency)
-        pool.map(
-            lambda b: self._write_minibatch(client, feast_project, table, b, progress),
-            self._to_minibatches(data, batch_size=write_batch_size),
-        )
+        with ThreadPool(processes=write_concurrency) as pool:
+            pool.map(
+                lambda b: self._write_minibatch(
+                    client, feast_project, table, b, progress
+                ),
+                self._to_minibatches(data, batch_size=write_batch_size),
+            )
 
     @staticmethod
     def _to_minibatches(data: ProtoBatch, batch_size) -> Iterator[ProtoBatch]:
