@@ -71,6 +71,14 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1"
       - name: Setup Go
         id: setup-go
         uses: actions/setup-go@v2
