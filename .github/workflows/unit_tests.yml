@@ -68,7 +68,6 @@ jobs:
 
   unit-test-go:
     runs-on: ubuntu-latest
-    container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
