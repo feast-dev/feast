@@ -19,6 +19,7 @@ import shutil
 import subprocess
 from distutils.cmd import Command
 from pathlib import Path
+from subprocess import CalledProcessError
 
 from setuptools import find_packages
 
@@ -288,18 +289,22 @@ class BuildGoProtosCommand(Command):
     def _generate_go_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
-        subprocess.check_call(
-            self.go_protoc
-            + ["-I", self.proto_folder,
-               "--go_out", self.go_folder,
-               "--go_opt=module=github.com/feast-dev/feast/go/protos",
-               "--go-grpc_out", self.go_folder,
-               "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos"]
-            + proto_files,
-            env={
-                "PATH": self.path_val
-            }
-        )
+        try:
+            subprocess.check_call(
+                self.go_protoc
+                + ["-I", self.proto_folder,
+                   "--go_out", self.go_folder,
+                   "--go_opt=module=github.com/feast-dev/feast/go/protos",
+                   "--go-grpc_out", self.go_folder,
+                   "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos"]
+                + proto_files,
+                env={
+                    "PATH": self.path_val
+                }
+            )
+        except CalledProcessError as e:
+            print(f"Stderr: {e.stderr}")
+            print(f"Stdout: {e.stdout}")
 
     def _compile_go_feaure_server(self):
         print("Compile go feature server")
