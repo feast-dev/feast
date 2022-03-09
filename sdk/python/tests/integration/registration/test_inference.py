@@ -111,7 +111,9 @@ def test_infer_datasource_names_dwh():
 
 
 @pytest.mark.integration
-def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1):
+def test_update_data_sources_with_inferred_event_timestamp_col(
+    simple_dataset_1, universal_data_sources
+):
     df_with_two_viable_timestamp_cols = simple_dataset_1.copy(deep=True)
     df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
 
@@ -136,6 +138,16 @@ def test_update_data_sources_with_inferred_event_timestamp_col(simple_dataset_1)
             update_data_sources_with_inferred_event_timestamp_col(
                 [file_source], RepoConfig(provider="local", project="test")
             )
+
+    (_, _, data_sources) = universal_data_sources
+    update_data_sources_with_inferred_event_timestamp_col(
+        data_sources, RepoConfig(provider="local", project="test")
+    )
+    actual_event_timestamp_cols = [
+        source.event_timestamp_column for source in data_sources
+    ]
+
+    assert actual_event_timestamp_cols == ["event_timestamp" * len(data_sources)]
 
 
 def test_on_demand_features_type_inference():

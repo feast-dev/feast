@@ -113,6 +113,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 or isinstance(data_source, BigQuerySource)
                 or isinstance(data_source, RedshiftSource)
                 or isinstance(data_source, SnowflakeSource)
+                or "SparkSource" == data_source.__class__.__name__
             )
 
             # loop through table columns to find singular match
