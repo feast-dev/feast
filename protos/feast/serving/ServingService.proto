@@ -112,6 +112,9 @@ message GetOnlineFeaturesResponse {
         // Values could be found for entity key, but field values are outside the maximum 
         // allowable range.
         OUTSIDE_MAX_AGE = 4;
+
+        // Values could be found for entity key, but are null and is due to ingestion failures
+        INGESTION_FAILURE = 5;
     }
 }
 

@@ -24,7 +24,7 @@ require (
 	go.opencensus.io v0.22.3 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
-	golang.org/x/tools v0.0.0-20201124005743-911501bfb504 // indirect
+	golang.org/x/tools v0.0.0-20201124165954-ed677e9dcd1e // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/russross/blackfriday.v2 v2.0.0 // indirect
