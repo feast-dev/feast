@@ -23,12 +23,11 @@ import "feast/types/Value.proto";
 
 option java_package = "feast.proto.serving";
 option java_outer_classname = "ServingAPIProto";
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/serving";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
 
 service ServingService {
     // Get information about this Feast serving.
     rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
-
     // Get online features synchronously.
     rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
 }

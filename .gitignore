@@ -186,6 +186,7 @@ dmypy.json
 sdk/python/docs/html
 sdk/python/feast/protos/
 sdk/go/protos/
+go/protos/
 
 #benchmarks
 .benchmarks
@@ -218,3 +219,5 @@ ui/.vercel
 **/yarn-debug.log*
 **/yarn-error.log*
 
+# Go subprocess binaries (built during feast pip package building)
+sdk/python/feast/binaries/

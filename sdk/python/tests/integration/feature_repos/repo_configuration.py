@@ -46,7 +46,8 @@ from tests.integration.feature_repos.universal.feature_views import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-# Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
+# Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes
+# 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:12345,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
@@ -71,7 +72,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-            IntegrationTestRepoConfig(online_store=REDIS_CLUSTER_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
@@ -114,6 +114,20 @@ if full_repo_configs_module is not None:
         ) from e
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
+
+GO_REPO_CONFIGS = [
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
+    IntegrationTestRepoConfig(
+        online_store=REDIS_CONFIG, go_feature_server=True, go_server_use_thread=True,
+    ),
+]
+
+GO_CYCLE_REPO_CONFIGS = [
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
+    IntegrationTestRepoConfig(
+        online_store=REDIS_CONFIG, go_feature_server=True, go_server_use_thread=True,
+    ),
+]
 
 
 @dataclass
@@ -367,6 +381,7 @@ def construct_test_environment(
         online_store=online_store,
         repo_path=repo_dir_name,
         feature_server=feature_server,
+        go_feature_server=test_repo_config.go_feature_server,
     )
 
     # Create feature_store.yaml out of the config
