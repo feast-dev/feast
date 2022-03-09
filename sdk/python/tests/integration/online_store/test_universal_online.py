@@ -921,7 +921,6 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     )
 
     fs.apply([driver(), simple_driver_fv, driver_stats_fv])
-    fs._registry.commit()
 
     fs.materialize(
         go_environment.start_date - timedelta(days=1),
@@ -1027,7 +1026,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
             monitor_thread = thread
     assert monitor_thread
     assert monitor_thread.is_alive()
-    assert monitor_thread.isDaemon()
+    assert monitor_thread.daemon
 
     # Check if go server subprocess is still active even if background thread and process are killed
     go_server_still_alive = False

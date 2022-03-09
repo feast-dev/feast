@@ -243,10 +243,10 @@ class GoServerMonitorThread(threading.Thread):
         go_server_first_started: threading.Event,
     ):
         threading.Thread.__init__(self)
-        self.setName(name)
+        self.name = name
         self._shared_connection = shared_connection
         self._is_cancelled = False
-        self.setDaemon(True)
+        self.daemon = True
         self._go_server_started = go_server_first_started
 
     def run(self):
