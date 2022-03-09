@@ -45,7 +45,7 @@ def update_entities_with_inferred_types_from_feature_views(
 
                 # get entity information from information extracted from the view batch source
                 extracted_entity_name_type_pairs = list(
-                    filter(lambda tup: tup[0] == entity.join_key, col_names_and_types,)
+                    filter(lambda tup: tup[0] == entity.join_key,col_names_and_types,)
                 )
                 if len(extracted_entity_name_type_pairs) == 0:
                     # Doesn't mention inference error because would also be an error without inferencing
@@ -54,8 +54,8 @@ def update_entities_with_inferred_types_from_feature_views(
                         its entity's name."""
                     )
 
-                inferred_value_type = view.batch_source.source_datatype_to_feast_value_type()(
-                    extracted_entity_name_type_pairs[0][1]
+                inferred_value_type = (
+                    view.batch_source.source_datatype_to_feast_value_type()(extracted_entity_name_type_pairs[0][1])
                 )
 
                 if (
@@ -111,6 +111,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
             assert (
                 isinstance(data_source, FileSource)
                 or isinstance(data_source, BigQuerySource)
+                or isinstance(data_source, RedshiftSource)
                 or isinstance(data_source, SnowflakeSource)
             )
 
