@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import os
+import signal
 import time
 import unittest
 from datetime import timedelta
@@ -607,12 +608,12 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     entity_rows = [
         {
-            "driver": driver,
-            "customer_id": customer,
+            "driver": _driver,
+            "customer_id": _customer,
             "origin_id": origin,
             "destination_id": destination,
         }
-        for (driver, customer, origin, destination) in zip(
+        for (_driver, _customer, origin, destination) in zip(
             sample_drivers, sample_customers, *sample_location_pairs
         )
     ]
@@ -866,12 +867,12 @@ def test_online_retrieval_with_go_server(
 
     entity_rows = [
         {
-            "driver": driver,
-            "customer_id": customer,
+            "driver": _driver,
+            "customer_id": _customer,
             "origin_id": origin,
             "destination_id": destination,
         }
-        for (driver, customer, origin, destination) in zip(
+        for (_driver, _customer, origin, destination) in zip(
             sample_drivers, sample_customers, *sample_location_pairs
         )
     ]
@@ -890,9 +891,6 @@ def test_online_retrieval_with_go_server(
 
 @pytest.mark.integration
 @pytest.mark.goserver
-@pytest.mark.skip(
-    "todo(achals) goserver processes don't actually clean up properly. Need to redo this component of the server."
-)
 def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     """
     This test mirrors test_online_store_cleanup for the Go feature server. It removes
@@ -923,16 +921,16 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     )
 
     fs.apply([driver(), simple_driver_fv, driver_stats_fv])
+    fs._registry.commit()
 
     fs.materialize(
         go_environment.start_date - timedelta(days=1),
         go_environment.end_date + timedelta(days=1),
     )
+
     expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
     entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
-
-    time.sleep(3)
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows
@@ -970,18 +968,12 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
 
 @pytest.mark.integration
 @pytest.mark.goserverlifecycle
-@pytest.mark.skip(
-    "todo(achals) os.fork doesn't work with pytest-xdist. Need to redo this test."
-)
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     import threading
 
     import psutil
 
     fs = go_cycle_environment.feature_store
-    fs.set_go_server_use_thread(
-        go_cycle_environment.test_repo_config.go_server_use_thread
-    )
 
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
@@ -1012,29 +1004,30 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
         go_cycle_environment.start_date - timedelta(days=1),
         go_cycle_environment.end_date + timedelta(days=1),
     )
-    expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
     entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
 
     # Start go server process that calls get_online_features and return and check if at any time go server
     # fails to clean up resources
-    import os
-    import signal
+    fs.get_online_features(features=features, entity_rows=entity_rows).to_dict()
 
-    # Duplicate the current test suit in the child process
-    child_pid = os.fork()
-    if child_pid == 0:
-        online_features = fs.get_online_features(
-            features=features, entity_rows=entity_rows
-        ).to_dict()
-        assert np.allclose(expected_values["value"], online_features["value"])
-        os.kill(os.getpid(), signal.SIGTERM)
-        os._exit(0)
-    os.wait()
+    assert (
+        fs._go_server
+        and fs._go_server._go_server_started.is_set()
+        and fs._go_server._shared_connection._process
+    )
+    go_fs_pid = fs._go_server._shared_connection._process.pid
+
+    os.kill(go_fs_pid, signal.SIGTERM)
     # At the same time checking that resources are clean up properly once child process is killed
     # Check that background thread has terminated
-    for id, thread in threading._active.items():
-        assert thread.name != "GoServerBackgroundThread"
+    monitor_thread = None
+    for thread in threading.enumerate():
+        if thread.name == "GoServerMonitorThread":
+            monitor_thread = thread
+    assert monitor_thread
+    assert monitor_thread.is_alive()
+    assert monitor_thread.isDaemon()
 
     # Check if go server subprocess is still active even if background thread and process are killed
     go_server_still_alive = False
@@ -1043,7 +1036,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
             # Get process name & pid from process object.
             process_name = proc.name()
             ppid = proc.ppid()
-            if "goserver" in process_name and ppid == child_pid:
+            if "goserver" in process_name and ppid == go_fs_pid:
                 # Kill process first and raise exception later
                 go_server_still_alive = True
                 proc.terminate()
@@ -1051,6 +1044,30 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
     assert not go_server_still_alive
+
+    # Yield control to monitor thread to restart process.
+    time.sleep(1)
+
+    # Make sure the background thread has created a new subprocess.
+    assert (
+        fs._go_server
+        and fs._go_server._go_server_started.is_set()
+        and fs._go_server._shared_connection._process
+    )
+    new_go_fs_pid = fs._go_server._shared_connection._process.pid
+    assert new_go_fs_pid != go_fs_pid
+
+    # Ensure process is still running.
+    assert fs._go_server._shared_connection._process.poll() is None
+
+    # And we can still get feature values.
+    fs.get_online_features(features=features, entity_rows=entity_rows).to_dict()
+
+    fs.kill_go_server()
+    time.sleep(1)
+
+    # Ensure process is dead.
+    assert fs._go_server._shared_connection._process.poll() is not None
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
