@@ -23,12 +23,14 @@ customer = Entity(
 
 # Sources
 driver_hourly_stats = SparkSource(
+    name="driver_hourly_stats",
     path=f"{CURRENT_DIR}/data/driver_hourly_stats",
     file_format="parquet",
     event_timestamp_column="event_timestamp",
     created_timestamp_column="created",
 )
 customer_daily_profile = SparkSource(
+    name="customer_daily_profile",
     path=f"{CURRENT_DIR}/data/customer_daily_profile",
     file_format="parquet",
     event_timestamp_column="event_timestamp",

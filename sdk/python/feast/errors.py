@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import Any, List, Set
 
 from colorama import Fore, Style
 
@@ -345,3 +345,10 @@ class SnowflakeIncompleteConfig(Exception):
 class SnowflakeQueryUnknownError(Exception):
     def __init__(self, query: str):
         super().__init__(f"Snowflake query failed: {query}")
+
+
+class InvalidFeaturesParameterType(Exception):
+    def __init__(self, features: Any):
+        super().__init__(
+            f"Invalid `features` parameter type {type(features)}. Expected one of List[str] and FeatureService."
+        )
