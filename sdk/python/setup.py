@@ -196,6 +196,7 @@ class BuildPythonProtosCommand(Command):
 
     def _generate_python_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
+        Path(self.python_folder).mkdir(exist_ok=True)
         subprocess.check_call(
             self.python_protoc
             + [
