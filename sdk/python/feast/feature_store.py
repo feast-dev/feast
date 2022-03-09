@@ -782,12 +782,12 @@ class FeatureStore:
                 columns (e.g., customer_id, driver_id) on which features need to be joined, as well as a event_timestamp
                 column used to ensure point-in-time correctness. Either a Pandas DataFrame can be provided or a string
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
-            features: A list of features, that should be retrieved from the offline store.
-                Either a list of string feature references can be provided or a FeatureService object.
-                Feature references are of the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
-            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-                "customer_fv__daily_transactions"). By default, this value is set to False.
+            features: The list of features that should be retrieved from the offline store. These features can be
+                specified either as a list of string feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
+            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
+                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
+                changes to "customer_fv__daily_transactions").
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -820,7 +820,6 @@ class FeatureStore:
             ... )
             >>> feature_data = retrieval_job.to_df()
         """
-
         _feature_refs = self._get_features(features)
         (
             all_feature_views,
@@ -1192,12 +1191,13 @@ class FeatureStore:
         infinity (cache forever).
 
         Args:
-            features: List of feature references that will be returned for each entity.
-                Each feature reference should have the following format:
-                "feature_view:feature" where "feature_view" & "feature" refer to
-                the Feature and FeatureView names respectively.
-                Only the feature name is required.
+            features: The list of features that should be retrieved from the online store. These features can be
+                specified either as a list of string feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
+                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
+                changes to "customer_fv__daily_transactions").
 
         Returns:
             OnlineResponse containing the feature data in records.
@@ -1876,6 +1876,18 @@ def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
 
 
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
+    """
+    Validates that there are no collisions among the feature references.
+
+    Args:
+        feature_refs: List of feature references to validate. Feature references must have format
+            "feature_view:feature", e.g. "customer_fv:daily_transactions".
+        full_feature_names: If True, the full feature references are compared for collisions; if False,
+            only the feature names are compared.
+
+    Raises:
+        FeatureNameCollisionError: There is a collision among the feature references.
+    """
     collided_feature_refs = []
 
     if full_feature_names:
@@ -1883,9 +1895,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
             ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
         ]
     else:
-        feature_names = [
-            ref.split(":")[1] if ":" in ref else ref for ref in feature_refs
-        ]
+        feature_names = [ref.split(":")[1] for ref in feature_refs]
         collided_feature_names = [
             ref
             for ref, occurrences in Counter(feature_names).items()
