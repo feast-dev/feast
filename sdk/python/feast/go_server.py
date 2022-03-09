@@ -16,7 +16,6 @@ import logging
 import os
 import platform
 import random
-import signal
 import string
 import subprocess
 import tempfile
@@ -221,12 +220,6 @@ class GoServer:
         )
         self._go_server_background_thread.start()
         atexit.register(lambda: self._go_server_background_thread.stop())
-        signal.signal(
-            signal.SIGTERM, lambda sig, frame: self._go_server_background_thread.stop(),
-        )
-        signal.signal(
-            signal.SIGINT, lambda sig, frame: self._go_server_background_thread.stop(),
-        )
 
         # Wait for go server subprocess to start for the first time before returning
         self._go_server_started.wait()
