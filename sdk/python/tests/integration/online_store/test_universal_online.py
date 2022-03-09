@@ -921,7 +921,6 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     )
 
     fs.apply([driver(), simple_driver_fv, driver_stats_fv])
-    fs._registry.commit()
 
     fs.materialize(
         go_environment.start_date - timedelta(days=1),
