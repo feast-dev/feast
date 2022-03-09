@@ -3,6 +3,7 @@ package feast
 import (
 	"context"
 	"errors"
+
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -135,6 +136,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	for _, groupRef := range groupedRefs {
 		featureData, err := fs.readFromOnlineStore(ctx, groupRef.EntityKeys, groupRef.FeatureViewNames, groupRef.FeatureNames)
+
 		if err != nil {
 			return nil, err
 		}
