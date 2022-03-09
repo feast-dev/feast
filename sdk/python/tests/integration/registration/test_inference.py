@@ -111,9 +111,7 @@ def test_infer_datasource_names_dwh():
 
 
 @pytest.mark.integration
-def test_update_file_data_source_with_inferred_event_timestamp_col(
-    simple_dataset_1
-):
+def test_update_file_data_source_with_inferred_event_timestamp_col(simple_dataset_1):
     df_with_two_viable_timestamp_cols = simple_dataset_1.copy(deep=True)
     df_with_two_viable_timestamp_cols["ts_2"] = simple_dataset_1["ts_1"]
 
@@ -139,6 +137,8 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(
                 [file_source], RepoConfig(provider="local", project="test")
             )
 
+
+@pytest.mark.integration
 @pytest.mark.universal
 def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_sources):
     (_, _, data_sources) = universal_data_sources
