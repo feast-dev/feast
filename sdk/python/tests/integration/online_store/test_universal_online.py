@@ -1067,6 +1067,9 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
 
     # Ensure process is dead.
     assert fs._go_server._shared_connection._process.poll() is not None
+    # Ensure monitoring thread is also dead.
+    live_threads = [t.name for t in threading.enumerate()]
+    assert "GoServerMonitorThread" not in live_threads
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:

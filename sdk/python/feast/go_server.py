@@ -226,6 +226,7 @@ class GoServer:
 
     def kill_go_server_explicitly(self):
         self._go_server_background_thread.stop()
+        self._go_server_background_thread.join()
 
 
 class GoServerMonitorThread(threading.Thread):
@@ -244,7 +245,7 @@ class GoServerMonitorThread(threading.Thread):
 
     def run(self):
         # Target function of the thread class
-        _logger.info("Started GoServerMonitorThread")
+        _logger.debug("Started monitoring thread to keep go feature server alive")
         try:
             while not self._is_cancelled:
 
@@ -253,7 +254,7 @@ class GoServerMonitorThread(threading.Thread):
                     self._shared_connection.kill_process()
                     continue
                 else:
-                    _logger.info("Set go server first started event")
+                    _logger.debug("Go feature server started")
                     self._go_server_started.set()
                 while not self._is_cancelled:
                     try:
@@ -262,11 +263,6 @@ class GoServerMonitorThread(threading.Thread):
                     except subprocess.TimeoutExpired:
                         pass
 
-                    _logger.info(
-                        "Process state: %s %s",
-                        self._shared_connection._process.pid,
-                        self._shared_connection._process.returncode,
-                    )
                     if not self._shared_connection.is_process_alive():
                         break
         finally:
@@ -274,6 +270,6 @@ class GoServerMonitorThread(threading.Thread):
             self._shared_connection.kill_process()
 
     def stop(self):
-        _logger.info("Stopping GoServerMonitorThread")
+        _logger.debug("Stopping monitoring thread and terminating go feature server")
         self._is_cancelled = True
         self._shared_connection.kill_process()
