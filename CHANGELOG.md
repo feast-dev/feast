@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.3](https://github.com/feast-dev/feast/compare/v0.19.2...v0.19.3) (2022-03-09)
+
+
+### Bug Fixes
+
+* Closes threadpool resources upon datastore online_write_batch completion ([#2386](https://github.com/feast-dev/feast/issues/2386)) ([7a93152](https://github.com/feast-dev/feast/commit/7a9315284f49ad30b27a632c8fe12d8ee2517995))
+* Fix spark docs ([#2382](https://github.com/feast-dev/feast/issues/2382)) ([599dbbb](https://github.com/feast-dev/feast/commit/599dbbbd8ef10bf42eec6df3b0d74503438d5ed2))
+* Fix Spark template to work correctly on feast init -t spark ([#2393](https://github.com/feast-dev/feast/issues/2393)) ([d877d27](https://github.com/feast-dev/feast/commit/d877d276fd16e0c4e8ddd2226619d6b30b9cb713))
+* Fixing Spark template to include source name ([#2381](https://github.com/feast-dev/feast/issues/2381)) ([e7a3b3f](https://github.com/feast-dev/feast/commit/e7a3b3f7fc364b3b11912e42935282e2509dadc2))
+* Making a name for data sources not a breaking change ([#2379](https://github.com/feast-dev/feast/issues/2379)) ([993b8cc](https://github.com/feast-dev/feast/commit/993b8cc1af2b73cde72ad2713120436e84c5659e))
+* Use the correct dockerhub image tag when building feature servers ([#2372](https://github.com/feast-dev/feast/issues/2372)) ([a6211cf](https://github.com/feast-dev/feast/commit/a6211cfd46fe095ab3118b46ad5d2991151f44cf))
+
 ## [0.19.2](https://github.com/feast-dev/feast/compare/v0.19.1...v0.19.2) (2022-03-06)
 
 
