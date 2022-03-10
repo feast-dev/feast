@@ -250,19 +250,27 @@ class GoServerMonitorThread(threading.Thread):
             while not self._is_cancelled:
 
                 # If we fail to connect to grpc stub, terminate subprocess and repeat
+                _logger.info("Connecting to subprocess")
                 if not self._shared_connection.connect():
+                    _logger.info("Failed to connect, killing and retrying")
                     self._shared_connection.kill_process()
                     continue
                 else:
                     _logger.debug("Go feature server started")
                     self._go_server_started.set()
+                _logger.info("Status: %s", self._is_cancelled)
                 while not self._is_cancelled:
                     try:
                         # Making a blocking wait by setting timeout to a very long time so we don't waste cpu cycle
                         self._shared_connection.wait_for_process(3600)
                     except subprocess.TimeoutExpired:
                         pass
-
+                    _logger.info(
+                        "No longer waiting for process: %s, %s, %s",
+                        self._shared_connection._process.pid,
+                        self._shared_connection._process.returncode,
+                        self._shared_connection.is_process_alive(),
+                    )
                     if not self._shared_connection.is_process_alive():
                         break
         finally:
@@ -270,6 +278,6 @@ class GoServerMonitorThread(threading.Thread):
             self._shared_connection.kill_process()
 
     def stop(self):
-        _logger.debug("Stopping monitoring thread and terminating go feature server")
+        _logger.info("Stopping monitoring thread and terminating go feature server")
         self._is_cancelled = True
         self._shared_connection.kill_process()

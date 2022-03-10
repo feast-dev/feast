@@ -1020,13 +1020,16 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     os.kill(go_fs_pid, signal.SIGTERM)
     # At the same time checking that resources are clean up properly once child process is killed
     # Check that background thread has terminated
-    monitor_thread = None
-    for thread in threading.enumerate():
-        if thread.name == "GoServerMonitorThread":
-            monitor_thread = thread
-    assert monitor_thread
-    assert monitor_thread.is_alive()
+    monitor_thread_alive = False
+    monitor_thread = fs._go_server._go_server_background_thread
     assert monitor_thread.daemon
+
+    print(f"Monitor thread: {monitor_thread}, {monitor_thread.ident}")
+
+    for thread in threading.enumerate():
+        if thread.ident == monitor_thread.ident and thread.is_alive():
+            monitor_thread_alive = True
+    assert monitor_thread_alive
 
     # Check if go server subprocess is still active even if background thread and process are killed
     go_server_still_alive = False
@@ -1055,6 +1058,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     )
     new_go_fs_pid = fs._go_server._shared_connection._process.pid
     assert new_go_fs_pid != go_fs_pid
+    fs._go_server._shared_connection._check_grpc_connection()
 
     # Ensure process is still running.
     assert fs._go_server._shared_connection._process.poll() is None
@@ -1068,8 +1072,8 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     # Ensure process is dead.
     assert fs._go_server._shared_connection._process.poll() is not None
     # Ensure monitoring thread is also dead.
-    live_threads = [t.name for t in threading.enumerate()]
-    assert "GoServerMonitorThread" not in live_threads
+    live_threads = [t.ident for t in threading.enumerate()]
+    assert monitor_thread.ident not in live_threads
 
 
 def response_feature_name(feature: str, full_feature_names: bool) -> str:
