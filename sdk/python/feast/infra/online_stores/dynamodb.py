@@ -188,7 +188,6 @@ class DynamoDBOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        batch_size: int = 20,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Retrieve feature values from the online DynamoDB store.
@@ -200,15 +199,7 @@ class DynamoDBOnlineStore(OnlineStore):
             config: The RepoConfig for the current FeatureStore.
             table: Feast FeatureView.
             entity_keys: a list of entity keys that should be read from the FeatureStore.
-            batch_size: the number of items to send in a batch_get_item request to DynamoDB.
-                DynamoDB record size limit is 400kb and can retrieve 16MB per call, it is recommended
-                to set batch_size value less than 40 to avoid ``UnprocessedKeys`` and
-                ``ValidationException`` errors.
         """
-        if batch_size > 40:
-            raise ValueError(
-                f"batch_size value must be less than 40, input value is {batch_size}"
-            )
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
@@ -218,6 +209,7 @@ class DynamoDBOnlineStore(OnlineStore):
         entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
 
         len_entity_ids = len(entity_ids)
+        batch_size = 40
         # Iterate until the end_index is the value len_entity_ids
         iters = (
             len_entity_ids // batch_size + 1
