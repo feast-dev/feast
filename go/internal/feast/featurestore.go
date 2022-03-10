@@ -92,7 +92,7 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 
 	// TODO (Ly): Remove this BLOCK once odfv is supported
 	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
-		return nil, errors.New("ODFV is not supported in this iteration, please wait!")
+		return nil, errors.New("on demand feature views are currently not supported")
 	}
 	// END BLOCK
 
@@ -124,7 +124,7 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 			// requestDataFeatures[entityName] = vals
 		} else {
 			if joinKey, ok := entityNameToJoinKeyMap[entityName]; !ok {
-				return nil, errors.New(fmt.Sprintf("entityNotFoundException: %s\n%v", entityName, entityNameToJoinKeyMap))
+				return nil, fmt.Errorf("entityNotFoundException: %s\n%v", entityName, entityNameToJoinKeyMap)
 			} else {
 				responseEntities[joinKey] = vals
 			}
@@ -312,9 +312,9 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind *ParsedKind, allowCache,
 				}
 				odFvsToUse = append(odFvsToUse, odFv.NewOnDemandFeatureViewFromBase(base))
 			} else {
-				return nil, nil, nil, nil, errors.New(fmt.Sprintf("the provided feature service %s contains a reference to a feature view"+
-					"%s which doesn't exist. Please make sure that you have created the feature view"+
-					"%s and that you have registered it by running \"apply\".", featureService.name, featureViewName, featureViewName))
+				return nil, nil, nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature view"+
+					"%s which doesn't exist, please make sure that you have created the feature view"+
+					"%s and that you have registered it by running \"apply\"", featureService.name, featureViewName, featureViewName)
 			}
 		}
 		return fvs, fvsToUse, requestFvsToUse, odFvsToUse, nil
@@ -336,8 +336,8 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind *ParsedKind, allowCache,
 		} else if odFv, ok := odFvs[featureViewName]; ok {
 			odFvsToUse = append(odFvsToUse, odFv)
 		} else {
-			return nil, nil, nil, nil, errors.New(fmt.Sprintf("feature view %s doesn't exist. Please make sure that you have created the"+
-				" feature view %s and that you have registered it by running \"apply\".", featureViewName, featureViewName))
+			return nil, nil, nil, nil, fmt.Errorf("feature view %s doesn't exist, please make sure that you have created the"+
+				" feature view %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
 		}
 	}
 
@@ -395,7 +395,7 @@ func (fs *FeatureStore) validateEntityValues(joinKeyValues map[string]*types.Rep
 		numRows = len(col.Val)
 	}
 	if len(setOfRowLengths) > 1 {
-		return 0, errors.New("valueError: All entity rows must have the same columns.")
+		return 0, errors.New("valueError: All entity rows must have the same columns")
 	}
 	return numRows, nil
 }
@@ -490,7 +490,7 @@ func (fs *FeatureStore) ensureRequestedDataExist(neededRequestData map[string]st
 				missingFeatures = append(missingFeatures, feature)
 			}
 		}
-		return errors.New(fmt.Sprintf("requestDataNotFoundInEntityRowsException: %s", strings.Join(missingFeatures, ", ")))
+		return fmt.Errorf("requestDataNotFoundInEntityRowsException: %s", strings.Join(missingFeatures, ", "))
 	}
 	return nil
 }

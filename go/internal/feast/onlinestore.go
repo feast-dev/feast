@@ -2,7 +2,6 @@ package feast
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -58,6 +57,6 @@ func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
 		return onlineStore, err
 	} else {
-		return nil, errors.New("only Redis is supported as an online store for now")
+		return nil, fmt.Errorf("%s online store type is currently not supported; only Redis is supported", onlineStoreType)
 	}
 }
