@@ -1011,7 +1011,6 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     fs.get_online_features(features=features, entity_rows=entity_rows).to_dict()
 
     fs.kill_go_server()
-    time.sleep(1)
 
     # Ensure process is dead.
     assert fs._go_server is None
