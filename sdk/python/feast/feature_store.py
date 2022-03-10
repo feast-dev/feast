@@ -108,10 +108,7 @@ class FeatureStore:
 
     @log_exceptions
     def __init__(
-        self,
-        repo_path: Optional[str] = None,
-        config: Optional[RepoConfig] = None,
-        go_server_use_thread: bool = False,
+        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
         """
         Creates a FeatureStore object.
@@ -135,7 +132,6 @@ class FeatureStore:
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
-        self._go_server_use_thread = go_server_use_thread
 
     @log_exceptions
     def version(self) -> str:
@@ -733,6 +729,10 @@ class FeatureStore:
                     service.name, project=self.project, commit=False
                 )
 
+        # If a go server is running, kill it so that it can be recreated in `update_infra` with
+        # the latest registry state.
+        self.kill_go_server()
+
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=views_to_delete if not partial else [],
@@ -753,6 +753,8 @@ class FeatureStore:
         tables.extend(feature_views)
 
         entities = self.list_entities()
+
+        self.kill_go_server()
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
@@ -1233,11 +1235,8 @@ class FeatureStore:
         if self.config.go_feature_server:
             # Lazily start the go server on the first request
             if self._go_server is None:
-                self._go_server = GoServer(
-                    str(self.repo_path.absolute()),
-                    self.config,
-                    self._go_server_use_thread,
-                )
+                self._go_server = GoServer(str(self.repo_path.absolute()), self.config,)
+                self._go_server._shared_connection._check_grpc_connection()
             return self._go_server.get_online_features(
                 features, columnar, full_feature_names
             )
@@ -1860,12 +1859,7 @@ class FeatureStore:
     def kill_go_server(self):
         if self._go_server:
             self._go_server.kill_go_server_explicitly()
-
-    def set_go_server_use_thread(self, use: bool):
-        if self._go_server:
-            self._go_server.set_use_thread(use)
-        else:
-            self._go_server_use_thread = use
+            self._go_server = None
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

@@ -117,16 +117,10 @@ else:
 
 GO_REPO_CONFIGS = [
     IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
-    IntegrationTestRepoConfig(
-        online_store=REDIS_CONFIG, go_feature_server=True, go_server_use_thread=True,
-    ),
 ]
 
 GO_CYCLE_REPO_CONFIGS = [
     IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
-    IntegrationTestRepoConfig(
-        online_store=REDIS_CONFIG, go_feature_server=True, go_server_use_thread=True,
-    ),
 ]
 
 
