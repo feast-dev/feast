@@ -212,8 +212,6 @@ def go_environment(request, worker_id: str):
 
     def cleanup():
         e.feature_store.teardown()
-        if e.feature_store._go_server:
-            e.feature_store._go_server.kill_go_server_explicitly()
 
     request.addfinalizer(cleanup)
     return e
