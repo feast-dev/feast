@@ -729,6 +729,10 @@ class FeatureStore:
                     service.name, project=self.project, commit=False
                 )
 
+        # If a go server is running, kill it so that it can be recreated in `update_infra` with
+        # the latest registry state.
+        self.kill_go_server()
+
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=views_to_delete if not partial else [],
@@ -750,8 +754,7 @@ class FeatureStore:
 
         entities = self.list_entities()
 
-        if self._go_server:
-            self._go_server.kill_go_server_explicitly()
+        self.kill_go_server()
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()

@@ -246,28 +246,28 @@ class GoServerMonitorThread(threading.Thread):
 
     def run(self):
         # Target function of the thread class
-        _logger.info(
+        _logger.debug(
             "%s Started monitoring thread to keep go feature server alive", self.ident
         )
         try:
             while not self._is_cancelled.is_set():
 
                 # If we fail to connect to grpc stub, terminate subprocess and repeat
-                _logger.info("%s Connecting to subprocess", self.ident)
+                _logger.debug("%s Connecting to subprocess", self.ident)
                 if not self._shared_connection.connect():
-                    _logger.info(
+                    _logger.debug(
                         "%s Failed to connect, killing and retrying", self.ident
                     )
                     self._shared_connection.kill_process()
                     continue
                 else:
-                    _logger.info(
+                    _logger.debug(
                         "%s Go feature server started, process: %s",
                         self.ident,
                         self._shared_connection._process.pid,
                     )
                     self._go_server_started.set()
-                _logger.info(
+                _logger.debug(
                     "%s is_cancelled status: %s", self.ident, self._is_cancelled
                 )
                 while not self._is_cancelled.is_set():
@@ -276,7 +276,7 @@ class GoServerMonitorThread(threading.Thread):
                         self._shared_connection.wait_for_process(3600)
                     except subprocess.TimeoutExpired:
                         pass
-                    _logger.info(
+                    _logger.debug(
                         "%s No longer waiting for process: %s, %s, %s",
                         self.ident,
                         self._shared_connection._process.pid,
@@ -290,6 +290,9 @@ class GoServerMonitorThread(threading.Thread):
             self._shared_connection.kill_process()
 
     def stop(self):
-        # _logger.info("%s Stopping monitoring thread and terminating go feature server", self.ident)
+        _logger.debug(
+            "%s Stopping monitoring thread and terminating go feature server",
+            self.ident,
+        )
         self._is_cancelled.set()
         self._shared_connection.kill_process()
