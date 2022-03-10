@@ -897,6 +897,7 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     on demand feature views since the Go feature server doesn't support them.
     """
     fs = go_environment.feature_store
+    fs.kill_go_server()
     entities, datasets, data_sources = go_data_sources
     driver_stats_fv = construct_universal_feature_views(
         data_sources, with_odfv=False
