@@ -1230,6 +1230,7 @@ class FeatureStore:
             # Lazily start the go server on the first request
             if self._go_server is None:
                 self._go_server = GoServer(str(self.repo_path.absolute()), self.config,)
+                self._go_server._shared_connection._check_grpc_connection()
             return self._go_server.get_online_features(
                 features, columnar, full_feature_names
             )
