@@ -154,10 +154,6 @@ jobs:
         run: |
           make compile-protos-go
           make install-python-ci-dependencies
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-port: 12345
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
