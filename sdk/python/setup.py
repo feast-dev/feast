@@ -314,7 +314,7 @@ class BuildGoProtosCommand(Command):
                                "-x",
                                "-o",
                                f"{repo_root}/sdk/python/feast/binaries/goserver",
-                               f"github.com/feast-dev/feast/go/cmd/goserver"])
+                               f"github.com/feast-dev/feast/go/cmd/server"])
 
     def run(self):
         go_dir = Path(repo_root) / "go" / "protos"
