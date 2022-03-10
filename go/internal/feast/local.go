@@ -4,16 +4,19 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
+// A LocalRegistryStore is a file-based implementation of the RegistryStore interface.
 type LocalRegistryStore struct {
 	filePath string
 }
 
+// NewLocalRegistryStore creates a LocalRegistryStore with the given configuration and infers
+// the file path from the repo path and registry path.
 func NewLocalRegistryStore(config *RegistryConfig, repoPath string) *LocalRegistryStore {
 	lr := LocalRegistryStore{}
 	registryPath := config.Path
@@ -25,11 +28,10 @@ func NewLocalRegistryStore(config *RegistryConfig, repoPath string) *LocalRegist
 	return &lr
 }
 
+// GetRegistryProto reads and parses the registry proto from the file path.
 func (r *LocalRegistryStore) GetRegistryProto() (*core.Registry, error) {
 	registry := &core.Registry{}
-	// Read the local registry
 	in, err := ioutil.ReadFile(r.filePath)
-	// Use an empty Registry Proto if file not exists or parse Registry Proto content from file
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +46,7 @@ func (r *LocalRegistryStore) UpdateRegistryProto(rp *core.Registry) error {
 }
 
 func (r *LocalRegistryStore) Teardown() error {
-	err := os.Remove(r.filePath)
-	if err != nil {
+	if err := os.Remove(r.filePath); err != nil {
 		return err
 	}
 	return nil

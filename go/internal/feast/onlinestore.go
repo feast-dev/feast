@@ -49,10 +49,10 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 	}
 }
 
-func getOnlineStore(config *RepoConfig) (OnlineStore, error) {
+func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("could not get online store type from online store config: %+v", config.OnlineStore))
+		return nil, fmt.Errorf("could not get online store type from online store config: %+v", config.OnlineStore)
 	}
 	if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)

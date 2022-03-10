@@ -47,7 +47,7 @@ type GroupedFeaturesPerEntitySet struct {
 // NewFeatureStore constructs a feature store fat client using the
 // repo config (contents of feature_store.yaml converted to JSON map).
 func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
-	onlineStore, err := getOnlineStore(config)
+	onlineStore, err := NewOnlineStore(config)
 	if err != nil {
 		return nil, err
 	}
