@@ -225,7 +225,9 @@ class GoServer:
         self._go_server_started.wait()
 
     def kill_go_server_explicitly(self):
+        self._go_server_background_thread._is_cancelled.set()
         self._go_server_background_thread.stop()
+        self._go_server_background_thread.join()
 
 
 class GoServerMonitorThread(threading.Thread):
