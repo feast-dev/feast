@@ -1014,7 +1014,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     time.sleep(1)
 
     # Ensure process is dead.
-    assert fs._go_server._shared_connection._process.poll() is not None
+    assert fs._go_server is None
     # Ensure monitoring thread is also dead.
     live_threads = [t.ident for t in threading.enumerate()]
     assert monitor_thread.ident not in live_threads

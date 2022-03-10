@@ -225,7 +225,6 @@ class GoServer:
         self._go_server_started.wait()
 
     def kill_go_server_explicitly(self):
-        self._go_server_started.clear()
         self._go_server_background_thread.stop()
 
 
@@ -239,34 +238,45 @@ class GoServerMonitorThread(threading.Thread):
         threading.Thread.__init__(self)
         self.name = name
         self._shared_connection = shared_connection
-        self._is_cancelled = False
+        self._is_cancelled = threading.Event()
         self.daemon = True
         self._go_server_started = go_server_first_started
 
     def run(self):
         # Target function of the thread class
-        _logger.debug("Started monitoring thread to keep go feature server alive")
+        _logger.info(
+            "%s Started monitoring thread to keep go feature server alive", self.ident
+        )
         try:
-            while not self._is_cancelled:
+            while not self._is_cancelled.is_set():
 
                 # If we fail to connect to grpc stub, terminate subprocess and repeat
-                _logger.info("Connecting to subprocess")
+                _logger.info("%s Connecting to subprocess", self.ident)
                 if not self._shared_connection.connect():
-                    _logger.info("Failed to connect, killing and retrying")
+                    _logger.info(
+                        "%s Failed to connect, killing and retrying", self.ident
+                    )
                     self._shared_connection.kill_process()
                     continue
                 else:
-                    _logger.debug("Go feature server started")
+                    _logger.info(
+                        "%s Go feature server started, process: %s",
+                        self.ident,
+                        self._shared_connection._process.pid,
+                    )
                     self._go_server_started.set()
-                _logger.info("Status: %s", self._is_cancelled)
-                while not self._is_cancelled:
+                _logger.info(
+                    "%s is_cancelled status: %s", self.ident, self._is_cancelled
+                )
+                while not self._is_cancelled.is_set():
                     try:
                         # Making a blocking wait by setting timeout to a very long time so we don't waste cpu cycle
                         self._shared_connection.wait_for_process(3600)
                     except subprocess.TimeoutExpired:
                         pass
                     _logger.info(
-                        "No longer waiting for process: %s, %s, %s",
+                        "%s No longer waiting for process: %s, %s, %s",
+                        self.ident,
                         self._shared_connection._process.pid,
                         self._shared_connection._process.returncode,
                         self._shared_connection.is_process_alive(),
@@ -278,6 +288,6 @@ class GoServerMonitorThread(threading.Thread):
             self._shared_connection.kill_process()
 
     def stop(self):
-        _logger.info("Stopping monitoring thread and terminating go feature server")
-        self._is_cancelled = True
+        # _logger.info("%s Stopping monitoring thread and terminating go feature server", self.ident)
+        self._is_cancelled.set()
         self._shared_connection.kill_process()

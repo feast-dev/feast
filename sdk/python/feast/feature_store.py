@@ -1856,6 +1856,7 @@ class FeatureStore:
     def kill_go_server(self):
         if self._go_server:
             self._go_server.kill_go_server_explicitly()
+            self._go_server = None
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
