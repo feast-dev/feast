@@ -203,6 +203,9 @@ class UniversalDataSources:
     global_ds: DataSource
     field_mapping: DataSource
 
+    def values(self):
+        return dataclasses.asdict(self).values()
+
 
 def construct_universal_data_sources(
     datasets: UniversalDatasets, data_source_creator: DataSourceCreator

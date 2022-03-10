@@ -143,15 +143,19 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
 def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_sources):
     (_, _, data_sources) = universal_data_sources
 
+    # remove defined event_timestamp_column to allow for inference
+    for data_source in data_sources.values():
+        data_source.event_timestamp_column = None
+
     update_data_sources_with_inferred_event_timestamp_col(
-        universal_data_sources.asdict().values(),
+        data_sources.values(),
         RepoConfig(provider="local", project="test"),
     )
     actual_event_timestamp_cols = [
-        source.event_timestamp_column for source in data_sources
+        source.event_timestamp_column for source in data_sources.values()
     ]
 
-    assert actual_event_timestamp_cols == ["event_timestamp" * len(data_sources)]
+    assert actual_event_timestamp_cols == ["event_timestamp"] * len(data_sources.values())
 
 
 def test_on_demand_features_type_inference():
