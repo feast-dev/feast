@@ -1,48 +1,35 @@
-from datetime import datetime, timedelta
-from pathlib import Path
-
-from pyspark.sql import SparkSession
-
-from feast.driver_test_data import (
-    create_customer_daily_profile_df,
-    create_driver_hourly_stats_df,
-)
-
-CURRENT_DIR = Path(__file__).parent
-DRIVER_ENTITIES = [1001, 1002, 1003]
-CUSTOMER_ENTITIES = [201, 202, 203]
-START_DATE = datetime.strptime("2022-01-01", "%Y-%m-%d")
-END_DATE = START_DATE + timedelta(days=7)
-
-
 def bootstrap():
     # Bootstrap() will automatically be called from the init_repo() during `feast init`
-    generate_example_data(
-        spark_session=SparkSession.builder.getOrCreate(), base_dir=str(CURRENT_DIR),
+    import pathlib
+    from datetime import datetime, timedelta
+
+    from feast.driver_test_data import (
+        create_customer_daily_profile_df,
+        create_driver_hourly_stats_df,
     )
 
+    repo_path = pathlib.Path(__file__).parent.absolute()
+    data_path = repo_path / "data"
+    data_path.mkdir(exist_ok=True)
 
-def example_data_exists(base_dir: str) -> bool:
-    for path in [
-        Path(base_dir) / "data" / "driver_hourly_stats",
-        Path(base_dir) / "data" / "customer_daily_profile",
-    ]:
-        if not path.exists():
-            return False
-    return True
-
-
-def generate_example_data(spark_session: SparkSession, base_dir: str) -> None:
-    spark_session.createDataFrame(
-        data=create_driver_hourly_stats_df(DRIVER_ENTITIES, START_DATE, END_DATE)
-    ).write.parquet(
-        path=str(Path(base_dir) / "data" / "driver_hourly_stats"), mode="overwrite",
+    driver_entities = [1001, 1002, 1003]
+    end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+    start_date = end_date - timedelta(days=15)
+    driver_stats_df = create_driver_hourly_stats_df(
+        driver_entities, start_date, end_date
+    )
+    driver_stats_df.to_parquet(
+        path=str(data_path / "driver_hourly_stats.parquet"),
+        allow_truncated_timestamps=True,
     )
 
-    spark_session.createDataFrame(
-        data=create_customer_daily_profile_df(CUSTOMER_ENTITIES, START_DATE, END_DATE)
-    ).write.parquet(
-        path=str(Path(base_dir) / "data" / "customer_daily_profile"), mode="overwrite",
+    customer_entities = [201, 202, 203]
+    customer_profile_df = create_customer_daily_profile_df(
+        customer_entities, start_date, end_date
+    )
+    customer_profile_df.to_parquet(
+        path=str(data_path / "customer_daily_profile.parquet"),
+        allow_truncated_timestamps=True,
     )
 
 
