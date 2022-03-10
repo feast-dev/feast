@@ -1006,6 +1006,8 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
     features = [f"{simple_driver_fv.name}:value"]
     entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
 
+    time.sleep(1)
+
     # Start go server process that calls get_online_features and return and check if at any time go server
     # fails to clean up resources
     fs.get_online_features(features=features, entity_rows=entity_rows).to_dict()
