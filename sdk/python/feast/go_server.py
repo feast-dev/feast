@@ -227,7 +227,6 @@ class GoServer:
     def kill_go_server_explicitly(self):
         self._go_server_started.clear()
         self._go_server_background_thread.stop()
-        self._go_server_background_thread.join()
 
 
 class GoServerMonitorThread(threading.Thread):
