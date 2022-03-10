@@ -86,6 +86,16 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v2
         with:
@@ -94,11 +104,6 @@ jobs:
           # code from the PR.
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: ${{ matrix.redis-version }}
-          redis-port: 12345
       - name: Setup Python
         uses: actions/setup-python@v2
         id: setup-python
@@ -149,6 +154,10 @@ jobs:
         run: |
           make compile-protos-go
           make install-python-ci-dependencies
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-port: 12345
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
