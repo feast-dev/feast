@@ -225,6 +225,7 @@ class GoServer:
         self._go_server_started.wait()
 
     def kill_go_server_explicitly(self):
+        self._go_server_started.clear()
         self._go_server_background_thread.stop()
         self._go_server_background_thread.join()
 

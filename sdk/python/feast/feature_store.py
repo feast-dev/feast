@@ -750,6 +750,9 @@ class FeatureStore:
 
         entities = self.list_entities()
 
+        if self._go_server:
+            self._go_server.kill_go_server_explicitly()
+
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
 
