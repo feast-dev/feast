@@ -1,1 +1,2 @@
 recursive-include feast/protos/ *.py
+include feast/binaries/*

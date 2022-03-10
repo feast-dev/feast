@@ -23,12 +23,14 @@ class IntegrationTestRepoConfig:
     full_feature_names: bool = True
     infer_features: bool = False
     python_feature_server: bool = False
+    go_feature_server: bool = False
+    go_server_use_thread: bool = False
 
     def __repr__(self) -> str:
         return "-".join(
             [
-                f"Provider: {self.provider}",
-                f"{self.offline_store_creator.__name__.split('.')[-1].rstrip('DataSourceCreator')}",
+                f"{self.provider.upper()}:",
+                f"{self.offline_store_creator.__name__.split('.')[-1].replace('DataSourceCreator', '')}",
                 self.online_store
                 if isinstance(self.online_store, str)
                 else self.online_store["type"],
