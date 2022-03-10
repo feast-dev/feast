@@ -142,8 +142,10 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
 @pytest.mark.universal
 def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_sources):
     (_, _, data_sources) = universal_data_sources
+
     update_data_sources_with_inferred_event_timestamp_col(
-        data_sources, RepoConfig(provider="local", project="test")
+        universal_data_sources.asdict().values(),
+        RepoConfig(provider="local", project="test"),
     )
     actual_event_timestamp_cols = [
         source.event_timestamp_column for source in data_sources
