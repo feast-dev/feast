@@ -2,13 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net"
+	"os"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"google.golang.org/grpc"
-	"log"
-	"net"
-	"os"
+
+	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"google.golang.org/grpc"
 )
 
 const (
