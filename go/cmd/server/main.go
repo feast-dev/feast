@@ -13,7 +13,7 @@ import (
 const (
 	flagFeastRepoPath   = "FEAST_REPO_PATH"
 	flagFeastRepoConfig = "FEAST_REPO_CONFIG"
-	flagFeastSockFile   = "FEAST_SOCK_FILE"
+	flagFeastSockFile   = "FEAST_GRPC_SOCK_FILE"
 	feastServerVersion  = "0.18.0"
 )
 
