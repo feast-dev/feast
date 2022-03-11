@@ -188,6 +188,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
+        sort_response: bool = True,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Retrieve feature values from the online DynamoDB store.
@@ -199,6 +200,7 @@ class DynamoDBOnlineStore(OnlineStore):
             config: The RepoConfig for the current FeatureStore.
             table: Feast FeatureView.
             entity_keys: a list of entity keys that should be read from the FeatureStore.
+            sort_response: wether or not to sort DynamoDB responses by the entity_ids order.
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
@@ -238,6 +240,10 @@ class DynamoDBOnlineStore(OnlineStore):
             table_responses = response.get(table_instance.name)
 
             if table_responses:
+                if sort_response:
+                    table_responses = self._sort_dynamodb_response(
+                        table_responses, entity_ids
+                    )
                 for tbl_res in table_responses:
                     res = {}
                     for feature_name, value_bin in tbl_res["values"].items():
@@ -258,6 +264,20 @@ class DynamoDBOnlineStore(OnlineStore):
         if self._dynamodb_resource is None:
             self._dynamodb_resource = _initialize_dynamodb_resource(region)
         return self._dynamodb_resource
+
+    def _sort_dynamodb_response(self, responses: list, order: list):
+        """DynamoDB Batch Get Item doesn't return items in a particular order."""
+        # Assign an index to order
+        order_with_index = {value: idx for idx, value in enumerate(order)}
+        # Sort table responses by index
+        table_responses_ordered = [
+            (order_with_index[tbl_res["entity_id"]], tbl_res) for tbl_res in responses
+        ]
+        table_responses_ordered = sorted(
+            table_responses_ordered, key=lambda tup: tup[0]
+        )
+        _, table_responses_ordered = zip(*table_responses_ordered)
+        return table_responses_ordered
 
 
 def _initialize_dynamodb_client(region: str):
