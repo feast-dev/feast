@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"sort"
 	"strings"
 )
@@ -90,11 +92,9 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 
 	fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err := fs.getFeatureViewsToUse(parsedKind, true, false)
 
-	// TODO (Ly): Remove this BLOCK once odfv is supported
 	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
-		return nil, errors.New("on demand feature views are currently not supported")
+		return nil, status.Errorf(codes.InvalidArgument, "on demand feature views are currently not supported")
 	}
-	// END BLOCK
 
 	if err != nil {
 		return nil, err

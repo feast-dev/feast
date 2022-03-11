@@ -183,7 +183,6 @@ class GoServer:
         try:
             response = self._shared_connection.client.GetOnlineFeatures(request=request)
         except grpc.RpcError as rpc_error:
-
             # Socket might not have closed if this is a grpc problem.
             if rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
                 # If the server became unavailable, it could mean that the subprocess died or fell
