@@ -25,7 +25,10 @@ type entityKeyRow struct {
 	rowIndices []int
 }
 
-type ParsedKind struct {
+// A Features struct specifies a list of features to be retrieved from the online store. These features
+// can be specified either as a list of string feature references or as a feature service. String
+// feature references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
+type Features struct {
 	features       []string
 	featureService *FeatureService
 }
@@ -69,14 +72,13 @@ func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
 
 // TODO: Review all functions that use ODFV and Request FV since these have not been tested
 func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
-	kind := request.GetKind()
 	fullFeatureNames := request.GetFullFeatureNames()
-	parsedKind, err := fs.parseKind(kind)
+	features, err := fs.parseFeatures(request.GetKind())
 	if err != nil {
 		return nil, err
 	}
 
-	featureRefs, err := fs.getFeatures(parsedKind, true)
+	featureRefs, err := fs.getFeatureRefs(features)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,7 @@ func (fs *FeatureStore) GetOnlineFeatures(ctx context.Context, request *serving.
 		return nil, err
 	}
 
-	fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err := fs.getFeatureViewsToUse(parsedKind, true, false)
+	fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err := fs.getFeatureViewsToUse(features, true, false)
 
 	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "on demand feature views are currently not supported")
@@ -207,42 +209,36 @@ func (fs *FeatureStore) DestructOnlineStore() {
 	fs.onlineStore.Destruct()
 }
 
-func (fs *FeatureStore) parseKind(kind interface{}) (*ParsedKind, error) {
+// parseFeatures parses the kind field of a GetOnlineFeaturesRequest protobuf message
+// and populates a Features struct with the result.
+func (fs *FeatureStore) parseFeatures(kind interface{}) (*Features, error) {
 	if featureList, ok := kind.(*serving.GetOnlineFeaturesRequest_Features); ok {
-		return &ParsedKind{features: featureList.Features.GetVal(), featureService: nil}, nil
+		return &Features{features: featureList.Features.GetVal(), featureService: nil}, nil
 	}
 	if featureServiceRequest, ok := kind.(*serving.GetOnlineFeaturesRequest_FeatureService); ok {
 		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
 		if err != nil {
 			return nil, err
 		}
-		return &ParsedKind{features: nil, featureService: featureService}, nil
+		return &Features{features: nil, featureService: featureService}, nil
 	}
 	return nil, errors.New("cannot parse kind from GetOnlineFeaturesRequest")
 }
 
-/*
-	This function returns all feature references from GetOnlineFeaturesRequest.
-	If a list of feature references is passed, return it.
-	Otherwise, FeatureService was passed, parse this feature service to get a list of FeatureViewProjection and return feature
-	references from this list
-*/
-
-func (fs *FeatureStore) getFeatures(parsedKind *ParsedKind, allowCache bool) ([]string, error) {
-
-	if parsedKind.featureService != nil {
-
+// getFeatureRefs extracts a list of feature references from a Features struct.
+func (fs *FeatureStore) getFeatureRefs(features *Features) ([]string, error) {
+	if features.featureService != nil {
 		var featureViewName string
-		features := make([]string, 0)
-		for _, featureProjection := range parsedKind.featureService.projections {
+		featureRefs := make([]string, 0)
+		for _, featureProjection := range features.featureService.projections {
 			featureViewName = featureProjection.nameToUse()
 			for _, feature := range featureProjection.features {
-				features = append(features, fmt.Sprintf("%s:%s", featureViewName, feature.name))
+				featureRefs = append(featureRefs, fmt.Sprintf("%s:%s", featureViewName, feature.name))
 			}
 		}
-		return features, nil
+		return featureRefs, nil
 	} else {
-		return parsedKind.features, nil
+		return features.features, nil
 	}
 }
 
@@ -257,8 +253,7 @@ func (fs *FeatureStore) getFeatures(parsedKind *ParsedKind, allowCache bool) ([]
 		retrieving all feature views. Similar argument to FeatureService applies.
 
 */
-func (fs *FeatureStore) getFeatureViewsToUse(parsedKind *ParsedKind, allowCache, hideDummyEntity bool) (map[string]*FeatureView, map[*FeatureView][]string, []*RequestFeatureView, []*OnDemandFeatureView, error) {
-
+func (fs *FeatureStore) getFeatureViewsToUse(features *Features, allowCache, hideDummyEntity bool) (map[string]*FeatureView, map[*FeatureView][]string, []*RequestFeatureView, []*OnDemandFeatureView, error) {
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
@@ -278,8 +273,8 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind *ParsedKind, allowCache,
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
 
-	if parsedKind.featureService != nil {
-		featureService := parsedKind.featureService
+	if features.featureService != nil {
+		featureService := features.featureService
 
 		fvsToUse := make(map[*FeatureView][]string)
 		requestFvsToUse := make([]*RequestFeatureView, 0)
@@ -324,7 +319,7 @@ func (fs *FeatureStore) getFeatureViewsToUse(parsedKind *ParsedKind, allowCache,
 	requestFvsToUse := make([]*RequestFeatureView, 0)
 	odFvsToUse := make([]*OnDemandFeatureView, 0)
 
-	for _, featureRef := range parsedKind.features {
+	for _, featureRef := range features.features {
 		featureViewName, featureName, err := parseFeatureReference(featureRef)
 		if err != nil {
 			return nil, nil, nil, nil, err
