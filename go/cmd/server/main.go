@@ -39,7 +39,7 @@ func main() {
 	var repoConfig *feast.RepoConfig
 
 	if len(feastEnvConfig.RepoConfig) > 0 {
-		repoConfig, err = feast.NewRepoConfigFromJson(feastEnvConfig.RepoPath, feastEnvConfig.RepoConfig)
+		repoConfig, err = feast.NewRepoConfigFromJSON(feastEnvConfig.RepoPath, feastEnvConfig.RepoConfig)
 		if err != nil {
 			log.Fatalln(err)
 		}

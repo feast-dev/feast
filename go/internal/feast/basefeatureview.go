@@ -24,8 +24,8 @@ func NewBaseFeatureView(name string, featureProtos []*core.FeatureSpecV2) *BaseF
 
 func (fv *BaseFeatureView) withProjection(projection *FeatureViewProjection) (*BaseFeatureView, error) {
 	if projection.name != fv.name {
-		return nil, fmt.Errorf("the projection for the %s FeatureView cannot be applied because it differs " +
-			"in name; the projection is named %s and the name indicates which " +
+		return nil, fmt.Errorf("the projection for the %s FeatureView cannot be applied because it differs "+
+			"in name; the projection is named %s and the name indicates which "+
 			"FeatureView the projection is for", fv.name, projection.name)
 	}
 	features := make(map[string]bool)
