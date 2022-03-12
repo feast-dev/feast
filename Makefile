@@ -35,7 +35,7 @@ build: protos build-java build-docker build-html
 
 # Python SDK
 
-install-python-ci-dependencies: install-go-ci-dependencies
+install-python-ci-dependencies: install-go-proto-dependencies
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
 	cd sdk/python && COMPILE_GO=true python setup.py develop
 
@@ -125,19 +125,21 @@ build-java-no-tests:
 
 # Go SDK
 
-install-go-ci-dependencies:
+install-go-proto-dependencies:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 
-compile-protos-go: install-go-ci-dependencies
+install-protoc-dependencies:
 	pip install grpcio-tools==1.34.0
+
+compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python sdk/python/setup.py build_go_protos
 
 compile-go-feature-server: compile-protos-go
 	go mod tidy
 	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/goserver github.com/feast-dev/feast/go/cmd/goserver
 
-test-go: install-go-ci-dependencies
+test-go: compile-protos-go
 	go test ./...
 
 format-go:

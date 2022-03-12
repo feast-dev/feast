@@ -23,7 +23,6 @@ type FeastEnvConfig struct {
 }
 
 // TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
-
 func main() {
 
 	var feastEnvConfig FeastEnvConfig

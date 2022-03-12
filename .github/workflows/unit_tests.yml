@@ -84,7 +84,7 @@ jobs:
         with:
           go-version: 1.17.7
       - name: Install dependencies
-        run: make install-go-ci-dependencies
+        run: make install-go-proto-dependencies
       - name: Compile protos
         run: make compile-protos-go
       - name: Test

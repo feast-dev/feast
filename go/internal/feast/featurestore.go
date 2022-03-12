@@ -401,24 +401,24 @@ func (fs *FeatureStore) validateEntityValues(joinKeyValues map[string]*types.Rep
 }
 
 func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNames bool) error {
-	collidedFeatureRefs := make(map[string]int)
+	featureRefCounter := make(map[string]int)
 	if fullFeatureNames {
 		for _, featureRef := range featureRefs {
-			collidedFeatureRefs[featureRef] += 1
+			featureRefCounter[featureRef]++
 		}
-		for featureName, occurrences := range collidedFeatureRefs {
+		for featureName, occurrences := range featureRefCounter {
 			if occurrences == 1 {
-				delete(collidedFeatureRefs, featureName)
+				delete(featureRefCounter, featureName)
 			}
 		}
-		if len(collidedFeatureRefs) >= 1 {
-			collidedFeatureRefList := make([]string, len(collidedFeatureRefs))
+		if len(featureRefCounter) >= 1 {
+			collidedFeatureRefs := make([]string, len(featureRefCounter))
 			index := 0
-			for featureName := range collidedFeatureRefs {
-				collidedFeatureRefList[index] = featureName
-				index += 1
+			for collidedFeatureRef := range featureRefCounter {
+				collidedFeatureRefs[index] = collidedFeatureRef
+				index++
 			}
-			return NewFeatureNameCollisionError(collidedFeatureRefList, fullFeatureNames)
+			return featureNameCollisionError{collidedFeatureRefs, fullFeatureNames}
 		}
 	} else {
 		for _, featureRef := range featureRefs {
@@ -426,27 +426,26 @@ func (fs *FeatureStore) validateFeatureRefs(featureRefs []string, fullFeatureNam
 			if err != nil {
 				return err
 			}
-			collidedFeatureRefs[featureName] += 1
+			featureRefCounter[featureName]++
 		}
-
-		for featureName, occurrences := range collidedFeatureRefs {
+		for featureName, occurrences := range featureRefCounter {
 			if occurrences == 1 {
-				delete(collidedFeatureRefs, featureName)
+				delete(featureRefCounter, featureName)
 			}
 		}
-		if len(collidedFeatureRefs) >= 1 {
-			collidedFeatureRefList := make([]string, 0)
+		if len(featureRefCounter) >= 1 {
+			collidedFeatureRefs := make([]string, 0)
 			for _, featureRef := range featureRefs {
 				_, featureName, err := parseFeatureReference(featureRef)
 				if err != nil {
 					return err
 				}
-				if _, ok := collidedFeatureRefs[featureName]; ok {
-					collidedFeatureRefList = append(collidedFeatureRefList, featureRef)
+				if _, ok := featureRefCounter[featureName]; ok {
+					collidedFeatureRefs = append(collidedFeatureRefs, featureRef)
 				}
 
 			}
-			return errors.New(fmt.Sprintf("featureNameCollisionError: %s; %t", strings.Join(collidedFeatureRefList, ", "), fullFeatureNames))
+			return featureNameCollisionError{collidedFeatureRefs, fullFeatureNames}
 		}
 	}
 	return nil
@@ -857,4 +856,13 @@ func getFeatureResponseMeta(featureNameAlias string, featureName string, fullFea
 	} else {
 		return featureName
 	}
+}
+
+type featureNameCollisionError struct {
+	featureRefCollisions []string
+	fullFeatureNames     bool
+}
+
+func (e featureNameCollisionError) Error() string {
+	return fmt.Sprintf("featureNameCollisionError: %s; %t", strings.Join(e.featureRefCollisions, ", "), e.fullFeatureNames)
 }
