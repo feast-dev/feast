@@ -213,7 +213,9 @@ class DynamoDBOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(online_config.region)
-        table_instance = dynamodb_resource.Table(_get_table_name(config, table))
+        table_instance = dynamodb_resource.Table(
+            _get_table_name(online_config, config, table)
+        )
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
