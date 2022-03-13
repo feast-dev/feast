@@ -75,6 +75,52 @@ When you start the React app, it will look for `project-list.json` to find a lis
 yarn start
 ```
 
+#### Customization
+
+The advantage of importing Feast UI as a module is in the ease of customization. The `<FeastUI>` component exposes a `feastUIConfigs` prop thorough which you can customize the UI. Currently it supports a few parameters.
+
+##### Fetching the Project List
+
+You can use `projectListPromise` to provide a promise that overrides where the Feast UI fetches the project list from.
+
+```jsx
+<FeastUI
+  feastUIConfigs={{
+    projectListPromise: fetch(SOME_PATH, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((res) => {
+      return res.json();
+    })
+  }}
+/>
+```
+
+##### Custom Tabs
+
+You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
+
+```
+const tabsRegistry = {
+  RegularFeatureViewCustomTabs: [
+    {
+      label: "Custom Tab Demo", // Navigation Label for the tab
+      path: "demo-tab", // Subpath for the tab
+      Component: RFVDemoCustomTab, // a React Component
+    },
+  ]
+}
+
+<FeastUI
+  feastUIConfigs={{
+    tabsRegistry: tabsRegistry,
+  }}
+/>
+```
+
+Examples of custom tabs can be found in the `/custom-tabs` folder.
+
 ### Alternative: Run this Repo
 
 If you would like to simply try things out and see how the UI works, you can simply run the code in this repo. First:
@@ -95,6 +141,7 @@ You will also see any lint errors in the console.
 
 Launches the test runner in the interactive watch mode.\
 See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+
 
 ## On React and Create React App
 
