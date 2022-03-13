@@ -105,6 +105,10 @@ TRINO_REQUIRED = [
     "trino>=0.305.0,<0.400.0",
 ]
 
+POSTGRES_REQUIRED = [
+    "psycopg2-binary>=2.8.3",
+]
+
 GE_REQUIRED = [
     "great_expectations>=0.14.0,<0.15.0"
 ]
@@ -433,6 +437,7 @@ setup(
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
+        "postgres": POSTGRES_REQUIRED,
         "ge": GE_REQUIRED,
     },
     include_package_data=True,
