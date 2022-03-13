@@ -19,7 +19,7 @@ import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
 
 const Layout = () => {
-  // Registery Path Context has to be inside Layout
+  // Registry Path Context has to be inside Layout
   // because it has to be under routes
   // in order to use useParams
   let { projectName } = useParams();
