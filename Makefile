@@ -92,7 +92,7 @@ format-python:
 	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py37 feast tests
 
 lint-python:
-	cd ${ROOT_DIR}/sdk/python; python -m mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m mypy
 	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
 	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
