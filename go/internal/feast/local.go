@@ -46,10 +46,7 @@ func (r *LocalRegistryStore) UpdateRegistryProto(rp *core.Registry) error {
 }
 
 func (r *LocalRegistryStore) Teardown() error {
-	if err := os.Remove(r.filePath); err != nil {
-		return err
-	}
-	return nil
+	return os.Remove(r.filePath)
 }
 
 func (r *LocalRegistryStore) writeRegistry(rp *core.Registry) error {
