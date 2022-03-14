@@ -77,11 +77,11 @@ test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
 test-python-go-server:
-	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/goserver github.com/feast-dev/feast/go/cmd/server
+	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/server github.com/feast-dev/feast/go/cmd/server
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --goserver sdk/python/tests
 
 test-python-go-server-lifecycle:
-	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/goserver github.com/feast-dev/feast/go/cmd/server
+	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/server github.com/feast-dev/feast/go/cmd/server
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --goserverlifecycle sdk/python/tests
 
 format-python:
@@ -137,7 +137,7 @@ compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 
 compile-go-feature-server: compile-protos-go
 	go mod tidy
-	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/goserver github.com/feast-dev/feast/go/cmd/server
+	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/server github.com/feast-dev/feast/go/cmd/server
 
 test-go: compile-protos-go
 	go test ./...

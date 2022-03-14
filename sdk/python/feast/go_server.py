@@ -79,9 +79,9 @@ class GoServerConnection:
         goos = platform.system().lower()
         goarch = "amd64" if platform.machine() == "x86_64" else "arm64"
         executable = (
-            feast.__path__[0] + f"/binaries/goserver_{goos}_{goarch}"
+            feast.__path__[0] + f"/binaries/server_{goos}_{goarch}"
             if not is_test()
-            else feast.__path__[0] + "/binaries/goserver"
+            else feast.__path__[0] + "/binaries/server"
         )
         # Automatically reconnect with go subprocess exits
         self._process = Popen([executable], cwd=cwd, env=env,)

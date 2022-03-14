@@ -313,7 +313,7 @@ class BuildGoProtosCommand(Command):
                                "-work",
                                "-x",
                                "-o",
-                               f"{repo_root}/sdk/python/feast/binaries/goserver",
+                               f"{repo_root}/sdk/python/feast/binaries/server",
                                f"github.com/feast-dev/feast/go/cmd/server"])
 
     def run(self):
