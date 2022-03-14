@@ -4,47 +4,37 @@ import (
 	"fmt"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 )
 
 const (
 	flagFeastRepoPath   = "FEAST_REPO_PATH"
 	flagFeastRepoConfig = "FEAST_REPO_CONFIG"
+	flagFeastSockFile   = "FEAST_GRPC_SOCK_FILE"
 	feastServerVersion  = "0.18.0"
 )
 
-type FeastEnvConfig struct {
-	RepoPath   string `envconfig:"FEAST_REPO_PATH"`
-	RepoConfig string `envconfig:"FEAST_REPO_CONFIG"`
-	SockFile   string `envconfig:"FEAST_GRPC_SOCK_FILE"`
-}
-
 // TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
 func main() {
-
-	var feastEnvConfig FeastEnvConfig
-	var err error
-	err = envconfig.Process("feast", &feastEnvConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if feastEnvConfig.RepoPath == "" && feastEnvConfig.RepoConfig == "" {
+	repoPath := os.Getenv(flagFeastRepoPath)
+	repoConfigJSON := os.Getenv(flagFeastRepoConfig)
+	sockFile := os.Getenv(flagFeastSockFile)
+	if repoPath == "" && repoConfigJSON == "" {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 	}
-	// TODO(Ly): Review: Should we return and error here if both repoPath and repoConfigJson are set and use the cwd for NewRepoConfigFromJson?
 
 	var repoConfig *feast.RepoConfig
-
-	if len(feastEnvConfig.RepoConfig) > 0 {
-		repoConfig, err = feast.NewRepoConfigFromJson(feastEnvConfig.RepoPath, feastEnvConfig.RepoConfig)
+	var err error
+	if repoConfigJSON != "" {
+		repoConfig, err = feast.NewRepoConfigFromJSON(repoPath, repoConfigJSON)
 		if err != nil {
 			log.Fatalln(err)
 		}
 	} else {
-		repoConfig, err = feast.NewRepoConfigFromFile(feastEnvConfig.RepoPath)
+		repoConfig, err = feast.NewRepoConfigFromFile(repoPath)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -56,7 +46,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer fs.DestructOnlineStore()
-	startGrpcServer(fs, feastEnvConfig.SockFile)
+	startGrpcServer(fs, sockFile)
 }
 
 func startGrpcServer(fs *feast.FeatureStore, sockFile string) {

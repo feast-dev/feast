@@ -1,7 +1,6 @@
 package feast
 
 import (
-	"errors"
 	"fmt"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )
@@ -25,9 +24,9 @@ func NewBaseFeatureView(name string, featureProtos []*core.FeatureSpecV2) *BaseF
 
 func (fv *BaseFeatureView) withProjection(projection *FeatureViewProjection) (*BaseFeatureView, error) {
 	if projection.name != fv.name {
-		return nil, errors.New(fmt.Sprintf("The projection for the %s FeatureView cannot be applied because it differs in name. "+
-			"The projection is named %s and the name indicates which "+
-			"FeatureView the projection is for.", fv.name, projection.name))
+		return nil, fmt.Errorf("the projection for the %s FeatureView cannot be applied because it differs "+
+			"in name; the projection is named %s and the name indicates which "+
+			"FeatureView the projection is for", fv.name, projection.name)
 	}
 	features := make(map[string]bool)
 	for _, feature := range fv.features {
@@ -35,8 +34,8 @@ func (fv *BaseFeatureView) withProjection(projection *FeatureViewProjection) (*B
 	}
 	for _, feature := range projection.features {
 		if _, ok := features[feature.name]; !ok {
-			return nil, errors.New(fmt.Sprintf("The projection for %s cannot be applied because it contains %s which the "+
-				"FeatureView doesn't have.", projection.name, feature.name))
+			return nil, fmt.Errorf("the projection for %s cannot be applied because it contains %s which the "+
+				"FeatureView doesn't have", projection.name, feature.name)
 		}
 	}
 	return &BaseFeatureView{name: fv.name, features: fv.features, projection: projection}, nil
