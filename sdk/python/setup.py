@@ -215,8 +215,14 @@ class BuildPythonProtosCommand(Command):
     def run(self):
         for sub_folder in self.sub_folders:
             self._generate_python_protos(f"feast/{sub_folder}/*.proto")
-
-        from pathlib import Path
+            # We need the __init__ files for each of the generated subdirs
+            # so that they are regular packages, and don't need the `--namespace-packages` flags
+            # when being typechecked using mypy. BUT, we need to exclude `types` because that clashes
+            # with an existing module in the python standard library.
+            if sub_folder == "types":
+                continue
+            with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", 'w'):
+                pass
 
         for path in Path("feast/protos").rglob("*.py"):
             for folder in self.sub_folders:
