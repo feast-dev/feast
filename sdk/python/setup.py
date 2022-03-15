@@ -210,11 +210,9 @@ class BuildPythonProtosCommand(Command):
                 self.python_folder,
             ]
             + proto_files,
-            )
+        )
 
     def run(self):
-        from pathlib import Path
-
         for sub_folder in self.sub_folders:
             self._generate_python_protos(f"feast/{sub_folder}/*.proto")
             # We need the __init__ files for each of the generated subdirs
