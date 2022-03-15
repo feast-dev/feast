@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import itertools
 import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -50,10 +51,13 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """Online store type selector"""
 
     region: StrictStr
-    """ AWS Region Name """
+    """AWS Region Name"""
 
     table_name_template: StrictStr = "{project}.{table_name}"
-    """ DynamoDB table name template """
+    """DynamoDB table name template"""
+
+    sort_response: bool = True
+    """Wether or not to sort BatchGetItem response."""
 
 
 class DynamoDBOnlineStore(OnlineStore):
@@ -63,10 +67,12 @@ class DynamoDBOnlineStore(OnlineStore):
     Attributes:
         _dynamodb_client: Boto3 DynamoDB client.
         _dynamodb_resource: Boto3 DynamoDB resource.
+        _batch_size: Number of items to retrieve in a DynamoDB BatchGetItem call.
     """
 
     _dynamodb_client = None
     _dynamodb_resource = None
+    _batch_size = 40
 
     @log_exceptions_and_usage(online_store="dynamodb")
     def update(
@@ -196,7 +202,6 @@ class DynamoDBOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        sort_response: bool = True,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Retrieve feature values from the online DynamoDB store.
@@ -208,7 +213,6 @@ class DynamoDBOnlineStore(OnlineStore):
             config: The RepoConfig for the current FeatureStore.
             table: Feast FeatureView.
             entity_keys: a list of entity keys that should be read from the FeatureStore.
-            sort_response: wether or not to sort DynamoDB responses by the entity_ids order.
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
@@ -219,36 +223,26 @@ class DynamoDBOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
-
-        len_entity_ids = len(entity_ids)
-        batch_size = 40
-        # Iterate until the end_index is the value len_entity_ids
-        iters = (
-            len_entity_ids // batch_size + 1
-            if len_entity_ids % batch_size > 0
-            else len_entity_ids // batch_size
-        )
-        for i in range(iters):
-            start_index = min(i * batch_size, len_entity_ids)
-            end_index = min(i * batch_size + batch_size, len_entity_ids)
-
+        
+        batch_size = self._batch_size
+        sort_response = online_config.sort_response
+        entity_ids_iter = iter(entity_ids)
+        while True:
+            batch = list(itertools.islice(entity_ids_iter, batch_size))
+            # No more items to insert
+            if len(batch) == 0:
+                break
             batch_entity_ids = {
                 table_instance.name: {
-                    "Keys": [
-                        {"entity_id": entity_id}
-                        for entity_id in entity_ids[start_index:end_index]
-                    ]
+                    "Keys": [{"entity_id": entity_id} for entity_id in batch]
                 }
             }
-
             with tracing_span(name="remote_call"):
                 response = dynamodb_resource.batch_get_item(
                     RequestItems=batch_entity_ids
                 )
-
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
-
             if table_responses:
                 if sort_response:
                     table_responses = self._sort_dynamodb_response(
