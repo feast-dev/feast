@@ -29,6 +29,7 @@ from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
+from feast.usage import log_exceptions_and_usage
 
 
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
@@ -42,6 +43,7 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
 class SparkOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage(offline_store="spark")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -102,6 +104,7 @@ class SparkOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="spark")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -176,6 +179,7 @@ class SparkOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="spark")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
