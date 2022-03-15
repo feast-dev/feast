@@ -249,7 +249,14 @@ class DataSource(ABC):
         ):
             data_source_obj = KinesisSource.from_proto(data_source)
         else:
-            raise ValueError("Could not identify the source type being added.")
+            try:
+                from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+                    SparkSource,
+                )
+
+                data_source_obj = SparkSource.from_proto(data_source)
+            except Exception:
+                raise ValueError("Could not identify the source type being added.")
 
         return data_source_obj
 
