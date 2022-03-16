@@ -35,7 +35,7 @@ build: protos build-java build-docker build-html
 
 # Python SDK
 
-install-python-ci-dependencies: install-go-proto-dependencies
+install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
 	cd sdk/python && COMPILE_GO=true python setup.py develop
 
@@ -76,13 +76,8 @@ test-python-universal-local:
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
-test-python-go-server:
-	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/server github.com/feast-dev/feast/go/cmd/server
+test-python-go-server: compile-go-lib
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --goserver sdk/python/tests
-
-test-python-go-server-lifecycle:
-	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/server github.com/feast-dev/feast/go/cmd/server
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --goserverlifecycle sdk/python/tests
 
 format-python:
 	# Sort
@@ -123,11 +118,16 @@ build-java:
 build-java-no-tests:
 	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -DskipITs=true -Drevision=${REVISION} clean package
 
-# Go SDK
+# Go SDK & embedded
 
 install-go-proto-dependencies:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
+
+install-go-ci-dependencies:
+	go get golang.org/x/tools/cmd/goimports
+	go get github.com/go-python/gopy
+	go install github.com/go-python/gopy
 
 install-protoc-dependencies:
 	pip install grpcio-tools==1.34.0
@@ -135,9 +135,9 @@ install-protoc-dependencies:
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	cd sdk/python && python setup.py build_go_protos
 
-compile-go-feature-server: compile-protos-go
-	go mod tidy
-	go build -o ${ROOT_DIR}/sdk/python/feast/binaries/server github.com/feast-dev/feast/go/cmd/server
+compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
+	python -m install pybindgen
+	python sdk/python/setup.py build_go_lib
 
 test-go: compile-protos-go
 	go test ./...

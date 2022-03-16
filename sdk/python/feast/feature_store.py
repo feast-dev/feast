@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -60,7 +61,6 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
-from feast.go_server import GoServer
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
@@ -90,6 +90,10 @@ from feast.version import get_version
 warnings.simplefilter("once", DeprecationWarning)
 
 
+if TYPE_CHECKING:
+    from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
+
+
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
@@ -104,7 +108,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
     _provider: Provider
-    _go_server: Optional[GoServer]
+    _go_server: Optional["EmbeddedOnlineFeatureServer"]
 
     @log_exceptions
     def __init__(
@@ -729,10 +733,6 @@ class FeatureStore:
                     service.name, project=self.project, commit=False
                 )
 
-        # If a go server is running, kill it so that it can be recreated in `update_infra` with
-        # the latest registry state.
-        self.kill_go_server()
-
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=views_to_delete if not partial else [],
@@ -753,8 +753,6 @@ class FeatureStore:
         tables.extend(feature_views)
 
         entities = self.list_entities()
-
-        self.kill_go_server()
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
@@ -1228,12 +1226,24 @@ class FeatureStore:
 
         # If Go feature server is enabled, send request to it instead of going through a regular Python logic
         if self.config.go_feature_server:
+            from feast.embedded_go.online_features_service import (
+                EmbeddedOnlineFeatureServer,
+            )
+
             # Lazily start the go server on the first request
             if self._go_server is None:
-                self._go_server = GoServer(str(self.repo_path.absolute()), self.config,)
-                self._go_server._shared_connection._check_grpc_connection()
+                self._go_server = EmbeddedOnlineFeatureServer(
+                    str(self.repo_path.absolute()), self.config
+                )
+
             return self._go_server.get_online_features(
-                features, columnar, full_feature_names
+                features_refs=features if isinstance(features, list) else [],
+                feature_service=features
+                if isinstance(features, FeatureService)
+                else None,
+                entities=columnar,
+                full_feature_names=full_feature_names,
+                project=self.config.project,
             )
 
         return self._get_online_features(
@@ -1867,11 +1877,6 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
-
-    def kill_go_server(self):
-        if self._go_server:
-            self._go_server.kill_go_server_explicitly()
-            self._go_server = None
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
