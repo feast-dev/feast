@@ -22,18 +22,6 @@ from feast.type_map import feast_value_type_to_python_type
 
 TIMESTAMP_POSTFIX: str = "__ts"
 
-import logging
-import sys
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
 
 class OnlineResponse:
     """
@@ -69,12 +57,7 @@ class OnlineResponse:
 
         for result in self.proto.results:
             for idx, feature_ref in enumerate(self.proto.metadata.feature_names.val):
-                try:
-                    native_type_value = feast_value_type_to_python_type(result.values[idx])
-                except IndexError as e:
-                    logger.info(f'ERROR -- {e}')
-                    logger.info(f'ONLINE RESPONSE PROTO: {self.proto}')
-                    raise IndexError(e)
+                native_type_value = feast_value_type_to_python_type(result.values[idx])
                 if feature_ref not in response:
                     response[feature_ref] = [native_type_value]
                 else:
