@@ -223,7 +223,6 @@ class DynamoDBOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
-        
         batch_size = self._batch_size
         sort_response = online_config.sort_response
         entity_ids_iter = iter(entity_ids)
@@ -256,7 +255,8 @@ class DynamoDBOnlineStore(OnlineStore):
                         res[feature_name] = val
                     result.append((datetime.fromisoformat(tbl_res["event_ts"]), res))
             else:
-                result.append((None, None))
+                batch_size_nones = ((None, None),) * len(batch)
+                result.extend(batch_size_nones)
         return result
 
     def _get_dynamodb_client(self, region: str):
