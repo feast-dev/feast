@@ -13,7 +13,6 @@
 # limitations under the License.
 import json
 import logging
-import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
