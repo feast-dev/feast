@@ -2067,7 +2067,7 @@ def _validate_data_sources(data_sources: List[DataSource]):
         case_insensitive_ds_name = ds.name.lower()
         if case_insensitive_ds_name in ds_names:
             if case_insensitive_ds_name.strip():
-                warnings.warning(
+                warnings.warn(
                     f"More than one data source with name {case_insensitive_ds_name} found. "
                     f"Please ensure that all data source names are case-insensitively unique. "
                     f"It may be necessary to ignore certain files in your feature repository by using a .feastignore "
