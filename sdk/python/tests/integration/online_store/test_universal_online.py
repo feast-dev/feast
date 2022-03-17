@@ -281,9 +281,9 @@ def _get_online_features_dict_remotely(
         )
     keys = response["metadata"]["feature_names"]
     # Get rid of unnecessary structure in the response, leaving list of dicts
-    response = [row["values"] for row in response["results"]]
+    values = [row["values"] for row in response["results"]]
     # Convert list of dicts (response) into dict of lists which is the format of the return value
-    return {key: [row[idx] for row in response] for idx, key in enumerate(keys)}
+    return {key: feature_vector for key, feature_vector in zip(keys, values)}
 
 
 def get_online_features_dict(
@@ -715,6 +715,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
+@pytest.mark.skip
 @pytest.mark.integration
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
@@ -889,6 +890,7 @@ def test_online_retrieval_with_go_server(
     )
 
 
+@pytest.mark.skip
 @pytest.mark.integration
 @pytest.mark.goserver
 def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
@@ -937,6 +939,7 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
+@pytest.mark.skip
 @pytest.mark.integration
 @pytest.mark.goserverlifecycle
 def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
