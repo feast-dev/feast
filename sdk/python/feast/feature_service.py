@@ -7,13 +7,11 @@ from feast.base_feature_view import BaseFeatureView
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.protos.feast.core.FeatureService_pb2 import (
-    FeatureService as FeatureServiceProto,
-)
-from feast.protos.feast.core.FeatureService_pb2 import (
+from feast.proto_core.FeatureService_pb2 import FeatureService as FeatureServiceProto
+from feast.proto_core.FeatureService_pb2 import (
     FeatureServiceMeta as FeatureServiceMetaProto,
 )
-from feast.protos.feast.core.FeatureService_pb2 import (
+from feast.proto_core.FeatureService_pb2 import (
     FeatureServiceSpec as FeatureServiceSpecProto,
 )
 from feast.usage import log_exceptions

@@ -5,7 +5,7 @@ from typing import List
 
 from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.passthrough_provider import PassthroughProvider
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.proto_core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.usage import log_exceptions_and_usage

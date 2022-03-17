@@ -16,7 +16,7 @@
 
 
 syntax = "proto3";
-package feast.core;
+package feast.proto_core;
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "DataFormatProto";

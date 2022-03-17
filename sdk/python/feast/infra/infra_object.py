@@ -17,15 +17,11 @@ from typing import Any, List
 
 from feast.errors import FeastInvalidInfraObjectType
 from feast.importer import import_class
-from feast.protos.feast.core.DatastoreTable_pb2 import (
-    DatastoreTable as DatastoreTableProto,
-)
-from feast.protos.feast.core.DynamoDBTable_pb2 import (
-    DynamoDBTable as DynamoDBTableProto,
-)
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
-from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
-from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
+from feast.proto_core.DatastoreTable_pb2 import DatastoreTable as DatastoreTableProto
+from feast.proto_core.DynamoDBTable_pb2 import DynamoDBTable as DynamoDBTableProto
+from feast.proto_core.InfraObject_pb2 import Infra as InfraProto
+from feast.proto_core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.proto_core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
 DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
 DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"

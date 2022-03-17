@@ -14,7 +14,7 @@
 import enum
 from typing import Type, Union
 
-from feast.protos.feast.types.Value_pb2 import (
+from feast.proto_types.Value_pb2 import (
     BoolList,
     BytesList,
     DoubleList,
@@ -23,6 +23,17 @@ from feast.protos.feast.types.Value_pb2 import (
     Int64List,
     StringList,
 )
+from feast.proto_types.Value_pb2 import ValueType as ProtoValueType
+
+ListType = Union[
+    Type[BoolList],
+    Type[BytesList],
+    Type[DoubleList],
+    Type[FloatList],
+    Type[Int32List],
+    Type[Int64List],
+    Type[StringList],
+]
 
 
 class ValueType(enum.Enum):
@@ -50,12 +61,28 @@ class ValueType(enum.Enum):
     NULL = 19
 
 
-ListType = Union[
-    Type[BoolList],
-    Type[BytesList],
-    Type[DoubleList],
-    Type[FloatList],
-    Type[Int32List],
-    Type[Int64List],
-    Type[StringList],
-]
+_value_type_proto_value_type_mapping = {
+    ValueType.BYTES: ProtoValueType.BYTES,
+    ValueType.STRING: ProtoValueType.STRING,
+    ValueType.INT32: ProtoValueType.INT32,
+    ValueType.INT64: ProtoValueType.INT64,
+    ValueType.DOUBLE: ProtoValueType.DOUBLE,
+    ValueType.FLOAT: ProtoValueType.FLOAT,
+    ValueType.BOOL: ProtoValueType.BOOL,
+    ValueType.UNIX_TIMESTAMP: ProtoValueType.UNIX_TIMESTAMP,
+    ValueType.BYTES_LIST: ProtoValueType.BYTES_LIST,
+    ValueType.STRING_LIST: ProtoValueType.STRING_LIST,
+    ValueType.INT32_LIST: ProtoValueType.INT32_LIST,
+    ValueType.INT64_LIST: ProtoValueType.INT64_LIST,
+    ValueType.DOUBLE_LIST: ProtoValueType.DOUBLE_LIST,
+    ValueType.FLOAT_LIST: ProtoValueType.FLOAT_LIST,
+    ValueType.BOOL_LIST: ProtoValueType.BOOL_LIST,
+    ValueType.NULL: ProtoValueType.NULL,
+}
+
+
+def value_type_to_proto_value_type(
+    value_type: ValueType,
+) -> ProtoValueType._Enum.ValueType:
+    return _value_type_proto_value_type_mapping[value_type]
+    pass

@@ -8,7 +8,7 @@ from google.protobuf.json_format import MessageToDict, Parse
 
 import feast
 from feast import proto_json
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
+from feast.proto_serving.ServingService_pb2 import GetOnlineFeaturesRequest
 
 
 def get_app(store: "feast.FeatureStore"):

@@ -8,16 +8,14 @@ from feast.entity import Entity
 from feast.feast_object import FeastObject, FeastObjectSpecProto
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
-from feast.protos.feast.core.FeatureService_pb2 import (
-    FeatureService as FeatureServiceProto,
-)
-from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+from feast.proto_core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.proto_core.Entity_pb2 import Entity as EntityProto
+from feast.proto_core.FeatureService_pb2 import FeatureService as FeatureServiceProto
+from feast.proto_core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.proto_core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
-from feast.protos.feast.core.RequestFeatureView_pb2 import (
+from feast.proto_core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry

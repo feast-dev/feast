@@ -1,12 +1,12 @@
 syntax = "proto3";
-package feast.core;
+package feast.proto_core;
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureServiceProto";
 option java_package = "feast.proto.core";
 
 import "google/protobuf/timestamp.proto";
-import "feast/core/FeatureViewProjection.proto";
+import "feast/proto_core/FeatureViewProjection.proto";
 
 message FeatureService {
   // User-specified specifications of this feature service.

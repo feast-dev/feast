@@ -1,18 +1,18 @@
 syntax = "proto3";
 
-package grpc.connector;
+package feast.proto_serving;
 
 import "google/protobuf/timestamp.proto";
-import "feast/types/Value.proto";
-import "feast/types/EntityKey.proto";
-import "feast/serving/ServingService.proto";
+import "feast/proto_types/Value.proto";
+import "feast/proto_types/EntityKey.proto";
+import "feast/proto_serving/ServingService.proto";
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
 
 message ConnectorFeature {
 	feast.serving.FeatureReferenceV2 reference = 1;
 	google.protobuf.Timestamp timestamp = 2;
-	feast.types.Value value = 3;
+	feast.proto_types.Value value = 3;
 }
 
 message ConnectorFeatureList {
@@ -24,7 +24,7 @@ service OnlineStore {
 }
 
 message OnlineReadRequest {
-    repeated feast.types.EntityKey entityKeys = 1;
+    repeated feast.proto_types.EntityKey entityKeys = 1;
     string view = 2;
     repeated string features = 3;
 }

@@ -16,7 +16,7 @@
 
 
 syntax = "proto3";
-package feast.core;
+package feast.proto_core;
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureViewProto";
@@ -24,8 +24,8 @@ option java_package = "feast.proto.core";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
-import "feast/core/DataSource.proto";
-import "feast/core/Feature.proto";
+import "feast/proto_core/DataSource.proto";
+import "feast/proto_core/Feature.proto";
 
 message FeatureView {
     // User-specified specifications of this feature view.

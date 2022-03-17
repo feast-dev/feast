@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 import pandas as pd
 
 from feast.feature_view import DUMMY_ENTITY_ID
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
+from feast.proto_serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.type_map import feast_value_type_to_python_type
 
 TIMESTAMP_POSTFIX: str = "__ts"

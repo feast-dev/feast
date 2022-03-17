@@ -14,8 +14,8 @@
 
 from typing import Dict, Optional
 
-from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
-from feast.protos.feast.types import Value_pb2 as ValueTypeProto
+from feast.proto_core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
+from feast.proto_types import Value_pb2 as ValueTypeProto
 from feast.value_type import ValueType
 
 

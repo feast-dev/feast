@@ -24,14 +24,10 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
-from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-from feast.protos.feast.core.FeatureView_pb2 import (
-    FeatureViewMeta as FeatureViewMetaProto,
-)
-from feast.protos.feast.core.FeatureView_pb2 import (
-    FeatureViewSpec as FeatureViewSpecProto,
-)
-from feast.protos.feast.core.FeatureView_pb2 import (
+from feast.proto_core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.proto_core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
+from feast.proto_core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
+from feast.proto_core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.usage import log_exceptions

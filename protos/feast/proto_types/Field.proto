@@ -16,15 +16,15 @@
 
 syntax = "proto3";
 
-import "feast/types/Value.proto";
+import "feast/proto_types/Value.proto";
 
-package feast.types;
+package feast.proto_types;
 
 option java_package = "feast.proto.types";
-option java_outer_classname = "EntityKeyProto";
+option java_outer_classname = "FieldProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
 
-message EntityKey {
-    repeated string join_keys = 1;
-    repeated feast.types.Value entity_values = 2;
+message Field {
+  string name = 1;
+  feast.proto_types.Value value = 2;
 }

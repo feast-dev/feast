@@ -25,7 +25,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import RequestDataSource, on_demand_feature_view
-from feast.protos.feast.types import Value_pb2 as ValueProto
+from feast.proto_types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.value_type import ValueType

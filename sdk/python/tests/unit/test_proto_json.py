@@ -3,11 +3,11 @@ import pytest
 from google.protobuf.json_format import MessageToDict, Parse
 
 from feast import proto_json
-from feast.protos.feast.serving.ServingService_pb2 import (
+from feast.proto_serving.ServingService_pb2 import (
     FeatureList,
     GetOnlineFeaturesResponse,
 )
-from feast.protos.feast.types.Value_pb2 import RepeatedValue
+from feast.proto_types.Value_pb2 import RepeatedValue
 
 FeatureVector = GetOnlineFeaturesResponse.FeatureVector
 

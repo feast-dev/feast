@@ -16,14 +16,14 @@
 
 
 syntax = "proto3";
-package feast.core;
+package feast.proto_core;
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
-import "feast/core/DataFormat.proto";
-import "feast/types/Value.proto";
+import "feast/proto_core/DataFormat.proto";
+import "feast/proto_types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
 // Next available id: 22
@@ -166,7 +166,7 @@ message DataSource {
   message RequestDataOptions {
     reserved 1;
     // Mapping of feature name to type
-    map<string, feast.types.ValueType.Enum> schema = 2;
+    map<string, feast.proto_types.ValueType.Enum> schema = 2;
   }
 
   // DataSource options.

@@ -8,9 +8,9 @@ from google.protobuf.json_format import MessageToJson
 
 from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
-from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
-from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
-from feast.protos.feast.core.SavedDataset_pb2 import (
+from feast.proto_core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.proto_core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
+from feast.proto_core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
 

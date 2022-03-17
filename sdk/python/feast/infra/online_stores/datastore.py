@@ -28,12 +28,10 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import DATASTORE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.protos.feast.core.DatastoreTable_pb2 import (
-    DatastoreTable as DatastoreTableProto,
-)
-from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_core.DatastoreTable_pb2 import DatastoreTable as DatastoreTableProto
+from feast.proto_core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import log_exceptions_and_usage, tracing_span
 

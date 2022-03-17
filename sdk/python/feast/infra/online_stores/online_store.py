@@ -19,9 +19,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_core.Registry_pb2 import Registry as RegistryProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 
 

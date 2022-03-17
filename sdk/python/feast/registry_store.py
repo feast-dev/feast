@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.proto_core.Registry_pb2 import Registry as RegistryProto
 
 
 class RegistryStore(ABC):

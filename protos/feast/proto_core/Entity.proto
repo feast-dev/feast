@@ -16,12 +16,12 @@
 
 syntax = "proto3";
 
-package feast.core;
+package feast.proto_core;
 option java_package = "feast.proto.core";
 option java_outer_classname = "EntityProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
-import "feast/types/Value.proto";
+import "feast/proto_types/Value.proto";
 import "google/protobuf/timestamp.proto";
 
 message Entity {
@@ -39,7 +39,7 @@ message EntitySpecV2 {
     string project = 9;
 
     // Type of the entity.
-    feast.types.ValueType.Enum value_type = 2;
+    feast.proto_types.ValueType.Enum value_type = 2;
 
     // Description of the entity.
     string description = 3;

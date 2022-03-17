@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.proto_core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig
 

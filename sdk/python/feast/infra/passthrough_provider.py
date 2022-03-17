@@ -16,8 +16,8 @@ from feast.infra.provider import (
     _get_column_names,
     _run_field_mapping,
 )
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset

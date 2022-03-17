@@ -16,32 +16,26 @@
 
 
 syntax = "proto3";
+package feast.proto_core;
 
-package feast.core;
-option java_package = "feast.proto.core";
-option java_outer_classname = "ValidationProfile";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "RequestFeatureViewProto";
+option java_package = "feast.proto.core";
 
-import "feast/core/SavedDataset.proto";
+import "feast/proto_core/DataSource.proto";
 
-message GEValidationProfiler {
-  message UserDefinedProfiler {
-      // The python-syntax function body (serialized by dill)
-      bytes body = 1;
-  }
-
-  UserDefinedProfiler profiler = 1;
+message RequestFeatureView {
+    // User-specified specifications of this feature view.
+    RequestFeatureViewSpec spec = 1;
 }
 
-message GEValidationProfile {
-  // JSON-serialized ExpectationSuite object
-  bytes expectation_suite = 1;
-}
+message RequestFeatureViewSpec {
+    // Name of the feature view. Must be unique. Not updated.
+    string name = 1;
 
-message ValidationReference {
-  SavedDataset dataset = 1;
+    // Name of Feast project that this feature view belongs to.
+    string project = 2;
 
-  oneof profiler {
-    GEValidationProfiler ge_profiler = 2;
-  }
+    // Request data which contains the underlying data schema and list of associated features
+    DataSource request_data_source = 3;
 }

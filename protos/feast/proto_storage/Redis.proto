@@ -16,7 +16,7 @@
 
 syntax = "proto3";
 
-import "feast/types/Value.proto";
+import "feast/proto_types/Value.proto";
 
 package feast.storage;
 
@@ -29,5 +29,5 @@ message RedisKeyV2 {
 
   repeated string entity_names = 2;
 
-  repeated feast.types.Value entity_values = 3;
+  repeated feast.proto_types.Value entity_values = 3;
 }

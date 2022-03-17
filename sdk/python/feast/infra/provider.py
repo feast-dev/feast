@@ -16,9 +16,9 @@ from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_core.Registry_pb2 import Registry as RegistryProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset

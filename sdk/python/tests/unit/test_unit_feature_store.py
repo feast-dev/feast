@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 from feast import FeatureStore
-from feast.protos.feast.types.Value_pb2 import Value
+from feast.proto_types.Value_pb2 import Value
 
 
 @dataclass

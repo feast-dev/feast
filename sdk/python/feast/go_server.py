@@ -33,11 +33,11 @@ from feast.errors import FeatureNameCollisionError, InvalidFeaturesParameterType
 from feast.feature_service import FeatureService
 from feast.flags_helper import is_test
 from feast.online_response import OnlineResponse
-from feast.protos.feast.serving.ServingService_pb2 import (
+from feast.proto_serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequest,
 )
-from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.proto_serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.repo_config import RepoConfig
 from feast.type_map import python_values_to_proto_values
 

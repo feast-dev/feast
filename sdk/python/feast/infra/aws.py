@@ -34,7 +34,7 @@ from feast.flags_helper import enable_aws_lambda_feature_server
 from feast.infra.feature_servers.aws_lambda.config import AwsLambdaFeatureServerConfig
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.protos.feast.proto_core.Registry_pb2 import Registry as RegistryProto
 from feast.registry import get_registry_store_class_from_scheme
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig

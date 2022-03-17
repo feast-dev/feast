@@ -7,8 +7,8 @@ from tqdm import tqdm
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.saved_dataset import SavedDataset
 

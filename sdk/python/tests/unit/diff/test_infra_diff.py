@@ -8,7 +8,7 @@ from feast.diff.infra_diff import (
 from feast.diff.property_diff import TransitionType
 from feast.infra.online_stores.datastore import DatastoreTable
 from feast.infra.online_stores.dynamodb import DynamoDBTable
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
+from feast.proto_core.InfraObject_pb2 import Infra as InfraProto
 
 
 def test_tag_infra_proto_objects_for_keep_delete_add():

@@ -19,9 +19,9 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_format import StreamFormat
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.proto_core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
-from feast.value_type import ValueType
+from feast.value_type import ValueType, value_type_to_proto_value_type
 
 
 class SourceType(enum.Enum):
@@ -419,7 +419,7 @@ class RequestDataSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
         for key, value in self.schema.items():
-            schema_pb[key] = value.value
+            schema_pb[key] = value_type_to_proto_value_type(value)
         options = DataSourceProto.RequestDataOptions(schema=schema_pb)
         data_source_proto = DataSourceProto(
             name=self.name,

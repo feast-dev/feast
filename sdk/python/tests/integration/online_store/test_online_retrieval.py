@@ -8,8 +8,8 @@ from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
 from tests.utils.cli_utils import CliRunner, get_example_repo
 

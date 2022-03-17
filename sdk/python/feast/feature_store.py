@@ -70,13 +70,13 @@ from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
-from feast.protos.feast.serving.ServingService_pb2 import (
+from feast.proto_core.InfraObject_pb2 import Infra as InfraProto
+from feast.proto_serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import RepeatedValue, Value
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents

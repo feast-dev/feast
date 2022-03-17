@@ -16,20 +16,20 @@
 
 syntax = "proto3";
 
-package feast.core;
+package feast.proto_core;
 option java_package = "feast.proto.core";
 option java_outer_classname = "RegistryProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
-import "feast/core/Entity.proto";
-import "feast/core/FeatureService.proto";
-import "feast/core/FeatureTable.proto";
-import "feast/core/FeatureView.proto";
-import "feast/core/InfraObject.proto";
-import "feast/core/OnDemandFeatureView.proto";
-import "feast/core/RequestFeatureView.proto";
-import "feast/core/DataSource.proto";
-import "feast/core/SavedDataset.proto";
+import "feast/proto_core/Entity.proto";
+import "feast/proto_core/FeatureService.proto";
+import "feast/proto_core/FeatureTable.proto";
+import "feast/proto_core/FeatureView.proto";
+import "feast/proto_core/InfraObject.proto";
+import "feast/proto_core/OnDemandFeatureView.proto";
+import "feast/proto_core/RequestFeatureView.proto";
+import "feast/proto_core/DataSource.proto";
+import "feast/proto_core/SavedDataset.proto";
 import "google/protobuf/timestamp.proto";
 
 // Next id: 13

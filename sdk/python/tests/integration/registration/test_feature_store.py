@@ -27,7 +27,7 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.protos.feast.types import Value_pb2 as ValueProto
+from feast.proto_types import Value_pb2 as ValueProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 from tests.utils.data_source_utils import (

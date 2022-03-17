@@ -17,11 +17,11 @@ from typing import Dict, Optional
 
 from google.protobuf.json_format import MessageToJson
 
-from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
-from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
-from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
+from feast.proto_core.Entity_pb2 import Entity as EntityProto
+from feast.proto_core.Entity_pb2 import EntityMeta as EntityMetaProto
+from feast.proto_core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.usage import log_exceptions
-from feast.value_type import ValueType
+from feast.value_type import ValueType, value_type_to_proto_value_type
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -166,7 +166,7 @@ class Entity:
 
         spec = EntitySpecProto(
             name=self.name,
-            value_type=self.value_type.value,
+            value_type=value_type_to_proto_value_type(self.value_type),
             join_key=self.join_key,
             description=self.description,
             tags=self.tags,

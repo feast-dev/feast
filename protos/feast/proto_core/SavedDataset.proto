@@ -17,14 +17,14 @@
 
 syntax = "proto3";
 
-package feast.core;
+package feast.proto_core;
 option java_package = "feast.proto.core";
 option java_outer_classname = "SavedDatasetProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
 import "google/protobuf/timestamp.proto";
-import "feast/core/DataSource.proto";
-import "feast/core/FeatureService.proto";
+import "feast/proto_core/DataSource.proto";
+import "feast/proto_core/FeatureService.proto";
 
 message SavedDatasetSpec {
   // Name of the dataset. Must be unique since it's possible to overwrite dataset by name

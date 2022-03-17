@@ -12,15 +12,15 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+from feast.proto_core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+from feast.proto_core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureViewMeta,
     OnDemandFeatureViewSpec,
     OnDemandInput,
 )
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+from feast.proto_core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
 from feast.type_map import (

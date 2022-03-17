@@ -1,11 +1,11 @@
 syntax = "proto3";
-package feast.core;
+package feast.proto_core;
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureReferenceProto";
 option java_package = "feast.proto.core";
 
-import "feast/core/Feature.proto";
+import "feast/proto_core/Feature.proto";
 
 
 // A projection to be applied on top of a FeatureView. 

@@ -3,8 +3,8 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.SavedDataset_pb2 import (
+from feast.proto_core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.proto_core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
 from feast.repo_config import RepoConfig

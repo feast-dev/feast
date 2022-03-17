@@ -5,10 +5,10 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestDataSource
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
-from feast.protos.feast.core.RequestFeatureView_pb2 import (
+from feast.proto_core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
-from feast.protos.feast.core.RequestFeatureView_pb2 import RequestFeatureViewSpec
+from feast.proto_core.RequestFeatureView_pb2 import RequestFeatureViewSpec
 from feast.usage import log_exceptions
 
 

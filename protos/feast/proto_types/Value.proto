@@ -16,7 +16,7 @@
 
 syntax = "proto3";
 
-package feast.types;
+package feast.proto_types;
 
 option java_package = "feast.proto.types";
 option java_outer_classname = "ValueProto";

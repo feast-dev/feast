@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from attr import dataclass
 
 from feast.feature import Feature
-from feast.protos.feast.core.FeatureViewProjection_pb2 import (
+from feast.proto_core.FeatureViewProjection_pb2 import (
     FeatureViewProjection as FeatureViewProjectionProto,
 )
 

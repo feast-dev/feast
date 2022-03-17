@@ -8,14 +8,10 @@ from feast.infra.infra_object import (
     SQLITE_INFRA_OBJECT_CLASS_TYPE,
     InfraObject,
 )
-from feast.protos.feast.core.DatastoreTable_pb2 import (
-    DatastoreTable as DatastoreTableProto,
-)
-from feast.protos.feast.core.DynamoDBTable_pb2 import (
-    DynamoDBTable as DynamoDBTableProto,
-)
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
-from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
+from feast.proto_core.DatastoreTable_pb2 import DatastoreTable as DatastoreTableProto
+from feast.proto_core.DynamoDBTable_pb2 import DynamoDBTable as DynamoDBTableProto
+from feast.proto_core.InfraObject_pb2 import Infra as InfraProto
+from feast.proto_core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
 InfraObjectProto = TypeVar(
     "InfraObjectProto", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto

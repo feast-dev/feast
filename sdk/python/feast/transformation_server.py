@@ -8,14 +8,14 @@ from grpc_reflection.v1alpha import reflection
 
 from feast.errors import OnDemandFeatureViewNotFoundException
 from feast.feature_store import FeatureStore
-from feast.protos.feast.serving.TransformationService_pb2 import (
+from feast.proto_serving.TransformationService_pb2 import (
     DESCRIPTOR,
     TRANSFORMATION_SERVICE_TYPE_PYTHON,
     GetTransformationServiceInfoResponse,
     TransformFeaturesResponse,
     ValueType,
 )
-from feast.protos.feast.serving.TransformationService_pb2_grpc import (
+from feast.proto_serving.TransformationService_pb2_grpc import (
     TransformationServiceServicer,
     add_TransformationServiceServicer_to_server,
 )

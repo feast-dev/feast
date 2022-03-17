@@ -10,8 +10,8 @@ from pyspark.sql import SparkSession
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.SavedDataset_pb2 import (
+from feast.proto_core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.proto_core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
 from feast.repo_config import RepoConfig

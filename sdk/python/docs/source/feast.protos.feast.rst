@@ -7,7 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   feast.protos.feast.core
+   feast.protos.feast.proto_core
    feast.protos.feast.serving
    feast.protos.feast.storage
    feast.protos.feast.types

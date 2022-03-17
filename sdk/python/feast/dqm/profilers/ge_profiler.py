@@ -15,10 +15,10 @@ from feast.dqm.profilers.profiler import (
     ValidationError,
     ValidationReport,
 )
-from feast.protos.feast.core.ValidationProfile_pb2 import (
+from feast.proto_core.ValidationProfile_pb2 import (
     GEValidationProfile as GEValidationProfileProto,
 )
-from feast.protos.feast.core.ValidationProfile_pb2 import (
+from feast.proto_core.ValidationProfile_pb2 import (
     GEValidationProfiler as GEValidationProfilerProto,
 )
 

@@ -172,7 +172,7 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+PROTO_SUBDIRS = ["proto_core", "proto_serving", "proto_types", "proto_storage"]
 
 
 class BuildPythonProtosCommand(Command):
@@ -187,7 +187,7 @@ class BuildPythonProtosCommand(Command):
         ]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
         self.python_folder = os.path.join(
-            os.path.dirname(__file__) or os.getcwd(), "feast/protos"
+            os.path.dirname(__file__) or os.getcwd()
         )
         self.sub_folders = PROTO_SUBDIRS
 

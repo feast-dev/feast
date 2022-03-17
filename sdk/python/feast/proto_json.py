@@ -8,8 +8,8 @@ from google.protobuf.json_format import (  # type: ignore
     _Printer,
 )
 
-from feast.protos.feast.serving.ServingService_pb2 import FeatureList
-from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
+from feast.proto_serving.ServingService_pb2 import FeatureList
+from feast.proto_types.Value_pb2 import RepeatedValue, Value
 
 ProtoMessage = Any
 JsonObject = Any

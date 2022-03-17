@@ -19,7 +19,7 @@ syntax = "proto3";
 package feast.serving;
 
 import "google/protobuf/timestamp.proto";
-import "feast/types/Value.proto";
+import "feast/proto_types/Value.proto";
 
 option java_package = "feast.proto.serving";
 option java_outer_classname = "ServingAPIProto";
@@ -68,7 +68,7 @@ message GetOnlineFeaturesRequestV2 {
         google.protobuf.Timestamp timestamp = 1;
 
         // Map containing mapping of entity name to entity value.
-        map<string,feast.types.Value> fields = 2;
+        map<string,feast.proto_types.Value> fields = 2;
     }
 }
 
@@ -84,13 +84,13 @@ message GetOnlineFeaturesRequest {
     }
     // The entity data is specified in a columnar format
     // A map of entity name -> list of values
-    map<string, feast.types.RepeatedValue> entities = 3;
+    map<string, feast.proto_types.RepeatedValue> entities = 3;
     bool full_feature_names = 4;
 
     // Context for OnDemand Feature Transformation
     // (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
     // A map of variable name -> list of values
-    map<string, feast.types.RepeatedValue> request_context = 5;
+    map<string, feast.proto_types.RepeatedValue> request_context = 5;
 }
 
 message GetOnlineFeaturesResponse {
@@ -101,7 +101,7 @@ message GetOnlineFeaturesResponse {
     repeated FeatureVector results = 2;
 
     message FeatureVector {
-        repeated feast.types.Value values = 1;
+        repeated feast.proto_types.Value values = 1;
         repeated FieldStatus statuses = 2;
         repeated google.protobuf.Timestamp event_timestamps = 3;
     }

@@ -16,16 +16,16 @@
 
 syntax = "proto3";
 
-package feast.core;
+package feast.proto_core;
 option java_package = "feast.proto.core";
-option java_outer_classname = "SqliteTableProto";
+option java_outer_classname = "DynamoDBTableProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
-// Represents a Sqlite table
-message SqliteTable {
-    // Absolute path of the table
-    string path = 1;
-
+// Represents a DynamoDB table
+message DynamoDBTable {
     // Name of the table
-    string name = 2;
+    string name = 1;
+
+    // Region of the table
+    string region = 2;
 }

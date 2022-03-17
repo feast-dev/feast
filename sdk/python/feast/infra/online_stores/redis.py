@@ -35,8 +35,8 @@ from pydantic.typing import Literal
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.proto_types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.proto_types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.usage import log_exceptions_and_usage, tracing_span
 

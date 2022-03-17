@@ -34,7 +34,7 @@ import pandas as pd
 import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.protos.feast.types.Value_pb2 import (
+from feast.proto_types.Value_pb2 import (
     BoolList,
     BytesList,
     DoubleList,
@@ -43,7 +43,7 @@ from feast.protos.feast.types.Value_pb2 import (
     Int64List,
     StringList,
 )
-from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+from feast.proto_types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
 
 
