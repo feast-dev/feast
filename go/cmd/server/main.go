@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
+	"os"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
 )
 
@@ -30,10 +29,6 @@ type FeastEnvConfig struct {
 	SockFile   string `envconfig:"FEAST_GRPC_SOCK_FILE"`
 }
 
-type MemoryBuffer struct {
-	logs []Log
-}
-
 // TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
 func main() {
 	// TODO(kevjumba) Figure out how large this log channel should be.
@@ -43,13 +38,10 @@ func main() {
 		logs: make([]Log, 0),
 	}
 
-	var feastEnvConfig FeastEnvConfig
-	var err error
-	err = envconfig.Process("feast", &feastEnvConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if feastEnvConfig.RepoPath == "" && feastEnvConfig.RepoConfig == "" {
+	repoPath := os.Getenv(flagFeastRepoPath)
+	repoConfigJSON := os.Getenv(flagFeastRepoConfig)
+	sockFile := os.Getenv(flagFeastSockFile)
+	if repoPath == "" && repoConfigJSON == "" {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 	}
 
@@ -73,7 +65,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer fs.DestructOnlineStore()
-	startGrpcServer(fs, logChannel, &logBuffer, feastEnvConfig.SockFile)
+	startGrpcServer(fs, logChannel, &logBuffer, sockFile)
 }
 
 func startGrpcServer(fs *feast.FeatureStore, logChannel chan Log, logBuffer *MemoryBuffer, sockFile string) {
@@ -90,21 +82,5 @@ func startGrpcServer(fs *feast.FeatureStore, logChannel chan Log, logBuffer *Mem
 	err = grpcServer.Serve(lis)
 	if err != nil {
 		log.Fatalln(err)
-	}
-}
-
-func processLogs(log_channel chan Log, logBuffer *MemoryBuffer) {
-	// start a periodic flush
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case t := <-ticker.C:
-			log.Printf("time is %d", t)
-			log.Printf("Flushing buffer to offline storage with channel length: %d\n", len(logBuffer.logs))
-		case new_log := <-log_channel:
-			log.Printf("Pushing %s to memory.\n", new_log.featureValues)
-			logBuffer.logs = append(logBuffer.logs, new_log)
-		}
 	}
 }
