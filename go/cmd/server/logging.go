@@ -44,7 +44,7 @@ func flushToChannel(s *servingServiceServer, onlineResponse *serving.GetOnlineFe
 			}
 			eventTimestamps[idx] = &timestamppb.Timestamp{Seconds: ts.Seconds, Nanos: ts.Nanos}
 		}
-		// log.Println(request.Entities)
+		// TODO(kevjumba): For filtering out and extracting entity names when the bug with join keys is fixed.
 		// for idx, featureName := range onlineResponse.Metadata.FeatureNames.Val {
 		// 	if _, ok := request.Entities[featureName]; ok {
 		// 		entityNames = append(entityNames, featureName)
