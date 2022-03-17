@@ -81,7 +81,7 @@ func processLogs(log_channel chan Log, logBuffer *MemoryBuffer) {
 	for {
 		select {
 		case t := <-ticker.C:
-			log.Printf("Flushing buffer to offline storage with channel length: %d\n at time %t", len(logBuffer.logs), t)
+			log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(logBuffer.logs))
 		case new_log := <-log_channel:
 			log.Printf("Pushing %s to memory.\n", new_log.featureValues)
 			logBuffer.logs = append(logBuffer.logs, new_log)
