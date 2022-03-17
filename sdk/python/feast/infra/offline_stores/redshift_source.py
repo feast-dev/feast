@@ -41,6 +41,12 @@ class RedshiftSource(DataSource):
             query (optional): The query to be executed to obtain the features.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
         """
+        # The default Redshift schema is named "public".
+        _schema = "public" if table and not schema else schema
+        self.redshift_options = RedshiftOptions(
+            table=table, schema=_schema, query=query
+        )
+
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
         _name = name
@@ -62,13 +68,6 @@ class RedshiftSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
-        )
-
-        # The default Redshift schema is named "public".
-        _schema = "public" if table and not schema else schema
-
-        self.redshift_options = RedshiftOptions(
-            table=table, schema=_schema, query=query
         )
 
     @staticmethod
