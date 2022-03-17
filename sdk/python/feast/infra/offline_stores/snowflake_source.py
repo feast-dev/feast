@@ -53,7 +53,8 @@ class SnowflakeSource(DataSource):
             else:
                 warnings.warn(
                     (
-                        "Starting in Feast 0.21, Feast will require either a name for a data source (if using query) or `table`."
+                        f"Starting in Feast 0.21, Feast will require either a name for a data source (if using query) "
+                        f"or `table`: {self.query}"
                     ),
                     DeprecationWarning,
                 )
