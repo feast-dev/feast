@@ -10,10 +10,6 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"google.golang.org/grpc"
-
-	"github.com/feast-dev/feast/go/internal/feast"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"google.golang.org/grpc"
 )
 
 const (

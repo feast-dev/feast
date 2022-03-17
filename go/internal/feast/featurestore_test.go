@@ -50,10 +50,14 @@ func TestNewFeatureStore(t *testing.T) {
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	config := registry.RepoConfig{
 =======
 	//t.Skip("@todo(achals): feature_repo isn't checked in yet")
+=======
+	t.Skip("@todo(achals): feature_repo isn't checked in yet")
+>>>>>>> df2b4a9b (clean up)
 	config := RepoConfig{
 >>>>>>> f7354334 (Make a proof of concept)
 		Project:  "feature_repo",
@@ -74,7 +78,11 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 		{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
 	}
 
+<<<<<<< HEAD
 	fs, err := NewFeatureStore(&config, nil)
+=======
+	fs, err := NewFeatureStore(&config)
+>>>>>>> df2b4a9b (clean up)
 	assert.Nil(t, err)
 	ctx := context.Background()
 	response, err := fs.GetOnlineFeatures(
