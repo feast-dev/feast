@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -74,7 +75,7 @@ func flushToChannel(s *servingServiceServer, onlineResponse *serving.GetOnlineFe
 	}
 }
 
-func processLogs(log_channel chan Log, logBuffer *MemoryBuffer) {
+func processLogs(fs *feast.FeatureStore, log_channel chan Log, logBuffer *MemoryBuffer) {
 	// start a periodic flush
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
@@ -82,9 +83,21 @@ func processLogs(log_channel chan Log, logBuffer *MemoryBuffer) {
 		select {
 		case t := <-ticker.C:
 			log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(logBuffer.logs))
+			flushLogsToOfflineStorage(fs, logBuffer)
 		case new_log := <-log_channel:
 			log.Printf("Pushing %s to memory.\n", new_log.featureValues)
 			logBuffer.logs = append(logBuffer.logs, new_log)
 		}
 	}
+}
+
+func flushLogsToOfflineStorage(fs *feast.FeatureStore, logBuffer *MemoryBuffer) {
+	//offlineStore := fs.config.OfflineStore["type"]
+	// switch offlineStore{
+	// case "file":
+	// 	// call python??
+	// case "snowflake":
+	//
+	// }
+	//Do different row level manipulations and add to offline store
 }

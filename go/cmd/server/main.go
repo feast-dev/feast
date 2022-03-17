@@ -65,7 +65,7 @@ func main() {
 }
 
 func startGrpcServer(fs *feast.FeatureStore, logChannel chan Log, logBuffer *MemoryBuffer, sockFile string) {
-	go processLogs(logChannel, logBuffer)
+	go processLogs(fs, logChannel, logBuffer)
 	server := newServingServiceServer(fs, logChannel)
 	log.Printf("Starting a gRPC server listening on %s\n", sockFile)
 	lis, err := net.Listen("unix", sockFile)
