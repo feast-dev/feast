@@ -81,8 +81,6 @@ _value_type_proto_value_type_mapping = {
 }
 
 
-def value_type_to_proto_value_type(
-    value_type: ValueType,
-) -> ProtoValueType._Enum.ValueType:
+def value_type_to_proto_value_type(value_type: ValueType,):
     return _value_type_proto_value_type_mapping[value_type]
     pass
