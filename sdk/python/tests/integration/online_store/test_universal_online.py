@@ -72,7 +72,7 @@ def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_s
             "driver_stats:acc_rate",
             "driver_stats:conv_rate",
         ],
-        entity_rows=[{"driver": 1}],
+        entity_rows=[{"driver_id": 1}],
     ).to_df()
     assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_equal_to(4)
     assertpy.assert_that(df["acc_rate"].iloc[0]).is_close_to(0.6, 1e-6)
@@ -88,7 +88,7 @@ def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_s
             "driver_stats:acc_rate",
             "driver_stats:conv_rate",
         ],
-        entity_rows=[{"driver": 1}],
+        entity_rows=[{"driver_id": 1}],
     ).to_df()
     # assert that the entity features expired in the online store
     assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_none()
@@ -231,7 +231,7 @@ def test_write_to_online_store(environment, universal_data_sources):
             "driver_stats:acc_rate",
             "driver_stats:conv_rate",
         ],
-        entity_rows=[{"driver": 123}],
+        entity_rows=[{"driver_id": 123}],
     ).to_df()
     assertpy.assert_that(df["avg_daily_trips"].iloc[0]).is_equal_to(14)
     assertpy.assert_that(df["acc_rate"].iloc[0]).is_close_to(0.91, 1e-6)
@@ -362,7 +362,7 @@ def test_online_retrieval_with_event_timestamps(
             "driver_stats:acc_rate",
             "driver_stats:conv_rate",
         ],
-        entity_rows=[{"driver": 1}, {"driver": 2}],
+        entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
     )
     df = response.to_df(True)
     assertpy.assert_that(len(df)).is_equal_to(2)
@@ -467,7 +467,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     global_df = datasets.global_df
 
     entity_rows = [
-        {"driver": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
+        {"driver_id": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -564,7 +564,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         environment=environment,
         features=feature_refs,
         entity_rows=[
-            {"driver": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
+            {"driver_id": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
         ],
         full_feature_names=full_feature_names,
     )
@@ -582,7 +582,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         get_online_features_dict(
             environment=environment,
             features=feature_refs,
-            entity_rows=[{"driver": 0, "customer_id": 0}],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
             full_feature_names=full_feature_names,
         )
 
@@ -591,7 +591,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         get_online_features_dict(
             environment=environment,
             features=feature_refs,
-            entity_rows=[{"driver": 0, "customer_id": 0, "val_to_add": 20}],
+            entity_rows=[{"driver_id": 0, "customer_id": 0, "val_to_add": 20}],
             full_feature_names=full_feature_names,
         )
 
@@ -608,7 +608,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     entity_rows = [
         {
-            "driver": _driver,
+            "driver_id": _driver,
             "customer_id": _customer,
             "origin_id": origin,
             "destination_id": destination,
@@ -679,7 +679,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     expected_values = df.sort_values(by="driver_id")
 
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
+    entity_rows = [{"driver_id": driver_id} for driver_id in sorted(driver_entities)]
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows
@@ -784,7 +784,7 @@ def test_online_retrieval_with_go_server(
     global_df = datasets.global_df
 
     entity_rows = [
-        {"driver": d, "customer_id": c}
+        {"driver_id": d, "customer_id": c}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -853,7 +853,7 @@ def test_online_retrieval_with_go_server(
     missing_responses_dict = get_online_features_dict(
         environment=go_environment,
         features=feature_refs,
-        entity_rows=[{"driver": 0, "customer_id": 0}],
+        entity_rows=[{"driver_id": 0, "customer_id": 0}],
         full_feature_names=full_feature_names,
     )
     assert missing_responses_dict is not None
@@ -867,7 +867,7 @@ def test_online_retrieval_with_go_server(
 
     entity_rows = [
         {
-            "driver": _driver,
+            "driver_id": _driver,
             "customer_id": _customer,
             "origin_id": origin,
             "destination_id": destination,
@@ -901,7 +901,7 @@ def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
     )
     expected_values = df.sort_values(by="driver_id")
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
+    entity_rows = [{"driver_id": driver_id} for driver_id in sorted(driver_entities)]
 
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows
@@ -948,7 +948,7 @@ def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
         go_cycle_environment, go_data_sources
     )
     features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver": driver_id} for driver_id in sorted(driver_entities)]
+    entity_rows = [{"driver_id": driver_id} for driver_id in sorted(driver_entities)]
 
     # Start go server process that calls get_online_features and return and check if at any time go server
     # fails to clean up resources
@@ -1088,7 +1088,7 @@ def get_latest_feature_values_from_dataframes(
     origin_df=None,
     destination_df=None,
 ):
-    latest_driver_row = get_latest_row(entity_row, driver_df, "driver_id", "driver")
+    latest_driver_row = get_latest_row(entity_row, driver_df, "driver_id", "driver_id")
     latest_customer_row = get_latest_row(
         entity_row, customer_df, "customer_id", "customer_id"
     )
@@ -1096,7 +1096,7 @@ def get_latest_feature_values_from_dataframes(
     # Since the event timestamp columns may contain timestamps of different timezones,
     # we must first convert the timestamps to UTC before we can compare them.
     order_rows = orders_df[
-        (orders_df["driver_id"] == entity_row["driver"])
+        (orders_df["driver_id"] == entity_row["driver_id"])
         & (orders_df["customer_id"] == entity_row["customer_id"])
     ]
     timestamps = order_rows[["event_timestamp"]]
@@ -1123,7 +1123,7 @@ def get_latest_feature_values_from_dataframes(
             "temperature"
         )
     request_data_features = entity_row.copy()
-    request_data_features.pop("driver")
+    request_data_features.pop("driver_id")
     request_data_features.pop("customer_id")
     if global_df is not None:
         return {
