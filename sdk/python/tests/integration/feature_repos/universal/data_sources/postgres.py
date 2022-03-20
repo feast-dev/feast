@@ -15,7 +15,6 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class PostgreSQLDataSourceCreator(DataSourceCreator):
-
     tables: List[str] = []
 
     def __init__(self, project_name: str):

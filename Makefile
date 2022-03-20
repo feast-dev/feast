@@ -74,9 +74,12 @@ test-python-integration-container:
 test-python-universal-contrib:
 	PYTHONPATH='.' FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
 
+test-python-universal-spark:
+	PYTHONPATH='.' FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+
 test-python-universal-postgres:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest --integration --universal \
