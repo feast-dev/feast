@@ -862,8 +862,6 @@ def test_online_retrieval_with_go_server(
         origins_df,
         destinations_df,
     )
-    time.sleep(5)
-    assert(False)
 
 
 def setup_feature_store(environment, go_data_sources):

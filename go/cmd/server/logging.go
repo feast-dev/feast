@@ -31,14 +31,14 @@ type MemoryBuffer struct {
 
 type LoggingService struct {
 	memoryBuffer *MemoryBuffer
-	logChannel   chan Log
+	logChannel   chan *Log
 	fs           *feast.FeatureStore
 }
 
 func NewLoggingService(fs *feast.FeatureStore) *LoggingService {
 	// start handler processes?
 	loggingService := &LoggingService{
-		logChannel: make(chan Log, 1000),
+		logChannel: make(chan *Log, 1000),
 		memoryBuffer: &MemoryBuffer{
 			logs: make([]*Log, 0),
 		},
@@ -48,50 +48,9 @@ func NewLoggingService(fs *feast.FeatureStore) *LoggingService {
 	return loggingService
 }
 
-func flushToChannel(s *servingServiceServer, onlineResponse *serving.GetOnlineFeaturesResponse, request *serving.GetOnlineFeaturesRequest) {
-	for _, featureVector := range onlineResponse.Results {
-		featureValues := make([]*types.Value, len(featureVector.Values))
-		eventTimestamps := make([]*timestamppb.Timestamp, len(featureVector.EventTimestamps))
-		for idx, featureValue := range featureVector.Values {
-			if featureVector.Statuses[idx] != serving.FieldStatus_PRESENT {
-				continue
-			}
-			featureValues[idx] = &types.Value{Val: featureValue.Val}
-		}
-		for idx, ts := range featureVector.EventTimestamps {
-			if featureVector.Statuses[idx] != serving.FieldStatus_PRESENT {
-				continue
-			}
-			eventTimestamps[idx] = &timestamppb.Timestamp{Seconds: ts.Seconds, Nanos: ts.Nanos}
-		}
-		// TODO(kevjumba): For filtering out and extracting entity names when the bug with join keys is fixed.
-		// for idx, featureName := range onlineResponse.Metadata.FeatureNames.Val {
-		// 	if _, ok := request.Entities[featureName]; ok {
-		// 		entityNames = append(entityNames, featureName)
-		// 		entityValues = append(entityValues, featureVector.Values[idx])
-		// 	} else {
-		// 		featureNames = append(featureNames, onlineResponse.Metadata.FeatureNames.Val[idx:]...)
-		// 		featureValues = append(featureValues, featureVector.Values[idx:]...)
-		// 		featureStatuses = append(featureStatuses, featureVector.Statuses[idx:]...)
-		// 		eventTimestamps = append(eventTimestamps, featureVector.EventTimestamps[idx:]...)
-		// 		break
-		// 	}
-		// }
-		// featureNames = append(featureNames, onlineResponse.Metadata.FeatureNames.Val[:]...)
-		// featureValues = append(featureValues, featureVector.Values[:]...)
-		// featureStatuses = append(featureStatuses, featureVector.Statuses[:]...)
-		// eventTimestamps = append(eventTimestamps, featureVector.EventTimestamps[:]...)
-
-		newLog := Log{
-			featureNames:    onlineResponse.Metadata.FeatureNames.Val,
-			featureValues:   featureValues,
-			featureStatuses: featureVector.Statuses,
-			eventTimestamps: eventTimestamps,
-			// TODO(kevjumba): figure out if this is required
-			RequestContext: request.RequestContext,
-		}
-		s.loggingService.logChannel <- newLog
-	}
+func (s *LoggingService) emitLog(log *Log) error {
+	s.logChannel <- log
+	return nil
 }
 
 func (s *LoggingService) processLogs() {
@@ -101,11 +60,10 @@ func (s *LoggingService) processLogs() {
 	for {
 		select {
 		case t := <-ticker.C:
-			s.flushLogsToOfflineStorage(t)
+			go s.flushLogsToOfflineStorage(t)
 		case new_log := <-s.logChannel:
 			log.Printf("Pushing %s to memory.\n", new_log.featureValues)
-			s.memoryBuffer.logs = append(s.memoryBuffer.logs, &new_log)
-			time.Sleep(110 * time.Millisecond)
+			s.memoryBuffer.logs = append(s.memoryBuffer.logs, new_log)
 		}
 	}
 }

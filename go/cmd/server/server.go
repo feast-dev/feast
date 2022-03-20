@@ -5,7 +5,9 @@ import (
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
+	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type servingServiceServer struct {
@@ -66,4 +68,50 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	}
 
 	return resp, nil
+}
+
+func generateLogs(s *servingServiceServer, onlineResponse *serving.GetOnlineFeaturesResponse, request *serving.GetOnlineFeaturesRequest) {
+	for _, featureVector := range onlineResponse.Results {
+		featureValues := make([]*prototypes.Value, len(featureVector.Values))
+		eventTimestamps := make([]*timestamppb.Timestamp, len(featureVector.EventTimestamps))
+		for idx, featureValue := range featureVector.Values {
+			if featureVector.Statuses[idx] != serving.FieldStatus_PRESENT {
+				continue
+			}
+			featureValues[idx] = &prototypes.Value{Val: featureValue.Val}
+		}
+		for idx, ts := range featureVector.EventTimestamps {
+			if featureVector.Statuses[idx] != serving.FieldStatus_PRESENT {
+				continue
+			}
+			eventTimestamps[idx] = &timestamppb.Timestamp{Seconds: ts.Seconds, Nanos: ts.Nanos}
+		}
+		// TODO(kevjumba): For filtering out and extracting entity names when the bug with join keys is fixed.
+		// for idx, featureName := range onlineResponse.Metadata.FeatureNames.Val {
+		// 	if _, ok := request.Entities[featureName]; ok {
+		// 		entityNames = append(entityNames, featureName)
+		// 		entityValues = append(entityValues, featureVector.Values[idx])
+		// 	} else {
+		// 		featureNames = append(featureNames, onlineResponse.Metadata.FeatureNames.Val[idx:]...)
+		// 		featureValues = append(featureValues, featureVector.Values[idx:]...)
+		// 		featureStatuses = append(featureStatuses, featureVector.Statuses[idx:]...)
+		// 		eventTimestamps = append(eventTimestamps, featureVector.EventTimestamps[idx:]...)
+		// 		break
+		// 	}
+		// }
+		// featureNames = append(featureNames, onlineResponse.Metadata.FeatureNames.Val[:]...)
+		// featureValues = append(featureValues, featureVector.Values[:]...)
+		// featureStatuses = append(featureStatuses, featureVector.Statuses[:]...)
+		// eventTimestamps = append(eventTimestamps, featureVector.EventTimestamps[:]...)
+
+		newLog := Log{
+			featureNames:    onlineResponse.Metadata.FeatureNames.Val,
+			featureValues:   featureValues,
+			featureStatuses: featureVector.Statuses,
+			eventTimestamps: eventTimestamps,
+			// TODO(kevjumba): figure out if this is required
+			RequestContext: request.RequestContext,
+		}
+		s.loggingService.emitLog(&newLog)
+	}
 }
