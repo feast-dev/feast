@@ -22,7 +22,7 @@ class PostgreSQLSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
-        self._postgres_options = PostgreSQLOptions(query=query)
+        self._postgres_options = PostgreSQLOptions(name=name, query=query)
 
         super().__init__(
             name=name,
@@ -98,19 +98,22 @@ class PostgreSQLSource(DataSource):
 
 
 class PostgreSQLOptions:
-    def __init__(self, query: Optional[str]):
+    def __init__(self, name: str, query: Optional[str]):
+        self._name = name
         self._query = query
 
     @classmethod
     def from_proto(cls, postgres_options_proto: DataSourceProto.CustomSourceOptions):
         config = json.loads(postgres_options_proto.configuration.decode("utf8"))
-        postgres_options = cls(query=config["query"],)
+        postgres_options = cls(name=config["name"], query=config["query"])
 
         return postgres_options
 
     def to_proto(self) -> DataSourceProto.CustomSourceOptions:
         postgres_options_proto = DataSourceProto.CustomSourceOptions(
-            configuration=json.dumps({"query": self._query}).encode()
+            configuration=json.dumps(
+                {"name": self._name, "query": self._query}
+            ).encode()
         )
 
         return postgres_options_proto

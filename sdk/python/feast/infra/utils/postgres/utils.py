@@ -3,6 +3,7 @@ from typing import Any, Dict
 import numpy as np
 import pandas as pd
 import psycopg2
+import psycopg2.extras
 import pyarrow as pa
 
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
