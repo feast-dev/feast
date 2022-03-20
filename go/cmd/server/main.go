@@ -19,18 +19,8 @@ const (
 	feastServerVersion  = "0.18.0"
 )
 
-type FeastEnvConfig struct {
-	RepoPath   string `envconfig:"FEAST_REPO_PATH"`
-	RepoConfig string `envconfig:"FEAST_REPO_CONFIG"`
-	SockFile   string `envconfig:"FEAST_GRPC_SOCK_FILE"`
-}
-
 // TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
 func main() {
-	// TODO(kevjumba) Figure out how large this log channel should be.
-	logChannel := make(chan Log, 1000)
-	defer close(logChannel)
-
 	repoPath := os.Getenv(flagFeastRepoPath)
 	repoConfigJSON := os.Getenv(flagFeastRepoConfig)
 	sockFile := os.Getenv(flagFeastSockFile)
