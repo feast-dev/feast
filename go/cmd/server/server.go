@@ -9,13 +9,13 @@ import (
 )
 
 type servingServiceServer struct {
-	fs         *feast.FeatureStore
-	logChannel chan Log
+	fs             *feast.FeatureStore
+	loggingService *LoggingService
 	serving.UnimplementedServingServiceServer
 }
 
-func newServingServiceServer(fs *feast.FeatureStore, logChannel chan Log) *servingServiceServer {
-	return &servingServiceServer{fs: fs, logChannel: logChannel}
+func newServingServiceServer(fs *feast.FeatureStore, loggingService *LoggingService) *servingServiceServer {
+	return &servingServiceServer{fs: fs, loggingService: loggingService}
 }
 
 func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error) {
@@ -32,7 +32,6 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	if err != nil {
 		return nil, err
 	}
-
 	featureVectors, err := s.fs.GetOnlineFeatures(
 		ctx,
 		featuresOrService.FeaturesRefs,

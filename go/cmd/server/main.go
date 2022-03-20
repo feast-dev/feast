@@ -30,9 +30,6 @@ func main() {
 	// TODO(kevjumba) Figure out how large this log channel should be.
 	logChannel := make(chan Log, 1000)
 	defer close(logChannel)
-	var logBuffer = MemoryBuffer{
-		logs: make([]Log, 0),
-	}
 
 	repoPath := os.Getenv(flagFeastRepoPath)
 	repoConfigJSON := os.Getenv(flagFeastRepoConfig)
@@ -57,16 +54,16 @@ func main() {
 
 	log.Println("Initializing feature store...")
 	fs, err := feast.NewFeatureStore(repoConfig, nil)
+	loggingService := NewLoggingService(fs)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer fs.DestructOnlineStore()
-	startGrpcServer(fs, logChannel, &logBuffer, sockFile)
+	startGrpcServer(fs, loggingService, sockFile)
 }
 
-func startGrpcServer(fs *feast.FeatureStore, logChannel chan Log, logBuffer *MemoryBuffer, sockFile string) {
-	go processLogs(fs, logChannel, logBuffer)
-	server := newServingServiceServer(fs, logChannel)
+func startGrpcServer(fs *feast.FeatureStore, loggingService *LoggingService, sockFile string) {
+	server := newServingServiceServer(fs, loggingService)
 	log.Printf("Starting a gRPC server listening on %s\n", sockFile)
 	lis, err := net.Listen("unix", sockFile)
 	if err != nil {

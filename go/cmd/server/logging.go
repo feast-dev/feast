@@ -26,7 +26,26 @@ type Log struct {
 }
 
 type MemoryBuffer struct {
-	logs []Log
+	logs []*Log
+}
+
+type LoggingService struct {
+	memoryBuffer *MemoryBuffer
+	logChannel   chan Log
+	fs           *feast.FeatureStore
+}
+
+func NewLoggingService(fs *feast.FeatureStore) *LoggingService {
+	// start handler processes?
+	loggingService := &LoggingService{
+		logChannel: make(chan Log, 1000),
+		memoryBuffer: &MemoryBuffer{
+			logs: make([]*Log, 0),
+		},
+		fs: fs,
+	}
+	go loggingService.processLogs()
+	return loggingService
 }
 
 func flushToChannel(s *servingServiceServer, onlineResponse *serving.GetOnlineFeaturesResponse, request *serving.GetOnlineFeaturesRequest) {
@@ -71,27 +90,27 @@ func flushToChannel(s *servingServiceServer, onlineResponse *serving.GetOnlineFe
 			// TODO(kevjumba): figure out if this is required
 			RequestContext: request.RequestContext,
 		}
-		s.logChannel <- newLog
+		s.loggingService.logChannel <- newLog
 	}
 }
 
-func processLogs(fs *feast.FeatureStore, log_channel chan Log, logBuffer *MemoryBuffer) {
+func (s *LoggingService) processLogs() {
 	// start a periodic flush
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		select {
 		case t := <-ticker.C:
-			log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(logBuffer.logs))
-			flushLogsToOfflineStorage(fs, logBuffer)
-		case new_log := <-log_channel:
+			s.flushLogsToOfflineStorage(t)
+		case new_log := <-s.logChannel:
 			log.Printf("Pushing %s to memory.\n", new_log.featureValues)
-			logBuffer.logs = append(logBuffer.logs, new_log)
+			s.memoryBuffer.logs = append(s.memoryBuffer.logs, &new_log)
+			time.Sleep(110 * time.Millisecond)
 		}
 	}
 }
 
-func flushLogsToOfflineStorage(fs *feast.FeatureStore, logBuffer *MemoryBuffer) {
+func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) {
 	//offlineStore := fs.config.OfflineStore["type"]
 	// switch offlineStore{
 	// case "file":
@@ -100,4 +119,5 @@ func flushLogsToOfflineStorage(fs *feast.FeatureStore, logBuffer *MemoryBuffer) 
 	//
 	// }
 	//Do different row level manipulations and add to offline store
+	log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(s.memoryBuffer.logs))
 }
