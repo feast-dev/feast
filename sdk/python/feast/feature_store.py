@@ -1472,6 +1472,7 @@ class FeatureStore:
         online_features_response: GetOnlineFeaturesResponse,
         data: Dict[str, List[Value]],
     ):
+        timestamp = Timestamp()  # Only initialize this timestamp once.
         # Add more values to the existing result rows
         for feature_name, feature_values in data.items():
             online_features_response.metadata.feature_names.val.append(feature_name)
@@ -1479,7 +1480,7 @@ class FeatureStore:
                 GetOnlineFeaturesResponse.FeatureVector(
                     values=feature_values,
                     statuses=[FieldStatus.PRESENT] * len(feature_values),
-                    event_timestamps=[Timestamp()] * len(feature_values),
+                    event_timestamps=[timestamp] * len(feature_values),
                 )
             )
 
