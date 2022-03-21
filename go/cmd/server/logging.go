@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -35,22 +36,29 @@ type LoggingService struct {
 	fs           *feast.FeatureStore
 }
 
-func NewLoggingService(fs *feast.FeatureStore) *LoggingService {
+func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, startLogProcessing bool) *LoggingService {
 	// start handler processes?
 	loggingService := &LoggingService{
-		logChannel: make(chan *Log, 1000),
+		logChannel: make(chan *Log, logChannelCapacity),
 		memoryBuffer: &MemoryBuffer{
 			logs: make([]*Log, 0),
 		},
 		fs: fs,
 	}
-	go loggingService.processLogs()
+	// For testing purposes, so we can test timeouts.
+	if startLogProcessing {
+		go loggingService.processLogs()
+	}
 	return loggingService
 }
 
 func (s *LoggingService) emitLog(log *Log) error {
-	s.logChannel <- log
-	return nil
+	select {
+	case s.logChannel <- log:
+		return nil
+	case <-time.After(20 * time.Millisecond):
+		return fmt.Errorf("could not add to log channel with capacity %d. Current log channel length is %d", cap(s.logChannel), len(s.logChannel))
+	}
 }
 
 func (s *LoggingService) processLogs() {

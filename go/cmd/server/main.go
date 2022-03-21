@@ -44,7 +44,7 @@ func main() {
 
 	log.Println("Initializing feature store...")
 	fs, err := feast.NewFeatureStore(repoConfig, nil)
-	loggingService := NewLoggingService(fs)
+	loggingService := NewLoggingService(fs, 1000, true)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -70,7 +70,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	return resp, nil
 }
 
-func generateLogs(s *servingServiceServer, onlineResponse *serving.GetOnlineFeaturesResponse, request *serving.GetOnlineFeaturesRequest) {
+func generateLogs(s *servingServiceServer, onlineResponse *serving.GetOnlineFeaturesResponse, request *serving.GetOnlineFeaturesRequest) error {
 	for _, featureVector := range onlineResponse.Results {
 		featureValues := make([]*prototypes.Value, len(featureVector.Values))
 		eventTimestamps := make([]*timestamppb.Timestamp, len(featureVector.EventTimestamps))
@@ -112,6 +112,10 @@ func generateLogs(s *servingServiceServer, onlineResponse *serving.GetOnlineFeat
 			// TODO(kevjumba): figure out if this is required
 			RequestContext: request.RequestContext,
 		}
-		s.loggingService.emitLog(&newLog)
+		err := s.loggingService.emitLog(&newLog)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
