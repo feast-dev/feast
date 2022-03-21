@@ -522,3 +522,77 @@ class KinesisSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+
+class PushSource(DataSource):
+    """
+    PushSource that can be used to ingest features on request
+
+    Args:
+        name: Name of the push source
+        schema: Schema mapping from the input feature name to a ValueType
+    """
+
+    name: str
+    schema: Dict[str, ValueType]
+    batch_source: Optional[DataSource]
+
+    def __init__(
+        self,
+        name: str,
+        schema: Dict[str, ValueType],
+        batch_source: Optional[DataSource] = None,
+    ):
+        """Creates a PushSource object."""
+        super().__init__(name)
+        self.schema = schema
+        self.batch_source = batch_source
+
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        schema_pb = data_source.push_options.schema
+        schema = {}
+        for key in schema_pb.keys():
+            schema[key] = ValueType(schema_pb.get(key))
+
+        batch_source = None
+        if data_source.push_options.batch_source:
+            batch_source = DataSource.from_proto(data_source.push_options.batch_source)
+
+        return PushSource(
+            name=data_source.name, schema=schema, batch_source=batch_source
+        )
+
+    def to_proto(self) -> DataSourceProto:
+        schema_pb = {}
+        for key, value in self.schema.items():
+            schema_pb[key] = value.value
+        batch_source_proto = None
+        if self.batch_source:
+            batch_source_proto = self.batch_source.to_proto()
+
+        options = DataSourceProto.PushOptions(
+            schema=schema_pb, batch_source=batch_source_proto
+        )
+        data_source_proto = DataSourceProto(
+            name=self.name,
+            type=DataSourceProto.REQUEST_SOURCE,
+            request_data_options=options,
+        )
+
+        return data_source_proto
+
+    def get_table_query_string(self) -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        raise NotImplementedError
