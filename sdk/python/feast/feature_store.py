@@ -1159,11 +1159,6 @@ class FeatureStore:
         """
         ingests data directly into the Online store
         """
-        if not flags_helper.enable_direct_ingestion_to_online_store(self.config):
-            raise ExperimentalFeatureNotEnabled(
-                flags.FLAG_DIRECT_INGEST_TO_ONLINE_STORE
-            )
-
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         feature_view = self._registry.get_feature_view(
             feature_view_name, self.project, allow_cache=allow_registry_cache
