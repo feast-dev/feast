@@ -23,7 +23,13 @@ module.exports = {
     branches: possible_branches,
     plugins: [
         // Try to guess the type of release we should be doing (minor, patch)
-        "@semantic-release/commit-analyzer",
+        ["@semantic-release/commit-analyzer", {
+            // Ensure that breaking changes trigger minor instead of major releases
+            "releaseRules": [
+                {breaking: true, release: 'minor'},
+                {tag: 'Breaking', release: 'minor'},
+            ]
+        }]
 
         ["@semantic-release/exec", {
             // Validate the type of release we are doing
