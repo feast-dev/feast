@@ -45,7 +45,7 @@ def check_offline_and_online_features(
     # Check online store
     response_dict = fs.get_online_features(
         [f"{fv.name}:value"],
-        [{"driver": driver_id}],
+        [{"driver_id": driver_id}],
         full_feature_names=full_feature_names,
     ).to_dict()
 

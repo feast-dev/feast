@@ -1266,9 +1266,11 @@ class FeatureStore:
             features=features, allow_cache=True, hide_dummy_entity=False
         )
 
-        entity_name_to_join_key_map, entity_type_map = self._get_entity_maps(
-            requested_feature_views
-        )
+        (
+            entity_name_to_join_key_map,
+            entity_type_map,
+            join_keys_set,
+        ) = self._get_entity_maps(requested_feature_views)
 
         # Extract Sequence from RepeatedValue Protobuf.
         entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
@@ -1322,22 +1324,32 @@ class FeatureStore:
         join_key_values: Dict[str, List[Value]] = {}
         request_data_features: Dict[str, List[Value]] = {}
         # Entity rows may be either entities or request data.
-        for entity_name, values in entity_proto_values.items():
+        for join_key_or_entity_name, values in entity_proto_values.items():
             # Found request data
             if (
-                entity_name in needed_request_data
-                or entity_name in needed_request_fv_features
+                join_key_or_entity_name in needed_request_data
+                or join_key_or_entity_name in needed_request_fv_features
             ):
-                if entity_name in needed_request_fv_features:
+                if join_key_or_entity_name in needed_request_fv_features:
                     # If the data was requested as a feature then
                     # make sure it appears in the result.
-                    requested_result_row_names.add(entity_name)
-                request_data_features[entity_name] = values
+                    requested_result_row_names.add(join_key_or_entity_name)
+                request_data_features[join_key_or_entity_name] = values
             else:
-                try:
-                    join_key = entity_name_to_join_key_map[entity_name]
-                except KeyError:
-                    raise EntityNotFoundException(entity_name, self.project)
+                if join_key_or_entity_name in join_keys_set:
+                    join_key = join_key_or_entity_name
+                else:
+                    try:
+                        join_key = entity_name_to_join_key_map[join_key_or_entity_name]
+                    except KeyError:
+                        raise EntityNotFoundException(
+                            join_key_or_entity_name, self.project
+                        )
+                    else:
+                        warnings.warn(
+                            "Using entity name is deprecated. Use join_key instead."
+                        )
+
                 # All join keys should be returned in the result.
                 requested_result_row_names.add(join_key)
                 join_key_values[join_key] = values
@@ -1422,7 +1434,9 @@ class FeatureStore:
             return res
         return cast(Dict[str, List[Any]], columnar)
 
-    def _get_entity_maps(self, feature_views):
+    def _get_entity_maps(
+        self, feature_views
+    ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
         entity_type_map: Dict[str, ValueType] = {}
@@ -1444,7 +1458,11 @@ class FeatureStore:
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
                 entity_type_map[join_key] = entity.value_type
-        return entity_name_to_join_key_map, entity_type_map
+        return (
+            entity_name_to_join_key_map,
+            entity_type_map,
+            set(entity_name_to_join_key_map.values()),
+        )
 
     @staticmethod
     def _get_table_entity_values(
