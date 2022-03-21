@@ -134,19 +134,14 @@ class KinesisOptions:
         return kinesis_options_proto
 
 
-_BATCH_DATA_SOURCE_TYPES = {
+_DATA_SOURCE_OPTIONS = {
     "file_options": "feast.infra.offline_stores.file_source.FileSource",
     "bigquery_options": "feast.infra.offline_stores.bigquery_source.BigQuerySource",
     "redshift_options": "feast.infra.offline_stores.redshift_source.RedshiftSource",
     "snowflake_options": "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
-}
-
-
-_NON_BATCH_DATA_SOURCE_TYPES = {
-    "request_data_options",
-    "custom_options",
-    "kafka_options",
-    "kinesis_options",
+    "kafka_options": "feast.data_source.KafkaSource",
+    "kinesis_options": "feast.data_source.KinesisSource",
+    "request_data_options": "feast.data_source.RequestDataSource",
 }
 
 
@@ -228,28 +223,16 @@ class DataSource(ABC):
         """
         option_type = data_source.WhichOneof("options")
         if not option_type or (
-            option_type not in _BATCH_DATA_SOURCE_TYPES
-            and option_type not in _NON_BATCH_DATA_SOURCE_TYPES
+            option_type not in list(_DATA_SOURCE_OPTIONS.keys()) + ["custom_options"]
         ):
             raise ValueError("Could not identify the source type being added.")
 
-        if option_type in _BATCH_DATA_SOURCE_TYPES:
-            cls = get_data_source_class_from_type(_BATCH_DATA_SOURCE_TYPES[option_type])
-            return cls.from_proto(data_source)
-
         if option_type == "custom_options":
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
-            data_source_obj = cls.from_proto(data_source)
-        elif option_type == "kafka_options":
-            data_source_obj = KafkaSource.from_proto(data_source)
-        elif option_type == "kinesis_options":
-            data_source_obj = KinesisSource.from_proto(data_source)
-        elif option_type == "request_data_options":
-            data_source_obj = RequestDataSource.from_proto(data_source)
-        else:
-            raise ValueError("Could not identify the source type being added.")
+            return cls.from_proto(data_source)
 
-        return data_source_obj
+        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[option_type])
+        return cls.from_proto(data_source)
 
     @abstractmethod
     def to_proto(self) -> DataSourceProto:
