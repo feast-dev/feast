@@ -34,6 +34,7 @@ message OnDemandFeatureView {
     OnDemandFeatureViewMeta meta = 2;
 }
 
+// Next available id: 9
 message OnDemandFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -48,6 +49,15 @@ message OnDemandFeatureViewSpec {
     map<string, OnDemandInput> inputs = 4;
 
     UserDefinedFunction user_defined_function = 5;
+
+    // Description of the on demand feature view.
+    string description = 6;
+
+    // User defined metadata.
+    map<string,string> tags = 7;
+
+    // Owner of the on demand feature view.
+    string owner = 8;
 }
 
 message OnDemandFeatureViewMeta {

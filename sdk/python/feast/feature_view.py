@@ -50,28 +50,36 @@ DUMMY_ENTITY = Entity(
 
 class FeatureView(BaseFeatureView):
     """
-    A FeatureView defines a logical grouping of serveable features.
+    A FeatureView defines a logical group of features.
 
-    Args:
-        name: Name of the group of features.
-        entities: The entities to which this group of features is associated.
+    Attributes:
+        name: The unique name of the feature view.
+        entities: The list of entities with which this group of features is associated.
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
         batch_source: The batch source of data where this group of features is stored.
         stream_source (optional): The stream source of data where this group of features
             is stored.
-        features (optional): The set of features defined as part of this FeatureView.
-        tags (optional): A dictionary of key-value pairs used for organizing
-            FeatureViews.
+        features: The list of features defined as part of this feature view.
+        online: A boolean indicating whether online retrieval is enabled for this feature
+            view.
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the feature view, typically the email of the primary
+            maintainer.
     """
 
+    name: str
     entities: List[str]
-    tags: Optional[Dict[str, str]]
     ttl: timedelta
-    online: bool
     batch_source: DataSource
     stream_source: Optional[DataSource]
+    features: List[Feature]
+    online: bool
+    description: str
+    tags: Dict[str, str]
+    owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
 
     @log_exceptions
@@ -83,8 +91,10 @@ class FeatureView(BaseFeatureView):
         batch_source: DataSource,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
-        tags: Optional[Dict[str, str]] = None,
         online: bool = True,
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: str = "",
     ):
         """
         Creates a FeatureView object.
@@ -106,9 +116,8 @@ class FeatureView(BaseFeatureView):
                     f"Entity or Feature name."
                 )
 
-        super().__init__(name, _features)
+        super().__init__(name, _features, description, tags, owner)
         self.entities = entities if entities else [DUMMY_ENTITY_NAME]
-        self.tags = tags if tags is not None else {}
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
@@ -123,10 +132,9 @@ class FeatureView(BaseFeatureView):
         else:
             self.ttl = ttl
 
-        self.online = online
         self.batch_source = batch_source
         self.stream_source = stream_source
-
+        self.online = online
         self.materialization_intervals = []
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -312,7 +320,9 @@ class FeatureView(BaseFeatureView):
             name=self.name,
             entities=self.entities,
             features=[feature.to_proto() for feature in self.features],
+            description=self.description,
             tags=self.tags,
+            owner=self.owner,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
             batch_source=batch_source_proto,
@@ -349,7 +359,9 @@ class FeatureView(BaseFeatureView):
                 )
                 for feature in feature_view_proto.spec.features
             ],
+            description=feature_view_proto.spec.description,
             tags=dict(feature_view_proto.spec.tags),
+            owner=feature_view_proto.spec.owner,
             online=feature_view_proto.spec.online,
             ttl=(
                 None

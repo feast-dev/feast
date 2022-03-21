@@ -1,5 +1,5 @@
 import copy
-from typing import Type
+from typing import Dict, List, Optional, Type
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestDataSource
@@ -14,21 +14,38 @@ from feast.usage import log_exceptions
 
 class RequestFeatureView(BaseFeatureView):
     """
-    [Experimental] An RequestFeatureView defines a feature that is available from the inference request.
+    [Experimental] A RequestFeatureView defines a logical group of features that should
+    be available as an input to an on demand feature view at request time.
 
-    Args:
-        name: Name of the group of features.
-        request_data_source: Request data source that specifies the schema and features
+    Attributes:
+        name: The unique name of the feature view.
+        request_data_source: The request data source that specifies the schema and
+            features of the request feature view.
+        features: The list of features defined as part of this request feature view.
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the request feature view, typically the email of the primary
+            maintainer.
     """
 
+    name: str
     request_data_source: RequestDataSource
+    features: List[Feature]
+    description: str
+    tags: Dict[str, str]
+    owner: str
 
     @log_exceptions
     def __init__(
-        self, name: str, request_data_source: RequestDataSource,
+        self,
+        name: str,
+        request_data_source: RequestDataSource,
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: str = "",
     ):
         """
-        Creates an RequestFeatureView object.
+        Creates a RequestFeatureView object.
         """
         super().__init__(
             name=name,
@@ -36,6 +53,9 @@ class RequestFeatureView(BaseFeatureView):
                 Feature(name=name, dtype=dtype)
                 for name, dtype in request_data_source.schema.items()
             ],
+            description=description,
+            tags=tags,
+            owner=owner,
         )
         self.request_data_source = request_data_source
 
@@ -51,7 +71,11 @@ class RequestFeatureView(BaseFeatureView):
             A RequestFeatureViewProto protobuf.
         """
         spec = RequestFeatureViewSpec(
-            name=self.name, request_data_source=self.request_data_source.to_proto()
+            name=self.name,
+            request_data_source=self.request_data_source.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         return RequestFeatureViewProto(spec=spec)
@@ -73,6 +97,9 @@ class RequestFeatureView(BaseFeatureView):
             request_data_source=RequestDataSource.from_proto(
                 request_feature_view_proto.spec.request_data_source
             ),
+            description=request_feature_view_proto.spec.description,
+            tags=dict(request_feature_view_proto.spec.tags),
+            owner=request_feature_view_proto.spec.owner,
         )
 
         # FeatureViewProjections are not saved in the RequestFeatureView proto.
