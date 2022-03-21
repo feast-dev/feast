@@ -28,12 +28,12 @@ The OfflineStore class contains a couple of methods to read features from the of
 There are two methods that deal with reading data from the offline stores`get_historical_features`and `pull_latest_from_table_or_query`.
 
 * `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
-* `get_historical_features `is invoked when reading values from the offline store using the `FeatureStore.get_historica_features()` method. Typically, this method is used to retrieve features when training ML models.
+* `get_historical_features `is invoked when reading values from the offline store using the `FeatureStore.get_historical_features()` method. Typically, this method is used to retrieve features when training ML models.
 * `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from start_date to end_date.
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
-    def get_historical_features(
+    def get_historical_features(self,
                                 config: RepoConfig,
                                 feature_views: List[FeatureView],
                                 feature_refs: List[str],
@@ -49,7 +49,7 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                                project,
                                                full_feature_names)
 
-    def pull_latest_from_table_or_query(
+    def pull_latest_from_table_or_query(self,
                                         config: RepoConfig,
                                         data_source: DataSource,
                                         join_key_columns: List[str],
