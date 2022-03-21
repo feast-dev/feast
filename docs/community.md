@@ -10,6 +10,8 @@
 * [Mailing list](https://groups.google.com/d/forum/feast-dev): We have both a user and developer mailing list.
   * Feast users should join [feast-discuss@googlegroups.com](mailto:feast-discuss@googlegroups.com) group by clicking [here](https://groups.google.com/g/feast-discuss).
   * Feast developers should join [feast-dev@googlegroups.com](mailto:feast-dev@googlegroups.com) group by clicking [here](https://groups.google.com/d/forum/feast-dev).
+  * People interested in the Feast community newsletter should join feast-announce by clicking [here](https://groups.google.com/d/forum/feast-announce).
+* [Community Calendar](https://calendar.google.com/calendar/u/0?cid=ZTFsZHVhdGM3MDU3YTJucTBwMzNqNW5rajBAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ): Includes community calls and design meetings.
 * [Google Folder](https://drive.google.com/drive/u/0/folders/1jgMHOPDT2DvBlJeO9LCM79DP4lm4eOrR): This folder is used as a central repository for all Feast resources. For example:
   * Design proposals in the form of Request for Comments (RFC).
   * User surveys and meeting minutes.
@@ -31,12 +33,11 @@ We have a user and contributor community call every two weeks (Asia & US friendl
 Please join the above Feast user groups in order to see calendar invites to the community calls
 {% endhint %}
 
-### Frequency (alternating times every 2 weeks)
+### Frequency (every 2 weeks)
 
-* Tuesday 18:00 pm to 18:30 pm (US, Asia)
-* Tuesday 10:00 am to 10:30 am (US, Europe)
+* Tuesday 10:00 am to 10:30 am PST
 
 ### Links
 
 * Zoom: [https://zoom.us/j/6325193230](https://zoom.us/j/6325193230)
-* Meeting notes: [https://bit.ly/feast-notes](https://bit.ly/feast-notes)
+* Meeting notes (incl recordings): [https://bit.ly/feast-notes](https://bit.ly/feast-notes)
