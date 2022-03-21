@@ -1359,9 +1359,7 @@ class FeatureStore:
         )
 
         # Populate online features response proto with join keys and request data features
-        online_features_response = GetOnlineFeaturesResponse(
-            results=[GetOnlineFeaturesResponse.FeatureVector() for _ in range(num_rows)]
-        )
+        online_features_response = GetOnlineFeaturesResponse(results=[])
         self._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
             data=dict(**join_key_values, **request_data_features),
@@ -1495,14 +1493,14 @@ class FeatureStore:
         timestamp = Timestamp()  # Only initialize this timestamp once.
         # Add more values to the existing result rows
         for feature_name, feature_values in data.items():
-
             online_features_response.metadata.feature_names.val.append(feature_name)
-
-            for row_idx, proto_value in enumerate(feature_values):
-                result_row = online_features_response.results[row_idx]
-                result_row.values.append(proto_value)
-                result_row.statuses.append(FieldStatus.PRESENT)
-                result_row.event_timestamps.append(timestamp)
+            online_features_response.results.append(
+                GetOnlineFeaturesResponse.FeatureVector(
+                    values=feature_values,
+                    statuses=[FieldStatus.PRESENT] * len(feature_values),
+                    event_timestamps=[timestamp] * len(feature_values),
+                )
+            )
 
     @staticmethod
     def get_needed_request_data(
@@ -1643,7 +1641,7 @@ class FeatureStore:
                 Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
             ]
         ],
-        indexes: Iterable[Iterable[int]],
+        indexes: Iterable[List[int]],
         online_features_response: GetOnlineFeaturesResponse,
         full_feature_names: bool,
         requested_features: Iterable[str],
@@ -1678,15 +1676,21 @@ class FeatureStore:
             requested_feature_refs
         )
 
+        timestamps, statuses, values = zip(*feature_data)
+
         # Populate the result with data fetched from the OnlineStore
-        # which is guarenteed to be aligned with `requested_features`.
-        for feature_row, dest_idxs in zip(feature_data, indexes):
-            event_timestamps, statuses, values = feature_row
-            for dest_idx in dest_idxs:
-                result_row = online_features_response.results[dest_idx]
-                result_row.event_timestamps.extend(event_timestamps)
-                result_row.statuses.extend(statuses)
-                result_row.values.extend(values)
+        # which is guaranteed to be aligned with `requested_features`.
+        for (
+            feature_idx,
+            (timestamp_vector, statuses_vector, values_vector),
+        ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
+            online_features_response.results.append(
+                GetOnlineFeaturesResponse.FeatureVector(
+                    values=apply_list_mapping(values_vector, indexes),
+                    statuses=apply_list_mapping(statuses_vector, indexes),
+                    event_timestamps=apply_list_mapping(timestamp_vector, indexes),
+                )
+            )
 
     @staticmethod
     def _augment_response_with_on_demand_transforms(
@@ -1749,13 +1753,14 @@ class FeatureStore:
             odfv_result_names |= set(selected_subset)
 
             online_features_response.metadata.feature_names.val.extend(selected_subset)
-
-            for row_idx in range(len(online_features_response.results)):
-                result_row = online_features_response.results[row_idx]
-                for feature_idx, transformed_feature in enumerate(selected_subset):
-                    result_row.values.append(proto_values[feature_idx][row_idx])
-                    result_row.statuses.append(FieldStatus.PRESENT)
-                    result_row.event_timestamps.append(Timestamp())
+            for feature_idx in range(len(selected_subset)):
+                online_features_response.results.append(
+                    GetOnlineFeaturesResponse.FeatureVector(
+                        values=proto_values[feature_idx],
+                        statuses=[FieldStatus.PRESENT] * len(proto_values[feature_idx]),
+                        event_timestamps=[Timestamp()] * len(proto_values[feature_idx]),
+                    )
+                )
 
     @staticmethod
     def _drop_unneeded_columns(
@@ -1782,13 +1787,7 @@ class FeatureStore:
 
         for idx in reversed(unneeded_feature_indices):
             del online_features_response.metadata.feature_names.val[idx]
-
-        for row_idx in range(len(online_features_response.results)):
-            result_row = online_features_response.results[row_idx]
-            for idx in reversed(unneeded_feature_indices):
-                del result_row.values[idx]
-                del result_row.statuses[idx]
-                del result_row.event_timestamps[idx]
+            del online_features_response.results[idx]
 
     def _get_feature_views_to_use(
         self,
@@ -2034,3 +2033,15 @@ def _validate_data_sources(data_sources: List[DataSource]):
             )
         else:
             ds_names.add(case_insensitive_ds_name)
+
+
+def apply_list_mapping(
+    lst: Iterable[Any], mapping_indexes: Iterable[List[int]]
+) -> Iterable[Any]:
+    output_len = sum(len(item) for item in mapping_indexes)
+    output = [None] * output_len
+    for elem, destinations in zip(lst, mapping_indexes):
+        for idx in destinations:
+            output[idx] = elem
+
+    return output

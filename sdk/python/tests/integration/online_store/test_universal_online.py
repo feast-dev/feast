@@ -281,9 +281,9 @@ def _get_online_features_dict_remotely(
         )
     keys = response["metadata"]["feature_names"]
     # Get rid of unnecessary structure in the response, leaving list of dicts
-    response = [row["values"] for row in response["results"]]
+    values = [row["values"] for row in response["results"]]
     # Convert list of dicts (response) into dict of lists which is the format of the return value
-    return {key: [row[idx] for row in response] for idx, key in enumerate(keys)}
+    return {key: feature_vector for key, feature_vector in zip(keys, values)}
 
 
 def get_online_features_dict(
