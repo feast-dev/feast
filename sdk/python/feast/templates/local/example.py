@@ -1,6 +1,6 @@
 # This is an example feature definition file
 
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
 from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
@@ -23,7 +23,7 @@ driver = Entity(name="driver_id", value_type=ValueType.INT64, description="drive
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
-    ttl=Duration(seconds=86400 * 1),
+    ttl=timedelta(days=1),
     features=[
         Feature(name="conv_rate", dtype=ValueType.FLOAT),
         Feature(name="acc_rate", dtype=ValueType.FLOAT),

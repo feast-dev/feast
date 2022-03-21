@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import warnings
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -22,8 +21,6 @@ from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
-
-warnings.simplefilter("once", DeprecationWarning)
 
 
 class Entity:
@@ -61,8 +58,7 @@ class Entity:
         value_type: ValueType = ValueType.UNKNOWN,
         description: str = "",
         join_key: Optional[str] = None,
-        tags: Dict[str, str] = None,
-        labels: Optional[Dict[str, str]] = None,
+        tags: Optional[Dict[str, str]] = None,
         owner: str = "",
     ):
         """Creates an Entity object."""
@@ -70,19 +66,7 @@ class Entity:
         self.value_type = value_type
         self.join_key = join_key if join_key else name
         self.description = description
-
-        if labels is not None:
-            self.tags = labels
-            warnings.warn(
-                (
-                    "The parameter 'labels' is being deprecated. Please use 'tags' instead. "
-                    "Feast 0.20 and onwards will not support the parameter 'labels'."
-                ),
-                DeprecationWarning,
-            )
-        else:
-            self.tags = labels or tags or {}
-
+        self.tags = tags if tags is not None else {}
         self.owner = owner
         self.created_timestamp = None
         self.last_updated_timestamp = None

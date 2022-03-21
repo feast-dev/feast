@@ -58,9 +58,7 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        input: The source of data where this group of features is stored.
-        batch_source (optional): The batch source of data where this group of features
-            is stored.
+        batch_source: The batch source of data where this group of features is stored.
         stream_source (optional): The stream source of data where this group of features
             is stored.
         features (optional): The set of features defined as part of this FeatureView.
@@ -72,7 +70,6 @@ class FeatureView(BaseFeatureView):
     tags: Optional[Dict[str, str]]
     ttl: timedelta
     online: bool
-    input: DataSource
     batch_source: DataSource
     stream_source: Optional[DataSource]
     materialization_intervals: List[Tuple[datetime, datetime]]
@@ -83,8 +80,7 @@ class FeatureView(BaseFeatureView):
         name: str,
         entities: List[str],
         ttl: Union[Duration, timedelta],
-        input: Optional[DataSource] = None,
-        batch_source: Optional[DataSource] = None,
+        batch_source: DataSource,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -96,26 +92,17 @@ class FeatureView(BaseFeatureView):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        if input is not None:
-            warnings.warn(
-                (
-                    "The argument 'input' is being deprecated. Please use 'batch_source' "
-                    "instead. Feast 0.13 and onwards will not support the argument 'input'."
-                ),
-                DeprecationWarning,
-            )
-
-        _input = input or batch_source
-        assert _input is not None
-
         _features = features or []
 
         cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
-            if _input.field_mapping is not None and col in _input.field_mapping.keys():
+            if (
+                batch_source.field_mapping is not None
+                and col in batch_source.field_mapping.keys()
+            ):
                 raise ValueError(
-                    f"The field {col} is mapped to {_input.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {_input.field_mapping[col]} as the "
+                    f"The field {col} is mapped to {batch_source.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {batch_source.field_mapping[col]} as the "
                     f"Entity or Feature name."
                 )
 
@@ -125,12 +112,19 @@ class FeatureView(BaseFeatureView):
 
         if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
+            warnings.warn(
+                (
+                    "The option to pass a Duration object to the ttl parameter is being deprecated. "
+                    "Please pass a timedelta object instead. Feast 0.21 and onwards will not support "
+                    "Duration objects."
+                ),
+                DeprecationWarning,
+            )
         else:
             self.ttl = ttl
 
         self.online = online
-        self.input = _input
-        self.batch_source = _input
+        self.batch_source = batch_source
         self.stream_source = stream_source
 
         self.materialization_intervals = []
@@ -144,7 +138,6 @@ class FeatureView(BaseFeatureView):
             name=self.name,
             entities=self.entities,
             ttl=self.ttl,
-            input=self.input,
             batch_source=self.batch_source,
             stream_source=self.stream_source,
             features=self.features,
