@@ -564,7 +564,7 @@ class PushSource(DataSource):
             schema[key] = ValueType(schema_pb.get(key))
 
         batch_source = None
-        if data_source.push_options.batch_source:
+        if data_source.push_options.HasField("batch_source"):
             batch_source = DataSource.from_proto(data_source.push_options.batch_source)
 
         return PushSource(
@@ -574,7 +574,7 @@ class PushSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
         for key, value in self.schema.items():
-            schema_pb[key] = value.value
+            schema_pb[key] = value
         batch_source_proto = None
         if self.batch_source:
             batch_source_proto = self.batch_source.to_proto()
@@ -583,9 +583,7 @@ class PushSource(DataSource):
             schema=schema_pb, batch_source=batch_source_proto
         )
         data_source_proto = DataSourceProto(
-            name=self.name,
-            type=DataSourceProto.REQUEST_SOURCE,
-            request_data_options=options,
+            name=self.name, type=DataSourceProto.PUSH_SOURCE, push_options=options,
         )
 
         return data_source_proto
