@@ -73,6 +73,9 @@ class Entity:
     def __hash__(self) -> int:
         return hash((id(self), self.name))
 
+    def __lt__(self, other):
+        return self.name < other.name
+
     def __eq__(self, other):
         if not isinstance(other, Entity):
             raise TypeError("Comparisons should only involve Entity class objects.")

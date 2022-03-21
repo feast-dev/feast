@@ -81,7 +81,7 @@ class FeastObjectType(Enum):
         registry: "Registry", project: str
     ) -> Dict["FeastObjectType", List[Any]]:
         return {
-            FeastObjectType.DATA_SOURCE: registry.list_data_sources(project=project),
+            FeastObjectType.DATA_SOURCE: sorted(registry.list_data_sources(project=project)),
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
@@ -100,7 +100,7 @@ class FeastObjectType(Enum):
         repo_contents: RepoContents,
     ) -> Dict["FeastObjectType", Set[Any]]:
         return {
-            FeastObjectType.DATA_SOURCE: repo_contents.data_sources,
+            FeastObjectType.DATA_SOURCE: sorted(repo_contents.data_sources),
             FeastObjectType.ENTITY: repo_contents.entities,
             FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,

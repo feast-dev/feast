@@ -104,12 +104,6 @@ def test_universal_cli(environment: Environment):
             # Doing another apply should be a no op, and should not cause errors
             result = runner.run(["apply"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            basic_rw_test(
-                FeatureStore(repo_path=str(repo_path), config=None),
-                view_name="driver_locations",
-            )
-
-            # Confirm that registry contents have not changed.
             registry_dict = fs.registry.to_dict(project=project)
             assertpy.assert_that(registry_specs).is_equal_to(
                 {
