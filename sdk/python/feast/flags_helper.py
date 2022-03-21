@@ -37,7 +37,3 @@ def enable_on_demand_feature_views(repo_config: RepoConfig) -> bool:
 
 def enable_aws_lambda_feature_server(repo_config: RepoConfig) -> bool:
     return feature_flag_enabled(repo_config, flags.FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
-
-
-def enable_direct_ingestion_to_online_store(repo_config: RepoConfig) -> bool:
-    return feature_flag_enabled(repo_config, flags.FLAG_DIRECT_INGEST_TO_ONLINE_STORE)
