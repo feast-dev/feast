@@ -1,4 +1,4 @@
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
 from feast import FeatureView, FileSource
 
@@ -11,7 +11,7 @@ driver_hourly_stats_view = FeatureView(
     entities=["driver_id"],
     online=False,
     batch_source=driver_hourly_stats,
-    ttl=Duration(seconds=10),
+    ttl=timedelta(days=1),
     tags={},
 )
 
@@ -20,6 +20,6 @@ driver_hourly_stats_view_dup1 = FeatureView(
     entities=["driver_id"],
     online=False,
     batch_source=driver_hourly_stats,
-    ttl=Duration(seconds=10),
+    ttl=timedelta(days=1),
     tags={},
 )
