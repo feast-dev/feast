@@ -2,9 +2,8 @@
 # This is an example feature definition file  #
 # # # # # # # # # # # # # # # # # # # # # # # #
 
-from pathlib import Path
-
 from datetime import timedelta
+from pathlib import Path
 
 from feast import Entity, Feature, FeatureView, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
