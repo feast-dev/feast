@@ -27,10 +27,6 @@ class DataSourceTestCases(unittest.TestCase):
         self.assertIsNotNone(push_source_proto.push_options)
         self.assertTrue(push_source_proto.push_options.HasField("batch_source"))
 
-        import pdb
-
-        pdb.set_trace()
-
         push_source_unproto = PushSource.from_proto(push_source_proto)
 
         self.assertEqual(push_source, push_source_unproto)
