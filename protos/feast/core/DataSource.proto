@@ -26,14 +26,14 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
-// Next available id: 22
+// Next available id: 23
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 9
+  // Next available id: 10
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -44,7 +44,7 @@ message DataSource {
     STREAM_KINESIS = 4;
     CUSTOM_SOURCE = 6;
     REQUEST_SOURCE = 7;
-
+    PUSH_SOURCE = 9;
   }
 
   // Unique name of data source within the project
@@ -169,6 +169,16 @@ message DataSource {
     map<string, feast.types.ValueType.Enum> schema = 2;
   }
 
+  // Defines options for DataSource that supports pushing data to it. This allows data to be pushed to
+  // the online store on-demand, such as by stream consumers.
+  message PushOptions {
+    // Mapping of feature name to type
+    map<string, feast.types.ValueType.Enum> schema = 1;
+    // Optional batch source for the push source for historical features and materialization.
+    DataSource batch_source = 2;
+  }
+
+
   // DataSource options.
   oneof options {
     FileOptions file_options = 11;
@@ -179,5 +189,6 @@ message DataSource {
     RequestDataOptions request_data_options = 18;
     CustomSourceOptions custom_options = 16;
     SnowflakeOptions snowflake_options = 19;
+    PushOptions push_options = 22;
   }
 }
