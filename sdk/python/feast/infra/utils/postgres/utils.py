@@ -7,7 +7,7 @@ import psycopg2.extras
 import pyarrow as pa
 
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from feast.infra.utils.postgres.type_map import arrow_to_pg_type
+from feast.type_map import arrow_to_pg_type
 
 
 def _get_conn(config: PostgreSQLConfig):
