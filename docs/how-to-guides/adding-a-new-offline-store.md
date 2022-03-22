@@ -28,7 +28,8 @@ The OfflineStore class contains a couple of methods to read features from the of
 There are two methods that deal with reading data from the offline stores`get_historical_features`and `pull_latest_from_table_or_query`.
 
 * `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
-* `get_historical_features `is invoked when reading values from the offline store using the `FeatureStore.get_historica_features()` method. Typically, this method is used to retrieve features when training ML models.
+* `get_historical_features` is invoked when reading values from the offline store using the `FeatureStore.get_historical_features()` method. Typically, this method is used to retrieve features when training ML models.
+* `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date.
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
@@ -223,7 +224,7 @@ To use our custom file offline store, we can use the following `feature_store.ya
 project: test_custom
 registry: data/registry.db
 provider: local
-offline_store: 
+offline_store:
     type: feast_custom_offline_store.file.CustomFileOfflineStore
 ```
 {% endcode %}
