@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"sort"
-	"strings"
 )
 
 type FeatureStore struct {
@@ -216,7 +217,7 @@ func (fs *FeatureStore) parseFeatures(kind interface{}) (*Features, error) {
 		return &Features{features: featureList.Features.GetVal(), featureService: nil}, nil
 	}
 	if featureServiceRequest, ok := kind.(*serving.GetOnlineFeaturesRequest_FeatureService); ok {
-		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
+		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService, true)
 		if err != nil {
 			return nil, err
 		}
@@ -258,17 +259,26 @@ func (fs *FeatureStore) getFeatureViewsToUse(features *Features, allowCache, hid
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
 
-	featureViews := fs.listFeatureViews(allowCache, hideDummyEntity)
+	featureViews, err := fs.listFeatureViews(allowCache, hideDummyEntity)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 	for _, featureView := range featureViews {
 		fvs[featureView.base.name] = featureView
 	}
 
-	requestFeatureViews := fs.registry.listRequestFeatureViews(fs.config.Project)
+	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project, allowCache)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 	for _, requestFeatureView := range requestFeatureViews {
 		requestFvs[requestFeatureView.base.name] = requestFeatureView
 	}
 
-	onDemandFeatureViews := fs.registry.listOnDemandFeatureViews(fs.config.Project)
+	onDemandFeatureViews, err := fs.registry.listOnDemandFeatureViews(fs.config.Project, allowCache)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
@@ -347,7 +357,10 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews map[*FeatureView][]s
 	var joinKeyMap map[string]string
 	var featureView *FeatureView
 
-	entities := fs.listEntities(true, false)
+	entities, err := fs.listEntities(true, false)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, entity := range entities {
 		entityNameToJoinKeyMap[entity.name] = entity.joinKey
@@ -359,7 +372,7 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews map[*FeatureView][]s
 		joinKeyMap = featureView.base.projection.joinKeyMap
 		for entityName = range entityNames {
 
-			entity, err := fs.registry.getEntity(fs.config.Project, entityName)
+			entity, err := fs.registry.getEntity(fs.config.Project, entityName, true)
 			if err != nil {
 				return nil, err
 			}
@@ -636,26 +649,32 @@ func (fs *FeatureStore) dropUnneededColumns(onlineFeaturesResponse *serving.GetO
 	}
 }
 
-func (fs *FeatureStore) listFeatureViews(allowCache, hideDummyEntity bool) []*FeatureView {
-	featureViews := fs.registry.listFeatureViews(fs.config.Project)
+func (fs *FeatureStore) listFeatureViews(allowCache, hideDummyEntity bool) ([]*FeatureView, error) {
+	featureViews, err := fs.registry.listFeatureViews(fs.config.Project, allowCache)
+	if err != nil {
+		return featureViews, err
+	}
 	for _, featureView := range featureViews {
 		if _, ok := featureView.entities[DUMMY_ENTITY_NAME]; ok && hideDummyEntity {
 			featureView.entities = make(map[string]struct{})
 		}
 	}
-	return featureViews
+	return featureViews, nil
 }
 
-func (fs *FeatureStore) listEntities(allowCache, hideDummyEntity bool) []*Entity {
+func (fs *FeatureStore) listEntities(allowCache, hideDummyEntity bool) ([]*Entity, error) {
 
-	allEntities := fs.registry.listEntities(fs.config.Project)
+	allEntities, err := fs.registry.listEntities(fs.config.Project, allowCache)
+	if err != nil {
+		return allEntities, err
+	}
 	entities := make([]*Entity, 0)
 	for _, entity := range allEntities {
 		if entity.name != DUMMY_ENTITY_NAME || !hideDummyEntity {
 			entities = append(entities, entity)
 		}
 	}
-	return entities
+	return entities, nil
 }
 
 func (fs *FeatureStore) getFvEntityValues(fv *FeatureView,
@@ -821,7 +840,7 @@ func (fs *FeatureStore) groupFeatureRefs(requestedFeatureViews map[*FeatureView]
 }
 
 func (fs *FeatureStore) getFeatureView(project, featureViewName string, allowCache, hideDummyEntity bool) (*FeatureView, error) {
-	fv, err := fs.registry.getFeatureView(fs.config.Project, featureViewName)
+	fv, err := fs.registry.getFeatureView(fs.config.Project, featureViewName, allowCache)
 	if err != nil {
 		return nil, err
 	}

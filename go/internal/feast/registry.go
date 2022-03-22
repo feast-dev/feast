@@ -3,9 +3,10 @@ package feast
 import (
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/protos/feast/core"
 	"net/url"
 	"time"
+
+	"github.com/feast-dev/feast/go/protos/feast/core"
 )
 
 var REGISTRY_SCHEMA_VERSION string = "1"
@@ -28,7 +29,7 @@ type Registry struct {
 	cachedFeatureViews         map[string]map[string]*core.FeatureView
 	cachedOnDemandFeatureViews map[string]map[string]*core.OnDemandFeatureView
 	cachedRequestFeatureViews  map[string]map[string]*core.RequestFeatureView
-
+	cachedRegistry             *core.Registry
 	cachedRegistryProtoCreated time.Time
 	cachedRegistryProtoTtl     time.Duration
 }
@@ -41,7 +42,7 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, er
 	}
 
 	if len(registryStoreType) == 0 {
-		registryStore, err := getRegistryStoreFromSheme(registryPath, registryConfig, repoPath)
+		registryStore, err := getRegistryStoreFromScheme(registryPath, registryConfig, repoPath)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +59,7 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, er
 }
 
 func (r *Registry) initializeRegistry() {
-	err := r.getRegistryProto(false)
+	_, err := r.getRegistryProto(false)
 	if err != nil {
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
 		r.registryStore.UpdateRegistryProto(registryProto)
@@ -68,23 +69,26 @@ func (r *Registry) initializeRegistry() {
 
 // TODO: Add a goroutine and automatically refresh every cachedRegistryProtoTtl
 func (r *Registry) refresh() error {
-	return r.getRegistryProto(false)
+	_, err := r.getRegistryProto(false)
+	return err
 }
 
-func (r *Registry) getRegistryProto(allowCache bool) error {
-	expired := r.cachedFeatureServices == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoCreated.Add(r.cachedRegistryProtoTtl)))
+func (r *Registry) getRegistryProto(allowCache bool) (*core.Registry, error) {
+	expired := r.cachedRegistry == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoCreated.Add(r.cachedRegistryProtoTtl)))
 	if allowCache && !expired {
-		return nil
+		return r.cachedRegistry, nil
 	}
 	registryProto, err := r.registryStore.GetRegistryProto()
 	if err != nil {
-		return err
+		return registryProto, err
 	}
 	r.load(registryProto)
-	return nil
+	r.cachedRegistryProtoCreated = time.Now()
+	return registryProto, nil
 }
 
 func (r *Registry) load(registry *core.Registry) {
+	r.cachedRegistry = registry
 	r.cachedFeatureServices = make(map[string]map[string]*core.FeatureService)
 	r.cachedEntities = make(map[string]map[string]*core.Entity)
 	r.cachedFeatureViews = make(map[string]map[string]*core.FeatureView)
@@ -152,9 +156,13 @@ func (r *Registry) loadRequestFeatureViews(registry *core.Registry) {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listEntities(project string) []*Entity {
+func (r *Registry) listEntities(project string, allowCache bool) ([]*Entity, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if entities, ok := r.cachedEntities[project]; !ok {
-		return []*Entity{}
+		return []*Entity{}, errors.New(fmt.Sprintf("project %s not found in listEntities", project))
 	} else {
 		entityList := make([]*Entity, len(entities))
 		index := 0
@@ -162,8 +170,9 @@ func (r *Registry) listEntities(project string) []*Entity {
 			entityList[index] = NewEntityFromProto(entity)
 			index += 1
 		}
-		return entityList
+		return entityList, nil
 	}
+
 }
 
 /*
@@ -171,17 +180,21 @@ func (r *Registry) listEntities(project string) []*Entity {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listFeatureViews(project string) []*FeatureView {
-	if featureViewProtos, ok := r.cachedFeatureViews[project]; !ok {
-		return []*FeatureView{}
+func (r *Registry) listFeatureViews(project string, allowCache bool) ([]*FeatureView, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
+	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
+		return []*FeatureView{}, errors.New(fmt.Sprintf("project %s not found in listFeatureViews", project))
 	} else {
-		featureViews := make([]*FeatureView, len(featureViewProtos))
+		featureViews := make([]*FeatureView, len(cachedFeatureViews))
 		index := 0
-		for _, featureViewProto := range featureViewProtos {
+		for _, featureViewProto := range cachedFeatureViews {
 			featureViews[index] = NewFeatureViewFromProto(featureViewProto)
 			index += 1
 		}
-		return featureViews
+		return featureViews, nil
 	}
 }
 
@@ -190,9 +203,13 @@ func (r *Registry) listFeatureViews(project string) []*FeatureView {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listFeatureServices(project string) []*FeatureService {
+func (r *Registry) listFeatureServices(project string, allowCache bool) ([]*FeatureService, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if featureServiceProtos, ok := r.cachedFeatureServices[project]; !ok {
-		return []*FeatureService{}
+		return []*FeatureService{}, errors.New(fmt.Sprintf("project %s not found in listFeatureServices", project))
 	} else {
 		featureServices := make([]*FeatureService, len(featureServiceProtos))
 		index := 0
@@ -200,7 +217,7 @@ func (r *Registry) listFeatureServices(project string) []*FeatureService {
 			featureServices[index] = NewFeatureServiceFromProto(featureServiceProto)
 			index += 1
 		}
-		return featureServices
+		return featureServices, nil
 	}
 }
 
@@ -209,9 +226,13 @@ func (r *Registry) listFeatureServices(project string) []*FeatureService {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listOnDemandFeatureViews(project string) []*OnDemandFeatureView {
+func (r *Registry) listOnDemandFeatureViews(project string, allowCache bool) ([]*OnDemandFeatureView, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if onDemandFeatureViewProtos, ok := r.cachedOnDemandFeatureViews[project]; !ok {
-		return []*OnDemandFeatureView{}
+		return []*OnDemandFeatureView{}, errors.New(fmt.Sprintf("project %s not found in listOnDemandFeatureViews", project))
 	} else {
 		onDemandFeatureViews := make([]*OnDemandFeatureView, len(onDemandFeatureViewProtos))
 		index := 0
@@ -219,7 +240,7 @@ func (r *Registry) listOnDemandFeatureViews(project string) []*OnDemandFeatureVi
 			onDemandFeatureViews[index] = NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
 			index += 1
 		}
-		return onDemandFeatureViews
+		return onDemandFeatureViews, nil
 	}
 }
 
@@ -228,9 +249,13 @@ func (r *Registry) listOnDemandFeatureViews(project string) []*OnDemandFeatureVi
 	Returns empty list if project not found
 */
 
-func (r *Registry) listRequestFeatureViews(project string) []*RequestFeatureView {
+func (r *Registry) listRequestFeatureViews(project string, allowCache bool) ([]*RequestFeatureView, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if requestFeatureViewProtos, ok := r.cachedRequestFeatureViews[project]; !ok {
-		return []*RequestFeatureView{}
+		return []*RequestFeatureView{}, errors.New(fmt.Sprintf("project %s not found in listRequestFeatureViews", project))
 	} else {
 		requestFeatureViews := make([]*RequestFeatureView, len(requestFeatureViewProtos))
 		index := 0
@@ -238,11 +263,15 @@ func (r *Registry) listRequestFeatureViews(project string) []*RequestFeatureView
 			requestFeatureViews[index] = NewRequestFeatureViewFromProto(requestFeatureViewProto)
 			index += 1
 		}
-		return requestFeatureViews
+		return requestFeatureViews, nil
 	}
 }
 
-func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
+func (r *Registry) getEntity(project, entityName string, allowCache bool) (*Entity, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if entities, ok := r.cachedEntities[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("project %s not found in getEntity", project))
 	} else {
@@ -254,7 +283,11 @@ func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
 	}
 }
 
-func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView, error) {
+func (r *Registry) getFeatureView(project, featureViewName string, allowCache bool) (*FeatureView, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if featureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("project %s not found in getFeatureView", project))
 	} else {
@@ -266,7 +299,11 @@ func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView
 	}
 }
 
-func (r *Registry) getFeatureService(project, featureServiceName string) (*FeatureService, error) {
+func (r *Registry) getFeatureService(project, featureServiceName string, allowCache bool) (*FeatureService, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if featureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("project %s not found in getFeatureService", project))
 	} else {
@@ -278,7 +315,11 @@ func (r *Registry) getFeatureService(project, featureServiceName string) (*Featu
 	}
 }
 
-func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string) (*OnDemandFeatureView, error) {
+func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string, allowCache bool) (*OnDemandFeatureView, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if onDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("project %s not found in getOnDemandFeatureView", project))
 	} else {
@@ -290,7 +331,11 @@ func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName strin
 	}
 }
 
-func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string) (*RequestFeatureView, error) {
+func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string, allowCache bool) (*RequestFeatureView, error) {
+	_, err := r.getRegistryProto(allowCache)
+	if err != nil {
+		return nil, err
+	}
 	if requestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
 		return nil, errors.New(fmt.Sprintf("project %s not found in getRequestFeatureView", project))
 	} else {
@@ -302,7 +347,7 @@ func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string)
 	}
 }
 
-func getRegistryStoreFromSheme(registryPath string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
+func getRegistryStoreFromScheme(registryPath string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
 	uri, err := url.Parse(registryPath)
 	if err != nil {
 		return nil, err
