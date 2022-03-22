@@ -179,8 +179,8 @@ class OfflineStore(ABC):
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        This method is invoked when running materialization (using the feast materialize or feast
-        materialize-incremental commands, or the corresponding FeatureStore.materialize() method.
+        This method is invoked when running materialization (using the `feast materialize` or `feast
+        materialize-incremental` commands, or the corresponding FeatureStore.materialize() method.
         This method pulls data from the offline store, and the FeatureStore class is used to write this
         data into the online store.
         Args:
