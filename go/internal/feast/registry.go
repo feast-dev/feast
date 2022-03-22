@@ -172,7 +172,6 @@ func (r *Registry) listEntities(project string, allowCache bool) ([]*Entity, err
 		}
 		return entityList, nil
 	}
-
 }
 
 /*
