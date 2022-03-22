@@ -34,7 +34,7 @@ def test_online() -> None:
         provider = store._get_provider()
 
         driver_key = EntityKeyProto(
-            join_keys=["driver"], entity_values=[ValueProto(int64_val=1)]
+            join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
         )
         provider.online_write_batch(
             config=store.config,
@@ -54,7 +54,7 @@ def test_online() -> None:
         )
 
         customer_key = EntityKeyProto(
-            join_keys=["customer"], entity_values=[ValueProto(string_val="5")]
+            join_keys=["customer_id"], entity_values=[ValueProto(string_val="5")]
         )
         provider.online_write_batch(
             config=store.config,
@@ -75,7 +75,7 @@ def test_online() -> None:
         )
 
         customer_key = EntityKeyProto(
-            join_keys=["customer", "driver"],
+            join_keys=["customer_id", "driver_id"],
             entity_values=[ValueProto(string_val="5"), ValueProto(int64_val=1)],
         )
         provider.online_write_batch(
@@ -100,15 +100,18 @@ def test_online() -> None:
                 "customer_profile:name",
                 "customer_driver_combined:trips",
             ],
-            entity_rows=[{"driver": 1, "customer": "5"}, {"driver": 1, "customer": 5}],
+            entity_rows=[
+                {"driver_id": 1, "customer_id": "5"},
+                {"driver_id": 1, "customer_id": 5},
+            ],
             full_feature_names=False,
         ).to_dict()
 
         assert "lon" in result
         assert "avg_orders_day" in result
         assert "name" in result
-        assert result["driver"] == [1, 1]
-        assert result["customer"] == ["5", "5"]
+        assert result["driver_id"] == [1, 1]
+        assert result["customer_id"] == ["5", "5"]
         assert result["lon"] == ["1.0", "1.0"]
         assert result["avg_orders_day"] == [1.0, 1.0]
         assert result["name"] == ["John", "John"]
@@ -117,7 +120,7 @@ def test_online() -> None:
         # Ensure features are still in result when keys not found
         result = store.get_online_features(
             features=["customer_driver_combined:trips"],
-            entity_rows=[{"driver": 0, "customer": 0}],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
             full_feature_names=False,
         ).to_dict()
 
@@ -127,7 +130,7 @@ def test_online() -> None:
         with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(
                 features=["driver_locations_bad:lon"],
-                entity_rows=[{"driver": 1}],
+                entity_rows=[{"driver_id": 1}],
                 full_feature_names=False,
             )
 
@@ -152,7 +155,7 @@ def test_online() -> None:
                 "customer_profile:name",
                 "customer_driver_combined:trips",
             ],
-            entity_rows=[{"driver": 1, "customer": 5}],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
             full_feature_names=False,
         ).to_dict()
         assert result["lon"] == ["1.0"]
@@ -173,7 +176,7 @@ def test_online() -> None:
                     "customer_profile:name",
                     "customer_driver_combined:trips",
                 ],
-                entity_rows=[{"driver": 1, "customer": 5}],
+                entity_rows=[{"driver_id": 1, "customer_id": 5}],
                 full_feature_names=False,
             ).to_dict()
 
@@ -188,7 +191,7 @@ def test_online() -> None:
                 "customer_profile:name",
                 "customer_driver_combined:trips",
             ],
-            entity_rows=[{"driver": 1, "customer": 5}],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
             full_feature_names=False,
         ).to_dict()
         assert result["lon"] == ["1.0"]
@@ -214,7 +217,7 @@ def test_online() -> None:
                 "customer_profile:name",
                 "customer_driver_combined:trips",
             ],
-            entity_rows=[{"driver": 1, "customer": 5}],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
             full_feature_names=False,
         ).to_dict()
         assert result["lon"] == ["1.0"]
@@ -234,7 +237,7 @@ def test_online() -> None:
                 "customer_profile:name",
                 "customer_driver_combined:trips",
             ],
-            entity_rows=[{"driver": 1, "customer": 5}],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
             full_feature_names=False,
         ).to_dict()
         assert result["lon"] == ["1.0"]
@@ -284,7 +287,7 @@ def test_online_to_df():
                 3                   3.0                    0.3
             """
             driver_key = EntityKeyProto(
-                join_keys=["driver"], entity_values=[ValueProto(int64_val=d)]
+                join_keys=["driver_id"], entity_values=[ValueProto(int64_val=d)]
             )
             provider.online_write_batch(
                 config=store.config,
@@ -311,7 +314,7 @@ def test_online_to_df():
                 6           6.0                  foo6         60
             """
             customer_key = EntityKeyProto(
-                join_keys=["customer"], entity_values=[ValueProto(string_val=str(c))]
+                join_keys=["customer_id"], entity_values=[ValueProto(string_val=str(c))]
             )
             provider.online_write_batch(
                 config=store.config,
@@ -340,7 +343,7 @@ def test_online_to_df():
                 6       3       18
             """
             combo_keys = EntityKeyProto(
-                join_keys=["customer", "driver"],
+                join_keys=["customer_id", "driver_id"],
                 entity_values=[ValueProto(string_val=str(c)), ValueProto(int64_val=d)],
             )
             provider.online_write_batch(
@@ -369,7 +372,7 @@ def test_online_to_df():
             ],
             # Reverse the row order
             entity_rows=[
-                {"driver": d, "customer": c}
+                {"driver_id": d, "customer_id": c}
                 for (d, c) in zip(reversed(driver_ids), reversed(customer_ids))
             ],
         ).to_df()
@@ -381,8 +384,8 @@ def test_online_to_df():
             1       4        1.0    0.1         4.0             foo4        40       4
         """
         df_dict = {
-            "driver": driver_ids,
-            "customer": [str(c) for c in customer_ids],
+            "driver_id": driver_ids,
+            "customer_id": [str(c) for c in customer_ids],
             "lon": [str(d * lon_multiply) for d in driver_ids],
             "lat": [d * lat_multiply for d in driver_ids],
             "avg_orders_day": [c * avg_order_day_multiply for c in customer_ids],
@@ -392,8 +395,8 @@ def test_online_to_df():
         }
         # Requested column order
         ordered_column = [
-            "driver",
-            "customer",
+            "driver_id",
+            "customer_id",
             "lon",
             "lat",
             "avg_orders_day",

@@ -2,11 +2,13 @@ package feast
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/ghodss/yaml"
 	"os"
 	"path/filepath"
+)
+
+const (
+	defaultCacheTtlSeconds = 600
 )
 
 type RepoConfig struct {
@@ -35,10 +37,8 @@ type RegistryConfig struct {
 	CacheTtlSeconds   int64  `json:"cache_ttl_seconds" default:"600"`
 }
 
-// NewRepoConfig reads file <repoPath>/feature_store.yaml and converts the YAML format into RepoConfig struct.
-// It first uses repoPath to read feature_store.yaml if it exists, however if it doesn't then it checks configJSON and tries parsing that.
-func NewRepoConfigFromJson(repoPath, configJSON string) (*RepoConfig, error) {
-
+// NewRepoConfigFromJSON converts a JSON string into a RepoConfig struct and also sets the repo path.
+func NewRepoConfigFromJSON(repoPath, configJSON string) (*RepoConfig, error) {
 	config := RepoConfig{}
 	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
 		return nil, err
@@ -51,30 +51,29 @@ func NewRepoConfigFromJson(repoPath, configJSON string) (*RepoConfig, error) {
 	return &config, nil
 }
 
+// NewRepoConfigFromFile reads the `feature_store.yaml` file in the repo path and converts it
+// into a RepoConfig struct.
 func NewRepoConfigFromFile(repoPath string) (*RepoConfig, error) {
 	data, err := os.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
+	if err != nil {
+		return nil, err
+	}
 	repoPath, err = filepath.Abs(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
 	config := RepoConfig{}
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("FEAST_REPO_PATH: %s not found", repoPath))
-	} else {
-		if err = yaml.Unmarshal(data, &config); err != nil {
-			return nil, err
-		}
+	if err = yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
 	}
-
 	config.RepoPath = repoPath
 	return &config, nil
 }
 
 func (r *RepoConfig) GetRegistryConfig() *RegistryConfig {
 	if registryConfigMap, ok := r.Registry.(map[string]interface{}); ok {
-		// Default CacheTtlSeconds to 600
-		registryConfig := RegistryConfig{CacheTtlSeconds: 600}
+		registryConfig := RegistryConfig{CacheTtlSeconds: defaultCacheTtlSeconds}
 		for k, v := range registryConfigMap {
 			switch k {
 			case "path":
@@ -93,6 +92,6 @@ func (r *RepoConfig) GetRegistryConfig() *RegistryConfig {
 		}
 		return &registryConfig
 	} else {
-		return &RegistryConfig{Path: r.Registry.(string)}
+		return &RegistryConfig{Path: r.Registry.(string), CacheTtlSeconds: defaultCacheTtlSeconds}
 	}
 }

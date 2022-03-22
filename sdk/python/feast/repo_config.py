@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,8 @@ from feast.errors import (
 )
 from feast.importer import import_class
 from feast.usage import log_exceptions
+
+_logger = logging.getLogger(__name__)
 
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
@@ -278,7 +281,11 @@ class RepoConfig(FeastBaseModel):
 
         for flag_name, val in v.items():
             if flag_name not in flags.FLAG_NAMES:
-                raise ValueError(f"Flag name, {flag_name}, not valid.")
+                _logger.warn(
+                    "Unrecognized flag: %s. This feature may be invalid, or may refer "
+                    "to a previously experimental feature which has graduated to production.",
+                    flag_name,
+                )
             if type(val) is not bool:
                 raise ValueError(f"Flag value, {val}, not valid.")
 

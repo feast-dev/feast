@@ -2,9 +2,8 @@
 # This is an example feature definition file  #
 # # # # # # # # # # # # # # # # # # # # # # # #
 
+from datetime import timedelta
 from pathlib import Path
-
-from google.protobuf.duration_pb2 import Duration
 
 from feast import Entity, Feature, FeatureView, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
@@ -41,7 +40,7 @@ customer_daily_profile = SparkSource(
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
-    ttl=Duration(seconds=86400 * 7),  # one week
+    ttl=timedelta(days=7),
     features=[
         Feature(name="conv_rate", dtype=ValueType.FLOAT),
         Feature(name="acc_rate", dtype=ValueType.FLOAT),
@@ -54,7 +53,7 @@ driver_hourly_stats_view = FeatureView(
 customer_daily_profile_view = FeatureView(
     name="customer_daily_profile",
     entities=["customer_id"],
-    ttl=Duration(seconds=86400 * 7),  # one week
+    ttl=timedelta(days=7),
     features=[
         Feature(name="current_balance", dtype=ValueType.FLOAT),
         Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),

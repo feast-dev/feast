@@ -28,12 +28,14 @@ customer_driver_combined_source = BigQuerySource(
 
 driver = Entity(
     name="driver",  # The name is derived from this argument, not object name.
+    join_key="driver_id",
     value_type=ValueType.INT64,
     description="driver id",
 )
 
 customer = Entity(
     name="customer",  # The name is derived from this argument, not object name.
+    join_key="customer_id",
     value_type=ValueType.STRING,
 )
 

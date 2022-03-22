@@ -1,5 +1,6 @@
+from datetime import timedelta
+
 import pytest
-from google.protobuf.duration_pb2 import Duration
 
 from feast import BigQuerySource, Feature, FeatureView, ValueType
 from tests.utils.cli_utils import CliRunner, get_example_repo
@@ -27,7 +28,7 @@ def test_partial() -> None:
         driver_locations_100 = FeatureView(
             name="driver_locations_100",
             entities=["driver"],
-            ttl=Duration(seconds=86400 * 1),
+            ttl=timedelta(days=1),
             features=[
                 Feature(name="lat", dtype=ValueType.FLOAT),
                 Feature(name="lon", dtype=ValueType.STRING),
