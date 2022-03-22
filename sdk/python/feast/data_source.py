@@ -134,18 +134,6 @@ class KinesisOptions:
         return kinesis_options_proto
 
 
-_DATA_SOURCE_OPTIONS = {
-    DataSourceProto.SourceType.BATCH_FILE: "feast.infra.offline_stores.file_source.FileSource",
-    DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery_source.BigQuerySource",
-    DataSourceProto.SourceType.BATCH_REDSHIFT: "feast.infra.offline_stores.redshift_source.RedshiftSource",
-    DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
-    DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
-    DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
-    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestDataSource",
-    DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
-}
-
-
 class DataSource(ABC):
     """
     DataSource that can be used to source features.
@@ -222,20 +210,13 @@ class DataSource(ABC):
         Raises:
             ValueError: The type of DataSource could not be identified.
         """
-        data_source_type = data_source.type
-        if not data_source_type or (
-            data_source_type
-            not in list(_DATA_SOURCE_OPTIONS.keys())
-            + [DataSourceProto.SourceType.CUSTOM_SOURCE]
-        ):
-            raise ValueError("Could not identify the source type being added.")
 
-        if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
+        if data_source.data_source_class_type:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
-
-        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[data_source_type])
-        return cls.from_proto(data_source)
+        raise ValueError(
+            f"Could not identify the type for data source: {data_source.name}."
+        )
 
     @abstractmethod
     def to_proto(self) -> DataSourceProto:
