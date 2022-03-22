@@ -135,13 +135,13 @@ class KinesisOptions:
 
 
 _DATA_SOURCE_OPTIONS = {
-    "file_options": "feast.infra.offline_stores.file_source.FileSource",
-    "bigquery_options": "feast.infra.offline_stores.bigquery_source.BigQuerySource",
-    "redshift_options": "feast.infra.offline_stores.redshift_source.RedshiftSource",
-    "snowflake_options": "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
-    "kafka_options": "feast.data_source.KafkaSource",
-    "kinesis_options": "feast.data_source.KinesisSource",
-    "request_data_options": "feast.data_source.RequestDataSource",
+    DataSourceProto.SourceType.BATCH_FILE: "feast.infra.offline_stores.file_source.FileSource",
+    DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery_source.BigQuerySource",
+    DataSourceProto.SourceType.BATCH_REDSHIFT: "feast.infra.offline_stores.redshift_source.RedshiftSource",
+    DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
+    DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
+    DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
+    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestDataSource",
 }
 
 
@@ -221,17 +221,19 @@ class DataSource(ABC):
         Raises:
             ValueError: The type of DataSource could not be identified.
         """
-        option_type = data_source.WhichOneof("options")
-        if not option_type or (
-            option_type not in list(_DATA_SOURCE_OPTIONS.keys()) + ["custom_options"]
+        data_source_type = data_source.type
+        if not data_source_type or (
+            data_source_type
+            not in list(_DATA_SOURCE_OPTIONS.keys())
+            + [DataSourceProto.SourceType.CUSTOM_SOURCE]
         ):
             raise ValueError("Could not identify the source type being added.")
 
-        if option_type == "custom_options":
+        if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
 
-        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[option_type])
+        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[data_source_type])
         return cls.from_proto(data_source)
 
     @abstractmethod
