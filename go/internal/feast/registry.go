@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -32,6 +33,7 @@ type Registry struct {
 	cachedRegistry             *core.Registry
 	cachedRegistryProtoCreated time.Time
 	cachedRegistryProtoTtl     time.Duration
+	mu                         sync.Mutex
 }
 
 func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
@@ -59,23 +61,33 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, er
 }
 
 func (r *Registry) initializeRegistry() {
-	_, err := r.getRegistryProto(false)
+	_, err := r.getRegistryProto()
 	if err != nil {
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
 		r.registryStore.UpdateRegistryProto(registryProto)
-		r.load(registryProto)
+		go r.refreshRegistryOnInterval()
+	}
+}
+
+func (r *Registry) refreshRegistryOnInterval() {
+	ticker := time.NewTicker(r.cachedRegistryProtoTtl)
+	for ; true; <-ticker.C {
+		err := r.refresh()
+		if err != nil {
+			return
+		}
 	}
 }
 
 // TODO: Add a goroutine and automatically refresh every cachedRegistryProtoTtl
 func (r *Registry) refresh() error {
-	_, err := r.getRegistryProto(false)
+	_, err := r.getRegistryProto()
 	return err
 }
 
-func (r *Registry) getRegistryProto(allowCache bool) (*core.Registry, error) {
+func (r *Registry) getRegistryProto() (*core.Registry, error) {
 	expired := r.cachedRegistry == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoCreated.Add(r.cachedRegistryProtoTtl)))
-	if allowCache && !expired {
+	if !expired {
 		return r.cachedRegistry, nil
 	}
 	registryProto, err := r.registryStore.GetRegistryProto()
@@ -83,11 +95,12 @@ func (r *Registry) getRegistryProto(allowCache bool) (*core.Registry, error) {
 		return registryProto, err
 	}
 	r.load(registryProto)
-	r.cachedRegistryProtoCreated = time.Now()
 	return registryProto, nil
 }
 
 func (r *Registry) load(registry *core.Registry) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.cachedRegistry = registry
 	r.cachedFeatureServices = make(map[string]map[string]*core.FeatureService)
 	r.cachedEntities = make(map[string]map[string]*core.Entity)
@@ -99,6 +112,7 @@ func (r *Registry) load(registry *core.Registry) {
 	r.loadFeatureViews(registry)
 	r.loadOnDemandFeatureViews(registry)
 	r.loadRequestFeatureViews(registry)
+	r.cachedRegistryProtoCreated = time.Now()
 }
 
 func (r *Registry) loadEntities(registry *core.Registry) {
@@ -156,11 +170,7 @@ func (r *Registry) loadRequestFeatureViews(registry *core.Registry) {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listEntities(project string, allowCache bool) ([]*Entity, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) listEntities(project string) ([]*Entity, error) {
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
 		return []*Entity{}, nil
 	} else {
@@ -179,11 +189,7 @@ func (r *Registry) listEntities(project string, allowCache bool) ([]*Entity, err
 	Returns empty list if project not found
 */
 
-func (r *Registry) listFeatureViews(project string, allowCache bool) ([]*FeatureView, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) listFeatureViews(project string) ([]*FeatureView, error) {
 	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return []*FeatureView{}, nil
 	} else {
@@ -202,11 +208,7 @@ func (r *Registry) listFeatureViews(project string, allowCache bool) ([]*Feature
 	Returns empty list if project not found
 */
 
-func (r *Registry) listFeatureServices(project string, allowCache bool) ([]*FeatureService, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) listFeatureServices(project string) ([]*FeatureService, error) {
 	if cachedFeatureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return []*FeatureService{}, nil
 	} else {
@@ -225,11 +227,7 @@ func (r *Registry) listFeatureServices(project string, allowCache bool) ([]*Feat
 	Returns empty list if project not found
 */
 
-func (r *Registry) listOnDemandFeatureViews(project string, allowCache bool) ([]*OnDemandFeatureView, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) listOnDemandFeatureViews(project string) ([]*OnDemandFeatureView, error) {
 	if cachedOnDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return []*OnDemandFeatureView{}, nil
 	} else {
@@ -248,11 +246,7 @@ func (r *Registry) listOnDemandFeatureViews(project string, allowCache bool) ([]
 	Returns empty list if project not found
 */
 
-func (r *Registry) listRequestFeatureViews(project string, allowCache bool) ([]*RequestFeatureView, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) listRequestFeatureViews(project string) ([]*RequestFeatureView, error) {
 	if cachedRequestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
 		return []*RequestFeatureView{}, nil
 	} else {
@@ -266,11 +260,7 @@ func (r *Registry) listRequestFeatureViews(project string, allowCache bool) ([]*
 	}
 }
 
-func (r *Registry) getEntity(project, entityName string, allowCache bool) (*Entity, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
 		return nil, fmt.Errorf("no cached entities found for project %s", project)
 	} else {
@@ -282,11 +272,7 @@ func (r *Registry) getEntity(project, entityName string, allowCache bool) (*Enti
 	}
 }
 
-func (r *Registry) getFeatureView(project, featureViewName string, allowCache bool) (*FeatureView, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView, error) {
 	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached feature views found for project %s", project)
 	} else {
@@ -298,11 +284,7 @@ func (r *Registry) getFeatureView(project, featureViewName string, allowCache bo
 	}
 }
 
-func (r *Registry) getFeatureService(project, featureServiceName string, allowCache bool) (*FeatureService, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) getFeatureService(project, featureServiceName string) (*FeatureService, error) {
 	if cachedFeatureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return nil, fmt.Errorf("no cached feature services found for project %s", project)
 	} else {
@@ -314,11 +296,7 @@ func (r *Registry) getFeatureService(project, featureServiceName string, allowCa
 	}
 }
 
-func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string, allowCache bool) (*OnDemandFeatureView, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string) (*OnDemandFeatureView, error) {
 	if cachedOnDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached on demand feature views found for project %s", project)
 	} else {
@@ -330,11 +308,7 @@ func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName strin
 	}
 }
 
-func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string, allowCache bool) (*RequestFeatureView, error) {
-	_, err := r.getRegistryProto(allowCache)
-	if err != nil {
-		return nil, err
-	}
+func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string) (*RequestFeatureView, error) {
 	if cachedRequestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached on request feature views found for project %s", project)
 	} else {
