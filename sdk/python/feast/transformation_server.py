@@ -6,7 +6,6 @@ import grpc
 import pyarrow as pa
 from grpc_reflection.v1alpha import reflection
 
-import grpc
 from feast.errors import OnDemandFeatureViewNotFoundException
 from feast.feature_store import FeatureStore
 from feast.protos.feast.serving.TransformationService_pb2 import (
