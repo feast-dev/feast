@@ -142,6 +142,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestDataSource",
+    DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
 }
 
 

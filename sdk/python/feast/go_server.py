@@ -25,10 +25,10 @@ from pathlib import Path
 from subprocess import Popen
 from typing import Any, Dict, List, Optional, Union
 
-import grpc
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential
 
 import feast
+import grpc
 from feast.errors import FeatureNameCollisionError, InvalidFeaturesParameterType
 from feast.feature_service import FeatureService
 from feast.flags_helper import is_test
