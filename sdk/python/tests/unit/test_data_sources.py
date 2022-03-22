@@ -31,4 +31,4 @@ def test_push_with_batch():
 
     assert push_source.name == push_source_unproto.name
     assert push_source.schema == push_source_unproto.schema
-    assert push_source.batch_source == push_source_unproto.batch_source
+    assert push_source.batch_source.name == push_source_unproto.batch_source.name
