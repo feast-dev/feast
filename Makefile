@@ -46,7 +46,7 @@ package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
 compile-protos-python:
-	python sdk/python/setup.py build_python_protos
+	cd sdk/python && python setup.py build_python_protos
 
 install-python:
 	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
@@ -133,7 +133,7 @@ install-protoc-dependencies:
 	pip install grpcio-tools==1.34.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
-	python sdk/python/setup.py build_go_protos
+	cd sdk/python && python setup.py build_go_protos
 
 compile-go-feature-server: compile-protos-go
 	go mod tidy
