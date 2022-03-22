@@ -219,7 +219,10 @@ def get_expected_training_df(
                 (
                     f"field_mapping__{feature}" if full_feature_names else feature
                 ): field_mapping_record.get(column, None)
-                for (column, feature) in field_mapping_fv.input.field_mapping.items()
+                for (
+                    column,
+                    feature,
+                ) in field_mapping_fv.batch_source.field_mapping.items()
             }
         )
 
