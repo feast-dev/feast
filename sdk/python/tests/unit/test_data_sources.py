@@ -12,7 +12,9 @@ def test_push_no_batch():
     assert not push_source_proto.push_options.HasField("batch_source")
     push_source_unproto = PushSource.from_proto(push_source_proto)
 
-    assert push_source == push_source_unproto
+    assert push_source.name == push_source_unproto.name
+    assert push_source.schema == push_source_unproto.schema
+    assert push_source.batch_source == push_source_unproto.batch_source
 
 
 def test_push_with_batch():
@@ -27,4 +29,6 @@ def test_push_with_batch():
 
     push_source_unproto = PushSource.from_proto(push_source_proto)
 
-    assert push_source == push_source_unproto
+    assert push_source.name == push_source_unproto.name
+    assert push_source.schema == push_source_unproto.schema
+    assert push_source.batch_source == push_source_unproto.batch_source
