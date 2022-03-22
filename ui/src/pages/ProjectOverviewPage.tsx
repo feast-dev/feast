@@ -51,7 +51,7 @@ const ProjectOverviewPage = () => {
                 body={
                   <p>
                     There was an error loading the Project Configurations.
-                    Please check that <code>feature_store.json</code> file is
+                    Please check that <code>feature_store.yaml</code> file is
                     available and well-formed.
                   </p>
                 }
@@ -70,7 +70,7 @@ const ProjectOverviewPage = () => {
                     registered in Feast.
                   </p>
                   <p>
-                    It look like this project already have some objects
+                    It looks like this project already has some objects
                     registered. If you are new to this project, we suggest
                     starting by exploring the Feature Services, as they
                     represent the collection of Feature Views serving a
