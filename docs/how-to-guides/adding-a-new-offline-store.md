@@ -67,7 +67,6 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                                        created_timestamp_column,
                                                        start_date,
                                                        end_date)
-        )
 ```
 {% endcode %}
 
