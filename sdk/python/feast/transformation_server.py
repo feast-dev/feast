@@ -2,6 +2,7 @@ import logging
 import sys
 from concurrent import futures
 
+import grpc
 import pyarrow as pa
 from grpc_reflection.v1alpha import reflection
 
