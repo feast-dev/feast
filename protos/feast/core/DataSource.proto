@@ -71,6 +71,8 @@ message DataSource {
 
   // This is an internal field that is represents the python class for the data source object a proto object represents.
   // This should be set by feast, and not by users.
+  // The field is used primarily by custom data sources and is mandatory for them to set. Feast may set it for
+  // first party sources as well.
   string data_source_class_type = 17;
 
   // Defines options for DataSource that sources features from a file
