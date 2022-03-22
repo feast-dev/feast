@@ -57,7 +57,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """DynamoDB table name template"""
 
     sort_response: bool = True
-    """Wether or not to sort BatchGetItem response."""
+    """Whether or not to sort BatchGetItem response."""
 
 
 class DynamoDBOnlineStore(OnlineStore):
