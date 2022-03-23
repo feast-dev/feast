@@ -31,10 +31,17 @@ type FeatureStore struct {
 // can be specified either as a list of string feature references or as a feature service. String
 // feature references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
 type Features struct {
-	Features       []string
+	FeaturesRefs   []string
 	FeatureService *FeatureService
 }
 
+/*
+	FeatureVector type represent result of retrieving single feature for multiple rows.
+	It can be imagined as a column in output dataframe / table.
+	It contains of feature name, list of values (across all rows),
+	list of statuses and list of timestamp. All these lists have equal length.
+	And this length is also equal to number of entity rows received in request.
+*/
 type FeatureVector struct {
 	Name       string
 	Values     array.Interface
@@ -42,17 +49,23 @@ type FeatureVector struct {
 	Timestamps []*timestamppb.Timestamp
 }
 
-type featuresAndView struct {
-	view     *FeatureView
-	features []string
+type featureViewAndRefs struct {
+	view        *FeatureView
+	featureRefs []string
 }
 
+/*
+	We group all features from a single request by entities they attached to.
+	Thus, we will be able to call online retrieval per entity and not per each feature view.
+	In this struct we collect all features and views that belongs to a group.
+	We also store here projected entity keys (only ones that needed to retrieve these features)
+	and indexes to map result of retrieval into output response.
+*/
 type GroupedFeaturesPerEntitySet struct {
 	// A list of requested feature references of the form featureViewName:featureName that share this entity set
 	featureNames     []string
 	featureViewNames []string
-	// A list of requested featureName if fullFeatureNames = False or a list of featureViewNameAlias__featureName that share this
-	// entity set
+	// full feature references as they supposed to appear in response
 	aliasedFeatureNames []string
 	// Entity set as a list of EntityKeys to pass to OnlineRead
 	entityKeys []*types.EntityKey
@@ -96,7 +109,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 
 	var fvs map[string]*FeatureView
-	var requestedFeatureViews []*featuresAndView
+	var requestedFeatureViews []*featureViewAndRefs
 	var requestedRequestFeatureViews []*RequestFeatureView
 	var requestedOnDemandFeatureViews []*OnDemandFeatureView
 	if featureService != nil {
@@ -215,14 +228,14 @@ func (fs *FeatureStore) DestructOnlineStore() {
 // and populates a Features struct with the result.
 func (fs *FeatureStore) ParseFeatures(kind interface{}) (*Features, error) {
 	if featureList, ok := kind.(*serving.GetOnlineFeaturesRequest_Features); ok {
-		return &Features{Features: featureList.Features.GetVal(), FeatureService: nil}, nil
+		return &Features{FeaturesRefs: featureList.Features.GetVal(), FeatureService: nil}, nil
 	}
 	if featureServiceRequest, ok := kind.(*serving.GetOnlineFeaturesRequest_FeatureService); ok {
 		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
 		if err != nil {
 			return nil, err
 		}
-		return &Features{Features: nil, FeatureService: featureService}, nil
+		return &Features{FeaturesRefs: nil, FeatureService: featureService}, nil
 	}
 	return nil, errors.New("cannot parse kind from GetOnlineFeaturesRequest")
 }
@@ -240,19 +253,8 @@ func (fs *FeatureStore) getFeatureRefs(features *Features) ([]string, error) {
 		}
 		return featureRefs, nil
 	} else {
-		return features.Features, nil
+		return features.FeaturesRefs, nil
 	}
-}
-
-func (fs *FeatureStore) ExtractFeatureRefs(kind interface{}, fullFeatureNames bool) ([]string, error) {
-	features, err := fs.ParseFeatures(kind)
-	if err != nil {
-		return nil, err
-	}
-
-	featureRefs, err := fs.getFeatureRefs(features)
-
-	return featureRefs, nil
 }
 
 func (fs *FeatureStore) GetFeatureService(name string, project string) (*FeatureService, error) {
@@ -268,7 +270,7 @@ func (fs *FeatureStore) GetFeatureService(name string, project string) (*Feature
 		retrieving all feature views. Similar argument to FeatureService applies.
 
 */
-func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureService, hideDummyEntity bool) (map[string]*FeatureView, []*featuresAndView, []*RequestFeatureView, []*OnDemandFeatureView, error) {
+func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureService, hideDummyEntity bool) (map[string]*FeatureView, []*featureViewAndRefs, []*RequestFeatureView, []*OnDemandFeatureView, error) {
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
@@ -297,7 +299,7 @@ func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureSer
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
 
-	fvsToUse := make([]*featuresAndView, 0)
+	fvsToUse := make([]*featureViewAndRefs, 0)
 	requestFvsToUse := make([]*RequestFeatureView, 0)
 	odFvsToUse := make([]*OnDemandFeatureView, 0)
 
@@ -315,9 +317,9 @@ func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureSer
 			for index, feature := range newFv.base.features {
 				features[index] = feature.name
 			}
-			fvsToUse = append(fvsToUse, &featuresAndView{
-				view:     newFv,
-				features: features,
+			fvsToUse = append(fvsToUse, &featureViewAndRefs{
+				view:        newFv,
+				featureRefs: features,
 			})
 		} else if requestFv, ok := requestFvs[featureViewName]; ok {
 			base, err := requestFv.base.withProjection(featureProjection)
@@ -343,7 +345,7 @@ func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureSer
 /*
 	Return all FeatureView, OnDemandFeatureView, RequestFeatureView from the registry
 */
-func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hideDummyEntity bool) (map[string]*FeatureView, []*featuresAndView, []*RequestFeatureView, []*OnDemandFeatureView, error) {
+func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hideDummyEntity bool) (map[string]*FeatureView, []*featureViewAndRefs, []*RequestFeatureView, []*OnDemandFeatureView, error) {
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
@@ -372,7 +374,7 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
 
-	fvsToUse := make([]*featuresAndView, 0)
+	fvsToUse := make([]*featureViewAndRefs, 0)
 	requestFvsToUse := make([]*RequestFeatureView, 0)
 	odFvsToUse := make([]*OnDemandFeatureView, 0)
 
@@ -385,14 +387,14 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 			found := false
 			for _, group := range fvsToUse {
 				if group.view == fv {
-					group.features = append(group.features, featureName)
+					group.featureRefs = append(group.featureRefs, featureName)
 					found = true
 				}
 			}
 			if !found {
-				fvsToUse = append(fvsToUse, &featuresAndView{
-					view:     fv,
-					features: []string{featureName},
+				fvsToUse = append(fvsToUse, &featureViewAndRefs{
+					view:        fv,
+					featureRefs: []string{featureName},
 				})
 			}
 		} else if requestFv, ok := requestFvs[featureViewName]; ok {
@@ -408,7 +410,7 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 	return fvs, fvsToUse, requestFvsToUse, odFvsToUse, nil
 }
 
-func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featuresAndView) (map[string]string, map[string]interface{}, error) {
+func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featureViewAndRefs) (map[string]string, map[string]interface{}, error) {
 	entityNameToJoinKeyMap := make(map[string]string)
 	expectedJoinKeysSet := make(map[string]interface{})
 
@@ -458,11 +460,11 @@ func (fs *FeatureStore) validateEntityValues(joinKeyValues map[string]*types.Rep
 	return numRows, nil
 }
 
-func validateFeatureRefs(requestedFeatures []*featuresAndView, fullFeatureNames bool) error {
+func validateFeatureRefs(requestedFeatures []*featureViewAndRefs, fullFeatureNames bool) error {
 	featureRefCounter := make(map[string]int)
 	featureRefs := make([]string, 0)
 	for _, viewAndFeatures := range requestedFeatures {
-		for _, feature := range viewAndFeatures.features {
+		for _, feature := range viewAndFeatures.featureRefs {
 			projectedViewName := viewAndFeatures.view.base.name
 			if viewAndFeatures.view.base.projection != nil {
 				projectedViewName = viewAndFeatures.view.base.projection.nameToUse()
@@ -738,7 +740,7 @@ Group feature views that share the same set of join keys. For each group, we sto
 rows for each requested feature
 */
 
-func groupFeatureRefs(requestedFeatureViews []*featuresAndView,
+func groupFeatureRefs(requestedFeatureViews []*featureViewAndRefs,
 	joinKeyValues map[string]*types.RepeatedValue,
 	entityNameToJoinKeyMap map[string]string,
 	fullFeatureNames bool,
@@ -750,7 +752,7 @@ func groupFeatureRefs(requestedFeatureViews []*featuresAndView,
 	for _, featuresAndView := range requestedFeatureViews {
 		joinKeys := make([]string, 0)
 		fv := featuresAndView.view
-		featureNames := featuresAndView.features
+		featureNames := featuresAndView.featureRefs
 		for entity, _ := range fv.entities {
 			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entity])
 		}

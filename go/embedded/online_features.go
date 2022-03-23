@@ -96,7 +96,8 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	Read Record Batch from memory managed by Python caller.
 	Python part uses C ABI interface to export this record into C Data Interface,
 	and then it provides pointers (dataPtr & schemaPtr) to the Go part.
-	Here we import this data from given pointers and wrap them into Go Arrow Interface (array.Record).
+	Here we import this data from given pointers and wrap the underlying values
+	into Go Arrow Interface (array.Record).
 	See export code here https://github.com/feast-dev/feast/blob/master/sdk/python/feast/embedded_go/online_features_service.py
 */
 func readArrowRecord(data DataTable) (array.Record, error) {

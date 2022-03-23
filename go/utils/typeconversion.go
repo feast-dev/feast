@@ -129,36 +129,8 @@ func ProtoValuesToArrowArray(builder array.Builder, values []*types.Value) error
 
 func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 	values := make([]*types.Value, 0)
-	switch arr.DataType() {
-	case arrow.PrimitiveTypes.Int32:
-		for _, v := range arr.(*array.Int32).Int32Values() {
-			values = append(values, &types.Value{Val: &types.Value_Int32Val{Int32Val: v}})
-		}
-	case arrow.PrimitiveTypes.Int64:
-		for _, v := range arr.(*array.Int64).Int64Values() {
-			values = append(values, &types.Value{Val: &types.Value_Int64Val{Int64Val: v}})
-		}
-	case arrow.PrimitiveTypes.Float32:
-		for _, v := range arr.(*array.Float32).Float32Values() {
-			values = append(values, &types.Value{Val: &types.Value_FloatVal{FloatVal: v}})
-		}
-	case arrow.FixedWidthTypes.Boolean:
-		for idx := 0; idx < arr.Len(); idx++ {
-			values = append(values,
-				&types.Value{Val: &types.Value_BoolVal{BoolVal: arr.(*array.Boolean).Value(idx)}})
-		}
-	case arrow.BinaryTypes.Binary:
-		for idx := 0; idx < arr.Len(); idx++ {
-			values = append(values,
-				&types.Value{Val: &types.Value_BytesVal{BytesVal: arr.(*array.Binary).Value(idx)}})
-		}
-	case arrow.BinaryTypes.String:
-		for idx := 0; idx < arr.Len(); idx++ {
-			values = append(values,
-				&types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.Binary).ValueString(idx)}})
-		}
-	case arrow.LIST:
-		listArr := arr.(*array.List)
+
+	if listArr, ok := arr.(*array.List); ok {
 		listValues := listArr.ListValues()
 		offsets := listArr.Offsets()[1:]
 		pos := 0
@@ -214,6 +186,38 @@ func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 				values = append(values,
 					&types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: vals}}})
 			}
+		}
+
+		return values, nil
+	}
+
+	switch arr.DataType() {
+	case arrow.PrimitiveTypes.Int32:
+		for _, v := range arr.(*array.Int32).Int32Values() {
+			values = append(values, &types.Value{Val: &types.Value_Int32Val{Int32Val: v}})
+		}
+	case arrow.PrimitiveTypes.Int64:
+		for _, v := range arr.(*array.Int64).Int64Values() {
+			values = append(values, &types.Value{Val: &types.Value_Int64Val{Int64Val: v}})
+		}
+	case arrow.PrimitiveTypes.Float32:
+		for _, v := range arr.(*array.Float32).Float32Values() {
+			values = append(values, &types.Value{Val: &types.Value_FloatVal{FloatVal: v}})
+		}
+	case arrow.FixedWidthTypes.Boolean:
+		for idx := 0; idx < arr.Len(); idx++ {
+			values = append(values,
+				&types.Value{Val: &types.Value_BoolVal{BoolVal: arr.(*array.Boolean).Value(idx)}})
+		}
+	case arrow.BinaryTypes.Binary:
+		for idx := 0; idx < arr.Len(); idx++ {
+			values = append(values,
+				&types.Value{Val: &types.Value_BytesVal{BytesVal: arr.(*array.Binary).Value(idx)}})
+		}
+	case arrow.BinaryTypes.String:
+		for idx := 0; idx < arr.Len(); idx++ {
+			values = append(values,
+				&types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.Binary).ValueString(idx)}})
 		}
 	default:
 		return nil, fmt.Errorf("unsupported arrow to proto conversion for type %s", arr.DataType())

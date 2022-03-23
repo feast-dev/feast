@@ -25,10 +25,6 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 }
 
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
-	featureRefs, err := s.fs.ExtractFeatureRefs(request.GetKind(), request.GetFullFeatureNames())
-	if err != nil {
-		return nil, err
-	}
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
 	if err != nil {
 		return nil, err
@@ -36,7 +32,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 
 	featureVectors, err := s.fs.GetOnlineFeatures(
 		ctx,
-		featureRefs,
+		featuresOrService.FeaturesRefs,
 		featuresOrService.FeatureService,
 		request.GetEntities(),
 		request.GetFullFeatureNames())

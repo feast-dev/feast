@@ -89,11 +89,11 @@ func TestGroupingFeatureRefs(t *testing.T) {
 		entities: map[string]struct{}{"customer": {}},
 	}
 	refGroups, _ := groupFeatureRefs(
-		[]*featuresAndView{
-			{view: viewA, features: []string{"featureA", "featureB"}},
-			{view: viewB, features: []string{"featureC", "featureD"}},
-			{view: viewC, features: []string{"featureE"}},
-			{view: viewD, features: []string{"featureF"}},
+		[]*featureViewAndRefs{
+			{view: viewA, featureRefs: []string{"featureA", "featureB"}},
+			{view: viewB, featureRefs: []string{"featureC", "featureD"}},
+			{view: viewC, featureRefs: []string{"featureE"}},
+			{view: viewD, featureRefs: []string{"featureF"}},
 		},
 		map[string]*types.RepeatedValue{
 			"driver_id": {Val: []*types.Value{
@@ -167,9 +167,9 @@ func TestGroupingFeatureRefsWithJoinKeyAliases(t *testing.T) {
 	}
 
 	refGroups, _ := groupFeatureRefs(
-		[]*featuresAndView{
-			{view: viewA, features: []string{"featureA", "featureB"}},
-			{view: viewB, features: []string{"featureC", "featureD"}},
+		[]*featureViewAndRefs{
+			{view: viewA, featureRefs: []string{"featureA", "featureB"}},
+			{view: viewB, featureRefs: []string{"featureC", "featureD"}},
 		},
 		map[string]*types.RepeatedValue{
 			"location_id": {Val: []*types.Value{
@@ -222,8 +222,8 @@ func TestGroupingFeatureRefsWithMissingKey(t *testing.T) {
 	}
 
 	_, err := groupFeatureRefs(
-		[]*featuresAndView{
-			{view: viewA, features: []string{"featureA", "featureB"}},
+		[]*featureViewAndRefs{
+			{view: viewA, featureRefs: []string{"featureA", "featureB"}},
 		},
 		map[string]*types.RepeatedValue{
 			"location_id": {Val: []*types.Value{
