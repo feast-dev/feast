@@ -658,11 +658,7 @@ func (fs *FeatureStore) listFeatureViews(hideDummyEntity bool) ([]*FeatureView, 
 }
 
 func (fs *FeatureStore) listRequestFeatureViews() ([]*RequestFeatureView, error) {
-	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
-	if err != nil {
-		return requestFeatureViews, err
-	}
-	return requestFeatureViews, nil
+	return fs.registry.listRequestFeatureViews(fs.config.Project)
 }
 
 func (fs *FeatureStore) listEntities(hideDummyEntity bool) ([]*Entity, error) {
