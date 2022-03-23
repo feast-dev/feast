@@ -213,35 +213,15 @@ class FeatureView(BaseFeatureView):
     def proto_class(self) -> Type[FeatureViewProto]:
         return FeatureViewProto
 
-    def with_name(self, name: str):
-        """
-        Renames this feature view by returning a copy of this feature view with an alias
-        set for the feature view name. This rename operation is only used as part of query
-        operations and will not modify the underlying FeatureView.
-
-        Args:
-            name: Name to assign to the FeatureView copy.
-
-        Returns:
-            A copy of this FeatureView with the name replaced with the 'name' input.
-        """
-        cp = self.__copy__()
-        cp.projection.name_alias = name
-
-        return cp
-
     def with_join_key_map(self, join_key_map: Dict[str, str]):
         """
-        Sets the join_key_map by returning a copy of this feature view with that field set.
+        Returns a copy of this feature view with the join key map set to the given map.
         This join_key mapping operation is only used as part of query operations and will
         not modify the underlying FeatureView.
 
         Args:
             join_key_map: A map of join keys in which the left is the join_key that
                 corresponds with the feature data and the right corresponds with the entity data.
-
-        Returns:
-            A copy of this FeatureView with the join_key_map replaced with the 'join_key_map' input.
 
         Examples:
             Join a location feature data table to both the origin column and destination
@@ -265,40 +245,6 @@ class FeatureView(BaseFeatureView):
         """
         cp = self.__copy__()
         cp.projection.join_key_map = join_key_map
-
-        return cp
-
-    def with_projection(self, feature_view_projection: FeatureViewProjection):
-        """
-        Sets the feature view projection by returning a copy of this feature view
-        with its projection set to the given projection. A projection is an
-        object that stores the modifications to a feature view that is used during
-        query operations.
-
-        Args:
-            feature_view_projection: The FeatureViewProjection object to link to this
-                OnDemandFeatureView.
-
-        Returns:
-            A copy of this FeatureView with its projection replaced with the 'feature_view_projection'
-            argument.
-        """
-        if feature_view_projection.name != self.name:
-            raise ValueError(
-                f"The projection for the {self.name} FeatureView cannot be applied because it differs in name. "
-                f"The projection is named {feature_view_projection.name} and the name indicates which "
-                "FeatureView the projection is for."
-            )
-
-        for feature in feature_view_projection.features:
-            if feature not in self.features:
-                raise ValueError(
-                    f"The projection for {self.name} cannot be applied because it contains {feature.name} which the "
-                    "FeatureView doesn't have."
-                )
-
-        cp = self.__copy__()
-        cp.projection = feature_view_projection
 
         return cp
 
