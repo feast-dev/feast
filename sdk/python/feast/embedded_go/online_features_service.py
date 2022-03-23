@@ -9,7 +9,6 @@ from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.repo_config import RepoConfig
-from tests.unit.test_proto_json import FeatureVector
 
 from .lib.embedded import DataTable, NewOnlineFeatureService, OnlineFeatureServiceConfig
 from .lib.go import Slice_string
@@ -91,7 +90,7 @@ class EmbeddedOnlineFeatureServer:
         resp = GetOnlineFeaturesResponse()
 
         for idx, field in enumerate(result.schema):
-            feature_vector = FeatureVector()
+            feature_vector = GetOnlineFeaturesResponse.FeatureVector()
 
             if field.type == pa.null():
                 feature_vector.values.extend([Value()] * len(result.columns[idx]))
