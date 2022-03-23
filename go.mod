@@ -24,6 +24,9 @@ require (
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.9 // indirect
+	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/google/go-cmp v0.5.7 // indirect
+	github.com/mattn/go-sqlite3 v1.14.12 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/exp v0.0.0-20211028214138-64b4c8e87d1a // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
