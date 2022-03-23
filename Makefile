@@ -137,7 +137,7 @@ compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	python -m install pybindgen
-	python sdk/python/setup.py build_go_lib
+	cd sdk/python && python setup.py build_go_lib
 
 test-go: compile-protos-go
 	go test ./...

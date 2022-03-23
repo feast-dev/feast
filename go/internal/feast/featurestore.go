@@ -82,6 +82,7 @@ func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
 }
 
 // TODO: Review all functions that use ODFV and Request FV since these have not been tested
+// ToDo: Split GetOnlineFeatures interface into two: GetOnlinFeaturesByFeatureService and GetOnlineFeaturesByFeatureRefs
 func (fs *FeatureStore) GetOnlineFeatures(
 	ctx context.Context,
 	featureRefs []string,
