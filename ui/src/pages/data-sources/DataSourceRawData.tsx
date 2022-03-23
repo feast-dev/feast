@@ -1,6 +1,6 @@
 import React from "react";
 import { EuiPanel } from "@elastic/eui";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 import useLoadDataSource from "./useLoadDataSource";
 
 const DataSourceRawData = () => {
@@ -15,7 +15,9 @@ const DataSourceRawData = () => {
       <pre>{JSON.stringify(data, null, 2)}</pre>
     </EuiPanel>
   ) : (
-    <EuiPanel hasBorder={true} hasShadow={false}>No data so sad</EuiPanel>
+    <EuiPanel hasBorder={true} hasShadow={false}>
+      No data so sad
+    </EuiPanel>
   );
 };
 

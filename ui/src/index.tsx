@@ -1,31 +1,82 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import "./index.css";
-import App from "./App";
-import reportWebVitals from "./reportWebVitals";
-import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "react-query";
-import { QueryParamProvider } from "use-query-params";
-import RouteAdapter from "./hacks/RouteAdapter";
+import { QueryClient } from "react-query";
+import FeastUI from "./FeastUI";
+
+// How to add a Custom Tab
+// 1. Pick which object type you want your tab
+//    to be in. e.g. Feature View, Feature Service, etc.
+//
+// 2. Write a regular React Component for Tab Content.
+//    It will be passed props with data about the Feast FCO
+//    e.g. RegularFeatureViewCustomTabProps, FeatureServiceCustomTabProps
+//    See: types.ts in this folder
+//
+// 3. Register the tab in the appropriate array below. Each entry
+//    is a record with three keys: label, path, and Component.
+//    Import your component and pass it as Component
+import RFVDemoCustomTab from "./custom-tabs/reguar-fv-demo-tab/DemoCustomTab";
+import ODFVDemoCustomTab from "./custom-tabs/ondemand-fv-demo-tab/DemoCustomTab";
+import FSDemoCustomTab from "./custom-tabs/feature-service-demo-tab/DemoCustomTab";
+import DSDemoCustomTab from "./custom-tabs/data-source-demo-tab/DemoCustomTab";
+import EntDemoCustomTab from "./custom-tabs/entity-demo-tab/DemoCustomTab";
+import DatasetDemoCustomTab from "./custom-tabs/dataset-demo-tab/DemoCustomTab";
 
 const queryClient = new QueryClient();
 
+const tabsRegistry = {
+  RegularFeatureViewCustomTabs: [
+    {
+      label: "Custom Tab Demo", // Navigation Label for the tab
+      path: "demo-tab", // Subpath for the tab
+      Component: RFVDemoCustomTab,
+    },
+  ],
+  OnDemandFeatureViewCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "demo-tab",
+      Component: ODFVDemoCustomTab,
+    },
+  ],
+  FeatureServiceCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "fs-demo-tab",
+      Component: FSDemoCustomTab,
+    },
+  ],
+  DataSourceCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "fs-demo-tab",
+      Component: DSDemoCustomTab,
+    },
+  ],
+  EntityCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "demo-tab",
+      Component: EntDemoCustomTab,
+    },
+  ],
+  DatasetCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "demo-tab",
+      Component: DatasetDemoCustomTab,
+    },
+  ],
+};
+
 ReactDOM.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <QueryParamProvider
-          ReactRouterRoute={RouteAdapter as unknown as React.FunctionComponent}
-        >
-          <App />
-        </QueryParamProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <FeastUI
+      reactQueryClient={queryClient}
+      feastUIConfigs={{
+        tabsRegistry: tabsRegistry,
+      }}
+    />
   </React.StrictMode>,
   document.getElementById("root")
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();

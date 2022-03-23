@@ -6,11 +6,11 @@ import { useMatchSubpath } from "../hooks/useMatchSubpath";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 
-import DataSourceIcon from "../data-source-icon.svg";
-import EntityIcon from "../entity-icon.svg";
-import FeatureViewIcon from "../feature-view.svg";
-import FeatureServiceIcon from "../feature-service.svg";
-import DatasetIcon from "../dataset-icon.svg";
+import { DataSourceIcon16 } from "../graphics/DataSourceIcon";
+import { EntityIcon16 } from "../graphics/EntityIcon";
+import { FeatureViewIcon16 } from "../graphics/FeatureViewIcon";
+import { FeatureServiceIcon16 } from "../graphics/FeatureServiceIcon";
+import { DatasetIcon16 } from "../graphics/DatasetIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -66,7 +66,7 @@ const SideNav = () => {
         {
           name: dataSourcesLabel,
           id: htmlIdGenerator("dataSources")(),
-          icon: <EuiIcon type={DataSourceIcon} />,
+          icon: <EuiIcon type={DataSourceIcon16} />,
           onClick: () => {
             navigate(`/p/${projectName}/data-source`);
           },
@@ -75,7 +75,7 @@ const SideNav = () => {
         {
           name: entitiesLabel,
           id: htmlIdGenerator("entities")(),
-          icon: <EuiIcon type={EntityIcon} />,
+          icon: <EuiIcon type={EntityIcon16} />,
           onClick: () => {
             navigate(`/p/${projectName}/entity`);
           },
@@ -84,7 +84,7 @@ const SideNav = () => {
         {
           name: featureViewsLabel,
           id: htmlIdGenerator("featureView")(),
-          icon: <EuiIcon type={FeatureViewIcon} />,
+          icon: <EuiIcon type={FeatureViewIcon16} />,
           onClick: () => {
             navigate(`/p/${projectName}/feature-view`);
           },
@@ -93,7 +93,7 @@ const SideNav = () => {
         {
           name: featureServicesLabel,
           id: htmlIdGenerator("featureService")(),
-          icon: <EuiIcon type={FeatureServiceIcon} />,
+          icon: <EuiIcon type={FeatureServiceIcon16} />,
           onClick: () => {
             navigate(`/p/${projectName}/feature-service`);
           },
@@ -102,7 +102,7 @@ const SideNav = () => {
         {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
-          icon: <EuiIcon type={DatasetIcon} />,
+          icon: <EuiIcon type={DatasetIcon16} />,
           onClick: () => {
             navigate(`/p/${projectName}/data-set`);
           },
