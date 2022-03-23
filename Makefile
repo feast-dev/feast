@@ -125,6 +125,8 @@ install-go-proto-dependencies:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 
 install-go-ci-dependencies:
+	# ToDo: currently gopy installation doesn't work w/o explicit go get in the next two lines
+	# ToDo: there should be a better way to install gopy
 	go get golang.org/x/tools/cmd/goimports
 	go get github.com/go-python/gopy
 	go install github.com/go-python/gopy

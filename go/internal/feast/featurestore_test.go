@@ -63,7 +63,7 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 	ctx := context.Background()
 	response, err := fs.GetOnlineFeatures(ctx, featureNames, nil, entities, true)
 	assert.Nil(t, err)
-	assert.Len(t, response, 4)
+	assert.Len(t, response, 4) // 3 features + 1 entity = 4 columns (feature vectors) in response
 }
 
 func TestGroupingFeatureRefs(t *testing.T) {

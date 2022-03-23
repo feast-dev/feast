@@ -81,18 +81,13 @@ def pytest_addoption(parser):
         default=False,
         help="Run tests that use the go feature server",
     )
-    parser.addoption(
-        "--goserverlifecycle",
-        action="store_true",
-        default=False,
-        help="Run tests on go feature server lifecycle",
-    )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
     should_run_universal = config.getoption("--universal") is True
+    should_run_goserver = config.getoption("--goserver") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -116,6 +111,12 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     if should_run_universal:
         items.clear()
         for t in universal_tests:
+            items.append(t)
+
+    goserver_tests = [t for t in items if "goserver" in t.keywords]
+    if should_run_goserver:
+        items.clear()
+        for t in goserver_tests:
             items.append(t)
 
 

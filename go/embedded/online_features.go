@@ -35,7 +35,7 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig) *OnlineFeatureSer
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer fs.DestructOnlineStore()
+
 	return &OnlineFeatureService{fs: fs}
 }
 

@@ -50,6 +50,11 @@ class EmbeddedOnlineFeatureServer:
         schema = pa.schema(entity_fields)
         batch = pa.RecordBatch.from_arrays(entity_arrays, schema=schema)
 
+        # Here we create C structures that will be shared between Python and Go.
+        # We will pass entities as arrow Record Batch to Go part (in_c_array & in_c_schema)
+        # and receive features as Record Batch from Go (out_c_array & out_c_schema)
+        # This objects needs to be initialized here in order to correctly
+        # free them later using Python GC.
         out_c_schema = ffi.new("struct ArrowSchema*")
         out_ptr_schema = int(ffi.cast("uintptr_t", out_c_schema))
 
