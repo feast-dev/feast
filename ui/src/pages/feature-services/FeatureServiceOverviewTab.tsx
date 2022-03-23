@@ -12,11 +12,11 @@ import {
   EuiTitle,
 } from "@elastic/eui";
 import React from "react";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import FeaturesInServiceList from "../../components/FeaturesInServiceDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
-import { encodeSearchQueryString } from "../../hooks/useSearchInputWithTags";
+import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import useLoadFeatureService from "./useLoadFeatureService";
 

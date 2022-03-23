@@ -6,16 +6,16 @@ import {
   EuiPageContentBody,
 } from "@elastic/eui";
 
-import DatasetIcon from "../../dataset-icon.svg";
+import { DatasetIcon32 } from "../../graphics/DatasetIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import DatasetOverviewTab from "./DatasetOverviewTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import DatasetExpectationsTab from "./DatasetExpectationsTab";
 import {
-  datasetCustomTabRoutes,
   useDatasetCustomTabs,
-} from "../CustomTabUtils";
+  useDataSourceCustomTabRoutes,
+} from "../../custom-tabs/TabsRegistryContext";
 
 const DatasetInstance = () => {
   const navigate = useNavigate();
@@ -24,12 +24,13 @@ const DatasetInstance = () => {
   useDocumentTitle(`${datasetName} | Saved Datasets | Feast`);
 
   const { customNavigationTabs } = useDatasetCustomTabs(navigate);
+  const CustomTabRoutes = useDataSourceCustomTabRoutes();
 
   return (
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={DatasetIcon}
+        iconType={DatasetIcon32}
         pageTitle={`Entity: ${datasetName}`}
         tabs={[
           {
@@ -60,7 +61,7 @@ const DatasetInstance = () => {
           <Routes>
             <Route path="/" element={<DatasetOverviewTab />} />
             <Route path="/expectations" element={<DatasetExpectationsTab />} />
-            {datasetCustomTabRoutes()}
+            {CustomTabRoutes}
           </Routes>
         </EuiPageContentBody>
       </EuiPageContent>

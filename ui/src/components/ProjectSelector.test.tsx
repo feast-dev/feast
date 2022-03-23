@@ -3,7 +3,7 @@ import { render } from "../test-utils";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import App from "../App";
+import FeastUISansProviders from "../FeastUISansProviders";
 
 import {
   projectsListWithDefaultProject,
@@ -25,7 +25,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("in a full App render, it shows the right initial project", async () => {
-  render(<App />);
+  render(<FeastUISansProviders />);
 
   const select = await screen.findByRole("combobox", {
     name: "Select a Feast Project",
@@ -40,7 +40,7 @@ test("in a full App render, it shows the right initial project", async () => {
 
   within(topLevelNavigation).getByDisplayValue("Credit Score Project");
 
-  expect(options.length).toBe(2);
+  expect(options.length).toBe(1);
 
   // Wait for Project Data from Registry to Load
   await screen.findAllByRole("heading", {
@@ -52,14 +52,6 @@ test("in a full App render, it shows the right initial project", async () => {
     name: /credit_scoring_aws/i,
   });
 
-  // ... and Big Query Project is not selected
-  expect(
-    within(topLevelNavigation).getByRole("option", {
-      name: "Big Query Project",
-      selected: false,
-    })
-  ).toBeInTheDocument();
-
   // Do the select option user event
   // https://stackoverflow.com/a/69478957
   userEvent.selectOptions(
@@ -67,14 +59,14 @@ test("in a full App render, it shows the right initial project", async () => {
     within(topLevelNavigation).getByRole("combobox"),
     // Find and select the Ireland option
     within(topLevelNavigation).getByRole("option", {
-      name: "Big Query Project",
+      name: "Credit Score Project",
     })
   );
 
   // The selection should updated
   expect(
     within(topLevelNavigation).getByRole("option", {
-      name: "Big Query Project",
+      name: "Credit Score Project",
       selected: true,
     })
   ).toBeInTheDocument();
@@ -82,6 +74,6 @@ test("in a full App render, it shows the right initial project", async () => {
   // ... and the new heading should appear
   // meaning we successfully navigated
   await screen.findByRole("heading", {
-    name: /dbt_demo/i,
+    name: /credit_scoring_aws/i,
   });
 });

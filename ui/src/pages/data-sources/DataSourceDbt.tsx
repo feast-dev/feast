@@ -1,11 +1,11 @@
 import React from "react";
-import { 
+import {
   EuiCodeBlock,
-  EuiPanel,  
+  EuiPanel,
   EuiHorizontalRule,
   EuiTitle,
-  } from "@elastic/eui";
-import { useParams } from "react-router";
+} from "@elastic/eui";
+import { useParams } from "react-router-dom";
 import useLoadDataSource from "./useLoadDataSource";
 
 const DataSourceDbt = () => {
@@ -26,7 +26,9 @@ const DataSourceDbt = () => {
       </EuiCodeBlock>
     </EuiPanel>
   ) : (
-    <EuiPanel hasBorder={true} hasShadow={false}>No data so sad</EuiPanel>
+    <EuiPanel hasBorder={true} hasShadow={false}>
+      No data so sad
+    </EuiPanel>
   );
 };
 

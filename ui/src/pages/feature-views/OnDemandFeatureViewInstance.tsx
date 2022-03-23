@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Routes, useNavigate } from "react-router";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import {
   EuiPageHeader,
@@ -7,15 +7,15 @@ import {
   EuiPageContentBody,
 } from "@elastic/eui";
 
-import FeatureViewIcon from "../../feature-view.svg";
+import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
 import { FeastODFVType } from "../../parsers/feastODFVS";
 import OnDemandFeatureViewOverviewTab from "./OnDemandFeatureViewOverviewTab";
 
 import {
   useOnDemandFeatureViewCustomTabs,
-  onDemandFeatureViewCustomTabRoutes,
-} from "../CustomTabUtils";
+  useOnDemandFeatureViewCustomTabRoutes,
+} from "../../custom-tabs/TabsRegistryContext";
 
 interface OnDemandFeatureInstanceProps {
   data: FeastODFVType;
@@ -26,12 +26,13 @@ const OnDemandFeatureInstance = ({ data }: OnDemandFeatureInstanceProps) => {
   let { featureViewName } = useParams();
 
   const { customNavigationTabs } = useOnDemandFeatureViewCustomTabs(navigate);
+  const CustomTabRoutes = useOnDemandFeatureViewCustomTabRoutes();
 
   return (
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={FeatureViewIcon}
+        iconType={FeatureViewIcon32}
         pageTitle={`${featureViewName}`}
         tabs={[
           {
@@ -57,7 +58,7 @@ const OnDemandFeatureInstance = ({ data }: OnDemandFeatureInstanceProps) => {
               path="/"
               element={<OnDemandFeatureViewOverviewTab data={data} />}
             />
-            {onDemandFeatureViewCustomTabRoutes()}
+            {CustomTabRoutes}
           </Routes>
         </EuiPageContentBody>
       </EuiPageContent>

@@ -6,15 +6,15 @@ import {
   EuiPageContentBody,
 } from "@elastic/eui";
 
-import FeatureServiceIcon from "../../feature-service.svg";
+import { FeatureServiceIcon32 } from "../../graphics/FeatureServiceIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
 import FeatureServiceOverviewTab from "./FeatureServiceOverviewTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 import {
   useFeatureServiceCustomTabs,
-  featureServiceCustomTabRoutes,
-} from "../CustomTabUtils";
+  useFeatureServiceCustomTabRoutes,
+} from "../../custom-tabs/TabsRegistryContext";
 
 const FeatureServiceInstance = () => {
   const navigate = useNavigate();
@@ -23,12 +23,13 @@ const FeatureServiceInstance = () => {
   useDocumentTitle(`${featureServiceName} | Feature Service | Feast`);
 
   const { customNavigationTabs } = useFeatureServiceCustomTabs(navigate);
+  const CustomTabRoutes = useFeatureServiceCustomTabRoutes();
 
   return (
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={FeatureServiceIcon}
+        iconType={FeatureServiceIcon32}
         pageTitle={`Feature Service: ${featureServiceName}`}
         tabs={[
           {
@@ -51,7 +52,7 @@ const FeatureServiceInstance = () => {
         <EuiPageContentBody>
           <Routes>
             <Route path="/" element={<FeatureServiceOverviewTab />} />
-            {featureServiceCustomTabRoutes()}
+            {CustomTabRoutes}
           </Routes>
         </EuiPageContentBody>
       </EuiPageContent>

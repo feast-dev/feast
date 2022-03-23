@@ -1,12 +1,11 @@
 import React from "react";
 import { EuiEmptyPrompt, EuiTitle, EuiLink, EuiButton } from "@elastic/eui";
-
-import feastIconBlue from "../../feast-icon-blue.svg";
+import FeastIconBlue from "../../graphics/FeastIconBlue";
 
 const DataSourceIndexEmptyState = () => {
   return (
     <EuiEmptyPrompt
-      iconType={feastIconBlue}
+      iconType={FeastIconBlue}
       title={<h2>There are no data sources</h2>}
       body={
         <p>

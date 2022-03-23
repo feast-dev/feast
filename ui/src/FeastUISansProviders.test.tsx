@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import App from "./App";
+import FeastUISansProviders from "./FeastUISansProviders";
 import {
   projectsListWithDefaultProject,
   creditHistoryRegistry,
@@ -32,7 +32,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("full app rendering", async () => {
-  render(<App />);
+  render(<FeastUISansProviders />);
 
   // Rendering the app without any paths should mean
   // rendering the <RootProjectSelectionPage />
@@ -61,7 +61,7 @@ test("full app rendering", async () => {
 const leftClick = { button: 0 };
 
 test("routes are reachable", async () => {
-  render(<App />);
+  render(<FeastUISansProviders />);
 
   // Wait for content to load
   await screen.findByText(/Explore this Project/i);

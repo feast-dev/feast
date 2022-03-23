@@ -293,6 +293,8 @@ def _initialize_dynamodb_resource(region: str):
     return boto3.resource("dynamodb", region_name=region)
 
 
+# TODO(achals): This form of user-facing templating is experimental.
+# Please refer to https://github.com/feast-dev/feast/issues/2438 before building on top of it,
 def _get_table_name(
     online_config: DynamoDBOnlineStoreConfig, config: RepoConfig, table: FeatureView
 ) -> str:

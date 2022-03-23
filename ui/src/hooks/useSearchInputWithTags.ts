@@ -1,8 +1,6 @@
 import { useState } from "react";
 
 import { useQueryParam, StringParam } from "use-query-params";
-import { encodeQueryParams } from "serialize-query-params";
-import { stringify } from "query-string";
 
 import { sortTagsByTotalUsage } from "./useFCOExploreSuggestions";
 
@@ -298,21 +296,7 @@ const useTagsWithSuggestions = (
   };
 };
 
-const encodeSearchQueryString = (query: string) => {
-  return stringify(
-    encodeQueryParams(
-      {
-        tags: StringParam,
-      },
-      {
-        tags: query,
-      }
-    )
-  );
-};
-
 export { useTagsWithSuggestions, useSearchQuery };
-export { encodeSearchQueryString };
 export type {
   filterInputInterface,
   tagTokenGroupsType,

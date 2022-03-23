@@ -1,6 +1,6 @@
 import React from "react";
 import { EuiPanel } from "@elastic/eui";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 import useLoadDataset from "./useLoadDataset";
 
 const EntityRawData = () => {

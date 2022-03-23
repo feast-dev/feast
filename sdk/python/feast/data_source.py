@@ -134,6 +134,18 @@ class KinesisOptions:
         return kinesis_options_proto
 
 
+_DATA_SOURCE_OPTIONS = {
+    DataSourceProto.SourceType.BATCH_FILE: "feast.infra.offline_stores.file_source.FileSource",
+    DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery_source.BigQuerySource",
+    DataSourceProto.SourceType.BATCH_REDSHIFT: "feast.infra.offline_stores.redshift_source.RedshiftSource",
+    DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
+    DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
+    DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
+    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestDataSource",
+    DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
+}
+
+
 class DataSource(ABC):
     """
     DataSource that can be used to source features.
@@ -210,48 +222,20 @@ class DataSource(ABC):
         Raises:
             ValueError: The type of DataSource could not be identified.
         """
-        if data_source.data_source_class_type:
+        data_source_type = data_source.type
+        if not data_source_type or (
+            data_source_type
+            not in list(_DATA_SOURCE_OPTIONS.keys())
+            + [DataSourceProto.SourceType.CUSTOM_SOURCE]
+        ):
+            raise ValueError("Could not identify the source type being added.")
+
+        if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
 
-        if data_source.request_data_options and data_source.request_data_options.schema:
-            data_source_obj = RequestDataSource.from_proto(data_source)
-        elif data_source.file_options.file_format and data_source.file_options.file_url:
-            from feast.infra.offline_stores.file_source import FileSource
-
-            data_source_obj = FileSource.from_proto(data_source)
-        elif (
-            data_source.bigquery_options.table_ref or data_source.bigquery_options.query
-        ):
-            from feast.infra.offline_stores.bigquery_source import BigQuerySource
-
-            data_source_obj = BigQuerySource.from_proto(data_source)
-        elif data_source.redshift_options.table or data_source.redshift_options.query:
-            from feast.infra.offline_stores.redshift_source import RedshiftSource
-
-            data_source_obj = RedshiftSource.from_proto(data_source)
-
-        elif data_source.snowflake_options.table or data_source.snowflake_options.query:
-            from feast.infra.offline_stores.snowflake_source import SnowflakeSource
-
-            data_source_obj = SnowflakeSource.from_proto(data_source)
-
-        elif (
-            data_source.kafka_options.bootstrap_servers
-            and data_source.kafka_options.topic
-            and data_source.kafka_options.message_format
-        ):
-            data_source_obj = KafkaSource.from_proto(data_source)
-        elif (
-            data_source.kinesis_options.record_format
-            and data_source.kinesis_options.region
-            and data_source.kinesis_options.stream_name
-        ):
-            data_source_obj = KinesisSource.from_proto(data_source)
-        else:
-            raise ValueError("Could not identify the source type being added.")
-
-        return data_source_obj
+        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[data_source_type])
+        return cls.from_proto(data_source)
 
     @abstractmethod
     def to_proto(self) -> DataSourceProto:
@@ -522,3 +506,75 @@ class KinesisSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+
+class PushSource(DataSource):
+    """
+    PushSource that can be used to ingest features on request
+
+    Args:
+        name: Name of the push source
+        schema: Schema mapping from the input feature name to a ValueType
+    """
+
+    name: str
+    schema: Dict[str, ValueType]
+    batch_source: Optional[DataSource]
+
+    def __init__(
+        self,
+        name: str,
+        schema: Dict[str, ValueType],
+        batch_source: Optional[DataSource] = None,
+    ):
+        """Creates a PushSource object."""
+        super().__init__(name)
+        self.schema = schema
+        self.batch_source = batch_source
+
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        schema_pb = data_source.push_options.schema
+        schema = {}
+        for key, value in schema_pb.items():
+            schema[key] = value
+
+        batch_source = None
+        if data_source.push_options.HasField("batch_source"):
+            batch_source = DataSource.from_proto(data_source.push_options.batch_source)
+
+        return PushSource(
+            name=data_source.name, schema=schema, batch_source=batch_source
+        )
+
+    def to_proto(self) -> DataSourceProto:
+        schema_pb = {}
+        for key, value in self.schema.items():
+            schema_pb[key] = value
+        batch_source_proto = None
+        if self.batch_source:
+            batch_source_proto = self.batch_source.to_proto()
+
+        options = DataSourceProto.PushOptions(
+            schema=schema_pb, batch_source=batch_source_proto
+        )
+        data_source_proto = DataSourceProto(
+            name=self.name, type=DataSourceProto.PUSH_SOURCE, push_options=options,
+        )
+
+        return data_source_proto
+
+    def get_table_query_string(self) -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        raise NotImplementedError

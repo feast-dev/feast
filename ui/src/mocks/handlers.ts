@@ -26,7 +26,4 @@ const creditHistoryRegistry = rest.get("/registry.json", (req, res, ctx) => {
   return res(ctx.status(200), ctx.json(registry));
 });
 
-export {
-  projectsListWithDefaultProject,
-  creditHistoryRegistry
-};
+export { projectsListWithDefaultProject, creditHistoryRegistry };

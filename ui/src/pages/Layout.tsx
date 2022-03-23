@@ -8,15 +8,20 @@ import {
   EuiHorizontalRule,
   EuiSpacer,
 } from "@elastic/eui";
-import Sidebar from "./Sidebar";
-import { Outlet } from "react-router";
-import ProjectSelector from "../components/ProjectSelector";
-import { useParams } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+
 import RegistryPathContext from "../contexts/RegistryPathContext";
-import useLoadProjectsList from "../queries/useLoadProjectsList";
-import feastWorkMark from "../feast-workmark.svg";
+import { useParams } from "react-router-dom";
+import { useLoadProjectsList } from "../contexts/ProjectListContext";
+
+import ProjectSelector from "../components/ProjectSelector";
+import Sidebar from "./Sidebar";
+import FeastWordMark from "../graphics/FeastWordMark";
 
 const Layout = () => {
+  // Registry Path Context has to be inside Layout
+  // because it has to be under routes
+  // in order to use useParams
   let { projectName } = useParams();
 
   const { data } = useLoadProjectsList();
@@ -36,7 +41,7 @@ const Layout = () => {
           role={"navigation"}
           aria-label={"Top Level"}
         >
-          <img src={feastWorkMark} width={"100%"} alt="Feast" />
+          <FeastWordMark />
           <EuiSpacer size="s" />
           <ProjectSelector />
           {registryPath && (

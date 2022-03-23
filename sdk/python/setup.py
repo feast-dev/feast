@@ -224,6 +224,11 @@ class BuildPythonProtosCommand(Command):
             with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", 'w'):
                 pass
 
+        with open(f"{self.python_folder}/__init__.py", 'w'):
+            pass
+        with open(f"{self.python_folder}/feast/__init__.py", 'w'):
+            pass
+
         for path in Path("feast/protos").rglob("*.py"):
             for folder in self.sub_folders:
                 # Read in the file

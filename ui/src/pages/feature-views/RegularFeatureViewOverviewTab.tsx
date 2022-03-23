@@ -11,10 +11,10 @@ import {
 } from "@elastic/eui";
 import React from "react";
 
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
-import { encodeSearchQueryString } from "../../hooks/useSearchInputWithTags";
+import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
