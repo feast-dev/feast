@@ -24,16 +24,16 @@ var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
 */
 
 type Registry struct {
-	registryStore              RegistryStore
-	cachedFeatureServices      map[string]map[string]*core.FeatureService
-	cachedEntities             map[string]map[string]*core.Entity
-	cachedFeatureViews         map[string]map[string]*core.FeatureView
-	cachedOnDemandFeatureViews map[string]map[string]*core.OnDemandFeatureView
-	cachedRequestFeatureViews  map[string]map[string]*core.RequestFeatureView
-	cachedRegistry             *core.Registry
-	cachedRegistryProtoCreated time.Time
-	cachedRegistryProtoTtl     time.Duration
-	mu                         sync.Mutex
+	registryStore                  RegistryStore
+	cachedFeatureServices          map[string]map[string]*core.FeatureService
+	cachedEntities                 map[string]map[string]*core.Entity
+	cachedFeatureViews             map[string]map[string]*core.FeatureView
+	cachedOnDemandFeatureViews     map[string]map[string]*core.OnDemandFeatureView
+	cachedRequestFeatureViews      map[string]map[string]*core.RequestFeatureView
+	cachedRegistry                 *core.Registry
+	cachedRegistryProtoLastUpdated time.Time
+	cachedRegistryProtoTtl         time.Duration
+	mu                             sync.Mutex
 }
 
 func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
@@ -86,7 +86,7 @@ func (r *Registry) refresh() error {
 }
 
 func (r *Registry) getRegistryProto() (*core.Registry, error) {
-	expired := r.cachedRegistry == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoCreated.Add(r.cachedRegistryProtoTtl)))
+	expired := r.cachedRegistry == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoLastUpdated.Add(r.cachedRegistryProtoTtl)))
 	if !expired {
 		return r.cachedRegistry, nil
 	}
@@ -112,7 +112,7 @@ func (r *Registry) load(registry *core.Registry) {
 	r.loadFeatureViews(registry)
 	r.loadOnDemandFeatureViews(registry)
 	r.loadRequestFeatureViews(registry)
-	r.cachedRegistryProtoCreated = time.Now()
+	r.cachedRegistryProtoLastUpdated = time.Now()
 }
 
 func (r *Registry) loadEntities(registry *core.Registry) {

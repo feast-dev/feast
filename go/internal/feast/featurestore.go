@@ -654,12 +654,15 @@ func (fs *FeatureStore) listFeatureViews(hideDummyEntity bool) ([]*FeatureView, 
 	if err != nil {
 		return featureViews, err
 	}
-	for _, featureView := range featureViews {
-		if _, ok := featureView.entities[DUMMY_ENTITY_NAME]; ok && hideDummyEntity {
-			featureView.entities = make(map[string]struct{})
-		}
-	}
 	return featureViews, nil
+}
+
+func (fs *FeatureStore) listRequestFeatureViews() ([]*RequestFeatureView, error) {
+	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
+	if err != nil {
+		return requestFeatureViews, err
+	}
+	return requestFeatureViews, nil
 }
 
 func (fs *FeatureStore) listEntities(hideDummyEntity bool) ([]*Entity, error) {
