@@ -59,6 +59,9 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     sort_response: bool = True
     """Whether or not to sort BatchGetItem response."""
 
+    batch_size: int = 40
+    """Number of items to retrieve in a DynamoDB BatchGetItem call."""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -67,12 +70,10 @@ class DynamoDBOnlineStore(OnlineStore):
     Attributes:
         _dynamodb_client: Boto3 DynamoDB client.
         _dynamodb_resource: Boto3 DynamoDB resource.
-        _batch_size: Number of items to retrieve in a DynamoDB BatchGetItem call.
     """
 
     _dynamodb_client = None
     _dynamodb_resource = None
-    _batch_size = 40
 
     @log_exceptions_and_usage(online_store="dynamodb")
     def update(
@@ -223,7 +224,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
-        batch_size = self._batch_size
+        batch_size = online_config.batch_size
         sort_response = online_config.sort_response
         entity_ids_iter = iter(entity_ids)
         while True:
