@@ -186,6 +186,9 @@ func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 				values = append(values,
 					&types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: vals}}})
 			}
+
+			// set the end of current element as start of the next
+			pos = int(offsets[idx])
 		}
 
 		return values, nil

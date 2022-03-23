@@ -27,7 +27,7 @@ type FeatureStore struct {
 	onlineStore OnlineStore
 }
 
-// A Features struct specifies a list of Features to be retrieved from the online store. These Features
+// A Features struct specifies a list of features to be retrieved from the online store. These features
 // can be specified either as a list of string feature references or as a feature service. String
 // feature references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
 type Features struct {
