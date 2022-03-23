@@ -1878,7 +1878,7 @@ class FeatureStore:
                     odfv = od_fvs[fv_name].with_projection(copy.copy(projection))
                     od_fvs_to_use.append(odfv)
                     # Let's make sure to include an FVs which the ODFV requires Features from.
-                    for projection in odfv.input_feature_view_projections.values():
+                    for projection in odfv.source_feature_view_projections.values():
                         fv = fvs[projection.name].with_projection(copy.copy(projection))
                         if fv not in fvs_to_use:
                             fvs_to_use.append(fv)
@@ -2005,7 +2005,7 @@ def _group_feature_refs(
             # Let's also add in any FV Feature dependencies here.
             for input_fv_projection in on_demand_view_index[
                 view_name
-            ].input_feature_view_projections.values():
+            ].source_feature_view_projections.values():
                 for input_feat in input_fv_projection.features:
                     views_features[input_fv_projection.name].add(input_feat.name)
         elif view_name in request_view_index:
