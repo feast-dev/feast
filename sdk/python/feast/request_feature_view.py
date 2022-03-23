@@ -18,7 +18,7 @@ class RequestFeatureView(BaseFeatureView):
     be available as an input to an on demand feature view at request time.
 
     Attributes:
-        name: The unique name of the feature view.
+        name: The unique name of the request feature view.
         request_data_source: The request data source that specifies the schema and
             features of the request feature view.
         features: The list of features defined as part of this request feature view.
@@ -46,6 +46,15 @@ class RequestFeatureView(BaseFeatureView):
     ):
         """
         Creates a RequestFeatureView object.
+
+        Args:
+            name: The unique name of the request feature view.
+            request_data_source: The request data source that specifies the schema and
+                features of the request feature view.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the request feature view, typically the email
+                of the primary maintainer.
         """
         super().__init__(
             name=name,

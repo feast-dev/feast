@@ -58,6 +58,20 @@ class BaseFeatureView(ABC):
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
     ):
+        """
+        Creates a BaseFeatureView object.
+
+        Args:
+            name: The unique name of the base feature view.
+            features: The list of features defined as part of this base feature view.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the base feature view, typically the email of the
+                primary maintainer.
+
+        Raises:
+            ValueError: A field mapping conflicts with an Entity or a Feature.
+        """
         self.name = name
         self.features = features
         self.description = description

@@ -99,6 +99,23 @@ class FeatureView(BaseFeatureView):
         """
         Creates a FeatureView object.
 
+        Args:
+            name: The unique name of the feature view.
+            entities: The list of entities with which this group of features is associated.
+            ttl: The amount of time this group of features lives. A ttl of 0 indicates that
+                this group of features lives forever. Note that large ttl's or a ttl of 0
+                can result in extremely computationally intensive queries.
+            batch_source: The batch source of data where this group of features is stored.
+            stream_source (optional): The stream source of data where this group of features
+                is stored.
+            features (optional): The list of features defined as part of this feature view.
+            online (optional): A boolean indicating whether online retrieval is enabled for
+                this feature view.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the feature view, typically the email of the
+                primary maintainer.
+
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """

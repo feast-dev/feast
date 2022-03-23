@@ -72,6 +72,18 @@ class OnDemandFeatureView(BaseFeatureView):
     ):
         """
         Creates an OnDemandFeatureView object.
+
+        Args:
+            name: The unique name of the on demand feature view.
+            features: The list of features in the output of the on demand feature view, after
+                the transformation has been applied.
+            inputs: The feature views and request data sources passed into the transformation.
+            udf: The user defined transformation function, which must take pandas dataframes
+                as inputs.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the on demand feature view, typically the email
+                of the primary maintainer.
         """
         super().__init__(name, features, description, tags, owner)
         self.input_feature_view_projections: Dict[str, FeatureViewProjection] = {}
