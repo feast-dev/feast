@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Optional, Type
+from typing import Dict, List, Optional, Type
 
 from google.protobuf.json_format import MessageToJson
 from proto import Message
@@ -22,22 +21,65 @@ from proto import Message
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
 
-warnings.simplefilter("once", DeprecationWarning)
-
 
 class BaseFeatureView(ABC):
-    """A FeatureView defines a logical grouping of features to be served."""
+    """
+    A BaseFeatureView defines a logical group of features.
 
+    Attributes:
+        name: The unique name of the base feature view.
+        features: The list of features defined as part of this base feature view.
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the base feature view, typically the email of the primary
+            maintainer.
+        projection: The feature view projection to be applied to this base feature view
+            at retrieval time.
+        created_timestamp (optional): The time when the base feature view was created.
+        last_updated_timestamp (optional): The time when the base feature view was last
+            updated.
+    """
+
+    name: str
+    features: List[Feature]
+    description: str
+    tags: Dict[str, str]
+    owner: str
+    projection: FeatureViewProjection
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
     @abstractmethod
-    def __init__(self, name: str, features: List[Feature]):
+    def __init__(
+        self,
+        name: str,
+        features: List[Feature],
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: str = "",
+    ):
+        """
+        Creates a BaseFeatureView object.
+
+        Args:
+            name: The unique name of the base feature view.
+            features: The list of features defined as part of this base feature view.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the base feature view, typically the email of the
+                primary maintainer.
+
+        Raises:
+            ValueError: A field mapping conflicts with an Entity or a Feature.
+        """
         self.name = name
         self.features = features
+        self.description = description
+        self.tags = tags or {}
+        self.owner = owner
         self.projection = FeatureViewProjection.from_definition(self)
-        self.created_timestamp: Optional[datetime] = None
-        self.last_updated_timestamp: Optional[datetime] = None
+        self.created_timestamp = None
+        self.last_updated_timestamp = None
 
     @property
     @abstractmethod
@@ -55,12 +97,7 @@ class BaseFeatureView(ABC):
 
     @abstractmethod
     def __copy__(self):
-        """
-        Generates a deep copy of this feature view
-
-        Returns:
-            A copy of this FeatureView
-        """
+        """Returns a deep copy of this base feature view."""
         pass
 
     def __repr__(self):
@@ -92,10 +129,13 @@ class BaseFeatureView(ABC):
                 "Comparisons should only involve BaseFeatureView class objects."
             )
 
-        if self.name != other.name:
-            return False
-
-        if sorted(self.features) != sorted(other.features):
+        if (
+            self.name != other.name
+            or sorted(self.features) != sorted(other.features)
+            or self.description != other.description
+            or self.tags != other.tags
+            or self.owner != other.owner
+        ):
             return False
 
         return True

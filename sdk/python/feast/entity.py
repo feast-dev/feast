@@ -36,8 +36,7 @@ class Entity:
             with their associated features. If not specified, defaults to the name.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
-        owner: The owner of the feature service, typically the email of the primary
-            maintainer.
+        owner: The owner of the entity, typically the email of the primary maintainer.
         created_timestamp: The time when the entity was created.
         last_updated_timestamp: The time when the entity was last updated.
     """
