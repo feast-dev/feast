@@ -3,6 +3,7 @@ package feast
 import (
 	"context"
 	"fmt"
+
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -55,6 +56,10 @@ func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
 	}
 	if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
+		return onlineStore, err
+	}
+	if onlineStoreType == "sqlite" {
+		onlineStore, err := NewSqliteOnlineStore(config.Project, config.OnlineStore)
 		return onlineStore, err
 	} else {
 		return nil, fmt.Errorf("%s online store type is currently not supported; only Redis is supported", onlineStoreType)
