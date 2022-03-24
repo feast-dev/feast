@@ -5,7 +5,7 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/feast-dev/feast/go/utils"
+	"github.com/feast-dev/feast/go/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
@@ -63,7 +63,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	for _, vector := range featureVectors {
 		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, vector.Name)
 
-		values, err := utils.ArrowValuesToProtoValues(vector.Values)
+		values, err := types.ArrowValuesToProtoValues(vector.Values)
 		if err != nil {
 			return nil, err
 		}
