@@ -3,8 +3,8 @@ package feast
 import (
 	"database/sql"
 	"errors"
-	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"context"
@@ -22,6 +22,7 @@ type SqliteOnlineStore struct {
 	project string
 	path    string
 	db      *sql.DB
+	db_mu   sync.Mutex
 }
 
 // Creates a new sqlite online store object. onlineStoreConfig should have relative path of database file with respect to repoConfig.repoPath.
@@ -29,16 +30,19 @@ func NewSqliteOnlineStore(project string, repoConfig *RepoConfig, onlineStoreCon
 	store := SqliteOnlineStore{project: project}
 	if db_path, ok := onlineStoreConfig["path"]; !ok {
 		return nil, fmt.Errorf("cannot find sqlite path %s", db_path)
-	} else if dbPathStr, ok := db_path.(string); !ok {
-		return nil, fmt.Errorf("cannot find convert sqlite path to string %s", db_path)
 	} else {
-		store.path = fmt.Sprintf("%s/%s", repoConfig.RepoPath, dbPathStr)
-		db, err := initializeConnection(store.path)
-		if err != nil {
-			return nil, err
+		if dbPathStr, ok := db_path.(string); !ok {
+			return nil, fmt.Errorf("cannot find convert sqlite path to string %s", db_path)
+		} else {
+			store.path = fmt.Sprintf("%s/%s", repoConfig.RepoPath, dbPathStr)
+			db, err := initializeConnection(store.path)
+			if err != nil {
+				return nil, err
+			}
+			store.db = db
 		}
-		store.db = db
 	}
+
 	return &store, nil
 }
 
@@ -97,7 +101,7 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.E
 			var value types.Value
 			err = rows.Scan(&entity_key, &feature_name, &valueString, &event_ts)
 			if err != nil {
-				log.Fatal(err)
+				return nil, errors.New("error could not resolve row in query (entity key, feature name, value, event ts)")
 			}
 			if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
@@ -111,26 +115,10 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.E
 	return results, nil
 }
 
-func (s *SqliteOnlineStore) Update(ctx context.Context, config *RepoConfig, tables_to_delete []*FeatureView, tables_to_keep []*FeatureView) error {
-	_, err := s.getConnection()
-	if err != nil {
-		return err
-	}
-	project := config.Project
-	for _, table := range tables_to_keep {
-		s.db.Exec(
-			fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))", tableId(project, table.base.name)))
-		s.db.Exec(
-			fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s_ek ON %s (entity_key);", tableId(project, table.base.name), tableId(project, table.base.name)))
-	}
-	for _, table := range tables_to_delete {
-		s.db.Exec("DROP TABLE IF EXISTS %s", tableId(project, table.base.name))
-	}
-	return nil
-}
-
 // Gets a sqlite connection and sets it to the online store and also returns a pointer to the connection.
 func (s *SqliteOnlineStore) getConnection() (*sql.DB, error) {
+	s.db_mu.Lock()
+	defer s.db_mu.Unlock()
 	if s.db == nil {
 		if s.path == "" {
 			return nil, errors.New("no database path available")

@@ -714,10 +714,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
-<<<<<<< HEAD
-=======
-#@pytest.mark.skip
->>>>>>> e82ef9c7 (Clean up)
+@pytest.mark.skip
 @pytest.mark.integration
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
