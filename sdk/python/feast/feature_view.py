@@ -381,10 +381,9 @@ class FeatureView(BaseFeatureView):
             owner=feature_view_proto.spec.owner,
             online=feature_view_proto.spec.online,
             ttl=(
-                None
-                if feature_view_proto.spec.ttl.seconds == 0
-                and feature_view_proto.spec.ttl.nanos == 0
-                else feature_view_proto.spec.ttl
+                timedelta(days=0)
+                if feature_view_proto.spec.ttl.ToNanoseconds() == 0
+                else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             batch_source=batch_source,
             stream_source=stream_source,
