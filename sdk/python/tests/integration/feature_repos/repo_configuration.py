@@ -50,6 +50,7 @@ DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 # Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes
 # 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
+SQLITE_CONFIG = {"type": "sqlite", "path": "data/online_store.db"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
@@ -74,29 +75,29 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
         [
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
             # GCP configurations
-            # IntegrationTestRepoConfig(
-            #     provider="gcp",
-            #     offline_store_creator=BigQueryDataSourceCreator,
-            #     online_store="datastore",
-            # ),
-            # IntegrationTestRepoConfig(
-            #     provider="gcp",
-            #     offline_store_creator=BigQueryDataSourceCreator,
-            #     online_store=REDIS_CONFIG,
-            # ),
-            # AWS configurations
-            # IntegrationTestRepoConfig(
-            #     provider="aws",
-            #     offline_store_creator=RedshiftDataSourceCreator,
-            #     online_store=DYNAMO_CONFIG,
-            #     python_feature_server=True,
-            # ),
-            # IntegrationTestRepoConfig(
-            #     provider="aws",
-            #     offline_store_creator=RedshiftDataSourceCreator,
-            #     online_store=REDIS_CONFIG,
-            # ),
-            # Snowflake configurations
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store="datastore",
+            ),
+            IntegrationTestRepoConfig(
+                provider="gcp",
+                offline_store_creator=BigQueryDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            AWS configurations
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=DYNAMO_CONFIG,
+                python_feature_server=True,
+            ),
+            IntegrationTestRepoConfig(
+                provider="aws",
+                offline_store_creator=RedshiftDataSourceCreator,
+                online_store=REDIS_CONFIG,
+            ),
+            Snowflake configurations
             IntegrationTestRepoConfig(
                 provider="aws",  # no list features, no feature server
                 offline_store_creator=SnowflakeDataSourceCreator,
@@ -117,7 +118,9 @@ else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
 GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
+    #IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
+    IntegrationTestRepoConfig(online_store=SQLITE_CONFIG, go_feature_server=True,),
+
 ]
 
 
