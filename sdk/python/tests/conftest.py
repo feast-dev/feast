@@ -30,7 +30,6 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
-    GO_CYCLE_REPO_CONFIGS,
     GO_REPO_CONFIGS,
     REDIS_CLUSTER_CONFIG,
     REDIS_CONFIG,
@@ -82,12 +81,6 @@ def pytest_addoption(parser):
         default=False,
         help="Run tests that use the go feature server",
     )
-    parser.addoption(
-        "--goserverlifecycle",
-        action="store_true",
-        default=False,
-        help="Run tests on go feature server lifecycle",
-    )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
@@ -95,7 +88,6 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_benchmark = config.getoption("--benchmark") is True
     should_run_universal = config.getoption("--universal") is True
     should_run_goserver = config.getoption("--goserver") is True
-    should_run_goserverlifecycle = config.getoption("--goserverlifecycle") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -125,12 +117,6 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     if should_run_goserver:
         items.clear()
         for t in goserver_tests:
-            items.append(t)
-
-    goserverlifecycle_tests = [t for t in items if "goserverlifecycle" in t.keywords]
-    if should_run_goserverlifecycle:
-        items.clear()
-        for t in goserverlifecycle_tests:
             items.append(t)
 
 
@@ -208,23 +194,6 @@ def environment(request, worker_id: str):
     params=GO_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_REPO_CONFIGS]
 )
 def go_environment(request, worker_id: str):
-    e = construct_test_environment(request.param, worker_id=worker_id)
-
-    def cleanup():
-        e.feature_store.teardown()
-        if e.feature_store._go_server:
-            e.feature_store._go_server.kill_go_server_explicitly()
-
-    request.addfinalizer(cleanup)
-    return e
-
-
-@pytest.fixture(
-    params=GO_CYCLE_REPO_CONFIGS,
-    scope="session",
-    ids=[str(c) for c in GO_CYCLE_REPO_CONFIGS],
-)
-def go_cycle_environment(request, worker_id: str):
     e = construct_test_environment(request.param, worker_id=worker_id)
 
     def cleanup():

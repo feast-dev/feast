@@ -132,6 +132,7 @@ CI_REQUIRED = (
         "pre-commit",
         "assertpy==1.1",
         "pip-tools",
+        "pybindgen",
         "types-protobuf",
         "types-python-dateutil",
         "types-pytz",
@@ -282,7 +283,6 @@ class BuildGoProtosCommand(Command):
     description = "Builds the proto files into Go files."
     user_options = []
 
-
     def initialize_options(self):
         self.go_protoc = [
             "python",
@@ -317,22 +317,47 @@ class BuildGoProtosCommand(Command):
             print(f"Stderr: {e.stderr}")
             print(f"Stdout: {e.stdout}")
 
-    def _compile_go_feature_server(self):
-        print("Compile go feature server")
-        subprocess.check_call(["go",
-                               "build",
-                               "-work",
-                               "-x",
-                               "-o",
-                               f"{repo_root}/sdk/python/feast/binaries/server",
-                               f"github.com/feast-dev/feast/go/cmd/server"])
-
     def run(self):
         go_dir = Path(repo_root) / "go" / "protos"
         go_dir.mkdir(exist_ok=True)
         for sub_folder in self.sub_folders:
             self._generate_go_protos(f"feast/{sub_folder}/*.proto")
-        self._compile_go_feature_server()
+
+
+class BuildGoEmbeddedCommand(build_py):
+    description = "Builds Go embedded library"
+    user_options = []
+
+    def initialize_options(self) -> None:
+        self.path_val = _generate_path_with_gopath()
+
+        self.go_env = {}
+        for var in ("GOCACHE", "GOPATH"):
+            self.go_env[var] = subprocess \
+                .check_output(["go", "env", var]) \
+                .decode("utf-8") \
+                .strip()
+
+    def finalize_options(self) -> None:
+        pass
+
+    def _compile_embedded_lib(self):
+        print("Compile embedded go")
+        subprocess.check_call([
+            "gopy",
+            "build",
+            "-output",
+            "feast/embedded_go/lib",
+            "-vm",
+            "python3",
+            "github.com/feast-dev/feast/go/embedded"
+        ], env={
+            "PATH": self.path_val,
+            **self.go_env,
+        })
+
+    def run(self):
+        self._compile_embedded_lib()
 
 
 class BuildCommand(build_py):
@@ -343,6 +368,7 @@ class BuildCommand(build_py):
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
+            self.run_command("build_go_lib")
         build_py.run(self)
 
 
@@ -354,6 +380,7 @@ class DevelopCommand(develop):
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
+            self.run_command("build_go_lib")
         develop.run(self)
 
 
@@ -408,6 +435,7 @@ setup(
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
+        "build_go_lib": BuildGoEmbeddedCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
     },

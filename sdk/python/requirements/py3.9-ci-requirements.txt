@@ -514,6 +514,8 @@ pyasn1==0.4.8
     #   rsa
 pyasn1-modules==0.2.8
     # via google-auth
+pybindgen==0.22.0
+    # via feast (setup.py)
 pycodestyle==2.8.0
     # via flake8
 pycparser==2.21

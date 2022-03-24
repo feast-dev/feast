@@ -1,7 +1,6 @@
 import datetime
 import itertools
 import os
-import signal
 import time
 import unittest
 from datetime import timedelta
@@ -715,7 +714,6 @@ def test_online_store_cleanup(environment, universal_data_sources):
     assert all(v is None for v in online_features["value"])
 
 
-@pytest.mark.skip
 @pytest.mark.integration
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
@@ -867,12 +865,7 @@ def test_online_retrieval_with_go_server(
             )
 
     entity_rows = [
-        {
-            "driver_id": _driver,
-            "customer_id": _customer,
-            "origin_id": origin,
-            "destination_id": destination,
-        }
+        {"origin_id": origin, "destination_id": destination}
         for (_driver, _customer, origin, destination) in zip(
             sample_drivers, sample_customers, *sample_location_pairs
         )
@@ -888,138 +881,6 @@ def test_online_retrieval_with_go_server(
         origins_df,
         destinations_df,
     )
-
-
-@pytest.mark.skip
-@pytest.mark.integration
-@pytest.mark.goserver
-def test_online_store_cleanup_with_go_server(go_environment, go_data_sources):
-    """
-    This test mirrors test_online_store_cleanup for the Go feature server. It removes
-    on demand feature views since the Go feature server doesn't support them.
-    """
-    driver_entities, fs, simple_driver_fv, driver_stats_fv, df = setup_feature_store(
-        go_environment, go_data_sources
-    )
-    expected_values = df.sort_values(by="driver_id")
-    features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver_id": driver_id} for driver_id in sorted(driver_entities)]
-
-    online_features = fs.get_online_features(
-        features=features, entity_rows=entity_rows
-    ).to_dict()
-
-    assert np.allclose(expected_values["value"], online_features["value"])
-
-    fs.apply(
-        objects=[simple_driver_fv], objects_to_delete=[driver_stats_fv], partial=False
-    )
-
-    online_features = fs.get_online_features(
-        features=features, entity_rows=entity_rows
-    ).to_dict()
-    assert np.allclose(expected_values["value"], online_features["value"])
-
-    fs.apply(objects=[], objects_to_delete=[simple_driver_fv], partial=False)
-
-    def eventually_apply() -> Tuple[None, bool]:
-        try:
-            fs.apply([simple_driver_fv])
-        except BotoCoreError:
-            return None, False
-
-        return None, True
-
-    # Online store backend might have eventual consistency in schema update
-    # So recreating table that was just deleted might need some retries
-    wait_retry_backoff(eventually_apply, timeout_secs=60)
-
-    online_features = fs.get_online_features(features=features, entity_rows=entity_rows)
-    online_features = online_features.to_dict()
-    assert all(v is None for v in online_features["value"])
-
-
-@pytest.mark.skip
-@pytest.mark.integration
-@pytest.mark.goserverlifecycle
-def test_go_server_life_cycle(go_cycle_environment, go_data_sources):
-    import threading
-
-    import psutil
-
-    driver_entities, fs, simple_driver_fv, _, _ = setup_feature_store(
-        go_cycle_environment, go_data_sources
-    )
-    features = [f"{simple_driver_fv.name}:value"]
-    entity_rows = [{"driver_id": driver_id} for driver_id in sorted(driver_entities)]
-
-    # Start go server process that calls get_online_features and return and check if at any time go server
-    # fails to clean up resources
-    fs.get_online_features(features=features, entity_rows=entity_rows).to_dict()
-
-    assert (
-        fs._go_server
-        and fs._go_server._go_server_started.is_set()
-        and fs._go_server._shared_connection._process
-    )
-    go_fs_pid = fs._go_server._shared_connection._process.pid
-
-    os.kill(go_fs_pid, signal.SIGTERM)
-    # At the same time checking that resources are clean up properly once child process is killed
-    # Check that background thread has terminated
-    monitor_thread_alive = False
-    monitor_thread = fs._go_server._go_server_background_thread
-    assert monitor_thread.daemon
-
-    print(f"Monitor thread: {monitor_thread}, {monitor_thread.ident}")
-
-    for thread in threading.enumerate():
-        if thread.ident == monitor_thread.ident and thread.is_alive():
-            monitor_thread_alive = True
-    assert monitor_thread_alive
-
-    # Check if go server subprocess is still active even if background thread and process are killed
-    go_server_still_alive = False
-    for proc in psutil.process_iter():
-        try:
-            # Get process name & pid from process object.
-            process_name = proc.name()
-            ppid = proc.ppid()
-            if "goserver" in process_name and ppid == go_fs_pid:
-                # Kill process first and raise exception later
-                go_server_still_alive = True
-                proc.terminate()
-
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    assert not go_server_still_alive
-
-    # Yield control to monitor thread to restart process.
-    time.sleep(1)
-
-    # Make sure the background thread has created a new subprocess.
-    assert (
-        fs._go_server
-        and fs._go_server._go_server_started.is_set()
-        and fs._go_server._shared_connection._process
-    )
-    new_go_fs_pid = fs._go_server._shared_connection._process.pid
-    assert new_go_fs_pid != go_fs_pid
-    fs._go_server._shared_connection._check_grpc_connection()
-
-    # Ensure process is still running.
-    assert fs._go_server._shared_connection._process.poll() is None
-
-    # And we can still get feature values.
-    fs.get_online_features(features=features, entity_rows=entity_rows).to_dict()
-
-    fs.kill_go_server()
-
-    # Ensure process is dead.
-    assert fs._go_server is None
-    # Ensure monitoring thread is also dead.
-    live_threads = [t.ident for t in threading.enumerate()]
-    assert monitor_thread.ident not in live_threads
 
 
 def setup_feature_store(environment, go_data_sources):
@@ -1114,17 +975,10 @@ def get_latest_feature_values_from_dataframes(
             global_df["event_timestamp"].idxmax()
         ].to_dict()
     if origin_df is not None:
-        latest_origin_row = get_latest_row(
-            entity_row, origin_df, "location_id", "origin_id"
+        latest_location_row = get_latest_feature_values_for_location_df(
+            entity_row, origin_df, destination_df
         )
-        latest_destination_row = get_latest_row(
-            entity_row, destination_df, "location_id", "destination_id"
-        )
-        # Need full feature names for shadow entities
-        latest_origin_row["origin__temperature"] = latest_origin_row.pop("temperature")
-        latest_destination_row["destination__temperature"] = latest_destination_row.pop(
-            "temperature"
-        )
+
     request_data_features = entity_row.copy()
     request_data_features.pop("driver_id")
     request_data_features.pop("customer_id")
@@ -1143,8 +997,7 @@ def get_latest_feature_values_from_dataframes(
             **latest_customer_row,
             **latest_driver_row,
             **latest_orders_row,
-            **latest_origin_row,
-            **latest_destination_row,
+            **latest_location_row,
             **request_data_features,
         }
     return {
@@ -1152,6 +1005,25 @@ def get_latest_feature_values_from_dataframes(
         **latest_driver_row,
         **latest_orders_row,
         **request_data_features,
+    }
+
+
+def get_latest_feature_values_for_location_df(entity_row, origin_df, destination_df):
+    latest_origin_row = get_latest_row(
+        entity_row, origin_df, "location_id", "origin_id"
+    )
+    latest_destination_row = get_latest_row(
+        entity_row, destination_df, "location_id", "destination_id"
+    )
+    # Need full feature names for shadow entities
+    latest_origin_row["origin__temperature"] = latest_origin_row.pop("temperature")
+    latest_destination_row["destination__temperature"] = latest_destination_row.pop(
+        "temperature"
+    )
+
+    return {
+        **latest_origin_row,
+        **latest_destination_row,
     }
 
 
@@ -1222,22 +1094,15 @@ def assert_feature_service_entity_mapping_correctness(
         )
         feature_service_keys = feature_service_online_features_dict.keys()
 
-        assert (
-            len(feature_service_keys)
-            == sum(
-                [
-                    len(projection.features)
-                    for projection in feature_service.feature_view_projections
-                ]
-            )
-            + 4
-        )  # Add 4 for the driver_id, customer_id, origin_id, and destination_id entity keys
+        assert len(feature_service_keys) == sum(
+            [
+                len(projection.features)
+                for projection in feature_service.feature_view_projections
+            ]
+        ) + len(entity_rows[0])
 
         for i, entity_row in enumerate(entity_rows):
-            df_features = get_latest_feature_values_from_dataframes(
-                driver_df=drivers_df,
-                customer_df=customers_df,
-                orders_df=orders_df,
+            df_features = get_latest_feature_values_for_location_df(
                 origin_df=origins_df,
                 destination_df=destinations_df,
                 entity_row=entity_row,

@@ -1,3 +1,4 @@
 recursive-include feast/protos/ *.py
-include feast/binaries/*
 recursive-include feast py.typed *.pyi
+
+recursive-include feast/embedded_go/lib/ *.py *.so
