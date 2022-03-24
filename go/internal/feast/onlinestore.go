@@ -59,7 +59,6 @@ func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
 		return onlineStore, err
 	}
 	if onlineStoreType == "sqlite" {
-		print("ASFDSASF!!")
 		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
 	} else {
