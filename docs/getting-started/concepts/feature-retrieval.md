@@ -20,7 +20,10 @@ online_features = fs.get_online_features(
         'driver_locations:lon',
         'drivers_activity:trips_today'
     ],
-    entity_rows=[{'driver': 'driver_1001'}]
+    entity_rows=[
+        # {join_key: entity_value}
+        {'driver': 'driver_1001'}
+    ]
 )
 ```
 

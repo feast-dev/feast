@@ -34,6 +34,7 @@ fs = FeatureStore(repo_path="path/to/feature/repo")
 online_features = fs.get_online_features(
     features=features,
     entity_rows=[
+        # {join_key: entity_value, ...}
         {"driver_id": 1001},
         {"driver_id": 1002}]
 ).to_dict()
