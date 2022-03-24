@@ -1,4 +1,4 @@
-project: selected_tetra
+project: feature_repo
 registry: data/registry.db
 provider: local
 online_store:

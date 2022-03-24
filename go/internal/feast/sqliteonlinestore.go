@@ -3,32 +3,37 @@ package feast
 import (
 	"database/sql"
 	"errors"
+	"log"
+	"strings"
+	"time"
 
 	"context"
 	"fmt"
 
+	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	_ "github.com/mattn/go-sqlite3"
+	"google.golang.org/protobuf/proto"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type SqliteOnlineStore struct {
 	// Feast project name
-	// TODO (woop): Should we remove project as state that is tracked at the store level?
 	project string
-
-	path string
-	db   *sql.DB
+	path    string
+	db      *sql.DB
 }
 
-func NewSqliteOnlineStore(project string, onlineStoreConfig map[string]interface{}) (*SqliteOnlineStore, error) {
+// Creates a new sqlite online store object. onlineStoreConfig should have relative path of database file with respect to repoConfig.repoPath.
+func NewSqliteOnlineStore(project string, repoConfig *RepoConfig, onlineStoreConfig map[string]interface{}) (*SqliteOnlineStore, error) {
 	store := SqliteOnlineStore{project: project}
 	if db_path, ok := onlineStoreConfig["path"]; !ok {
 		return nil, fmt.Errorf("cannot find sqlite path %s", db_path)
 	} else if dbPathStr, ok := db_path.(string); !ok {
 		return nil, fmt.Errorf("cannot find convert sqlite path to string %s", db_path)
 	} else {
-		store.path = dbPathStr
-		db, err := initializeConnection(dbPathStr)
+		store.path = fmt.Sprintf("%s/%s", repoConfig.RepoPath, dbPathStr)
+		db, err := initializeConnection(store.path)
 		if err != nil {
 			return nil, err
 		}
@@ -41,17 +46,69 @@ func (s *SqliteOnlineStore) Destruct() {
 	s.db.Close()
 }
 
+// Returns FeatureData 2D array. Each row corresponds to one entity value and each column corresponds to a single feature where the number of columns should be
+// same length as the length of featureNames. Reads from every table in featureViewNames with the entity keys described.
 func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	featureCount := len(featureNames)
 	_, err := s.getConnection()
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
-}
 
-// feature views, entities, dataframe?
-func (s *SqliteOnlineStore) WriteToOnlineStore(ctx context.Context, featureViewName string, data [][]FeatureData) error {
-	return nil
+	project := s.project
+	results := make([][]FeatureData, len(entityKeys))
+	entityNameToEntityIndex := make(map[string]int)
+	in_query := make([]string, len(entityKeys))
+	serialized_entities := make([]interface{}, len(entityKeys))
+	for i := 0; i < len(entityKeys); i++ {
+		serKey, err := serializeEntityKey(&entityKeys[i])
+		if err != nil {
+			return nil, err
+		}
+		// TODO: fix this, string conversion is not safe
+		entityNameToEntityIndex[string(*serKey)] = i
+		// for IN clause in read query
+		in_query[i] = "?"
+		serialized_entities[i] = *serKey
+	}
+	featureNamesToIdx := make(map[string]int)
+	for idx, name := range featureNames {
+		featureNamesToIdx[name] = idx
+	}
+
+	for idx := 0; idx < len(entityKeys); idx++ {
+		results[idx] = make([]FeatureData, featureCount)
+	}
+	for _, featureViewName := range featureViewNames {
+		query_string := fmt.Sprintf(`SELECT entity_key, feature_name, value, event_ts
+									FROM %s
+									WHERE entity_key IN (%s)
+									ORDER BY entity_key`, tableId(project, featureViewName), strings.Join(in_query, ","))
+		rows, err := s.db.Query(query_string, serialized_entities...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var entity_key string
+			var feature_name string
+			var valueString string
+			var event_ts time.Time
+			var value types.Value
+			err = rows.Scan(&entity_key, &feature_name, &valueString, &event_ts)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+				return nil, errors.New("error converting parsed value to types.Value")
+			}
+			results[entityNameToEntityIndex[entity_key]][featureNamesToIdx[feature_name]] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
+				timestamp: *timestamppb.New(event_ts),
+				value:     types.Value{Val: value.Val},
+			}
+		}
+	}
+	return results, nil
 }
 
 func (s *SqliteOnlineStore) Update(ctx context.Context, config *RepoConfig, tables_to_delete []*FeatureView, tables_to_keep []*FeatureView) error {
@@ -62,16 +119,17 @@ func (s *SqliteOnlineStore) Update(ctx context.Context, config *RepoConfig, tabl
 	project := config.Project
 	for _, table := range tables_to_keep {
 		s.db.Exec(
-			fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))", tableId(project, table)))
+			fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))", tableId(project, table.base.name)))
 		s.db.Exec(
-			fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s_ek ON %s (entity_key);", tableId(project, table), tableId(project, table)))
+			fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s_ek ON %s (entity_key);", tableId(project, table.base.name), tableId(project, table.base.name)))
 	}
 	for _, table := range tables_to_delete {
-		s.db.Exec("DROP TABLE IF EXISTS %s", tableId(project, table))
+		s.db.Exec("DROP TABLE IF EXISTS %s", tableId(project, table.base.name))
 	}
 	return nil
 }
 
+// Gets a sqlite connection and sets it to the online store and also returns a pointer to the connection.
 func (s *SqliteOnlineStore) getConnection() (*sql.DB, error) {
 	if s.db == nil {
 		if s.path == "" {
@@ -86,12 +144,14 @@ func (s *SqliteOnlineStore) getConnection() (*sql.DB, error) {
 	return s.db, nil
 }
 
-func tableId(project string, table *FeatureView) string {
-	return fmt.Sprintf("%s_%s", project, table.base.name)
+// Constructs the table id from the project and table(featureViewName) string.
+func tableId(project string, featureViewName string) string {
+	return fmt.Sprintf("%s_%s", project, featureViewName)
 }
 
+// Creates a connection to the sqlite database and returns the connection.
 func initializeConnection(db_path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./foo.db")
+	db, err := sql.Open("sqlite3", db_path)
 	if err != nil {
 		return nil, err
 	}
