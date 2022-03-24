@@ -324,7 +324,7 @@ class BuildGoProtosCommand(Command):
             self._generate_go_protos(f"feast/{sub_folder}/*.proto")
 
 
-class BuildGoEmbeddedCommand(build_py):
+class BuildGoEmbeddedCommand(Command):
     description = "Builds Go embedded library"
     user_options = []
 
