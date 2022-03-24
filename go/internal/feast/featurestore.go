@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/apache/arrow/go/arrow"
 	"github.com/apache/arrow/go/arrow/array"
 	"github.com/apache/arrow/go/arrow/memory"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -622,30 +621,11 @@ func (fs *FeatureStore) transposeResponseIntoColumns(featureData2D [][]FeatureDa
 				currentVector.Timestamps[rowIndex] = eventTimeStamp
 			}
 		}
-		var fieldType arrow.DataType
-		var err error
-
-		for _, val := range protoValues {
-			if val != nil {
-				fieldType, err = utils.ProtoTypeToArrowType(val)
-				if err != nil {
-					return nil, err
-				}
-				break
-			}
+		arrowValues, err := utils.ProtoValuesToArrowArray(protoValues, arrowAllocator, numRows)
+		if err != nil {
+			return nil, err
 		}
-
-		if fieldType != nil {
-			builder := array.NewBuilder(arrowAllocator, fieldType)
-			err = utils.ProtoValuesToArrowArray(builder, protoValues)
-			if err != nil {
-				return nil, err
-			}
-
-			currentVector.Values = builder.NewArray()
-		} else {
-			currentVector.Values = array.NewNull(numRows)
-		}
+		currentVector.Values = arrowValues
 	}
 
 	return vectors, nil

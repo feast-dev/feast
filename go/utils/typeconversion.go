@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/apache/arrow/go/arrow"
 	"github.com/apache/arrow/go/arrow/array"
+	"github.com/apache/arrow/go/arrow/memory"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
@@ -47,7 +48,7 @@ func ProtoTypeToArrowType(sample *types.Value) (arrow.DataType, error) {
 	}
 }
 
-func ProtoValuesToArrowArray(builder array.Builder, values []*types.Value) error {
+func copyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) error {
 	switch fieldBuilder := builder.(type) {
 	case *array.BooleanBuilder:
 		for _, v := range values {
@@ -185,6 +186,16 @@ func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 				}
 				values = append(values,
 					&types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: vals}}})
+			case arrow.FixedWidthTypes.Time64ns:
+				vals := make([]int64, int(offsets[idx])-pos)
+				for j := pos; j < int(offsets[idx]); j++ {
+					vals[j-pos] = int64(listValues.(*array.Time64).Value(j))
+				}
+
+				values = append(values,
+					&types.Value{Val: &types.Value_UnixTimestampListVal{
+						UnixTimestampListVal: &types.Int64List{Val: vals}}})
+
 			}
 
 			// set the end of current element as start of the next
@@ -207,6 +218,10 @@ func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 		for _, v := range arr.(*array.Float32).Float32Values() {
 			values = append(values, &types.Value{Val: &types.Value_FloatVal{FloatVal: v}})
 		}
+	case arrow.PrimitiveTypes.Float64:
+		for _, v := range arr.(*array.Float64).Float64Values() {
+			values = append(values, &types.Value{Val: &types.Value_DoubleVal{DoubleVal: v}})
+		}
 	case arrow.FixedWidthTypes.Boolean:
 		for idx := 0; idx < arr.Len(); idx++ {
 			values = append(values,
@@ -220,11 +235,44 @@ func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 	case arrow.BinaryTypes.String:
 		for idx := 0; idx < arr.Len(); idx++ {
 			values = append(values,
-				&types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.Binary).ValueString(idx)}})
+				&types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.String).Value(idx)}})
+		}
+	case arrow.FixedWidthTypes.Time64ns:
+		for idx := 0; idx < arr.Len(); idx++ {
+			values = append(values,
+				&types.Value{Val: &types.Value_UnixTimestampVal{
+					UnixTimestampVal: int64(arr.(*array.Time64).Value(idx))}})
 		}
 	default:
 		return nil, fmt.Errorf("unsupported arrow to proto conversion for type %s", arr.DataType())
 	}
 
 	return values, nil
+}
+
+func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.Allocator, numRows int) (array.Interface, error) {
+	var fieldType arrow.DataType
+	var err error
+
+	for _, val := range protoValues {
+		if val != nil {
+			fieldType, err = ProtoTypeToArrowType(val)
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
+
+	if fieldType != nil {
+		builder := array.NewBuilder(arrowAllocator, fieldType)
+		err = copyProtoValuesToArrowArray(builder, protoValues)
+		if err != nil {
+			return nil, err
+		}
+
+		return builder.NewArray(), nil
+	} else {
+		return array.NewNull(numRows), nil
+	}
 }
