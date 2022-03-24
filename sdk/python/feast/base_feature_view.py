@@ -152,7 +152,7 @@ class BaseFeatureView(ABC):
 
     def with_name(self, name: str):
         """
-        Returns a renamed copy of this base feature view. This renamed copy will only be
+        Returns a renamed copy of this base feature view. This renamed copy should only be
         used for query operations and will not modify the underlying base feature view.
 
         Args:
