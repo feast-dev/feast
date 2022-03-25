@@ -51,7 +51,7 @@ func TestSqliteOnlineRead(t *testing.T) {
 	returnedFeatureValues := make([]*types.Value, 0)
 	returnedFeatureNames := make([]string, 0)
 	for _, featureVector := range featureData {
-		for idx, _ := range featureVector {
+		for idx := range featureVector {
 			returnedFeatureValues = append(returnedFeatureValues, &featureVector[idx].value)
 			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].reference.FeatureName)
 		}
