@@ -6,6 +6,7 @@ from feast import (
     Feature,
     FeatureService,
     FeatureView,
+    PushSource,
     ValueType,
 )
 
@@ -24,6 +25,16 @@ customer_profile_source = BigQuerySource(
 customer_driver_combined_source = BigQuerySource(
     table_ref="feast-oss.public.customer_driver",
     event_timestamp_column="event_timestamp",
+)
+
+driver_locations_push_source = PushSource(
+    name="driver_locations_push",
+    schema={
+        "driver_id": ValueType.STRING,
+        "driver_lat": ValueType.FLOAT,
+        "driver_long": ValueType.STRING,
+    },
+    batch_source=driver_locations_source,
 )
 
 driver = Entity(
@@ -50,6 +61,19 @@ driver_locations = FeatureView(
     ],
     online=True,
     batch_source=driver_locations_source,
+    tags={},
+)
+
+pushed_driver_locations = FeatureView(
+    name="pushed_driver_locations",
+    entities=["driver"],
+    ttl=timedelta(days=1),
+    features=[
+        Feature(name="driver_lat", dtype=ValueType.FLOAT),
+        Feature(name="driver_long", dtype=ValueType.STRING),
+    ],
+    online=True,
+    stream_source=driver_locations_push_source,
     tags={},
 )
 

@@ -20,7 +20,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource
+from feast.data_source import DataSource, PushSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
@@ -58,7 +58,9 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source: The batch source of data where this group of features is stored.
+        batch_source (optional): The batch source of data where this group of features is stored.
+            This is optional ONLY a push source is specified as the stream_source, since push sources
+            contain their own batch sources.
         stream_source (optional): The stream source of data where this group of features
             is stored.
         features: The list of features defined as part of this feature view.
@@ -88,7 +90,7 @@ class FeatureView(BaseFeatureView):
         name: str,
         entities: List[str],
         ttl: Union[Duration, timedelta],
-        batch_source: DataSource,
+        batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
         online: bool = True,
@@ -121,15 +123,30 @@ class FeatureView(BaseFeatureView):
         """
         _features = features or []
 
+        if stream_source is not None and isinstance(stream_source, PushSource):
+            if stream_source.batch_source is None or not isinstance(
+                stream_source.batch_source, DataSource
+            ):
+                raise ValueError(
+                    f"A batch_source needs to be specified for feature view `{name}`"
+                )
+            self.batch_source = stream_source.batch_source
+        else:
+            if batch_source is None:
+                raise ValueError(
+                    f"A batch_source needs to be specified for feature view `{name}`"
+                )
+            self.batch_source = batch_source
+
         cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
             if (
-                batch_source.field_mapping is not None
-                and col in batch_source.field_mapping.keys()
+                self.batch_source.field_mapping is not None
+                and col in self.batch_source.field_mapping.keys()
             ):
                 raise ValueError(
-                    f"The field {col} is mapped to {batch_source.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {batch_source.field_mapping[col]} as the "
+                    f"The field {col} is mapped to {self.batch_source.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {self.batch_source.field_mapping[col]} as the "
                     f"Entity or Feature name."
                 )
 
@@ -149,9 +166,8 @@ class FeatureView(BaseFeatureView):
         else:
             self.ttl = ttl
 
-        self.batch_source = batch_source
-        self.stream_source = stream_source
         self.online = online
+        self.stream_source = stream_source
         self.materialization_intervals = []
 
     # Note: Python requires redefining hash in child classes that override __eq__

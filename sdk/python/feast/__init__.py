@@ -7,7 +7,7 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
-from .data_source import KafkaSource, KinesisSource, SourceType
+from .data_source import KafkaSource, KinesisSource, PushSource, SourceType
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
@@ -47,4 +47,5 @@ __all__ = [
     "RedshiftSource",
     "RequestFeatureView",
     "SnowflakeSource",
+    "PushSource",
 ]

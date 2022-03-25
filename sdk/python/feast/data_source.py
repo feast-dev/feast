@@ -396,8 +396,8 @@ class RequestDataSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         schema_pb = data_source.request_data_options.schema
         schema = {}
-        for key in schema_pb.keys():
-            schema[key] = ValueType(schema_pb.get(key))
+        for key, val in schema_pb.items():
+            schema[key] = ValueType(val)
         return RequestDataSource(name=data_source.name, schema=schema)
 
     def to_proto(self) -> DataSourceProto:
@@ -510,27 +510,41 @@ class KinesisSource(DataSource):
 
 class PushSource(DataSource):
     """
-    PushSource that can be used to ingest features on request
-
-    Args:
-        name: Name of the push source
-        schema: Schema mapping from the input feature name to a ValueType
+    A source that can be used to ingest features on request
     """
 
     name: str
     schema: Dict[str, ValueType]
-    batch_source: Optional[DataSource]
+    batch_source: DataSource
+    event_timestamp_column: str
 
     def __init__(
         self,
         name: str,
         schema: Dict[str, ValueType],
-        batch_source: Optional[DataSource] = None,
+        batch_source: DataSource,
+        event_timestamp_column="timestamp",
     ):
-        """Creates a PushSource object."""
+        """
+        Creates a PushSource object.
+        Args:
+            name: Name of the push source
+            schema: Schema mapping from the input feature name to a ValueType
+            batch_source: The batch source that backs this push source. It's used when materializing from the offline
+                store to the online store, and when retrieving historical features.
+            event_timestamp_column (optional): Event timestamp column used for point in time
+                joins of feature values.
+        """
         super().__init__(name)
         self.schema = schema
         self.batch_source = batch_source
+        if not self.batch_source:
+            raise ValueError(f"batch_source is needed for push source {self.name}")
+        self.event_timestamp_column = event_timestamp_column
+        if not self.event_timestamp_column:
+            raise ValueError(
+                f"event_timestamp_column is needed for push source {self.name}"
+            )
 
     def validate(self, config: RepoConfig):
         pass
@@ -544,21 +558,23 @@ class PushSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         schema_pb = data_source.push_options.schema
         schema = {}
-        for key, value in schema_pb.items():
-            schema[key] = value
+        for key, val in schema_pb.items():
+            schema[key] = ValueType(val)
 
-        batch_source = None
-        if data_source.push_options.HasField("batch_source"):
-            batch_source = DataSource.from_proto(data_source.push_options.batch_source)
+        assert data_source.push_options.HasField("batch_source")
+        batch_source = DataSource.from_proto(data_source.push_options.batch_source)
 
         return PushSource(
-            name=data_source.name, schema=schema, batch_source=batch_source
+            name=data_source.name,
+            schema=schema,
+            batch_source=batch_source,
+            event_timestamp_column=data_source.event_timestamp_column,
         )
 
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
         for key, value in self.schema.items():
-            schema_pb[key] = value
+            schema_pb[key] = value.value
         batch_source_proto = None
         if self.batch_source:
             batch_source_proto = self.batch_source.to_proto()
@@ -567,7 +583,10 @@ class PushSource(DataSource):
             schema=schema_pb, batch_source=batch_source_proto
         )
         data_source_proto = DataSourceProto(
-            name=self.name, type=DataSourceProto.PUSH_SOURCE, push_options=options,
+            name=self.name,
+            type=DataSourceProto.PUSH_SOURCE,
+            push_options=options,
+            event_timestamp_column=self.event_timestamp_column,
         )
 
         return data_source_proto

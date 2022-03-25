@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from feast import Feature, FeatureView, OnDemandFeatureView, ValueType
+from feast import Feature, FeatureView, OnDemandFeatureView, PushSource, ValueType
 from feast.data_source import DataSource, RequestDataSource
 from feast.request_feature_view import RequestFeatureView
 
@@ -226,4 +226,23 @@ def create_field_mapping_feature_view(source):
         features=[Feature(name="feature_name", dtype=ValueType.INT32)],
         batch_source=source,
         ttl=timedelta(days=2),
+    )
+
+
+def create_pushable_feature_view(batch_source: DataSource):
+    push_source = PushSource(
+        name="location_stats_push_source",
+        schema={
+            "location_id": ValueType.INT64,
+            "temperature": ValueType.INT32,
+            "timestamp": ValueType.UNIX_TIMESTAMP,
+        },
+        batch_source=batch_source,
+    )
+    return FeatureView(
+        name="pushable_location_stats",
+        entities=["location_id"],
+        features=[Feature(name="temperature", dtype=ValueType.INT32)],
+        ttl=timedelta(days=2),
+        stream_source=push_source,
     )
