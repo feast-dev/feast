@@ -170,6 +170,8 @@ func (fs *FeatureStore) GetOnlineFeatures(
 			if _, ok := expectedJoinKeysSet[joinKeyOrFeature]; !ok {
 				log.Println("joinkey")
 				log.Println("6")
+				log.Println(expectedJoinKeysSet)
+				log.Printf("JoinKey is not expected in this request: %s\n%v", joinKeyOrFeature, expectedJoinKeysSet)
 
 				return nil, fmt.Errorf("JoinKey is not expected in this request: %s\n%v", joinKeyOrFeature, expectedJoinKeysSet)
 			} else {
