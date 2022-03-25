@@ -93,9 +93,9 @@ class FeatureView(BaseFeatureView):
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
+        tags: Optional[Dict[str, str]] = None,
         online: bool = True,
         description: str = "",
-        tags: Optional[Dict[str, str]] = None,
         owner: str = "",
     ):
         """
@@ -111,10 +111,10 @@ class FeatureView(BaseFeatureView):
             stream_source (optional): The stream source of data where this group of features
                 is stored.
             features (optional): The list of features defined as part of this feature view.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             online (optional): A boolean indicating whether online retrieval is enabled for
                 this feature view.
             description (optional): A human-readable description.
-            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
 
