@@ -30,6 +30,7 @@ func getRepoPath(basePath string) string {
 	}
 }
 
+// Starts a new grpc server, registers the serving service and returns a client.
 func getClient(ctx context.Context, basePath string) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
@@ -65,16 +66,16 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 }
 
 func TestGetFeastServingInfo(t *testing.T) {
-	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	ctx := context.Background()
-	client, closer := getClient(ctx, "")
+	// Pregenerated using `feast init`.
+	client, closer := getClient(ctx, "../../internal/test")
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
 	assert.Equal(t, feastServerVersion, response.Version)
 }
 
-func TestGetOnlineFeatures(t *testing.T) {
+func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	client, closer := getClient(ctx, "../../internal/test")
