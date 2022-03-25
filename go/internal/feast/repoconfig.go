@@ -3,7 +3,7 @@ package feast
 import (
 	"encoding/json"
 	"github.com/ghodss/yaml"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 )
 
@@ -54,7 +54,7 @@ func NewRepoConfigFromJSON(repoPath, configJSON string) (*RepoConfig, error) {
 // NewRepoConfigFromFile reads the `feature_store.yaml` file in the repo path and converts it
 // into a RepoConfig struct.
 func NewRepoConfigFromFile(repoPath string) (*RepoConfig, error) {
-	data, err := os.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
+	data, err := ioutil.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -60,7 +61,6 @@ from feast.feature_view import (
     DUMMY_ENTITY_VAL,
     FeatureView,
 )
-from feast.go_server import GoServer
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
@@ -90,6 +90,10 @@ from feast.version import get_version
 warnings.simplefilter("once", DeprecationWarning)
 
 
+if TYPE_CHECKING:
+    from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
+
+
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
@@ -104,7 +108,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
     _provider: Provider
-    _go_server: Optional[GoServer]
+    _go_server: Optional["EmbeddedOnlineFeatureServer"]
 
     @log_exceptions
     def __init__(
@@ -159,13 +163,13 @@ class FeatureStore:
         Explicitly calling this method allows for direct control of the state of the registry cache. Every time this
         method is called the complete registry state will be retrieved from the remote registry store backend
         (e.g., GCS, S3), and the cache timer will be reset. If refresh_registry() is run before get_online_features()
-        is called, then get_online_feature() will use the cached registry instead of retrieving (and caching) the
+        is called, then get_online_features() will use the cached registry instead of retrieving (and caching) the
         registry itself.
 
         Additionally, the TTL for the registry cache can be set to infinity (by setting it to 0), which means that
         refresh_registry() will become the only way to update the cached registry. If the TTL is set to a value
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
-        downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
+        downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
         registry_config = self.config.get_registry_config()
         registry = Registry(registry_config, repo_path=self.repo_path)
@@ -488,13 +492,10 @@ class FeatureStore:
 
         The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
         a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
-        command are for informational purpose, and are not actually applied to the registry.
+        command are for informational purposes, and are not actually applied to the registry.
 
         Args:
-            objects: A single object, or a list of objects that are intended to be registered with the Feature Store.
-            objects_to_delete: A list of objects to be deleted from the registry.
-            partial: If True, apply will only handle the specified objects; if False, apply will also delete
-                all the objects in objects_to_delete.
+            desired_repo_contents: The desired repo state.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -729,10 +730,6 @@ class FeatureStore:
                     service.name, project=self.project, commit=False
                 )
 
-        # If a go server is running, kill it so that it can be recreated in `update_infra` with
-        # the latest registry state.
-        self.kill_go_server()
-
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=views_to_delete if not partial else [],
@@ -753,8 +750,6 @@ class FeatureStore:
         tables.extend(feature_views)
 
         entities = self.list_entities()
-
-        self.kill_go_server()
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
@@ -1224,8 +1219,7 @@ class FeatureStore:
             Exception: No entity with the specified name exists.
 
         Examples:
-            Materialize all features into the online store over the interval
-            from 3 hours ago to 10 minutes ago, and then retrieve these online features.
+            Retrieve online features from an online store.
 
             >>> from feast import FeatureStore, RepoConfig
             >>> fs = FeatureStore(repo_path="feature_repo")
@@ -1249,12 +1243,24 @@ class FeatureStore:
 
         # If Go feature server is enabled, send request to it instead of going through a regular Python logic
         if self.config.go_feature_server:
+            from feast.embedded_go.online_features_service import (
+                EmbeddedOnlineFeatureServer,
+            )
+
             # Lazily start the go server on the first request
             if self._go_server is None:
-                self._go_server = GoServer(str(self.repo_path.absolute()), self.config,)
-                self._go_server._shared_connection._check_grpc_connection()
+                self._go_server = EmbeddedOnlineFeatureServer(
+                    str(self.repo_path.absolute()), self.config
+                )
+
             return self._go_server.get_online_features(
-                features, columnar, full_feature_names
+                features_refs=features if isinstance(features, list) else [],
+                feature_service=features
+                if isinstance(features, FeatureService)
+                else None,
+                entities=columnar,
+                full_feature_names=full_feature_names,
+                project=self.config.project,
             )
 
         return self._get_online_features(
@@ -1601,7 +1607,7 @@ class FeatureStore:
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """ Read and process data from the OnlineStore for a given FeatureView.
 
-            This method guarentees that the order of the data in each element of the
+            This method guarantees that the order of the data in each element of the
             List returned is the same as the order of `requested_features`.
 
             This method assumes that `provider.online_read` returns data for each
@@ -1663,7 +1669,7 @@ class FeatureStore:
         requested_features: Iterable[str],
         table: FeatureView,
     ):
-        """ Populate the GetOnlineFeaturesReponse with feature data.
+        """ Populate the GetOnlineFeaturesResponse with feature data.
 
             This method assumes that `_read_from_online_store` returns data for each
             combination of Entities in `entity_rows` in the same order as they
@@ -1728,7 +1734,6 @@ class FeatureStore:
             full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
                 changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
                 "customer_fv__daily_transactions").
-            result_rows: List of result rows to be augmented with on demand feature values.
         """
         requested_odfv_map = {
             odfv.name: odfv for odfv in requested_on_demand_feature_views
@@ -1888,11 +1893,6 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
-
-    def kill_go_server(self):
-        if self._go_server:
-            self._go_server.kill_go_server_explicitly()
-            self._go_server = None
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

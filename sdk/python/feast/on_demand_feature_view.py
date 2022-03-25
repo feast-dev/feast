@@ -1,7 +1,7 @@
 import copy
 import functools
 from types import MethodType
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
@@ -33,20 +33,31 @@ from feast.value_type import ValueType
 
 class OnDemandFeatureView(BaseFeatureView):
     """
-    [Experimental] An OnDemandFeatureView defines on demand transformations on existing feature view values and request
-    data.
+    [Experimental] An OnDemandFeatureView defines a logical group of features, along with
+    transformations to be applied on those features and additional request data.
 
-    Args:
-        name: Name of the group of features.
-        features: Output schema of transformation with feature names
-        inputs: The input feature views passed into the transform.
-        udf: User defined transformation function that takes as input pandas dataframes
+    Attributes:
+        name: The unique name of the on demand feature view.
+        features: The list of features in the output of the on demand feature view, after
+            the transformation has been applied.
+        inputs: The feature views and request data sources passed into the transformation.
+        udf: The user defined transformation function, which must take pandas dataframes
+            as inputs.
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the on demand feature view, typically the email of the primary
+            maintainer.
     """
 
     # TODO(adchia): remove inputs from proto and declaration
+    name: str
+    features: List[Feature]
     input_feature_view_projections: Dict[str, FeatureViewProjection]
     input_request_data_sources: Dict[str, RequestDataSource]
     udf: MethodType
+    description: str
+    tags: Dict[str, str]
+    owner: str
 
     @log_exceptions
     def __init__(
@@ -55,11 +66,26 @@ class OnDemandFeatureView(BaseFeatureView):
         features: List[Feature],
         inputs: Dict[str, Union[FeatureView, FeatureViewProjection, RequestDataSource]],
         udf: MethodType,
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: str = "",
     ):
         """
         Creates an OnDemandFeatureView object.
+
+        Args:
+            name: The unique name of the on demand feature view.
+            features: The list of features in the output of the on demand feature view, after
+                the transformation has been applied.
+            inputs: The feature views and request data sources passed into the transformation.
+            udf: The user defined transformation function, which must take pandas dataframes
+                as inputs.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the on demand feature view, typically the email
+                of the primary maintainer.
         """
-        super().__init__(name, features)
+        super().__init__(name, features, description, tags, owner)
         self.input_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.input_request_data_sources: Dict[str, RequestDataSource] = {}
         for input_ref, odfv_input in inputs.items():
@@ -138,6 +164,9 @@ class OnDemandFeatureView(BaseFeatureView):
             user_defined_function=UserDefinedFunctionProto(
                 name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
             ),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -184,6 +213,9 @@ class OnDemandFeatureView(BaseFeatureView):
             udf=dill.loads(
                 on_demand_feature_view_proto.spec.user_defined_function.body
             ),
+            description=on_demand_feature_view_proto.spec.description,
+            tags=dict(on_demand_feature_view_proto.spec.tags),
+            owner=on_demand_feature_view_proto.spec.owner,
         )
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
