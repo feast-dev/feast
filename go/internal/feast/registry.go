@@ -3,6 +3,7 @@ package feast
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"sync"
 	"time"
@@ -141,6 +142,7 @@ func (r *Registry) loadFeatureViews(registry *core.Registry) {
 		if _, ok := r.cachedFeatureViews[featureView.Spec.Project]; !ok {
 			r.cachedFeatureViews[featureView.Spec.Project] = make(map[string]*core.FeatureView)
 		}
+		log.Println(featureView.Spec.Name)
 		r.cachedFeatureViews[featureView.Spec.Project][featureView.Spec.Name] = featureView
 	}
 }
