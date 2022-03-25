@@ -70,11 +70,11 @@ class OnDemandFeatureView(BaseFeatureView):
         self,
         name: str,
         features: List[Feature],
-        udf: MethodType,
-        inputs: Optional[
+        sources: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestDataSource]]
         ] = None,
-        sources: Optional[
+        udf: Optional[MethodType] = None,
+        inputs: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestDataSource]]
         ] = None,
         description: str = "",
@@ -88,12 +88,12 @@ class OnDemandFeatureView(BaseFeatureView):
             name: The unique name of the on demand feature view.
             features: The list of features in the output of the on demand feature view, after
                 the transformation has been applied.
-            udf: The user defined transformation function, which must take pandas dataframes
-                as inputs.
-            inputs (optional): A map from input source names to the actual input sources,
+            sources (optional): A map from input source names to the actual input sources,
                 which may be feature views, feature view projections, or request data sources.
                 These sources serve as inputs to the udf, which will refer to them by name.
-            sources (optional): A map from input source names to the actual input sources,
+            udf (optional): The user defined transformation function, which must take pandas
+                dataframes as inputs.
+            inputs (optional): A map from input source names to the actual input sources,
                 which may be feature views, feature view projections, or request data sources.
                 These sources serve as inputs to the udf, which will refer to them by name.
             description (optional): A human-readable description.
@@ -103,7 +103,7 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         super().__init__(name, features, description, tags, owner)
         if inputs and sources:
-            raise ValueError("At most one of `inputs` or `sources` can be specified.")
+            raise ValueError("At most one of `sources` or `inputs` can be specified.")
         elif inputs:
             warnings.warn(
                 (
@@ -129,6 +129,9 @@ class OnDemandFeatureView(BaseFeatureView):
                     source_name
                 ] = odfv_source.projection
 
+        if udf is None:
+            raise ValueError("The `udf` parameter must be specified.")
+        assert udf
         self.udf = udf
 
     @property
