@@ -571,7 +571,7 @@ class FeatureStore:
         new_infra_proto = new_infra.to_proto()
         infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
 
-        return (registry_diff, infra_diff, new_infra)
+        return registry_diff, infra_diff, new_infra
 
     @log_exceptions_and_usage
     def _apply_diffs(
@@ -659,16 +659,23 @@ class FeatureStore:
         ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
-        data_sources_to_update = [ob for ob in objects if isinstance(ob, DataSource)]
+        data_sources_set_to_update = {
+            ob for ob in objects if isinstance(ob, DataSource)
+        }
 
-        if len(entities_to_update) + len(views_to_update) + len(
-            request_views_to_update
-        ) + len(odfvs_to_update) + len(services_to_update) + len(
-            data_sources_to_update
-        ) != len(
-            objects
-        ):
-            raise ValueError("Unknown object type provided as part of apply() call")
+        for fv in views_to_update:
+            data_sources_set_to_update.add(fv.batch_source)
+            if fv.stream_source:
+                data_sources_set_to_update.add(fv.stream_source)
+
+        for rfv in request_views_to_update:
+            data_sources_set_to_update.add(rfv.request_data_source)
+
+        for odfv in odfvs_to_update:
+            for v in odfv.input_request_data_sources.values():
+                data_sources_set_to_update.add(v)
+
+        data_sources_to_update = list(data_sources_set_to_update)
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
