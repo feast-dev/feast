@@ -12,6 +12,7 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
+from feast import PushSource
 from feast.data_source import DataSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
@@ -112,6 +113,8 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 res.data_sources.add(obj)
             if isinstance(obj, FeatureView):
                 res.feature_views.add(obj)
+                if isinstance(obj.stream_source, PushSource):
+                    res.data_sources.add(obj.stream_source.batch_source)
             elif isinstance(obj, Entity):
                 res.entities.add(obj)
             elif isinstance(obj, FeatureService):

@@ -39,7 +39,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource
+from feast.data_source import DataSource, PushSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.entity import Entity
@@ -1148,6 +1148,27 @@ class FeatureStore:
             self._registry.apply_materialization(
                 feature_view, self.project, start_date, end_date,
             )
+
+    @log_exceptions_and_usage
+    def push(self, push_source_name: str, df: pd.DataFrame):
+        data_sources = self.registry.list_data_sources(self.project, True)
+        push_source = {
+            ds
+            for ds in data_sources
+            if isinstance(ds, PushSource) and ds.name == push_source_name
+        }
+
+        all_fvs = self.registry.list_feature_views(self.project, True)
+        fvs_with_push_sources = {
+            fv for fv in all_fvs if fv.stream_source in push_source
+        }
+
+        for fv in fvs_with_push_sources:
+            entities = []
+            for entity_name in fv.entities:
+                entities.append(self._registry.get_entity(entity_name, self.project))
+            provider = self._get_provider()
+            provider.ingest_df(fv, entities, df)
 
     @log_exceptions_and_usage
     def write_to_online_store(

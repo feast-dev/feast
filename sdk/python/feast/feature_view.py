@@ -20,7 +20,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource
+from feast.data_source import DataSource, PushSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
@@ -72,6 +72,7 @@ class FeatureView(BaseFeatureView):
     online: bool
     batch_source: DataSource
     stream_source: Optional[DataSource]
+
     materialization_intervals: List[Tuple[datetime, datetime]]
 
     @log_exceptions
@@ -80,7 +81,7 @@ class FeatureView(BaseFeatureView):
         name: str,
         entities: List[str],
         ttl: Union[Duration, timedelta],
-        batch_source: DataSource,
+        batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -94,15 +95,28 @@ class FeatureView(BaseFeatureView):
         """
         _features = features or []
 
+        if stream_source is not None and isinstance(stream_source, PushSource):
+            assert stream_source.batch_source is not None
+            assert isinstance(stream_source.batch_source, DataSource)
+            self.batch_source = stream_source.batch_source
+        else:
+            assert batch_source is not None
+            self.batch_source = batch_source
+
+        if not self.batch_source:
+            raise ValueError(
+                f"A batch_source needs to be specified for feature view `{name}`"
+            )
+
         cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
             if (
-                batch_source.field_mapping is not None
-                and col in batch_source.field_mapping.keys()
+                self.batch_source.field_mapping is not None
+                and col in self.batch_source.field_mapping.keys()
             ):
                 raise ValueError(
-                    f"The field {col} is mapped to {batch_source.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {batch_source.field_mapping[col]} as the "
+                    f"The field {col} is mapped to {self.batch_source.field_mapping[col]} for this data source. "
+                    f"Please either remove this field mapping or use {self.batch_source.field_mapping[col]} as the "
                     f"Entity or Feature name."
                 )
 
@@ -124,7 +138,6 @@ class FeatureView(BaseFeatureView):
             self.ttl = ttl
 
         self.online = online
-        self.batch_source = batch_source
         self.stream_source = stream_source
 
         self.materialization_intervals = []
