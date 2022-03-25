@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
@@ -104,6 +105,8 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	numRows, err := fs.validateEntityValues(entityProtos)
 	if err != nil {
+		log.Println("1")
+		log.Println(err)
 		return nil, err
 	}
 
@@ -121,21 +124,34 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	err = validateFeatureRefs(requestedFeatureViews, fullFeatureNames)
 	if err != nil {
+		log.Println("2")
+
+		log.Println(err)
 		return nil, err
 	}
 
 	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
+		log.Println("3")
+
+		log.Println(err)
 		return nil, status.Errorf(codes.InvalidArgument, "on demand feature views are currently not supported")
 	}
 
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := fs.getEntityMaps(requestedFeatureViews)
 	if err != nil {
+		log.Println("4")
+
+		log.Println(err)
+
 		return nil, err
 	}
 	// TODO (Ly): This should return empty now
 	// Expect no ODFV or Request FV passed in GetOnlineFearuresRequest
 	neededRequestData, neededRequestODFVFeatures, err := fs.getNeededRequestData(requestedRequestFeatureViews, requestedOnDemandFeatureViews)
 	if err != nil {
+		log.Println("5")
+
+		log.Println(err)
 		return nil, err
 	}
 
@@ -152,6 +168,9 @@ func (fs *FeatureStore) GetOnlineFeatures(
 			// requestDataFeatures[joinKeyOrFeature] = vals
 		} else {
 			if _, ok := expectedJoinKeysSet[joinKeyOrFeature]; !ok {
+				log.Println("joinkey")
+				log.Println("6")
+
 				return nil, fmt.Errorf("JoinKey is not expected in this request: %s\n%v", joinKeyOrFeature, expectedJoinKeysSet)
 			} else {
 				mappedEntityProtos[joinKeyOrFeature] = vals
@@ -194,6 +213,9 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	groupedRefs, err := groupFeatureRefs(requestedFeatureViews, mappedEntityProtos, entityNameToJoinKeyMap, fullFeatureNames)
 	if err != nil {
+		log.Println("7")
+
+		log.Println(err)
 		return nil, err
 	}
 	result := make([]*FeatureVector, 0)
@@ -202,6 +224,10 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	for _, groupRef := range groupedRefs {
 		featureData, err := fs.readFromOnlineStore(ctx, groupRef.entityKeys, groupRef.featureViewNames, groupRef.featureNames)
 		if err != nil {
+			log.Println("8")
+
+			log.Println(err)
+
 			return nil, err
 		}
 
@@ -212,6 +238,8 @@ func (fs *FeatureStore) GetOnlineFeatures(
 			numRows,
 		)
 		if err != nil {
+			log.Println("9")
+
 			return nil, err
 		}
 		result = append(result, vectors...)
