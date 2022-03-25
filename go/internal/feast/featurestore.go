@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 
@@ -116,13 +115,9 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err =
 			fs.getFeatureViewsToUseByService(featureService, false)
 	} else {
-		log.Println("in")
 		fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err =
 			fs.getFeatureViewsToUseByFeatureRefs(featureRefs, false)
 	}
-
-	log.Println("requestedFeatureViews")
-	log.Println(requestedFeatureViews[0])
 
 	err = validateFeatureRefs(requestedFeatureViews, fullFeatureNames)
 	if err != nil {
@@ -142,9 +137,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	// Expect no ODFV or Request FV passed in GetOnlineFearuresRequest
 	neededRequestData, neededRequestODFVFeatures, err := fs.getNeededRequestData(requestedRequestFeatureViews, requestedOnDemandFeatureViews)
 	if err != nil {
-		log.Println("5")
-
-		log.Println(err)
 		return nil, err
 	}
 
@@ -161,11 +153,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 			// requestDataFeatures[joinKeyOrFeature] = vals
 		} else {
 			if _, ok := expectedJoinKeysSet[joinKeyOrFeature]; !ok {
-				log.Println("joinkey")
-				log.Println("6")
-				log.Println(expectedJoinKeysSet)
-				log.Printf("JoinKey is not expected in this request: %s\n%v", joinKeyOrFeature, expectedJoinKeysSet)
-
 				return nil, fmt.Errorf("JoinKey is not expected in this request: %s\n%v", joinKeyOrFeature, expectedJoinKeysSet)
 			} else {
 				mappedEntityProtos[joinKeyOrFeature] = vals
@@ -208,9 +195,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	groupedRefs, err := groupFeatureRefs(requestedFeatureViews, mappedEntityProtos, entityNameToJoinKeyMap, fullFeatureNames)
 	if err != nil {
-		log.Println("7")
-
-		log.Println(err)
 		return nil, err
 	}
 	result := make([]*FeatureVector, 0)
@@ -219,10 +203,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	for _, groupRef := range groupedRefs {
 		featureData, err := fs.readFromOnlineStore(ctx, groupRef.entityKeys, groupRef.featureViewNames, groupRef.featureNames)
 		if err != nil {
-			log.Println("8")
-
-			log.Println(err)
-
 			return nil, err
 		}
 
@@ -233,8 +213,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 			numRows,
 		)
 		if err != nil {
-			log.Println("9")
-
 			return nil, err
 		}
 		result = append(result, vectors...)
@@ -373,14 +351,11 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
 	featureViews, err := fs.listFeatureViews(hideDummyEntity)
-	log.Println(featureViews)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	for _, featureView := range featureViews {
 		fvs[featureView.base.name] = featureView
-		log.Println("Asd")
-		log.Println(featureView.base.name)
 	}
 
 	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
@@ -408,8 +383,6 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		log.Println("ASDfas")
-		log.Println(featureViewName)
 		if fv, ok := fvs[featureViewName]; ok {
 			found := false
 			for _, group := range fvsToUse {
@@ -419,7 +392,6 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 				}
 			}
 			if !found {
-				log.Println(featureName)
 				fvsToUse = append(fvsToUse, &featureViewAndRefs{
 					view:        fv,
 					featureRefs: []string{featureName},
@@ -449,13 +421,10 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featureViewAndRef
 
 	for _, entity := range entities {
 		entitiesByName[entity.name] = entity
-		log.Println(entity.name)
 	}
 
 	for _, featuresAndView := range requestedFeatureViews {
 		featureView := featuresAndView.view
-		log.Println("featureview")
-		log.Println(featureView)
 		var joinKeyToAliasMap map[string]string
 		if featureView.base.projection != nil && featureView.base.projection.joinKeyMap != nil {
 			joinKeyToAliasMap = featureView.base.projection.joinKeyMap
@@ -465,7 +434,6 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featureViewAndRef
 
 		for entityName := range featureView.entities {
 			joinKey := entitiesByName[entityName].joinKey
-			log.Println(joinKey)
 			entityNameToJoinKeyMap[entityName] = joinKey
 
 			if alias, ok := joinKeyToAliasMap[joinKey]; ok {

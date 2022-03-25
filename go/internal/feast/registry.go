@@ -38,6 +38,8 @@ type Registry struct {
 }
 
 func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
+	log.Println("registry")
+	log.Println(registryConfig)
 	registryStoreType := registryConfig.RegistryStoreType
 	registryPath := registryConfig.Path
 	r := &Registry{
@@ -89,9 +91,11 @@ func (r *Registry) refresh() error {
 func (r *Registry) getRegistryProto() (*core.Registry, error) {
 	expired := r.cachedRegistry == nil || (r.cachedRegistryProtoTtl > 0 && time.Now().After(r.cachedRegistryProtoLastUpdated.Add(r.cachedRegistryProtoTtl)))
 	if !expired {
+		log.Println("Expired?")
 		return r.cachedRegistry, nil
 	}
 	registryProto, err := r.registryStore.GetRegistryProto()
+	log.Println(registryProto)
 	if err != nil {
 		return registryProto, err
 	}
@@ -142,7 +146,6 @@ func (r *Registry) loadFeatureViews(registry *core.Registry) {
 		if _, ok := r.cachedFeatureViews[featureView.Spec.Project]; !ok {
 			r.cachedFeatureViews[featureView.Spec.Project] = make(map[string]*core.FeatureView)
 		}
-		log.Println(featureView.Spec.Name)
 		r.cachedFeatureViews[featureView.Spec.Project][featureView.Spec.Name] = featureView
 	}
 }
