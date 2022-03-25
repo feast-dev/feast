@@ -2,33 +2,38 @@ package main
 
 import (
 	"context"
+	"net"
+	"path/filepath"
+	"runtime"
+	"testing"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
-	"net"
-	"path/filepath"
-	"runtime"
-	"testing"
 )
 
 // Return absolute path to the test_repo directory regardless of the working directory
-func getRepoPath() string {
+func getRepoPath(basePath string) string {
 	// Get the file path of this source file, regardless of the working directory
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("couldn't find file path of the test file")
+	if basePath == "" {
+		_, filename, _, ok := runtime.Caller(0)
+		if !ok {
+			panic("couldn't find file path of the test file")
+		}
+		return filepath.Join(filename, "..", "..", "feature_repo")
+	} else {
+		return filepath.Join(basePath, "feature_repo")
 	}
-	return filepath.Join(filename, "..", "..", "feature_repo")
 }
 
-func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
+func getClient(ctx context.Context, basePath string) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	config, err := feast.NewRepoConfigFromFile(getRepoPath())
+	config, err := feast.NewRepoConfigFromFile(getRepoPath(basePath))
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +65,7 @@ func getClient(ctx context.Context) (serving.ServingServiceClient, func()) {
 func TestGetFeastServingInfo(t *testing.T) {
 	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	ctx := context.Background()
-	client, closer := getClient(ctx)
+	client, closer := getClient(ctx, "")
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -68,9 +73,9 @@ func TestGetFeastServingInfo(t *testing.T) {
 }
 
 func TestGetOnlineFeatures(t *testing.T) {
-	t.Skip("@todo(achals): feature_repo isn't checked in yet")
+	//t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	ctx := context.Background()
-	client, closer := getClient(ctx)
+	client, closer := getClient(ctx, "../../internal/test")
 	defer closer()
 	response, err := client.GetOnlineFeatures(ctx, &serving.GetOnlineFeaturesRequest{})
 	assert.Nil(t, err)
