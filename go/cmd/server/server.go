@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -31,6 +32,8 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
 	if err != nil {
+		log.Println("first error")
+
 		return nil, err
 	}
 
@@ -41,6 +44,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		request.GetEntities(),
 		request.GetFullFeatureNames())
 	if err != nil {
+		log.Println("2nd error")
 		return nil, err
 	}
 
