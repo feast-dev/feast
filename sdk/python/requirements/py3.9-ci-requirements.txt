@@ -118,7 +118,7 @@ colorama==0.4.4
     # via feast (setup.py)
 coverage[toml]==6.3.2
     # via pytest-cov
-cryptography==3.3.2
+cryptography==3.4.8
     # via
     #   adal
     #   azure-identity
