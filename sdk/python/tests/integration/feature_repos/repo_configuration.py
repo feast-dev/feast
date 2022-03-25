@@ -43,6 +43,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_global_stats_feature_view,
     create_location_stats_feature_view,
     create_order_feature_view,
+    create_pushable_feature_view,
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
@@ -263,6 +264,7 @@ class UniversalFeatureViews:
     order: FeatureView
     location: FeatureView
     field_mapping: FeatureView
+    pushed_locations: FeatureView
 
     def values(self):
         return dataclasses.asdict(self).values()
@@ -288,6 +290,7 @@ def construct_universal_feature_views(
         order=create_order_feature_view(data_sources.orders),
         location=create_location_stats_feature_view(data_sources.location),
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),
+        pushed_locations=create_pushable_feature_view(data_sources.location),
     )
 
 

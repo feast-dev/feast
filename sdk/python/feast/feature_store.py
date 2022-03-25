@@ -1157,11 +1157,18 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def push(self, push_source_name: str, df: pd.DataFrame):
-        push_source = self.get_data_source(push_source_name)
+        from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=True)
+
         fvs_with_push_sources = {
-            fv for fv in all_fvs if fv.stream_source in push_source
+            fv
+            for fv in all_fvs
+            if (
+                fv.stream_source is not None
+                and isinstance(fv.stream_source, PushSource)
+                and fv.stream_source.name == push_source_name
+            )
         }
 
         for fv in fvs_with_push_sources:
