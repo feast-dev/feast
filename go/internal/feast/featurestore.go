@@ -116,6 +116,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err =
 			fs.getFeatureViewsToUseByService(featureService, false)
 	} else {
+		log.Println("in")
 		fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err =
 			fs.getFeatureViewsToUseByFeatureRefs(featureRefs, false)
 	}
@@ -371,8 +372,8 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
-
 	featureViews, err := fs.listFeatureViews(hideDummyEntity)
+	log.Println(featureViews)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
