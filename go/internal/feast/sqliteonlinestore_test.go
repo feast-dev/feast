@@ -17,6 +17,7 @@ func TestSqliteSetup(t *testing.T) {
 	assert.Equal(t, "data/registry.db", config.GetRegistryConfig().Path)
 	assert.Equal(t, "local", config.Provider)
 	assert.Equal(t, map[string]interface{}{
+		"type": "sqlite",
 		"path": "data/online_store.db",
 	}, config.OnlineStore)
 	assert.Empty(t, config.OfflineStore)
