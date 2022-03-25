@@ -40,7 +40,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, PushSource
+from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.entity import Entity
@@ -282,12 +282,13 @@ class FeatureStore:
         return self._registry.list_data_sources(self.project, allow_cache=allow_cache)
 
     @log_exceptions_and_usage
-    def get_entity(self, name: str) -> Entity:
+    def get_entity(self, name: str, allow_registry_cache: bool = False) -> Entity:
         """
         Retrieves an entity.
 
         Args:
             name: Name of entity.
+            allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
 
         Returns:
             The specified entity.
@@ -295,7 +296,9 @@ class FeatureStore:
         Raises:
             EntityNotFoundException: The entity could not be found.
         """
-        return self._registry.get_entity(name, self.project)
+        return self._registry.get_entity(
+            name, self.project, allow_cache=allow_registry_cache
+        )
 
     @log_exceptions_and_usage
     def get_feature_service(
@@ -317,12 +320,15 @@ class FeatureStore:
         return self._registry.get_feature_service(name, self.project, allow_cache)
 
     @log_exceptions_and_usage
-    def get_feature_view(self, name: str) -> FeatureView:
+    def get_feature_view(
+        self, name: str, allow_registry_cache: bool = False
+    ) -> FeatureView:
         """
         Retrieves a feature view.
 
         Args:
             name: Name of feature view.
+            allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
 
         Returns:
             The specified feature view.
@@ -330,12 +336,17 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._get_feature_view(name)
+        return self._get_feature_view(name, allow_registry_cache=allow_registry_cache)
 
     def _get_feature_view(
-        self, name: str, hide_dummy_entity: bool = True
+        self,
+        name: str,
+        hide_dummy_entity: bool = True,
+        allow_registry_cache: bool = False,
     ) -> FeatureView:
-        feature_view = self._registry.get_feature_view(name, self.project)
+        feature_view = self._registry.get_feature_view(
+            name, self.project, allow_cache=allow_registry_cache
+        )
         if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
             feature_view.entities = []
         return feature_view
@@ -1146,24 +1157,15 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def push(self, push_source_name: str, df: pd.DataFrame):
-        data_sources = self.registry.list_data_sources(self.project, True)
-        push_source = {
-            ds
-            for ds in data_sources
-            if isinstance(ds, PushSource) and ds.name == push_source_name
-        }
+        push_source = self.get_data_source(push_source_name)
 
-        all_fvs = self.registry.list_feature_views(self.project, True)
+        all_fvs = self.list_feature_views(allow_cache=True)
         fvs_with_push_sources = {
             fv for fv in all_fvs if fv.stream_source in push_source
         }
 
         for fv in fvs_with_push_sources:
-            entities = []
-            for entity_name in fv.entities:
-                entities.append(self._registry.get_entity(entity_name, self.project))
-            provider = self._get_provider()
-            provider.ingest_df(fv, entities, df)
+            self.write_to_online_store(fv.name, df, allow_registry_cache=True)
 
     @log_exceptions_and_usage
     def write_to_online_store(
@@ -1176,12 +1178,14 @@ class FeatureStore:
         ingests data directly into the Online store
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
-        feature_view = self._registry.get_feature_view(
-            feature_view_name, self.project, allow_cache=allow_registry_cache
+        feature_view = self.get_feature_view(
+            feature_view_name, allow_registry_cache=allow_registry_cache
         )
         entities = []
         for entity_name in feature_view.entities:
-            entities.append(self._registry.get_entity(entity_name, self.project))
+            entities.append(
+                self.get_entity(entity_name, allow_registry_cache=allow_registry_cache)
+            )
         provider = self._get_provider()
         provider.ingest_df(feature_view, entities, df)
 

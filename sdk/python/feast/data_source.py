@@ -510,11 +510,7 @@ class KinesisSource(DataSource):
 
 class PushSource(DataSource):
     """
-    PushSource that can be used to ingest features on request
-
-    Args:
-        name: Name of the push source
-        schema: Schema mapping from the input feature name to a ValueType
+    A source that can be used to ingest features on request
     """
 
     name: str
@@ -529,7 +525,16 @@ class PushSource(DataSource):
         batch_source: DataSource,
         event_timestamp_column="timestamp",
     ):
-        """Creates a PushSource object."""
+        """
+        Creates a PushSource object.
+        Args:
+            name: Name of the push source
+            schema: Schema mapping from the input feature name to a ValueType
+            batch_source: The batch source that backs this push source. It's used when materializing from the offline
+                store to the online store, and when retrieving historical features.
+            event_timestamp_column (optional): Event timestamp column used for point in time
+                joins of feature values.
+        """
         super().__init__(name)
         self.schema = schema
         self.batch_source = batch_source

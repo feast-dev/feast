@@ -58,7 +58,9 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source: The batch source of data where this group of features is stored.
+        batch_source (optional): The batch source of data where this group of features is stored.
+            This is optional ONLY a push source is specified as the stream_source, since push sources
+            contain their own batch sources.
         stream_source (optional): The stream source of data where this group of features
             is stored.
         features: The list of features defined as part of this feature view.
@@ -122,17 +124,19 @@ class FeatureView(BaseFeatureView):
         _features = features or []
 
         if stream_source is not None and isinstance(stream_source, PushSource):
-            assert stream_source.batch_source is not None
-            assert isinstance(stream_source.batch_source, DataSource)
+            if stream_source.batch_source is None or not isinstance(
+                stream_source.batch_source, DataSource
+            ):
+                raise ValueError(
+                    f"A batch_source needs to be specified for feature view `{name}`"
+                )
             self.batch_source = stream_source.batch_source
         else:
-            assert batch_source is not None
+            if batch_source is None:
+                raise ValueError(
+                    f"A batch_source needs to be specified for feature view `{name}`"
+                )
             self.batch_source = batch_source
-
-        if not self.batch_source:
-            raise ValueError(
-                f"A batch_source needs to be specified for feature view `{name}`"
-            )
 
         cols = [entity for entity in entities] + [feat.name for feat in _features]
         for col in cols:
