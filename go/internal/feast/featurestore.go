@@ -198,6 +198,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 	result := make([]*FeatureVector, 0)
 	arrowMemory := memory.NewGoAllocator()
+
 	for _, groupRef := range groupedRefs {
 		featureData, err := fs.readFromOnlineStore(ctx, groupRef.entityKeys, groupRef.featureViewNames, groupRef.featureNames)
 		if err != nil {

@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"log"
 	"net"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -75,12 +75,12 @@ func TestGetFeastServingInfo(t *testing.T) {
 }
 
 func TestGetOnlineFeatures(t *testing.T) {
-	//t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	ctx := context.Background()
+	// Pregenerated using `feast init`.
 	client, closer := getClient(ctx, "../../internal/test")
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
-	entities["driver"] = &types.RepeatedValue{
+	entities["driver_id"] = &types.RepeatedValue{
 		Val: []*types.Value{
 			{Val: &types.Value_Int64Val{Int64Val: 1001}},
 			{Val: &types.Value_Int64Val{Int64Val: 1003}},
@@ -96,9 +96,20 @@ func TestGetOnlineFeatures(t *testing.T) {
 		Entities: entities,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
+	expectedEntityValuesResp := []*types.Value{
+		{Val: &types.Value_Int64Val{Int64Val: 1001}},
+		{Val: &types.Value_Int64Val{Int64Val: 1003}},
+		{Val: &types.Value_Int64Val{Int64Val: 1005}},
+	}
+	expectedFeatureNamesResp := []string{"driver_id", "conv_rate", "acc_rate", "avg_daily_trips"}
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
-	log.Println(response.Metadata.FeatureNames.Val)
-	assert.True(t, false)
 
+	// Columnar so first column should have column names of all features
+	assert.True(t, reflect.DeepEqual(response.Results[0].Values, expectedEntityValuesResp))
+	assert.True(t, reflect.DeepEqual(response.Metadata.FeatureNames.Val, expectedFeatureNamesResp))
+	assert.Equal(t, len(response.Results), 4)
+	for _, row := range response.Results {
+		assert.Greater(t, len(row.Values), 0)
+	}
 }
