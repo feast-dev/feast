@@ -15,9 +15,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_historical_features_with_missing_request_data(
-    environment, universal_data_sources
-):
+def test_push_features_and_read(environment, universal_data_sources):
     store = environment.feature_store
 
     (_, datasets, data_sources) = universal_data_sources
@@ -39,6 +37,5 @@ def test_historical_features_with_missing_request_data(
         entity_rows=[{"location_id": 1}],
     )
     online_resp_dict = online_resp.to_dict()
-    print(online_resp_dict)
     assert online_resp_dict["location_id"] == [1]
     assert online_resp_dict["temperature"] == [4]

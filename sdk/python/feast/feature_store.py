@@ -1157,6 +1157,12 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def push(self, push_source_name: str, df: pd.DataFrame):
+        """
+        Push features to a push source. This updates all the feature views that have the push source as stream source.
+        Args:
+            push_source_name: The name of the push source we want to push data to.
+            df: the data being pushed.
+        """
         from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=True)
