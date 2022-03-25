@@ -105,8 +105,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	numRows, err := fs.validateEntityValues(entityProtos)
 	if err != nil {
-		log.Println("1")
-		log.Println(err)
 		return nil, err
 	}
 
@@ -122,26 +120,20 @@ func (fs *FeatureStore) GetOnlineFeatures(
 			fs.getFeatureViewsToUseByFeatureRefs(featureRefs, false)
 	}
 
+	log.Println("requestedFeatureViews")
+	log.Println(requestedFeatureViews[0])
+
 	err = validateFeatureRefs(requestedFeatureViews, fullFeatureNames)
 	if err != nil {
-		log.Println("2")
-
-		log.Println(err)
 		return nil, err
 	}
 
 	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
-		log.Println("3")
-
-		log.Println(err)
 		return nil, status.Errorf(codes.InvalidArgument, "on demand feature views are currently not supported")
 	}
 
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := fs.getEntityMaps(requestedFeatureViews)
 	if err != nil {
-		log.Println("4")
-
-		log.Println(err)
 
 		return nil, err
 	}
@@ -386,6 +378,8 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 	}
 	for _, featureView := range featureViews {
 		fvs[featureView.base.name] = featureView
+		log.Println("Asd")
+		log.Println(featureView.base.name)
 	}
 
 	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
@@ -413,6 +407,8 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
+		log.Println("ASDfas")
+		log.Println(featureViewName)
 		if fv, ok := fvs[featureViewName]; ok {
 			found := false
 			for _, group := range fvsToUse {
@@ -422,6 +418,7 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 				}
 			}
 			if !found {
+				log.Println(featureName)
 				fvsToUse = append(fvsToUse, &featureViewAndRefs{
 					view:        fv,
 					featureRefs: []string{featureName},
@@ -436,7 +433,6 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 				" feature view %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
 		}
 	}
-
 	return fvs, fvsToUse, requestFvsToUse, odFvsToUse, nil
 }
 
@@ -452,10 +448,13 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featureViewAndRef
 
 	for _, entity := range entities {
 		entitiesByName[entity.name] = entity
+		log.Println(entity.name)
 	}
 
 	for _, featuresAndView := range requestedFeatureViews {
 		featureView := featuresAndView.view
+		log.Println("featureview")
+		log.Println(featureView)
 		var joinKeyToAliasMap map[string]string
 		if featureView.base.projection != nil && featureView.base.projection.joinKeyMap != nil {
 			joinKeyToAliasMap = featureView.base.projection.joinKeyMap
@@ -465,6 +464,7 @@ func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featureViewAndRef
 
 		for entityName := range featureView.entities {
 			joinKey := entitiesByName[entityName].joinKey
+			log.Println(joinKey)
 			entityNameToJoinKeyMap[entityName] = joinKey
 
 			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
