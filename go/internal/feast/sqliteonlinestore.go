@@ -1,7 +1,9 @@
 package feast
 
 import (
+	"crypto/sha1"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"sync"
@@ -52,25 +54,24 @@ func (s *SqliteOnlineStore) Destruct() {
 
 // Returns FeatureData 2D array. Each row corresponds to one entity value and each column corresponds to a single feature where the number of columns should be
 // same length as the length of featureNames. Reads from every table in featureViewNames with the entity keys described.
-func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	featureCount := len(featureNames)
 	_, err := s.getConnection()
 	if err != nil {
 		return nil, err
 	}
-
 	project := s.project
 	results := make([][]FeatureData, len(entityKeys))
 	entityNameToEntityIndex := make(map[string]int)
 	in_query := make([]string, len(entityKeys))
 	serialized_entities := make([]interface{}, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
-		serKey, err := serializeEntityKey(&entityKeys[i])
+		serKey, err := serializeEntityKey(entityKeys[i])
 		if err != nil {
 			return nil, err
 		}
 		// TODO: fix this, string conversion is not safe
-		entityNameToEntityIndex[string(*serKey)] = i
+		entityNameToEntityIndex[hashSerializedEntityKey(serKey)] = i
 		// for IN clause in read query
 		in_query[i] = "?"
 		serialized_entities[i] = *serKey
@@ -94,19 +95,19 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.E
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var entity_key string
+			var entity_key []byte
 			var feature_name string
-			var valueString string
+			var valueString []byte
 			var event_ts time.Time
 			var value types.Value
 			err = rows.Scan(&entity_key, &feature_name, &valueString, &event_ts)
 			if err != nil {
 				return nil, errors.New("error could not resolve row in query (entity key, feature name, value, event ts)")
 			}
-			if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+			if err := proto.Unmarshal(valueString, &value); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
-			results[entityNameToEntityIndex[entity_key]][featureNamesToIdx[feature_name]] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
+			results[entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]][featureNamesToIdx[feature_name]] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
 				timestamp: *timestamppb.New(event_ts),
 				value:     types.Value{Val: value.Val},
 			}
@@ -144,4 +145,11 @@ func initializeConnection(db_path string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+func hashSerializedEntityKey(serializedEntityKey *[]byte) string {
+	h := sha1.New()
+	h.Write(*serializedEntityKey)
+	sha1_hash := hex.EncodeToString(h.Sum(nil))
+	return sha1_hash
 }

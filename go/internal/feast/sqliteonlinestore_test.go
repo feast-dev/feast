@@ -33,39 +33,39 @@ func TestSqliteOnlineRead(t *testing.T) {
 	assert.Nil(t, err)
 	entity_key1 := types.EntityKey{
 		JoinKeys:     []string{"driver_id"},
-		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{1005}}},
+		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1005}}},
 	}
 	entity_key2 := types.EntityKey{
 		JoinKeys:     []string{"driver_id"},
-		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{1001}}},
+		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}}},
 	}
 	entity_key3 := types.EntityKey{
 		JoinKeys:     []string{"driver_id"},
-		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{1003}}},
+		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1003}}},
 	}
-	entityKeys := []types.EntityKey{entity_key1, entity_key2, entity_key3}
+	entityKeys := []*types.EntityKey{&entity_key1, &entity_key2, &entity_key3}
 	tableNames := []string{"driver_hourly_stats"}
 	featureNames := []string{"conv_rate", "acc_rate", "avg_daily_trips"}
 	featureData, err := store.OnlineRead(context.Background(), entityKeys, tableNames, featureNames)
 	assert.Nil(t, err)
-	returnedFeatureValues := make([]types.Value, 0)
+	returnedFeatureValues := make([]*types.Value, 0)
 	returnedFeatureNames := make([]string, 0)
 	for _, featureVector := range featureData {
-		for _, feature := range featureVector {
-			returnedFeatureValues = append(returnedFeatureValues, feature.value)
-			returnedFeatureNames = append(returnedFeatureNames, feature.reference.FeatureName)
+		for idx, _ := range featureVector {
+			returnedFeatureValues = append(returnedFeatureValues, &featureVector[idx].value)
+			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].reference.FeatureName)
 		}
 	}
-	expectedFeatureValues := []types.Value{
-		{Val: &types.Value_FloatVal{0.78135854}},
-		{Val: &types.Value_FloatVal{0.38527268}},
-		{Val: &types.Value_Int64Val{755}},
-		{Val: &types.Value_FloatVal{0.49661186}},
-		{Val: &types.Value_FloatVal{0.9440974}},
-		{Val: &types.Value_Int64Val{169}},
-		{Val: &types.Value_FloatVal{0.80762655}},
-		{Val: &types.Value_FloatVal{0.71510273}},
-		{Val: &types.Value_Int64Val{545}},
+	expectedFeatureValues := []*types.Value{
+		{Val: &types.Value_FloatVal{FloatVal: 0.78135854}},
+		{Val: &types.Value_FloatVal{FloatVal: 0.38527268}},
+		{Val: &types.Value_Int64Val{Int64Val: 755}},
+		{Val: &types.Value_FloatVal{FloatVal: 0.49661186}},
+		{Val: &types.Value_FloatVal{FloatVal: 0.9440974}},
+		{Val: &types.Value_Int64Val{Int64Val: 169}},
+		{Val: &types.Value_FloatVal{FloatVal: 0.80762655}},
+		{Val: &types.Value_FloatVal{FloatVal: 0.71510273}},
+		{Val: &types.Value_Int64Val{Int64Val: 545}},
 	}
 	expectedFeatureNames := []string{"conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips"}
 	assert.True(t, reflect.DeepEqual(expectedFeatureValues, returnedFeatureValues))

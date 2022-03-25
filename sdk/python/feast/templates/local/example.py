@@ -8,7 +8,7 @@ from feast import Entity, Feature, FeatureView, FileSource, ValueType
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
-    path="data/driver_stats.parquet",
+    path="%PARQUET_PATH%",
     event_timestamp_column="event_timestamp",
     created_timestamp_column="created",
 )

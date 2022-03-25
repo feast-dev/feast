@@ -561,9 +561,9 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	requestedFeatureNames []string,
 ) ([][]FeatureData, error) {
 	numRows := len(entityRows)
-	entityRowsValue := make([]prototypes.EntityKey, numRows)
+	entityRowsValue := make([]*prototypes.EntityKey, numRows)
 	for index, entityKey := range entityRows {
-		entityRowsValue[index] = prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
+		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
 }
