@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net"
 	"path/filepath"
 	"runtime"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -77,7 +79,26 @@ func TestGetOnlineFeatures(t *testing.T) {
 	ctx := context.Background()
 	client, closer := getClient(ctx, "../../internal/test")
 	defer closer()
-	response, err := client.GetOnlineFeatures(ctx, &serving.GetOnlineFeaturesRequest{})
+	entities := make(map[string]*types.RepeatedValue)
+	entities["driver"] = &types.RepeatedValue{
+		Val: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1001}},
+			{Val: &types.Value_Int64Val{Int64Val: 1003}},
+			{Val: &types.Value_Int64Val{Int64Val: 1005}},
+		},
+	}
+	request := &serving.GetOnlineFeaturesRequest{
+		Kind: &serving.GetOnlineFeaturesRequest_Features{
+			Features: &serving.FeatureList{
+				Val: []string{"driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate", "driver_hourly_stats:avg_daily_trips"},
+			},
+		},
+		Entities: entities,
+	}
+	response, err := client.GetOnlineFeatures(ctx, request)
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
+	log.Println(response.Metadata.FeatureNames.Val)
+	assert.True(t, false)
+
 }
