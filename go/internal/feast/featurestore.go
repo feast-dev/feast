@@ -733,7 +733,7 @@ func groupFeatureRefs(requestedFeatureViews []*featureViewAndRefs,
 		joinKeys := make([]string, 0)
 		fv := featuresAndView.view
 		featureNames := featuresAndView.featureRefs
-		for entity, _ := range fv.entities {
+		for entity := range fv.entities {
 			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entity])
 		}
 
