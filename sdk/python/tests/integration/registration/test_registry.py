@@ -264,7 +264,7 @@ def test_modify_feature_views_success(test_registry):
             Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
             Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
         ],
-        inputs={"request_source": request_source},
+        sources={"request_source": request_source},
     )
     def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -284,7 +284,7 @@ def test_modify_feature_views_success(test_registry):
             Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
             Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
         ],
-        inputs={"request_source": request_source},
+        sources={"request_source": request_source},
     )
     def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()

@@ -52,7 +52,7 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def conv_rate_plus_100_feature_view(
-    inputs: Dict[str, Union[RequestDataSource, FeatureView]],
+    sources: Dict[str, Union[RequestDataSource, FeatureView]],
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
@@ -63,7 +63,7 @@ def conv_rate_plus_100_feature_view(
     ]
     return OnDemandFeatureView(
         name=conv_rate_plus_100.__name__,
-        inputs=inputs,
+        sources=sources,
         features=[] if infer_features else _features,
         udf=conv_rate_plus_100,
     )
@@ -87,7 +87,7 @@ def similarity(features_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def similarity_feature_view(
-    inputs: Dict[str, Union[RequestDataSource, FeatureView]],
+    sources: Dict[str, Union[RequestDataSource, FeatureView]],
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
@@ -97,7 +97,7 @@ def similarity_feature_view(
     ]
     return OnDemandFeatureView(
         name=similarity.__name__,
-        inputs=inputs,
+        sources=sources,
         features=[] if infer_features else _features,
         udf=similarity,
     )
