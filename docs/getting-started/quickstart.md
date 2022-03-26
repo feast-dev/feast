@@ -95,14 +95,16 @@ driver_hourly_stats = FileSource(
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+# Entity has a name used for later reference (in a feature view, eg)
+# and join_key to identify physical field name used in storages
+driver = Entity(name="driver", value_type=ValueType.INT64, join_key="driver_id", description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=["driver"],  # reference entity by name
     ttl=Duration(seconds=86400 * 1),
     features=[
         Feature(name="conv_rate", dtype=ValueType.FLOAT),
@@ -162,14 +164,16 @@ driver_hourly_stats = FileSource(
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+# Entity has a name used for later reference (in a feature view, eg)
+# and join_key to identify physical field name used in storages
+driver = Entity(name="driver", value_type=ValueType.INT64, join_key="driver_id", description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=["driver"],  # reference entity by name
     ttl=Duration(seconds=86400 * 1),
     features=[
         Feature(name="conv_rate", dtype=ValueType.FLOAT),
@@ -213,8 +217,13 @@ from feast import FeatureStore
 # The entity dataframe is the dataframe we want to enrich with feature values
 entity_df = pd.DataFrame.from_dict(
     {
+        # entity's join key -> entity values
         "driver_id": [1001, 1002, 1003],
+
+        # label name -> label values
         "label_driver_reported_satisfaction": [1, 5, 3], 
+
+        # "event_timestamp" (reserved key) -> timestamps
         "event_timestamp": [
             datetime.now() - timedelta(minutes=11),
             datetime.now() - timedelta(minutes=36),
@@ -320,6 +329,7 @@ feature_vector = store.get_online_features(
         "driver_hourly_stats:avg_daily_trips",
     ],
     entity_rows=[
+        # {join_key: entity_value}
         {"driver_id": 1004},
         {"driver_id": 1005},
     ],
