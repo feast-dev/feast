@@ -322,7 +322,7 @@ public class OnlineTransformationService implements TransformationService {
     }
     byte[] byteData = out.toByteArray();
     ByteString sourceData = ByteString.copyFrom(byteData);
-    ValueType transformationSource = ValueType.newBuilder().setArrowValue(sourceData).build();
-    return transformationSource;
+    ValueType transformationInput = ValueType.newBuilder().setArrowValue(sourceData).build();
+    return transformationInput;
   }
 }

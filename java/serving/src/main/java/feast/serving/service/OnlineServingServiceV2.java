@@ -291,7 +291,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
               valueList));
     }
     // Serialize the augmented values.
-    ValueType transformationSource =
+    ValueType transformationInput =
         this.onlineTransformationService.serializeValuesIntoArrowIPC(onDemandContext);
 
     // Send out requests to the FTS and process the responses.
@@ -305,7 +305,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       TransformFeaturesRequest transformFeaturesRequest =
           TransformFeaturesRequest.newBuilder()
               .setOnDemandFeatureViewName(onDemandFeatureViewName)
-              .setTransformationSource(transformationSource)
+              .setTransformationInput(transformationInput)
               .build();
 
       TransformFeaturesResponse transformFeaturesResponse =
