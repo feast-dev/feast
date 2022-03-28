@@ -45,6 +45,12 @@ File Source
     :members:
     :exclude-members: FileOptions
 
+Push Source
+------------------
+
+.. automodule:: feast.data_source.PushSource
+    :members:
+
 Entity
 ==================
 
