@@ -76,7 +76,6 @@ jobs:
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1"
-          pip install pip-tools
       - name: Setup Go
         id: setup-go
         uses: actions/setup-go@v2
