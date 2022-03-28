@@ -5,7 +5,10 @@
 Push sources allow feature values to be pushed to the online store in real time. This allows fresh feature values to be made available to applications. Push sources supercede the 
 [FeatureStore.write_to_online_store](https://rtd.feast.dev/en/latest/index.html#feast.feature_store.FeatureStore.write_to_online_store).
 
-Push sources can be used by multiple feature views. When data is pushed to a push source, feast propagates the feature values to all the consuming feature views.
+Push sources can be used by multiple feature views. When data is pushed to a push source, Feast propagates the feature values to all the consuming feature views.
+
+Push sources must have a batch source specified, since that's the source used when retrieving historical features. 
+When using a PushSource as a stream source in the definition of a feature view, a batch source doesn't need to be specified in the definition explicitly.
 
 ## Example
 ### Defining a push source
@@ -21,7 +24,7 @@ push_source = PushSource(
 
 fv = FeatureView(
     name="feature view",
-    entities=["location_id"],
+    entities=["user_id"],
     features=[Feature(name="life_time_value", dtype=ValueType.INT64)],
     stream_source=push_source,
 )
