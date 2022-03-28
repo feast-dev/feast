@@ -142,7 +142,9 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	cd sdk/python && python setup.py build_go_lib
 
 test-go: compile-protos-go
+	cd go/internal/test && feast init feature_repo && cd feature_repo && feast apply && feast materialize-incremental $(shell date -u +"%Y-%m-%dT%H:%M:%S") && cd ../../../
 	go test ./...
+	rm -rf go/internal/test/feature_repo
 
 format-go:
 	gofmt -s -w go/
