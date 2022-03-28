@@ -52,14 +52,11 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
-		return nil, fmt.Errorf("could not get online store type from online store config: %+v", config.OnlineStore)
+		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
 	}
 	if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
-		return onlineStore, err
-	}
-	if onlineStoreType == "sqlite" {
-		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
 	} else {
 		return nil, fmt.Errorf("%s online store type is currently not supported; only redis and sqlite are supported", onlineStoreType)

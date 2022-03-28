@@ -2,9 +2,11 @@ package feast
 
 import (
 	"context"
+	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +19,6 @@ func TestSqliteSetup(t *testing.T) {
 	assert.Equal(t, "data/registry.db", config.GetRegistryConfig().Path)
 	assert.Equal(t, "local", config.Provider)
 	assert.Equal(t, map[string]interface{}{
-		"type": "sqlite",
 		"path": "data/online_store.db",
 	}, config.OnlineStore)
 	assert.Empty(t, config.OfflineStore)
@@ -57,16 +58,15 @@ func TestSqliteOnlineRead(t *testing.T) {
 			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].reference.FeatureName)
 		}
 	}
-	expectedFeatureValues := []*types.Value{
-		{Val: &types.Value_FloatVal{FloatVal: 0.78135854}},
-		{Val: &types.Value_FloatVal{FloatVal: 0.38527268}},
-		{Val: &types.Value_Int64Val{Int64Val: 755}},
-		{Val: &types.Value_FloatVal{FloatVal: 0.49661186}},
-		{Val: &types.Value_FloatVal{FloatVal: 0.9440974}},
-		{Val: &types.Value_Int64Val{Int64Val: 169}},
-		{Val: &types.Value_FloatVal{FloatVal: 0.80762655}},
-		{Val: &types.Value_FloatVal{FloatVal: 0.71510273}},
-		{Val: &types.Value_Int64Val{Int64Val: 545}},
+	rows, err := test.ReadParquet(filepath.Join(dir, "data", "driver_stats.parquet"))
+	assert.Nil(t, err)
+	entities := map[int64]bool{1005: true, 1001: true, 1003: true}
+	correctFeatures := test.GetLatestFeatures(rows, entities)
+	expectedFeatureValues := []*types.Value{}
+	for _, key := range []int64{1005, 1001, 1003} {
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Conv_rate}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Acc_rate}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].Avg_daily_trips)}})
 	}
 	expectedFeatureNames := []string{"conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips"}
 	assert.True(t, reflect.DeepEqual(expectedFeatureValues, returnedFeatureValues))

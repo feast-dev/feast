@@ -148,6 +148,9 @@ func initializeConnection(db_path string) (*sql.DB, error) {
 }
 
 func hashSerializedEntityKey(serializedEntityKey *[]byte) string {
+	if serializedEntityKey == nil {
+		return ""
+	}
 	h := sha1.New()
 	h.Write(*serializedEntityKey)
 	sha1_hash := hex.EncodeToString(h.Sum(nil))
