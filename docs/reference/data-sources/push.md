@@ -37,5 +37,3 @@ feature_data_frame = pd.DataFrame()
 fs.push("push_source", feature_data_frame)
 ```
 
-Configuration options are available [here](https://rtd.feast.dev/en/latest/index.html#feast.data_source.FileSource).
-
