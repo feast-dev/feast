@@ -351,6 +351,7 @@ class BuildGoEmbeddedCommand(Command):
             "-vm",
             "python3",
             "-dynamic-lookup",
+            "-no-make",
             "github.com/feast-dev/feast/go/embedded"
         ], env={
             "PATH": self.path_val,

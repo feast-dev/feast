@@ -36,4 +36,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
-replace github.com/go-python/gopy v0.4.0 => github.com/pyalex/gopy v0.4.1-0.20220328211859-c42fbc0e8c26
+replace github.com/go-python/gopy v0.4.0 => github.com/pyalex/gopy v0.4.1-0.20220328232928-59f293f0ef14
