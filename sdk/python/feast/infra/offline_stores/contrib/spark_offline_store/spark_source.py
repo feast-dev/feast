@@ -131,6 +131,7 @@ class SparkSource(DataSource):
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
+            data_source_class_type="feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
             field_mapping=self.field_mapping,
             custom_options=self.spark_options.to_proto(),
         )

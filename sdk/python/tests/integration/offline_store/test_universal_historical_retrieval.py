@@ -644,11 +644,12 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)
     tomorrow = now + timedelta(days=1)
+    day_after_tomorrow = now + timedelta(days=2)
 
     entity_df = pd.DataFrame(
         data=[
-            {"driver_id": 1001, "event_timestamp": now + timedelta(days=2)},
-            {"driver_id": 1002, "event_timestamp": now + timedelta(days=2)},
+            {"driver_id": 1001, "event_timestamp": day_after_tomorrow},
+            {"driver_id": 1002, "event_timestamp": day_after_tomorrow},
         ]
     )
 
@@ -687,12 +688,12 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         data=[
             {
                 "driver_id": 1001,
-                "event_timestamp": now + timedelta(days=2),
+                "event_timestamp": day_after_tomorrow,
                 "avg_daily_trips": 20,
             },
             {
                 "driver_id": 1002,
-                "event_timestamp": now + timedelta(days=2),
+                "event_timestamp": day_after_tomorrow,
                 "avg_daily_trips": 40,
             },
         ]

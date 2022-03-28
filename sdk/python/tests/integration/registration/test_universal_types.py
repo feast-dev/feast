@@ -158,8 +158,14 @@ def test_entity_inference_types_match(offline_types_test_fixtures):
 @pytest.mark.integration
 @pytest.mark.universal
 def test_feature_get_historical_features_types_match(offline_types_test_fixtures):
+    """
+    Note: to make sure this test works, we need to ensure that get_historical_features
+    returns at least one non-null row to make sure type inferral works. This can only
+    be achieved by carefully matching entity_df to the data fixtures.
+    """
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
+    entity = driver()
     fv = create_feature_view(
         "get_historical_features_types_match",
         config.feature_dtype,
@@ -167,20 +173,21 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
         config.has_empty_list,
         data_source,
     )
-    entity = driver()
     fs.apply([fv, entity])
 
-    features = [f"{fv.name}:value"]
     entity_df = pd.DataFrame()
     entity_df["driver_id"] = (
-        ["1", "3"] if config.entity_type == ValueType.STRING else [1, 3]
+        ["1", "3"]
+        if config.entity_type == ValueType.STRING
+        else [1, 3]
     )
-    now = datetime.utcnow()
-    ts = pd.Timestamp(now).round("ms")
+    ts = pd.Timestamp(datetime.utcnow()).round("ms")
     entity_df["ts"] = [
         ts - timedelta(hours=4),
-        ts - timedelta(hours=2),
+        ts - timedelta(hours=1),
     ]
+    features = [f"{fv.name}:value"]
+
     historical_features = fs.get_historical_features(
         entity_df=entity_df, features=features,
     )
@@ -328,7 +335,10 @@ def assert_feature_list_types(
             bool,
             np.bool_,
         ),  # Can be `np.bool_` if from `np.array` rather that `list`
-        "datetime": np.datetime64,
+        "datetime": (
+            np.datetime64,
+            datetime,  # datetime.datetime
+        )
     }
     expected_dtype = feature_list_dtype_to_expected_historical_feature_list_dtype[
         feature_dtype
