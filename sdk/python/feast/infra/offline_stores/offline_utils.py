@@ -106,7 +106,8 @@ def get_feature_view_query_context(
     Redshift point-in-time SQL query
     """
     (
-        feature_views_to_feature_map, on_demand_feature_views_to_features,
+        feature_views_to_feature_map,
+        on_demand_feature_views_to_features,
     ) = _get_requested_feature_views_to_features_dict(
         feature_refs, feature_views, registry.list_on_demand_feature_views(project)
     )
@@ -128,20 +129,16 @@ def get_feature_view_query_context(
             ttl_seconds = 0
 
         reverse_field_mapping = {
-            v: k
-            for k, v in feature_view.batch_source.field_mapping.items()
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
-        features = [
-            reverse_field_mapping.get(feature, feature)
-            for feature in features
-        ]
+        features = [reverse_field_mapping.get(feature, feature) for feature in features]
         event_timestamp_column = reverse_field_mapping.get(
             feature_view.batch_source.event_timestamp_column,
-            feature_view.batch_source.event_timestamp_column
+            feature_view.batch_source.event_timestamp_column,
         )
         created_timestamp_column = reverse_field_mapping.get(
             feature_view.batch_source.created_timestamp_column,
-            feature_view.batch_source.created_timestamp_column
+            feature_view.batch_source.created_timestamp_column,
         )
 
         max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()

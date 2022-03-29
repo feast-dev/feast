@@ -18,8 +18,8 @@ from feast.errors import InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
-    SparkSource,
     SavedDatasetSparkStorage,
+    SparkSource,
 )
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
@@ -127,8 +127,7 @@ class SparkOfflineStore(OfflineStore):
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         entity_schema = _get_entity_schema(
-            spark_session=spark_session,
-            entity_df=entity_df,
+            spark_session=spark_session, entity_df=entity_df,
         )
         event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
             entity_schema=entity_schema,
@@ -277,7 +276,10 @@ class SparkRetrievalJob(RetrievalJob):
         Please note the persisting is done only within the scope of the spark session.
         """
         assert isinstance(storage, SavedDatasetSparkStorage)
-        self.to_spark_df().createOrReplaceTempView(storage.spark_options.table)
+        table_name = storage.spark_options.table
+        if not table_name:
+            raise ValueError("Cannot persist, table_name is not defined")
+        self.to_spark_df().createOrReplaceTempView(table_name)
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -338,8 +340,7 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _get_entity_schema(
-    spark_session: SparkSession,
-    entity_df: Union[pandas.DataFrame, str]
+    spark_session: SparkSession, entity_df: Union[pandas.DataFrame, str]
 ) -> Dict[str, np.dtype]:
     if isinstance(entity_df, pd.DataFrame):
         return dict(zip(entity_df.columns, entity_df.dtypes))
@@ -418,11 +419,11 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
             entity_timestamp,
             {{featureview.name}}__entity_row_unique_id
     ),
-    
+
     /*
      This query template performs the point-in-time correctness join for a single feature set table
      to the provided entity table.
-    
+
      1. We first join the current feature_view to the entity dataframe that has been passed.
      This JOIN has the following logic:
         - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
@@ -431,11 +432,11 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         is higher the the one provided minus the TTL
         - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
         computed previously
-    
+
      The output of this CTE will contain all the necessary information and already filtered out most
      of the data that is not relevant.
     */
-    
+
     {{ featureview.name }}__subquery AS (
         SELECT
             {{ featureview.event_timestamp_column }} as event_timestamp,
@@ -450,7 +451,7 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         AND {{ featureview.event_timestamp_column }} >= '{{ featureview.min_event_timestamp }}'
         {% endif %}
     ),
-    
+
     {{ featureview.name }}__base AS (
         SELECT
             subquery.*,
@@ -460,16 +461,16 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         INNER JOIN {{ featureview.name }}__entity_dataframe AS entity_dataframe
         ON TRUE
             AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
-    
+
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
             {% endif %}
-    
+
             {% for entity in featureview.entities %}
             AND subquery.{{ entity }} = entity_dataframe.{{ entity }}
             {% endfor %}
     ),
-    
+
     /*
      2. If the `created_timestamp_column` has been set, we need to
      deduplicate the data first. This is done by calculating the
@@ -486,7 +487,7 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         GROUP BY {{featureview.name}}__entity_row_unique_id, event_timestamp
     ),
     {% endif %}
-    
+
     /*
      3. The data has been filtered during the first CTE "*__base"
      Thus we only need to compute the latest timestamp of each feature.
@@ -511,7 +512,7 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         )
         WHERE row_number = 1
     )
-    
+
     /*
      4. Once we know the latest value of each feature for a given timestamp,
      we can join again the data back to the original "base" dataset

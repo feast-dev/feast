@@ -177,9 +177,7 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
 
     entity_df = pd.DataFrame()
     entity_df["driver_id"] = (
-        ["1", "3"]
-        if config.entity_type == ValueType.STRING
-        else [1, 3]
+        ["1", "3"] if config.entity_type == ValueType.STRING else [1, 3]
     )
     ts = pd.Timestamp(datetime.utcnow()).round("ms")
     entity_df["ts"] = [
@@ -335,10 +333,7 @@ def assert_feature_list_types(
             bool,
             np.bool_,
         ),  # Can be `np.bool_` if from `np.array` rather that `list`
-        "datetime": (
-            np.datetime64,
-            datetime,  # datetime.datetime
-        )
+        "datetime": (np.datetime64, datetime,),  # datetime.datetime
     }
     expected_dtype = feature_list_dtype_to_expected_historical_feature_list_dtype[
         feature_dtype
