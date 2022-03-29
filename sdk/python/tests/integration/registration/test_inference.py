@@ -169,7 +169,7 @@ def test_on_demand_features_type_inference():
     )
 
     @on_demand_feature_view(
-        inputs={"date_request": date_request},
+        sources={"date_request": date_request},
         features=[
             Feature("output", ValueType.UNIX_TIMESTAMP),
             Feature("string_output", ValueType.STRING),
@@ -184,7 +184,7 @@ def test_on_demand_features_type_inference():
     test_view.infer_features()
 
     @on_demand_feature_view(
-        inputs={"date_request": date_request},
+        sources={"date_request": date_request},
         features=[
             Feature("output", ValueType.UNIX_TIMESTAMP),
             Feature("object_output", ValueType.STRING),
@@ -200,7 +200,7 @@ def test_on_demand_features_type_inference():
         invalid_test_view.infer_features()
 
     @on_demand_feature_view(
-        inputs={"date_request": date_request},
+        sources={"date_request": date_request},
         features=[
             Feature("output", ValueType.UNIX_TIMESTAMP),
             Feature("missing", ValueType.STRING),
@@ -222,7 +222,7 @@ def test_datasource_inference():
     )
 
     @on_demand_feature_view(
-        inputs={"date_request": date_request},
+        sources={"date_request": date_request},
         features=[
             Feature("output", ValueType.UNIX_TIMESTAMP),
             Feature("string_output", ValueType.STRING),
@@ -237,7 +237,7 @@ def test_datasource_inference():
     test_view.infer_features()
 
     @on_demand_feature_view(
-        inputs={"date_request": date_request},
+        sources={"date_request": date_request},
         features=[
             Feature("output", ValueType.UNIX_TIMESTAMP),
             Feature("object_output", ValueType.STRING),
@@ -253,7 +253,7 @@ def test_datasource_inference():
         invalid_test_view.infer_features()
 
     @on_demand_feature_view(
-        inputs={"date_request": date_request},
+        sources={"date_request": date_request},
         features=[
             Feature("output", ValueType.UNIX_TIMESTAMP),
             Feature("missing", ValueType.STRING),
