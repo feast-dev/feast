@@ -22,4 +22,6 @@ Please see [Data Source](../../getting-started/concepts/feature-view.md#data-sou
 [spark.md](../offline-stores/spark.md)
 {% endcontent-ref %}
 
-{% page-ref page="push.md" %}
+{% content-ref url="push.md" %}
+[push.md](push.md)
+{% endcontent-ref %}
