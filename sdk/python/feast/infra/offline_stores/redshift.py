@@ -39,7 +39,7 @@ from feast.usage import log_exceptions_and_usage
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
-    """ Offline store config for AWS Redshift """
+    """Offline store config for AWS Redshift"""
 
     type: Literal["redshift"] = "redshift"
     """ Offline store type selector"""
@@ -185,12 +185,15 @@ class RedshiftOfflineStore(OfflineStore):
             entity_df, redshift_client, config, s3_resource
         )
 
-        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema
+        entity_df_event_timestamp_col = (
+            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df, entity_df_event_timestamp_col, redshift_client, config,
+            entity_df,
+            entity_df_event_timestamp_col,
+            redshift_client,
+            config,
         )
 
         @contextlib.contextmanager
@@ -341,7 +344,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     @log_exceptions_and_usage
     def to_s3(self) -> str:
-        """ Export dataset to S3 in Parquet format and return path """
+        """Export dataset to S3 in Parquet format and return path"""
         if self.on_demand_feature_views:
             transformed_df = self.to_df()
             aws_utils.upload_df_to_s3(self._s3_resource, self._s3_path, transformed_df)
@@ -361,7 +364,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     @log_exceptions_and_usage
     def to_redshift(self, table_name: str) -> None:
-        """ Save dataset as a new Redshift table """
+        """Save dataset as a new Redshift table"""
         if self.on_demand_feature_views:
             transformed_df = self.to_df()
             aws_utils.upload_df_to_redshift(

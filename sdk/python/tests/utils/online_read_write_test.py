@@ -22,7 +22,7 @@ def basic_rw_test(
     )
 
     def _driver_rw_test(event_ts, created_ts, write, expect_read):
-        """ A helper function to write values and read them back """
+        """A helper function to write values and read them back"""
         write_lat, write_lon = write
         expect_lat, expect_lon = expect_read
         provider.online_write_batch(

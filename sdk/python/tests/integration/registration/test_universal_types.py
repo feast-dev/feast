@@ -91,9 +91,11 @@ def online_types_test_fixtures(request):
 def get_fixtures(request):
     config: TypeTestConfig = request.param
     # Lower case needed because Redshift lower-cases all table names
-    test_project_id = f"{config.entity_type}{config.feature_dtype}{config.feature_is_list}".replace(
-        ".", ""
-    ).lower()
+    test_project_id = (
+        f"{config.entity_type}{config.feature_dtype}{config.feature_is_list}".replace(
+            ".", ""
+        ).lower()
+    )
     type_test_environment = construct_test_environment(
         test_repo_config=config.test_repo_config,
         test_suite_name=f"test_{test_project_id}",
@@ -182,7 +184,8 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
         ts - timedelta(hours=2),
     ]
     historical_features = fs.get_historical_features(
-        entity_df=entity_df, features=features,
+        entity_df=entity_df,
+        features=features,
     )
     # Note: Pandas doesn't play well with nan values in ints. BQ will also coerce to floats if there are NaNs
     historical_features_df = historical_features.to_df()
@@ -230,7 +233,8 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
 
     driver_id_value = "1" if config.entity_type == ValueType.STRING else 1
     online_features = fs.get_online_features(
-        features=features, entity_rows=[{"driver": driver_id_value}],
+        features=features,
+        entity_rows=[{"driver": driver_id_value}],
     ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
@@ -286,7 +290,11 @@ def create_feature_view(
         elif feature_dtype == "datetime":
             value_type = ValueType.UNIX_TIMESTAMP
 
-    return driver_feature_view(data_source, name=name, value_type=value_type,)
+    return driver_feature_view(
+        data_source,
+        name=name,
+        value_type=value_type,
+    )
 
 
 def assert_expected_historical_feature_types(

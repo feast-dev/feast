@@ -282,7 +282,9 @@ class RedshiftOptions:
             A RedshiftOptionsProto protobuf.
         """
         redshift_options_proto = DataSourceProto.RedshiftOptions(
-            table=self.table, schema=self.schema, query=self.query,
+            table=self.table,
+            schema=self.schema,
+            query=self.query,
         )
 
         return redshift_options_proto

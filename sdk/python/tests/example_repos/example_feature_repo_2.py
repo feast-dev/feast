@@ -8,7 +8,11 @@ driver_hourly_stats = FileSource(
     created_timestamp_column="created",
 )
 
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(
+    name="driver_id",
+    value_type=ValueType.INT64,
+    description="driver id",
+)
 
 
 driver_hourly_stats_view = FeatureView(

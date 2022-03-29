@@ -79,7 +79,10 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def teardown_infra(
-        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         """
         Tear down all cloud resources for a repo.
@@ -119,7 +122,10 @@ class Provider(abc.ABC):
         ...
 
     def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
+        self,
+        feature_view: FeatureView,
+        entities: List[Entity],
+        df: pandas.DataFrame,
     ):
         """
         Ingests a DataFrame directly into the online store
@@ -183,7 +189,7 @@ class Provider(abc.ABC):
         Returns:
              RetrievalJob object, which is lazy wrapper for actual query performed under the hood.
 
-         """
+        """
         ...
 
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -302,7 +308,8 @@ def _get_column_names(
 
 
 def _run_field_mapping(
-    table: pyarrow.Table, field_mapping: Dict[str, str],
+    table: pyarrow.Table,
+    field_mapping: Dict[str, str],
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     cols = table.column_names
@@ -314,7 +321,8 @@ def _run_field_mapping(
 
 
 def _run_dask_field_mapping(
-    table: dd.DataFrame, field_mapping: Dict[str, str],
+    table: dd.DataFrame,
+    field_mapping: Dict[str, str],
 ):
     if field_mapping:
         # run field mapping in the forward direction

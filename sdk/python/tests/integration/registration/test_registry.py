@@ -67,7 +67,8 @@ def s3_registry() -> Registry:
 
 
 @pytest.mark.parametrize(
-    "test_registry", [lazy_fixture("local_registry")],
+    "test_registry",
+    [lazy_fixture("local_registry")],
 )
 def test_apply_entity_success(test_registry):
     entity = Entity(
@@ -116,7 +117,8 @@ def test_apply_entity_success(test_registry):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    "test_registry",
+    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
 def test_apply_entity_integration(test_registry):
     entity = Entity(
@@ -160,7 +162,8 @@ def test_apply_entity_integration(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry", [lazy_fixture("local_registry")],
+    "test_registry",
+    [lazy_fixture("local_registry")],
 )
 def test_apply_feature_view_success(test_registry):
     # Create Feature Views
@@ -234,7 +237,8 @@ def test_apply_feature_view_success(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry", [lazy_fixture("local_registry")],
+    "test_registry",
+    [lazy_fixture("local_registry")],
 )
 def test_modify_feature_views_success(test_registry):
     # Create Feature Views
@@ -355,7 +359,8 @@ def test_modify_feature_views_success(test_registry):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    "test_registry",
+    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
 def test_apply_feature_view_integration(test_registry):
     # Create Feature Views
@@ -430,7 +435,8 @@ def test_apply_feature_view_integration(test_registry):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    "test_registry",
+    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
 def test_apply_data_source(test_registry: Registry):
     # Create Feature Views

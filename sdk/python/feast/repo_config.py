@@ -57,7 +57,7 @@ FEATURE_SERVER_TYPE_FOR_PROVIDER = {
 
 
 class FeastBaseModel(BaseModel):
-    """ Feast Pydantic Configuration Class """
+    """Feast Pydantic Configuration Class"""
 
     class Config:
         arbitrary_types_allowed = True
@@ -65,7 +65,7 @@ class FeastBaseModel(BaseModel):
 
 
 class FeastConfigBaseModel(BaseModel):
-    """ Feast Pydantic Configuration Class """
+    """Feast Pydantic Configuration Class"""
 
     class Config:
         arbitrary_types_allowed = True
@@ -73,7 +73,7 @@ class FeastConfigBaseModel(BaseModel):
 
 
 class RegistryConfig(FeastBaseModel):
-    """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
+    """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
@@ -89,7 +89,7 @@ class RegistryConfig(FeastBaseModel):
 
 
 class RepoConfig(FeastBaseModel):
-    """ Repo config. Typically loaded from `feature_store.yaml` """
+    """Repo config. Typically loaded from `feature_store.yaml`"""
 
     registry: Union[StrictStr, RegistryConfig] = "data/registry.db"
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
@@ -190,7 +190,8 @@ class RepoConfig(FeastBaseModel):
             online_config_class(**values["online_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
+                [ErrorWrapper(e, loc="online_store")],
+                model=RepoConfig,
             )
         return values
 
@@ -224,7 +225,8 @@ class RepoConfig(FeastBaseModel):
             offline_config_class(**values["offline_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="offline_store")], model=RepoConfig,
+                [ErrorWrapper(e, loc="offline_store")],
+                model=RepoConfig,
             )
 
         return values
@@ -258,7 +260,8 @@ class RepoConfig(FeastBaseModel):
             feature_server_config_class(**values["feature_server"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="feature_server")], model=RepoConfig,
+                [ErrorWrapper(e, loc="feature_server")],
+                model=RepoConfig,
             )
 
         return values
@@ -295,7 +298,12 @@ class RepoConfig(FeastBaseModel):
         config_path = repo_path / "feature_store.yaml"
         with open(config_path, mode="w") as f:
             yaml.dump(
-                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True,)),
+                yaml.safe_load(
+                    self.json(
+                        exclude={"repo_path"},
+                        exclude_unset=True,
+                    )
+                ),
                 f,
                 sort_keys=False,
             )

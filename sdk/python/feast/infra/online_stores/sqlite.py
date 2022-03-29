@@ -37,7 +37,7 @@ from feast.utils import to_naive_utc
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
-    """ Online store config for local (SQLite-based) store """
+    """Online store config for local (SQLite-based) store"""
 
     type: Literal[
         "sqlite", "feast.infra.online_stores.sqlite.SqliteOnlineStore"
@@ -230,7 +230,8 @@ class SqliteOnlineStore(OnlineStore):
 def _initialize_conn(db_path: str):
     Path(db_path).parent.mkdir(exist_ok=True)
     return sqlite3.connect(
-        db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+        db_path,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
     )
 
 
@@ -278,7 +279,10 @@ class SqliteTable(InfraObject):
 
     @staticmethod
     def from_proto(sqlite_table_proto: SqliteTableProto) -> Any:
-        return SqliteTable(path=sqlite_table_proto.path, name=sqlite_table_proto.name,)
+        return SqliteTable(
+            path=sqlite_table_proto.path,
+            name=sqlite_table_proto.name,
+        )
 
     def update(self):
         self.conn.execute(

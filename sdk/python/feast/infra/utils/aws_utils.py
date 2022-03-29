@@ -87,7 +87,10 @@ def execute_redshift_statement_async(
     """
     try:
         return redshift_data_client.execute_statement(
-            ClusterIdentifier=cluster_id, Database=database, DbUser=user, Sql=query,
+            ClusterIdentifier=cluster_id,
+            Database=database,
+            DbUser=user,
+            Sql=query,
         )
     except ClientError as e:
         if e.response["Error"]["Code"] == "ValidationException":
@@ -151,11 +154,15 @@ def execute_redshift_statement(
 
 
 def get_redshift_statement_result(redshift_data_client, statement_id: str) -> dict:
-    """ Get the Redshift statement result """
+    """Get the Redshift statement result"""
     return redshift_data_client.get_statement_result(Id=statement_id)
 
 
-def upload_df_to_s3(s3_resource, s3_path: str, df: pd.DataFrame,) -> None:
+def upload_df_to_s3(
+    s3_resource,
+    s3_path: str,
+    df: pd.DataFrame,
+) -> None:
     """Uploads a Pandas DataFrame to S3 as a parquet file
 
     Args:
@@ -301,12 +308,16 @@ def temporarily_upload_df_to_redshift(
 
     # Clean up the uploaded Redshift table
     execute_redshift_statement(
-        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
+        redshift_data_client,
+        cluster_id,
+        database,
+        user,
+        f"DROP TABLE {table_name}",
     )
 
 
 def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
-    """ Download the S3 directory to a local disk """
+    """Download the S3 directory to a local disk"""
     bucket_obj = s3_resource.Bucket(bucket)
     if key != "" and not key.endswith("/"):
         key = key + "/"
@@ -318,7 +329,7 @@ def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
 
 
 def delete_s3_directory(s3_resource, bucket: str, key: str):
-    """ Delete S3 directory recursively """
+    """Delete S3 directory recursively"""
     bucket_obj = s3_resource.Bucket(bucket)
     if key != "" and not key.endswith("/"):
         key = key + "/"
@@ -365,11 +376,17 @@ def unload_redshift_query_to_pa(
     iam_role: str,
     query: str,
 ) -> pa.Table:
-    """ Unload Redshift Query results to S3 and get the results in PyArrow Table format """
+    """Unload Redshift Query results to S3 and get the results in PyArrow Table format"""
     bucket, key = get_bucket_and_key(s3_path)
 
     execute_redshift_query_and_unload_to_s3(
-        redshift_data_client, cluster_id, database, user, s3_path, iam_role, query,
+        redshift_data_client,
+        cluster_id,
+        database,
+        user,
+        s3_path,
+        iam_role,
+        query,
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -388,7 +405,7 @@ def unload_redshift_query_to_df(
     iam_role: str,
     query: str,
 ) -> pd.DataFrame:
-    """ Unload Redshift Query results to S3 and get the results in Pandas DataFrame format """
+    """Unload Redshift Query results to S3 and get the results in Pandas DataFrame format"""
     table = unload_redshift_query_to_pa(
         redshift_data_client,
         cluster_id,

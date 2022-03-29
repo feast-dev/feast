@@ -42,7 +42,10 @@ class KafkaOptions:
     """
 
     def __init__(
-        self, bootstrap_servers: str, message_format: StreamFormat, topic: str,
+        self,
+        bootstrap_servers: str,
+        message_format: StreamFormat,
+        topic: str,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.message_format = message_format
@@ -91,7 +94,10 @@ class KinesisOptions:
     """
 
     def __init__(
-        self, record_format: StreamFormat, region: str, stream_name: str,
+        self,
+        record_format: StreamFormat,
+        region: str,
+        stream_name: str,
     ):
         self.record_format = record_format
         self.region = region
@@ -378,7 +384,9 @@ class RequestDataSource(DataSource):
     schema: Dict[str, ValueType]
 
     def __init__(
-        self, name: str, schema: Dict[str, ValueType],
+        self,
+        name: str,
+        schema: Dict[str, ValueType],
     ):
         """Creates a RequestDataSource object."""
         super().__init__(name)

@@ -54,7 +54,7 @@ except ImportError as e:
 
 
 class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
-    """ Offline store config for Snowflake """
+    """Offline store config for Snowflake"""
 
     type: Literal["snowflake.offline"] = "snowflake.offline"
     """ Offline store type selector"""
@@ -208,12 +208,14 @@ class SnowflakeOfflineStore(OfflineStore):
 
         entity_schema = _get_entity_schema(entity_df, snowflake_conn, config)
 
-        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema
+        entity_df_event_timestamp_col = (
+            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df, entity_df_event_timestamp_col, snowflake_conn,
+            entity_df,
+            entity_df_event_timestamp_col,
+            snowflake_conn,
         )
 
         @contextlib.contextmanager
@@ -336,7 +338,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
                 )
 
     def to_snowflake(self, table_name: str) -> None:
-        """ Save dataset as a new Snowflake table """
+        """Save dataset as a new Snowflake table"""
         if self.on_demand_feature_views is not None:
             transformed_df = self.to_df()
 
