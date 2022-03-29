@@ -146,7 +146,7 @@ test-go: compile-protos-go
 	pip install -e "sdk/python[ci]"
 	go test ./...
 
-format-go:g
+format-go:
 	gofmt -s -w go/
 
 lint-go: compile-protos-go
