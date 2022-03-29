@@ -18,8 +18,8 @@ Please see [Data Source](../../getting-started/concepts/feature-view.md#data-sou
 [redshift.md](redshift.md)
 {% endcontent-ref %}
 
-{% content-ref url="../offline-stores/spark.md" %}
-[spark.md](../offline-stores/spark.md)
+{% content-ref url="spark.md" %}
+[spark.md](spark.md)
 {% endcontent-ref %}
 
 {% content-ref url="push.md" %}
