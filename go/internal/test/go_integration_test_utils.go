@@ -111,7 +111,6 @@ func SetupFeatureRepo(basePath string) error {
 	cmd.Dir = path
 	err = cmd.Run()
 	if err != nil {
-		log.Println("in3")
 		return err
 	}
 	applyCommand := exec.Command("feast", "apply")
@@ -123,7 +122,6 @@ func SetupFeatureRepo(basePath string) error {
 	applyCommand.Dir = feature_repo_path
 	err = applyCommand.Run()
 	if err != nil {
-		log.Println("in1")
 		return err
 	}
 	t := time.Now()
@@ -135,7 +133,6 @@ func SetupFeatureRepo(basePath string) error {
 	materializeCommand.Dir = feature_repo_path
 	err = materializeCommand.Run()
 	if err != nil {
-		log.Println("in2")
 		return err
 	}
 	return nil
