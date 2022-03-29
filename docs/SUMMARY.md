@@ -61,6 +61,7 @@
   * [BigQuery](reference/data-sources/bigquery.md)
   * [Redshift](reference/data-sources/redshift.md)
   * [Spark](reference/data-sources/spark.md)
+  * [Push](reference/data-sources/push.md)
 * [Offline stores](reference/offline-stores/README.md)
   * [File](reference/offline-stores/file.md)
   * [Snowflake](reference/offline-stores/snowflake.md)
