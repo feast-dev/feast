@@ -22,6 +22,7 @@ import click
 import pkg_resources
 import yaml
 from colorama import Fore, Style
+from dateutil import parser
 
 from feast import flags, flags_helper, utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
@@ -41,7 +42,6 @@ from feast.repo_operations import (
 )
 
 _logger = logging.getLogger(__name__)
-DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
 
 
 class NoOptionDefaultFormat(click.Command):
@@ -501,8 +501,8 @@ def materialize_command(
     store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
-        start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
-        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
+        start_date=utils.make_tzaware(parser.parse(start_ts)),
+        end_date=utils.make_tzaware(parser.parse(end_ts)),
     )
 
 
