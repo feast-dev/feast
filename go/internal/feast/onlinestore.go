@@ -3,6 +3,7 @@ package feast
 import (
 	"context"
 	"fmt"
+
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -33,7 +34,7 @@ type OnlineStore interface {
 	// Feature object as pointers in GetOnlineFeaturesResponse)
 	// => allocate memory for each field once in OnlineRead
 	// and reuse them in GetOnlineFeaturesResponse?
-	OnlineRead(ctx context.Context, entityKeys []types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
+	OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 	Destruct()
@@ -51,12 +52,13 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
-		return nil, fmt.Errorf("could not get online store type from online store config: %+v", config.OnlineStore)
+		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
 	}
 	if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
 		return onlineStore, err
 	} else {
-		return nil, fmt.Errorf("%s online store type is currently not supported; only Redis is supported", onlineStoreType)
+		return nil, fmt.Errorf("%s online store type is currently not supported; only redis and sqlite are supported", onlineStoreType)
 	}
 }

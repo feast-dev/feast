@@ -5,15 +5,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/proto"
 	"github.com/spaolacci/murmur3"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 type redisType int
@@ -117,7 +118,7 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 	return t, nil
 }
 
-func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	featureCount := len(featureNames)
 	index := featureCount
 	featureViewIndices := make(map[string]int)
@@ -152,7 +153,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []types.En
 	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
 
-		var key, err = buildRedisKey(r.project, &entityKeys[i])
+		var key, err = buildRedisKey(r.project, entityKeys[i])
 		if err != nil {
 			return nil, err
 		}

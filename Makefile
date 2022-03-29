@@ -141,7 +141,9 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	python -m pip install pybindgen==0.22.0
 	cd sdk/python && python setup.py build_go_lib
 
+# Needs feast package to setup the feature store
 test-go: compile-protos-go
+	pip install -e "sdk/python[ci]"
 	go test ./...
 
 format-go:
