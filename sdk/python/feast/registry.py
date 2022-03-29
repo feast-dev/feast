@@ -314,11 +314,13 @@ class Registry:
             commit: Whether to immediately commit to the registry
         """
         registry = self._prepare_registry_for_changes()
-
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
             if existing_data_source_proto.name == data_source.name:
                 del registry.data_sources[idx]
         data_source_proto = data_source.to_proto()
+        data_source_proto.data_source_class_type = (
+            f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
+        )
         data_source_proto.project = project
         data_source_proto.data_source_class_type = (
             f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"

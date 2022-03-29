@@ -24,7 +24,6 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
 import "google/protobuf/timestamp.proto";
 import "feast/core/DataSource.proto";
-import "feast/core/FeatureService.proto";
 
 message SavedDatasetSpec {
   // Name of the dataset. Must be unique since it's possible to overwrite dataset by name
