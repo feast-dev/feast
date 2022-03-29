@@ -28,7 +28,6 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
 from tests.utils.cli_utils import CliRunner, get_example_repo
-from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration

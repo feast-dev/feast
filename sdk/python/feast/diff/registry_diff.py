@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cast
 
-from feast import BigQuerySource
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.diff.property_diff import PropertyDiff, TransitionType
