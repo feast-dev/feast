@@ -27,20 +27,20 @@ class BigQuerySource(DataSource):
     ):
         """Create a BigQuerySource from an existing table or query.
 
-         Args:
-             table (optional): The BigQuery table where features can be found.
-             table_ref (optional): (Deprecated) The BigQuery table where features can be found.
-             event_timestamp_column: Event timestamp column used for point in time joins of feature values.
-             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
-             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
-                 or view. Only used for feature columns, not entities or timestamp columns.
-             date_partition_column (optional): Timestamp column used for partitioning.
-             query (optional): SQL query to execute to generate data for this data source.
-             name (optional): Name for the source. Defaults to the table_ref if not specified.
-         Example:
-             >>> from feast import BigQuerySource
-             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
-         """
+        Args:
+            table (optional): The BigQuery table where features can be found.
+            table_ref (optional): (Deprecated) The BigQuery table where features can be found.
+            event_timestamp_column: Event timestamp column used for point in time joins of feature values.
+            created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
+            field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
+                or view. Only used for feature columns, not entities or timestamp columns.
+            date_partition_column (optional): Timestamp column used for partitioning.
+            query (optional): SQL query to execute to generate data for this data source.
+            name (optional): Name for the source. Defaults to the table_ref if not specified.
+        Example:
+            >>> from feast import BigQuerySource
+            >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
+        """
         if table is None and table_ref is None and query is None:
             raise ValueError('No "table" or "query" argument provided.')
         if not table and table_ref:

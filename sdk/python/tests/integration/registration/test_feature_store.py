@@ -485,7 +485,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
 
 
 def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
-    """ Test applying feature views with non-case-insensitively unique names"""
+    """Test applying feature views with non-case-insensitively unique names"""
 
     driver_stats = FeatureView(
         name="driver_hourly_stats",

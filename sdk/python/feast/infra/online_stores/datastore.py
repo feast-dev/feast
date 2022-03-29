@@ -55,7 +55,7 @@ ProtoBatch = Sequence[
 
 
 class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
-    """ Online store config for GCP Datastore """
+    """Online store config for GCP Datastore"""
 
     type: Literal["datastore"] = "datastore"
     """ Online store type selector"""
