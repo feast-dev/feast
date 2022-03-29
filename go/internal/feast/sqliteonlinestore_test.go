@@ -12,8 +12,12 @@ import (
 )
 
 func TestSqliteSetup(t *testing.T) {
-	dir := "../test/feature_repo"
-	config, err := NewRepoConfigFromFile(dir)
+	dir := "../test"
+	feature_repo_path := filepath.Join(dir, "feature_repo")
+	err := test.SetupFeatureRepo(dir)
+	assert.Nil(t, err)
+	defer test.CleanUpRepo(dir)
+	config, err := NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
 	assert.Equal(t, "feature_repo", config.Project)
 	assert.Equal(t, "data/registry.db", config.GetRegistryConfig().Path)
@@ -27,8 +31,11 @@ func TestSqliteSetup(t *testing.T) {
 }
 
 func TestSqliteOnlineRead(t *testing.T) {
-	dir := "../test/feature_repo"
-	config, err := NewRepoConfigFromFile(dir)
+	dir := "../test"
+	feature_repo_path := filepath.Join(dir, "feature_repo")
+	test.SetupFeatureRepo(dir)
+	defer test.CleanUpRepo(dir)
+	config, err := NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
 	store, err := NewSqliteOnlineStore("feature_repo", config, config.OnlineStore)
 	defer store.Destruct()
@@ -58,7 +65,7 @@ func TestSqliteOnlineRead(t *testing.T) {
 			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].reference.FeatureName)
 		}
 	}
-	rows, err := test.ReadParquet(filepath.Join(dir, "data", "driver_stats.parquet"))
+	rows, err := test.ReadParquet(filepath.Join(feature_repo_path, "data", "driver_stats.parquet"))
 	assert.Nil(t, err)
 	entities := map[int64]bool{1005: true, 1001: true, 1003: true}
 	correctFeatures := test.GetLatestFeatures(rows, entities)

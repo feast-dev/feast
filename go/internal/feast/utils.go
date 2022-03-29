@@ -1,13 +1,8 @@
-package test
+package feast
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"time"
 
 	"github.com/xitongsys/parquet-go-source/local"
 	"github.com/xitongsys/parquet-go/reader"
@@ -98,57 +93,4 @@ func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 		}
 	}
 	return correctFeatureRows
-}
-
-func SetupFeatureRepo(basePath string) error {
-	cmd := exec.Command("feast", "init", "feature_repo")
-	path, err := filepath.Abs(basePath)
-	cmd.Env = os.Environ()
-
-	if err != nil {
-		return err
-	}
-	cmd.Dir = path
-	err = cmd.Run()
-	if err != nil {
-		log.Println("in3")
-		return err
-	}
-	applyCommand := exec.Command("feast", "apply")
-	applyCommand.Env = os.Environ()
-	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
-	if err != nil {
-		return err
-	}
-	applyCommand.Dir = feature_repo_path
-	err = applyCommand.Run()
-	if err != nil {
-		log.Println("in1")
-		return err
-	}
-	t := time.Now()
-	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
-		t.Year(), t.Month(), t.Day(),
-		t.Hour(), t.Minute(), t.Second())
-	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
-	materializeCommand.Env = os.Environ()
-	materializeCommand.Dir = feature_repo_path
-	err = materializeCommand.Run()
-	if err != nil {
-		log.Println("in2")
-		return err
-	}
-	return nil
-}
-
-func CleanUpRepo(basePath string) error {
-	feature_repo_path, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
-	if err != nil {
-		return err
-	}
-	err = os.RemoveAll(feature_repo_path)
-	if err != nil {
-		return err
-	}
-	return nil
 }

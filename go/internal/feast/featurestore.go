@@ -130,7 +130,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := fs.getEntityMaps(requestedFeatureViews)
 	if err != nil {
-
 		return nil, err
 	}
 	// TODO (Ly): This should return empty now

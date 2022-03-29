@@ -69,7 +69,10 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "../../internal/test"
+	dir := "."
+	err := test.SetupFeatureRepo(dir)
+	assert.Nil(t, err)
+	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, dir)
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
@@ -80,7 +83,10 @@ func TestGetFeastServingInfo(t *testing.T) {
 func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "../../internal/test"
+	dir := "."
+	err := test.SetupFeatureRepo(dir)
+	assert.Nil(t, err)
+	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, dir)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)

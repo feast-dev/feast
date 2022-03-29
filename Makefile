@@ -141,11 +141,10 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	python -m pip install pybindgen==0.22.0
 	cd sdk/python && python setup.py build_go_lib
 
+# Needs feast package to setup the feature store
 test-go: compile-protos-go
 	pip install feast
-	cd go/internal/test && feast init feature_repo && cd feature_repo && feast apply && feast materialize-incremental $(shell date -u +"%Y-%m-%dT%H:%M:%S") && cd ../../../
 	go test ./...
-	rm -rf go/internal/test/feature_repo
 
 format-go:
 	gofmt -s -w go/
