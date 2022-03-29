@@ -1971,13 +1971,16 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
 def _validate_data_sources(data_sources: List[DataSource]):
     """ Verify data sources have case-insensitively unique names"""
     ds_names = set()
-    for fv in data_sources:
-        case_insensitive_ds_name = fv.name.lower()
+    for ds in data_sources:
+        case_insensitive_ds_name = ds.name.lower()
         if case_insensitive_ds_name in ds_names:
-            raise ValueError(
-                f"More than one data source with name {case_insensitive_ds_name} found. "
-                f"Please ensure that all data source names are case-insensitively unique. "
-                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
-            )
+            if case_insensitive_ds_name.strip():
+                warnings.warn(
+                    f"More than one data source with name {case_insensitive_ds_name} found. "
+                    f"Please ensure that all data source names are case-insensitively unique. "
+                    f"It may be necessary to ignore certain files in your feature repository by using a .feastignore "
+                    f"file. Starting in Feast 0.21, unique names (perhaps inferred from the table name) will be "
+                    f"required in data sources to encourage data source discovery"
+                )
         else:
             ds_names.add(case_insensitive_ds_name)

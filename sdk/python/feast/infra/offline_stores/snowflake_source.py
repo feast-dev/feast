@@ -44,6 +44,12 @@ class SnowflakeSource(DataSource):
         """
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
+        # The default Snowflake schema is named "PUBLIC".
+        _schema = "PUBLIC" if (database and table and not schema) else schema
+
+        self.snowflake_options = SnowflakeOptions(
+            database=database, schema=_schema, table=table, query=query
+        )
 
         # If no name, use the table as the default name
         _name = name
@@ -53,7 +59,8 @@ class SnowflakeSource(DataSource):
             else:
                 warnings.warn(
                     (
-                        "Starting in Feast 0.21, Feast will require either a name for a data source (if using query) or `table`."
+                        f"Starting in Feast 0.21, Feast will require either a name for a data source (if using query) "
+                        f"or `table`: {self.query}"
                     ),
                     DeprecationWarning,
                 )
@@ -64,13 +71,6 @@ class SnowflakeSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
-        )
-
-        # The default Snowflake schema is named "PUBLIC".
-        _schema = "PUBLIC" if (database and table and not schema) else schema
-
-        self.snowflake_options = SnowflakeOptions(
-            database=database, schema=_schema, table=table, query=query
         )
 
     @staticmethod

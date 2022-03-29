@@ -17,6 +17,8 @@ import enum
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
+from google.protobuf.json_format import MessageToJson
+
 from feast import type_map
 from feast.data_format import StreamFormat
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -179,6 +181,9 @@ class DataSource(ABC):
 
     def __hash__(self):
         return hash((id(self), self.name))
+
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
 
     def __eq__(self, other):
         if not isinstance(other, DataSource):
