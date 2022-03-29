@@ -102,7 +102,7 @@ class FeastObjectType(Enum):
         repo_contents: RepoContents,
     ) -> Dict["FeastObjectType", Set[Any]]:
         return {
-            FeastObjectType.DATA_SOURCE: sorted(repo_contents.data_sources),
+            FeastObjectType.DATA_SOURCE: repo_contents.data_sources,
             FeastObjectType.ENTITY: repo_contents.entities,
             FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
