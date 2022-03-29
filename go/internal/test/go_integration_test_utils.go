@@ -2,7 +2,6 @@ package test
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -125,9 +124,8 @@ func SetupFeatureRepo(basePath string) error {
 		return err
 	}
 	t := time.Now()
-	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
-		t.Year(), t.Month(), t.Day(),
-		t.Hour(), t.Minute(), t.Second())
+
+	formattedTime := t.Format(time.RFC3339Nano)
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = feature_repo_path
