@@ -28,6 +28,7 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
 from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration
@@ -83,12 +84,12 @@ def test_universal_cli(environment: Environment):
                 cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            assertpy.assert_that(fs.list_feature_views()).is_length(4)
+            assertpy.assert_that(fs.list_feature_views()).is_length(3)
             result = runner.run(
                 ["data-sources", "describe", "customer_profile_source"], cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            assertpy.assert_that(fs.list_data_sources()).is_length(4)
+            assertpy.assert_that(fs.list_data_sources()).is_length(3)
 
             # entity & feature view describe commands should fail when objects don't exist
             result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
@@ -103,6 +104,12 @@ def test_universal_cli(environment: Environment):
             # Doing another apply should be a no op, and should not cause errors
             result = runner.run(["apply"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(0)
+            basic_rw_test(
+                FeatureStore(repo_path=str(repo_path), config=None),
+                view_name="driver_locations",
+            )
+
+            # Confirm that registry contents have not changed.
             registry_dict = fs.registry.to_dict(project=project)
             assertpy.assert_that(registry_specs).is_equal_to(
                 {
