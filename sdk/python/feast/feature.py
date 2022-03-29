@@ -30,10 +30,7 @@ class Feature:
     """
 
     def __init__(
-        self,
-        name: str,
-        dtype: ValueType,
-        labels: Optional[Dict[str, str]] = None,
+        self, name: str, dtype: ValueType, labels: Optional[Dict[str, str]] = None,
     ):
         """Creates a Feature object."""
         self._name = name
@@ -94,9 +91,7 @@ class Feature:
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
 
         return FeatureSpecProto(
-            name=self.name,
-            value_type=value_type,
-            labels=self.labels,
+            name=self.name, value_type=value_type, labels=self.labels,
         )
 
     @classmethod

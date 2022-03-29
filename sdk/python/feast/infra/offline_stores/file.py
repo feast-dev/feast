@@ -79,8 +79,7 @@ class FileRetrievalJob(RetrievalJob):
         assert isinstance(storage, SavedDatasetFileStorage)
 
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.file_url,
-            storage.file_options.s3_endpoint_override,
+            storage.file_options.file_url, storage.file_options.s3_endpoint_override,
         )
 
         if path.endswith(".parquet"):
@@ -333,8 +332,7 @@ class FileOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return FileRetrievalJob(
-            evaluation_function=evaluate_offline_job,
-            full_feature_names=False,
+            evaluation_function=evaluate_offline_job, full_feature_names=False,
         )
 
     @staticmethod
@@ -362,8 +360,7 @@ class FileOfflineStore(OfflineStore):
 
 
 def _get_entity_df_event_timestamp_range(
-    entity_df: Union[pd.DataFrame, str],
-    entity_df_event_timestamp_col: str,
+    entity_df: Union[pd.DataFrame, str], entity_df_event_timestamp_col: str,
 ) -> Tuple[datetime, datetime]:
     if not isinstance(entity_df, pd.DataFrame):
         raise ValueError(
@@ -393,10 +390,7 @@ def _read_datasource(data_source) -> dd.DataFrame:
         else None
     )
 
-    return dd.read_parquet(
-        data_source.path,
-        storage_options=storage_options,
-    )
+    return dd.read_parquet(data_source.path, storage_options=storage_options,)
 
 
 def _field_mapping(
@@ -446,8 +440,7 @@ def _field_mapping(
     # Make sure to not have duplicated columns
     if entity_df_event_timestamp_col == event_timestamp_column:
         df_to_join = _run_dask_field_mapping(
-            df_to_join,
-            {event_timestamp_column: f"__{event_timestamp_column}"},
+            df_to_join, {event_timestamp_column: f"__{event_timestamp_column}"},
         )
         event_timestamp_column = f"__{event_timestamp_column}"
 
@@ -560,9 +553,7 @@ def _drop_duplicates(
     df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
-        all_join_keys + [entity_df_event_timestamp_col],
-        keep="last",
-        ignore_index=True,
+        all_join_keys + [entity_df_event_timestamp_col], keep="last", ignore_index=True,
     )
 
     return df_to_join.persist()

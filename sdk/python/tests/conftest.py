@@ -70,16 +70,10 @@ def pytest_addoption(parser):
         help="Run tests with external dependencies",
     )
     parser.addoption(
-        "--benchmark",
-        action="store_true",
-        default=False,
-        help="Run benchmark tests",
+        "--benchmark", action="store_true", default=False, help="Run benchmark tests",
     )
     parser.addoption(
-        "--universal",
-        action="store_true",
-        default=False,
-        help="Run universal tests",
+        "--universal", action="store_true", default=False, help="Run universal tests",
     )
     parser.addoption(
         "--goserver",
@@ -260,9 +254,7 @@ def go_data_sources(request, go_environment):
 def e2e_data_sources(environment: Environment, request):
     df = create_dataset()
     data_source = environment.data_source_creator.create_data_source(
-        df,
-        environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     def cleanup():

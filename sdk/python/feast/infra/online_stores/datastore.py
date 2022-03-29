@@ -197,12 +197,7 @@ class DatastoreOnlineStore(OnlineStore):
             document_id = compute_entity_id(entity_key)
 
             key = client.key(
-                "Project",
-                project,
-                "Table",
-                table.name,
-                "Row",
-                document_id,
+                "Project", project, "Table", table.name, "Row", document_id,
             )
 
             entity = datastore.Entity(
@@ -321,10 +316,7 @@ def _initialize_client(
     project_id: Optional[str], namespace: Optional[str]
 ) -> datastore.Client:
     try:
-        client = datastore.Client(
-            project=project_id,
-            namespace=namespace,
-        )
+        client = datastore.Client(project=project_id, namespace=namespace,)
         return client
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
@@ -400,8 +392,7 @@ class DatastoreTable(InfraObject):
     @staticmethod
     def from_proto(datastore_table_proto: DatastoreTableProto) -> Any:
         datastore_table = DatastoreTable(
-            project=datastore_table_proto.project,
-            name=datastore_table_proto.name,
+            project=datastore_table_proto.project, name=datastore_table_proto.name,
         )
 
         # Distinguish between null and empty string, since project_id and namespace are StringValues.

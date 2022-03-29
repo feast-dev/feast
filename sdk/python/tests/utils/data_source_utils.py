@@ -43,8 +43,7 @@ def simple_bq_source_using_table_ref_arg(
     job.result()
 
     return BigQuerySource(
-        table_ref=table_ref,
-        event_timestamp_column=event_timestamp_column,
+        table_ref=table_ref, event_timestamp_column=event_timestamp_column,
     )
 
 

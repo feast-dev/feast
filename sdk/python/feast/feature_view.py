@@ -44,9 +44,7 @@ DUMMY_ENTITY_ID = "__dummy_id"
 DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
 DUMMY_ENTITY = Entity(
-    name=DUMMY_ENTITY_NAME,
-    join_key=DUMMY_ENTITY_ID,
-    value_type=ValueType.STRING,
+    name=DUMMY_ENTITY_NAME, join_key=DUMMY_ENTITY_ID, value_type=ValueType.STRING,
 )
 
 

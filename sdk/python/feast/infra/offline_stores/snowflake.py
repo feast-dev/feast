@@ -208,14 +208,12 @@ class SnowflakeOfflineStore(OfflineStore):
 
         entity_schema = _get_entity_schema(entity_df, snowflake_conn, config)
 
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
+        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+            entity_schema
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            snowflake_conn,
+            entity_df, entity_df_event_timestamp_col, snowflake_conn,
         )
 
         @contextlib.contextmanager

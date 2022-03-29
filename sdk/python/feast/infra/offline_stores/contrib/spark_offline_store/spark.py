@@ -134,9 +134,7 @@ class SparkOfflineStore(OfflineStore):
             entity_schema=entity_schema,
         )
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            event_timestamp_col,
-            spark_session,
+            entity_df, event_timestamp_col, spark_session,
         )
 
         expected_join_keys = offline_utils.get_expected_join_keys(

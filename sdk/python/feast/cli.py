@@ -471,10 +471,7 @@ def registry_dump_command(ctx: click.Context):
 @click.argument("start_ts")
 @click.argument("end_ts")
 @click.option(
-    "--views",
-    "-v",
-    help="Feature views to materialize",
-    multiple=True,
+    "--views", "-v", help="Feature views to materialize", multiple=True,
 )
 @click.pass_context
 def materialize_command(
@@ -501,10 +498,7 @@ def materialize_command(
 @cli.command("materialize-incremental")
 @click.argument("end_ts")
 @click.option(
-    "--views",
-    "-v",
-    help="Feature views to incrementally materialize",
-    multiple=True,
+    "--views", "-v", help="Feature views to incrementally materialize", multiple=True,
 )
 @click.pass_context
 def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List[str]):
@@ -566,9 +560,7 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Specify a port for the server [default: 6566]",
 )
 @click.option(
-    "--no-access-log",
-    is_flag=True,
-    help="Disable the Uvicorn access log.",
+    "--no-access-log", is_flag=True, help="Disable the Uvicorn access log.",
 )
 @click.pass_context
 def serve_command(ctx: click.Context, host: str, port: int, no_access_log: bool):

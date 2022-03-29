@@ -304,8 +304,7 @@ def _get_table_name(
 
 
 def _delete_table_idempotent(
-    dynamodb_resource,
-    table_name: str,
+    dynamodb_resource, table_name: str,
 ):
     try:
         table = dynamodb_resource.Table(table_name)
@@ -359,8 +358,7 @@ class DynamoDBTable(InfraObject):
     @staticmethod
     def from_proto(dynamodb_table_proto: DynamoDBTableProto) -> Any:
         return DynamoDBTable(
-            name=dynamodb_table_proto.name,
-            region=dynamodb_table_proto.region,
+            name=dynamodb_table_proto.name, region=dynamodb_table_proto.region,
         )
 
     def update(self):
