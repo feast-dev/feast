@@ -125,7 +125,7 @@ func SetupFeatureRepo(basePath string) error {
 	}
 	t := time.Now()
 
-	formattedTime := t.Format(time.RFC3339Nano)
+	formattedTime := t.Format(time.RFC3339)
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = feature_repo_path
