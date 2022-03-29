@@ -354,6 +354,7 @@ class BuildGoEmbeddedCommand(Command):
             "github.com/feast-dev/feast/go/embedded"
         ], env={
             "PATH": self.path_val,
+            "CGO_LDFLAGS_ALLOW": ".*",
             **self.go_env,
         })
 
