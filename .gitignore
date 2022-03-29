@@ -105,6 +105,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 infra/scripts/*.conf
+go/internal/test/feature_repo
 
 # Translations
 *.mo
@@ -204,7 +205,7 @@ ui/.pnp
 ui/.pnp.js
 ui/coverage
 ui/build
-ui/feature_repo/data/online.db 
+ui/feature_repo/data/online.db
 ui/feature_repo/registry.db
 ui/.vercel
 

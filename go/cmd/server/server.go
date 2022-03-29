@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
@@ -24,6 +25,9 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 	}, nil
 }
 
+// Returns an object containing the response to GetOnlineFeatures.
+// Metadata contains featurenames that corresponds to the number of rows in response.Results.
+// Results contains values including the value of the feature, the event timestamp, and feature status in a columnar format.
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
 	if err != nil {
@@ -36,6 +40,9 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		featuresOrService.FeatureService,
 		request.GetEntities(),
 		request.GetFullFeatureNames())
+	if err != nil {
+		return nil, err
+	}
 
 	resp := &serving.GetOnlineFeaturesResponse{
 		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, 0),

@@ -198,6 +198,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 	result := make([]*FeatureVector, 0)
 	arrowMemory := memory.NewGoAllocator()
+
 	for _, groupRef := range groupedRefs {
 		featureData, err := fs.readFromOnlineStore(ctx, groupRef.entityKeys, groupRef.featureViewNames, groupRef.featureNames)
 		if err != nil {
@@ -348,7 +349,6 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 	fvs := make(map[string]*FeatureView)
 	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
-
 	featureViews, err := fs.listFeatureViews(hideDummyEntity)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -405,7 +405,6 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 				" feature view %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
 		}
 	}
-
 	return fvs, fvsToUse, requestFvsToUse, odFvsToUse, nil
 }
 
@@ -561,9 +560,9 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	requestedFeatureNames []string,
 ) ([][]FeatureData, error) {
 	numRows := len(entityRows)
-	entityRowsValue := make([]prototypes.EntityKey, numRows)
+	entityRowsValue := make([]*prototypes.EntityKey, numRows)
 	for index, entityKey := range entityRows {
-		entityRowsValue[index] = prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
+		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
 }
