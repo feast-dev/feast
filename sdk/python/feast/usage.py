@@ -224,27 +224,27 @@ def tracing_span(name):
 
 def log_exceptions_and_usage(*args, **attrs):
     """
-        This function decorator enables three components:
-        1. Error tracking
-        2. Usage statistic collection
-        3. Time profiling
+    This function decorator enables three components:
+    1. Error tracking
+    2. Usage statistic collection
+    3. Time profiling
 
-        This data is being collected, anonymized and sent to Feast Developers.
-        All events from nested decorated functions are being grouped into single event
-        to build comprehensive context useful for profiling and error tracking.
+    This data is being collected, anonymized and sent to Feast Developers.
+    All events from nested decorated functions are being grouped into single event
+    to build comprehensive context useful for profiling and error tracking.
 
-        Usage example (will result in one output event):
-            @log_exceptions_and_usage
-            def fn(...):
-                nested()
+    Usage example (will result in one output event):
+        @log_exceptions_and_usage
+        def fn(...):
+            nested()
 
-            @log_exceptions_and_usage(attr='value')
-            def nested(...):
-                deeply_nested()
+        @log_exceptions_and_usage(attr='value')
+        def nested(...):
+            deeply_nested()
 
-            @log_exceptions_and_usage(attr2='value2', sample=RateSampler(rate=0.1))
-            def deeply_nested(...):
-                ...
+        @log_exceptions_and_usage(attr2='value2', sample=RateSampler(rate=0.1))
+        def deeply_nested(...):
+            ...
     """
     sampler = attrs.pop("sampler", AlwaysSampler())
 

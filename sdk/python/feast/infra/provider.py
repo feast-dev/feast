@@ -183,7 +183,7 @@ class Provider(abc.ABC):
         Returns:
              RetrievalJob object, which is lazy wrapper for actual query performed under the hood.
 
-         """
+        """
         ...
 
     def get_feature_server_endpoint(self) -> Optional[str]:

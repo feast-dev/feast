@@ -37,7 +37,7 @@ from feast.utils import to_naive_utc
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
-    """ Online store config for local (SQLite-based) store """
+    """Online store config for local (SQLite-based) store"""
 
     type: Literal[
         "sqlite", "feast.infra.online_stores.sqlite.SqliteOnlineStore"

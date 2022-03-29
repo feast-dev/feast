@@ -94,7 +94,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 
 
 def parse_repo(repo_root: Path) -> RepoContents:
-    """ Collect feature table definitions from feature repo """
+    """Collect feature table definitions from feature repo"""
     res = RepoContents(
         data_sources=set(),
         entities=set(),
@@ -264,7 +264,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
-    """ For debugging only: output contents of the metadata registry """
+    """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)

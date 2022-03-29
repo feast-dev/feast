@@ -56,7 +56,7 @@ except ImportError as e:
 
 
 class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
-    """ Offline store config for GCP BigQuery """
+    """Offline store config for GCP BigQuery"""
 
     type: Literal["bigquery"] = "bigquery"
     """ Offline store type selector"""

@@ -399,14 +399,14 @@ class FeatureStore:
     @log_exceptions_and_usage
     def delete_feature_service(self, name: str):
         """
-            Deletes a feature service.
+        Deletes a feature service.
 
-            Args:
-                name: Name of feature service.
+        Args:
+            name: Name of feature service.
 
-            Raises:
-                FeatureServiceNotFoundException: The feature view could not be found.
-            """
+        Raises:
+            FeatureServiceNotFoundException: The feature view could not be found.
+        """
         return self._registry.delete_feature_service(name, self.project)
 
     def _get_features(
@@ -903,17 +903,17 @@ class FeatureStore:
         feature_service: Optional[FeatureService] = None,
     ) -> SavedDataset:
         """
-            Execute provided retrieval job and persist its outcome in given storage.
-            Storage type (eg, BigQuery or Redshift) must be the same as globally configured offline store.
-            After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
-            Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
-            with the same name.
+        Execute provided retrieval job and persist its outcome in given storage.
+        Storage type (eg, BigQuery or Redshift) must be the same as globally configured offline store.
+        After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
+        Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
+        with the same name.
 
-            Returns:
-                SavedDataset object with attached RetrievalJob
+        Returns:
+            SavedDataset object with attached RetrievalJob
 
-            Raises:
-                ValueError if given retrieval job doesn't have metadata
+        Raises:
+            ValueError if given retrieval job doesn't have metadata
         """
         warnings.warn(
             "Saving dataset is an experimental feature. "
@@ -1589,11 +1589,11 @@ class FeatureStore:
         join_key_values: Dict[str, List[Value]],
         entity_name_to_join_key_map: Dict[str, str],
     ) -> Tuple[Tuple[Dict[str, Value], ...], Tuple[List[int], ...]]:
-        """ Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
+        """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
 
-            This method allows us to query the OnlineStore for data we need only once
-            rather than requesting and processing data for the same combination of
-            Entities multiple times.
+        This method allows us to query the OnlineStore for data we need only once
+        rather than requesting and processing data for the same combination of
+        Entities multiple times.
         """
         # Get the correct set of entity values with the correct join keys.
         table_entity_values = self._get_table_entity_values(
@@ -1629,14 +1629,14 @@ class FeatureStore:
         requested_features: List[str],
         table: FeatureView,
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
-        """ Read and process data from the OnlineStore for a given FeatureView.
+        """Read and process data from the OnlineStore for a given FeatureView.
 
-            This method guarantees that the order of the data in each element of the
-            List returned is the same as the order of `requested_features`.
+        This method guarantees that the order of the data in each element of the
+        List returned is the same as the order of `requested_features`.
 
-            This method assumes that `provider.online_read` returns data for each
-            combination of Entities in `entity_rows` in the same order as they
-            are provided.
+        This method assumes that `provider.online_read` returns data for each
+        combination of Entities in `entity_rows` in the same order as they
+        are provided.
         """
         # Instantiate one EntityKeyProto per Entity.
         entity_key_protos = [
@@ -1693,23 +1693,23 @@ class FeatureStore:
         requested_features: Iterable[str],
         table: FeatureView,
     ):
-        """ Populate the GetOnlineFeaturesResponse with feature data.
+        """Populate the GetOnlineFeaturesResponse with feature data.
 
-            This method assumes that `_read_from_online_store` returns data for each
-            combination of Entities in `entity_rows` in the same order as they
-            are provided.
+        This method assumes that `_read_from_online_store` returns data for each
+        combination of Entities in `entity_rows` in the same order as they
+        are provided.
 
-            Args:
-                feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-                indexes: A list of indexes which should be the same length as `feature_data`. Each list
-                    of indexes corresponds to a set of result rows in `online_features_response`.
-                online_features_response: The object to populate.
-                full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-                    changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-                    "customer_fv__daily_transactions").
-                requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
-                    data in `feature_data`.
-                table: The FeatureView that `feature_data` was retrieved from.
+        Args:
+            feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
+            indexes: A list of indexes which should be the same length as `feature_data`. Each list
+                of indexes corresponds to a set of result rows in `online_features_response`.
+            online_features_response: The object to populate.
+            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
+                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
+                "customer_fv__daily_transactions").
+            requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
+                data in `feature_data`.
+            table: The FeatureView that `feature_data` was retrieved from.
         """
         # Add the feature names to the response.
         requested_feature_refs = [
@@ -1973,7 +1973,7 @@ def _group_feature_refs(
     List[Tuple[RequestFeatureView, List[str]]],
     Set[str],
 ]:
-    """ Get list of feature views and corresponding feature names based on feature references"""
+    """Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
     view_index = {view.projection.name_to_use(): view for view in all_feature_views}
@@ -2046,7 +2046,7 @@ def _print_materialization_log(
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
-    """ Verify feature views have case-insensitively unique names"""
+    """Verify feature views have case-insensitively unique names"""
     fv_names = set()
     for fv in feature_views:
         case_insensitive_fv_name = fv.name.lower()
@@ -2061,7 +2061,7 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
 
 
 def _validate_data_sources(data_sources: List[DataSource]):
-    """ Verify data sources have case-insensitively unique names"""
+    """Verify data sources have case-insensitively unique names"""
     ds_names = set()
     for fv in data_sources:
         case_insensitive_ds_name = fv.name.lower()
