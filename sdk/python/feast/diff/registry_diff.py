@@ -60,6 +60,9 @@ class RegistryDiff:
                 continue
             if feast_object_diff.transition_type == TransitionType.UNCHANGED:
                 continue
+            if feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
+                # TODO(adchia): Print statements out starting in Feast 0.21
+                continue
             action, color = message_action_map[feast_object_diff.transition_type]
             log_string += f"{action} {feast_object_diff.feast_object_type.value} {Style.BRIGHT + color}{feast_object_diff.name}{Style.RESET_ALL}\n"
             if feast_object_diff.transition_type == TransitionType.UPDATE:
@@ -78,8 +81,11 @@ class RegistryDiff:
 def tag_objects_for_keep_delete_update_add(
     existing_objs: Iterable[FeastObject], desired_objs: Iterable[FeastObject]
 ) -> Tuple[Set[FeastObject], Set[FeastObject], Set[FeastObject], Set[FeastObject]]:
-    existing_obj_names = {e.name for e in existing_objs}
-    desired_obj_names = {e.name for e in desired_objs}
+    # TODO(adchia): Remove the "if X.name" condition when data sources are forced to have names
+    existing_obj_names = {e.name for e in existing_objs if e.name}
+    desired_objs = [obj for obj in desired_objs if obj.name]
+    existing_objs = [obj for obj in existing_objs if obj.name]
+    desired_obj_names = {e.name for e in desired_objs if e.name}
 
     objs_to_add = {e for e in desired_objs if e.name not in existing_obj_names}
     objs_to_update = {e for e in desired_objs if e.name in existing_obj_names}
