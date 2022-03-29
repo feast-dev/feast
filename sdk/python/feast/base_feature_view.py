@@ -107,9 +107,6 @@ class BaseFeatureView(ABC):
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
 
-    def __lt__(self, other):
-        return self.name < other.name
-
     def __hash__(self):
         return hash((id(self), self.name))
 

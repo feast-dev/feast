@@ -80,17 +80,17 @@ class RegistryDiff:
 
 def tag_objects_for_keep_delete_update_add(
     existing_objs: Iterable[FeastObject], desired_objs: Iterable[FeastObject]
-) -> Tuple[List[FeastObject], List[FeastObject], List[FeastObject], List[FeastObject]]:
+) -> Tuple[Set[FeastObject], Set[FeastObject], Set[FeastObject], Set[FeastObject]]:
     # TODO(adchia): Remove the "if X.name" condition when data sources are forced to have names
     existing_obj_names = {e.name for e in existing_objs if e.name}
     desired_objs = [obj for obj in desired_objs if obj.name]
     existing_objs = [obj for obj in existing_objs if obj.name]
     desired_obj_names = {e.name for e in desired_objs if e.name}
 
-    objs_to_add = [e for e in desired_objs if e.name not in existing_obj_names]
-    objs_to_update = [e for e in desired_objs if e.name in existing_obj_names]
-    objs_to_keep = [e for e in existing_objs if e.name in desired_obj_names]
-    objs_to_delete = [e for e in existing_objs if e.name not in desired_obj_names]
+    objs_to_add = {e for e in desired_objs if e.name not in existing_obj_names}
+    objs_to_update = {e for e in desired_objs if e.name in existing_obj_names}
+    objs_to_keep = {e for e in existing_objs if e.name in desired_obj_names}
+    objs_to_delete = {e for e in existing_objs if e.name not in desired_obj_names}
 
     return objs_to_keep, objs_to_delete, objs_to_update, objs_to_add
 
@@ -155,10 +155,10 @@ def diff_registry_objects(
 def extract_objects_for_keep_delete_update_add(
     registry: Registry, current_project: str, desired_repo_contents: RepoContents,
 ) -> Tuple[
-    Dict[FeastObjectType, List[FeastObject]],
-    Dict[FeastObjectType, List[FeastObject]],
-    Dict[FeastObjectType, List[FeastObject]],
-    Dict[FeastObjectType, List[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
+    Dict[FeastObjectType, Set[FeastObject]],
 ]:
     """
     Returns the objects in the registry that must be modified to achieve the desired repo state.

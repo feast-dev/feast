@@ -675,7 +675,7 @@ class FeatureStore:
             for v in odfv.input_request_data_sources.values():
                 data_sources_set_to_update.add(v)
 
-        data_sources_to_update = sorted(list(data_sources_set_to_update))
+        data_sources_to_update = list(data_sources_set_to_update)
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(

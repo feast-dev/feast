@@ -197,9 +197,6 @@ class DataSource(ABC):
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
 
-    def __lt__(self, other):
-        return str(self) < str(other)
-
     def __eq__(self, other):
         if not isinstance(other, DataSource):
             raise TypeError("Comparisons should only involve DataSource class objects.")
