@@ -903,18 +903,17 @@ class FeatureStore:
         feature_service: Optional[FeatureService] = None,
     ) -> SavedDataset:
         """
-        Execute provided retrieval job and persist its outcome in given storage. Storage
-        type (eg, BigQuery or Redshift) must be the same as globally configured offline
-        store. After data successfully persisted, the saved dataset object with dataset
-        metadata is committed to the registry. Name for the saved dataset should be
-        unique within project, since it's possible to overwrite previously stored
-        dataset with the same name.
+            Execute provided retrieval job and persist its outcome in given storage.
+            Storage type (eg, BigQuery or Redshift) must be the same as globally configured offline store.
+            After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
+            Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
+            with the same name.
 
-        Returns:
-            SavedDataset object with attached RetrievalJob
+            Returns:
+                SavedDataset object with attached RetrievalJob
 
-        Raises:
-            ValueError if given retrieval job doesn't have metadata
+            Raises:
+                ValueError if given retrieval job doesn't have metadata
         """
         warnings.warn(
             "Saving dataset is an experimental feature. "
@@ -938,28 +937,28 @@ class FeatureStore:
             tags=tags,
             feature_service_name=feature_service.name if feature_service else None,
         )
+
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
         dataset.max_event_timestamp = from_.metadata.max_event_timestamp
 
         from_.persist(storage)
 
-        retrieval_job = self._get_provider().retrieve_saved_dataset(
-            config=self.config, dataset=dataset
+        dataset = dataset.with_retrieval_job(
+            self._get_provider().retrieve_saved_dataset(
+                config=self.config, dataset=dataset
+            )
         )
-        dataset = dataset.with_retrieval_job(retrieval_job)
 
         self._registry.apply_saved_dataset(dataset, self.project, commit=True)
-
         return dataset
 
     @log_exceptions_and_usage
     def get_saved_dataset(self, name: str) -> SavedDataset:
         """
-        Find a saved dataset in the registry by provided name and create a retrieval
-        job to pull whole dataset from storage (offline store).
+        Find a saved dataset in the registry by provided name and
+        create a retrieval job to pull whole dataset from storage (offline store).
 
-        If dataset couldn't be found by provided name SavedDatasetNotFound exception
-        will be raised.
+        If dataset couldn't be found by provided name SavedDatasetNotFound exception will be raised.
 
         Data will be retrieved from globally configured offline store.
 
@@ -982,7 +981,6 @@ class FeatureStore:
         retrieval_job = provider.retrieve_saved_dataset(
             config=self.config, dataset=dataset
         )
-
         return dataset.with_retrieval_job(retrieval_job)
 
     @log_exceptions_and_usage

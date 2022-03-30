@@ -96,14 +96,13 @@ class SparkDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             date_partition_column="",
+            # maps certain column names to other names
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetSparkStorage:
         table = f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
-        return SavedDatasetSparkStorage(
-            table=table, query=None, path=None, file_format=None
-        )
+        return SavedDatasetSparkStorage(table_ref=table, query="")
 
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.project_name}_{suffix}"

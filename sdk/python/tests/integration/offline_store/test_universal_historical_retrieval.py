@@ -6,6 +6,9 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 import pytest
+from pandas.testing import assert_frame_equal as pd_assert_frame_equal
+from pytz import utc
+
 from feast import utils
 from feast.entity import Entity
 from feast.errors import (
@@ -19,8 +22,6 @@ from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
 from feast.value_type import ValueType
-from pandas.testing import assert_frame_equal as pd_assert_frame_equal
-from pytz import utc
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
@@ -467,6 +468,7 @@ def test_historical_features_with_entities_from_query(
     environment, universal_data_sources, full_feature_names
 ):
     store = environment.feature_store
+
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
@@ -474,17 +476,13 @@ def test_historical_features_with_entities_from_query(
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
-    data_source_creator = environment.test_repo_config.offline_store_creator
-    if data_source_creator.__name__ == SnowflakeDataSourceCreator.__name__:
-        entity_df_query = f"""
-        SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp" 
-        FROM "{orders_table}"
-        """
+    if (
+        environment.test_repo_config.offline_store_creator.__name__
+        == SnowflakeDataSourceCreator.__name__
+    ):
+        entity_df_query = f'''SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp" FROM "{orders_table}"'''
     else:
-        entity_df_query = f"""
-        SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp 
-        FROM {orders_table}
-        """
+        entity_df_query = f"SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp FROM {orders_table}"
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
