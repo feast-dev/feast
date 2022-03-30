@@ -2,7 +2,9 @@ package logging
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -18,12 +20,17 @@ type FileLogStorage struct {
 type ParquetLog struct {
 	EntityName      string   `parquet:"name=entityname, type=BYTE_ARRAY"`
 	FeatureNames    []string `parquet:"name=featurenames, type=MAP, convertedtype=LIST, valuetype=BYTE_ARRAY, valueconvertedtype=UTF8"`
-	FeatureStatuses []bool   `parquet:"name=featurestatuses, type=BOOLEAN, repetitiontype=REPEATED"`
-	EventTimestamps []int64  `parquet:"name=eventtimestamps, type=INT64, repetitiontype=REPEATED, convertedtype=TIMESTAMP_MILLIS"`
+	FeatureStatuses []bool   `parquet:"name=featurestatuses, type=MAP, convertedtype=LIST, valuetype=BOOLEAN"`
+	EventTimestamps []int64  `parquet:"name=eventtimestamps, type=MAP, convertedtype=LIST, valuetype=INT64, valueconvertedtype=TIMESTAMP_MILLIS"`
 }
 
 func NewFileOfflineStore(project string, offlineStoreConfig map[string]interface{}) (*FileLogStorage, error) {
 	store := FileLogStorage{project: project}
+	abs_path, err := filepath.Abs("log.parquet")
+	if err != nil {
+		return nil, err
+	}
+	store.path = abs_path
 	return &store, nil
 }
 
@@ -51,33 +58,44 @@ func (f *FileLogStorage) FlushToStorage(m *MemoryBuffer) error {
 		return nil
 	}
 	var err error
-	w, err := CreateOrOpenLogFile("output/flat.parquet")
+	w, err := CreateOrOpenLogFile(f.path)
 	if err != nil {
-		return fmt.Errorf("Can't create local file with error: %s", err)
+		return fmt.Errorf("can't create local file with error: %s", err)
 	}
 	pw, err := writer.NewParquetWriterFromWriter(w, new(ParquetLog), 4)
 	if err != nil {
-		return fmt.Errorf("Can't create parquet writer with error: %s", err)
+		return fmt.Errorf("can't create parquet writer with error: %s", err)
 	}
-	for _, log := range m.logs {
-		numValues := len(log.FeatureValues)
+	for _, newLog := range m.logs {
+		numValues := len(newLog.FeatureValues)
 		statuses := make([]bool, numValues)
 		timestampsInMillis := make([]int64, numValues)
 		for idx := 0; idx < numValues; idx++ {
-			if log.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
+			if newLog.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
 				statuses[idx] = true
 			} else {
 				statuses[idx] = false
 			}
-			ts := log.EventTimestamps[idx]
+			ts := newLog.EventTimestamps[idx]
 			timestampsInMillis[idx] = ts.AsTime().UnixNano() / int64(time.Millisecond)
 		}
+		log.Println(statuses)
+		log.Println(timestampsInMillis)
 		newParquetLog := ParquetLog{
-			EntityName:      log.EntityName,
-			FeatureNames:    log.FeatureNames,
+			EntityName:      newLog.EntityName,
+			FeatureNames:    newLog.FeatureNames,
 			FeatureStatuses: statuses,
 			EventTimestamps: timestampsInMillis,
 		}
+		if err = pw.Write(newParquetLog); err != nil {
+			log.Println("write error")
+			return err
+		}
 	}
+	if err = pw.WriteStop(); err != nil {
+		return err
+	}
+	log.Println("Flushed Log to Parquet File Storage")
+	w.Close()
 	return nil
 }
