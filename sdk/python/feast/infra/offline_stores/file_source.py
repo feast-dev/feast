@@ -86,7 +86,6 @@ class FileSource(DataSource):
 
         return (
             self.name == other.name
-            and self.file_options.uri == other.file_options.uri
             and self.file_options.file_format == other.file_options.file_format
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
@@ -271,7 +270,6 @@ class FileOptions:
             ),
             uri=self.uri,
             s3_endpoint_override=self.s3_endpoint_override,
-            uri=self.uri,
         )
 
         return file_options_proto
@@ -318,20 +316,8 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
         return SavedDatasetStorageProto(file_storage=self.file_options.to_proto())
 
     def to_data_source(self) -> DataSource:
-        if self.file_options.uri:
-            path = self.file_options.uri
-        else:
-            path = self.file_options.file_url
-            if path:
-                warnings.warn(
-                (
-                    "FileSource Proto is replacing the file_url field in FileOptions with uri soon."
-                    "Feast 0.23+ will no longer support file_url. Please change to using uri in your protos."
-                ),
-                DeprecationWarning,
-            )
         return FileSource(
-            path=path,
+            path=self.file_options.uri,
             file_format=self.file_options.file_format,
             s3_endpoint_override=self.file_options.s3_endpoint_override,
         )
