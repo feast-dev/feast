@@ -53,7 +53,7 @@ message DataSource {
   // Name of Feast project that this data source belongs to.
   string project = 21;
 
-  string descrption = 23;
+  string description = 23;
 
   map<string, string> tags = 24;
 
