@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import warnings
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -53,7 +54,8 @@ class Entity:
     @log_exceptions
     def __init__(
         self,
-        name: str,
+        *args,
+        name: Optional[str] = None,
         value_type: ValueType = ValueType.UNKNOWN,
         description: str = "",
         join_key: Optional[str] = None,
@@ -61,9 +63,26 @@ class Entity:
         owner: str = "",
     ):
         """Creates an Entity object."""
-        self.name = name
+        if len(args) == 1:
+            warnings.warn(
+                (
+                    "Entity name should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct Entities"
+                ),
+                DeprecationWarning,
+            )
+        if len(args) > 1:
+            raise ValueError(
+                "All arguments to construct an entity should be specified as keyword arguments only"
+            )
+
+        self.name = args[0] if len(args) > 0 else name
+
+        if not self.name:
+            raise ValueError("Name needs to be specified")
+
         self.value_type = value_type
-        self.join_key = join_key if join_key else name
+        self.join_key = join_key if join_key else self.name
         self.description = description
         self.tags = tags if tags is not None else {}
         self.owner = owner
