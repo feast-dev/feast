@@ -1,9 +1,12 @@
 package logging
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/xitongsys/parquet-go/writer"
 )
 
 type FileLogStorage struct {
@@ -24,9 +27,37 @@ func NewFileOfflineStore(project string, offlineStoreConfig map[string]interface
 	return &store, nil
 }
 
+func CreateOrOpenLogFile(absPath string) (*os.File, error) {
+	var _, err = os.Stat(absPath)
+
+	// create file if not exists
+	if os.IsNotExist(err) {
+		var file, err = os.Create(absPath)
+		if err != nil {
+			return nil, err
+		}
+		return file, nil
+	} else {
+		var file, err = os.OpenFile(absPath, os.O_RDWR, 0644)
+		if err != nil {
+			return nil, err
+		}
+		return file, nil
+	}
+}
+
 func (f *FileLogStorage) FlushToStorage(m *MemoryBuffer) error {
 	if len(m.logs) == 0 {
 		return nil
+	}
+	var err error
+	w, err := CreateOrOpenLogFile("output/flat.parquet")
+	if err != nil {
+		return fmt.Errorf("Can't create local file with error: %s", err)
+	}
+	pw, err := writer.NewParquetWriterFromWriter(w, new(ParquetLog), 4)
+	if err != nil {
+		return fmt.Errorf("Can't create parquet writer with error: %s", err)
 	}
 	for _, log := range m.logs {
 		numValues := len(log.FeatureValues)
