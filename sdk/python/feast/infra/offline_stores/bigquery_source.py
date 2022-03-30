@@ -40,9 +40,9 @@ class BigQuerySource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): SQL query to execute to generate data for this data source.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
-            description (optional):: A human-readable description.
-            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the bigquery source, typically the email of the primary
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the bigquery source, typically the email of the primary
                 maintainer.
         Example:
             >>> from feast import BigQuerySource

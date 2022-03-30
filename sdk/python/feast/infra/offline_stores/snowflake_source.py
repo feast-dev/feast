@@ -44,9 +44,9 @@ class SnowflakeSource(DataSource):
                 source to column names in a feature table or view.
             date_partition_column (optional): Timestamp column used for partitioning.
             name (optional): Name for the source. Defaults to the table if not specified.
-            description (optional):: A human-readable description.
-            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the snowflake source, typically the email of the primary
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the snowflake source, typically the email of the primary
                 maintainer.
         """
         if table is None and query is None:

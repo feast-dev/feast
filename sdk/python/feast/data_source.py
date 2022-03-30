@@ -162,9 +162,9 @@ class DataSource(ABC):
             source to feature names in a feature table or view. Only used for feature
             columns, not entity or timestamp columns.
         date_partition_column (optional): Timestamp column used for partitioning.
-        description (optional):: A human-readable description.
-        tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-        owner (optional):: The owner of the data source, typically the email of the primary
+        description (optional) A human-readable description.
+        tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+        owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
     """
 
@@ -200,9 +200,9 @@ class DataSource(ABC):
                 source to feature names in a feature table or view. Only used for feature
                 columns, not entity or timestamp columns.
             date_partition_column (optional): Timestamp column used for partitioning.
-            description (optional):: A human-readable description.
-            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the data source, typically the email of the primary
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
         """
         self.name = name
@@ -216,9 +216,9 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
-        self.description = description if description else ""
+        self.description = description or ""
         self.tags = tags or {}
-        self.owner = owner if owner else ""
+        self.owner = owner or ""
 
     def __hash__(self):
         return hash((id(self), self.name))
@@ -615,9 +615,9 @@ class PushSource(DataSource):
                 store to the online store, and when retrieving historical features.
             event_timestamp_column (optional): Event timestamp column used for point in time
                 joins of feature values.
-            description (optional):: A human-readable description.
-            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the data source, typically the email of the primary
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
         """
         super().__init__(name, description=description, tags=tags, owner=owner)

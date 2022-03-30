@@ -45,9 +45,9 @@ class FileSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
             name (optional): Name for the file source. Defaults to the path.
-            description (optional):: A human-readable description.
-            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the file source, typically the email of the primary
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the file source, typically the email of the primary
                 maintainer.
 
         Examples:

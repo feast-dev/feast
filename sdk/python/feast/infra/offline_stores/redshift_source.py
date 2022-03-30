@@ -43,9 +43,9 @@ class RedshiftSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
-            description (optional):: A human-readable description.
-            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the redshift source, typically the email of the primary
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the redshift source, typically the email of the primary
                 maintainer.
         """
         # The default Redshift schema is named "public".
