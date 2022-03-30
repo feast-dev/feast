@@ -7,7 +7,7 @@ import (
 )
 
 type OfflineLogStorage interface {
-	FlushToStorage(MemoryBuffer)
+	FlushToStorage(*MemoryBuffer) error
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 }
@@ -28,6 +28,6 @@ func NewOfflineStore(config *feast.RepoConfig) (OfflineLogStorage, error) {
 		offlineStore, err := NewFileOfflineStore(config.Project, config.OfflineStore)
 		return offlineStore, err
 	} else {
-		return nil, errors.New("No offline storage besides file is currently supported.")
+		return nil, errors.New("no offline storage besides file is currently supported")
 	}
 }
