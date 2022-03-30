@@ -40,6 +40,9 @@ class SparkSource(DataSource):
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         # If no name, use the table_ref as the default name
         _name = name
@@ -54,6 +57,9 @@ class SparkSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
         warnings.warn(
             "The spark data source API is an experimental feature in alpha development. "
@@ -125,6 +131,9 @@ class SparkSource(DataSource):
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -133,6 +142,9 @@ class SparkSource(DataSource):
             type=DataSourceProto.CUSTOM_SOURCE,
             field_mapping=self.field_mapping,
             custom_options=self.spark_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column

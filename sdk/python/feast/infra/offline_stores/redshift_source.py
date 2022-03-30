@@ -24,6 +24,9 @@ class RedshiftSource(DataSource):
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
         name: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """
         Creates a RedshiftSource object.
@@ -40,6 +43,10 @@ class RedshiftSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the redshift source, typically the email of the primary
+                maintainer.
         """
         # The default Redshift schema is named "public".
         _schema = "public" if table and not schema else schema
@@ -68,6 +75,9 @@ class RedshiftSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
 
     @staticmethod
@@ -89,6 +99,9 @@ class RedshiftSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             query=data_source.redshift_options.query,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -109,6 +122,9 @@ class RedshiftSource(DataSource):
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
+            and self.description == other.description
+            and self.tags == other.tags
+            and self.owner == other.owner
         )
 
     @property
@@ -137,6 +153,9 @@ class RedshiftSource(DataSource):
             type=DataSourceProto.BATCH_REDSHIFT,
             field_mapping=self.field_mapping,
             redshift_options=self.redshift_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column

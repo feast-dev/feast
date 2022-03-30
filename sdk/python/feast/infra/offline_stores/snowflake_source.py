@@ -24,6 +24,9 @@ class SnowflakeSource(DataSource):
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         name: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """
         Creates a SnowflakeSource object.
@@ -41,6 +44,10 @@ class SnowflakeSource(DataSource):
                 source to column names in a feature table or view.
             date_partition_column (optional): Timestamp column used for partitioning.
             name (optional): Name for the source. Defaults to the table if not specified.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the snowflake source, typically the email of the primary
+                maintainer.
         """
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
@@ -71,6 +78,9 @@ class SnowflakeSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
 
     @staticmethod
@@ -93,6 +103,9 @@ class SnowflakeSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             query=data_source.snowflake_options.query,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -114,6 +127,9 @@ class SnowflakeSource(DataSource):
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
+            and self.description == other.description
+            and self.tags == other.tags
+            and self.owner == other.owner
         )
 
     @property
@@ -147,6 +163,9 @@ class SnowflakeSource(DataSource):
             type=DataSourceProto.BATCH_SNOWFLAKE,
             field_mapping=self.field_mapping,
             snowflake_options=self.snowflake_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column

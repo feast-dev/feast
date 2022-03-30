@@ -27,6 +27,9 @@ class FileSource(DataSource):
         date_partition_column: Optional[str] = "",
         s3_endpoint_override: Optional[str] = None,
         name: Optional[str] = "",
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 
@@ -42,6 +45,10 @@ class FileSource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
             name (optional): Name for the file source. Defaults to the path.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the file source, typically the email of the primary
+                maintainer.
 
         Examples:
             >>> from feast import FileSource
@@ -63,6 +70,9 @@ class FileSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -82,6 +92,9 @@ class FileSource(DataSource):
             and self.field_mapping == other.field_mapping
             and self.file_options.s3_endpoint_override
             == other.file_options.s3_endpoint_override
+            and self.description == other.description
+            and self.tags == other.tags
+            and self.owner == other.owner
         )
 
     @property
@@ -102,6 +115,9 @@ class FileSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -110,6 +126,9 @@ class FileSource(DataSource):
             type=DataSourceProto.BATCH_FILE,
             field_mapping=self.field_mapping,
             file_options=self.file_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column

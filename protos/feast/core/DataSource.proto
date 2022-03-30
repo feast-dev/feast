@@ -26,7 +26,7 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
-// Next available id: 23
+// Next available id: 26
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
@@ -52,6 +52,12 @@ message DataSource {
 
   // Name of Feast project that this data source belongs to.
   string project = 21;
+
+  string description = 23;
+
+  map<string, string> tags = 24;
+
+  string owner = 25;
 
   SourceType type = 1;
 
