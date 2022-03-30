@@ -395,14 +395,14 @@ class KafkaSource(DataSource):
             type=DataSourceProto.STREAM_KAFKA,
             field_mapping=self.field_mapping,
             kafka_options=self.kafka_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
-        data_source_proto.description = self.description
-        data_source_proto.tags = self.tags
-        data_source_proto.owner = self.owner
         return data_source_proto
 
     @staticmethod
@@ -574,14 +574,14 @@ class KinesisSource(DataSource):
             type=DataSourceProto.STREAM_KINESIS,
             field_mapping=self.field_mapping,
             kinesis_options=self.kinesis_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
-        data_source_proto.description = self.description
-        data_source_proto.tags = self.tags
-        data_source_proto.owner = self.owner
 
         return data_source_proto
 
