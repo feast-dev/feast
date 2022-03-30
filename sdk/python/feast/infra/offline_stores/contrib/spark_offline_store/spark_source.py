@@ -60,24 +60,6 @@ class SparkSource(DataSource):
             "This API is unstable and it could and most probably will be changed in the future.",
             RuntimeWarning,
         )
-        self.allowed_formats = [format.value for format in SparkSourceFormat]
-
-        # Check that only one of the ways to load a spark dataframe can be used.
-        if sum([(arg is not None) for arg in [table, query, path]]) != 1:
-            raise ValueError(
-                "Exactly one of params(table, query, path) must be specified."
-            )
-
-        if path is not None:
-            if file_format is None:
-                raise ValueError(
-                    "If 'path' is specified, then 'file_format' is required."
-                )
-            if file_format not in self.allowed_formats:
-                raise ValueError(
-                    f"'file_format' should be one of {self.allowed_formats}"
-                )
-
         self.spark_options = SparkOptions(
             table=table, query=query, path=path, file_format=file_format,
         )
@@ -112,9 +94,9 @@ class SparkSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
-        assert data_source.HasField("custom_options")
+        assert data_source.HasField("spark_options")
+        spark_options = SparkOptions.from_proto(data_source.spark_options)
 
-        spark_options = SparkOptions.from_proto(data_source.custom_options)
         return SparkSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -130,10 +112,10 @@ class SparkSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
-            type=DataSourceProto.CUSTOM_SOURCE,
+            type=DataSourceProto.BATCH_SPARK,
             data_source_class_type="feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
             field_mapping=self.field_mapping,
-            custom_options=self.spark_options.to_proto(),
+            spark_options=self.spark_options.to_proto(),
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
@@ -190,6 +172,8 @@ class SparkSource(DataSource):
 
 
 class SparkOptions:
+    allowed_formats = [format.value for format in SparkSourceFormat]
+
     def __init__(
         self,
         table: Optional[str] = None,
@@ -197,13 +181,30 @@ class SparkOptions:
         path: Optional[str] = None,
         file_format: Optional[str] = None,
     ):
+        # Check that only one of the ways to load a spark dataframe can be used. We have
+        # treat empty string and null the same due to proto (de)serialization.
+        if sum([(not (not arg)) for arg in [table, query, path]]) != 1:
+            raise ValueError(
+                "Exactly one of params(table, query, path) must be specified."
+            )
+
+        if path:
+            if not file_format:
+                raise ValueError(
+                    "If 'path' is specified, then 'file_format' is required."
+                )
+            if file_format not in self.allowed_formats:
+                raise ValueError(
+                    f"'file_format' should be one of {self.allowed_formats}"
+                )
+
         self.table = table
         self.query = query
         self.path = path
         self.file_format = file_format
 
     @classmethod
-    def from_proto(cls, spark_options_proto: DataSourceProto.CustomSourceOptions):
+    def from_proto(cls, spark_options_proto: DataSourceProto.SparkOptions):
         """
         Creates a SparkOptions from a protobuf representation of a spark option
         args:
@@ -211,25 +212,26 @@ class SparkOptions:
         Returns:
             Returns a SparkOptions object based on the spark_options protobuf
         """
-        spark_configuration = pickle.loads(spark_options_proto.configuration)
-
         spark_options = cls(
-            table=spark_configuration.table,
-            query=spark_configuration.query,
-            path=spark_configuration.path,
-            file_format=spark_configuration.file_format,
+            table=spark_options_proto.table,
+            query=spark_options_proto.query,
+            path=spark_options_proto.path,
+            file_format=spark_options_proto.file_format,
         )
+
         return spark_options
 
-    def to_proto(self) -> DataSourceProto.CustomSourceOptions:
+    def to_proto(self) -> DataSourceProto.SparkOptions:
         """
         Converts an SparkOptionsProto object to its protobuf representation.
         Returns:
             SparkOptionsProto protobuf
         """
-
-        spark_options_proto = DataSourceProto.CustomSourceOptions(
-            configuration=pickle.dumps(self),
+        spark_options_proto = DataSourceProto.SparkOptions(
+            table=self.table,
+            query=self.query,
+            path=self.path,
+            file_format=self.file_format,
         )
 
         return spark_options_proto
@@ -240,16 +242,39 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
 
     spark_options: SparkOptions
 
-    def __init__(self, table_ref: Optional[str] = None, query: Optional[str] = None):
-        self.spark_options = SparkOptions(table=table_ref, query=query)
+    def __init__(
+        self,
+        table: Optional[str] = None,
+        query: Optional[str] = None,
+        path: Optional[str] = None,
+        file_format: Optional[str] = None,
+    ):
+        self.spark_options = SparkOptions(
+            table=table,
+            query=query,
+            path=path,
+            file_format=file_format,
+        )
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
-        # TODO: implementation is not correct. Needs fix and update to protos.
-        return SavedDatasetSparkStorage(table_ref="", query=None)
+        spark_options = SparkOptions.from_proto(storage_proto.spark_storage)
+        return SavedDatasetSparkStorage(
+            table=spark_options.table,
+            query=spark_options.query,
+            path=spark_options.path,
+            file_format=spark_options.file_format,
+        )
 
     def to_proto(self) -> SavedDatasetStorageProto:
-        return SavedDatasetStorageProto()
+        return SavedDatasetStorageProto(
+            spark_storage=self.spark_options.to_proto()
+        )
 
     def to_data_source(self) -> DataSource:
-        return SparkSource(table=self.spark_options.table)
+        return SparkSource(
+            table=self.spark_options.table,
+            query=self.spark_options.query,
+            path=self.spark_options.path,
+            file_format=self.spark_options.file_format,
+        )
