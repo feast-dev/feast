@@ -101,7 +101,13 @@ class OnDemandFeatureView(BaseFeatureView):
             owner (optional): The owner of the on demand feature view, typically the email
                 of the primary maintainer.
         """
-        super().__init__(name, features, description, tags, owner)
+        super().__init__(
+            name=name,
+            features=features,
+            description=description,
+            tags=tags,
+            owner=owner,
+        )
         if inputs and sources:
             raise ValueError("At most one of `sources` or `inputs` can be specified.")
         elif inputs:
