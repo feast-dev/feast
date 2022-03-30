@@ -124,6 +124,7 @@ func CleanUpRepo(basePath string) error {
 	}
 	err = os.RemoveAll(feature_repo_path)
 	if err != nil {
+		log.Fatalf("Couldn't remove feature repo path. %s", err)
 		return err
 	}
 	return nil

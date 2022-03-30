@@ -32,8 +32,14 @@ type Features struct {
 
 // NewFeatureStore constructs a feature store fat client using the
 // repo config (contents of feature_store.yaml converted to JSON map).
+<<<<<<< HEAD
 func NewFeatureStore(config *registry.RepoConfig, callback transformation.TransformationCallback) (*FeatureStore, error) {
 	onlineStore, err := onlinestore.NewOnlineStore(config)
+=======
+func NewFeatureStore(config *RepoConfig) (*FeatureStore, error) {
+	onlineStore, err := NewOnlineStore(config)
+	// offlineStore, err := NewOfflineStore(config)
+>>>>>>> 118a377d (Working state)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +189,10 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 func (fs *FeatureStore) DestructOnlineStore() {
 	fs.onlineStore.Destruct()
+}
+
+func (fs *FeatureStore) GetRepoConfig() *RepoConfig {
+	return fs.config
 }
 
 // ParseFeatures parses the kind field of a GetOnlineFeaturesRequest protobuf message

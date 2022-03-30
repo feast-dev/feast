@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -43,8 +44,13 @@ func main() {
 	}
 
 	log.Println("Initializing feature store...")
+<<<<<<< HEAD
 	fs, err := feast.NewFeatureStore(repoConfig, nil)
 	loggingService := NewLoggingService(fs, 1000, true)
+=======
+	fs, err := feast.NewFeatureStore(repoConfig)
+	loggingService := logging.NewLoggingService(fs, 1000, true)
+>>>>>>> 118a377d (Working state)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -52,7 +58,7 @@ func main() {
 	startGrpcServer(fs, loggingService, sockFile)
 }
 
-func startGrpcServer(fs *feast.FeatureStore, loggingService *LoggingService, sockFile string) {
+func startGrpcServer(fs *feast.FeatureStore, loggingService *logging.LoggingService, sockFile string) {
 	server := newServingServiceServer(fs, loggingService)
 	log.Printf("Starting a gRPC server listening on %s\n", sockFile)
 	lis, err := net.Listen("unix", sockFile)

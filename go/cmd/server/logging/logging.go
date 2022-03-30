@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"fmt"
@@ -13,16 +13,16 @@ import (
 
 type Log struct {
 	// Example: driver_id, customer_id
-	entityNames []string
+	EntityName string
 	// Example: val{int64_val: 5017}, val{int64_val: 1003}
-	entityValues []*types.Value
+	EntityValue *types.Value
 
 	// Feature names is 1:1 correspondence with featureValue, featureStatus, and timestamp
-	featureNames []string
+	FeatureNames []string
 
-	featureValues   []*types.Value
-	featureStatuses []serving.FieldStatus
-	eventTimestamps []*timestamppb.Timestamp
+	FeatureValues   []*types.Value
+	FeatureStatuses []serving.FieldStatus
+	EventTimestamps []*timestamppb.Timestamp
 	RequestContext  map[string]*types.RepeatedValue
 }
 
@@ -52,7 +52,7 @@ func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, startLogP
 	return loggingService
 }
 
-func (s *LoggingService) emitLog(log *Log) error {
+func (s *LoggingService) EmitLog(log *Log) error {
 	select {
 	case s.logChannel <- log:
 		return nil
@@ -70,7 +70,7 @@ func (s *LoggingService) processLogs() {
 		case t := <-ticker.C:
 			go s.flushLogsToOfflineStorage(t)
 		case new_log := <-s.logChannel:
-			log.Printf("Pushing %s to memory.\n", new_log.featureValues)
+			log.Printf("Pushing %s to memory.\n", new_log.FeatureValues)
 			s.memoryBuffer.logs = append(s.memoryBuffer.logs, new_log)
 		}
 	}
@@ -86,4 +86,11 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) {
 	// }
 	//Do different row level manipulations and add to offline store
 	log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(s.memoryBuffer.logs))
+	if s.fs.GetRepoConfig().OfflineStore["type"] == "file" {
+		//file_path := s.fs.GetRepoConfig().RepoPath
+
+	} else {
+		// Currently don't support any other offline flushing.
+		return
+	}
 }

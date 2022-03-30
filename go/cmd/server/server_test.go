@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
+	"time"
 
+	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -46,7 +48,10 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 	if err != nil {
 		panic(err)
 	}
-	serving.RegisterServingServiceServer(server, &servingServiceServer{fs: fs})
+	loggingService := logging.NewLoggingService(fs, 1000, true)
+	servingServiceServer := newServingServiceServer(fs, loggingService)
+
+	serving.RegisterServingServiceServer(server, servingServiceServer)
 	go func() {
 		if err := server.Serve(listener); err != nil {
 			panic(err)
@@ -107,14 +112,14 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 		Entities: entities,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
+	assert.Nil(t, err)
+	assert.NotNil(t, response)
 	expectedEntityValuesResp := []*types.Value{
 		{Val: &types.Value_Int64Val{Int64Val: 1001}},
 		{Val: &types.Value_Int64Val{Int64Val: 1003}},
 		{Val: &types.Value_Int64Val{Int64Val: 1005}},
 	}
 	expectedFeatureNamesResp := []string{"driver_id", "conv_rate", "acc_rate", "avg_daily_trips"}
-	assert.Nil(t, err)
-	assert.NotNil(t, response)
 	rows, err := test.ReadParquet(filepath.Join(dir, "feature_repo", "data", "driver_stats.parquet"))
 	assert.Nil(t, err)
 	entityKeys := map[int64]bool{1001: true, 1003: true, 1005: true}
@@ -137,4 +142,36 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(response.Results[3].Values, expectedAvgDailyTripsValues))
 
 	assert.True(t, reflect.DeepEqual(response.Metadata.FeatureNames.Val, expectedFeatureNamesResp))
+	time.Sleep(1 * time.Second)
+}
+
+func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
+	ctx := context.Background()
+	// Pregenerated using `feast init`.
+	dir := "."
+	err := test.SetupFeatureRepo(dir)
+	assert.Nil(t, err)
+	defer test.CleanUpRepo(dir)
+	client, closer := getClient(ctx, dir)
+	defer closer()
+	entities := make(map[string]*types.RepeatedValue)
+	entities["driver_id"] = &types.RepeatedValue{
+		Val: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1001}},
+			{Val: &types.Value_Int64Val{Int64Val: 1003}},
+			{Val: &types.Value_Int64Val{Int64Val: 1005}},
+		},
+	}
+	request := &serving.GetOnlineFeaturesRequest{
+		Kind: &serving.GetOnlineFeaturesRequest_Features{
+			Features: &serving.FeatureList{
+				Val: []string{"driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate", "driver_hourly_stats:avg_daily_trips"},
+			},
+		},
+		Entities: entities,
+	}
+	response, err := client.GetOnlineFeatures(ctx, request)
+	assert.Nil(t, err)
+	assert.NotNil(t, response)
+
 }

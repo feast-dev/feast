@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"reflect"
@@ -16,41 +16,41 @@ func TestLoggingChannelToMemoryBuffer(t *testing.T) {
 	assert.Empty(t, loggingService.memoryBuffer.logs)
 	ts := timestamppb.New(time.Now())
 	newLog := Log{
-		featureNames:    []string{"feature1", "feature2"},
-		featureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
-		eventTimestamps: []*timestamppb.Timestamp{ts},
+		FeatureNames:    []string{"feature1", "feature2"},
+		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
+		EventTimestamps: []*timestamppb.Timestamp{ts},
 	}
-	err := loggingService.emitLog(&newLog)
+	err := loggingService.EmitLog(&newLog)
 	// Wait for memory buffer flush
 	time.Sleep(20 * time.Millisecond)
 	assert.Len(t, loggingService.memoryBuffer.logs, 1)
 	assert.Len(t, loggingService.logChannel, 0)
-	assert.True(t, reflect.DeepEqual(loggingService.memoryBuffer.logs[0].featureNames, []string{"feature1", "feature2"}))
-	assert.True(t, reflect.DeepEqual(loggingService.memoryBuffer.logs[0].featureStatuses, []serving.FieldStatus{serving.FieldStatus_PRESENT}))
+	assert.True(t, reflect.DeepEqual(loggingService.memoryBuffer.logs[0].FeatureNames, []string{"feature1", "feature2"}))
+	assert.True(t, reflect.DeepEqual(loggingService.memoryBuffer.logs[0].FeatureStatuses, []serving.FieldStatus{serving.FieldStatus_PRESENT}))
 	assert.Nil(t, err)
 }
 
-func TestLoggingChannelTiemout(t *testing.T) {
+func TestLoggingChannelTimeout(t *testing.T) {
 	//Feature store is still not checked in so we can't create one.
 	loggingService := NewLoggingService(nil, 1, false)
 	assert.Empty(t, loggingService.memoryBuffer.logs)
 	ts := timestamppb.New(time.Now())
 	newLog := Log{
-		featureNames:    []string{"feature1", "feature2"},
-		featureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
-		eventTimestamps: []*timestamppb.Timestamp{ts, ts},
+		FeatureNames:    []string{"feature1", "feature2"},
+		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
+		EventTimestamps: []*timestamppb.Timestamp{ts, ts},
 	}
-	loggingService.emitLog(&newLog)
+	loggingService.EmitLog(&newLog)
 	// Wait for memory buffer flush
 	time.Sleep(20 * time.Millisecond)
 	newTs := timestamppb.New(time.Now())
 
 	newLog2 := Log{
-		featureNames:    []string{"feature4", "feature5"},
-		featureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
-		eventTimestamps: []*timestamppb.Timestamp{newTs, newTs},
+		FeatureNames:    []string{"feature4", "feature5"},
+		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
+		EventTimestamps: []*timestamppb.Timestamp{newTs, newTs},
 	}
-	err := loggingService.emitLog(&newLog2)
+	err := loggingService.EmitLog(&newLog2)
 	time.Sleep(20 * time.Millisecond)
 	assert.NotNil(t, err)
 }
