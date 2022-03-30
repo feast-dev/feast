@@ -1,5 +1,5 @@
-from re import M
 import warnings
+from re import M
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
@@ -46,7 +46,7 @@ class RedshiftSource(DataSource):
             name (optional): Name for the source. Defaults to the table_ref if not specified.
             description (optional):: A human-readable description.
             tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional):: The owner of the data source, typically the email of the primary
+            owner (optional):: The owner of the redshift source, typically the email of the primary
                 maintainer.
         """
         # The default Redshift schema is named "public".

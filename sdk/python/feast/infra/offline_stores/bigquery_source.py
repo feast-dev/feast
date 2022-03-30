@@ -24,6 +24,9 @@ class BigQuerySource(DataSource):
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
         name: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """Create a BigQuerySource from an existing table or query.
 
@@ -37,6 +40,10 @@ class BigQuerySource(DataSource):
             date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): SQL query to execute to generate data for this data source.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
+            description (optional):: A human-readable description.
+            tags (optional):: A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional):: The owner of the bigquery source, typically the email of the primary
+                maintainer.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -75,6 +82,9 @@ class BigQuerySource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -94,6 +104,9 @@ class BigQuerySource(DataSource):
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
+            and self.description == other.description
+            and self.tags == other.tags
+            and self.owner == other.owner
         )
 
     @property
@@ -117,6 +130,9 @@ class BigQuerySource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -125,6 +141,9 @@ class BigQuerySource(DataSource):
             type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
