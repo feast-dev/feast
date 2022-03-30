@@ -295,19 +295,8 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
         file_options = FileOptions.from_proto(storage_proto.file_storage)
-        if file_options.uri:
-            path = file_options.uri
-        else:
-            path = file_options.file_url
-            if path:
-                warnings.warn(
-                    (
-                        "FileSource Proto is replacing the file_url field in FileOptions with uri soon."
-                        "Feast 0.23+ will no longer support file_url. Please change to using uri in your protos."
-                    ),
-                )
         return SavedDatasetFileStorage(
-            path=path,
+            path=file_options.uri,
             file_format=file_options.file_format,
             s3_endpoint_override=file_options.s3_endpoint_override,
         )
