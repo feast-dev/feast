@@ -63,7 +63,6 @@ class FileSource(DataSource):
             file_format=file_format,
             uri=path,
             s3_endpoint_override=s3_endpoint_override,
-            uri=path,
         )
 
         super().__init__(
@@ -307,7 +306,7 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
                     (
                         "FileSource Proto is replacing the file_url field in FileOptions with uri soon."
                         "Feast 0.23+ will no longer support file_url. Please change to using uri in your protos."
-                    )
+                    ),
                 )
         return SavedDatasetFileStorage(
             path=path,
