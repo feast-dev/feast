@@ -1,5 +1,5 @@
-from typing import Callable, Dict, Iterable, Optional, Tuple
 import warnings
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
