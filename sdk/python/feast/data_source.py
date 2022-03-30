@@ -216,9 +216,9 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
-        self.description = description
+        self.description = description if description else ""
         self.tags = tags or {}
-        self.owner = owner
+        self.owner = owner if owner else ""
 
     def __hash__(self):
         return hash((id(self), self.name))
