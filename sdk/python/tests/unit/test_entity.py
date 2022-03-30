@@ -57,9 +57,7 @@ def test_name_not_specified():
 
 
 def test_multiple_args():
-    assertpy.assert_that(lambda: Entity("a", "b", value_type=ValueType.STRING)).raises(
-        ValueError
-    )
+    assertpy.assert_that(lambda: Entity("a", ValueType.STRING)).raises(ValueError)
 
 
 def test_name_keyword(recwarn):
