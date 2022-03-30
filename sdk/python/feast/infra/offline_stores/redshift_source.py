@@ -1,5 +1,4 @@
 import warnings
-from re import M
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
