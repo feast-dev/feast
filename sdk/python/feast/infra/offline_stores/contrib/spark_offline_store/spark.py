@@ -195,9 +195,9 @@ class SparkOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
-        have all already been mapped to column names of the source table and those column names are the values passed
-        into this function.
+        Note that join_key_columns, feature_name_columns, event_timestamp_column, and
+        created_timestamp_column have all already been mapped to column names of the
+        source table and those column names are the values passed into this function.
         """
         assert isinstance(data_source, SparkSource)
         warnings.warn(
@@ -205,26 +205,24 @@ class SparkOfflineStore(OfflineStore):
             "This API is unstable and it could and most probably will be changed in the future.",
             RuntimeWarning,
         )
-        from_expression = data_source.get_table_query_string()
 
-        field_string = (
-            '"'
-            + '", "'.join(
-                join_key_columns + feature_name_columns + [event_timestamp_column]
-            )
-            + '"'
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
         )
+
+        fields = ", ".join(
+            join_key_columns + feature_name_columns + [event_timestamp_column]
+        )
+        from_expression = data_source.get_table_query_string()
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
 
         query = f"""
-            SELECT {field_string}
+            SELECT {fields}
             FROM {from_expression}
-            WHERE "{event_timestamp_column}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {event_timestamp_column} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
         """
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
-        )
+
         return SparkRetrievalJob(
             spark_session=spark_session, query=query, full_feature_names=False
         )
@@ -255,9 +253,7 @@ class SparkRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:
-        statements = self.query.split(
-            "---EOS---"
-        )  # TODO can do better than this dirty split
+        statements = self.query.split("---EOS---")
         *_, last = map(self.spark_session.sql, statements)
         return last
 
