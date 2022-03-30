@@ -1,4 +1,5 @@
 from typing import Callable, Dict, Iterable, Optional, Tuple
+import warnings
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
@@ -60,8 +61,9 @@ class FileSource(DataSource):
             )
         self.file_options = FileOptions(
             file_format=file_format,
-            file_url=path,
+            uri=path,
             s3_endpoint_override=s3_endpoint_override,
+            uri=path,
         )
 
         super().__init__(
@@ -85,7 +87,7 @@ class FileSource(DataSource):
 
         return (
             self.name == other.name
-            and self.file_options.file_url == other.file_options.file_url
+            and self.file_options.uri == other.file_options.uri
             and self.file_options.file_format == other.file_options.file_format
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
@@ -102,7 +104,7 @@ class FileSource(DataSource):
         """
         Returns the path of this file data source.
         """
-        return self.file_options.file_url
+        return self.file_options.uri
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -110,7 +112,7 @@ class FileSource(DataSource):
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             file_format=FileFormat.from_proto(data_source.file_options.file_format),
-            path=data_source.file_options.file_url,
+            path=data_source.file_options.uri,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
@@ -180,19 +182,20 @@ class FileOptions:
     def __init__(
         self,
         file_format: Optional[FileFormat],
-        file_url: Optional[str],
         s3_endpoint_override: Optional[str],
+        uri: Optional[str],
     ):
         """
         FileOptions initialization method
 
         Args:
             file_format (FileFormat, optional): file source format eg. parquet
-            file_url (str, optional): file source url eg. s3:// or local file
-            s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 file_url)
+            s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 uri)
+            uri (str, optional): file source url eg. s3:// or local file
+
         """
         self._file_format = file_format
-        self._file_url = file_url
+        self._uri = uri
         self._s3_endpoint_override = s3_endpoint_override
 
     @property
@@ -210,18 +213,18 @@ class FileOptions:
         self._file_format = file_format
 
     @property
-    def file_url(self):
+    def uri(self):
         """
         Returns the file url of this file
         """
-        return self._file_url
+        return self.uri
 
-    @file_url.setter
-    def file_url(self, file_url):
+    @uri.setter
+    def uri(self, uri):
         """
         Sets the file url of this file
         """
-        self._file_url = file_url
+        self._uri = uri
 
     @property
     def s3_endpoint_override(self):
@@ -250,7 +253,7 @@ class FileOptions:
         """
         file_options = cls(
             file_format=FileFormat.from_proto(file_options_proto.file_format),
-            file_url=file_options_proto.file_url,
+            uri=file_options_proto.uri,
             s3_endpoint_override=file_options_proto.s3_endpoint_override,
         )
         return file_options
@@ -267,8 +270,9 @@ class FileOptions:
             file_format=(
                 None if self.file_format is None else self.file_format.to_proto()
             ),
-            file_url=self.file_url,
+            uri=self.uri,
             s3_endpoint_override=self.s3_endpoint_override,
+            uri=self.uri,
         )
 
         return file_options_proto
@@ -286,16 +290,27 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
         s3_endpoint_override: Optional[str] = None,
     ):
         self.file_options = FileOptions(
-            file_url=path,
             file_format=file_format,
             s3_endpoint_override=s3_endpoint_override,
+            uri=path,
         )
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
         file_options = FileOptions.from_proto(storage_proto.file_storage)
+        if file_options.uri:
+            path = file_options.uri
+        else:
+            path = file_options.file_url
+            if path:
+                warnings.warn(
+                    (
+                        "FileSource Proto is replacing the file_url field in FileOptions with uri soon."
+                        "Feast 0.23+ will no longer support file_url. Please change to using uri in your protos."
+                    )
+                )
         return SavedDatasetFileStorage(
-            path=file_options.file_url,
+            path=path,
             file_format=file_options.file_format,
             s3_endpoint_override=file_options.s3_endpoint_override,
         )
@@ -304,8 +319,20 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
         return SavedDatasetStorageProto(file_storage=self.file_options.to_proto())
 
     def to_data_source(self) -> DataSource:
+        if self.file_options.uri:
+            path = self.file_options.uri
+        else:
+            path = self.file_options.file_url
+            if path:
+                warnings.warn(
+                (
+                    "FileSource Proto is replacing the file_url field in FileOptions with uri soon."
+                    "Feast 0.23+ will no longer support file_url. Please change to using uri in your protos."
+                ),
+                DeprecationWarning,
+            )
         return FileSource(
-            path=self.file_options.file_url,
+            path=path,
             file_format=self.file_options.file_format,
             s3_endpoint_override=self.file_options.s3_endpoint_override,
         )

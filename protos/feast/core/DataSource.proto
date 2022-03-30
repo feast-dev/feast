@@ -89,10 +89,18 @@ message DataSource {
     // s3://path/to/file for AWS S3 storage
     // gs://path/to/file for GCP GCS storage
     // file:///path/to/file for local storage
+    // Deprecated in Feast 0.23.0
     string file_url  = 2;
 
     // override AWS S3 storage endpoint with custom S3 endpoint
     string s3_endpoint_override  = 3;
+
+    // Target URL of file to retrieve and source features from.
+    // s3://path/to/file for AWS S3 storage
+    // gs://path/to/file for GCP GCS storage
+    // file:///path/to/file for local storage
+    // Deprecated in Feast 0.23.0
+    string uri = 4;
   }
 
   // Defines options for DataSource that sources features from a BigQuery Query
