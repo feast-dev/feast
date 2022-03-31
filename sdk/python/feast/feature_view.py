@@ -139,7 +139,7 @@ class FeatureView(BaseFeatureView):
             )
             if len(args) > len(positional_attributes):
                 raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed positional args when defining "
+                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
                     f"feature views, for backwards compatibility."
                 )
             if len(args) >= 1:
