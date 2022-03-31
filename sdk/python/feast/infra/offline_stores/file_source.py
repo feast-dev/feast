@@ -206,6 +206,8 @@ class FileOptions:
             )
         self._file_url = file_url
         self._uri = uri
+        if not self._uri:
+            self._uri = self._file_url
         self._s3_endpoint_override = s3_endpoint_override
 
     @property
@@ -289,7 +291,6 @@ class FileOptions:
         Returns:
             FileOptionsProto protobuf
         """
-
         file_options_proto = DataSourceProto.FileOptions(
             file_format=(
                 None if self.file_format is None else self.file_format.to_proto()
