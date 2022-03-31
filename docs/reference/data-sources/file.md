@@ -16,7 +16,7 @@ from feast.data_format import ParquetFormat
 
 parquet_file_source = FileSource(
     file_format=ParquetFormat(),
-    file_url="file:///feast/customer.parquet",
+    path="file:///feast/customer.parquet",
 )
 ```
 

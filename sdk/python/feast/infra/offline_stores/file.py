@@ -77,9 +77,8 @@ class FileRetrievalJob(RetrievalJob):
 
     def persist(self, storage: SavedDatasetStorage):
         assert isinstance(storage, SavedDatasetFileStorage)
-
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.file_url, storage.file_options.s3_endpoint_override,
+            storage.file_options.uri, storage.file_options.s3_endpoint_override,
         )
 
         if path.endswith(".parquet"):
