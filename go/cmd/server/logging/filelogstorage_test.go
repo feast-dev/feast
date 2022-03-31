@@ -3,6 +3,7 @@ package logging
 import (
 	"log"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -59,7 +60,25 @@ func TestWriteToLogStorage(t *testing.T) {
 	if err = pr.Read(&logs); err != nil {
 		log.Println("Read error", err)
 	}
-	log.Println(logs)
+
+	for i := 0; i < 2; i++ {
+		assert.Equal(t, logs[i].EntityName, memoryBuffer.logs[i].EntityName)
+		assert.Equal(t, logs[i].EntityValue, memoryBuffer.logs[i].EntityValue.String())
+		assert.True(t, reflect.DeepEqual(logs[i].FeatureNames, memoryBuffer.logs[i].FeatureNames))
+		numValues := len(memoryBuffer.logs[i].FeatureValues)
+		assert.Equal(t, numValues, len(logs[i].FeatureValues))
+		assert.Equal(t, numValues, len(logs[i].EventTimestamps))
+		assert.Equal(t, numValues, len(logs[i].FeatureStatuses))
+		for idx := 0; idx < numValues; idx++ {
+			assert.Equal(t, logs[i].EventTimestamps[idx], memoryBuffer.logs[i].EventTimestamps[idx].AsTime().UnixNano()/int64(time.Millisecond))
+			if memoryBuffer.logs[i].FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
+				assert.True(t, logs[i].FeatureStatuses[idx])
+			} else {
+				assert.False(t, logs[i].FeatureStatuses[idx])
+			}
+			assert.Equal(t, logs[i].FeatureValues[idx], memoryBuffer.logs[i].FeatureValues[idx].String())
+		}
+	}
 
 	pr.ReadStop()
 	fr.Close()
