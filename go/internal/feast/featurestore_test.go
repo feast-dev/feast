@@ -22,6 +22,10 @@ func getRegistryPath() map[string]interface{} {
 	return registry
 }
 
+func dummyTransformCallback(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int {
+	return 0
+}
+
 func TestNewFeatureStore(t *testing.T) {
 	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	config := RepoConfig{
@@ -32,7 +36,7 @@ func TestNewFeatureStore(t *testing.T) {
 			"type": "redis",
 		},
 	}
-	fs, err := NewFeatureStore(&config)
+	fs, err := NewFeatureStore(&config, dummyTransformCallback)
 	assert.Nil(t, err)
 	assert.IsType(t, &RedisOnlineStore{}, fs.onlineStore)
 }
@@ -58,35 +62,36 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 		{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
 	}
 
-	fs, err := NewFeatureStore(&config)
+	fs, err := NewFeatureStore(&config, dummyTransformCallback)
 	assert.Nil(t, err)
 	ctx := context.Background()
-	response, err := fs.GetOnlineFeatures(ctx, featureNames, nil, entities, true)
+	response, err := fs.GetOnlineFeatures(
+		ctx, featureNames, nil, entities, map[string]*types.RepeatedValue{}, true)
 	assert.Nil(t, err)
-	assert.Len(t, response, 4) // 3 features + 1 entity = 4 columns (feature vectors) in response
+	assert.Len(t, response, 4) // 3 Features + 1 entity = 4 columns (feature vectors) in response
 }
 
 func TestGroupingFeatureRefs(t *testing.T) {
 	viewA := &FeatureView{
-		base: &BaseFeatureView{
-			name: "viewA",
-			projection: &FeatureViewProjection{
-				nameAlias: "aliasViewA",
+		Base: &BaseFeatureView{
+			Name: "viewA",
+			Projection: &FeatureViewProjection{
+				NameAlias: "aliasViewA",
 			},
 		},
-		entities: map[string]struct{}{"driver": {}, "customer": {}},
+		Entities: map[string]struct{}{"driver": {}, "customer": {}},
 	}
 	viewB := &FeatureView{
-		base:     &BaseFeatureView{name: "viewB"},
-		entities: map[string]struct{}{"driver": {}, "customer": {}},
+		Base:     &BaseFeatureView{Name: "viewB"},
+		Entities: map[string]struct{}{"driver": {}, "customer": {}},
 	}
 	viewC := &FeatureView{
-		base:     &BaseFeatureView{name: "viewC"},
-		entities: map[string]struct{}{"driver": {}},
+		Base:     &BaseFeatureView{Name: "viewC"},
+		Entities: map[string]struct{}{"driver": {}},
 	}
 	viewD := &FeatureView{
-		base:     &BaseFeatureView{name: "viewD"},
-		entities: map[string]struct{}{"customer": {}},
+		Base:     &BaseFeatureView{Name: "viewD"},
+		Entities: map[string]struct{}{"customer": {}},
 	}
 	refGroups, _ := groupFeatureRefs(
 		[]*featureViewAndRefs{
@@ -152,18 +157,18 @@ func TestGroupingFeatureRefs(t *testing.T) {
 
 func TestGroupingFeatureRefsWithJoinKeyAliases(t *testing.T) {
 	viewA := &FeatureView{
-		base: &BaseFeatureView{
-			name: "viewA",
-			projection: &FeatureViewProjection{
-				name:       "viewA",
-				joinKeyMap: map[string]string{"location_id": "destination_id"},
+		Base: &BaseFeatureView{
+			Name: "viewA",
+			Projection: &FeatureViewProjection{
+				Name:       "viewA",
+				JoinKeyMap: map[string]string{"location_id": "destination_id"},
 			},
 		},
-		entities: map[string]struct{}{"location": {}},
+		Entities: map[string]struct{}{"location": {}},
 	}
 	viewB := &FeatureView{
-		base:     &BaseFeatureView{name: "viewB"},
-		entities: map[string]struct{}{"location": {}},
+		Base:     &BaseFeatureView{Name: "viewB"},
+		Entities: map[string]struct{}{"location": {}},
 	}
 
 	refGroups, _ := groupFeatureRefs(
@@ -211,14 +216,14 @@ func TestGroupingFeatureRefsWithJoinKeyAliases(t *testing.T) {
 
 func TestGroupingFeatureRefsWithMissingKey(t *testing.T) {
 	viewA := &FeatureView{
-		base: &BaseFeatureView{
-			name: "viewA",
-			projection: &FeatureViewProjection{
-				name:       "viewA",
-				joinKeyMap: map[string]string{"location_id": "destination_id"},
+		Base: &BaseFeatureView{
+			Name: "viewA",
+			Projection: &FeatureViewProjection{
+				Name:       "viewA",
+				JoinKeyMap: map[string]string{"location_id": "destination_id"},
 			},
 		},
-		entities: map[string]struct{}{"location": {}},
+		Entities: map[string]struct{}{"location": {}},
 	}
 
 	_, err := groupFeatureRefs(

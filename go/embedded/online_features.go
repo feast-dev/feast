@@ -2,9 +2,11 @@ package embedded
 
 import (
 	"context"
-	"github.com/apache/arrow/go/arrow"
-	"github.com/apache/arrow/go/arrow/array"
-	"github.com/apache/arrow/go/arrow/cdata"
+	"fmt"
+	"github.com/apache/arrow/go/v7/arrow"
+	"github.com/apache/arrow/go/v7/arrow/array"
+	"github.com/apache/arrow/go/v7/arrow/cdata"
+	"github.com/apache/arrow/go/v7/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
@@ -25,13 +27,13 @@ type DataTable struct {
 	SchemaPtr uintptr
 }
 
-func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig) *OnlineFeatureService {
+func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback feast.TransformationCallback) *OnlineFeatureService {
 	repoConfig, err := feast.NewRepoConfigFromJSON(conf.RepoPath, conf.RepoConfig)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fs, err := feast.NewFeatureStore(repoConfig)
+	fs, err := feast.NewFeatureStore(repoConfig, transformationCallback)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -39,12 +41,74 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig) *OnlineFeatureSer
 	return &OnlineFeatureService{fs: fs}
 }
 
+func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[string]int32, error) {
+	viewNames := make(map[string]interface{})
+	for _, featureRef := range featureRefs {
+		viewName, _, err := feast.ParseFeatureReference(featureRef)
+		if err != nil {
+			return nil, err
+		}
+		viewNames[viewName] = nil
+	}
+
+	entities, _ := s.fs.ListEntities(true)
+	entitiesByName := make(map[string]*feast.Entity)
+	for _, entity := range entities {
+		entitiesByName[entity.Name] = entity
+	}
+
+	joinKeyTypes := make(map[string]int32)
+
+	for viewName, _ := range viewNames {
+		view, err := s.fs.GetFeatureView(viewName, true)
+		if err != nil {
+			// skip on demand feature views
+			continue
+		}
+		for entityName, _ := range view.Entities {
+			entity := entitiesByName[entityName]
+			joinKeyTypes[entity.JoinKey] = int32(entity.ValueType.Number())
+		}
+	}
+
+	return joinKeyTypes, nil
+}
+
+func (s *OnlineFeatureService) GetEntityTypesMapByFeatureService(featureServiceName string) (map[string]int32, error) {
+	featureService, err := s.fs.GetFeatureService(featureServiceName)
+	if err != nil {
+		return nil, err
+	}
+
+	joinKeyTypes := make(map[string]int32)
+
+	entities, _ := s.fs.ListEntities(true)
+	entitiesByName := make(map[string]*feast.Entity)
+	for _, entity := range entities {
+		entitiesByName[entity.Name] = entity
+	}
+
+	for _, projection := range featureService.Projections {
+		view, err := s.fs.GetFeatureView(projection.Name, true)
+		if err != nil {
+			// skip on demand feature views
+			continue
+		}
+		for entityName, _ := range view.Entities {
+			entity := entitiesByName[entityName]
+			joinKeyTypes[entity.JoinKey] = int32(entity.ValueType.Number())
+		}
+	}
+
+	return joinKeyTypes, nil
+}
+
 func (s *OnlineFeatureService) GetOnlineFeatures(
 	featureRefs []string,
 	featureServiceName string,
 	entities DataTable,
+	requestData DataTable,
 	fullFeatureNames bool,
-	projectName string,
 	output DataTable) error {
 
 	entitiesRecord, err := readArrowRecord(entities)
@@ -59,9 +123,19 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		return err
 	}
 
+	requestDataRecords, err := readArrowRecord(requestData)
+	if err != nil {
+		return err
+	}
+
+	requestDataProto, err := recordToProto(requestDataRecords)
+	if err != nil {
+		return err
+	}
+
 	var featureService *feast.FeatureService
 	if featureServiceName != "" {
-		featureService, err = s.fs.GetFeatureService(featureServiceName, projectName)
+		featureService, err = s.fs.GetFeatureService(featureServiceName)
 	}
 
 	resp, err := s.fs.GetOnlineFeatures(
@@ -69,18 +143,45 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		featureRefs,
 		featureService,
 		entitiesProto,
+		requestDataProto,
 		fullFeatureNames)
 
 	if err != nil {
 		return err
 	}
 
-	outputFields := entitiesRecord.Schema().Fields()
-	outputColumns := entitiesRecord.Columns()
+	outputFields := make([]arrow.Field, 0)
+	outputColumns := make([]arrow.Array, 0)
+	pool := memory.NewGoAllocator()
 	for _, featureVector := range resp {
 		outputFields = append(outputFields,
-			arrow.Field{Name: featureVector.Name, Type: featureVector.Values.DataType()})
+			arrow.Field{
+				Name: featureVector.Name,
+				Type: featureVector.Values.DataType()})
+		outputFields = append(outputFields,
+			arrow.Field{
+				Name: fmt.Sprintf("%s__status", featureVector.Name),
+				Type: arrow.PrimitiveTypes.Int32})
+		outputFields = append(outputFields,
+			arrow.Field{
+				Name: fmt.Sprintf("%s__timestamp", featureVector.Name),
+				Type: arrow.PrimitiveTypes.Int64})
+
 		outputColumns = append(outputColumns, featureVector.Values)
+
+		statusColumnBuilder := array.NewInt32Builder(pool)
+		for _, status := range featureVector.Statuses {
+			statusColumnBuilder.Append(int32(status))
+		}
+		statusColumn := statusColumnBuilder.NewArray()
+		outputColumns = append(outputColumns, statusColumn)
+
+		tsColumnBuilder := array.NewInt64Builder(pool)
+		for _, ts := range featureVector.Timestamps {
+			tsColumnBuilder.Append(ts.GetSeconds())
+		}
+		tsColumn := tsColumnBuilder.NewArray()
+		outputColumns = append(outputColumns, tsColumn)
 	}
 
 	result := array.NewRecord(arrow.NewSchema(outputFields, nil), outputColumns, int64(numRows))

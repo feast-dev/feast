@@ -17,6 +17,10 @@ const (
 	feastServerVersion  = "0.18.0"
 )
 
+func dummyTransformCallback(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int {
+	return 0
+}
+
 // TODO: Add a proper logging library such as https://github.com/Sirupsen/logrus
 func main() {
 	repoPath := os.Getenv(flagFeastRepoPath)
@@ -41,7 +45,7 @@ func main() {
 	}
 
 	log.Println("Initializing feature store...")
-	fs, err := feast.NewFeatureStore(repoConfig)
+	fs, err := feast.NewFeatureStore(repoConfig, dummyTransformCallback)
 	if err != nil {
 		log.Fatalln(err)
 	}

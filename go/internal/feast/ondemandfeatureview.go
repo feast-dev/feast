@@ -20,7 +20,7 @@ func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandF
 		if onDemandSourceFeatureView, ok := onDemandSource.Source.(*core.OnDemandSource_FeatureView); ok {
 			featureViewProto := onDemandSourceFeatureView.FeatureView
 			featureView := NewFeatureViewFromProto(featureViewProto)
-			onDemandFeatureView.sourceFeatureViewProjections[sourceName] = featureView.base.projection
+			onDemandFeatureView.sourceFeatureViewProjections[sourceName] = featureView.Base.Projection
 		} else if onDemandSourceFeatureViewProjection, ok := onDemandSource.Source.(*core.OnDemandSource_FeatureViewProjection); ok {
 			featureProjectionProto := onDemandSourceFeatureViewProjection.FeatureViewProjection
 			onDemandFeatureView.sourceFeatureViewProjections[sourceName] = NewFeatureViewProjectionFromProto(featureProjectionProto)
@@ -35,10 +35,21 @@ func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandF
 	return onDemandFeatureView
 }
 
-func (fs *OnDemandFeatureView) NewOnDemandFeatureViewFromBase(base *BaseFeatureView) *OnDemandFeatureView {
+func (fs *OnDemandFeatureView) NewWithProjection(projection *FeatureViewProjection) (*OnDemandFeatureView, error) {
+	projectedBase, err := fs.base.withProjection(projection)
+	if err != nil {
+		return nil, err
+	}
+	featureView := &OnDemandFeatureView{
+		base:                         projectedBase,
+		sourceFeatureViewProjections: fs.sourceFeatureViewProjections,
+		sourceRequestDataSources:     fs.sourceRequestDataSources,
+	}
+	return featureView, nil
+}
 
-	featureView := &OnDemandFeatureView{base: base}
-	return featureView
+func (fs *OnDemandFeatureView) projectWithFeatures(featureNames []string) (*OnDemandFeatureView, error) {
+	return fs.NewWithProjection(fs.base.projectWithFeatures(featureNames))
 }
 
 func (fs *OnDemandFeatureView) getRequestDataSchema() map[string]types.ValueType_Enum {

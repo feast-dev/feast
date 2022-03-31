@@ -41,7 +41,7 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 	if err != nil {
 		panic(err)
 	}
-	fs, err := feast.NewFeatureStore(config)
+	fs, err := feast.NewFeatureStore(config, dummyTransformCallback)
 	if err != nil {
 		panic(err)
 	}

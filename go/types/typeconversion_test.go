@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/apache/arrow/go/arrow/memory"
+	"github.com/apache/arrow/go/v7/arrow/memory"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"

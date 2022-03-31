@@ -10,7 +10,7 @@ type FeatureService struct {
 	project              string
 	createdTimestamp     *timestamppb.Timestamp
 	lastUpdatedTimestamp *timestamppb.Timestamp
-	projections          []*FeatureViewProjection
+	Projections          []*FeatureViewProjection
 }
 
 func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
@@ -22,6 +22,6 @@ func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
 		project:              proto.Spec.Project,
 		createdTimestamp:     proto.Meta.CreatedTimestamp,
 		lastUpdatedTimestamp: proto.Meta.LastUpdatedTimestamp,
-		projections:          projections,
+		Projections:          projections,
 	}
 }
