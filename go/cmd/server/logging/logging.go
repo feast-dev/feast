@@ -102,6 +102,7 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	}
 	if offlineStoreType == "file" {
 		s.offlineLogStorage.FlushToStorage(s.memoryBuffer)
+		//Clean memory buffer
 		s.memoryBuffer.logs = s.memoryBuffer.logs[:0]
 	} else {
 		// Currently don't support any other offline flushing.
