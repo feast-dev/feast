@@ -279,6 +279,7 @@ class FileOptions:
         """
         file_options = cls(
             file_format=FileFormat.from_proto(file_options_proto.file_format),
+            file_url="",
             uri=file_options_proto.uri,
             s3_endpoint_override=file_options_proto.s3_endpoint_override,
         )
@@ -315,6 +316,7 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
     ):
         self.file_options = FileOptions(
             file_format=file_format,
+            file_url="",
             s3_endpoint_override=s3_endpoint_override,
             uri=path,
         )
