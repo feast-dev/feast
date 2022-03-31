@@ -204,10 +204,7 @@ class FileOptions:
                 ),
                 DeprecationWarning,
             )
-        self._file_url = file_url
-        self._uri = uri
-        if not self._uri:
-            self._uri = self._file_url
+        self._uri = uri or file_url
         self._s3_endpoint_override = s3_endpoint_override
 
     @property
