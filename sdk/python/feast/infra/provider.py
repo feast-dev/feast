@@ -292,8 +292,8 @@ def _get_column_names(
     # their final column names via the `field_mapping` field of the source.
     feature_names = [name for name in feature_names 
                      if name not in join_keys 
-                     and not event_timestamp_column 
-                     and not created_timestamp_column]
+                     and name != event_timestamp_column 
+                     and name != created_timestamp_column]
     return (
         join_keys,
         feature_names,
