@@ -22,15 +22,19 @@ func TestWriteToLogStorage(t *testing.T) {
 	assert.Nil(t, err)
 	ts := timestamppb.New(time.Now())
 	newLog := Log{
-		FeatureNames:    []string{"feature1", "feature2"},
-		FeatureValues:   []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}}, {Val: &types.Value_Int64Val{Int64Val: 1002}}},
-		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
+		EntityName:      "driver_id",
+		EntityValue:     &types.Value{Val: &types.Value_Int64Val{Int64Val: 1001}},
+		FeatureNames:    []string{"conv_rate", "acc_rate"},
+		FeatureValues:   []*types.Value{{Val: &types.Value_FloatVal{FloatVal: 0.2}}, {Val: &types.Value_FloatVal{FloatVal: 0.5}}},
+		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
 		EventTimestamps: []*timestamppb.Timestamp{ts, ts},
 	}
 	newLog2 := Log{
+		EntityName:      "driver_id",
+		EntityValue:     &types.Value{Val: &types.Value_Int64Val{Int64Val: 1003}},
 		FeatureNames:    []string{"feature4", "feature5"},
-		FeatureValues:   []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1003}}, {Val: &types.Value_Int64Val{Int64Val: 1004}}},
-		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
+		FeatureValues:   []*types.Value{{Val: &types.Value_FloatVal{FloatVal: 0.3}}, {Val: &types.Value_FloatVal{FloatVal: 0.8}}},
+		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
 		EventTimestamps: []*timestamppb.Timestamp{ts, ts},
 	}
 	memoryBuffer := MemoryBuffer{

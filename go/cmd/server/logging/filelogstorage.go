@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -19,7 +20,9 @@ type FileLogStorage struct {
 
 type ParquetLog struct {
 	EntityName      string   `parquet:"name=entityname, type=BYTE_ARRAY"`
+	EntityValue     string   `parquet:"name=entityvalue, type=BYTE_ARRAY"`
 	FeatureNames    []string `parquet:"name=featurenames, type=MAP, convertedtype=LIST, valuetype=BYTE_ARRAY, valueconvertedtype=UTF8"`
+	FeatureValues   []string `parquet:"name=featurevalues, type=MAP, convertedtype=LIST, valuetype=BYTE_ARRAY, valueconvertedtype=UTF8"`
 	FeatureStatuses []bool   `parquet:"name=featurestatuses, type=MAP, convertedtype=LIST, valuetype=BOOLEAN"`
 	EventTimestamps []int64  `parquet:"name=eventtimestamps, type=MAP, convertedtype=LIST, valuetype=INT64, valueconvertedtype=TIMESTAMP_MILLIS"`
 }
@@ -66,10 +69,15 @@ func (f *FileLogStorage) FlushToStorage(m *MemoryBuffer) error {
 	if err != nil {
 		return fmt.Errorf("can't create parquet writer with error: %s", err)
 	}
+
 	for _, newLog := range m.logs {
 		numValues := len(newLog.FeatureValues)
+		if numValues != len(newLog.FeatureStatuses) || numValues != len(newLog.EventTimestamps) {
+			return errors.New("length of log arrays do not match")
+		}
 		statuses := make([]bool, numValues)
 		timestampsInMillis := make([]int64, numValues)
+		featureValues := make([]string, numValues)
 		for idx := 0; idx < numValues; idx++ {
 			if newLog.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
 				statuses[idx] = true
@@ -78,17 +86,17 @@ func (f *FileLogStorage) FlushToStorage(m *MemoryBuffer) error {
 			}
 			ts := newLog.EventTimestamps[idx]
 			timestampsInMillis[idx] = ts.AsTime().UnixNano() / int64(time.Millisecond)
+			featureValues[idx] = newLog.FeatureValues[idx].String()
 		}
-		log.Println(statuses)
-		log.Println(timestampsInMillis)
 		newParquetLog := ParquetLog{
 			EntityName:      newLog.EntityName,
+			EntityValue:     newLog.EntityValue.String(),
 			FeatureNames:    newLog.FeatureNames,
+			FeatureValues:   featureValues,
 			FeatureStatuses: statuses,
 			EventTimestamps: timestampsInMillis,
 		}
 		if err = pw.Write(newParquetLog); err != nil {
-			log.Println("write error")
 			return err
 		}
 	}
