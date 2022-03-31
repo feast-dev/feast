@@ -52,8 +52,9 @@ class BaseFeatureView(ABC):
     @abstractmethod
     def __init__(
         self,
-        name: str,
-        features: List[Feature],
+        *,
+        name: Optional[str] = None,
+        features: Optional[List[Feature]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -72,8 +73,12 @@ class BaseFeatureView(ABC):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
+        if not name:
+            raise ValueError("Name needs to be provided")
         self.name = name
-        self.features = features
+
+        self.features = features or []
+
         self.description = description
         self.tags = tags or {}
         self.owner = owner
