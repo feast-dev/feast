@@ -17,7 +17,7 @@ import (
 
 func TestWriteToLogStorage(t *testing.T) {
 	offlineStoreConfig := map[string]interface{}{
-		"path": "log.parquet",
+		"path": ".",
 	}
 	fileStore, err := NewFileOfflineStore("test", offlineStoreConfig)
 	assert.Nil(t, err)

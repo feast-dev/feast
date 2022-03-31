@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -16,6 +18,8 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/xitongsys/parquet-go-source/local"
+	"github.com/xitongsys/parquet-go/reader"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -41,6 +45,18 @@ func getClient(ctx context.Context, basePath string, enableLogging bool) (servin
 
 	server := grpc.NewServer()
 	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
+
+	//TODO(kevjumba): either add this officially or talk in design review about what the correct solution to this is.
+	if enableLogging {
+		if config.OfflineStore == nil {
+			config.OfflineStore = map[string]interface{}{
+				"path": ".",
+			}
+		} else {
+			config.OfflineStore["path"] = "."
+		}
+	}
+
 	if err != nil {
 		panic(err)
 	}
@@ -165,10 +181,18 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 			{Val: &types.Value_Int64Val{Int64Val: 1005}},
 		},
 	}
+	featureNames := []string{"driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate", "driver_hourly_stats:avg_daily_trips"}
+	expectedEntityValuesResp := []*types.Value{
+		{Val: &types.Value_Int64Val{Int64Val: 1001}},
+		{Val: &types.Value_Int64Val{Int64Val: 1003}},
+		{Val: &types.Value_Int64Val{Int64Val: 1005}},
+	}
+	expectedFeatureNamesResp := []string{"conv_rate", "acc_rate", "avg_daily_trips"}
+
 	request := &serving.GetOnlineFeaturesRequest{
 		Kind: &serving.GetOnlineFeaturesRequest_Features{
 			Features: &serving.FeatureList{
-				Val: []string{"driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate", "driver_hourly_stats:avg_daily_trips"},
+				Val: featureNames,
 			},
 		},
 		Entities: entities,
@@ -176,5 +200,66 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	response, err := client.GetOnlineFeatures(ctx, request)
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
+	// Wait for logger to flush.
+	// TODO(Change this when we add param for flush duration)
+	time.Sleep(200 * time.Millisecond)
+	expectedLogValues, expectedLogStatuses, expectedLogMillis := GetExpectedLogRows(featureNames, response.Results)
+	///read
+	fr, err := local.NewLocalFileReader("log.parquet")
+	assert.Nil(t, err)
 
+	pr, err := reader.NewParquetReader(fr, new(logging.ParquetLog), 4)
+	if err != nil {
+		log.Println("Can't create parquet reader", err)
+		return
+	}
+
+	num := int(pr.GetNumRows())
+	assert.Equal(t, num, 3)
+	logs := make([]logging.ParquetLog, 3) //read 10 rows
+	err = pr.Read(&logs)
+	assert.Nil(t, err)
+	for i := 0; i < 3; i++ {
+		assert.Equal(t, logs[i].EntityName, "driver_id")
+		assert.Equal(t, logs[i].EntityValue, expectedEntityValuesResp[i].String())
+		assert.True(t, reflect.DeepEqual(logs[i].FeatureNames, expectedFeatureNamesResp))
+		numValues := len(expectedFeatureNamesResp)
+		assert.Equal(t, numValues, len(logs[i].FeatureValues))
+		assert.Equal(t, numValues, len(logs[i].EventTimestamps))
+		assert.Equal(t, numValues, len(logs[i].FeatureStatuses))
+		assert.True(t, reflect.DeepEqual(logs[i].FeatureValues, expectedLogValues[i]))
+		assert.True(t, reflect.DeepEqual(logs[i].FeatureStatuses, expectedLogStatuses[i]))
+		assert.True(t, reflect.DeepEqual(logs[i].EventTimestamps, expectedLogMillis[i]))
+	}
+
+	pr.ReadStop()
+	fr.Close()
+
+	err = os.Remove("log.parquet")
+	assert.Nil(t, err)
+}
+
+func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector) ([][]string, [][]bool, [][]int64) {
+	numFeatures := len(featureNames)
+	numRows := len(results[0].Values)
+	featureValueLogRows := make([][]string, numRows)
+	featureStatusLogRows := make([][]bool, numRows)
+	eventTimestampLogRows := make([][]int64, numRows)
+
+	for row_idx := 0; row_idx < numRows; row_idx++ {
+		featureValueLogRows[row_idx] = make([]string, numFeatures)
+		featureStatusLogRows[row_idx] = make([]bool, numFeatures)
+		eventTimestampLogRows[row_idx] = make([]int64, numFeatures)
+		for idx := 1; idx < len(results); idx++ {
+			featureValueLogRows[row_idx][idx-1] = results[idx].Values[row_idx].String()
+			if results[idx].Statuses[row_idx] == serving.FieldStatus_PRESENT {
+				featureStatusLogRows[row_idx][idx-1] = true
+			} else {
+				featureStatusLogRows[row_idx][idx-1] = false
+			}
+			eventTimestampLogRows[row_idx][idx-1] = results[idx].EventTimestamps[row_idx].AsTime().UnixNano() / int64(time.Millisecond)
+		}
+	}
+
+	return featureValueLogRows, featureStatusLogRows, eventTimestampLogRows
 }

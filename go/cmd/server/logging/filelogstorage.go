@@ -29,7 +29,17 @@ type ParquetLog struct {
 
 func NewFileOfflineStore(project string, offlineStoreConfig map[string]interface{}) (*FileLogStorage, error) {
 	store := FileLogStorage{project: project}
-	abs_path, err := filepath.Abs("log.parquet")
+	var abs_path string
+	var err error
+	if val, ok := offlineStoreConfig["path"]; !ok {
+		abs_path, err = filepath.Abs("log.parquet")
+	} else {
+		result, ok := val.(string)
+		if !ok {
+			return nil, errors.New("cannot convert offlinestore path to string")
+		}
+		abs_path, err = filepath.Abs(filepath.Join(result, "log.parquet"))
+	}
 	if err != nil {
 		return nil, err
 	}
