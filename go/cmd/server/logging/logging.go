@@ -58,9 +58,7 @@ func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, enableLog
 		if err != nil {
 			return nil, err
 		}
-	}
-	// For testing purposes, so we can test timeouts.
-	if enableLogging {
+		// Start goroutine to process logs
 		go loggingService.processLogs()
 	}
 	return loggingService, nil
@@ -77,7 +75,7 @@ func (s *LoggingService) EmitLog(log *Log) error {
 
 func (s *LoggingService) processLogs() {
 	// start a periodic flush
-	// TODO(kevjumba): set param so users can configure this
+	// TODO(kevjumba): set param so users can configure flushing duration
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {

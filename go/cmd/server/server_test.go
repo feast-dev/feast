@@ -46,7 +46,8 @@ func getClient(ctx context.Context, basePath string, enableLogging bool) (servin
 	server := grpc.NewServer()
 	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
 
-	//TODO(kevjumba): either add this officially or talk in design review about what the correct solution to this is.
+	//TODO(kevjumba): either add this officially or talk in design review about what the correct solution for what do with path.
+	// Currently in python we use the path in FileSource but it is not specified in configuration unless it is using file_url?
 	if enableLogging {
 		if config.OfflineStore == nil {
 			config.OfflineStore = map[string]interface{}{
@@ -204,7 +205,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	// TODO(Change this when we add param for flush duration)
 	time.Sleep(200 * time.Millisecond)
 	expectedLogValues, expectedLogStatuses, expectedLogMillis := GetExpectedLogRows(featureNames, response.Results)
-	///read
+	// read from parquet log file
 	fr, err := local.NewLocalFileReader("log.parquet")
 	assert.Nil(t, err)
 
