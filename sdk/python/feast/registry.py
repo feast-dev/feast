@@ -48,7 +48,6 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset
 
 REGISTRY_SCHEMA_VERSION = "1"
@@ -73,7 +72,6 @@ class FeastObjectType(Enum):
     ENTITY = "entity"
     FEATURE_VIEW = "feature view"
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
-    REQUEST_FEATURE_VIEW = "request feature view"
     FEATURE_SERVICE = "feature service"
 
     @staticmethod
@@ -85,9 +83,6 @@ class FeastObjectType(Enum):
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
-                project=project
-            ),
-            FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
                 project=project
             ),
             FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
@@ -104,7 +99,6 @@ class FeastObjectType(Enum):
             FeastObjectType.ENTITY: repo_contents.entities,
             FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
-            FeastObjectType.REQUEST_FEATURE_VIEW: repo_contents.request_feature_views,
             FeastObjectType.FEATURE_SERVICE: repo_contents.feature_services,
         }
 
@@ -482,10 +476,6 @@ class Registry:
             existing_feature_views_of_same_type = (
                 self.cached_registry_proto.on_demand_feature_views
             )
-        elif isinstance(feature_view, RequestFeatureView):
-            existing_feature_views_of_same_type = (
-                self.cached_registry_proto.request_feature_views
-            )
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
@@ -643,28 +633,6 @@ class Registry:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
 
-    def list_request_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        """
-        Retrieve a list of request feature views from the registry
-
-        Args:
-            allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature views based on project name
-
-        Returns:
-            List of feature views
-        """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
-        feature_views: List[RequestFeatureView] = []
-        for request_feature_view_proto in registry_proto.request_feature_views:
-            if request_feature_view_proto.spec.project == project:
-                feature_views.append(
-                    RequestFeatureView.from_proto(request_feature_view_proto)
-                )
-        return feature_views
-
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
@@ -734,18 +702,6 @@ class Registry:
                 and existing_feature_view_proto.spec.project == project
             ):
                 del self.cached_registry_proto.feature_views[idx]
-                if commit:
-                    self.commit()
-                return
-
-        for idx, existing_request_feature_view_proto in enumerate(
-            self.cached_registry_proto.request_feature_views
-        ):
-            if (
-                existing_request_feature_view_proto.spec.name == name
-                and existing_request_feature_view_proto.spec.project == project
-            ):
-                del self.cached_registry_proto.request_feature_views[idx]
                 if commit:
                     self.commit()
                 return
@@ -928,13 +884,6 @@ class Registry:
                 on_demand_feature_view.udf
             )
             registry_dict["onDemandFeatureViews"].append(odfv_dict)
-        for request_feature_view in sorted(
-            self.list_request_feature_views(project=project),
-            key=lambda request_feature_view: request_feature_view.name,
-        ):
-            registry_dict["requestFeatureViews"].append(
-                self._message_to_sorted_dict(request_feature_view.to_proto())
-            )
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):
@@ -1011,7 +960,4 @@ class Registry:
             for fv in self.cached_registry_proto.on_demand_feature_views
         }
         fvs = {fv.spec.name: fv for fv in self.cached_registry_proto.feature_views}
-        request_fvs = {
-            fv.spec.name: fv for fv in self.cached_registry_proto.request_feature_views
-        }
-        return {**odfvs, **fvs, **request_fvs}
+        return {**odfvs, **fvs}

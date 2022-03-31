@@ -17,9 +17,6 @@ from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewPr
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
-from feast.protos.feast.core.RequestFeatureView_pb2 import (
-    RequestFeatureView as RequestFeatureViewProto,
-)
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
 
@@ -102,7 +99,6 @@ FeastObjectProto = TypeVar(
     FeatureViewProto,
     FeatureServiceProto,
     OnDemandFeatureViewProto,
-    RequestFeatureViewProto,
 )
 
 
@@ -287,7 +283,6 @@ def apply_diff_to_registry(
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
-                FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
                 feature_view_obj = cast(
                     BaseFeatureView, feast_object_diff.current_feast_object
@@ -321,7 +316,6 @@ def apply_diff_to_registry(
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
-                FeastObjectType.REQUEST_FEATURE_VIEW,
             ]:
                 registry.apply_feature_view(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),

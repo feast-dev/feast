@@ -19,7 +19,6 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.request_feature_view import RequestFeatureView
 
 
 class RepoContents(NamedTuple):
@@ -30,7 +29,6 @@ class RepoContents(NamedTuple):
     data_sources: Set[DataSource]
     feature_views: Set[FeatureView]
     on_demand_feature_views: Set[OnDemandFeatureView]
-    request_feature_views: Set[RequestFeatureView]
     entities: Set[Entity]
     feature_services: Set[FeatureService]
 
@@ -43,9 +41,6 @@ class RepoContents(NamedTuple):
         )
         registry_proto.on_demand_feature_views.extend(
             [fv.to_proto() for fv in self.on_demand_feature_views]
-        )
-        registry_proto.request_feature_views.extend(
-            [fv.to_proto() for fv in self.request_feature_views]
         )
         registry_proto.feature_services.extend(
             [fs.to_proto() for fs in self.feature_services]

@@ -24,7 +24,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
-from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
 
 
@@ -101,7 +100,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_views=set(),
         feature_services=set(),
         on_demand_feature_views=set(),
-        request_feature_views=set(),
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -121,8 +119,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 res.feature_services.add(obj)
             elif isinstance(obj, OnDemandFeatureView):
                 res.on_demand_feature_views.add(obj)
-            elif isinstance(obj, RequestFeatureView):
-                res.request_feature_views.add(obj)
     res.entities.add(DUMMY_ENTITY)
     return res
 
@@ -169,18 +165,14 @@ def extract_objects_for_apply_delete(project, registry, repo):
     ) = extract_objects_for_keep_delete_update_add(registry, project, repo)
 
     all_to_apply: List[
-        Union[
-            Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
-        ]
+        Union[Entity, FeatureView, OnDemandFeatureView, FeatureService]
     ] = []
     for object_type in FEAST_OBJECT_TYPES:
         to_apply = set(objs_to_add[object_type]).union(objs_to_update[object_type])
         all_to_apply.extend(to_apply)
 
     all_to_delete: List[
-        Union[
-            Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
-        ]
+        Union[Entity, FeatureView, OnDemandFeatureView, FeatureService]
     ] = []
     for object_type in FEAST_OBJECT_TYPES:
         all_to_delete.extend(objs_to_delete[object_type])
