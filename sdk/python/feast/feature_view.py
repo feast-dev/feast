@@ -74,7 +74,7 @@ class FeatureView(BaseFeatureView):
 
     name: str
     entities: List[str]
-    ttl: timedelta
+    ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
     features: List[Feature]
@@ -165,10 +165,8 @@ class FeatureView(BaseFeatureView):
                 ),
                 DeprecationWarning,
             )
-        elif isinstance(_ttl, timedelta):
+        elif isinstance(_ttl, timedelta) or _ttl is None:
             self.ttl = _ttl
-        elif not _ttl:
-            self.ttl = timedelta(days=1)
         else:
             raise ValueError(f"unknown value type specified for ttl {type(_ttl)}")
 
