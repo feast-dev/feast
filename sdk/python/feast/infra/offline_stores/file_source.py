@@ -214,7 +214,7 @@ class FileOptions:
         """
         Returns the file url of this file
         """
-        return self.uri
+        return self._uri
 
     @uri.setter
     def uri(self, uri):
