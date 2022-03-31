@@ -12,7 +12,8 @@ import (
 
 func TestLoggingChannelToMemoryBuffer(t *testing.T) {
 	//Feature store is still not checked in so we can't create one.
-	loggingService := NewLoggingService(nil, 10, true)
+	loggingService, err := NewLoggingService(nil, 10, true)
+	assert.Nil(t, err)
 	assert.Empty(t, loggingService.memoryBuffer.logs)
 	ts := timestamppb.New(time.Now())
 	newLog := Log{
@@ -20,7 +21,8 @@ func TestLoggingChannelToMemoryBuffer(t *testing.T) {
 		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
 		EventTimestamps: []*timestamppb.Timestamp{ts},
 	}
-	err := loggingService.EmitLog(&newLog)
+	err = loggingService.EmitLog(&newLog)
+	assert.Nil(t, err)
 	// Wait for memory buffer flush
 	time.Sleep(20 * time.Millisecond)
 	assert.Len(t, loggingService.memoryBuffer.logs, 1)
@@ -32,7 +34,8 @@ func TestLoggingChannelToMemoryBuffer(t *testing.T) {
 
 func TestLoggingChannelTimeout(t *testing.T) {
 	//Feature store is still not checked in so we can't create one.
-	loggingService := NewLoggingService(nil, 1, false)
+	loggingService, err := NewLoggingService(nil, 1, false)
+	assert.Nil(t, err)
 	assert.Empty(t, loggingService.memoryBuffer.logs)
 	ts := timestamppb.New(time.Now())
 	newLog := Log{
@@ -50,7 +53,7 @@ func TestLoggingChannelTimeout(t *testing.T) {
 		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
 		EventTimestamps: []*timestamppb.Timestamp{newTs, newTs},
 	}
-	err := loggingService.EmitLog(&newLog2)
+	err = loggingService.EmitLog(&newLog2)
 	time.Sleep(20 * time.Millisecond)
 	assert.NotNil(t, err)
 }

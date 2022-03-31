@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -31,25 +32,38 @@ type MemoryBuffer struct {
 }
 
 type LoggingService struct {
-	memoryBuffer *MemoryBuffer
-	logChannel   chan *Log
-	fs           *feast.FeatureStore
+	memoryBuffer      *MemoryBuffer
+	logChannel        chan *Log
+	fs                *feast.FeatureStore
+	offlineLogStorage OfflineLogStorage
+	enableLogging     bool
 }
 
-func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, startLogProcessing bool) *LoggingService {
+func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, enableLogging bool) (*LoggingService, error) {
 	// start handler processes?
 	loggingService := &LoggingService{
 		logChannel: make(chan *Log, logChannelCapacity),
 		memoryBuffer: &MemoryBuffer{
 			logs: make([]*Log, 0),
 		},
-		fs: fs,
+		enableLogging: enableLogging,
+		fs:            fs,
+	}
+	if !enableLogging || fs == nil {
+		loggingService.offlineLogStorage = nil
+	} else {
+		offlineLogStorage, err := NewOfflineStore(fs.GetRepoConfig())
+		loggingService.offlineLogStorage = offlineLogStorage
+
+		if err != nil {
+			return nil, err
+		}
 	}
 	// For testing purposes, so we can test timeouts.
-	if startLogProcessing {
+	if enableLogging {
 		go loggingService.processLogs()
 	}
-	return loggingService
+	return loggingService, nil
 }
 
 func (s *LoggingService) EmitLog(log *Log) error {
@@ -63,6 +77,7 @@ func (s *LoggingService) EmitLog(log *Log) error {
 
 func (s *LoggingService) processLogs() {
 	// start a periodic flush
+	// TODO(kevjumba): set param so users can configure this
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -76,21 +91,20 @@ func (s *LoggingService) processLogs() {
 	}
 }
 
-func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) {
-	//offlineStore := fs.config.OfflineStore["type"]
-	// switch offlineStore{
-	// case "file":
-	// 	// call python??
-	// case "snowflake":
-	//
-	// }
-	//Do different row level manipulations and add to offline store
+func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(s.memoryBuffer.logs))
-	if s.fs.GetRepoConfig().OfflineStore["type"] == "file" {
-		//file_path := s.fs.GetRepoConfig().RepoPath
-
+	if !s.enableLogging {
+		return nil
+	}
+	offlineStoreType, ok := getOfflineStoreType(s.fs.GetRepoConfig().OfflineStore)
+	if !ok {
+		return fmt.Errorf("could not get offline storage type for config: %s", s.fs.GetRepoConfig().OfflineStore)
+	}
+	if offlineStoreType == "file" {
+		s.offlineLogStorage.FlushToStorage(s.memoryBuffer)
 	} else {
 		// Currently don't support any other offline flushing.
-		return
+		return errors.New("currently only file type is supported for offline log storage")
 	}
+	return nil
 }

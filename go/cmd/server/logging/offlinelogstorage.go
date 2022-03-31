@@ -8,8 +8,6 @@ import (
 
 type OfflineLogStorage interface {
 	FlushToStorage(*MemoryBuffer) error
-	// Destruct must be call once user is done using OnlineStore
-	// This is to comply with the Connector since we have to close the plugin
 }
 
 func getOfflineStoreType(offlineStoreConfig map[string]interface{}) (string, bool) {

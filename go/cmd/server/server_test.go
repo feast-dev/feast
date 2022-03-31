@@ -35,7 +35,7 @@ func getRepoPath(basePath string) string {
 }
 
 // Starts a new grpc server, registers the serving service and returns a client.
-func getClient(ctx context.Context, basePath string) (serving.ServingServiceClient, func()) {
+func getClient(ctx context.Context, basePath string, enableLogging bool) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
 
@@ -48,7 +48,10 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 	if err != nil {
 		panic(err)
 	}
-	loggingService := logging.NewLoggingService(fs, 1000, true)
+	loggingService, err := logging.NewLoggingService(fs, 1000, enableLogging)
+	if err != nil {
+		panic(err)
+	}
 	servingServiceServer := newServingServiceServer(fs, loggingService)
 
 	serving.RegisterServingServiceServer(server, servingServiceServer)
@@ -79,7 +82,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	client, closer := getClient(ctx, dir)
+	client, closer := getClient(ctx, dir, false)
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -93,7 +96,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	client, closer := getClient(ctx, dir)
+	client, closer := getClient(ctx, dir, false)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -152,7 +155,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	client, closer := getClient(ctx, dir)
+	client, closer := getClient(ctx, dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
