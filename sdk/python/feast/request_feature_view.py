@@ -1,4 +1,5 @@
 import copy
+import warnings
 from typing import Dict, List, Optional, Type
 
 from feast.base_feature_view import BaseFeatureView
@@ -56,6 +57,12 @@ class RequestFeatureView(BaseFeatureView):
             owner (optional): The owner of the request feature view, typically the email
                 of the primary maintainer.
         """
+        warnings.warn(
+            "Request feature view is deprecated. "
+            "Please use request data source instead",
+            DeprecationWarning,
+        )
+
         super().__init__(
             name=name,
             features=[
