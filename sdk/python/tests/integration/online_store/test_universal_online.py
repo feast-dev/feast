@@ -397,11 +397,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     feature_service = FeatureService(
         "convrate_plus100",
-        features=[
-            feature_views.driver[["conv_rate"]],
-            feature_views.driver_odfv,
-            feature_views.driver_age_request_fv,
-        ],
+        features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
@@ -466,7 +462,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     global_df = datasets.global_df
 
     entity_rows = [
-        {"driver_id": d, "customer_id": c, "val_to_add": 50, "driver_age": 25}
+        {"driver_id": d, "customer_id": c, "val_to_add": 50}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
@@ -481,7 +477,6 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         "order:order_is_success",
         "global_stats:num_rides",
         "global_stats:avg_ride_length",
-        "driver_age:driver_age",
     ]
     unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
     # Remove the on demand feature view output features, since they're not present in the source dataframe
@@ -506,22 +501,14 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     assert online_features_no_conv_rate is not None
 
-    keys = online_features_dict.keys()
+    keys = set(online_features_dict.keys())
+    expected_keys = set(
+        f.replace(":", "__") if full_feature_names else f.split(":")[-1]
+        for f in feature_refs
+    ) | {"customer_id", "driver_id"}
     assert (
-        len(keys) == len(feature_refs) + 2
-    )  # Add two for the driver id and the customer id entity keys
-    for feature in feature_refs:
-        # full_feature_names does not apply to request feature views
-        if full_feature_names and feature != "driver_age:driver_age":
-            assert feature.replace(":", "__") in keys
-        else:
-            assert feature.rsplit(":", 1)[-1] in keys
-            assert (
-                "driver_stats" not in keys
-                and "customer_profile" not in keys
-                and "order" not in keys
-                and "global_stats" not in keys
-            )
+        keys == expected_keys
+    ), f"Response keys are different from expected: {keys - expected_keys} (extra) and {expected_keys - keys} (missing)"
 
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
@@ -537,14 +524,18 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         assert df_features["driver_id"] == online_features_dict["driver_id"][i]
         tc.assertAlmostEqual(
             online_features_dict[
-                response_feature_name("conv_rate_plus_100", full_feature_names)
+                response_feature_name(
+                    "conv_rate_plus_100", feature_refs, full_feature_names
+                )
             ][i],
             df_features["conv_rate"] + 100,
             delta=0.0001,
         )
         tc.assertAlmostEqual(
             online_features_dict[
-                response_feature_name("conv_rate_plus_val_to_add", full_feature_names)
+                response_feature_name(
+                    "conv_rate_plus_val_to_add", feature_refs, full_feature_names
+                )
             ][i],
             df_features["conv_rate"] + df_features["val_to_add"],
             delta=0.0001,
@@ -553,7 +544,9 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             tc.assertAlmostEqual(
                 df_features[unprefixed_feature_ref],
                 online_features_dict[
-                    response_feature_name(unprefixed_feature_ref, full_feature_names)
+                    response_feature_name(
+                        unprefixed_feature_ref, feature_refs, full_feature_names
+                    )
                 ][i],
                 delta=0.0001,
             )
@@ -562,17 +555,17 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     missing_responses_dict = get_online_features_dict(
         environment=environment,
         features=feature_refs,
-        entity_rows=[
-            {"driver_id": 0, "customer_id": 0, "val_to_add": 100, "driver_age": 125}
-        ],
+        entity_rows=[{"driver_id": 0, "customer_id": 0, "val_to_add": 100}],
         full_feature_names=full_feature_names,
     )
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
-        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length", "driver_age"}:
+        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length"}:
             tc.assertIsNone(
                 missing_responses_dict[
-                    response_feature_name(unprefixed_feature_ref, full_feature_names)
+                    response_feature_name(
+                        unprefixed_feature_ref, feature_refs, full_feature_names
+                    )
                 ][0]
             )
 
@@ -582,15 +575,6 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
             environment=environment,
             features=feature_refs,
             entity_rows=[{"driver_id": 0, "customer_id": 0}],
-            full_feature_names=full_feature_names,
-        )
-
-    # Also with request data
-    with pytest.raises(RequestDataNotFoundInEntityRowsException):
-        get_online_features_dict(
-            environment=environment,
-            features=feature_refs,
-            entity_rows=[{"driver_id": 0, "customer_id": 0, "val_to_add": 20}],
             full_feature_names=full_feature_names,
         )
 
@@ -606,12 +590,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
     )
 
     entity_rows = [
-        {
-            "driver_id": _driver,
-            "customer_id": _customer,
-            "origin_id": origin,
-            "destination_id": destination,
-        }
+        {"origin_id": origin, "destination_id": destination}
         for (_driver, _customer, origin, destination) in zip(
             sample_drivers, sample_customers, *sample_location_pairs
         )
@@ -621,9 +600,6 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
-        drivers_df,
-        customers_df,
-        orders_df,
         origins_df,
         destinations_df,
     )
@@ -843,7 +819,9 @@ def test_online_retrieval_with_go_server(
             tc.assertAlmostEqual(
                 df_features[unprefixed_feature_ref],
                 online_features_dict[
-                    response_feature_name(unprefixed_feature_ref, full_feature_names)
+                    response_feature_name(
+                        unprefixed_feature_ref, feature_refs, full_feature_names
+                    )
                 ][i],
                 delta=0.0001,
             )
@@ -857,10 +835,12 @@ def test_online_retrieval_with_go_server(
     )
     assert missing_responses_dict is not None
     for unprefixed_feature_ref in unprefixed_feature_refs:
-        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length", "driver_age"}:
+        if unprefixed_feature_ref not in {"num_rides", "avg_ride_length"}:
             tc.assertIsNone(
                 missing_responses_dict[
-                    response_feature_name(unprefixed_feature_ref, full_feature_names)
+                    response_feature_name(
+                        unprefixed_feature_ref, feature_refs, full_feature_names
+                    )
                 ][0]
             )
 
@@ -875,9 +855,6 @@ def test_online_retrieval_with_go_server(
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
-        drivers_df,
-        customers_df,
-        orders_df,
         origins_df,
         destinations_df,
     )
@@ -913,27 +890,15 @@ def setup_feature_store(environment, go_data_sources):
     return driver_entities, fs, simple_driver_fv, driver_stats_fv, df
 
 
-def response_feature_name(feature: str, full_feature_names: bool) -> str:
-    if (
-        feature in {"current_balance", "avg_passenger_count", "lifetime_trip_count"}
-        and full_feature_names
-    ):
-        return f"customer_profile__{feature}"
+def response_feature_name(
+    feature: str, feature_refs: List[str], full_feature_names: bool
+) -> str:
+    if not full_feature_names:
+        return feature
 
-    if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
-        return f"driver_stats__{feature}"
-
-    if (
-        feature in {"conv_rate_plus_100", "conv_rate_plus_val_to_add"}
-        and full_feature_names
-    ):
-        return f"conv_rate_plus_100__{feature}"
-
-    if feature in {"order_is_success"} and full_feature_names:
-        return f"order__{feature}"
-
-    if feature in {"num_rides", "avg_ride_length"} and full_feature_names:
-        return f"global_stats__{feature}"
+    for feature_ref in feature_refs:
+        if feature_ref.endswith(feature):
+            return feature_ref.replace(":", "__")
 
     return feature
 
@@ -1044,17 +1009,17 @@ def assert_feature_service_correctness(
         full_feature_names=full_feature_names,
     )
     feature_service_keys = feature_service_online_features_dict.keys()
-
-    assert (
-        len(feature_service_keys)
-        == sum(
-            [
-                len(projection.features)
-                for projection in feature_service.feature_view_projections
-            ]
-        )
-        + 2
-    )  # Add two for the driver id and the customer id entity keys
+    expected_feature_refs = [
+        f"{projection.name_to_use()}__{feature.name}"
+        if full_feature_names
+        else feature.name
+        for projection in feature_service.feature_view_projections
+        for feature in projection.features
+    ]
+    assert set(feature_service_keys) == set(expected_feature_refs) | {
+        "customer_id",
+        "driver_id",
+    }
 
     tc = unittest.TestCase()
     for i, entity_row in enumerate(entity_rows):
@@ -1067,7 +1032,9 @@ def assert_feature_service_correctness(
         )
         tc.assertAlmostEqual(
             feature_service_online_features_dict[
-                response_feature_name("conv_rate_plus_100", full_feature_names)
+                response_feature_name(
+                    "conv_rate_plus_100", expected_feature_refs, full_feature_names
+                )
             ][i],
             df_features["conv_rate"] + 100,
             delta=0.0001,
@@ -1079,9 +1046,6 @@ def assert_feature_service_entity_mapping_correctness(
     feature_service,
     entity_rows,
     full_feature_names,
-    drivers_df,
-    customers_df,
-    orders_df,
     origins_df,
     destinations_df,
 ):
@@ -1094,12 +1058,17 @@ def assert_feature_service_entity_mapping_correctness(
         )
         feature_service_keys = feature_service_online_features_dict.keys()
 
-        assert len(feature_service_keys) == sum(
-            [
-                len(projection.features)
-                for projection in feature_service.feature_view_projections
-            ]
-        ) + len(entity_rows[0])
+        expected_features = [
+            f"{projection.name_to_use()}__{feature.name}"
+            if full_feature_names
+            else feature.name
+            for projection in feature_service.feature_view_projections
+            for feature in projection.features
+        ]
+        assert set(feature_service_keys) == set(expected_features) | {
+            "destination_id",
+            "origin_id",
+        }
 
         for i, entity_row in enumerate(entity_rows):
             df_features = get_latest_feature_values_for_location_df(
