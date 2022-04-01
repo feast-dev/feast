@@ -14,10 +14,6 @@ from feast.value_type import ValueType
 
 
 class BigQuerySource(DataSource):
-    # Note: Python requires redefining hash in child classes that override __eq__
-    def __hash__(self):
-        return super().__hash__()
-
     def __init__(
         self,
         event_timestamp_column: Optional[str] = "",
@@ -99,6 +95,10 @@ class BigQuerySource(DataSource):
             owner=owner,
         )
 
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
             raise TypeError(
@@ -136,7 +136,6 @@ class BigQuerySource(DataSource):
             table_ref=data_source.bigquery_options.table_ref,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -156,7 +155,6 @@ class BigQuerySource(DataSource):
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
