@@ -30,19 +30,19 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
 }
 
 
-class FeastType(ABC):
+class ComplexFeastType(ABC):
     """
-    A FeastType represents a structured type that is recognized by Feast.
+    A ComplexFeastType represents a structured type that is recognized by Feast.
     """
 
     def __init__(self):
-        """Creates a FeastType object."""
+        """Creates a ComplexFeastType object."""
         pass
 
     @abstractmethod
     def to_int(self) -> int:
         """
-        Converts a FeastType object to the appropriate int value corresponding to
+        Converts a ComplexFeastType object to the appropriate int value corresponding to
         the correct ValueTypeProto.Enum value.
         """
         raise NotImplementedError
@@ -56,11 +56,11 @@ class PrimitiveFeastType(Enum):
     INVALID = 0
     BYTES = 1
     STRING = 2
-    BOOL = 3
-    INT32 = 4
-    INT64 = 5
-    FLOAT32 = 6
-    FLOAT64 = 7
+    INT32 = 3
+    INT64 = 4
+    FLOAT32 = 5
+    FLOAT64 = 6
+    BOOL = 7
     UNIX_TIMESTAMP = 8
 
     def to_int(self) -> int:
@@ -92,7 +92,7 @@ SUPPORTED_BASE_TYPES = [
 ]
 
 
-class Array(FeastType):
+class Array(ComplexFeastType):
     """
     An Array represents a list of types.
 
@@ -100,9 +100,9 @@ class Array(FeastType):
         base_type: The base type of the array.
     """
 
-    base_type: Union[PrimitiveFeastType, FeastType]
+    base_type: Union[PrimitiveFeastType, ComplexFeastType]
 
-    def __init__(self, base_type: Union[PrimitiveFeastType, FeastType]):
+    def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
         if base_type not in SUPPORTED_BASE_TYPES:
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Array."
