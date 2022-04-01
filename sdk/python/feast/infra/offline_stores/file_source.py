@@ -66,12 +66,19 @@ class FileSource(DataSource):
             s3_endpoint_override=s3_endpoint_override,
         )
 
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for File sources."
+                ),
+                DeprecationWarning,
+            )
+
         super().__init__(
-            name if name else path,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=name if name else path,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
@@ -114,7 +121,6 @@ class FileSource(DataSource):
             path=data_source.file_options.uri,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -134,7 +140,6 @@ class FileSource(DataSource):
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
