@@ -14,14 +14,18 @@ from feast.value_type import ValueType
 
 
 class BigQuerySource(DataSource):
+    def __hash__(self):
+        return super().__hash__()
+
+    # Note: Python requires redefining hash in child classes that override __eq__
     def __init__(
         self,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
-        date_partition_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
+        date_partition_column: Optional[str] = None,
         query: Optional[str] = None,
         name: Optional[str] = None,
         description: Optional[str] = "",
@@ -63,7 +67,8 @@ class BigQuerySource(DataSource):
         if date_partition_column:
             warnings.warn(
                 (
-                    "The argument 'date_partition_column' is not supported for BigQuery sources."
+                    "The argument 'date_partition_column' is not supported for BigQuery sources. "
+                    "It will be removed in Feast 0.21+"
                 ),
                 DeprecationWarning,
             )
@@ -92,10 +97,6 @@ class BigQuerySource(DataSource):
             tags=tags,
             owner=owner,
         )
-
-    # Note: Python requires redefining hash in child classes that override __eq__
-    def __hash__(self):
-        return super().__hash__()
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
