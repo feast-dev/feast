@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import warnings
 import enum
 import warnings
 from abc import ABC, abstractmethod
@@ -170,7 +170,7 @@ class DataSource(ABC):
     """
 
     name: str
-    event_timestamp_column: str
+    timestamp_field: str
     created_timestamp_column: str
     field_mapping: Dict[str, str]
     date_partition_column: str
@@ -181,6 +181,7 @@ class DataSource(ABC):
     def __init__(
         self,
         event_timestamp_column: Optional[str] = None,
+        timestamp_field: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
@@ -195,6 +196,10 @@ class DataSource(ABC):
             name: Name of data source, which should be unique within a project
                 event_timestamp_column (optional): Event timestamp column used for point in time
                 joins of feature values.
+            timestamp_field (optional): Event timestamp column used for point
+                in time joins of feature values.
+            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point
+                in time joins of feature values.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
@@ -215,8 +220,19 @@ class DataSource(ABC):
                 UserWarning,
             )
         self.name = name or ""
-        self.event_timestamp_column = (
-            event_timestamp_column if event_timestamp_column else ""
+        if event_timestamp_column is None and timestamp_field is None:
+            raise ValueError('No "event_timestamp_column" argument is provided to Datasource')
+        if not timestamp_field and event_timestamp_column:
+            warnings.warn(
+                (
+                    "The argument 'event_timestamp_column' is being deprecated. Please use 'timestamp_field' instead. "
+                    "instead. Feast 0.23 and onwards will not support the argument 'event_timestamp_column' for datasources."
+                ),
+                DeprecationWarning,
+            )
+        self.name = name
+        self.timestamp_field = (
+            self.timestamp_field if timestamp_field else (event_timestamp_column if event_timestamp_column else "")
         )
         self.created_timestamp_column = (
             created_timestamp_column if created_timestamp_column else ""
@@ -241,7 +257,7 @@ class DataSource(ABC):
 
         if (
             self.name != other.name
-            or self.event_timestamp_column != other.event_timestamp_column
+            or self.timestamp_field != other.timestamp_field
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
@@ -338,6 +354,7 @@ class KafkaSource(DataSource):
         self,
         name: str,
         event_timestamp_column: str,
+        timestamp_field: str,
         bootstrap_servers: str,
         message_format: StreamFormat,
         topic: str,
