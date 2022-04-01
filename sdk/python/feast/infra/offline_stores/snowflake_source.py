@@ -76,6 +76,7 @@ class SnowflakeSource(DataSource):
             warnings.warn(
                 (
                     "The argument 'date_partition_column' is not supported for Snowflake sources."
+                    "It will be removed in Feast 0.21+"
                 ),
                 DeprecationWarning,
             )
