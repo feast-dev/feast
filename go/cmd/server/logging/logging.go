@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/apache/arrow/go/arrow/array"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -27,8 +28,15 @@ type Log struct {
 	RequestContext  map[string]*types.RepeatedValue
 }
 
+// driver_id,
+// 1003, 1004
+// [acc rate conv rate avg_daily_trips]
+// [entityvalues, acc_rate conv_rate avg_daily_trips, acc_ratestatus, conv_rate_status]
+// [entityvalues, entity value]
+
 type MemoryBuffer struct {
-	logs []*Log
+	featureService *feast.FeatureService
+	logs           []*Log
 }
 
 type LoggingService struct {
@@ -99,6 +107,7 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		return fmt.Errorf("could not get offline storage type for config: %s", s.fs.GetRepoConfig().OfflineStore)
 	}
 	if offlineStoreType == "file" {
+
 		s.offlineLogStorage.FlushToStorage(s.memoryBuffer)
 		//Clean memory buffer
 		s.memoryBuffer.logs = s.memoryBuffer.logs[:0]
@@ -107,4 +116,31 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		return errors.New("currently only file type is supported for offline log storage")
 	}
 	return nil
+}
+
+func (s *LoggingService) getLogInArrowTable(memoryBuffer *MemoryBuffer) (*array.Table, error) {
+	// input memoryBuffer -> featureColumns
+	// map[string]*type.Value
+
+	// fields := make([]*arrow.Field, 0)
+	// columns := make([]array.Interface, 0)
+	// for idx, feature := range featureService.features {
+	// 	feature.Name
+
+	// 	[]*proto.Value = columnNameToProtoValue[feature.Name]
+	// 	arrowArray := types.ProtoValuesToArrowArray(protoValues)
+
+	// 	fields = append(fields, &arrow.Field{
+	// 		Name: feature.Name,
+	// 		Type: arrowArray.DataType(),
+	// 	})
+	// 	columns = append(columns, arrowArray)
+	// }
+
+	// table := array.NewTable(
+	// 	arrow.NewSchema(fields, nil),
+	// 	columns
+	// 	)
+
+	// pqarrow.WriteTable(table)
 }

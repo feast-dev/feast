@@ -1094,3 +1094,4 @@ def assert_feature_service_entity_mapping_correctness(
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,
             )
+        assert(False)
