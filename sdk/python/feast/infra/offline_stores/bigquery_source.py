@@ -20,8 +20,8 @@ class BigQuerySource(DataSource):
         table: Optional[str] = None,
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
         name: Optional[str] = None,
         description: Optional[str] = "",
@@ -37,7 +37,6 @@ class BigQuerySource(DataSource):
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
-            date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): SQL query to execute to generate data for this data source.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
             description (optional): A human-readable description.
@@ -61,6 +60,14 @@ class BigQuerySource(DataSource):
             table = table_ref
         self.bigquery_options = BigQueryOptions(table_ref=table, query=query)
 
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for BigQuery sources."
+                ),
+                DeprecationWarning,
+            )
+
         # If no name, use the table_ref as the default name
         _name = name
         if not _name:
@@ -78,10 +85,9 @@ class BigQuerySource(DataSource):
 
         super().__init__(
             _name if _name else "",
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
