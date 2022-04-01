@@ -27,6 +27,7 @@ class RedshiftSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        database: Optional[str] = "",
     ):
         """
         Creates a RedshiftSource object.
@@ -47,11 +48,12 @@ class RedshiftSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the redshift source, typically the email of the primary
                 maintainer.
+            database (optional): The Redshift database name.
         """
         # The default Redshift schema is named "public".
         _schema = "public" if table and not schema else schema
         self.redshift_options = RedshiftOptions(
-            table=table, schema=_schema, query=query
+            table=table, schema=_schema, query=query, database=database
         )
 
         if table is None and query is None:
@@ -102,6 +104,7 @@ class RedshiftSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
+            database=data_source.redshift_options.database,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -119,6 +122,7 @@ class RedshiftSource(DataSource):
             and self.redshift_options.table == other.redshift_options.table
             and self.redshift_options.schema == other.redshift_options.schema
             and self.redshift_options.query == other.redshift_options.query
+            and self.redshift_options.database == other.redshift_options.database
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -139,8 +143,14 @@ class RedshiftSource(DataSource):
 
     @property
     def query(self):
-        """Returns the Redshift options of this Redshift source."""
+        """Returns the Redshift query of this Redshift source."""
         return self.redshift_options.query
+
+    @property
+    def database(self):
+        """Returns the Redshift database of this Redshift source."""
+        return self.redshift_options.database
+
 
     def to_proto(self) -> DataSourceProto:
         """
@@ -197,12 +207,19 @@ class RedshiftSource(DataSource):
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
 
         client = aws_utils.get_redshift_data_client(config.offline_store.region)
-
+        if not self.database:
+            warnings.warn(
+                (
+                    "You are using redshift database name from your offline store config. Feast is deprecating this parameter soon in Feast 0.23."
+                    "Please pass database name to RedshiftSource in your driver python file instead. "
+                ),
+                DeprecationWarning,
+            )
         if self.table is not None:
             try:
                 table = client.describe_table(
                     ClusterIdentifier=config.offline_store.cluster_id,
-                    Database=config.offline_store.database,
+                    Database=(self.database if self.database else config.offline_store.database),
                     DbUser=config.offline_store.user,
                     Table=self.table,
                     Schema=self.schema,
@@ -221,7 +238,7 @@ class RedshiftSource(DataSource):
             statement_id = aws_utils.execute_redshift_statement(
                 client,
                 config.offline_store.cluster_id,
-                config.offline_store.database,
+                self.database if self.database else config.offline_store.database,
                 config.offline_store.user,
                 f"SELECT * FROM ({self.query}) LIMIT 1",
             )
@@ -238,11 +255,12 @@ class RedshiftOptions:
     """
 
     def __init__(
-        self, table: Optional[str], schema: Optional[str], query: Optional[str]
+        self, table: Optional[str], schema: Optional[str], query: Optional[str], database: Optional[str]
     ):
         self._table = table
         self._schema = schema
         self._query = query
+        self._database = database
 
     @property
     def query(self):
@@ -274,6 +292,16 @@ class RedshiftOptions:
         """Sets the schema of this Redshift table."""
         self._schema = schema
 
+    @property
+    def database(self):
+        """Returns the schema name of this Redshift table."""
+        return self._database
+
+    @database.setter
+    def database(self, database):
+        """Sets the database name of this Redshift table."""
+        self._database = database
+
     @classmethod
     def from_proto(cls, redshift_options_proto: DataSourceProto.RedshiftOptions):
         """
@@ -289,6 +317,7 @@ class RedshiftOptions:
             table=redshift_options_proto.table,
             schema=redshift_options_proto.schema,
             query=redshift_options_proto.query,
+            database=redshift_options_proto.database,
         )
 
         return redshift_options
@@ -301,7 +330,7 @@ class RedshiftOptions:
             A RedshiftOptionsProto protobuf.
         """
         redshift_options_proto = DataSourceProto.RedshiftOptions(
-            table=self.table, schema=self.schema, query=self.query,
+            table=self.table, schema=self.schema, query=self.query, database=self.database
         )
 
         return redshift_options_proto
