@@ -37,7 +37,6 @@ from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_data_source,
     create_customer_daily_profile_feature_view,
-    create_driver_age_request_feature_view,
     create_driver_hourly_stats_feature_view,
     create_field_mapping_feature_view,
     create_global_stats_feature_view,
@@ -260,7 +259,6 @@ class UniversalFeatureViews:
     global_fv: FeatureView
     driver: FeatureView
     driver_odfv: OnDemandFeatureView
-    driver_age_request_fv: FeatureView
     order: FeatureView
     location: FeatureView
     field_mapping: FeatureView
@@ -286,7 +284,6 @@ def construct_universal_feature_views(
         )
         if with_odfv
         else None,
-        driver_age_request_fv=create_driver_age_request_feature_view(),
         order=create_order_feature_view(data_sources.orders),
         location=create_location_stats_feature_view(data_sources.location),
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),

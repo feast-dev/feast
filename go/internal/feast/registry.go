@@ -19,7 +19,7 @@ var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
 }
 
 /*
-	Store protos of FeatureView, FeatureService, Entity, OnDemandFeatureView, RequestFeatureView
+	Store protos of FeatureView, FeatureService, Entity, OnDemandFeatureView
 	but return to user copies of non-proto versions of these objects
 */
 
@@ -29,7 +29,6 @@ type Registry struct {
 	cachedEntities                 map[string]map[string]*core.Entity
 	cachedFeatureViews             map[string]map[string]*core.FeatureView
 	cachedOnDemandFeatureViews     map[string]map[string]*core.OnDemandFeatureView
-	cachedRequestFeatureViews      map[string]map[string]*core.RequestFeatureView
 	cachedRegistry                 *core.Registry
 	cachedRegistryProtoLastUpdated time.Time
 	cachedRegistryProtoTtl         time.Duration
@@ -106,12 +105,10 @@ func (r *Registry) load(registry *core.Registry) {
 	r.cachedEntities = make(map[string]map[string]*core.Entity)
 	r.cachedFeatureViews = make(map[string]map[string]*core.FeatureView)
 	r.cachedOnDemandFeatureViews = make(map[string]map[string]*core.OnDemandFeatureView)
-	r.cachedRequestFeatureViews = make(map[string]map[string]*core.RequestFeatureView)
 	r.loadEntities(registry)
 	r.loadFeatureServices(registry)
 	r.loadFeatureViews(registry)
 	r.loadOnDemandFeatureViews(registry)
-	r.loadRequestFeatureViews(registry)
 	r.cachedRegistryProtoLastUpdated = time.Now()
 }
 
@@ -152,16 +149,6 @@ func (r *Registry) loadOnDemandFeatureViews(registry *core.Registry) {
 			r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project] = make(map[string]*core.OnDemandFeatureView)
 		}
 		r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project][onDemandFeatureView.Spec.Name] = onDemandFeatureView
-	}
-}
-
-func (r *Registry) loadRequestFeatureViews(registry *core.Registry) {
-	requestFeatureViews := registry.RequestFeatureViews
-	for _, requestFeatureView := range requestFeatureViews {
-		if _, ok := r.cachedRequestFeatureViews[requestFeatureView.Spec.Project]; !ok {
-			r.cachedRequestFeatureViews[requestFeatureView.Spec.Project] = make(map[string]*core.RequestFeatureView)
-		}
-		r.cachedRequestFeatureViews[requestFeatureView.Spec.Project][requestFeatureView.Spec.Name] = requestFeatureView
 	}
 }
 
@@ -241,25 +228,6 @@ func (r *Registry) listOnDemandFeatureViews(project string) ([]*OnDemandFeatureV
 	}
 }
 
-/*
-	Look up Request Feature Views inside project
-	Returns empty list if project not found
-*/
-
-func (r *Registry) listRequestFeatureViews(project string) ([]*RequestFeatureView, error) {
-	if cachedRequestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
-		return []*RequestFeatureView{}, nil
-	} else {
-		requestFeatureViews := make([]*RequestFeatureView, len(cachedRequestFeatureViews))
-		index := 0
-		for _, requestFeatureViewProto := range cachedRequestFeatureViews {
-			requestFeatureViews[index] = NewRequestFeatureViewFromProto(requestFeatureViewProto)
-			index += 1
-		}
-		return requestFeatureViews, nil
-	}
-}
-
 func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
 		return nil, fmt.Errorf("no cached entities found for project %s", project)
@@ -304,18 +272,6 @@ func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName strin
 			return nil, fmt.Errorf("no cached on demand feature view %s found for project %s", onDemandFeatureViewName, project)
 		} else {
 			return NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto), nil
-		}
-	}
-}
-
-func (r *Registry) getRequestFeatureView(project, requestFeatureViewName string) (*RequestFeatureView, error) {
-	if cachedRequestFeatureViews, ok := r.cachedRequestFeatureViews[project]; !ok {
-		return nil, fmt.Errorf("no cached on request feature views found for project %s", project)
-	} else {
-		if requestFeatureViewProto, ok := cachedRequestFeatureViews[requestFeatureViewName]; !ok {
-			return nil, fmt.Errorf("no cached request feature view %s found for project %s", requestFeatureViewName, project)
-		} else {
-			return NewRequestFeatureViewFromProto(requestFeatureViewProto), nil
 		}
 	}
 }
