@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABC, abstractmethod
+from enum import Enum
+from typing import Union
 
 from feast.protos.feast.types.Value_pb2 import ValueType as ValueTypeProto
 
 PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
-    "Invalid": "INVALID",
-    "String": "STRING",
-    "Bytes": "BYTES",
-    "Bool": "BOOL",
-    "Int32": "INT32",
-    "Int64": "INT64",
-    "Float32": "FLOAT",
-    "Float64": "DOUBLE",
-    "UnixTimestamp": "UNIX_TIMESTAMP",
+    "INVALID": "INVALID",
+    "STRING": "STRING",
+    "BYTES": "BYTES",
+    "BOOL": "BOOL",
+    "INT32": "INT32",
+    "INT64": "INT64",
+    "FLOAT32": "FLOAT",
+    "FLOAT64": "DOUBLE",
+    "UNIX_TIMESTAMP": "UNIX_TIMESTAMP",
 }
 
 
@@ -38,93 +40,56 @@ class FeastType(ABC):
         pass
 
     @abstractmethod
-    def to_proto(self) -> ValueTypeProto:
+    def to_int(self) -> int:
         """
-        Converts a FeastType object to a protobuf representation.
+        Converts a FeastType object to the appropriate int value corresponding to
+        the correct ValueTypeProto.Enum value.
         """
         raise NotImplementedError
 
 
-class PrimitiveFeastType(FeastType):
+class PrimitiveFeastType(Enum):
     """
     A PrimitiveFeastType represents a primitive type in Feast.
     """
 
-    def __init__(self):
-        """Creates a PrimitiveFeastType object."""
-        pass
+    INVALID = 0
+    BYTES = 1
+    STRING = 2
+    BOOL = 3
+    INT32 = 4
+    INT64 = 5
+    FLOAT32 = 6
+    FLOAT64 = 7
+    UNIX_TIMESTAMP = 8
 
-    @classmethod
-    def value_type(cls) -> str:
-        """
-        Returns the value type of the FeastType in string format.
-        """
-        return cls.__name__
-
-    @classmethod
-    def to_proto(cls) -> ValueTypeProto:
-        """
-        Converts a PrimitiveFeastType object to a protobuf representation.
-        """
-        value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[cls.value_type()]
+    def to_int(self) -> int:
+        value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.name]
         return ValueTypeProto.Enum.Value(value_type_name)
 
 
-class Invalid(PrimitiveFeastType):
-    """
-    An Invalid represents an invalid type.
-    """
+Invalid = PrimitiveFeastType.INVALID
+Bytes = PrimitiveFeastType.BYTES
+String = PrimitiveFeastType.STRING
+Bool = PrimitiveFeastType.BOOL
+Int32 = PrimitiveFeastType.INT32
+Int64 = PrimitiveFeastType.INT64
+Float32 = PrimitiveFeastType.FLOAT32
+Float64 = PrimitiveFeastType.FLOAT64
+UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 
 
-class String(PrimitiveFeastType):
-    """
-    A String represents a string type.
-    """
-
-
-class Bytes(PrimitiveFeastType):
-    """
-    A Bytes represents a bytes type.
-    """
-
-
-class Bool(PrimitiveFeastType):
-    """
-    A Bool represents a bool type.
-    """
-
-
-class Int32(PrimitiveFeastType):
-    """
-    An Int32 represents an int32 type.
-    """
-
-
-class Int64(PrimitiveFeastType):
-    """
-    An Int64 represents an int64 type.
-    """
-
-
-class Float32(PrimitiveFeastType):
-    """
-    A Float32 represents a float32 type.
-    """
-
-
-class Float64(PrimitiveFeastType):
-    """
-    A Float64 represents a float64 type.
-    """
-
-
-class UnixTimestamp(PrimitiveFeastType):
-    """
-    A UnixTimestamp represents a unix timestamp type.
-    """
-
-
-SUPPORTED_BASE_TYPES = [Invalid, String, Bytes, Bool, Int32, Int64, Float32, Float64]
+SUPPORTED_BASE_TYPES = [
+    Invalid,
+    String,
+    Bytes,
+    Bool,
+    Int32,
+    Int64,
+    Float32,
+    Float64,
+    UnixTimestamp,
+]
 
 
 class Array(FeastType):
@@ -135,9 +100,9 @@ class Array(FeastType):
         base_type: The base type of the array.
     """
 
-    base_type: type
+    base_type: Union[PrimitiveFeastType, FeastType]
 
-    def __init__(self, base_type: type):
+    def __init__(self, base_type: Union[PrimitiveFeastType, FeastType]):
         if base_type not in SUPPORTED_BASE_TYPES:
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Array."
@@ -145,10 +110,8 @@ class Array(FeastType):
 
         self.base_type = base_type
 
-    def to_proto(self) -> ValueTypeProto:
-        assert issubclass(self.base_type, PrimitiveFeastType)
-        value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[
-            self.base_type.value_type()
-        ]
+    def to_int(self) -> int:
+        assert isinstance(self.base_type, PrimitiveFeastType)
+        value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_list_name = value_type_name + "_LIST"
         return ValueTypeProto.Enum.Value(value_type_list_name)
