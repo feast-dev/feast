@@ -104,7 +104,6 @@ class RedshiftSource(DataSource):
             schema=data_source.redshift_options.schema,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             query=data_source.redshift_options.query,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -167,7 +166,6 @@ class RedshiftSource(DataSource):
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
