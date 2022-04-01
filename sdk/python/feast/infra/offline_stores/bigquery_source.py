@@ -14,10 +14,10 @@ from feast.value_type import ValueType
 
 
 class BigQuerySource(DataSource):
+    # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
         return super().__hash__()
 
-    # Note: Python requires redefining hash in child classes that override __eq__
     def __init__(
         self,
         event_timestamp_column: Optional[str] = "",
