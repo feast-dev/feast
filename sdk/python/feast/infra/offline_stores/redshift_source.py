@@ -206,14 +206,6 @@ class RedshiftSource(DataSource):
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
 
         client = aws_utils.get_redshift_data_client(config.offline_store.region)
-        if not self.database:
-            warnings.warn(
-                (
-                    "You are using redshift database name from your offline store config. Feast is deprecating this parameter soon in Feast 0.23."
-                    "Please pass database name to RedshiftSource in your driver python file instead. "
-                ),
-                DeprecationWarning,
-            )
         if self.table is not None:
             try:
                 table = client.describe_table(
