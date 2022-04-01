@@ -40,7 +40,7 @@ class RedshiftSource(DataSource):
                 row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to column names in a feature table or view.
-            date_partition_column (optional): Timestamp column used for partitioning.
+            date_partition_column (deprecated): Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
             description (optional): A human-readable description.

@@ -41,6 +41,7 @@ class BigQuerySource(DataSource):
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
+            date_partition_column (deprecated): Timestamp column used for partitioning.
             query (optional): SQL query to execute to generate data for this data source.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
             description (optional): A human-readable description.
