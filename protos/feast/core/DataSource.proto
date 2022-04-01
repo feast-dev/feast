@@ -161,6 +161,9 @@ message DataSource {
 
     // Snowflake schema name
     string database = 4;
+
+    // Snowflake warehouse name
+    string warehouse = 5;
   }
 
   // Defines configuration for custom third-party data sources.
