@@ -151,7 +151,6 @@ class RedshiftSource(DataSource):
         """Returns the Redshift database of this Redshift source."""
         return self.redshift_options.database
 
-
     def to_proto(self) -> DataSourceProto:
         """
         Converts a RedshiftSource object to its protobuf representation.
@@ -219,7 +218,11 @@ class RedshiftSource(DataSource):
             try:
                 table = client.describe_table(
                     ClusterIdentifier=config.offline_store.cluster_id,
-                    Database=(self.database if self.database else config.offline_store.database),
+                    Database=(
+                        self.database
+                        if self.database
+                        else config.offline_store.database
+                    ),
                     DbUser=config.offline_store.user,
                     Table=self.table,
                     Schema=self.schema,
@@ -255,7 +258,11 @@ class RedshiftOptions:
     """
 
     def __init__(
-        self, table: Optional[str], schema: Optional[str], query: Optional[str], database: Optional[str]
+        self,
+        table: Optional[str],
+        schema: Optional[str],
+        query: Optional[str],
+        database: Optional[str],
     ):
         self._table = table
         self._schema = schema
@@ -330,7 +337,10 @@ class RedshiftOptions:
             A RedshiftOptionsProto protobuf.
         """
         redshift_options_proto = DataSourceProto.RedshiftOptions(
-            table=self.table, schema=self.schema, query=self.query, database=self.database
+            table=self.table,
+            schema=self.schema,
+            query=self.query,
+            database=self.database,
         )
 
         return redshift_options_proto
@@ -343,7 +353,7 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 
     def __init__(self, table_ref: str):
         self.redshift_options = RedshiftOptions(
-            table=table_ref, schema=None, query=None
+            table=table_ref, schema=None, query=None, database=None
         )
 
     @staticmethod
