@@ -140,7 +140,7 @@ def _patch_feast_repeated_value_json_encoding():
         return [printer._MessageToJsonObject(item) for item in message.val]
 
     def from_json_object(
-        parser: _Parser, value: JsonObject, message: ProtoMessage
+        parser: _Parser, value: JsonObject, message: ProtoMessage, *args
     ) -> None:
         array = value if isinstance(value, list) else value["val"]
         for item in array:
@@ -181,7 +181,7 @@ def _patch_feast_feature_list_json_encoding():
         return list(message.val)
 
     def from_json_object(
-        parser: _Parser, value: JsonObject, message: ProtoMessage
+        parser: _Parser, value: JsonObject, message: ProtoMessage, *args
     ) -> None:
         array = value if isinstance(value, list) else value["val"]
         message.val.extend(array)
