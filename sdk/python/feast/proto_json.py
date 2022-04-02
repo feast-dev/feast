@@ -68,7 +68,7 @@ def _patch_feast_value_json_encoding():
         return value
 
     def from_json_object(
-        parser: _Parser, value: JsonObject, message: ProtoMessage
+        parser: _Parser, value: JsonObject, message: ProtoMessage, *args
     ) -> None:
         if value is None:
             message.null_val = 0
