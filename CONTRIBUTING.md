@@ -4,7 +4,7 @@
 ## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
-- [Feast Python SDK / CLI](#feast-python-sdk-%2F-cli)
+- [Feast Python SDK / CLI](#feast-python-sdk--cli)
 - [Feast Java Serving](#feast-java-serving)
 - [Feast Go Client](#feast-go-client)
 
@@ -212,4 +212,3 @@ go test
     * This is because github actions cannot pull the branch version for some reason so just find your PR number in your pull request header and hard code it into the `uses: actions/checkout@v2` section (i.e replace `refs/pull/${{ github.event.pull_request.number }}/merge` with `refs/pull/<pr number>/merge`)
 * AWS/GCP workflow
     * Currently still cannot test GCP/AWS workflow without setting up secrets in a forked repository.
-
