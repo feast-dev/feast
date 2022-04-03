@@ -52,7 +52,7 @@ REQUIRED = [
     "mmh3",
     "pandas>=1.0.0",
     "pandavro==1.5.*",
-    "protobuf==3.19.4",
+    "protobuf>=3.10,<3.20",
     "proto-plus<1.19.7",
     "pyarrow>=4.0.0",
     "pydantic>=1.0.0",
@@ -111,7 +111,7 @@ CI_REQUIRED = (
         "mock==2.0.0",
         "moto",
         "mypy==0.931",
-        "mypy-protobuf==3.1.0",
+        "mypy-protobuf>=3.2",
         "avro==1.10.0",
         "gcsfs",
         "urllib3>=1.25.4",
@@ -150,7 +150,7 @@ CI_REQUIRED = (
         + GE_REQUIRED
 )
 
-DEV_REQUIRED = ["mypy-protobuf>=3.1.0", "grpcio-testing==1.*"] + CI_REQUIRED
+DEV_REQUIRED = ["mypy-protobuf>=3.2", "grpcio-testing==1.*"] + CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
@@ -422,7 +422,7 @@ setup(
         "setuptools_scm",
         "grpcio",
         "grpcio-tools==1.34.0",
-        "mypy-protobuf==3.1.0",
+        "mypy-protobuf>=3.2",
         "sphinx!=4.0.0",
     ],
     package_data={
