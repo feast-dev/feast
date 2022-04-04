@@ -27,6 +27,8 @@ driver_stats_source = RedshiftSource(
     # The (optional) created timestamp is used to ensure there are no duplicate
     # feature rows in the offline store or when building training datasets
     created_timestamp_column="created",
+    # Database to redshift source.
+    database="%REDSHIFT_DATABASE%",
 )
 
 # Feature views are a grouping based on how features are stored in either the

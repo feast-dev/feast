@@ -145,6 +145,9 @@ message DataSource {
 
     // Redshift schema name
     string schema = 3;
+
+    // Redshift database name
+    string database = 4;
   }
 
   // Defines options for DataSource that sources features from a Snowflake Query
