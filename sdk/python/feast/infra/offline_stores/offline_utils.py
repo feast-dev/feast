@@ -130,7 +130,7 @@ def get_feature_view_query_context(
         else:
             ttl_seconds = 0
 
-        event_timestamp_column = feature_view.batch_source.event_timestamp_column
+        timestamp_field = feature_view.batch_source.timestamp_field
         created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
         min_event_timestamp = None
@@ -150,7 +150,7 @@ def get_feature_view_query_context(
             ],
             field_mapping=feature_view.batch_source.field_mapping,
             event_timestamp_column=reverse_field_mapping.get(
-                event_timestamp_column, event_timestamp_column
+                timestamp_field, timestamp_field
             ),
             created_timestamp_column=reverse_field_mapping.get(
                 created_timestamp_column, created_timestamp_column

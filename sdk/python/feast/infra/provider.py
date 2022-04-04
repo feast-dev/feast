@@ -258,7 +258,7 @@ def _get_column_names(
         the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.batch_source.event_timestamp_column
+    event_timestamp_column = feature_view.batch_source.timestamp_field
     feature_names = [feature.name for feature in feature_view.features]
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
     join_keys = [
@@ -382,7 +382,7 @@ def _convert_arrow_to_proto(
     event_timestamps = [
         _coerce_datetime(val)
         for val in pandas.to_datetime(
-            table.column(feature_view.batch_source.event_timestamp_column).to_numpy(
+            table.column(feature_view.batch_source.timestamp_field).to_numpy(
                 zero_copy_only=False
             )
         )

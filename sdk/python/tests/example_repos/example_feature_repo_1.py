@@ -12,31 +12,31 @@ from feast import (
 
 driver_locations_source = BigQuerySource(
     table="feast-oss.public.drivers",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
 driver_locations_source_query = BigQuerySource(
     query="SELECT * from feast-oss.public.drivers",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
 driver_locations_source_query_2 = BigQuerySource(
     query="SELECT lat * 2 FROM feast-oss.public.drivers",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
 customer_profile_source = BigQuerySource(
     name="customer_profile_source",
     table_ref="feast-oss.public.customers",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
 )
 
 customer_driver_combined_source = BigQuerySource(
     table_ref="feast-oss.public.customer_driver",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
 )
 
 driver_locations_push_source = PushSource(

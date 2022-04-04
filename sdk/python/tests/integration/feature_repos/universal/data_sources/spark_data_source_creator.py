@@ -59,23 +59,23 @@ class SparkDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        event_timestamp_column="ts",
+        timestamp_field="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
-        if event_timestamp_column in df:
-            df[event_timestamp_column] = pd.to_datetime(
-                df[event_timestamp_column], utc=True
+        if timestamp_field in df:
+            df[timestamp_field] = pd.to_datetime(
+                df[timestamp_field], utc=True
             )
         # Make sure the field mapping is correct and convert the datetime datasources.
         if field_mapping:
             timestamp_mapping = {value: key for key, value in field_mapping.items()}
             if (
-                event_timestamp_column in timestamp_mapping
-                and timestamp_mapping[event_timestamp_column] in df
+                timestamp_field in timestamp_mapping
+                and timestamp_mapping[timestamp_field] in df
             ):
-                col = timestamp_mapping[event_timestamp_column]
+                col = timestamp_mapping[timestamp_field]
                 df[col] = pd.to_datetime(df[col], utc=True)
         destination_name = self.get_prefixed_table_name(destination_name)
         if not self.spark_session:
@@ -93,7 +93,7 @@ class SparkDataSourceCreator(DataSourceCreator):
 
         return SparkSource(
             table=destination_name,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             # maps certain column names to other names
             field_mapping=field_mapping or {"ts_1": "ts"},

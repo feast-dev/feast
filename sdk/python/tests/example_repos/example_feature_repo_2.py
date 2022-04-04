@@ -4,7 +4,7 @@ from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
 driver_hourly_stats = FileSource(
     path="%PARQUET_PATH%",  # placeholder to be replaced by the test
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
@@ -28,7 +28,7 @@ driver_hourly_stats_view = FeatureView(
 
 global_daily_stats = FileSource(
     path="%PARQUET_PATH_GLOBAL%",  # placeholder to be replaced by the test
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 

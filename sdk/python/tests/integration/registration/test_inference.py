@@ -127,14 +127,14 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
             data_sources, RepoConfig(provider="local", project="test")
         )
         actual_event_timestamp_cols = [
-            source.event_timestamp_column for source in data_sources
+            source.timestamp_field for source in data_sources
         ]
 
         assert actual_event_timestamp_cols == ["ts_1", "ts_1", "ts_1"]
 
     with prep_file_source(df=df_with_two_viable_timestamp_cols) as file_source:
         with pytest.raises(RegistryInferenceFailure):
-            # two viable event_timestamp_columns
+            # two viable timestamp_fields
             update_data_sources_with_inferred_event_timestamp_col(
                 [file_source], RepoConfig(provider="local", project="test")
             )
@@ -146,8 +146,9 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
     (_, _, data_sources) = universal_data_sources
     data_sources_copy = deepcopy(data_sources)
 
-    # remove defined event_timestamp_column to allow for inference
+    # remove defined timestamp_field to allow for inference
     for data_source in data_sources_copy.values():
+        data_source.timestamp_field = None
         data_source.event_timestamp_column = None
 
     update_data_sources_with_inferred_event_timestamp_col(

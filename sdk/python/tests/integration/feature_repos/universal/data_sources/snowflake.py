@@ -38,7 +38,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         df: pd.DataFrame,
         destination_name: str,
         suffix: Optional[str] = None,
-        event_timestamp_column="ts",
+        timestamp_field="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
@@ -53,7 +53,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
 
         return SnowflakeSource(
             table=destination_name,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
             warehouse=self.offline_store_config.warehouse,

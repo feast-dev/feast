@@ -187,7 +187,7 @@ class FileOfflineStore(OfflineStore):
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
                 event_timestamp_column = (
-                    feature_view.batch_source.event_timestamp_column
+                    feature_view.batch_source.timestamp_field
                 )
                 created_timestamp_column = (
                     feature_view.batch_source.created_timestamp_column

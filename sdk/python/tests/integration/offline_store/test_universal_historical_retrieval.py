@@ -93,23 +93,23 @@ def get_expected_training_df(
 ):
     # Convert all pandas dataframes into records with UTC timestamps
     customer_records = convert_timestamp_records_to_utc(
-        customer_df.to_dict("records"), customer_fv.batch_source.event_timestamp_column
+        customer_df.to_dict("records"), customer_fv.batch_source.timestamp_field
     )
     driver_records = convert_timestamp_records_to_utc(
-        driver_df.to_dict("records"), driver_fv.batch_source.event_timestamp_column
+        driver_df.to_dict("records"), driver_fv.batch_source.timestamp_field
     )
     order_records = convert_timestamp_records_to_utc(
         orders_df.to_dict("records"), event_timestamp
     )
     location_records = convert_timestamp_records_to_utc(
-        location_df.to_dict("records"), location_fv.batch_source.event_timestamp_column
+        location_df.to_dict("records"), location_fv.batch_source.timestamp_field
     )
     global_records = convert_timestamp_records_to_utc(
-        global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
+        global_df.to_dict("records"), global_fv.batch_source.timestamp_field
     )
     field_mapping_records = convert_timestamp_records_to_utc(
         field_mapping_df.to_dict("records"),
-        field_mapping_fv.batch_source.event_timestamp_column,
+        field_mapping_fv.batch_source.timestamp_field,
     )
     entity_rows = convert_timestamp_records_to_utc(
         entity_df.to_dict("records"), event_timestamp
@@ -120,7 +120,7 @@ def get_expected_training_df(
     for entity_row in entity_rows:
         customer_record = find_asof_record(
             customer_records,
-            ts_key=customer_fv.batch_source.event_timestamp_column,
+            ts_key=customer_fv.batch_source.timestamp_field,
             ts_start=entity_row[event_timestamp] - customer_fv.ttl,
             ts_end=entity_row[event_timestamp],
             filter_keys=["customer_id"],
@@ -128,7 +128,7 @@ def get_expected_training_df(
         )
         driver_record = find_asof_record(
             driver_records,
-            ts_key=driver_fv.batch_source.event_timestamp_column,
+            ts_key=driver_fv.batch_source.timestamp_field,
             ts_start=entity_row[event_timestamp] - driver_fv.ttl,
             ts_end=entity_row[event_timestamp],
             filter_keys=["driver_id"],
@@ -136,7 +136,7 @@ def get_expected_training_df(
         )
         order_record = find_asof_record(
             order_records,
-            ts_key=customer_fv.batch_source.event_timestamp_column,
+            ts_key=customer_fv.batch_source.timestamp_field,
             ts_start=entity_row[event_timestamp] - order_fv.ttl,
             ts_end=entity_row[event_timestamp],
             filter_keys=["customer_id", "driver_id"],
@@ -144,7 +144,7 @@ def get_expected_training_df(
         )
         origin_record = find_asof_record(
             location_records,
-            ts_key=location_fv.batch_source.event_timestamp_column,
+            ts_key=location_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - location_fv.ttl,
             ts_end=order_record[event_timestamp],
             filter_keys=["location_id"],
@@ -152,7 +152,7 @@ def get_expected_training_df(
         )
         destination_record = find_asof_record(
             location_records,
-            ts_key=location_fv.batch_source.event_timestamp_column,
+            ts_key=location_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - location_fv.ttl,
             ts_end=order_record[event_timestamp],
             filter_keys=["location_id"],
@@ -160,14 +160,14 @@ def get_expected_training_df(
         )
         global_record = find_asof_record(
             global_records,
-            ts_key=global_fv.batch_source.event_timestamp_column,
+            ts_key=global_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - global_fv.ttl,
             ts_end=order_record[event_timestamp],
         )
 
         field_mapping_record = find_asof_record(
             field_mapping_records,
-            ts_key=field_mapping_fv.batch_source.event_timestamp_column,
+            ts_key=field_mapping_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - field_mapping_fv.ttl,
             ts_end=order_record[event_timestamp],
         )
@@ -680,7 +680,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
     driver_stats_data_source = environment.data_source_creator.create_data_source(
         df=driver_stats_df,
         destination_name=f"test_driver_stats_{int(time.time_ns())}_{random.randint(1000, 9999)}",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
 
