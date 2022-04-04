@@ -96,7 +96,7 @@ class BigQuerySource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field
+            timestamp_field=timestamp_field,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__

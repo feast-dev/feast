@@ -70,7 +70,7 @@ class SparkSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field
+            timestamp_field=timestamp_field,
         )
         warnings.warn(
             "The spark data source API is an experimental feature in alpha development. "

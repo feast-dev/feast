@@ -65,9 +65,7 @@ class SparkDataSourceCreator(DataSourceCreator):
         **kwargs,
     ) -> DataSource:
         if timestamp_field in df:
-            df[timestamp_field] = pd.to_datetime(
-                df[timestamp_field], utc=True
-            )
+            df[timestamp_field] = pd.to_datetime(df[timestamp_field], utc=True)
         # Make sure the field mapping is correct and convert the datetime datasources.
         if field_mapping:
             timestamp_mapping = {value: key for key, value in field_mapping.items()}

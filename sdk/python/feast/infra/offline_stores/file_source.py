@@ -124,7 +124,7 @@ class FileSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             file_format=FileFormat.from_proto(data_source.file_options.file_format),
             path=data_source.file_options.uri,
-            timesstamp_field=data_source.timestamp_field,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
             description=data_source.description,

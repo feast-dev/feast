@@ -80,10 +80,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
     for data_source in data_sources:
         if isinstance(data_source, RequestDataSource):
             continue
-        if (
-            data_source.timestamp_field is None
-            or data_source.timestamp_field == ""
-        ):
+        if data_source.timestamp_field is None or data_source.timestamp_field == "":
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""
             # TODO(adchia): Move Spark source inference out of this logic
@@ -171,9 +168,7 @@ def update_feature_views_with_inferred_features(
 
             if fv.batch_source.timestamp_field in fv.batch_source.field_mapping:
                 columns_to_exclude.add(
-                    fv.batch_source.field_mapping[
-                        fv.batch_source.timestamp_field
-                    ]
+                    fv.batch_source.field_mapping[fv.batch_source.timestamp_field]
                 )
             if (
                 fv.batch_source.created_timestamp_column

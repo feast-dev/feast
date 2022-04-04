@@ -140,12 +140,8 @@ class SnowflakeSource(DataSource):
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query
-<<<<<<< HEAD
             and self.snowflake_options.warehouse == other.snowflake_options.warehouse
-            and self.event_timestamp_column == other.event_timestamp_column
-=======
             and self.timestamp_field == other.timestamp_field
->>>>>>> 2330b0a8 (Update md files)
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
             and self.description == other.description

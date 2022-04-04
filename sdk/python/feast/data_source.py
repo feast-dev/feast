@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import enum
 import warnings
 from abc import ABC, abstractmethod
@@ -183,7 +182,6 @@ class DataSource(ABC):
     def __init__(
         self,
         event_timestamp_column: Optional[str] = None,
-        timestamp_field: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
@@ -191,6 +189,7 @@ class DataSource(ABC):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         name: Optional[str] = None,
+        timestamp_field: Optional[str] = None,
     ):
         """
         Creates a DataSource object.
@@ -198,8 +197,6 @@ class DataSource(ABC):
             name: Name of data source, which should be unique within a project
             event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
                 joins of feature values.
-            timestamp_field (optional): Event timestamp field used for point
-                in time joins of feature values.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
@@ -210,6 +207,8 @@ class DataSource(ABC):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
+            timestamp_field (optional): Event timestamp field used for point
+                in time joins of feature values.
         """
         if not name:
             warnings.warn(
@@ -400,6 +399,7 @@ class KafkaSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         return KafkaSource(
             name=data_source.name,
+            event_timestamp_column=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
             bootstrap_servers=data_source.kafka_options.bootstrap_servers,
             message_format=StreamFormat.from_proto(
@@ -423,7 +423,7 @@ class KafkaSource(DataSource):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-    )
+        )
 
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
@@ -525,6 +525,7 @@ class KinesisSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         return KinesisSource(
             name=data_source.name,
+            event_timestamp_column=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
             record_format=StreamFormat.from_proto(
                 data_source.kinesis_options.record_format
@@ -570,7 +571,7 @@ class KinesisSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field
+            timestamp_field=timestamp_field,
         )
         self.kinesis_options = KinesisOptions(
             record_format=record_format, region=region, stream_name=stream_name
@@ -667,9 +668,7 @@ class PushSource(DataSource):
         self.timestamp_field = timestamp_field or event_timestamp_column
 
         if not self.timestamp_field:
-            raise ValueError(
-                f"timestamp field is needed for push source {self.name}"
-            )
+            raise ValueError(f"timestamp field is needed for push source {self.name}")
 
     def validate(self, config: RepoConfig):
         pass
