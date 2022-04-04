@@ -345,7 +345,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     @log_exceptions_and_usage
     def _execute_query(
         self, query, job_config=None, timeout: int = 1800
-    ) -> bigquery.job.query.QueryJob:
+    ) -> Optional[bigquery.job.query.QueryJob]:
         bq_job = self.client.query(query, job_config=job_config)
 
         if job_config and job_config.dry_run:
