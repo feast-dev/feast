@@ -400,7 +400,7 @@ mypy==0.931
     # via feast (setup.py)
 mypy-extensions==0.4.3
     # via mypy
-mypy-protobuf==3.1.0
+mypy-protobuf==3.1
     # via feast (setup.py)
 nbclient==0.5.11
     # via nbconvert
