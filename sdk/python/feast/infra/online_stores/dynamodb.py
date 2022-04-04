@@ -191,7 +191,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
         )
-        with table_instance.batch_writer() as batch:
+        with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
             for entity_key, features, timestamp, created_ts in data:
                 entity_id = compute_entity_id(entity_key)
                 batch.put_item(
