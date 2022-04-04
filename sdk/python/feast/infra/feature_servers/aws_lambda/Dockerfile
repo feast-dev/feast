@@ -10,6 +10,7 @@ COPY go go
 COPY README.md README.md
 
 # Install Feast for AWS with Lambda dependencies
+# TODO(achals): The additional spark deps should be removed. Details at https://github.com/feast-dev/feast/pull/2480.
 RUN pip3 install -e 'sdk/python[aws,redis,spark]'
 RUN pip3 install -r sdk/python/feast/infra/feature_servers/aws_lambda/requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
