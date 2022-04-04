@@ -63,7 +63,6 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             table=destination_name,
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
-            date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
             database=self.offline_store_config.database,
         )

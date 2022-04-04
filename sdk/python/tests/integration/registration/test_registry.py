@@ -169,7 +169,6 @@ def test_apply_feature_view_success(test_registry):
         path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     fv1 = FeatureView(
@@ -243,7 +242,6 @@ def test_modify_feature_views_success(test_registry):
         path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     request_source = RequestDataSource(
@@ -364,7 +362,6 @@ def test_apply_feature_view_integration(test_registry):
         path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     fv1 = FeatureView(
@@ -440,7 +437,6 @@ def test_apply_data_source(test_registry: Registry):
         path="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     fv1 = FeatureView(

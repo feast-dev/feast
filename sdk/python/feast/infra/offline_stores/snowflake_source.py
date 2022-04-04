@@ -20,9 +20,9 @@ class SnowflakeSource(DataSource):
         table: Optional[str] = None,
         query: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         name: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
@@ -42,7 +42,7 @@ class SnowflakeSource(DataSource):
                 row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to column names in a feature table or view.
-            date_partition_column (optional): Timestamp column used for partitioning.
+            date_partition_column (deprecated): Timestamp column used for partitioning.
             name (optional): Name for the source. Defaults to the table if not specified.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
@@ -72,12 +72,20 @@ class SnowflakeSource(DataSource):
                     DeprecationWarning,
                 )
 
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for Snowflake sources."
+                    "It will be removed in Feast 0.21+"
+                ),
+                DeprecationWarning,
+            )
+
         super().__init__(
             _name if _name else "",
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
@@ -101,7 +109,6 @@ class SnowflakeSource(DataSource):
             table=data_source.snowflake_options.table,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             query=data_source.snowflake_options.query,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -170,7 +177,6 @@ class SnowflakeSource(DataSource):
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
