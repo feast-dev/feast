@@ -338,7 +338,9 @@ class BigQueryRetrievalJob(RetrievalJob):
 
     def _to_arrow_internal(self) -> pyarrow.Table:
         with self._query_generator() as query:
-            return self._execute_query(query).to_arrow()
+            q = self._execute_query(query=query)
+            assert q
+            return q.to_arrow()
 
     @log_exceptions_and_usage
     def _execute_query(
@@ -426,7 +428,7 @@ def _get_table_reference_for_new_entity(
     dataset.location = dataset_location if dataset_location else "US"
 
     try:
-        client.get_dataset(dataset)
+        client.get_dataset(dataset.reference)
     except NotFound:
         # Only create the dataset if it does not exist
         client.create_dataset(dataset, exists_ok=True)
