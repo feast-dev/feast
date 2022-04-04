@@ -128,6 +128,9 @@ class SnowflakeOfflineStore(OfflineStore):
             + '"'
         )
 
+        if data_source.snowflake_options.warehouse:
+            config.offline_store.warehouse = data_source.snowflake_options.warehouse
+
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
         query = f"""
@@ -172,6 +175,9 @@ class SnowflakeOfflineStore(OfflineStore):
             )
             + '"'
         )
+
+        if data_source.snowflake_options.warehouse:
+            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 

@@ -101,6 +101,7 @@ class SnowflakeSource(DataSource):
             database=data_source.snowflake_options.database,
             schema=data_source.snowflake_options.schema,
             table=data_source.snowflake_options.table,
+            warehouse=data_source.snowflake_options.warehouse,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
@@ -126,6 +127,7 @@ class SnowflakeSource(DataSource):
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query
+            and self.snowflake_options.warehouse == other.snowflake_options.warehouse
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
