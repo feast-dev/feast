@@ -155,7 +155,7 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
         data_sources_copy.values(), RepoConfig(provider="local", project="test"),
     )
     actual_event_timestamp_cols = [
-        source.event_timestamp_column for source in data_sources_copy.values()
+        source.timestamp_field for source in data_sources_copy.values()
     ]
 
     assert actual_event_timestamp_cols == ["event_timestamp"] * len(

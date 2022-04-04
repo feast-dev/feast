@@ -133,7 +133,6 @@ class RedshiftSource(DataSource):
             and self.redshift_options.schema == other.redshift_options.schema
             and self.redshift_options.query == other.redshift_options.query
             and self.redshift_options.database == other.redshift_options.database
-            and self.event_timestamp_column == other.event_timestamp_column
             and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
