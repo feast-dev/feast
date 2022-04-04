@@ -13,7 +13,7 @@ from feast import (
     SnowflakeSource,
     ValueType,
 )
-from feast.data_source import RequestDataSource
+from feast.data_source import RequestSource
 from feast.errors import (
     DataSourceNoNameException,
     RegistryInferenceFailure,
@@ -164,7 +164,7 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
 
 def test_on_demand_features_type_inference():
     # Create Feature Views
-    date_request = RequestDataSource(
+    date_request = RequestSource(
         name="date_request", schema={"some_date": ValueType.UNIX_TIMESTAMP}
     )
 
@@ -217,7 +217,7 @@ def test_on_demand_features_type_inference():
 
 def test_datasource_inference():
     # Create Feature Views
-    date_request = RequestDataSource(
+    date_request = RequestSource(
         name="date_request", schema={"some_date": ValueType.UNIX_TIMESTAMP}
     )
 

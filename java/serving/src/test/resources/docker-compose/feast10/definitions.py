@@ -7,7 +7,7 @@ from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.on_demand_feature_view import RequestDataSource, on_demand_feature_view
+from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast import FileSource
 
 
@@ -40,7 +40,7 @@ driver_hourly_stats_view = FeatureView(
 )
 
 
-input_request = RequestDataSource(
+input_request = RequestSource(
     name="vals_to_add",
     schema={
         "val_to_add": ValueType.INT64,

@@ -16,7 +16,7 @@
 import enum
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union, List, Field
 
 from google.protobuf.json_format import MessageToJson
 
@@ -144,7 +144,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
-    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestDataSource",
+    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
 }
 
@@ -422,9 +422,9 @@ class KafkaSource(DataSource):
         raise NotImplementedError
 
 
-class RequestDataSource(DataSource):
+class RequestSource(DataSource):
     """
-    RequestDataSource that can be used to provide input features for on demand transforms
+    RequestSource that can be used to provide input features for on demand transforms
 
     Args:
         name: Name of the request data source
@@ -446,7 +446,7 @@ class RequestDataSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
-        """Creates a RequestDataSource object."""
+        """Creates a RequestSource object."""
         super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.schema = schema
 
@@ -464,7 +464,7 @@ class RequestDataSource(DataSource):
         schema = {}
         for key, val in schema_pb.items():
             schema[key] = ValueType(val)
-        return RequestDataSource(
+        return RequestSource(
             name=data_source.name,
             schema=schema,
             description=data_source.description,

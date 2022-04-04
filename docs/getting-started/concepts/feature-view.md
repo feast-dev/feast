@@ -130,9 +130,9 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 On demand feature views allows users to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths:
 
 ```python
-# Define a request data source which encodes features / information only 
+# Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
-input_request = RequestDataSource(
+input_request = RequestSource(
     name="vals_to_add",
     schema={
         "val_to_add": ValueType.INT64,

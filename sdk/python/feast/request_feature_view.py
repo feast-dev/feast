@@ -3,7 +3,7 @@ import warnings
 from typing import Dict, List, Optional, Type
 
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import RequestDataSource
+from feast.data_source import RequestSource
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
@@ -30,7 +30,7 @@ class RequestFeatureView(BaseFeatureView):
     """
 
     name: str
-    request_data_source: RequestDataSource
+    request_data_source: RequestSource
     features: List[Feature]
     description: str
     tags: Dict[str, str]
@@ -40,7 +40,7 @@ class RequestFeatureView(BaseFeatureView):
     def __init__(
         self,
         name: str,
-        request_data_source: RequestDataSource,
+        request_data_source: RequestSource,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -110,7 +110,7 @@ class RequestFeatureView(BaseFeatureView):
 
         request_feature_view_obj = cls(
             name=request_feature_view_proto.spec.name,
-            request_data_source=RequestDataSource.from_proto(
+            request_data_source=RequestSource.from_proto(
                 request_feature_view_proto.spec.request_data_source
             ),
             description=request_feature_view_proto.spec.description,
