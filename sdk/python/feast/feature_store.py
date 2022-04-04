@@ -521,7 +521,7 @@ class FeatureStore:
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
-            ...     event_timestamp_column="event_timestamp",
+            ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
             >>> driver_hourly_stats_view = FeatureView(
@@ -632,7 +632,7 @@ class FeatureStore:
             >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
-            ...     event_timestamp_column="event_timestamp",
+            ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
             >>> driver_hourly_stats_view = FeatureView(

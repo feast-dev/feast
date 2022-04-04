@@ -7,7 +7,7 @@ from google.protobuf.duration_pb2 import Duration
 
 driver_hourly_stats = FileSource(
     path="data/driver_stats_with_string.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)

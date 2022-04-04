@@ -28,6 +28,7 @@ class SnowflakeSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
     ):
         """
         Creates a SnowflakeSource object.
@@ -37,7 +38,7 @@ class SnowflakeSource(DataSource):
             warehouse (optional): Snowflake warehouse where the database is stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
-            event_timestamp_column (optional): Event timestamp column used for point in
+            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in
                 time joins of feature values.
             query (optional): The query to be executed to obtain the features.
             created_timestamp_column (optional): Timestamp column indicating when the
@@ -95,6 +96,7 @@ class SnowflakeSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            timestamp_field=timestamp_field,
         )
 
     @staticmethod
@@ -114,7 +116,7 @@ class SnowflakeSource(DataSource):
             schema=data_source.snowflake_options.schema,
             table=data_source.snowflake_options.table,
             warehouse=data_source.snowflake_options.warehouse,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             query=data_source.snowflake_options.query,
             description=data_source.description,
@@ -138,8 +140,12 @@ class SnowflakeSource(DataSource):
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query
+<<<<<<< HEAD
             and self.snowflake_options.warehouse == other.snowflake_options.warehouse
             and self.event_timestamp_column == other.event_timestamp_column
+=======
+            and self.timestamp_field == other.timestamp_field
+>>>>>>> 2330b0a8 (Update md files)
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
             and self.description == other.description
@@ -188,7 +194,7 @@ class SnowflakeSource(DataSource):
             owner=self.owner,
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto

@@ -81,8 +81,8 @@ def update_data_sources_with_inferred_event_timestamp_col(
         if isinstance(data_source, RequestDataSource):
             continue
         if (
-            data_source.event_timestamp_column is None
-            or data_source.event_timestamp_column == ""
+            data_source.timestamp_field is None
+            or data_source.timestamp_field == ""
         ):
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""
@@ -102,7 +102,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 raise RegistryInferenceFailure(
                     "DataSource",
                     f"""
-                    DataSource inferencing of event_timestamp_column is currently only supported
+                    DataSource inferencing of timestamp_field is currently only supported
                     for FileSource, SparkSource, BigQuerySource, RedshiftSource, and SnowflakeSource.
                     Attempting to infer from {data_source}.
                     """,
@@ -117,7 +117,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
             )
 
             # loop through table columns to find singular match
-            event_timestamp_column, matched_flag = None, False
+            timestamp_field, matched_flag = None, False
             for (
                 col_name,
                 col_datatype,
@@ -132,10 +132,10 @@ def update_data_sources_with_inferred_event_timestamp_col(
                             """,
                         )
                     matched_flag = True
-                    event_timestamp_column = col_name
+                    timestamp_field = col_name
             if matched_flag:
-                assert event_timestamp_column
-                data_source.event_timestamp_column = event_timestamp_column
+                assert timestamp_field
+                data_source.timestamp_field = timestamp_field
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
@@ -163,16 +163,16 @@ def update_feature_views_with_inferred_features(
     for fv in fvs:
         if not fv.features:
             columns_to_exclude = {
-                fv.batch_source.event_timestamp_column,
+                fv.batch_source.timestamp_field,
                 fv.batch_source.created_timestamp_column,
             } | {
                 entity_name_to_join_key_map[entity_name] for entity_name in fv.entities
             }
 
-            if fv.batch_source.event_timestamp_column in fv.batch_source.field_mapping:
+            if fv.batch_source.timestamp_field in fv.batch_source.field_mapping:
                 columns_to_exclude.add(
                     fv.batch_source.field_mapping[
-                        fv.batch_source.event_timestamp_column
+                        fv.batch_source.timestamp_field
                     ]
                 )
             if (

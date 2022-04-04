@@ -14,7 +14,7 @@ from feast import FileSource
 file_path = "driver_stats.parquet"
 driver_hourly_stats = FileSource(
     path=file_path,
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
@@ -68,7 +68,7 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 
 generated_data_source = FileSource(
     path="benchmark_data.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
 )
 
 entity = Entity(

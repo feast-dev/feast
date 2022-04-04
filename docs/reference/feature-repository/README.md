@@ -26,7 +26,7 @@ Typically, users store their feature repositories in a Git repository, especiall
 The structure of a feature repository is as follows:
 
 * The root of the repository should contain a `feature_store.yaml` file and may contain a `.feastignore` file.
-* The repository should contain Python files that contain feature definitions. 
+* The repository should contain Python files that contain feature definitions.
 * The repository can contain other files as well, including documentation and potentially data files.
 
 An example structure of a feature repository is shown below:
@@ -98,7 +98,7 @@ from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
 
 driver_locations_source = BigQuerySource(
     table_ref="rh_prod.ride_hailing_co.drivers",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 

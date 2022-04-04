@@ -155,7 +155,7 @@ class DataSource(ABC):
 
     Args:
         name: Name of data source, which should be unique within a project
-        event_timestamp_column (optional): Event timestamp column used for point in time
+        timestamp_field (optional): (Deprecated) Event timestamp column used for point in time
             joins of feature values.
         created_timestamp_column (optional): Timestamp column indicating when the row
             was created, used for deduplicating rows.
@@ -167,6 +167,8 @@ class DataSource(ABC):
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
+        timestamp_field (optional): Event timestamp field used for point in time
+            joins of feature values.
     """
 
     name: str
@@ -196,9 +198,7 @@ class DataSource(ABC):
             name: Name of data source, which should be unique within a project
             event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
                 joins of feature values.
-            timestamp_field (optional): Event timestamp column used for point
-                in time joins of feature values.
-            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point
+            timestamp_field (optional): Event timestamp field used for point
                 in time joins of feature values.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
@@ -221,7 +221,7 @@ class DataSource(ABC):
             )
         self.name = name or ""
         if event_timestamp_column is None and timestamp_field is None:
-            raise ValueError('No "event_timestamp_column" argument is provided to Datasource')
+            raise ValueError('No "timestamp_field" argument is provided to Datasource')
         if not timestamp_field and event_timestamp_column:
             warnings.warn(
                 (
@@ -231,9 +231,7 @@ class DataSource(ABC):
                 DeprecationWarning,
             )
         self.name = name
-        self.timestamp_field = (
-            self.timestamp_field if timestamp_field else (event_timestamp_column if event_timestamp_column else "")
-        )
+        self.timestamp_field = timestamp_field or event_timestamp_column or ""
         self.created_timestamp_column = (
             created_timestamp_column if created_timestamp_column else ""
         )
@@ -374,6 +372,7 @@ class KafkaSource(DataSource):
             tags=tags,
             owner=owner,
             name=name,
+            timestamp_field=timestamp_field,
         )
         self.kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers,
@@ -407,8 +406,8 @@ class KafkaSource(DataSource):
                 data_source.kafka_options.message_format
             ),
             topic=data_source.kafka_options.topic,
-            event_timestamp_column=data_source.event_timestamp_column,
-            created_timestamp_column=data_source.created_timestamp_column,
+            created_timestamp_column=data_source.timestamp_field,
+            timestamp_field=data_source.timestamp_field,
             date_partition_column=data_source.date_partition_column,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -424,9 +423,9 @@ class KafkaSource(DataSource):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-        )
+    )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
         return data_source_proto
@@ -532,8 +531,8 @@ class KinesisSource(DataSource):
             ),
             region=data_source.kinesis_options.region,
             stream_name=data_source.kinesis_options.stream_name,
-            event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             date_partition_column=data_source.date_partition_column,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -560,6 +559,7 @@ class KinesisSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
     ):
         super().__init__(
             name=name,
@@ -570,6 +570,7 @@ class KinesisSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            timestamp_field=timestamp_field
         )
         self.kinesis_options = KinesisOptions(
             record_format=record_format, region=region, stream_name=stream_name
@@ -605,7 +606,7 @@ class KinesisSource(DataSource):
             owner=self.owner,
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
@@ -620,7 +621,7 @@ class PushSource(DataSource):
     name: str
     schema: Dict[str, ValueType]
     batch_source: DataSource
-    event_timestamp_column: str
+    timestamp_field: str
 
     def __init__(
         self,
@@ -631,6 +632,7 @@ class PushSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
     ):
         """
         Creates a PushSource object.
@@ -639,22 +641,34 @@ class PushSource(DataSource):
             schema: Schema mapping from the input feature name to a ValueType
             batch_source: The batch source that backs this push source. It's used when materializing from the offline
                 store to the online store, and when retrieving historical features.
-            event_timestamp_column (optional): Event timestamp column used for point in time
+            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
                 joins of feature values.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
+            timestamp_field (optional): Event timestamp foe;d used for point in time
+                joins of feature values.
+
         """
         super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.schema = schema
         self.batch_source = batch_source
         if not self.batch_source:
             raise ValueError(f"batch_source is needed for push source {self.name}")
-        self.event_timestamp_column = event_timestamp_column
-        if not self.event_timestamp_column:
+        if not timestamp_field and event_timestamp_column:
+            warnings.warn(
+                (
+                    "The argument 'event_timestamp_column' is being deprecated. Please use 'timestamp_field' instead. "
+                    "instead. Feast 0.23 and onwards will not support the argument 'event_timestamp_column' for datasources."
+                ),
+                DeprecationWarning,
+            )
+        self.timestamp_field = timestamp_field or event_timestamp_column
+
+        if not self.timestamp_field:
             raise ValueError(
-                f"event_timestamp_column is needed for push source {self.name}"
+                f"timestamp field is needed for push source {self.name}"
             )
 
     def validate(self, config: RepoConfig):
@@ -679,7 +693,7 @@ class PushSource(DataSource):
             name=data_source.name,
             schema=schema,
             batch_source=batch_source,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -700,7 +714,7 @@ class PushSource(DataSource):
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
             push_options=options,
-            event_timestamp_column=self.event_timestamp_column,
+            timestamp_field=self.timestamp_field,
             description=self.description,
             tags=self.tags,
             owner=self.owner,

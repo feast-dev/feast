@@ -27,13 +27,14 @@ class BigQuerySource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
         Args:
             table (optional): The BigQuery table where features can be found.
             table_ref (optional): (Deprecated) The BigQuery table where features can be found.
-            event_timestamp_column: Event timestamp column used for point in time joins of feature values.
+            event_timestamp_column: (Deprecated) Event timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
@@ -44,6 +45,8 @@ class BigQuerySource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the bigquery source, typically the email of the primary
                 maintainer.
+            timestamp_field (optional): Event timestamp field used for point in time
+                joins of feature values.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -93,6 +96,7 @@ class BigQuerySource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            timestamp_field=timestamp_field
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -109,7 +113,7 @@ class BigQuerySource(DataSource):
             self.name == other.name
             and self.bigquery_options.table_ref == other.bigquery_options.table_ref
             and self.bigquery_options.query == other.bigquery_options.query
-            and self.event_timestamp_column == other.event_timestamp_column
+            and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
             and self.description == other.description
@@ -134,7 +138,7 @@ class BigQuerySource(DataSource):
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table_ref=data_source.bigquery_options.table_ref,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             query=data_source.bigquery_options.query,
             description=data_source.description,
@@ -153,7 +157,7 @@ class BigQuerySource(DataSource):
             owner=self.owner,
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto
