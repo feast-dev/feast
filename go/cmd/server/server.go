@@ -33,7 +33,6 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 // Results contains values including the value of the feature, the event timestamp, and feature status in a columnar format.
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
-	log.Println("Swag money 123")
 	if featuresOrService.FeatureService != nil {
 		log.Println("INDSFS")
 

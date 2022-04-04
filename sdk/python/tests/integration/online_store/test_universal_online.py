@@ -703,7 +703,8 @@ def test_online_retrieval_with_go_server(
     fs = go_environment.feature_store
     entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
-
+    print("ASdfasdf")
+    print(feature_views.location)
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
         features=[
@@ -1054,12 +1055,14 @@ def assert_feature_service_entity_mapping_correctness(
     destinations_df,
 ):
     if full_feature_names:
+        print("asdfasdf")
         feature_service_online_features_dict = get_online_features_dict(
             environment=environment,
             features=feature_service,
             entity_rows=entity_rows,
             full_feature_names=full_feature_names,
         )
+        print(feature_service_online_features_dict)
         feature_service_keys = feature_service_online_features_dict.keys()
 
         expected_features = [
@@ -1085,6 +1088,8 @@ def assert_feature_service_entity_mapping_correctness(
                     feature_service_online_features_dict[feature_name][i]
                     == df_features[feature_name]
                 )
+
+        assert(False)
     else:
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
         with pytest.raises(FeatureNameCollisionError):
@@ -1094,4 +1099,3 @@ def assert_feature_service_entity_mapping_correctness(
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,
             )
-        assert(False)

@@ -3,6 +3,8 @@ package embedded
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/cdata"
@@ -14,7 +16,6 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"log"
 )
 
 type OnlineFeatureService struct {
@@ -141,7 +142,6 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if featureServiceName != "" {
 		featureService, err = s.fs.GetFeatureService(featureServiceName)
 	}
-
 	resp, err := s.fs.GetOnlineFeatures(
 		context.Background(),
 		featureRefs,

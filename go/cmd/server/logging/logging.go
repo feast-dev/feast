@@ -6,10 +6,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/apache/arrow/go/arrow"
 	"github.com/apache/arrow/go/arrow/array"
+	"github.com/apache/arrow/go/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	gotypes "github.com/feast-dev/feast/go/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -118,29 +121,72 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	return nil
 }
 
-func (s *LoggingService) getLogInArrowTable(memoryBuffer *MemoryBuffer) (*array.Table, error) {
-	// input memoryBuffer -> featureColumns
-	// map[string]*type.Value
+func (s *LoggingService) getLogInArrowTable() (*array.Table, error) {
+	// Memory Buffer is a
+	if s.memoryBuffer.featureService == nil {
+		return nil, errors.New("no Feature Service in logging service instantiated")
+	}
+	_, requestedFeatureViews, _, _, err :=
+		s.fs.GetFeatureViewsToUseByService(s.memoryBuffer.featureService, false)
+	if err != nil {
+		return nil, err
+	}
+	entityNameToJoinKeyMap, expectedJoinKeysSet, err := s.fs.GetEntityMaps(requestedFeatureViews)
 
-	// fields := make([]*arrow.Field, 0)
-	// columns := make([]array.Interface, 0)
-	// for idx, feature := range featureService.features {
-	// 	feature.Name
+	columnNameToProtoValueArray := make(map[string][]*types.Value)
+	columnNameToStatus := make(map[string][]bool)
+	columnNameToTimestamp := make(map[string][]int64)
+	entityNameToEntityValues := make(map[string]*types.Value)
+	for _, fv := range requestedFeatureViews {
+		// for each feature view we have the features and the entities
+		// Get the entities from the feature view
+		// Grab the corresponding join keys and then process using joinkey map to get the entity key related to the features
+		// For each entity key create a new column
+		//  populate entitynametoentityvalues map
 
-	// 	[]*proto.Value = columnNameToProtoValue[feature.Name]
-	// 	arrowArray := types.ProtoValuesToArrowArray(protoValues)
+		for idx, featureRef := range fv.FeatureRefs() {
 
-	// 	fields = append(fields, &arrow.Field{
-	// 		Name: feature.Name,
-	// 		Type: arrowArray.DataType(),
-	// 	})
-	// 	columns = append(columns, arrowArray)
-	// }
+			featureName := featureRef
 
-	// table := array.NewTable(
-	// 	arrow.NewSchema(fields, nil),
-	// 	columns
-	// 	)
+			// populate the proto value arrays with values from memory buffer in separate columns one for each feature name
+			if _, ok := columnNameToProtoValueArray[featureName]; !ok {
+				columnNameToProtoValueArray[featureName] = make([]*types.Value, 0)
+				columnNameToStatus[featureName] = make([]bool, 0)
+				columnNameToTimestamp[featureName] = make([]int64, 0)
+			}
+			for _, log := range s.memoryBuffer.logs {
+				columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], log.FeatureValues[idx])
+				if log.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
 
-	// pqarrow.WriteTable(table)
+					columnNameToStatus[featureName] = append(columnNameToStatus[featureName], true)
+				} else {
+					columnNameToStatus[featureName] = append(columnNameToStatus[featureName], false)
+				}
+				columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], log.EventTimestamps[idx].AsTime().UnixNano()/int64(time.Millisecond))
+
+			}
+		}
+	}
+	arrowMemory := memory.NewGoAllocator()
+
+	fields := make([]*arrow.Field, 0)
+	columns := make([]array.Interface, 0)
+	for _, featureView := range s.memoryBuffer.featureService.Projections {
+		for _, feature := range featureView.Features {
+
+			arr := columnNameToProtoValueArray[feature.Name]
+
+			arrowArray, err := gotypes.ProtoValuesToArrowArray(arr, arrowMemory, len(columnNameToProtoValueArray))
+			if err != nil {
+				return nil, err
+			}
+
+			fields = append(fields, &arrow.Field{
+				Name: feature.Name,
+				Type: arrowArray.DataType(),
+			})
+			columns = append(columns, arrowArray)
+		}
+	}
+	return nil, nil
 }
