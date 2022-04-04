@@ -214,7 +214,7 @@ class DataSource(ABC):
             warnings.warn(
                 (
                     "Names for data sources need to be supplied. "
-                    "Data sources without names will no tbe supported after Feast 0.23."
+                    "Data sources without names will not be supported after Feast 0.23."
                 ),
                 UserWarning,
             )
