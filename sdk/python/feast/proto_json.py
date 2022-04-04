@@ -142,10 +142,8 @@ def _patch_feast_repeated_value_json_encoding():
     def from_json_object(
         parser: _Parser, value: JsonObject, message: ProtoMessage,
     ) -> None:
-        print("going to convert message")
         array = value if isinstance(value, list) else value["val"]
         for item in array:
-            print(f"item: {item}")
             parser.ConvertMessage(item, message.val.add())
 
     _patch_proto_json_encoding(RepeatedValue, to_json_object, from_json_object)
