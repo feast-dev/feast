@@ -362,7 +362,7 @@ mypy==0.931
     # via feast (setup.py)
 mypy-extensions==0.4.3
     # via mypy
-mypy-protobuf==3.2.0
+mypy-protobuf==3.1
     # via feast (setup.py)
 nbformat==5.3.0
     # via great-expectations
