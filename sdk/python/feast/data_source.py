@@ -194,7 +194,7 @@ class DataSource(ABC):
         Creates a DataSource object.
         Args:
             name: Name of data source, which should be unique within a project
-                event_timestamp_column (optional): Event timestamp column used for point in time
+            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
                 joins of feature values.
             timestamp_field (optional): Event timestamp column used for point
                 in time joins of feature values.
@@ -354,7 +354,6 @@ class KafkaSource(DataSource):
         self,
         name: str,
         event_timestamp_column: str,
-        timestamp_field: str,
         bootstrap_servers: str,
         message_format: StreamFormat,
         topic: str,
@@ -364,6 +363,7 @@ class KafkaSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
     ):
         super().__init__(
             event_timestamp_column=event_timestamp_column,
