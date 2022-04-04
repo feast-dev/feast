@@ -53,7 +53,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     batch_size: int = 40
     """Number of items to retrieve in a DynamoDB BatchGetItem call."""
 
-    endpoint_url: str
+    endpoint_url: str = None
     """DynamoDB local development endpoint Url, i.e. http://localhost:8000"""
 
     region: StrictStr
