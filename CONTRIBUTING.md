@@ -154,7 +154,8 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 
 **AWS**
 1. TODO(adchia): flesh out setting up AWS login (or create helper script)
-2. Modify `RedshiftDataSourceCreator` to use your credentials
+2. To avoid AWS fees `DynamoDBOnlineStore` can be tested locally if you deploy DynamoDB Locally on your Computer, for this setup a [Local DynamoDB on your Computer](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html)
+3. Modify `RedshiftDataSourceCreator` to use your credentials
 
 **Snowflake**
 - See https://signup.snowflake.com/

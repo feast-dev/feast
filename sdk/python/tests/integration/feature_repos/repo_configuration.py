@@ -5,6 +5,7 @@ import os
 import re
 import tempfile
 import uuid
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -69,9 +70,13 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     IntegrationTestRepoConfig(python_feature_server=True),
 ]
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    # Local integration tests use local Dynamodb
+    LOCAL_DYNAMO_CONFIG = deepcopy(DYNAMO_CONFIG)
+    LOCAL_DYNAMO_CONFIG["endpoint_url"] = "http://localhost:8000"
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(online_store=LOCAL_DYNAMO_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
@@ -87,7 +92,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
-                online_store=DYNAMO_CONFIG,
+                online_store=LOCAL_DYNAMO_CONFIG,
                 python_feature_server=True,
             ),
             IntegrationTestRepoConfig(
