@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from pydantic import StrictStr
-from pydantic.typing import Literal
+from pydantic.typing import Literal, Optional
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
@@ -53,7 +53,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     batch_size: int = 40
     """Number of items to retrieve in a DynamoDB BatchGetItem call."""
 
-    endpoint_url: str = None
+    endpoint_url: Optional[str] = None
     """DynamoDB local development endpoint Url, i.e. http://localhost:8000"""
 
     region: StrictStr
