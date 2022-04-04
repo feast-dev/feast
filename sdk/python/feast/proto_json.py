@@ -15,6 +15,8 @@ ProtoMessage = Any
 JsonObject = Any
 
 
+# TODO: These methods need to be updated when bumping the version of protobuf.
+# https://github.com/feast-dev/feast/issues/2484
 def _patch_proto_json_encoding(
     proto_type: Type[ProtoMessage],
     to_json_object: Callable[[_Printer, ProtoMessage], JsonObject],
