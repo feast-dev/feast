@@ -81,8 +81,6 @@ def bootstrap():
     replace_str_in_file(driver_file, "SNOWFLAKE_WAREHOUSE", snowflake_warehouse)
 
 
-
-
 def replace_str_in_file(file_path, match_str, sub_str):
     with open(file_path, "r") as f:
         contents = f.read()

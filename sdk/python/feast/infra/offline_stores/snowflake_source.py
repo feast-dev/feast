@@ -57,7 +57,11 @@ class SnowflakeSource(DataSource):
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
         self.snowflake_options = SnowflakeOptions(
-            database=database, schema=_schema, table=table, query=query, warehouse=warehouse
+            database=database,
+            schema=_schema,
+            table=table,
+            query=query,
+            warehouse=warehouse,
         )
 
         # If no name, use the table as the default name
@@ -301,7 +305,7 @@ class SnowflakeOptions:
         """Returns the warehouse name of this snowflake table."""
         return self._warehouse
 
-    @table.setter
+    @warehouse.setter
     def warehouse(self, warehouse):
         """Sets the warehouse name of this snowflake table."""
         self._warehouse = warehouse
