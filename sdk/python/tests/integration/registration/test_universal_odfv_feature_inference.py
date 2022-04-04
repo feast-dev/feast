@@ -55,7 +55,7 @@ def test_infer_odfv_list_features(environment, infer_features, tmp_path):
     items_df.to_parquet(output_path)
     fake_items_src = FileSource(
         path=output_path,
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
     items = create_item_embeddings_feature_view(fake_items_src)

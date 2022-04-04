@@ -23,7 +23,7 @@ zipcode = Entity(
 zipcode_source = FileSource(
     name="zipcode",
     path="data/zipcode_table.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
@@ -96,7 +96,7 @@ dob_ssn = Entity(
 credit_history_source = FileSource(
     name="credit_history",
     path="data/credit_history.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
