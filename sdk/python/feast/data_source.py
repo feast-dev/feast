@@ -16,7 +16,7 @@
 import enum
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from google.protobuf.json_format import MessageToJson
 
