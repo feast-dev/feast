@@ -403,7 +403,7 @@ class KafkaSource(DataSource):
                 data_source.kafka_options.message_format
             ),
             topic=data_source.kafka_options.topic,
-            created_timestamp_column=data_source.timestamp_field,
+            created_timestamp_column=data_source.created_timestamp_column,
             timestamp_field=data_source.timestamp_field,
             date_partition_column=data_source.date_partition_column,
             description=data_source.description,
