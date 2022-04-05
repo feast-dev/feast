@@ -501,7 +501,7 @@ class RequestDataSource(RequestSource):
             "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead. This class name will be removed in Feast 0.23.",
             DeprecationWarning,
         )
-        RequestSource.__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class KinesisSource(DataSource):

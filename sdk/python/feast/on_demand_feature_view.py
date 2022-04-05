@@ -149,8 +149,7 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=self.features,
             sources=dict(
-                **self.source_feature_view_projections,
-                **self.source_request_sources,
+                **self.source_feature_view_projections, **self.source_request_sources,
             ),
             udf=self.udf,
             description=self.description,

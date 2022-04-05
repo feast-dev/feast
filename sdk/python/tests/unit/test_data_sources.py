@@ -1,7 +1,10 @@
+from aiohttp import request
 from feast import ValueType
 from feast.data_source import PushSource
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
+import pytest
 
+from feast.data_source import RequestDataSource
 
 def test_push_with_batch():
     push_source = PushSource(
@@ -18,3 +21,10 @@ def test_push_with_batch():
     assert push_source.name == push_source_unproto.name
     assert push_source.schema == push_source_unproto.schema
     assert push_source.batch_source.name == push_source_unproto.batch_source.name
+
+def test_request_data_source_deprecation():
+    with pytest.warns(DeprecationWarning):
+        request_data_source = RequestDataSource(
+            name="vals_to_add",
+            schema={"val_to_add": ValueType.INT64, "val_to_add_2": ValueType.INT64},
+        )
