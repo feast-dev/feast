@@ -25,3 +25,11 @@ def test_array_feast_type():
 
     with pytest.raises(ValueError):
         _ = Array(Array(String))
+
+
+def test_all_value_types():
+    values = ValueTypeProto.Enum.values()
+    for value in values:
+        # We do not support the NULL type.
+        if value != ValueTypeProto.Enum.Value("NULL"):
+            assert from_value_type(value).to_value_type() == value
