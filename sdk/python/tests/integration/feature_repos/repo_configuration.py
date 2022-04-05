@@ -35,7 +35,7 @@ from tests.integration.feature_repos.universal.data_sources.snowflake import (
 )
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
-    create_conv_rate_request_data_source,
+    create_conv_rate_request_source,
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
     create_field_mapping_feature_view,
@@ -279,7 +279,7 @@ def construct_universal_feature_views(
         driver_odfv=conv_rate_plus_100_feature_view(
             {
                 "driver": driver_hourly_stats,
-                "input_request": create_conv_rate_request_data_source(),
+                "input_request": create_conv_rate_request_source(),
             }
         )
         if with_odfv

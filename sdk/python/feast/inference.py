@@ -9,7 +9,7 @@ from feast import (
     RedshiftSource,
     SnowflakeSource,
 )
-from feast.data_source import DataSource, RequestDataSource
+from feast.data_source import DataSource, RequestSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig
@@ -78,7 +78,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
     ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
 
     for data_source in data_sources:
-        if isinstance(data_source, RequestDataSource):
+        if isinstance(data_source, RequestSource):
             continue
         if (
             data_source.event_timestamp_column is None

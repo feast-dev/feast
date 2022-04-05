@@ -8,7 +8,7 @@ from feast import (
     FileSource,
     ValueType,
 )
-from feast.data_source import RequestDataSource
+from feast.data_source import RequestSource
 from feast.request_feature_view import RequestFeatureView
 from feast.on_demand_feature_view import on_demand_feature_view
 import pandas as pd
@@ -126,12 +126,12 @@ credit_history = FeatureView(
 
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
-input_request = RequestDataSource(
+input_request = RequestSource(
     name="transaction", schema={"transaction_amt": ValueType.INT64},
 )
 
 # Define an on demand feature view which can generate new features based on
-# existing feature views and RequestDataSource features
+# existing feature views and RequestSource features
 @on_demand_feature_view(
     inputs={"credit_history": credit_history, "transaction": input_request,},
     features=[

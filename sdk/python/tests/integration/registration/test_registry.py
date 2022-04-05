@@ -24,7 +24,7 @@ from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import RequestDataSource, on_demand_feature_view
+from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
@@ -244,7 +244,7 @@ def test_modify_feature_views_success(test_registry):
         created_timestamp_column="timestamp",
     )
 
-    request_source = RequestDataSource(
+    request_source = RequestSource(
         name="request_source", schema={"my_input_1": ValueType.INT32}
     )
 
