@@ -227,7 +227,6 @@ class DataSource(ABC):
                 ),
                 DeprecationWarning,
             )
-        self.name = name
         self.timestamp_field = timestamp_field or event_timestamp_column or ""
         self.created_timestamp_column = (
             created_timestamp_column if created_timestamp_column else ""
