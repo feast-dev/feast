@@ -26,20 +26,21 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
-// Next available id: 26
+// Next available id: 27
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 10
+  // Next available id: 11
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
     BATCH_SNOWFLAKE = 8;
     BATCH_BIGQUERY = 2;
     BATCH_REDSHIFT = 5;
+    BATCH_SPARK = 10;
     STREAM_KAFKA = 3;
     STREAM_KINESIS = 4;
     CUSTOM_SOURCE = 6;
@@ -169,6 +170,21 @@ message DataSource {
     string warehouse = 5;
   }
 
+  // Defines options for DataSource that sources features from a Snowflake Query
+  message SparkOptions {
+    // Table name
+    string table = 1;
+
+    // Spark SQl query that returns the table, this is an alternative to `table`
+    string query = 2;
+
+    // Path from which spark can read the table, this is an alternative to `table`
+    string path = 3;
+
+    // Format of files at `path` (e.g. parquet, avro, etc)
+    string file_format = 4;
+  }
+
   // Defines configuration for custom third-party data sources.
   message CustomSourceOptions {
     // Serialized configuration information for the data source. The implementer of the custom data source is
@@ -204,5 +220,6 @@ message DataSource {
     CustomSourceOptions custom_options = 16;
     SnowflakeOptions snowflake_options = 19;
     PushOptions push_options = 22;
+    SparkOptions spark_options = 26;
   }
 }
