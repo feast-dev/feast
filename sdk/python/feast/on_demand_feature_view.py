@@ -195,10 +195,10 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         for (
             source_name,
-            source_request_sources,
+            request_sources,
         ) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
-                source_request_sources=source_request_sources.to_proto()
+                request_data_source=request_sources.to_proto()
             )
 
         spec = OnDemandFeatureViewSpec(

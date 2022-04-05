@@ -88,7 +88,7 @@ class RequestFeatureView(BaseFeatureView):
         """
         spec = RequestFeatureViewSpec(
             name=self.name,
-            request_source=self.request_source.to_proto(),
+            request_data_source=self.request_source.to_proto(),
             description=self.description,
             tags=self.tags,
             owner=self.owner,
