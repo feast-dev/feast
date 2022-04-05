@@ -16,6 +16,7 @@ class SnowflakeSource(DataSource):
     def __init__(
         self,
         database: Optional[str] = None,
+        warehouse: Optional[str] = None,
         schema: Optional[str] = None,
         table: Optional[str] = None,
         query: Optional[str] = None,
@@ -33,6 +34,7 @@ class SnowflakeSource(DataSource):
 
         Args:
             database (optional): Snowflake database where the features are stored.
+            warehouse (optional): Snowflake warehouse where the database is stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
             event_timestamp_column (optional): Event timestamp column used for point in
@@ -55,7 +57,11 @@ class SnowflakeSource(DataSource):
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
         self.snowflake_options = SnowflakeOptions(
-            database=database, schema=_schema, table=table, query=query
+            database=database,
+            schema=_schema,
+            table=table,
+            query=query,
+            warehouse=warehouse,
         )
 
         # If no name, use the table as the default name
@@ -107,6 +113,7 @@ class SnowflakeSource(DataSource):
             database=data_source.snowflake_options.database,
             schema=data_source.snowflake_options.schema,
             table=data_source.snowflake_options.table,
+            warehouse=data_source.snowflake_options.warehouse,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             query=data_source.snowflake_options.query,
@@ -131,6 +138,7 @@ class SnowflakeSource(DataSource):
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query
+            and self.snowflake_options.warehouse == other.snowflake_options.warehouse
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -158,6 +166,11 @@ class SnowflakeSource(DataSource):
     def query(self):
         """Returns the snowflake options of this snowflake source."""
         return self.snowflake_options.query
+
+    @property
+    def warehouse(self):
+        """Returns the warehouse of this snowflake source."""
+        return self.snowflake_options.warehouse
 
     def to_proto(self) -> DataSourceProto:
         """
@@ -245,11 +258,13 @@ class SnowflakeOptions:
         schema: Optional[str],
         table: Optional[str],
         query: Optional[str],
+        warehouse: Optional[str],
     ):
         self._database = database
         self._schema = schema
         self._table = table
         self._query = query
+        self._warehouse = warehouse
 
     @property
     def query(self):
@@ -291,6 +306,16 @@ class SnowflakeOptions:
         """Sets the table ref of this snowflake table."""
         self._table = table
 
+    @property
+    def warehouse(self):
+        """Returns the warehouse name of this snowflake table."""
+        return self._warehouse
+
+    @warehouse.setter
+    def warehouse(self, warehouse):
+        """Sets the warehouse name of this snowflake table."""
+        self._warehouse = warehouse
+
     @classmethod
     def from_proto(cls, snowflake_options_proto: DataSourceProto.SnowflakeOptions):
         """
@@ -307,6 +332,7 @@ class SnowflakeOptions:
             schema=snowflake_options_proto.schema,
             table=snowflake_options_proto.table,
             query=snowflake_options_proto.query,
+            warehouse=snowflake_options_proto.warehouse,
         )
 
         return snowflake_options
@@ -323,6 +349,7 @@ class SnowflakeOptions:
             schema=self.schema,
             table=self.table,
             query=self.query,
+            warehouse=self.warehouse,
         )
 
         return snowflake_options_proto
@@ -335,7 +362,7 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     def __init__(self, table_ref: str):
         self.snowflake_options = SnowflakeOptions(
-            database=None, schema=None, table=table_ref, query=None
+            database=None, schema=None, table=table_ref, query=None, warehouse=None
         )
 
     @staticmethod

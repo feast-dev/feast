@@ -56,6 +56,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
+            warehouse=self.offline_store_config.warehouse,
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetSnowflakeStorage:
