@@ -2,7 +2,7 @@ import pytest
 from aiohttp import request
 
 from feast import ValueType
-from feast.data_source import PushSource, RequestDataSource
+from feast.data_source import PushSource, RequestDataSource, RequestSource
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 
 
@@ -29,3 +29,7 @@ def test_request_data_source_deprecation():
             name="vals_to_add",
             schema={"val_to_add": ValueType.INT64, "val_to_add_2": ValueType.INT64},
         )
+        request_data_source_proto = request_data_source.to_proto()
+        returned_request_source = RequestSource.from_proto(request_data_source_proto)
+        assert returned_request_source.name == request_data_source.name
+        assert returned_request_source.schema == request_data_source.schema
