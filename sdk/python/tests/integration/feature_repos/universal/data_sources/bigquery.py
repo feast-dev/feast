@@ -18,8 +18,8 @@ class BigQueryDataSourceCreator(DataSourceCreator):
     dataset: Optional[Dataset] = None
 
     def __init__(self, project_name: str):
+        super().__init__(project_name)
         self.client = bigquery.Client()
-        self.project_name = project_name
         self.gcp_project = self.client.project
         self.dataset_id = f"{self.gcp_project}.{project_name}"
 

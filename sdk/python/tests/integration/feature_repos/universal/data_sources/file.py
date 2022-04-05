@@ -22,7 +22,7 @@ class FileDataSourceCreator(DataSourceCreator):
     files: List[Any]
 
     def __init__(self, project_name: str):
-        self.project_name = project_name
+        super().__init__(project_name)
         self.files = []
 
     def create_data_source(

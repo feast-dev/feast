@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Type, Union
+from typing import Callable, Dict, Type, Union
 
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -16,7 +16,7 @@ class IntegrationTestRepoConfig:
     """
 
     provider: str = "local"
-    online_store: Union[str, Dict] = "sqlite"
+    online_store: Union[str, Dict, Callable] = "sqlite"
 
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
 
@@ -28,10 +28,13 @@ class IntegrationTestRepoConfig:
     def __repr__(self) -> str:
         if isinstance(self.online_store, str):
             online_store_type = self.online_store
-        elif self.online_store["type"] == "redis":
-            online_store_type = self.online_store.get("redis_type", "redis")
+        elif isinstance(self.online_store, dict):
+            if self.online_store["type"] == "redis":
+                online_store_type = self.online_store.get("redis_type", "redis")
+            else:
+                online_store_type = self.online_store["type"]
         else:
-            online_store_type = self.online_store["type"]
+            online_store_type = self.online_store.__name__
 
         return ":".join(
             [

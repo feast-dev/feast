@@ -20,8 +20,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
     tables: List[str] = []
 
     def __init__(self, project_name: str):
-        super().__init__()
-        self.project_name = project_name
+        super().__init__(project_name)
         self.offline_store_config = SnowflakeOfflineStoreConfig(
             type="snowflake.offline",
             account=os.environ["SNOWFLAKE_CI_DEPLOYMENT"],

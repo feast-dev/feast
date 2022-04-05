@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import pandas as pd
 import yaml
@@ -44,11 +44,16 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
+from tests.integration.feature_repos.universal.online_store.redis import (
+    RedisOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store_creator import (
+    OnlineStoreCreator,
+)
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 # Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes
 # 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
-REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
@@ -65,13 +70,13 @@ REDIS_CLUSTER_CONFIG = {
 # module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(python_feature_server=True),
+    # IntegrationTestRepoConfig(),
+    # IntegrationTestRepoConfig(python_feature_server=True),
 ]
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
-            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+            IntegrationTestRepoConfig(online_store=RedisOnlineStoreCreator),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
@@ -81,7 +86,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,
-                online_store=REDIS_CONFIG,
+                online_store=RedisOnlineStoreCreator,
             ),
             # AWS configurations
             IntegrationTestRepoConfig(
@@ -93,13 +98,13 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
-                online_store=REDIS_CONFIG,
+                online_store=RedisOnlineStoreCreator,
             ),
             # Snowflake configurations
             IntegrationTestRepoConfig(
                 provider="aws",  # no list features, no feature server
                 offline_store_creator=SnowflakeDataSourceCreator,
-                online_store=REDIS_CONFIG,
+                online_store=RedisOnlineStoreCreator,
             ),
         ]
     )
@@ -116,7 +121,9 @@ else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
 GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
+    IntegrationTestRepoConfig(
+        online_store=RedisOnlineStoreCreator, go_feature_server=True,
+    ),
 ]
 
 
@@ -299,6 +306,7 @@ class Environment:
     data_source_creator: DataSourceCreator
     python_feature_server: bool
     worker_id: str
+    online_store_creator: Optional[OnlineStoreCreator] = None
 
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
@@ -341,9 +349,16 @@ def construct_test_environment(
     project = f"{test_suite_name}_{run_id}_{run_num}"
 
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
-
     offline_store_config = offline_creator.create_offline_store_config()
-    online_store = test_repo_config.online_store
+
+    if isinstance(test_repo_config.online_store, Callable):  # type: ignore
+        online_creator = test_repo_config.online_store(project)
+        online_store = online_creator.create_online_store()
+    else:
+        online_creator = None
+        online_store = test_repo_config.online_store
+
+    print(f"Online Store creator: {online_creator}, online store: {online_store}")
 
     repo_dir_name = tempfile.mkdtemp()
 
@@ -392,6 +407,7 @@ def construct_test_environment(
         data_source_creator=offline_creator,
         python_feature_server=test_repo_config.python_feature_server,
         worker_id=worker_id,
+        online_store_creator=online_creator,
     )
 
     return environment

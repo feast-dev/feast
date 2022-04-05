@@ -24,6 +24,7 @@ class SparkDataSourceCreator(DataSourceCreator):
     spark_session = None
 
     def __init__(self, project_name: str):
+        super().__init__(project_name)
         self.spark_conf = {
             "master": "local[*]",
             "spark.ui.enabled": "false",
@@ -31,7 +32,6 @@ class SparkDataSourceCreator(DataSourceCreator):
             "spark.sql.parser.quotedRegexColumnNames": "true",
             "spark.sql.session.timeZone": "UTC",
         }
-        self.project_name = project_name
         if not self.spark_offline_store_config:
             self.create_offline_store_config()
         if not self.spark_session:
