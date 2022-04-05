@@ -20,7 +20,7 @@ class RequestFeatureView(BaseFeatureView):
 
     Attributes:
         name: The unique name of the request feature view.
-        request_data_source: The request data source that specifies the schema and
+        request_source: The request source that specifies the schema and
             features of the request feature view.
         features: The list of features defined as part of this request feature view.
         description: A human-readable description.
@@ -30,7 +30,7 @@ class RequestFeatureView(BaseFeatureView):
     """
 
     name: str
-    request_data_source: RequestSource
+    request_source: RequestSource
     features: List[Feature]
     description: str
     tags: Dict[str, str]
@@ -73,7 +73,7 @@ class RequestFeatureView(BaseFeatureView):
             tags=tags,
             owner=owner,
         )
-        self.request_data_source = request_data_source
+        self.request_source = request_data_source
 
     @property
     def proto_class(self) -> Type[RequestFeatureViewProto]:
@@ -88,7 +88,7 @@ class RequestFeatureView(BaseFeatureView):
         """
         spec = RequestFeatureViewSpec(
             name=self.name,
-            request_data_source=self.request_data_source.to_proto(),
+            request_source=self.request_source.to_proto(),
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -128,7 +128,7 @@ class RequestFeatureView(BaseFeatureView):
 
     def __copy__(self):
         fv = RequestFeatureView(
-            name=self.name, request_data_source=self.request_data_source
+            name=self.name, request_data_source=self.request_source
         )
         fv.projection = copy.copy(self.projection)
         return fv

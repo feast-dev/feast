@@ -102,11 +102,11 @@ def similarity_feature_view(
     )
 
 
-def create_conv_rate_request_data_source():
+def create_conv_rate_request_source():
     return RequestSource(name="conv_rate_input", schema={"val_to_add": ValueType.INT32})
 
 
-def create_similarity_request_data_source():
+def create_similarity_request_source():
     return RequestSource(
         name="similarity_input",
         schema={

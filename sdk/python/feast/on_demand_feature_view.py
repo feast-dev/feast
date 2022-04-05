@@ -45,7 +45,7 @@ class OnDemandFeatureView(BaseFeatureView):
         features: The list of features in the output of the on demand feature view.
         source_feature_view_projections: A map from input source names to actual input
             sources with type FeatureViewProjection.
-        source_request_data_sources: A map from input source names to the actual input
+        source_request_sources: A map from input source names to the actual input
             sources with type RequestSource.
         udf: The user defined transformation function, which must take pandas dataframes
             as inputs.
@@ -59,7 +59,7 @@ class OnDemandFeatureView(BaseFeatureView):
     name: str
     features: List[Feature]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
-    source_request_data_sources: Dict[str, RequestSource]
+    source_request_sources: Dict[str, RequestSource]
     udf: MethodType
     description: str
     tags: Dict[str, str]
@@ -124,10 +124,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
         assert sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
-        self.source_request_data_sources: Dict[str, RequestSource] = {}
+        self.source_request_sources: Dict[str, RequestSource] = {}
         for source_name, odfv_source in sources.items():
             if isinstance(odfv_source, RequestSource):
-                self.source_request_data_sources[source_name] = odfv_source
+                self.source_request_sources[source_name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[source_name] = odfv_source
             else:
@@ -150,7 +150,7 @@ class OnDemandFeatureView(BaseFeatureView):
             features=self.features,
             sources=dict(
                 **self.source_feature_view_projections,
-                **self.source_request_data_sources,
+                **self.source_request_sources,
             ),
             udf=self.udf,
             description=self.description,
@@ -167,7 +167,7 @@ class OnDemandFeatureView(BaseFeatureView):
         if (
             not self.source_feature_view_projections
             == other.source_feature_view_projections
-            or not self.source_request_data_sources == other.source_request_data_sources
+            or not self.source_request_sources == other.source_request_sources
             or not self.udf.__code__.co_code == other.udf.__code__.co_code
         ):
             return False
@@ -196,10 +196,10 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         for (
             source_name,
-            request_data_source,
-        ) in self.source_request_data_sources.items():
+            source_request_sources,
+        ) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
-                request_data_source=request_data_source.to_proto()
+                source_request_sources=source_request_sources.to_proto()
             )
 
         spec = OnDemandFeatureViewSpec(
@@ -282,8 +282,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def get_request_data_schema(self) -> Dict[str, ValueType]:
         schema: Dict[str, ValueType] = {}
-        for request_data_source in self.source_request_data_sources.values():
-            schema.update(request_data_source.schema)
+        for request_source in self.source_request_sources.values():
+            schema.update(request_source.schema)
         return schema
 
     def get_transformed_features_df(
@@ -339,7 +339,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     dtype=dtype
                 )
                 df[f"{feature.name}"] = pd.Series(dtype=dtype)
-        for request_data in self.source_request_data_sources.values():
+        for request_data in self.source_request_sources.values():
             for feature_name, feature_type in request_data.schema.items():
                 dtype = feast_value_type_to_pandas_type(feature_type)
                 df[f"{feature_name}"] = pd.Series(dtype=dtype)
