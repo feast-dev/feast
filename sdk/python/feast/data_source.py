@@ -180,7 +180,6 @@ class DataSource(ABC):
 
     def __init__(
         self,
-        *,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
