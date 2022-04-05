@@ -74,7 +74,7 @@ class FeatureView(BaseFeatureView):
 
     name: str
     entities: List[str]
-    ttl: timedelta
+    ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
     features: List[Feature]
@@ -87,9 +87,10 @@ class FeatureView(BaseFeatureView):
     @log_exceptions
     def __init__(
         self,
-        name: str,
-        entities: List[str],
-        ttl: Union[Duration, timedelta],
+        *args,
+        name: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        ttl: Optional[Union[Duration, timedelta]] = None,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         features: Optional[List[Feature]] = None,
@@ -121,6 +122,54 @@ class FeatureView(BaseFeatureView):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
+
+        positional_attributes = ["name, entities, ttl"]
+
+        _name = name
+        _entities = entities
+        _ttl = ttl
+
+        if args:
+            warnings.warn(
+                (
+                    "feature view parameters should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct feature views"
+                ),
+                DeprecationWarning,
+            )
+            if len(args) > len(positional_attributes):
+                raise ValueError(
+                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
+                    f"feature views, for backwards compatibility."
+                )
+            if len(args) >= 1:
+                _name = args[0]
+            if len(args) >= 2:
+                _entities = args[1]
+            if len(args) >= 3:
+                _ttl = args[2]
+
+        if not _name:
+            raise ValueError("feature view name needs to be specified")
+
+        self.name = _name
+        self.entities = _entities if _entities else [DUMMY_ENTITY_NAME]
+
+        if isinstance(_ttl, Duration):
+            self.ttl = timedelta(seconds=int(_ttl.seconds))
+            warnings.warn(
+                (
+                    "The option to pass a Duration object to the ttl parameter is being deprecated. "
+                    "Please pass a timedelta object instead. Feast 0.21 and onwards will not support "
+                    "Duration objects."
+                ),
+                DeprecationWarning,
+            )
+        elif isinstance(_ttl, timedelta) or _ttl is None:
+            self.ttl = _ttl
+        else:
+            raise ValueError(f"unknown value type specified for ttl {type(_ttl)}")
+
         _features = features or []
 
         if stream_source is not None and isinstance(stream_source, PushSource):
@@ -138,7 +187,7 @@ class FeatureView(BaseFeatureView):
                 )
             self.batch_source = batch_source
 
-        cols = [entity for entity in entities] + [feat.name for feat in _features]
+        cols = [entity for entity in self.entities] + [feat.name for feat in _features]
         for col in cols:
             if (
                 self.batch_source.field_mapping is not None
@@ -150,22 +199,13 @@ class FeatureView(BaseFeatureView):
                     f"Entity or Feature name."
                 )
 
-        super().__init__(name, _features, description, tags, owner)
-        self.entities = entities if entities else [DUMMY_ENTITY_NAME]
-
-        if isinstance(ttl, Duration):
-            self.ttl = timedelta(seconds=int(ttl.seconds))
-            warnings.warn(
-                (
-                    "The option to pass a Duration object to the ttl parameter is being deprecated. "
-                    "Please pass a timedelta object instead. Feast 0.21 and onwards will not support "
-                    "Duration objects."
-                ),
-                DeprecationWarning,
-            )
-        else:
-            self.ttl = ttl
-
+        super().__init__(
+            name=name,
+            features=_features,
+            description=description,
+            tags=tags,
+            owner=owner,
+        )
         self.online = online
         self.stream_source = stream_source
         self.materialization_intervals = []

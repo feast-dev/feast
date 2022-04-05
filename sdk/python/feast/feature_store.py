@@ -668,6 +668,13 @@ class FeatureStore:
             if fv.stream_source:
                 data_sources_set_to_update.add(fv.stream_source)
 
+        if request_views_to_update:
+            warnings.warn(
+                "Request feature view is deprecated. "
+                "Please use request data source instead",
+                DeprecationWarning,
+            )
+
         for rfv in request_views_to_update:
             data_sources_set_to_update.add(rfv.request_data_source)
 
@@ -841,6 +848,13 @@ class FeatureStore:
             all_request_feature_views,
             all_on_demand_feature_views,
         ) = self._get_feature_views_to_use(features)
+
+        if all_request_feature_views:
+            warnings.warn(
+                "Request feature view is deprecated. "
+                "Please use request data source instead",
+                DeprecationWarning,
+            )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
@@ -1311,6 +1325,13 @@ class FeatureStore:
         ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
+
+        if requested_request_feature_views:
+            warnings.warn(
+                "Request feature view is deprecated. "
+                "Please use request data source instead",
+                DeprecationWarning,
+            )
 
         (
             entity_name_to_join_key_map,

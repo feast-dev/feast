@@ -21,9 +21,12 @@ class BigQuerySource(DataSource):
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
         query: Optional[str] = None,
         name: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """Create a BigQuerySource from an existing table or query.
 
@@ -34,9 +37,13 @@ class BigQuerySource(DataSource):
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
-            date_partition_column (optional): Timestamp column used for partitioning.
+            date_partition_column (deprecated): Timestamp column used for partitioning.
             query (optional): SQL query to execute to generate data for this data source.
             name (optional): Name for the source. Defaults to the table_ref if not specified.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the bigquery source, typically the email of the primary
+                maintainer.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -53,6 +60,15 @@ class BigQuerySource(DataSource):
             )
             table = table_ref
         self.bigquery_options = BigQueryOptions(table_ref=table, query=query)
+
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for BigQuery sources. "
+                    "It will be removed in Feast 0.21+"
+                ),
+                DeprecationWarning,
+            )
 
         # If no name, use the table_ref as the default name
         _name = name
@@ -71,10 +87,12 @@ class BigQuerySource(DataSource):
 
         super().__init__(
             _name if _name else "",
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -94,6 +112,9 @@ class BigQuerySource(DataSource):
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
+            and self.description == other.description
+            and self.tags == other.tags
+            and self.owner == other.owner
         )
 
     @property
@@ -115,8 +136,10 @@ class BigQuerySource(DataSource):
             table_ref=data_source.bigquery_options.table_ref,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -125,11 +148,13 @@ class BigQuerySource(DataSource):
             type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 

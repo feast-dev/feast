@@ -297,11 +297,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
     feature_service = FeatureService(
         name="convrate_plus100",
-        features=[
-            feature_views.driver[["conv_rate"]],
-            feature_views.driver_odfv,
-            feature_views.driver_age_request_fv,
-        ],
+        features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
@@ -368,7 +364,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "order:order_is_success",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
-            "driver_age:driver_age",
             "field_mapping:feature_name",
         ],
         full_feature_names=full_feature_names,
@@ -436,22 +431,6 @@ def test_historical_features_with_missing_request_data(
                 "customer_profile:lifetime_trip_count",
                 "conv_rate_plus_100:conv_rate_plus_100",
                 "conv_rate_plus_100:conv_rate_plus_val_to_add",
-                "global_stats:num_rides",
-                "global_stats:avg_ride_length",
-                "field_mapping:feature_name",
-            ],
-            full_feature_names=full_feature_names,
-        )
-
-    # If request data is missing that's needed for a request feature view, throw an error
-    with pytest.raises(RequestDataNotFoundInEntityDfException):
-        store.get_historical_features(
-            entity_df=datasets.entity_df,
-            features=[
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-                "driver_age:driver_age",
                 "global_stats:num_rides",
                 "global_stats:avg_ride_length",
                 "field_mapping:feature_name",

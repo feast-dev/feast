@@ -166,7 +166,7 @@ public class DataGenerator {
                             FileFormat.newBuilder()
                                 .setParquetFormat(ParquetFormat.newBuilder().build())
                                 .build())
-                        .setFileUrl("/dev/null")
+                        .setUri("/dev/null")
                         .build())
                 .build())
         .putAllLabels(labels)
@@ -203,10 +203,7 @@ public class DataGenerator {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(
-            FileOptions.newBuilder()
-                .setFileFormat(createParquetFormat())
-                .setFileUrl(fileURL)
-                .build())
+            FileOptions.newBuilder().setFileFormat(createParquetFormat()).setUri(fileURL).build())
         .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();

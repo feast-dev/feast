@@ -163,6 +163,10 @@ class DataSource(ABC):
             source to feature names in a feature table or view. Only used for feature
             columns, not entity or timestamp columns.
         date_partition_column (optional): Timestamp column used for partitioning.
+        description (optional) A human-readable description.
+        tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+        owner (optional): The owner of the data source, typically the email of the primary
+            maintainer.
     """
 
     name: str
@@ -170,6 +174,9 @@ class DataSource(ABC):
     created_timestamp_column: str
     field_mapping: Dict[str, str]
     date_partition_column: str
+    description: str
+    tags: Dict[str, str]
+    owner: str
 
     def __init__(
         self,
@@ -178,8 +185,27 @@ class DataSource(ABC):
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
-        """Creates a DataSource object."""
+        """
+        Creates a DataSource object.
+        Args:
+            name: Name of data source, which should be unique within a project
+                event_timestamp_column (optional): Event timestamp column used for point in time
+                joins of feature values.
+            created_timestamp_column (optional): Timestamp column indicating when the row
+                was created, used for deduplicating rows.
+            field_mapping (optional): A dictionary mapping of column names in this data
+                source to feature names in a feature table or view. Only used for feature
+                columns, not entity or timestamp columns.
+            date_partition_column (optional): Timestamp column used for partitioning.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
+                maintainer.
+        """
         self.name = name
         self.event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
@@ -191,6 +217,9 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        self.description = description or ""
+        self.tags = tags or {}
+        self.owner = owner or ""
 
     def __hash__(self):
         return hash((id(self), self.name))
@@ -208,6 +237,9 @@ class DataSource(ABC):
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
+            or self.tags != other.tags
+            or self.owner != other.owner
+            or self.description != other.description
         ):
             return False
 
@@ -304,6 +336,9 @@ class KafkaSource(DataSource):
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         super().__init__(
             name,
@@ -311,6 +346,9 @@ class KafkaSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
         self.kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers,
@@ -347,6 +385,9 @@ class KafkaSource(DataSource):
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -355,12 +396,14 @@ class KafkaSource(DataSource):
             type=DataSourceProto.STREAM_KAFKA,
             field_mapping=self.field_mapping,
             kafka_options=self.kafka_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
-
         return data_source_proto
 
     @staticmethod
@@ -378,16 +421,25 @@ class RequestDataSource(DataSource):
     Args:
         name: Name of the request data source
         schema: Schema mapping from the input feature name to a ValueType
+        description (optional): A human-readable description.
+        tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+        owner (optional): The owner of the request data source, typically the email of the primary
+            maintainer.
     """
 
     name: str
     schema: Dict[str, ValueType]
 
     def __init__(
-        self, name: str, schema: Dict[str, ValueType],
+        self,
+        name: str,
+        schema: Dict[str, ValueType],
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """Creates a RequestDataSource object."""
-        super().__init__(name)
+        super().__init__(name, description=description, tags=tags, owner=owner)
         self.schema = schema
 
     def validate(self, config: RepoConfig):
@@ -404,7 +456,13 @@ class RequestDataSource(DataSource):
         schema = {}
         for key, val in schema_pb.items():
             schema[key] = ValueType(val)
-        return RequestDataSource(name=data_source.name, schema=schema)
+        return RequestDataSource(
+            name=data_source.name,
+            schema=schema,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
+        )
 
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
@@ -415,6 +473,9 @@ class RequestDataSource(DataSource):
             name=self.name,
             type=DataSourceProto.REQUEST_SOURCE,
             request_data_options=options,
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         return data_source_proto
@@ -449,6 +510,9 @@ class KinesisSource(DataSource):
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     @staticmethod
@@ -468,6 +532,9 @@ class KinesisSource(DataSource):
         stream_name: str,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         super().__init__(
             name,
@@ -475,6 +542,9 @@ class KinesisSource(DataSource):
             created_timestamp_column,
             field_mapping,
             date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
         self.kinesis_options = KinesisOptions(
             record_format=record_format, region=region, stream_name=stream_name
@@ -505,6 +575,9 @@ class KinesisSource(DataSource):
             type=DataSourceProto.STREAM_KINESIS,
             field_mapping=self.field_mapping,
             kinesis_options=self.kinesis_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
@@ -530,6 +603,9 @@ class PushSource(DataSource):
         schema: Dict[str, ValueType],
         batch_source: DataSource,
         event_timestamp_column="timestamp",
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         """
         Creates a PushSource object.
@@ -540,8 +616,12 @@ class PushSource(DataSource):
                 store to the online store, and when retrieving historical features.
             event_timestamp_column (optional): Event timestamp column used for point in time
                 joins of feature values.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
+                maintainer.
         """
-        super().__init__(name)
+        super().__init__(name, description=description, tags=tags, owner=owner)
         self.schema = schema
         self.batch_source = batch_source
         if not self.batch_source:
@@ -575,6 +655,9 @@ class PushSource(DataSource):
             schema=schema,
             batch_source=batch_source,
             event_timestamp_column=data_source.event_timestamp_column,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -593,6 +676,9 @@ class PushSource(DataSource):
             type=DataSourceProto.PUSH_SOURCE,
             push_options=options,
             event_timestamp_column=self.event_timestamp_column,
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         return data_source_proto

@@ -6,7 +6,7 @@ import (
 )
 
 type OnDemandFeatureView struct {
-	base                        *BaseFeatureView
+	base                         *BaseFeatureView
 	sourceFeatureViewProjections map[string]*FeatureViewProjection
 	sourceRequestDataSources     map[string]*core.DataSource_RequestDataOptions
 }

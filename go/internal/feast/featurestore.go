@@ -109,13 +109,12 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	var fvs map[string]*FeatureView
 	var requestedFeatureViews []*featureViewAndRefs
-	var requestedRequestFeatureViews []*RequestFeatureView
 	var requestedOnDemandFeatureViews []*OnDemandFeatureView
 	if featureService != nil {
-		fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err =
+		fvs, requestedFeatureViews, requestedOnDemandFeatureViews, err =
 			fs.getFeatureViewsToUseByService(featureService, false)
 	} else {
-		fvs, requestedFeatureViews, requestedRequestFeatureViews, requestedOnDemandFeatureViews, err =
+		fvs, requestedFeatureViews, requestedOnDemandFeatureViews, err =
 			fs.getFeatureViewsToUseByFeatureRefs(featureRefs, false)
 	}
 
@@ -124,7 +123,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		return nil, err
 	}
 
-	if len(requestedRequestFeatureViews)+len(requestedOnDemandFeatureViews) > 0 {
+	if len(requestedOnDemandFeatureViews) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "on demand feature views are currently not supported")
 	}
 
@@ -134,7 +133,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 	// TODO (Ly): This should return empty now
 	// Expect no ODFV or Request FV passed in GetOnlineFearuresRequest
-	neededRequestData, neededRequestODFVFeatures, err := fs.getNeededRequestData(requestedRequestFeatureViews, requestedOnDemandFeatureViews)
+	neededRequestData, err := fs.getNeededRequestData(requestedOnDemandFeatureViews)
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +144,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	// requestDataFeatures := make(map[string]*prototypes.RepeatedValue) // TODO (Ly): Should be empty now until ODFV and Request FV are supported
 	mappedEntityProtos := make(map[string]*prototypes.RepeatedValue)
 	for joinKeyOrFeature, vals := range entityProtos {
-		if _, ok := neededRequestODFVFeatures[joinKeyOrFeature]; ok {
-			mappedEntityProtos[joinKeyOrFeature] = vals
-			// requestDataFeatures[joinKeyOrFeature] = vals
-		} else if _, ok = neededRequestData[joinKeyOrFeature]; ok {
+		if _, ok := neededRequestData[joinKeyOrFeature]; ok {
 			// requestDataFeatures[joinKeyOrFeature] = vals
 		} else {
 			if _, ok := expectedJoinKeysSet[joinKeyOrFeature]; !ok {
@@ -263,44 +259,34 @@ func (fs *FeatureStore) GetFeatureService(name string, project string) (*Feature
 
 /*
 	Return a list of copies of FeatureViewProjection
-		copied from FeatureView, OnDemandFeatureView, RequestFeatureView existed in the registry
+		copied from FeatureView, OnDemandFeatureView existed in the registry
 
 	TODO (Ly): Since the implementation of registry has changed, a better approach here is just
 		retrieving featureViews asked in the passed in list of feature references instead of
 		retrieving all feature views. Similar argument to FeatureService applies.
 
 */
-func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureService, hideDummyEntity bool) (map[string]*FeatureView, []*featureViewAndRefs, []*RequestFeatureView, []*OnDemandFeatureView, error) {
+func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureService, hideDummyEntity bool) (map[string]*FeatureView, []*featureViewAndRefs, []*OnDemandFeatureView, error) {
 	fvs := make(map[string]*FeatureView)
-	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
 
 	featureViews, err := fs.listFeatureViews(hideDummyEntity)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, featureView := range featureViews {
 		fvs[featureView.base.name] = featureView
 	}
 
-	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	for _, requestFeatureView := range requestFeatureViews {
-		requestFvs[requestFeatureView.base.name] = requestFeatureView
-	}
-
 	onDemandFeatureViews, err := fs.registry.listOnDemandFeatureViews(fs.config.Project)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
 
 	fvsToUse := make([]*featureViewAndRefs, 0)
-	requestFvsToUse := make([]*RequestFeatureView, 0)
 	odFvsToUse := make([]*OnDemandFeatureView, 0)
 
 	for _, featureProjection := range featureService.projections {
@@ -310,7 +296,7 @@ func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureSer
 		if fv, ok := fvs[featureViewName]; ok {
 			base, err := fv.base.withProjection(featureProjection)
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, err
 			}
 			newFv := fv.NewFeatureViewFromBase(base)
 			features := make([]string, len(newFv.base.features))
@@ -321,66 +307,50 @@ func (fs *FeatureStore) getFeatureViewsToUseByService(featureService *FeatureSer
 				view:        newFv,
 				featureRefs: features,
 			})
-		} else if requestFv, ok := requestFvs[featureViewName]; ok {
-			base, err := requestFv.base.withProjection(featureProjection)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			requestFvsToUse = append(requestFvsToUse, requestFv.NewRequestFeatureViewFromBase(base))
 		} else if odFv, ok := odFvs[featureViewName]; ok {
 			base, err := odFv.base.withProjection(featureProjection)
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, err
 			}
 			odFvsToUse = append(odFvsToUse, odFv.NewOnDemandFeatureViewFromBase(base))
 		} else {
-			return nil, nil, nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature view"+
+			return nil, nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature view"+
 				"%s which doesn't exist, please make sure that you have created the feature view"+
 				"%s and that you have registered it by running \"apply\"", featureService.name, featureViewName, featureViewName)
 		}
 	}
-	return fvs, fvsToUse, requestFvsToUse, odFvsToUse, nil
+	return fvs, fvsToUse, odFvsToUse, nil
 }
 
 /*
-	Return all FeatureView, OnDemandFeatureView, RequestFeatureView from the registry
+	Return all FeatureView, OnDemandFeatureView from the registry
 */
-func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hideDummyEntity bool) (map[string]*FeatureView, []*featureViewAndRefs, []*RequestFeatureView, []*OnDemandFeatureView, error) {
+func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hideDummyEntity bool) (map[string]*FeatureView, []*featureViewAndRefs, []*OnDemandFeatureView, error) {
 	fvs := make(map[string]*FeatureView)
-	requestFvs := make(map[string]*RequestFeatureView)
 	odFvs := make(map[string]*OnDemandFeatureView)
 	featureViews, err := fs.listFeatureViews(hideDummyEntity)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, featureView := range featureViews {
 		fvs[featureView.base.name] = featureView
 	}
 
-	requestFeatureViews, err := fs.registry.listRequestFeatureViews(fs.config.Project)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	for _, requestFeatureView := range requestFeatureViews {
-		requestFvs[requestFeatureView.base.name] = requestFeatureView
-	}
-
 	onDemandFeatureViews, err := fs.registry.listOnDemandFeatureViews(fs.config.Project)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		odFvs[onDemandFeatureView.base.name] = onDemandFeatureView
 	}
 
 	fvsToUse := make([]*featureViewAndRefs, 0)
-	requestFvsToUse := make([]*RequestFeatureView, 0)
 	odFvsToUse := make([]*OnDemandFeatureView, 0)
 
 	for _, featureRef := range features {
 		featureViewName, featureName, err := parseFeatureReference(featureRef)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 		if fv, ok := fvs[featureViewName]; ok {
 			found := false
@@ -396,16 +366,14 @@ func (fs *FeatureStore) getFeatureViewsToUseByFeatureRefs(features []string, hid
 					featureRefs: []string{featureName},
 				})
 			}
-		} else if requestFv, ok := requestFvs[featureViewName]; ok {
-			requestFvsToUse = append(requestFvsToUse, requestFv)
 		} else if odFv, ok := odFvs[featureViewName]; ok {
 			odFvsToUse = append(odFvsToUse, odFv)
 		} else {
-			return nil, nil, nil, nil, fmt.Errorf("feature view %s doesn't exist, please make sure that you have created the"+
+			return nil, nil, nil, fmt.Errorf("feature view %s doesn't exist, please make sure that you have created the"+
 				" feature view %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
 		}
 	}
-	return fvs, fvsToUse, requestFvsToUse, odFvsToUse, nil
+	return fvs, fvsToUse, odFvsToUse, nil
 }
 
 func (fs *FeatureStore) getEntityMaps(requestedFeatureViews []*featureViewAndRefs) (map[string]string, map[string]interface{}, error) {
@@ -507,10 +475,8 @@ func validateFeatureRefs(requestedFeatures []*featureViewAndRefs, fullFeatureNam
 	return nil
 }
 
-func (fs *FeatureStore) getNeededRequestData(requestedRequestFeatureViews []*RequestFeatureView,
-	requestedOnDemandFeatureViews []*OnDemandFeatureView) (map[string]struct{}, map[string]struct{}, error) {
+func (fs *FeatureStore) getNeededRequestData(requestedOnDemandFeatureViews []*OnDemandFeatureView) (map[string]struct{}, error) {
 	neededRequestData := make(map[string]struct{})
-	neededRequestFvFeatures := make(map[string]struct{})
 
 	for _, onDemandFeatureView := range requestedOnDemandFeatureViews {
 		requestSchema := onDemandFeatureView.getRequestDataSchema()
@@ -519,13 +485,7 @@ func (fs *FeatureStore) getNeededRequestData(requestedRequestFeatureViews []*Req
 		}
 	}
 
-	for _, requestFeatureView := range requestedRequestFeatureViews {
-		for _, feature := range requestFeatureView.base.features {
-			neededRequestFvFeatures[feature.name] = struct{}{}
-		}
-	}
-
-	return neededRequestData, neededRequestFvFeatures, nil
+	return neededRequestData, nil
 }
 
 func (fs *FeatureStore) ensureRequestedDataExist(neededRequestData map[string]struct{},
@@ -668,10 +628,6 @@ func (fs *FeatureStore) listFeatureViews(hideDummyEntity bool) ([]*FeatureView, 
 		return featureViews, err
 	}
 	return featureViews, nil
-}
-
-func (fs *FeatureStore) listRequestFeatureViews() ([]*RequestFeatureView, error) {
-	return fs.registry.listRequestFeatureViews(fs.config.Project)
 }
 
 func (fs *FeatureStore) listEntities(hideDummyEntity bool) ([]*Entity, error) {

@@ -40,6 +40,9 @@ class SparkSource(DataSource):
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         # If no name, use the table_ref as the default name
         _name = name
@@ -48,12 +51,24 @@ class SparkSource(DataSource):
                 _name = table
             else:
                 raise DataSourceNoNameException()
+
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for Spark sources."
+                    "It will be removed in Feast 0.21+"
+                ),
+                DeprecationWarning,
+            )
+
         super().__init__(
-            _name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=_name,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            description=description,
+            tags=tags,
+            owner=owner,
         )
         warnings.warn(
             "The spark data source API is an experimental feature in alpha development. "
@@ -106,7 +121,9 @@ class SparkSource(DataSource):
             file_format=spark_options.file_format,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -115,12 +132,14 @@ class SparkSource(DataSource):
             type=DataSourceProto.BATCH_SPARK,
             data_source_class_type="feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
             field_mapping=self.field_mapping,
-            spark_options=self.spark_options.to_proto(),
+            custom_options=self.spark_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
