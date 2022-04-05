@@ -219,8 +219,6 @@ class DataSource(ABC):
                 UserWarning,
             )
         self.name = name or ""
-        if event_timestamp_column is None and timestamp_field is None:
-            raise ValueError('No "timestamp_field" argument is provided to Datasource')
         if not timestamp_field and event_timestamp_column:
             warnings.warn(
                 (
