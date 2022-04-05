@@ -352,7 +352,7 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
     offline_store_config = offline_creator.create_offline_store_config()
 
-    if isinstance(test_repo_config.online_store, Callable):  # type: ignore
+    if isinstance(test_repo_config.online_store, Callable):
         online_creator = test_repo_config.online_store(project)
         online_store = online_creator.create_online_store()
     else:
