@@ -498,7 +498,7 @@ class RequestSource(DataSource):
 class RequestDataSource(RequestSource):
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead.",
+            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead. This class name will be removed in Feast 0.23.",
             DeprecationWarning,
         )
         RequestSource.__init__(*args, **kwargs)
