@@ -1,20 +1,24 @@
 import pytest
 
 from feast.protos.feast.types.Value_pb2 import ValueType as ValueTypeProto
-from feast.types import Array, Float32, String
+from feast.types import Array, Float32, String, from_value_type
 
 
 def test_primitive_feast_type():
-    assert String.to_int() == ValueTypeProto.Enum.Value("STRING")
-    assert Float32.to_int() == ValueTypeProto.Enum.Value("FLOAT")
+    assert String.to_value_type() == ValueTypeProto.Enum.Value("STRING")
+    assert from_value_type(String.to_value_type()) == String
+    assert Float32.to_value_type() == ValueTypeProto.Enum.Value("FLOAT")
+    assert from_value_type(Float32.to_value_type()) == Float32
 
 
 def test_array_feast_type():
     array_float_32 = Array(Float32)
-    assert array_float_32.to_int() == ValueTypeProto.Enum.Value("FLOAT_LIST")
+    assert array_float_32.to_value_type() == ValueTypeProto.Enum.Value("FLOAT_LIST")
+    assert from_value_type(array_float_32.to_value_type()) == array_float_32
 
     array_string = Array(String)
-    assert array_string.to_int() == ValueTypeProto.Enum.Value("STRING_LIST")
+    assert array_string.to_value_type() == ValueTypeProto.Enum.Value("STRING_LIST")
+    assert from_value_type(array_string.to_value_type()) == array_string
 
     with pytest.raises(ValueError):
         _ = Array(Array)

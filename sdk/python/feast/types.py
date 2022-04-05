@@ -40,17 +40,21 @@ class ComplexFeastType(ABC):
         pass
 
     @abstractmethod
-    def to_int(self) -> int:
+    def to_value_type(self) -> ValueTypeProto.Enum:
         """
-        Converts a ComplexFeastType object to the appropriate int value corresponding to
-        the correct ValueTypeProto.Enum value.
+        Converts a ComplexFeastType object to the corresponding ValueTypeProto.Enum value.
         """
         raise NotImplementedError
+
+    def __eq__(self, other):
+        return self.to_value_type() == other.to_value_type()
 
 
 class PrimitiveFeastType(Enum):
     """
     A PrimitiveFeastType represents a primitive type in Feast.
+
+    Note that these values must match the values in ValueTypeProto.Enum.
     """
 
     INVALID = 0
@@ -58,12 +62,15 @@ class PrimitiveFeastType(Enum):
     STRING = 2
     INT32 = 3
     INT64 = 4
-    FLOAT32 = 5
-    FLOAT64 = 6
+    FLOAT64 = 5
+    FLOAT32 = 6
     BOOL = 7
     UNIX_TIMESTAMP = 8
 
-    def to_int(self) -> int:
+    def to_value_type(self) -> ValueTypeProto.Enum:
+        """
+        Converts a PrimitiveFeastType object to the corresponding ValueTypeProto.Enum value.
+        """
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.name]
         return ValueTypeProto.Enum.Value(value_type_name)
 
@@ -110,8 +117,35 @@ class Array(ComplexFeastType):
 
         self.base_type = base_type
 
-    def to_int(self) -> int:
+    def to_value_type(self) -> int:
         assert isinstance(self.base_type, PrimitiveFeastType)
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_list_name = value_type_name + "_LIST"
         return ValueTypeProto.Enum.Value(value_type_list_name)
+
+
+def from_value_type(
+    value_type: ValueTypeProto.Enum,
+) -> Union[ComplexFeastType, PrimitiveFeastType]:
+    """
+    Converts a ValueTypeProto.Enum to a Feast type.
+
+    Args:
+        value_type: The ValueTypeProto.Enum to be converted.
+
+    Raises:
+        ValueError: The conversion could not be performed.
+    """
+    # Primitive types can be directly converted.
+    primitive_values = [primitive_type.value for primitive_type in PrimitiveFeastType]
+    if value_type in primitive_values:
+        return PrimitiveFeastType(value_type)
+
+    # Complex types must be constructed. Currently only arrays are supported. Note that
+    # enum values for arrays are precisely the enum value for the array's base type plus 10.
+    # TODO(felixwang9817): Make this more robust.
+    base_type = value_type - 10
+    if base_type in primitive_values:
+        return Array(PrimitiveFeastType(base_type))
+
+    raise ValueError("Could not convert value type to FeastType")
