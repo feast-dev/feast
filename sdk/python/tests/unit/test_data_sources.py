@@ -1,5 +1,4 @@
 import pytest
-from aiohttp import request
 
 from feast import ValueType
 from feast.data_source import PushSource, RequestDataSource, RequestSource
