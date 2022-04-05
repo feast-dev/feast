@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import pandas as pd
 import yaml
@@ -71,13 +71,13 @@ REDIS_CLUSTER_CONFIG = {
 # module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
 DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
-    # IntegrationTestRepoConfig(),
-    # IntegrationTestRepoConfig(python_feature_server=True),
+    IntegrationTestRepoConfig(),
+    IntegrationTestRepoConfig(python_feature_server=True),
 ]
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
-            IntegrationTestRepoConfig(online_store=RedisOnlineStoreCreator),
+            IntegrationTestRepoConfig(online_store_creator=RedisOnlineStoreCreator),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
@@ -87,7 +87,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,
-                online_store=RedisOnlineStoreCreator,
+                online_store_creator=RedisOnlineStoreCreator,
             ),
             # AWS configurations
             IntegrationTestRepoConfig(
@@ -99,13 +99,13 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
-                online_store=RedisOnlineStoreCreator,
+                online_store_creator=RedisOnlineStoreCreator,
             ),
             # Snowflake configurations
             IntegrationTestRepoConfig(
                 provider="aws",  # no list features, no feature server
                 offline_store_creator=SnowflakeDataSourceCreator,
-                online_store=RedisOnlineStoreCreator,
+                online_store_creator=RedisOnlineStoreCreator,
             ),
         ]
     )
@@ -123,7 +123,7 @@ else:
 
 GO_REPO_CONFIGS = [
     IntegrationTestRepoConfig(
-        online_store=RedisOnlineStoreCreator, go_feature_server=True,
+        online_store_creator=RedisOnlineStoreCreator, go_feature_server=True,
     ),
 ]
 
@@ -352,9 +352,9 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
     offline_store_config = offline_creator.create_offline_store_config()
 
-    if isinstance(test_repo_config.online_store, Callable):
-        online_creator = test_repo_config.online_store(project)
-        online_store = online_creator.create_online_store()
+    if test_repo_config.online_store_creator:
+        online_creator = test_repo_config.online_store_creator(project)
+        test_repo_config.online_store = online_creator.create_online_store()
     else:
         online_creator = None
         online_store = test_repo_config.online_store

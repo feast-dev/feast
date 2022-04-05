@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Dict, Type, Union
+from typing import Dict, Optional, Type, Union
 
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -7,18 +7,22 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 from tests.integration.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.online_store_creator import (
+    OnlineStoreCreator,
+)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class IntegrationTestRepoConfig:
     """
     This class should hold all possible parameters that may need to be varied by individual tests.
     """
 
     provider: str = "local"
-    online_store: Union[str, Dict, Callable] = "sqlite"
+    online_store: Union[str, Dict] = "sqlite"
 
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
+    online_store_creator: Optional[Type[OnlineStoreCreator]] = None
 
     full_feature_names: bool = True
     infer_features: bool = False
