@@ -24,6 +24,7 @@ import pytest
 from _pytest.nodes import Item
 
 from feast import FeatureStore
+from feast.infra.online_stores.redis import RedisOnlineStoreConfig
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -32,7 +33,6 @@ from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
     GO_REPO_CONFIGS,
     REDIS_CLUSTER_CONFIG,
-    REDIS_CONFIG,
     Environment,
     TestData,
     construct_test_environment,
@@ -206,9 +206,9 @@ def go_environment(request, worker_id: str):
 
 
 @pytest.fixture(
-    params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
+    params=[RedisOnlineStoreConfig, REDIS_CLUSTER_CONFIG],
     scope="session",
-    ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]],
+    ids=[str(c) for c in [RedisOnlineStoreConfig, REDIS_CLUSTER_CONFIG]],
 )
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
