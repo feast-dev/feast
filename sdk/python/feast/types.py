@@ -75,6 +75,9 @@ class PrimitiveFeastType(Enum):
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.name]
         return ValueTypeProto.Enum.Value(value_type_name)
 
+    def __str__(self):
+        return PRIMITIVE_FEAST_TYPES_TO_STRING[self.name]
+
 
 Invalid = PrimitiveFeastType.INVALID
 Bytes = PrimitiveFeastType.BYTES
@@ -98,6 +101,18 @@ SUPPORTED_BASE_TYPES = [
     Float64,
     UnixTimestamp,
 ]
+
+PRIMITIVE_FEAST_TYPES_TO_STRING = {
+    "INVALID": "Invalid",
+    "STRING": "String",
+    "BYTES": "Bytes",
+    "BOOL": "Bool",
+    "INT32": "Int32",
+    "INT64": "Int64",
+    "FLOAT32": "Float32",
+    "FLOAT64": "Float64",
+    "UNIX_TIMESTAMP": "UnixTimestamp",
+}
 
 
 class Array(ComplexFeastType):
@@ -124,10 +139,14 @@ class Array(ComplexFeastType):
         value_type_list_name = value_type_name + "_LIST"
         return ValueTypeProto.Enum.Value(value_type_list_name)
 
+    def __str__(self):
+        return f"Array({self.base_type})"
 
-VALUE_TYPES_TO_FEAST_TYPES: Dict[
-    "ValueTypeProto.Enum", Union[ComplexFeastType, PrimitiveFeastType]
-] = {
+
+FeastType = Union[ComplexFeastType, PrimitiveFeastType]
+
+
+VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueTypeProto.Enum", FeastType] = {
     ValueTypeProto.Enum.INVALID: Invalid,
     ValueTypeProto.Enum.BYTES: Bytes,
     ValueTypeProto.Enum.STRING: String,
@@ -148,9 +167,7 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict[
 }
 
 
-def from_value_type(
-    value_type: ValueTypeProto.Enum,
-) -> Union[ComplexFeastType, PrimitiveFeastType]:
+def from_value_type(value_type: ValueTypeProto.Enum,) -> FeastType:
     """
     Converts a ValueTypeProto.Enum to a Feast type.
 
