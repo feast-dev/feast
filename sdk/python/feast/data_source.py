@@ -14,6 +14,7 @@
 
 
 import enum
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
@@ -179,7 +180,6 @@ class DataSource(ABC):
 
     def __init__(
         self,
-        name: str,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
@@ -187,6 +187,7 @@ class DataSource(ABC):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        name: Optional[str] = None,
     ):
         """
         Creates a DataSource object.
@@ -205,7 +206,15 @@ class DataSource(ABC):
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
         """
-        self.name = name
+        if not name:
+            warnings.warn(
+                (
+                    "Names for data sources need to be supplied. "
+                    "Data sources without names will no tbe supported after Feast 0.23."
+                ),
+                UserWarning,
+            )
+        self.name = name or ""
         self.event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
@@ -340,14 +349,14 @@ class KafkaSource(DataSource):
         owner: Optional[str] = "",
     ):
         super().__init__(
-            name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
+            name=name,
         )
         self.kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers,
@@ -438,7 +447,7 @@ class RequestDataSource(DataSource):
         owner: Optional[str] = "",
     ):
         """Creates a RequestDataSource object."""
-        super().__init__(name, description=description, tags=tags, owner=owner)
+        super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.schema = schema
 
     def validate(self, config: RepoConfig):
@@ -536,11 +545,11 @@ class KinesisSource(DataSource):
         owner: Optional[str] = "",
     ):
         super().__init__(
-            name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=name,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
@@ -620,7 +629,7 @@ class PushSource(DataSource):
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
         """
-        super().__init__(name, description=description, tags=tags, owner=owner)
+        super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.schema = schema
         self.batch_source = batch_source
         if not self.batch_source:

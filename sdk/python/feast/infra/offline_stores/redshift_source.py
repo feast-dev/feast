@@ -80,7 +80,7 @@ class RedshiftSource(DataSource):
             )
 
         super().__init__(
-            _name if _name else "",
+            name=_name if _name else "",
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
