@@ -70,11 +70,11 @@ class BigQuerySource(DataSource):
                 )
 
         super().__init__(
-            _name if _name else "",
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=_name if _name else "",
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__

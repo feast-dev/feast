@@ -14,6 +14,7 @@
 
 
 import enum
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
@@ -160,14 +161,34 @@ class DataSource(ABC):
 
     def __init__(
         self,
-        name: str,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
+        name: Optional[str] = None,
     ):
-        """Creates a DataSource object."""
-        self.name = name
+        """
+        Creates a DataSource object.
+        Args:
+            name: Name of data source, which should be unique within a project
+                event_timestamp_column (optional): Event timestamp column used for point in time
+                joins of feature values.
+            created_timestamp_column (optional): Timestamp column indicating when the row
+                was created, used for deduplicating rows.
+            field_mapping (optional): A dictionary mapping of column names in this data
+                source to feature names in a feature table or view. Only used for feature
+                columns, not entity or timestamp columns.
+            date_partition_column (optional): Timestamp column used for partitioning.
+        """
+        if not name:
+            warnings.warn(
+                (
+                    "Names for data sources need to be supplied. "
+                    "Data sources without names will no tbe supported after Feast 0.23."
+                ),
+                UserWarning,
+            )
+        self.name = name or ""
         self.event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
@@ -321,11 +342,11 @@ class KafkaSource(DataSource):
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
-            name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
+            name=name,
         )
         self.kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers,
@@ -402,7 +423,7 @@ class RequestDataSource(DataSource):
         self, name: str, schema: Dict[str, ValueType],
     ):
         """Creates a RequestDataSource object."""
-        super().__init__(name)
+        super().__init__(name=name)
         self.schema = schema
 
     def validate(self, config: RepoConfig):
@@ -485,11 +506,11 @@ class KinesisSource(DataSource):
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
-            name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=name,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
         )
         self.kinesis_options = KinesisOptions(
             record_format=record_format, region=region, stream_name=stream_name

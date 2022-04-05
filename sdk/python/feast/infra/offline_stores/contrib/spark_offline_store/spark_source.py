@@ -49,11 +49,11 @@ class SparkSource(DataSource):
             else:
                 raise DataSourceNoNameException()
         super().__init__(
-            _name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=_name if _name else "",
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
         )
         warnings.warn(
             "The spark data source API is an experimental feature in alpha development. "
