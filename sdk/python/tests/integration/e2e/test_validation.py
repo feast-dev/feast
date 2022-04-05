@@ -61,34 +61,34 @@ def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> Expectatio
 @pytest.mark.universal
 def test_historical_retrieval_with_validation(environment, universal_data_sources):
     store = environment.feature_store
-
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
-
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
+    # Create two identical retrieval jobs
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
     )
-
     reference_job = store.get_historical_features(
-        entity_df=entity_df, features=_features,
+        entity_df=entity_df,
+        features=_features,
+    )
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=_features,
     )
 
+    # Save dataset using reference job and retrieve it
     store.create_saved_dataset(
         from_=reference_job,
         name="my_training_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
+    saved_dataset = store.get_saved_dataset("my_training_dataset")
 
-    job = store.get_historical_features(entity_df=entity_df, features=_features,)
-
-    # if validation pass there will be no exceptions on this point
-    job.to_df(
-        validation_reference=store.get_saved_dataset(
-            "my_training_dataset"
-        ).as_reference(profiler=configurable_profiler)
-    )
+    # If validation pass there will be no exceptions on this point
+    reference = saved_dataset.as_reference(profiler=configurable_profiler)
+    job.to_df(validation_reference=reference)
 
 
 @pytest.mark.integration
@@ -106,7 +106,8 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
     )
 
     reference_job = store.get_historical_features(
-        entity_df=entity_df, features=_features,
+        entity_df=entity_df,
+        features=_features,
     )
 
     store.create_saved_dataset(
@@ -115,7 +116,10 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
-    job = store.get_historical_features(entity_df=entity_df, features=_features,)
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=_features,
+    )
 
     with pytest.raises(ValidationFailed) as exc_info:
         job.to_df(
