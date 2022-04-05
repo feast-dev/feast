@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import enum
 import warnings
 from abc import ABC, abstractmethod
@@ -421,6 +420,7 @@ class KafkaSource(DataSource):
     def get_table_query_string(self) -> str:
         raise NotImplementedError
 
+
 class RequestSource(DataSource):
     """
     RequestSource that can be used to provide input features for on demand transforms
@@ -494,10 +494,13 @@ class RequestSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
 
+
 class RequestDataSource(RequestSource):
     def __init__(self, *args, **kwargs):
-        warnings.warn("The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead.",
-                      DeprecationWarning)
+        warnings.warn(
+            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead.",
+            DeprecationWarning,
+        )
         RequestSource.__init__(*args, **kwargs)
 
 
