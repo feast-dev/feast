@@ -98,7 +98,7 @@ message DataSource {
   // Defines options for DataSource that sources features from a BigQuery Query
   message BigQueryOptions {
     // Full table reference in the form of [project:dataset.table]
-    string table_ref = 1;
+    string table = 1;
 
     // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
     // entity columns

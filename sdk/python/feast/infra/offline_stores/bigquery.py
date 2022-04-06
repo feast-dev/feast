@@ -361,7 +361,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         assert isinstance(storage, SavedDatasetBigQueryStorage)
 
         self.to_bigquery(
-            bigquery.QueryJobConfig(destination=storage.bigquery_options.table_ref)
+            bigquery.QueryJobConfig(destination=storage.bigquery_options.table)
         )
 
     @property

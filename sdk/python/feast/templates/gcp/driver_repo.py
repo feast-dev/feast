@@ -20,7 +20,7 @@ driver = Entity(
 # datasets or materializing features into an online store.
 driver_stats_source = BigQuerySource(
     # The BigQuery table where features can be found
-    table_ref="feast-oss.demo_data.driver_hourly_stats_2",
+    table="feast-oss.demo_data.driver_hourly_stats_2",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
     timestamp_field="event_timestamp",
