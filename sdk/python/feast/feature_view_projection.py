@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from attr import dataclass
 
@@ -6,6 +6,9 @@ from feast.feature import Feature
 from feast.protos.feast.core.FeatureViewProjection_pb2 import (
     FeatureViewProjection as FeatureViewProjectionProto,
 )
+
+if TYPE_CHECKING:
+    from feast.base_feature_view import BaseFeatureView
 
 
 @dataclass
@@ -55,9 +58,9 @@ class FeatureViewProjection:
         return feature_view_projection
 
     @staticmethod
-    def from_definition(feature_grouping):
+    def from_definition(base_feature_view: "BaseFeatureView"):
         return FeatureViewProjection(
-            name=feature_grouping.name,
+            name=base_feature_view.name,
             name_alias=None,
-            features=feature_grouping.features,
+            features=base_feature_view.features,
         )
