@@ -25,14 +25,14 @@ driver_hourly_stats = SparkSource(
     name="driver_hourly_stats",
     path=f"{CURRENT_DIR}/data/driver_hourly_stats.parquet",
     file_format="parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 customer_daily_profile = SparkSource(
     name="customer_daily_profile",
     path=f"{CURRENT_DIR}/data/customer_daily_profile.parquet",
     file_format="parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 

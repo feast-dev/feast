@@ -209,37 +209,37 @@ def construct_universal_data_sources(
     customer_ds = data_source_creator.create_data_source(
         datasets.customer_df,
         destination_name="customer_profile",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
     driver_ds = data_source_creator.create_data_source(
         datasets.driver_df,
         destination_name="driver_hourly",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
     location_ds = data_source_creator.create_data_source(
         datasets.location_df,
         destination_name="location_hourly",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
     orders_ds = data_source_creator.create_data_source(
         datasets.orders_df,
         destination_name="orders",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column=None,
     )
     global_ds = data_source_creator.create_data_source(
         datasets.global_df,
         destination_name="global",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
     field_mapping_ds = data_source_creator.create_data_source(
         datasets.field_mapping_df,
         destination_name="field_mapping",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
         field_mapping={"column_name": "feature_name"},
     )

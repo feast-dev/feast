@@ -167,7 +167,7 @@ def test_apply_feature_view_success(test_registry):
     batch_source = FileSource(
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
     )
 
@@ -240,7 +240,7 @@ def test_modify_feature_views_success(test_registry):
     batch_source = FileSource(
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
     )
 
@@ -360,7 +360,7 @@ def test_apply_feature_view_integration(test_registry):
     batch_source = FileSource(
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
     )
 
@@ -435,7 +435,7 @@ def test_apply_data_source(test_registry: Registry):
         name="test_source",
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
     )
 
@@ -469,7 +469,7 @@ def test_apply_data_source(test_registry: Registry):
     assert registry_data_source == batch_source
 
     # Check that change to batch source propagates
-    batch_source.event_timestamp_column = "new_ts_col"
+    batch_source.timestamp_field = "new_ts_col"
     test_registry.apply_data_source(batch_source, project, commit=False)
     test_registry.apply_feature_view(fv1, project, commit=True)
     registry_feature_views = test_registry.list_feature_views(project)

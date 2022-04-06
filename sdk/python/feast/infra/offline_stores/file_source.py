@@ -31,6 +31,7 @@ class FileSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
     ):
         """Create a FileSource from a file containing feature data. Only Parquet format supported.
 
@@ -38,7 +39,7 @@ class FileSource(DataSource):
 
             path: File path to file containing feature data. Must contain an event_timestamp column, entity columns and
                 feature columns.
-            event_timestamp_column: Event timestamp column used for point in time joins of feature values.
+            event_timestamp_column(optional): (Deprecated) Event timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             file_format (optional): Explicitly set the file format. Allows Feast to bypass inferring the file format.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
@@ -50,10 +51,12 @@ class FileSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the file source, typically the email of the primary
                 maintainer.
+            timestamp_field (optional): Event timestamp foe;d used for point in time
+                joins of feature values.
 
         Examples:
             >>> from feast import FileSource
-            >>> file_source = FileSource(path="my_features.parquet", event_timestamp_column="event_timestamp")
+            >>> file_source = FileSource(path="my_features.parquet", timestamp_field="event_timestamp")
         """
         if path is None:
             raise ValueError(
@@ -83,6 +86,7 @@ class FileSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            timestamp_field=timestamp_field,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -96,7 +100,7 @@ class FileSource(DataSource):
         return (
             self.name == other.name
             and self.file_options.file_format == other.file_options.file_format
-            and self.event_timestamp_column == other.event_timestamp_column
+            and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
             and self.file_options.s3_endpoint_override
@@ -120,7 +124,7 @@ class FileSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             file_format=FileFormat.from_proto(data_source.file_options.file_format),
             path=data_source.file_options.uri,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
             description=data_source.description,
@@ -139,7 +143,7 @@ class FileSource(DataSource):
             owner=self.owner,
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto

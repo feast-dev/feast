@@ -43,6 +43,7 @@ class SparkSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        timestamp_field: Optional[str] = None,
     ):
         # If no name, use the table_ref as the default name
         _name = name
@@ -69,6 +70,7 @@ class SparkSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            timestamp_field=timestamp_field,
         )
         warnings.warn(
             "The spark data source API is an experimental feature in alpha development. "
@@ -137,7 +139,7 @@ class SparkSource(DataSource):
             query=spark_options.query,
             path=spark_options.path,
             file_format=spark_options.file_format,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -155,7 +157,7 @@ class SparkSource(DataSource):
             owner=self.owner,
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto

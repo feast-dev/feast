@@ -37,7 +37,7 @@ def create_driver_hourly_stats_feature_view(source):
 def create_driver_hourly_stats_source(parquet_path):
     return FileSource(
         path=parquet_path,
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
 

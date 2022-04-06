@@ -54,7 +54,7 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                         data_source: DataSource,
                                         join_key_columns: List[str],
                                         feature_name_columns: List[str],
-                                        event_timestamp_column: str,
+                                        timestamp_field: str,
                                         created_timestamp_column: Optional[str],
                                         start_date: datetime,
                                         end_date: datetime) -> RetrievalJob:
@@ -63,7 +63,7 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                                        data_source,
                                                        join_key_columns,
                                                        feature_name_columns,
-                                                       event_timestamp_column,
+                                                       timestamp_field=timestamp_field,
                                                        created_timestamp_column,
                                                        start_date,
                                                        end_date)
@@ -165,14 +165,14 @@ class CustomFileDataSource(FileSource):
     """Custom data source class for local files"""
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
         path: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         created_timestamp_column: Optional[str] = "",
         date_partition_column: Optional[str] = "",
     ):
         super(CustomFileDataSource, self).__init__(
-            event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -189,7 +189,7 @@ class CustomFileDataSource(FileSource):
         return CustomFileDataSource(
             field_mapping=dict(data_source.field_mapping),
             path=path,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
         )
@@ -203,7 +203,7 @@ class CustomFileDataSource(FileSource):
             ),
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 

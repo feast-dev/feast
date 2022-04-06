@@ -28,12 +28,13 @@ class RedshiftSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         database: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
     ):
         """
         Creates a RedshiftSource object.
 
         Args:
-            event_timestamp_column (optional): Event timestamp column used for point in
+            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in
                 time joins of feature values.
             table (optional): Redshift table where the features are stored.
             schema (optional): Redshift schema in which the table is located.
@@ -49,6 +50,8 @@ class RedshiftSource(DataSource):
             owner (optional): The owner of the redshift source, typically the email of the primary
                 maintainer.
             database (optional): The Redshift database name.
+            timestamp_field (optional): Event timestamp field used for point in time
+                joins of feature values.
         """
         # The default Redshift schema is named "public".
         _schema = "public" if table and not schema else schema
@@ -87,6 +90,7 @@ class RedshiftSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            timestamp_field=timestamp_field,
         )
 
     @staticmethod
@@ -104,7 +108,7 @@ class RedshiftSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             table=data_source.redshift_options.table,
             schema=data_source.redshift_options.schema,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             query=data_source.redshift_options.query,
             description=data_source.description,
@@ -129,7 +133,7 @@ class RedshiftSource(DataSource):
             and self.redshift_options.schema == other.redshift_options.schema
             and self.redshift_options.query == other.redshift_options.query
             and self.redshift_options.database == other.redshift_options.database
-            and self.event_timestamp_column == other.event_timestamp_column
+            and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
             and self.description == other.description
@@ -173,7 +177,7 @@ class RedshiftSource(DataSource):
             owner=self.owner,
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto

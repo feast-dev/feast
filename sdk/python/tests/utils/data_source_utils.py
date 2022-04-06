@@ -18,7 +18,7 @@ def prep_file_source(df, event_timestamp_column=None) -> Iterator[FileSource]:
         file_source = FileSource(
             file_format=ParquetFormat(),
             path=f.name,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=event_timestamp_column,
         )
         yield file_source
 
@@ -42,9 +42,7 @@ def simple_bq_source_using_table_ref_arg(
     job = client.load_table_from_dataframe(df, table_ref)
     job.result()
 
-    return BigQuerySource(
-        table_ref=table_ref, event_timestamp_column=event_timestamp_column,
-    )
+    return BigQuerySource(table_ref=table_ref, timestamp_field=event_timestamp_column,)
 
 
 def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuerySource:
@@ -54,5 +52,5 @@ def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuer
     return BigQuerySource(
         name=bq_source_using_table_ref.table_ref,
         query=f"SELECT * FROM {bq_source_using_table_ref.table_ref}",
-        event_timestamp_column=event_timestamp_column,
+        timestamp_field=event_timestamp_column,
     )
