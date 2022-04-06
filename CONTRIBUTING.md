@@ -128,11 +128,14 @@ There are two sets of tests you can run:
 2. Full integration tests (requires cloud environment setups)
 
 #### Local integration tests
-To get local integration tests running, you'll need to have Redis setup:
+To get local integration tests running, you'll need to have Redis and Docker setup:
 
 Redis
 1. Install Redis: [Quickstart](https://redis.io/topics/quickstart)
 2. Run `redis-server`
+
+Docker:
+1. Install Docker: [Get Docker](https://docs.docker.com/get-docker/)
 
 Now run `make test-python-universal-local`
 
@@ -160,6 +163,19 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 - See https://signup.snowflake.com/
 
 Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
+
+#### (Experimental) Run full integration tests against containerized services
+Test across clouds requires existing accounts on GCP / AWS / Snowflake, and may incur costs when using these services.
+
+It's possible to run some integration tests against emulated local versions of these services, using ephemeral containers. 
+These tests create new temporary tables / datasets locally only, and they are cleaned up. when the containers are torn down.
+
+The services with containerized replacements currently implemented are:
+- Datastore
+- Redis
+
+You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.
+
 
 ## Feast Java Serving
 See [Java contributing guide](java/CONTRIBUTING.md)
