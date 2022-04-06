@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from pydantic import StrictStr
-from pydantic.typing import Literal, Optional
+from pydantic.typing import Literal, Union
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
@@ -53,7 +53,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     batch_size: int = 40
     """Number of items to retrieve in a DynamoDB BatchGetItem call."""
 
-    endpoint_url: Optional[str] = None
+    endpoint_url: Union[str, None] = None
     """DynamoDB local development endpoint Url, i.e. http://localhost:8000"""
 
     region: StrictStr
@@ -191,7 +191,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
         )
-        with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
+        with table_instance.batch_writer() as batch:
             for entity_key, features, timestamp, created_ts in data:
                 entity_id = compute_entity_id(entity_key)
                 batch.put_item(
@@ -273,12 +273,12 @@ class DynamoDBOnlineStore(OnlineStore):
                 result.extend(batch_size_nones)
         return result
 
-    def _get_dynamodb_client(self, region: str, endpoint_url: str):
+    def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
         if self._dynamodb_client is None:
             self._dynamodb_client = _initialize_dynamodb_client(region, endpoint_url)
         return self._dynamodb_client
 
-    def _get_dynamodb_resource(self, region: str, endpoint_url: str):
+    def _get_dynamodb_resource(self, region: str, endpoint_url: Optional[str] = None):
         if self._dynamodb_resource is None:
             self._dynamodb_resource = _initialize_dynamodb_resource(
                 region, endpoint_url
@@ -300,11 +300,11 @@ class DynamoDBOnlineStore(OnlineStore):
         return table_responses_ordered
 
 
-def _initialize_dynamodb_client(region: str, endpoint_url: str = None):
+def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None):
     return boto3.client("dynamodb", region_name=region, endpoint_url=endpoint_url)
 
 
-def _initialize_dynamodb_resource(region: str, endpoint_url: str = None):
+def _initialize_dynamodb_resource(region: str, endpoint_url: Optional[str] = None):
     return boto3.resource("dynamodb", region_name=region, endpoint_url=endpoint_url)
 
 
