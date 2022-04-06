@@ -210,9 +210,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
-          with:
-            node-version: '17.x'
-            registry-url: 'https://registry.npmjs.org'
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Install yarn dependencies
         working-directory: ./ui
         run: yarn install
