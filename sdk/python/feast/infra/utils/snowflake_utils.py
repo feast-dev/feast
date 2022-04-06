@@ -53,7 +53,7 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     else:
         kwargs = {}
 
-    if "schema" in kwargs.keys():
+    if "schema" in kwargs:
         kwargs["schema_"] = kwargs.pop("schema")
 
     kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
@@ -63,7 +63,7 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         if k in ["role", "warehouse", "database", "schema_"]
     ]
 
-    if "schema" in kwargs.keys():
+    if "schema" in kwargs:
         kwargs["schema"] = kwargs.pop("schema_")
     else:
         kwargs["schema"] = '"PUBLIC"'
