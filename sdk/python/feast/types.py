@@ -46,6 +46,9 @@ class ComplexFeastType(ABC):
         """
         raise NotImplementedError
 
+    def __hash__(self):
+        return hash(self.to_value_type())
+
     def __eq__(self, other):
         return self.to_value_type() == other.to_value_type()
 

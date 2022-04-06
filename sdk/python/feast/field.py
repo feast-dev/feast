@@ -46,9 +46,9 @@ class Field:
         if self.name != other.name or self.dtype != other.dtype:
             return False
         return True
-    
+
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash((self.name, hash(self.dtype)))
 
     def __lt__(self, other):
         return self.name < other.name
@@ -72,7 +72,7 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         return cls(name=field_proto.name, dtype=from_value_type(field_proto.value_type))
-    
+
     @classmethod
     def from_feature(cls, feature: Feature):
         """
