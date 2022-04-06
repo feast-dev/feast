@@ -44,6 +44,9 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
+from tests.integration.feature_repos.universal.online_store.datastore import (
+    DatastoreOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
@@ -83,7 +86,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,
-                online_store="datastore",
+                online_store_creator=DatastoreOnlineStoreCreator,
             ),
             IntegrationTestRepoConfig(
                 provider="gcp",
