@@ -247,8 +247,8 @@ def go_data_sources(request, go_environment):
     def cleanup():
         # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         go_environment.data_source_creator.teardown()
-        if environment.online_store_creator:
-            environment.online_store_creator.teardown()
+        if go_environment.online_store_creator:
+            go_environment.online_store_creator.teardown()
 
     request.addfinalizer(cleanup)
     return construct_universal_test_data(go_environment)
