@@ -16,13 +16,14 @@ class SnowflakeSource(DataSource):
     def __init__(
         self,
         database: Optional[str] = None,
+        warehouse: Optional[str] = None,
         schema: Optional[str] = None,
         table: Optional[str] = None,
         query: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         name: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
@@ -33,6 +34,7 @@ class SnowflakeSource(DataSource):
 
         Args:
             database (optional): Snowflake database where the features are stored.
+            warehouse (optional): Snowflake warehouse where the database is stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
             event_timestamp_column (optional): Event timestamp column used for point in
@@ -42,7 +44,7 @@ class SnowflakeSource(DataSource):
                 row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to column names in a feature table or view.
-            date_partition_column (optional): Timestamp column used for partitioning.
+            date_partition_column (deprecated): Timestamp column used for partitioning.
             name (optional): Name for the source. Defaults to the table if not specified.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
@@ -55,7 +57,11 @@ class SnowflakeSource(DataSource):
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
         self.snowflake_options = SnowflakeOptions(
-            database=database, schema=_schema, table=table, query=query
+            database=database,
+            schema=_schema,
+            table=table,
+            query=query,
+            warehouse=warehouse,
         )
 
         # If no name, use the table as the default name
@@ -72,12 +78,20 @@ class SnowflakeSource(DataSource):
                     DeprecationWarning,
                 )
 
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for Snowflake sources."
+                    "It will be removed in Feast 0.21+"
+                ),
+                DeprecationWarning,
+            )
+
         super().__init__(
-            _name if _name else "",
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=_name if _name else "",
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
@@ -99,9 +113,9 @@ class SnowflakeSource(DataSource):
             database=data_source.snowflake_options.database,
             schema=data_source.snowflake_options.schema,
             table=data_source.snowflake_options.table,
+            warehouse=data_source.snowflake_options.warehouse,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             query=data_source.snowflake_options.query,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -124,6 +138,7 @@ class SnowflakeSource(DataSource):
             and self.snowflake_options.schema == other.snowflake_options.schema
             and self.snowflake_options.table == other.snowflake_options.table
             and self.snowflake_options.query == other.snowflake_options.query
+            and self.snowflake_options.warehouse == other.snowflake_options.warehouse
             and self.event_timestamp_column == other.event_timestamp_column
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
@@ -152,6 +167,11 @@ class SnowflakeSource(DataSource):
         """Returns the snowflake options of this snowflake source."""
         return self.snowflake_options.query
 
+    @property
+    def warehouse(self):
+        """Returns the warehouse of this snowflake source."""
+        return self.snowflake_options.warehouse
+
     def to_proto(self) -> DataSourceProto:
         """
         Converts a SnowflakeSource object to its protobuf representation.
@@ -170,7 +190,6 @@ class SnowflakeSource(DataSource):
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
@@ -239,11 +258,13 @@ class SnowflakeOptions:
         schema: Optional[str],
         table: Optional[str],
         query: Optional[str],
+        warehouse: Optional[str],
     ):
         self._database = database
         self._schema = schema
         self._table = table
         self._query = query
+        self._warehouse = warehouse
 
     @property
     def query(self):
@@ -285,6 +306,16 @@ class SnowflakeOptions:
         """Sets the table ref of this snowflake table."""
         self._table = table
 
+    @property
+    def warehouse(self):
+        """Returns the warehouse name of this snowflake table."""
+        return self._warehouse
+
+    @warehouse.setter
+    def warehouse(self, warehouse):
+        """Sets the warehouse name of this snowflake table."""
+        self._warehouse = warehouse
+
     @classmethod
     def from_proto(cls, snowflake_options_proto: DataSourceProto.SnowflakeOptions):
         """
@@ -301,6 +332,7 @@ class SnowflakeOptions:
             schema=snowflake_options_proto.schema,
             table=snowflake_options_proto.table,
             query=snowflake_options_proto.query,
+            warehouse=snowflake_options_proto.warehouse,
         )
 
         return snowflake_options
@@ -317,6 +349,7 @@ class SnowflakeOptions:
             schema=self.schema,
             table=self.table,
             query=self.query,
+            warehouse=self.warehouse,
         )
 
         return snowflake_options_proto
@@ -329,7 +362,7 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     def __init__(self, table_ref: str):
         self.snowflake_options = SnowflakeOptions(
-            database=None, schema=None, table=table_ref, query=None
+            database=None, schema=None, table=table_ref, query=None, warehouse=None
         )
 
     @staticmethod

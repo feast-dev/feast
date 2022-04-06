@@ -48,7 +48,6 @@ class FileDataSourceCreator(DataSourceCreator):
             path=f"{f.name}",
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
-            date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
@@ -130,7 +129,6 @@ class S3FileDataSourceCreator(DataSourceCreator):
             path=f"s3://{self.bucket}/{filename}",
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
-            date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
             s3_endpoint_override=f"http://{host}:{port}",
         )

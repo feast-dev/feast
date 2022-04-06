@@ -68,7 +68,7 @@ def bootstrap():
 
     repo_path = pathlib.Path(__file__).parent.absolute()
     config_file = repo_path / "feature_store.yaml"
-
+    driver_file = repo_path / "driver_repo.py"
     replace_str_in_file(
         config_file, "SNOWFLAKE_DEPLOYMENT_URL", snowflake_deployment_url
     )
@@ -77,6 +77,8 @@ def bootstrap():
     replace_str_in_file(config_file, "SNOWFLAKE_ROLE", snowflake_role)
     replace_str_in_file(config_file, "SNOWFLAKE_WAREHOUSE", snowflake_warehouse)
     replace_str_in_file(config_file, "SNOWFLAKE_DATABASE", snowflake_database)
+
+    replace_str_in_file(driver_file, "SNOWFLAKE_WAREHOUSE", snowflake_warehouse)
 
 
 def replace_str_in_file(file_path, match_str, sub_str):

@@ -51,12 +51,21 @@ class SparkSource(DataSource):
                 _name = table
             else:
                 raise DataSourceNoNameException()
+
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is not supported for Spark sources."
+                    "It will be removed in Feast 0.21+"
+                ),
+                DeprecationWarning,
+            )
+
         super().__init__(
-            _name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=_name,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
@@ -130,7 +139,6 @@ class SparkSource(DataSource):
             file_format=spark_options.file_format,
             event_timestamp_column=data_source.event_timestamp_column,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -149,7 +157,6 @@ class SparkSource(DataSource):
 
         data_source_proto.event_timestamp_column = self.event_timestamp_column
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 

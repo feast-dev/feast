@@ -679,7 +679,7 @@ class FeatureStore:
             data_sources_set_to_update.add(rfv.request_data_source)
 
         for odfv in odfvs_to_update:
-            for v in odfv.source_request_data_sources.values():
+            for v in odfv.source_request_sources.values():
                 data_sources_set_to_update.add(v)
 
         data_sources_to_update = list(data_sources_set_to_update)

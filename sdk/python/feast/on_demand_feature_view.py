@@ -8,7 +8,7 @@ import dill
 import pandas as pd
 
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import RequestDataSource
+from feast.data_source import RequestSource
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature import Feature
 from feast.feature_view import FeatureView
@@ -45,8 +45,8 @@ class OnDemandFeatureView(BaseFeatureView):
         features: The list of features in the output of the on demand feature view.
         source_feature_view_projections: A map from input source names to actual input
             sources with type FeatureViewProjection.
-        source_request_data_sources: A map from input source names to the actual input
-            sources with type RequestDataSource.
+        source_request_sources: A map from input source names to the actual input
+            sources with type RequestSource.
         udf: The user defined transformation function, which must take pandas dataframes
             as inputs.
         description: A human-readable description.
@@ -59,7 +59,7 @@ class OnDemandFeatureView(BaseFeatureView):
     name: str
     features: List[Feature]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
-    source_request_data_sources: Dict[str, RequestDataSource]
+    source_request_sources: Dict[str, RequestSource]
     udf: MethodType
     description: str
     tags: Dict[str, str]
@@ -71,11 +71,11 @@ class OnDemandFeatureView(BaseFeatureView):
         name: str,
         features: List[Feature],
         sources: Optional[
-            Dict[str, Union[FeatureView, FeatureViewProjection, RequestDataSource]]
+            Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
         ] = None,
         udf: Optional[MethodType] = None,
         inputs: Optional[
-            Dict[str, Union[FeatureView, FeatureViewProjection, RequestDataSource]]
+            Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
         ] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
@@ -124,10 +124,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
         assert sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
-        self.source_request_data_sources: Dict[str, RequestDataSource] = {}
+        self.source_request_sources: Dict[str, RequestSource] = {}
         for source_name, odfv_source in sources.items():
-            if isinstance(odfv_source, RequestDataSource):
-                self.source_request_data_sources[source_name] = odfv_source
+            if isinstance(odfv_source, RequestSource):
+                self.source_request_sources[source_name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[source_name] = odfv_source
             else:
@@ -149,8 +149,7 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=self.features,
             sources=dict(
-                **self.source_feature_view_projections,
-                **self.source_request_data_sources,
+                **self.source_feature_view_projections, **self.source_request_sources,
             ),
             udf=self.udf,
             description=self.description,
@@ -167,7 +166,7 @@ class OnDemandFeatureView(BaseFeatureView):
         if (
             not self.source_feature_view_projections
             == other.source_feature_view_projections
-            or not self.source_request_data_sources == other.source_request_data_sources
+            or not self.source_request_sources == other.source_request_sources
             or not self.udf.__code__.co_code == other.udf.__code__.co_code
         ):
             return False
@@ -194,12 +193,9 @@ class OnDemandFeatureView(BaseFeatureView):
             sources[source_name] = OnDemandSource(
                 feature_view_projection=fv_projection.to_proto()
             )
-        for (
-            source_name,
-            request_data_source,
-        ) in self.source_request_data_sources.items():
+        for (source_name, request_sources,) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
-                request_data_source=request_data_source.to_proto()
+                request_data_source=request_sources.to_proto()
             )
 
         spec = OnDemandFeatureViewSpec(
@@ -241,7 +237,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     on_demand_source.feature_view_projection
                 )
             else:
-                sources[source_name] = RequestDataSource.from_proto(
+                sources[source_name] = RequestSource.from_proto(
                     on_demand_source.request_data_source
                 )
         on_demand_feature_view_obj = cls(
@@ -282,8 +278,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def get_request_data_schema(self) -> Dict[str, ValueType]:
         schema: Dict[str, ValueType] = {}
-        for request_data_source in self.source_request_data_sources.values():
-            schema.update(request_data_source.schema)
+        for request_source in self.source_request_sources.values():
+            schema.update(request_source.schema)
         return schema
 
     def get_transformed_features_df(
@@ -339,7 +335,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     dtype=dtype
                 )
                 df[f"{feature.name}"] = pd.Series(dtype=dtype)
-        for request_data in self.source_request_data_sources.values():
+        for request_data in self.source_request_sources.values():
             for feature_name, feature_type in request_data.schema.items():
                 dtype = feast_value_type_to_pandas_type(feature_type)
                 df[f"{feature_name}"] = pd.Series(dtype=dtype)
@@ -385,7 +381,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
 
 def on_demand_feature_view(
-    features: List[Feature], sources: Dict[str, Union[FeatureView, RequestDataSource]]
+    features: List[Feature], sources: Dict[str, Union[FeatureView, RequestSource]]
 ):
     """
     Declare an on-demand feature view

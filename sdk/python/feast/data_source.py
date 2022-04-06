@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import enum
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
@@ -143,7 +143,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
-    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestDataSource",
+    DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
 }
 
@@ -179,7 +179,6 @@ class DataSource(ABC):
 
     def __init__(
         self,
-        name: str,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
@@ -187,6 +186,7 @@ class DataSource(ABC):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        name: Optional[str] = None,
     ):
         """
         Creates a DataSource object.
@@ -205,7 +205,15 @@ class DataSource(ABC):
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
         """
-        self.name = name
+        if not name:
+            warnings.warn(
+                (
+                    "Names for data sources need to be supplied. "
+                    "Data sources without names will no tbe supported after Feast 0.23."
+                ),
+                UserWarning,
+            )
+        self.name = name or ""
         self.event_timestamp_column = (
             event_timestamp_column if event_timestamp_column else ""
         )
@@ -340,14 +348,14 @@ class KafkaSource(DataSource):
         owner: Optional[str] = "",
     ):
         super().__init__(
-            name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
+            name=name,
         )
         self.kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers,
@@ -413,9 +421,9 @@ class KafkaSource(DataSource):
         raise NotImplementedError
 
 
-class RequestDataSource(DataSource):
+class RequestSource(DataSource):
     """
-    RequestDataSource that can be used to provide input features for on demand transforms
+    RequestSource that can be used to provide input features for on demand transforms
 
     Args:
         name: Name of the request data source
@@ -437,8 +445,8 @@ class RequestDataSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
-        """Creates a RequestDataSource object."""
-        super().__init__(name, description=description, tags=tags, owner=owner)
+        """Creates a RequestSource object."""
+        super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.schema = schema
 
     def validate(self, config: RepoConfig):
@@ -455,7 +463,7 @@ class RequestDataSource(DataSource):
         schema = {}
         for key, val in schema_pb.items():
             schema[key] = ValueType(val)
-        return RequestDataSource(
+        return RequestSource(
             name=data_source.name,
             schema=schema,
             description=data_source.description,
@@ -485,6 +493,15 @@ class RequestDataSource(DataSource):
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
+
+
+class RequestDataSource(RequestSource):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead. This class name will be removed in Feast 0.23.",
+            DeprecationWarning,
+        )
+        super().__init__(*args, **kwargs)
 
 
 class KinesisSource(DataSource):
@@ -536,11 +553,11 @@ class KinesisSource(DataSource):
         owner: Optional[str] = "",
     ):
         super().__init__(
-            name,
-            event_timestamp_column,
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
+            name=name,
+            event_timestamp_column=event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
@@ -620,7 +637,7 @@ class PushSource(DataSource):
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
         """
-        super().__init__(name, description=description, tags=tags, owner=owner)
+        super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.schema = schema
         self.batch_source = batch_source
         if not self.batch_source:

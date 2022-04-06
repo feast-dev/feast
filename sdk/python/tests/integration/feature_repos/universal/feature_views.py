@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from feast import Feature, FeatureView, OnDemandFeatureView, PushSource, ValueType
-from feast.data_source import DataSource, RequestDataSource
+from feast.data_source import DataSource, RequestSource
 
 
 def driver_feature_view(
@@ -51,7 +51,7 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def conv_rate_plus_100_feature_view(
-    sources: Dict[str, Union[RequestDataSource, FeatureView]],
+    sources: Dict[str, Union[RequestSource, FeatureView]],
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
@@ -86,7 +86,7 @@ def similarity(features_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def similarity_feature_view(
-    sources: Dict[str, Union[RequestDataSource, FeatureView]],
+    sources: Dict[str, Union[RequestSource, FeatureView]],
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
@@ -102,14 +102,12 @@ def similarity_feature_view(
     )
 
 
-def create_conv_rate_request_data_source():
-    return RequestDataSource(
-        name="conv_rate_input", schema={"val_to_add": ValueType.INT32}
-    )
+def create_conv_rate_request_source():
+    return RequestSource(name="conv_rate_input", schema={"val_to_add": ValueType.INT32})
 
 
-def create_similarity_request_data_source():
-    return RequestDataSource(
+def create_similarity_request_source():
+    return RequestSource(
         name="similarity_input",
         schema={
             "vector_double": ValueType.DOUBLE_LIST,
