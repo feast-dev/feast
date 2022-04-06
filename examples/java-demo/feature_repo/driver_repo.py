@@ -55,7 +55,7 @@ def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
 # Define request feature view
 driver_age_request_fv = RequestFeatureView(
     name="driver_age",
-    request_source=RequestSource(
+    request_data_source=RequestSource(
         name="driver_age", schema={"driver_age": ValueType.INT64,}
     ),
 )

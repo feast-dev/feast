@@ -7,14 +7,15 @@ from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.on_demand_feature_view import RequestDataSource, on_demand_feature_view
+from feast.data_source import RequestSource
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast import FileSource
 
 
 file_path = "driver_stats.parquet"
 driver_hourly_stats = FileSource(
     path=file_path,
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
@@ -40,7 +41,7 @@ driver_hourly_stats_view = FeatureView(
 )
 
 
-input_request = RequestDataSource(
+input_request = RequestSource(
     name="vals_to_add",
     schema={
         "val_to_add": ValueType.INT64,
@@ -68,7 +69,7 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 
 generated_data_source = FileSource(
     path="benchmark_data.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
 )
 
 entity = Entity(
