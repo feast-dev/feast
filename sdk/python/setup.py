@@ -36,7 +36,7 @@ REQUIRED = [
     "pandas~=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
-    "PyYAML==5.3.*",
+    "PyYAML==5.4.*",
     "fastavro>=0.22.11,<0.23",
     "tabulate==0.8.*",
     "toml==0.10.*",
