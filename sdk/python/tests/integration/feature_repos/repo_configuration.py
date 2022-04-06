@@ -80,18 +80,17 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
-            IntegrationTestRepoConfig(online_store_creator=RedisOnlineStoreCreator),
             IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,
-                online_store_creator=DatastoreOnlineStoreCreator,
+                online_store="datastore",
             ),
             IntegrationTestRepoConfig(
                 provider="gcp",
                 offline_store_creator=BigQueryDataSourceCreator,
-                online_store_creator=RedisOnlineStoreCreator,
+                online_store=REDIS_CONFIG,
             ),
             # AWS configurations
             IntegrationTestRepoConfig(
@@ -103,13 +102,13 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 provider="aws",
                 offline_store_creator=RedshiftDataSourceCreator,
-                online_store_creator=RedisOnlineStoreCreator,
+                online_store=REDIS_CONFIG,
             ),
             # Snowflake configurations
             IntegrationTestRepoConfig(
                 provider="aws",  # no list features, no feature server
                 offline_store_creator=SnowflakeDataSourceCreator,
-                online_store_creator=RedisOnlineStoreCreator,
+                online_store=REDIS_CONFIG,
             ),
         ]
     )
@@ -125,10 +124,20 @@ if full_repo_configs_module is not None:
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
 
+if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
+    replacements = {"datastore": DatastoreOnlineStoreCreator}
+    replacement_dicts = [(REDIS_CONFIG, RedisOnlineStoreCreator)]
+    for c in FULL_REPO_CONFIGS:
+        if isinstance(c.online_store, dict):
+            for _replacement in replacement_dicts:
+                if c.online_store == _replacement[0]:
+                    c.online_store_creator = _replacement[1]
+        elif c.online_store in replacements:
+            c.online_store_creator = replacements[c.online_store]
+
+
 GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(
-        online_store_creator=RedisOnlineStoreCreator, go_feature_server=True,
-    ),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
 ]
 
 
