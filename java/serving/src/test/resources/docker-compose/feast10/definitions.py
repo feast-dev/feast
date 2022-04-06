@@ -7,7 +7,8 @@ from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.data_source import RequestSource, on_demand_feature_view
+from feast.data_source import RequestSource
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast import FileSource
 
 
