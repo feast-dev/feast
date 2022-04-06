@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
 from feast.types import FeastType, from_value_type
 
@@ -45,6 +46,9 @@ class Field:
         if self.name != other.name or self.dtype != other.dtype:
             return False
         return True
+    
+    def __hash__(self):
+        return hash((id(self), self.name))
 
     def __lt__(self, other):
         return self.name < other.name
@@ -68,3 +72,13 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         return cls(name=field_proto.name, dtype=from_value_type(field_proto.value_type))
+    
+    @classmethod
+    def from_feature(cls, feature: Feature):
+        """
+        Creates a Field object from a Feature object.
+
+        Args:
+            feature: Feature object to convert.
+        """
+        return cls(name=feature.name, dtype=from_value_type(feature.dtype.value))
