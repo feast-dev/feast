@@ -20,7 +20,7 @@ def test_partial() -> None:
     ) as store:
 
         driver_locations_source = BigQuerySource(
-            table_ref="feast-oss.public.drivers",
+            table="feast-oss.public.drivers",
             timestamp_field="event_timestamp",
             created_timestamp_column="created_timestamp",
         )

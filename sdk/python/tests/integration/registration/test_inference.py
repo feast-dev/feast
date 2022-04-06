@@ -31,7 +31,7 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
-    simple_bq_source_using_table_ref_arg,
+    simple_bq_source_using_table_arg,
 )
 
 
@@ -120,7 +120,7 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
     with prep_file_source(df=simple_dataset_1) as file_source:
         data_sources = [
             file_source,
-            simple_bq_source_using_table_ref_arg(simple_dataset_1),
+            simple_bq_source_using_table_arg(simple_dataset_1),
             simple_bq_source_using_query_arg(simple_dataset_1),
         ]
         update_data_sources_with_inferred_event_timestamp_col(

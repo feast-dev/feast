@@ -33,7 +33,7 @@ from feast.value_type import ValueType
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
-    simple_bq_source_using_table_ref_arg,
+    simple_bq_source_using_table_arg,
 )
 
 
@@ -234,7 +234,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
-            batch_source=simple_bq_source_using_table_ref_arg(dataframe_source, "ts_1"),
+            batch_source=simple_bq_source_using_table_arg(dataframe_source, "ts_1"),
             tags={},
         )
 
@@ -255,7 +255,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
         actual_file_source = {
             (feature.name, feature.dtype) for feature in feature_view_1.features
         }
-        actual_bq_using_table_ref_arg_source = {
+        actual_bq_using_table_arg_source = {
             (feature.name, feature.dtype) for feature in feature_view_2.features
         }
         actual_bq_using_query_arg_source = {
@@ -270,7 +270,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
         assert (
             expected
             == actual_file_source
-            == actual_bq_using_table_ref_arg_source
+            == actual_bq_using_table_arg_source
             == actual_bq_using_query_arg_source
         )
 

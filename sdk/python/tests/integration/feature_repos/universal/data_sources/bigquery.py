@@ -74,7 +74,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self.tables.append(destination_name)
 
         return BigQuerySource(
-            table_ref=destination_name,
+            table=destination_name,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
@@ -84,7 +84,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         table = self.get_prefixed_table_name(
             f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
         )
-        return SavedDatasetBigQueryStorage(table_ref=table)
+        return SavedDatasetBigQueryStorage(table=table)
 
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.client.project}.{self.project_name}.{suffix}"

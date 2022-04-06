@@ -30,12 +30,12 @@ driver_locations_source_query_2 = BigQuerySource(
 
 customer_profile_source = BigQuerySource(
     name="customer_profile_source",
-    table_ref="feast-oss.public.customers",
+    table="feast-oss.public.customers",
     timestamp_field="event_timestamp",
 )
 
 customer_driver_combined_source = BigQuerySource(
-    table_ref="feast-oss.public.customer_driver", timestamp_field="event_timestamp",
+    table="feast-oss.public.customer_driver", timestamp_field="event_timestamp",
 )
 
 driver_locations_push_source = PushSource(

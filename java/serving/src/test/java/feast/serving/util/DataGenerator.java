@@ -210,11 +210,10 @@ public class DataGenerator {
   }
 
   public static DataSource createBigQueryDataSourceSpec(
-      String bigQueryTableRef, String timestampColumn, String datePartitionColumn) {
+      String bigQueryTable, String timestampColumn, String datePartitionColumn) {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_BIGQUERY)
-        .setBigqueryOptions(
-            DataSource.BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
+        .setBigqueryOptions(DataSource.BigQueryOptions.newBuilder().setTable(bigQueryTable).build())
         .setTimestampField(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();

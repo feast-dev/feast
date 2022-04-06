@@ -23,9 +23,7 @@ def prep_file_source(df, event_timestamp_column=None) -> Iterator[FileSource]:
         yield file_source
 
 
-def simple_bq_source_using_table_ref_arg(
-    df, event_timestamp_column=None
-) -> BigQuerySource:
+def simple_bq_source_using_table_arg(df, event_timestamp_column=None) -> BigQuerySource:
     client = bigquery.Client()
     gcp_project = client.project
     bigquery_dataset = f"ds_{time.time_ns()}"
@@ -37,20 +35,18 @@ def simple_bq_source_using_table_ref_arg(
         * 60  # 60 minutes in milliseconds (seems to be minimum limit for gcloud)
     )
     client.update_dataset(dataset, ["default_table_expiration_ms"])
-    table_ref = f"{gcp_project}.{bigquery_dataset}.table_{random.randrange(100, 999)}"
+    table = f"{gcp_project}.{bigquery_dataset}.table_{random.randrange(100, 999)}"
 
-    job = client.load_table_from_dataframe(df, table_ref)
+    job = client.load_table_from_dataframe(df, table)
     job.result()
 
-    return BigQuerySource(table_ref=table_ref, timestamp_field=event_timestamp_column,)
+    return BigQuerySource(table=table, timestamp_field=event_timestamp_column,)
 
 
 def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuerySource:
-    bq_source_using_table_ref = simple_bq_source_using_table_ref_arg(
-        df, event_timestamp_column
-    )
+    bq_source_using_table = simple_bq_source_using_table_arg(df, event_timestamp_column)
     return BigQuerySource(
-        name=bq_source_using_table_ref.table_ref,
-        query=f"SELECT * FROM {bq_source_using_table_ref.table_ref}",
+        name=bq_source_using_table.table,
+        query=f"SELECT * FROM {bq_source_using_table.table}",
         timestamp_field=event_timestamp_column,
     )
