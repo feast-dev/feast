@@ -78,6 +78,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     DEFAULT_FULL_REPO_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(online_store_creator=RedisOnlineStoreCreator),
+            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
             # GCP configurations
             IntegrationTestRepoConfig(
                 provider="gcp",
@@ -354,7 +355,9 @@ def construct_test_environment(
 
     if test_repo_config.online_store_creator:
         online_creator = test_repo_config.online_store_creator(project)
-        test_repo_config.online_store = online_creator.create_online_store()
+        online_store = (
+            test_repo_config.online_store
+        ) = online_creator.create_online_store()
     else:
         online_creator = None
         online_store = test_repo_config.online_store
