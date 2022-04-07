@@ -54,7 +54,8 @@ def main():
 
     # Retrieve features from the online store
     online_features = fs.get_online_features(
-        features=features, entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
+        features=features,
+        entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
     ).to_dict()
 
     print()

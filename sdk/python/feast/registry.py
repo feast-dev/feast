@@ -791,7 +791,10 @@ class Registry:
         raise EntityNotFoundException(name, project)
 
     def apply_saved_dataset(
-        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
+        self,
+        saved_dataset: SavedDataset,
+        project: str,
+        commit: bool = True,
     ):
         """
         Registers a single entity with Feast

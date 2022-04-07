@@ -203,7 +203,8 @@ class OnDemandFeatureView(BaseFeatureView):
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
             user_defined_function=UserDefinedFunctionProto(
-                name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
+                name=self.udf.__name__,
+                body=dill.dumps(self.udf, recurse=True),
             ),
             description=self.description,
             tags=self.tags,
@@ -283,7 +284,9 @@ class OnDemandFeatureView(BaseFeatureView):
         return schema
 
     def get_transformed_features_df(
-        self, df_with_features: pd.DataFrame, full_feature_names: bool = False,
+        self,
+        df_with_features: pd.DataFrame,
+        full_feature_names: bool = False,
     ) -> pd.DataFrame:
         # Apply on demand transformations
         columns_to_cleanup = []
