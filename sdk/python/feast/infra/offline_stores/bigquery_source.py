@@ -251,7 +251,8 @@ class BigQueryOptions:
         """
 
         bigquery_options = cls(
-            table=bigquery_options_proto.table, query=bigquery_options_proto.query,
+            table=bigquery_options_proto.table,
+            query=bigquery_options_proto.query,
         )
 
         return bigquery_options

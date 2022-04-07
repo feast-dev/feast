@@ -149,7 +149,8 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=self.features,
             sources=dict(
-                **self.source_feature_view_projections, **self.source_request_sources,
+                **self.source_feature_view_projections,
+                **self.source_request_sources,
             ),
             udf=self.udf,
             description=self.description,
@@ -193,7 +194,10 @@ class OnDemandFeatureView(BaseFeatureView):
             sources[source_name] = OnDemandSource(
                 feature_view_projection=fv_projection.to_proto()
             )
-        for (source_name, request_sources,) in self.source_request_sources.items():
+        for (
+            source_name,
+            request_sources,
+        ) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
                 request_data_source=request_sources.to_proto()
             )
