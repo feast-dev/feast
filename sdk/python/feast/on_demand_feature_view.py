@@ -366,7 +366,7 @@ class OnDemandFeatureView(BaseFeatureView):
     ) -> pd.DataFrame:
         # Apply on demand transformations
         columns_to_cleanup = []
-    for source_fv_projection in self.source_feature_view_projections.values():
+        for source_fv_projection in self.source_feature_view_projections.values():
             for feature in source_fv_projection.features:
                 full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
                 if full_feature_ref in df_with_features.keys():
