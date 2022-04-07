@@ -1,9 +1,6 @@
 import uuid
-from typing import Dict, List, Optional
+from typing import List
 
-import pandas as pd
-
-from feast.data_source import DataSource
 from feast.infra.offline_stores.contrib.trino_offline_store.connectors.upload import (
     upload_pandas_dataframe_to_trino,
 )
@@ -16,6 +13,14 @@ from feast.infra.offline_stores.contrib.trino_offline_store.trino_source import 
     TrinoSource,
 )
 from feast.repo_config import FeastConfigBaseModel
+import pathlib
+from typing import Dict, Optional
+
+import pandas as pd
+from testcontainers.core.container import DockerContainer
+from testcontainers.core.waiting_utils import wait_for_logs
+
+from feast.data_source import DataSource
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -26,9 +31,27 @@ class TrinoSourceCreator(DataSourceCreator):
     tables: List[str] = []
 
     def __init__(self, project_name: str):
-        self.project_name = project_name
-        self.client = Trino(user="user", catalog="memory", host="localhost", port=8080,)
+        super().__init__(project_name)
         self.tables_created: List[str] = []
+        current_file = pathlib.Path(__file__).parent.resolve()
+        catalog_dir = current_file.parent.joinpath("catalog")
+
+        self.container = (
+            DockerContainer("trinodb/trino:364")
+            .with_volume_mapping(catalog_dir, "/etc/catalog/")
+            .with_exposed_ports("8080")
+        )
+
+        self.container.start()
+        log_string_to_wait_for = r"======== SERVER STARTED ========"
+        wait_for_logs(
+            container=self.container, predicate=log_string_to_wait_for, timeout=5
+        )
+        self.exposed_port = self.container.get_exposed_port("8080")
+        self.client = Trino(user="user", catalog="memory", host="localhost", port=self.exposed_port,)
+
+    def teardown(self):
+        self.container.stop()
 
     def create_data_source(
         self,
@@ -77,12 +100,9 @@ class TrinoSourceCreator(DataSourceCreator):
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return TrinoOfflineStoreConfig(
             host="localhost",
-            port=8080,
+            port=self.exposed_port,
             catalog="memory",
             dataset=self.project_name,
             connector={"type": "memory"},
         )
 
-    def teardown(self):
-        for table in self.tables_created:
-            self.client.execute_query(f"DROP TABLE IF EXISTS {table}")
