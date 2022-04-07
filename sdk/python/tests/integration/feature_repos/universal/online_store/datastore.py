@@ -1,5 +1,5 @@
 import os
-import typing
+from typing import Dict
 
 from google.cloud import datastore
 from testcontainers.core.container import DockerContainer
@@ -23,7 +23,7 @@ class DatastoreOnlineStoreCreator(OnlineStoreCreator):
             .with_exposed_ports("8081")
         )
 
-    def create_online_store(self) -> typing.Dict[str, str]:
+    def create_online_store(self) -> Dict[str, str]:
         self.container.start()
         log_string_to_wait_for = r"\[datastore\] Dev App Server is now running"
         wait_for_logs(

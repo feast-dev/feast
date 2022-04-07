@@ -374,8 +374,6 @@ def construct_test_environment(
         online_creator = None
         online_store = test_repo_config.online_store
 
-    print(f"Online Store creator: {online_creator}, online store: {online_store}")
-
     repo_dir_name = tempfile.mkdtemp()
 
     if test_repo_config.python_feature_server and test_repo_config.provider == "aws":

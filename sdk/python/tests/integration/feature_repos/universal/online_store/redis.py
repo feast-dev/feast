@@ -1,4 +1,4 @@
-import typing
+from typing import Dict
 
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
@@ -13,7 +13,7 @@ class RedisOnlineStoreCreator(OnlineStoreCreator):
         super().__init__(project_name)
         self.container = DockerContainer("redis").with_exposed_ports("6379")
 
-    def create_online_store(self) -> typing.Dict[str, str]:
+    def create_online_store(self) -> Dict[str, str]:
         self.container.start()
         log_string_to_wait_for = "Ready to accept connections"
         wait_for_logs(

@@ -128,14 +128,11 @@ There are two sets of tests you can run:
 2. Full integration tests (requires cloud environment setups)
 
 #### Local integration tests
-To get local integration tests running, you'll need to have Redis and Docker setup:
+To get local integration tests running, you'll need to have Redis setup:
 
 Redis
 1. Install Redis: [Quickstart](https://redis.io/topics/quickstart)
 2. Run `redis-server`
-
-Docker:
-1. Install Docker: [Get Docker](https://docs.docker.com/get-docker/)
 
 Now run `make test-python-universal-local`
 
@@ -166,6 +163,8 @@ Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, th
 
 #### (Experimental) Run full integration tests against containerized services
 Test across clouds requires existing accounts on GCP / AWS / Snowflake, and may incur costs when using these services.
+
+For this approach of running tests, you'll need to have docker set up locally: [Get Docker](https://docs.docker.com/get-docker/)
 
 It's possible to run some integration tests against emulated local versions of these services, using ephemeral containers. 
 These tests create new temporary tables / datasets locally only, and they are cleaned up. when the containers are torn down.
