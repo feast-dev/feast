@@ -7,6 +7,8 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 import pandas as pd
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -66,6 +68,11 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         kwargs["schema"] = kwargs.pop("schema_")
     else:
         kwargs["schema"] = '"PUBLIC"'
+
+    if "private_key" in kwargs:
+        kwargs["private_key"] = parse_private_key_path(
+            kwargs["private_key"], kwargs["private_key_passphrase"]
+        )
 
     try:
         conn = snowflake.connector.connect(
@@ -288,3 +295,21 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
     """Helper generator to chunk a sequence efficiently with current index like if enumerate was called on sequence."""
     for i in range(0, len(lst), n):
         yield int(i / n), lst[i : i + n]
+
+
+def parse_private_key_path(key_path: str, private_key_passphrase: str) -> bytes:
+
+    with open(key_path, "rb") as key:
+        p_key = serialization.load_pem_private_key(
+            key.read(),
+            password=private_key_passphrase.encode(),
+            backend=default_backend(),
+        )
+
+    pkb = p_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    return pkb
