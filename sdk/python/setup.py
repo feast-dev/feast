@@ -126,7 +126,7 @@ CI_REQUIRED = (
         "pytest-mock==1.10.4",
         "Sphinx!=4.0.0,<4.4.0",
         "sphinx-rtd-theme",
-        "testcontainers==3.4.2",
+        "testcontainers>=3.5",
         "adlfs==0.5.9",
         "firebase-admin==4.5.2",
         "pre-commit",
