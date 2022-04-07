@@ -170,7 +170,7 @@ message DataSource {
     string warehouse = 5;
   }
 
-  // Defines options for DataSource that sources features from a Snowflake Query
+  // Defines options for DataSource that sources features from a spark table/query
   message SparkOptions {
     // Table name
     string table = 1;
