@@ -1,4 +1,4 @@
-package feast
+package onlinestore
 
 import (
 	"context"
@@ -214,18 +214,18 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 					}
 				}
 
-				results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
-					timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
-					value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
+				results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
+					Timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
+					Value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
 				}
 
 			} else if valueString, ok := resString.(string); !ok {
-				return nil, errors.New("error parsing value from redis")
+				return nil, errors.New("error parsing Value from redis")
 			} else {
 				resContainsNonNil = true
 				var value types.Value
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
-					return nil, errors.New("error converting parsed redis value to types.Value")
+					return nil, errors.New("error converting parsed redis Value to types.Value")
 				} else {
 					featureName := featureNames[featureIndex]
 					featureViewName := featureViewNames[featureIndex]
@@ -233,16 +233,16 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 					timeStampInterface := res[timeStampIndex]
 					if timeStampInterface != nil {
 						if timeStampString, ok := timeStampInterface.(string); !ok {
-							return nil, errors.New("error parsing value from redis")
+							return nil, errors.New("error parsing Value from redis")
 						} else {
 							if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-								return nil, errors.New("error converting parsed redis value to timestamppb.Timestamp")
+								return nil, errors.New("error converting parsed redis Value to timestamppb.Timestamp")
 							}
 						}
 					}
-					results[entityIndex][featureIndex] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
-						timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
-						value:     types.Value{Val: value.Val},
+					results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
+						Timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
+						Value:     types.Value{Val: value.Val},
 					}
 				}
 			}

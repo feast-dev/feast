@@ -1,4 +1,4 @@
-package feast
+package model
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"

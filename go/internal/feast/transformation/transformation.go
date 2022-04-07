@@ -1,4 +1,4 @@
-package feast
+package transformation
 
 import (
 	"errors"
@@ -7,6 +7,8 @@ import (
 	"github.com/apache/arrow/go/v7/arrow/array"
 	"github.com/apache/arrow/go/v7/arrow/cdata"
 	"github.com/apache/arrow/go/v7/arrow/memory"
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
@@ -23,18 +25,18 @@ import (
 */
 type TransformationCallback func(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int
 
-func augmentResponseWithOnDemandTransforms(
-	onDemandFeatureViews []*OnDemandFeatureView,
+func AugmentResponseWithOnDemandTransforms(
+	onDemandFeatureViews []*model.OnDemandFeatureView,
 	requestData map[string]*prototypes.RepeatedValue,
 	entityRows map[string]*prototypes.RepeatedValue,
-	features []*FeatureVector,
+	features []*onlineserving.FeatureVector,
 	transformationCallback TransformationCallback,
 	arrowMemory memory.Allocator,
 	numRows int,
 	fullFeatureNames bool,
 
-) ([]*FeatureVector, error) {
-	result := make([]*FeatureVector, 0)
+) ([]*onlineserving.FeatureVector, error) {
+	result := make([]*onlineserving.FeatureVector, 0)
 	var err error
 
 	for _, odfv := range onDemandFeatureViews {
@@ -76,13 +78,13 @@ func augmentResponseWithOnDemandTransforms(
 }
 
 func CallTransformations(
-	featureView *OnDemandFeatureView,
+	featureView *model.OnDemandFeatureView,
 	retrievedFeatures map[string]array.Interface,
 	requestContext map[string]array.Interface,
 	callback TransformationCallback,
 	numRows int,
 	fullFeatureNames bool,
-) ([]*FeatureVector, error) {
+) ([]*onlineserving.FeatureVector, error) {
 
 	inputArr := cdata.CArrowArray{}
 	inputSchema := cdata.CArrowSchema{}
@@ -117,7 +119,7 @@ func CallTransformations(
 
 	cdata.ExportArrowRecordBatch(inputRecord, &inputArr, &inputSchema)
 
-	ret := callback(featureView.base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
+	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
 
 	if ret != numRows {
 		return nil, errors.New("python transformation callback failed")
@@ -128,11 +130,11 @@ func CallTransformations(
 		return nil, err
 	}
 
-	result := make([]*FeatureVector, 0)
+	result := make([]*onlineserving.FeatureVector, 0)
 	for idx, field := range outRecord.Schema().Fields() {
 		dropFeature := true
 
-		if featureView.base.Projection != nil {
+		if featureView.Base.Projection != nil {
 			var featureName string
 			if fullFeatureNames {
 				featureName = strings.Split(field.Name, "__")[1]
@@ -140,8 +142,8 @@ func CallTransformations(
 				featureName = field.Name
 			}
 
-			for _, feature := range featureView.base.Projection.Features {
-				if featureName == feature.name {
+			for _, feature := range featureView.Base.Projection.Features {
+				if featureName == feature.Name {
 					dropFeature = false
 				}
 			}
@@ -161,7 +163,7 @@ func CallTransformations(
 			timestamps[idx] = timestamppb.Now()
 		}
 
-		result = append(result, &FeatureVector{
+		result = append(result, &onlineserving.FeatureVector{
 			Name:       field.Name,
 			Values:     outRecord.Column(idx),
 			Statuses:   statuses,
@@ -172,7 +174,7 @@ func CallTransformations(
 	return result, nil
 }
 
-func ensureRequestedDataExist(requestedOnDemandFeatureViews []*OnDemandFeatureView,
+func EnsureRequestedDataExist(requestedOnDemandFeatureViews []*model.OnDemandFeatureView,
 	requestDataFeatures map[string]*prototypes.RepeatedValue) error {
 
 	neededRequestData, err := getNeededRequestData(requestedOnDemandFeatureViews)
@@ -192,11 +194,11 @@ func ensureRequestedDataExist(requestedOnDemandFeatureViews []*OnDemandFeatureVi
 	return nil
 }
 
-func getNeededRequestData(requestedOnDemandFeatureViews []*OnDemandFeatureView) (map[string]struct{}, error) {
+func getNeededRequestData(requestedOnDemandFeatureViews []*model.OnDemandFeatureView) (map[string]struct{}, error) {
 	neededRequestData := make(map[string]struct{})
 
 	for _, onDemandFeatureView := range requestedOnDemandFeatureViews {
-		requestSchema := onDemandFeatureView.getRequestDataSchema()
+		requestSchema := onDemandFeatureView.GetRequestDataSchema()
 		for fieldName := range requestSchema {
 			neededRequestData[fieldName] = struct{}{}
 		}

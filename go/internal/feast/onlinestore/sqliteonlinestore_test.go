@@ -1,7 +1,8 @@
-package feast
+package onlinestore
 
 import (
 	"context"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -12,12 +13,12 @@ import (
 )
 
 func TestSqliteSetup(t *testing.T) {
-	dir := "../test"
+	dir := "../../test"
 	feature_repo_path := filepath.Join(dir, "feature_repo")
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	config, err := NewRepoConfigFromFile(feature_repo_path)
+	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
 	assert.Equal(t, "feature_repo", config.Project)
 	assert.Equal(t, "data/registry.db", config.GetRegistryConfig().Path)
@@ -31,11 +32,11 @@ func TestSqliteSetup(t *testing.T) {
 }
 
 func TestSqliteOnlineRead(t *testing.T) {
-	dir := "../test"
+	dir := "../../test"
 	feature_repo_path := filepath.Join(dir, "feature_repo")
 	test.SetupFeatureRepo(dir)
 	defer test.CleanUpRepo(dir)
-	config, err := NewRepoConfigFromFile(feature_repo_path)
+	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
 	store, err := NewSqliteOnlineStore("feature_repo", config, config.OnlineStore)
 	defer store.Destruct()
@@ -61,8 +62,8 @@ func TestSqliteOnlineRead(t *testing.T) {
 	returnedFeatureNames := make([]string, 0)
 	for _, featureVector := range featureData {
 		for idx := range featureVector {
-			returnedFeatureValues = append(returnedFeatureValues, &featureVector[idx].value)
-			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].reference.FeatureName)
+			returnedFeatureValues = append(returnedFeatureValues, &featureVector[idx].Value)
+			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].Reference.FeatureName)
 		}
 	}
 	rows, err := test.ReadParquet(filepath.Join(feature_repo_path, "data", "driver_stats.parquet"))

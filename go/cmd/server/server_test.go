@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"net"
 	"path/filepath"
 	"reflect"
@@ -37,7 +38,7 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	config, err := feast.NewRepoConfigFromFile(getRepoPath(basePath))
+	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
 	if err != nil {
 		panic(err)
 	}

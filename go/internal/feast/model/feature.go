@@ -1,4 +1,4 @@
-package feast
+package model
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -6,12 +6,12 @@ import (
 )
 
 type Feature struct {
-	name  string
-	dtype types.ValueType_Enum
+	Name  string
+	Dtype types.ValueType_Enum
 }
 
 func NewFeatureFromProto(proto *core.FeatureSpecV2) *Feature {
-	return &Feature{name: proto.Name,
-		dtype: proto.ValueType,
+	return &Feature{Name: proto.Name,
+		Dtype: proto.ValueType,
 	}
 }

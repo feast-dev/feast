@@ -1,4 +1,4 @@
-package feast
+package model
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -6,28 +6,28 @@ import (
 )
 
 type OnDemandFeatureView struct {
-	base                         *BaseFeatureView
-	sourceFeatureViewProjections map[string]*FeatureViewProjection
-	sourceRequestDataSources     map[string]*core.DataSource_RequestDataOptions
+	Base                         *BaseFeatureView
+	SourceFeatureViewProjections map[string]*FeatureViewProjection
+	SourceRequestDataSources     map[string]*core.DataSource_RequestDataOptions
 }
 
 func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandFeatureView {
-	onDemandFeatureView := &OnDemandFeatureView{base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
-		sourceFeatureViewProjections: make(map[string]*FeatureViewProjection),
-		sourceRequestDataSources:     make(map[string]*core.DataSource_RequestDataOptions),
+	onDemandFeatureView := &OnDemandFeatureView{Base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
+		SourceFeatureViewProjections: make(map[string]*FeatureViewProjection),
+		SourceRequestDataSources:     make(map[string]*core.DataSource_RequestDataOptions),
 	}
 	for sourceName, onDemandSource := range proto.Spec.Sources {
 		if onDemandSourceFeatureView, ok := onDemandSource.Source.(*core.OnDemandSource_FeatureView); ok {
 			featureViewProto := onDemandSourceFeatureView.FeatureView
 			featureView := NewFeatureViewFromProto(featureViewProto)
-			onDemandFeatureView.sourceFeatureViewProjections[sourceName] = featureView.Base.Projection
+			onDemandFeatureView.SourceFeatureViewProjections[sourceName] = featureView.Base.Projection
 		} else if onDemandSourceFeatureViewProjection, ok := onDemandSource.Source.(*core.OnDemandSource_FeatureViewProjection); ok {
 			featureProjectionProto := onDemandSourceFeatureViewProjection.FeatureViewProjection
-			onDemandFeatureView.sourceFeatureViewProjections[sourceName] = NewFeatureViewProjectionFromProto(featureProjectionProto)
+			onDemandFeatureView.SourceFeatureViewProjections[sourceName] = NewFeatureViewProjectionFromProto(featureProjectionProto)
 		} else if onDemandSourceRequestFeatureView, ok := onDemandSource.Source.(*core.OnDemandSource_RequestDataSource); ok {
 
 			if dataSourceRequestOptions, ok := onDemandSourceRequestFeatureView.RequestDataSource.Options.(*core.DataSource_RequestDataOptions_); ok {
-				onDemandFeatureView.sourceRequestDataSources[sourceName] = dataSourceRequestOptions.RequestDataOptions
+				onDemandFeatureView.SourceRequestDataSources[sourceName] = dataSourceRequestOptions.RequestDataOptions
 			}
 		}
 	}
@@ -36,25 +36,25 @@ func NewOnDemandFeatureViewFromProto(proto *core.OnDemandFeatureView) *OnDemandF
 }
 
 func (fs *OnDemandFeatureView) NewWithProjection(projection *FeatureViewProjection) (*OnDemandFeatureView, error) {
-	projectedBase, err := fs.base.withProjection(projection)
+	projectedBase, err := fs.Base.WithProjection(projection)
 	if err != nil {
 		return nil, err
 	}
 	featureView := &OnDemandFeatureView{
-		base:                         projectedBase,
-		sourceFeatureViewProjections: fs.sourceFeatureViewProjections,
-		sourceRequestDataSources:     fs.sourceRequestDataSources,
+		Base:                         projectedBase,
+		SourceFeatureViewProjections: fs.SourceFeatureViewProjections,
+		SourceRequestDataSources:     fs.SourceRequestDataSources,
 	}
 	return featureView, nil
 }
 
-func (fs *OnDemandFeatureView) projectWithFeatures(featureNames []string) (*OnDemandFeatureView, error) {
-	return fs.NewWithProjection(fs.base.projectWithFeatures(featureNames))
+func (fs *OnDemandFeatureView) ProjectWithFeatures(featureNames []string) (*OnDemandFeatureView, error) {
+	return fs.NewWithProjection(fs.Base.ProjectWithFeatures(featureNames))
 }
 
-func (fs *OnDemandFeatureView) getRequestDataSchema() map[string]types.ValueType_Enum {
+func (fs *OnDemandFeatureView) GetRequestDataSchema() map[string]types.ValueType_Enum {
 	schema := make(map[string]types.ValueType_Enum)
-	for _, requestDataSource := range fs.sourceRequestDataSources {
+	for _, requestDataSource := range fs.SourceRequestDataSources {
 		for fieldName, fieldValueType := range requestDataSource.Schema {
 			schema[fieldName] = fieldValueType
 		}
