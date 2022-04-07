@@ -2,14 +2,13 @@ package logging
 
 import (
 	"errors"
-	"fmt"
-	"log"
+	"io"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/xitongsys/parquet-go/writer"
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/apache/arrow/go/v8/parquet"
+	"github.com/apache/arrow/go/v8/parquet/pqarrow"
 )
 
 type FileLogStorage struct {
@@ -66,54 +65,70 @@ func CreateOrOpenLogFile(absPath string) (*os.File, error) {
 	}
 }
 
-func (f *FileLogStorage) FlushToStorage(m *MemoryBuffer) error {
-	if len(m.logs) == 0 {
-		return nil
-	}
-	var err error
-	w, err := CreateOrOpenLogFile(f.path)
-	if err != nil {
-		return fmt.Errorf("can't create local file with error: %s", err)
-	}
-	pw, err := writer.NewParquetWriterFromWriter(w, new(ParquetLog), 4)
-	if err != nil {
-		return fmt.Errorf("can't create parquet writer with error: %s", err)
-	}
+// func (f *FileLogStorage) FlushToStorage(m *MemoryBuffer) error {
+// 	if len(m.logs) == 0 {
+// 		return nil
+// 	}
+// 	var err error
+// 	w, err := CreateOrOpenLogFile(f.path)
+// 	if err != nil {
+// 		return fmt.Errorf("can't create local file with error: %s", err)
+// 	}
+// 	pw, err := writer.NewParquetWriterFromWriter(w, new(ParquetLog), 4)
+// 	if err != nil {
+// 		return fmt.Errorf("can't create parquet writer with error: %s", err)
+// 	}
 
-	for _, newLog := range m.logs {
-		numValues := len(newLog.FeatureValues)
-		if numValues != len(newLog.FeatureStatuses) || numValues != len(newLog.EventTimestamps) {
-			return errors.New("length of log arrays do not match")
-		}
-		statuses := make([]bool, numValues)
-		timestampsInMillis := make([]int64, numValues)
-		featureValues := make([]string, numValues)
-		for idx := 0; idx < numValues; idx++ {
-			if newLog.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
-				statuses[idx] = true
-			} else {
-				statuses[idx] = false
-			}
-			ts := newLog.EventTimestamps[idx]
-			timestampsInMillis[idx] = ts.AsTime().UnixNano() / int64(time.Millisecond)
-			featureValues[idx] = newLog.FeatureValues[idx].String()
-		}
-		newParquetLog := ParquetLog{
-			EntityName:      newLog.EntityName,
-			EntityValue:     newLog.EntityValue.String(),
-			FeatureNames:    newLog.FeatureNames,
-			FeatureValues:   featureValues,
-			FeatureStatuses: statuses,
-			EventTimestamps: timestampsInMillis,
-		}
-		if err = pw.Write(newParquetLog); err != nil {
-			return err
-		}
-	}
-	if err = pw.WriteStop(); err != nil {
+// 	for _, newLog := range m.logs {
+// 		numValues := len(newLog.FeatureValues)
+// 		if numValues != len(newLog.FeatureStatuses) || numValues != len(newLog.EventTimestamps) {
+// 			return errors.New("length of log arrays do not match")
+// 		}
+// 		statuses := make([]bool, numValues)
+// 		timestampsInMillis := make([]int64, numValues)
+// 		featureValues := make([]string, numValues)
+// 		for idx := 0; idx < numValues; idx++ {
+// 			if newLog.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
+// 				statuses[idx] = true
+// 			} else {
+// 				statuses[idx] = false
+// 			}
+// 			ts := newLog.EventTimestamps[idx]
+// 			timestampsInMillis[idx] = ts.AsTime().UnixNano() / int64(time.Millisecond)
+// 			featureValues[idx] = newLog.FeatureValues[idx].String()
+// 		}
+// 		newParquetLog := ParquetLog{
+// 			EntityName:      newLog.EntityName,
+// 			EntityValue:     newLog.EntityValue.String(),
+// 			FeatureNames:    newLog.FeatureNames,
+// 			FeatureValues:   featureValues,
+// 			FeatureStatuses: statuses,
+// 			EventTimestamps: timestampsInMillis,
+// 		}
+// 		if err = pw.Write(newParquetLog); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	if err = pw.WriteStop(); err != nil {
+// 		return err
+// 	}
+// 	log.Println("Flushed Log to Parquet File Storage")
+// 	w.Close()
+// 	return nil
+// }
+
+func (f *FileLogStorage) FlushToStorage(tbl array.Table) error {
+	w, err := CreateOrOpenLogFile(f.path)
+	var writer io.Writer = w
+	if err != nil {
 		return err
 	}
-	log.Println("Flushed Log to Parquet File Storage")
-	w.Close()
+	props := parquet.NewWriterProperties(parquet.WithDictionaryDefault(false))
+	arrProps := pqarrow.DefaultWriterProps()
+	err = pqarrow.WriteTable(tbl, writer, 100, props, arrProps)
+	if err != nil {
+		return err
+	}
 	return nil
+
 }

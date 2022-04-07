@@ -3,11 +3,12 @@ package logging
 import (
 	"errors"
 
+	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/feast-dev/feast/go/internal/feast"
 )
 
 type OfflineLogStorage interface {
-	FlushToStorage(*MemoryBuffer) error
+	FlushToStorage(array.Table) error
 }
 
 func getOfflineStoreType(offlineStoreConfig map[string]interface{}) (string, bool) {

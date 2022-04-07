@@ -77,6 +77,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: make([]*timestamp.Timestamp, 0),
 		}
 		resp.Results = append(resp.Results, vec)
+
 		for _, v := range values.Val {
 			entityNames = append(entityNames, name)
 			entityValues = append(entityValues, v)
@@ -131,8 +132,8 @@ func generateLogs(s *servingServiceServer, entityNames []string, entityValues []
 			eventTimestampLogRows[row_idx][idx-1] = results[idx].EventTimestamps[row_idx]
 		}
 		newLog := logging.Log{
-			EntityName:      entityNames[row_idx],
-			EntityValue:     entityValues[row_idx],
+			EntityName:      entityNames,
+			EntityValue:     entityValues,
 			FeatureNames:    featureNames,
 			FeatureValues:   featureValueLogRows[row_idx],
 			FeatureStatuses: featureStatusLogRows[row_idx],

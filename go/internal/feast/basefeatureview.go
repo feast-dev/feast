@@ -41,3 +41,11 @@ func (fv *BaseFeatureView) withProjection(projection *FeatureViewProjection) (*B
 	}
 	return &BaseFeatureView{Name: fv.Name, Features: fv.Features, Projection: projection}, nil
 }
+
+func CreateBaseFeatureView(name string, features []*Feature, projection *FeatureViewProjection) *BaseFeatureView {
+	return &BaseFeatureView{
+		Name:       name,
+		Features:   features,
+		Projection: projection,
+	}
+}

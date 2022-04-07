@@ -33,9 +33,9 @@ func NewFeatureViewProjectionFromProto(proto *core.FeatureViewProjection) *Featu
 }
 
 func NewFeatureViewProjectionFromDefinition(base *BaseFeatureView) *FeatureViewProjection {
-	return &FeatureViewProjection{Name: base.name,
+	return &FeatureViewProjection{Name: base.Name,
 		NameAlias:  "",
-		Features:   base.features,
+		Features:   base.Features,
 		JoinKeyMap: make(map[string]string),
 	}
 }

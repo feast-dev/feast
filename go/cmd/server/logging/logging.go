@@ -18,9 +18,9 @@ import (
 
 type Log struct {
 	// Example: driver_id, customer_id
-	EntityName string
+	EntityName []string
 	// Example: val{int64_val: 5017}, val{int64_val: 1003}
-	EntityValue *types.Value
+	EntityValue []*types.Value
 
 	// Feature names is 1:1 correspondence with featureValue, featureStatus, and timestamp
 	FeatureNames []string
@@ -111,8 +111,18 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	}
 	if offlineStoreType == "file" {
 
-		s.offlineLogStorage.FlushToStorage(s.memoryBuffer)
+		//s.offlineLogStorage.FlushToStorage(s.memoryBuffer)
 		//Clean memory buffer
+		// Convert row level logs array in memory buffer to an array table in columnar
+		// entities, fvs, odfvs, err := s.GetFcos()
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// fcoSchema, err := GetTypesFromFeatureService(s.memoryBuffer.featureService, entities, fvs, odfvs)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// table, err := s.getLogInArrowTable(fcoSchema)
 		s.memoryBuffer.logs = s.memoryBuffer.logs[:0]
 	} else {
 		// Currently don't support any other offline flushing.
@@ -121,72 +131,173 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	return nil
 }
 
-func (s *LoggingService) getLogInArrowTable() (*array.Table, error) {
+func (s *LoggingService) getLogInArrowTable(fcoSchema *Schema) (array.Table, error) {
 	// Memory Buffer is a
 	if s.memoryBuffer.featureService == nil {
 		return nil, errors.New("no Feature Service in logging service instantiated")
 	}
-	_, requestedFeatureViews, _, _, err :=
-		s.fs.GetFeatureViewsToUseByService(s.memoryBuffer.featureService, false)
-	if err != nil {
-		return nil, err
-	}
-	entityNameToJoinKeyMap, expectedJoinKeysSet, err := s.fs.GetEntityMaps(requestedFeatureViews)
+
+	arrowMemory := memory.NewGoAllocator()
 
 	columnNameToProtoValueArray := make(map[string][]*types.Value)
-	columnNameToStatus := make(map[string][]bool)
+	columnNameToStatus := make(map[string][]int32)
 	columnNameToTimestamp := make(map[string][]int64)
-	entityNameToEntityValues := make(map[string]*types.Value)
-	for _, fv := range requestedFeatureViews {
-		// for each feature view we have the features and the entities
+	entityNameToEntityValues := make(map[string][]*types.Value)
+	for _, log := range s.memoryBuffer.logs {
+		// TODO(kevjumba) get it from the featureview
 		// Get the entities from the feature view
 		// Grab the corresponding join keys and then process using joinkey map to get the entity key related to the features
 		// For each entity key create a new column
 		//  populate entitynametoentityvalues map
+		for entityName, idAndType := range fcoSchema.EntityTypes {
+			if _, ok := entityNameToEntityValues[entityName]; !ok {
+				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
+			}
+			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], log.EntityValue[idAndType.index])
+		}
+		for i := 0; i < 0; i++ {
+			entityKey := log.EntityName[i]
+			entityVal := log.EntityValue[i]
+			if _, ok := entityNameToEntityValues[entityKey]; !ok {
+				entityNameToEntityValues[entityKey] = make([]*types.Value, 0)
+			}
+			entityNameToEntityValues[entityKey] = append(columnNameToProtoValueArray[entityKey], entityVal)
+		}
 
-		for idx, featureRef := range fv.FeatureRefs() {
-
-			featureName := featureRef
-
+		for featureName, idAndType := range fcoSchema.FeaturesTypes {
 			// populate the proto value arrays with values from memory buffer in separate columns one for each feature name
 			if _, ok := columnNameToProtoValueArray[featureName]; !ok {
 				columnNameToProtoValueArray[featureName] = make([]*types.Value, 0)
-				columnNameToStatus[featureName] = make([]bool, 0)
+				columnNameToStatus[featureName] = make([]int32, 0)
 				columnNameToTimestamp[featureName] = make([]int64, 0)
 			}
-			for _, log := range s.memoryBuffer.logs {
-				columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], log.FeatureValues[idx])
-				if log.FeatureStatuses[idx] == serving.FieldStatus_PRESENT {
-
-					columnNameToStatus[featureName] = append(columnNameToStatus[featureName], true)
-				} else {
-					columnNameToStatus[featureName] = append(columnNameToStatus[featureName], false)
-				}
-				columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], log.EventTimestamps[idx].AsTime().UnixNano()/int64(time.Millisecond))
-
-			}
+			columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], log.FeatureValues[idAndType.index])
+			columnNameToStatus[featureName] = append(columnNameToStatus[featureName], int32(log.FeatureStatuses[idAndType.index]))
+			columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], log.EventTimestamps[idAndType.index].AsTime().UnixNano()/int64(time.Millisecond))
 		}
 	}
-	arrowMemory := memory.NewGoAllocator()
 
-	fields := make([]*arrow.Field, 0)
+	fields := make([]arrow.Field, 0)
 	columns := make([]array.Interface, 0)
-	for _, featureView := range s.memoryBuffer.featureService.Projections {
-		for _, feature := range featureView.Features {
+	for name, val := range entityNameToEntityValues {
+		valArrowArray, err := gotypes.ProtoValuesToArrowArray(val, arrowMemory, len(columnNameToProtoValueArray))
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, arrow.Field{
+			Name: name,
+			Type: valArrowArray.DataType(),
+		})
+		columns = append(columns, valArrowArray)
+	}
 
-			arr := columnNameToProtoValueArray[feature.Name]
+	for featureName, _ := range fcoSchema.FeaturesTypes {
 
-			arrowArray, err := gotypes.ProtoValuesToArrowArray(arr, arrowMemory, len(columnNameToProtoValueArray))
-			if err != nil {
-				return nil, err
-			}
+		proto_arr := columnNameToProtoValueArray[featureName]
 
-			fields = append(fields, &arrow.Field{
-				Name: feature.Name,
-				Type: arrowArray.DataType(),
-			})
-			columns = append(columns, arrowArray)
+		arrowArray, err := gotypes.ProtoValuesToArrowArray(proto_arr, arrowMemory, len(columnNameToProtoValueArray))
+		if err != nil {
+			return nil, err
+		}
+
+		fields = append(fields, arrow.Field{
+			Name: featureName,
+			Type: arrowArray.DataType(),
+		})
+		columns = append(columns, arrowArray)
+	}
+	log.Println(columns)
+	schema := arrow.NewSchema(
+		fields,
+		nil,
+	)
+	result := array.Record(array.NewRecord(schema, columns, int64(len(s.memoryBuffer.logs))))
+	// create an arrow table -> write this to parquet.
+
+	tbl := array.NewTableFromRecords(schema, []array.Record{result})
+	// arrow table -> write this to parquet
+	return array.Table(tbl), nil
+}
+
+type Schema struct {
+	EntityTypes      map[string]*IndexAndType
+	FeaturesTypes    map[string]*IndexAndType
+	RequestDataTypes map[string]*IndexAndType
+}
+
+type IndexAndType struct {
+	dtype types.ValueType_Enum
+	// index of the fco(entity, feature, request) as it is ordered in logs
+	index int
+}
+
+func GetTypesFromFeatureService(featureService *feast.FeatureService, entities []*feast.Entity, featureViews []*feast.FeatureView, onDemandFeatureViews []*feast.OnDemandFeatureView) (*Schema, error) {
+	fvs := make(map[string]*feast.FeatureView)
+	odFvs := make(map[string]*feast.OnDemandFeatureView)
+
+	//featureViews, err := fs.listFeatureViews(hideDummyEntity)
+
+	for _, featureView := range featureViews {
+		fvs[featureView.Base.Name] = featureView
+	}
+
+	for _, onDemandFeatureView := range onDemandFeatureViews {
+		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
+	}
+
+	entityJoinKeyToType := make(map[string]*IndexAndType)
+	entityNameToJoinKeyMap := make(map[string]string)
+	for idx, entity := range entities {
+		entityNameToJoinKeyMap[entity.Name] = entity.Joinkey
+		entityJoinKeyToType[entity.Joinkey] = &IndexAndType{
+			dtype: entity.Valuetype,
+			index: idx,
 		}
 	}
-	return nil, nil
+	allFeatureTypes := make(map[string]*IndexAndType)
+	//allRequestDataTypes := make(map[string]*types.ValueType_Enum)
+	featureIndex := 0
+	for _, featureProjection := range featureService.Projections {
+		// Create copies of FeatureView that may contains the same *FeatureView but
+		// each differentiated by a *FeatureViewProjection
+		featureViewName := featureProjection.Name
+		if fv, ok := fvs[featureViewName]; ok {
+			for _, f := range fv.Base.Features {
+				// add feature to map
+				allFeatureTypes[f.Name] = &IndexAndType{
+					dtype: f.Dtype,
+					index: featureIndex,
+				}
+				featureIndex += 1
+			}
+		} else if _, ok := odFvs[featureViewName]; ok {
+			// append this -> odfv.getRequestDataSchema() all request data schema
+			// allRequestDataTypes[featureViewName] = odfv.
+			featureIndex += 1
+		} else {
+			return nil, fmt.Errorf("no such feature view found in feature service %s", featureViewName)
+		}
+	}
+	schema := &Schema{
+		EntityTypes:      entityJoinKeyToType,
+		FeaturesTypes:    allFeatureTypes,
+		RequestDataTypes: nil,
+	}
+	return schema, nil
+}
+
+func (s *LoggingService) GetFcos() ([]*feast.Entity, []*feast.FeatureView, []*feast.OnDemandFeatureView, error) {
+	odfvs, err := s.fs.ListOnDemandFeatureViews()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	fvs, err := s.fs.ListFeatureViews()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	entities, err := s.fs.ListEntities(false)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return entities, fvs, odfvs, nil
 }
