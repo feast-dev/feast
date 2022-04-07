@@ -352,7 +352,13 @@ class OnDemandFeatureView(BaseFeatureView):
     def get_request_data_schema(self) -> Dict[str, ValueType]:
         schema: Dict[str, ValueType] = {}
         for request_source in self.source_request_sources.values():
-            schema.update(request_source.schema)
+            if isinstance(request_source.schema, List):
+                new_schema = {}
+                for field in request_source.schema:
+                    new_schema[field.name] = field.dtype.to_value_type()
+                schema.update(new_schema)
+            elif isinstance(request_source.schema, Dict):
+                schema.update(request_source.schema)
         return schema
 
     def get_transformed_features_df(

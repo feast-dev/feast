@@ -29,15 +29,12 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import String, UnixTimestamp
+from feast.types import String, UnixTimestamp, PrimitiveFeastType
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_arg,
 )
-
-from feast.field import Field
-from feast.types import PrimitiveFeastType
 
 
 def test_update_entities_with_inferred_types_from_feature_views(
@@ -172,9 +169,7 @@ def test_on_demand_features_type_inference():
     # Create Feature Views
     date_request = RequestSource(
         name="date_request",
-        schema=[
-            Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP),
-        ],
+        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP),],
     )
 
     @on_demand_feature_view(
@@ -234,9 +229,7 @@ def test_datasource_inference():
     # Create Feature Views
     date_request = RequestSource(
         name="date_request",
-        schema=[
-            Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP),
-        ],
+        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP),],
     )
 
     @on_demand_feature_view(

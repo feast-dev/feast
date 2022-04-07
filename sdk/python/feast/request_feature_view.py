@@ -63,12 +63,20 @@ class RequestFeatureView(BaseFeatureView):
             DeprecationWarning,
         )
 
+        if isinstance(request_data_source.schema, Dict):
+            new_features = [
+                Field(name=name, dtype=dtype)
+                for name, dtype in request_data_source.schema.items()
+            ]
+        else:
+            new_features = [
+                Field(name=field.name, dtype=field.dtype.to_value_type())
+                for field in request_data_source.schema
+            ]
+
         super().__init__(
             name=name,
-            features=[
-                Field(name=name, dtype=from_value_type(value_type))
-                for name, value_type in request_data_source.schema.items()
-            ],
+            features=new_features,
             description=description,
             tags=tags,
             owner=owner,

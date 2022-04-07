@@ -16,18 +16,18 @@ import enum
 import re
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union, List
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from google.protobuf.json_format import MessageToJson
+from numpy import deprecate
 
 from feast import type_map
 from feast.data_format import StreamFormat
+from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
-from feast.value_type import ValueType
-from numpy import deprecate
-from feast.field import Field
 from feast.types import VALUE_TYPES_TO_FEAST_TYPES
+from feast.value_type import ValueType
 
 
 class SourceType(enum.Enum):
@@ -495,10 +495,10 @@ class RequestSource(DataSource):
                 "Comparisons should only involve RequestSource class objects."
             )
         if (
-            self.name != other.name or
-            self.description != other.description or
-            self.owner != other.owner or
-            self.tags != other.tags
+            self.name != other.name
+            or self.description != other.description
+            or self.owner != other.owner
+            or self.tags != other.tags
         ):
             return False
         else:
@@ -517,7 +517,7 @@ class RequestSource(DataSource):
             elif isinstance(self.schema, Dict) and isinstance(other.schema, List):
                 dict_schema = self.schema
                 list_schema = other.schema
-            elif  isinstance(self.schema, List) and isinstance(other.schema, Dict):
+            elif isinstance(self.schema, List) and isinstance(other.schema, Dict):
                 dict_schema = other.schema
                 list_schema = self.schema
 
@@ -537,26 +537,34 @@ class RequestSource(DataSource):
         deprecated_schema = data_source.request_data_options.deprecated_schema
         schema_pb = data_source.request_data_options.schema
 
-        schema = []
         if deprecated_schema and not schema_pb:
             warnings.warn(
                 "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
                 "Please use List[Field] instead for the schema",
                 DeprecationWarning,
             )
+            dict_schema = {}
             for key, val in deprecated_schema.items():
-                schema[key] = ValueType(val)
+                dict_schema[key] = ValueType(val)
+            return RequestSource(
+                name=data_source.name,
+                schema=dict_schema,
+                description=data_source.description,
+                tags=dict(data_source.tags),
+                owner=data_source.owner,
+            )
         else:
+            list_schema = []
             for field_proto in schema_pb:
-                schema.append(Field.from_proto(field_proto))
+                list_schema.append(Field.from_proto(field_proto))
 
-        return RequestSource(
-            name=data_source.name,
-            schema=schema,
-            description=data_source.description,
-            tags=dict(data_source.tags),
-            owner=data_source.owner,
-        )
+            return RequestSource(
+                name=data_source.name,
+                schema=list_schema,
+                description=data_source.description,
+                tags=dict(data_source.tags),
+                owner=data_source.owner,
+            )
 
     def to_proto(self) -> DataSourceProto:
 
@@ -564,7 +572,11 @@ class RequestSource(DataSource):
 
         if isinstance(self.schema, Dict):
             for key, value in self.schema.items():
-                schema_pb.append(Field(name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[value.value]).to_proto())
+                schema_pb.append(
+                    Field(
+                        name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[value.value]
+                    ).to_proto()
+                )
         else:
             for field in self.schema:
                 schema_pb.append(field.to_proto())

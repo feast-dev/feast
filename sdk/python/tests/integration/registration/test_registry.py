@@ -29,10 +29,10 @@ from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
-from feast.types import Array, Bytes, Float32, Int32, Int64, String
+from feast.types import Array, Bytes, Float32, Int32, Int64, String, PrimitiveFeastType
 from feast.value_type import ValueType
 from feast.field import Field
-from feast.types import PrimitiveFeastType
+
 
 @pytest.fixture
 def local_registry() -> Registry:
@@ -249,9 +249,7 @@ def test_modify_feature_views_success(test_registry):
 
     request_source = RequestSource(
         name="request_source",
-        schema=[
-            Field(name="my_input_1", dtype=PrimitiveFeastType.INT32),
-        ],
+        schema=[Field(name="my_input_1", dtype=PrimitiveFeastType.INT32),],
     )
 
     fv1 = FeatureView(
