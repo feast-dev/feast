@@ -29,7 +29,10 @@ class FooProvider(Provider):
         pass
 
     def teardown_infra(
-        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         pass
 
