@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/apache/arrow/go/arrow"
-	"github.com/apache/arrow/go/arrow/array"
-	"github.com/apache/arrow/go/arrow/memory"
+	"github.com/apache/arrow/go/v8/arrow"
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -126,7 +126,7 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	return nil
 }
 
-func (s *LoggingService) getLogInArrowTable(fcoSchema *Schema) (array.Table, error) {
+func (s *LoggingService) GetLogInArrowTable(fcoSchema *Schema) (array.Table, error) {
 	// Memory Buffer is a
 	if s.memoryBuffer.featureService == nil {
 		return nil, errors.New("no Feature Service in logging service instantiated")
@@ -193,7 +193,6 @@ func (s *LoggingService) getLogInArrowTable(fcoSchema *Schema) (array.Table, err
 		})
 		columns = append(columns, arrowArray)
 	}
-	log.Println(columns)
 	schema := arrow.NewSchema(
 		fields,
 		nil,

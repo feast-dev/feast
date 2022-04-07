@@ -9,8 +9,8 @@ import (
 
 	gotypes "github.com/feast-dev/feast/go/types"
 
-	"github.com/apache/arrow/go/arrow"
-	"github.com/apache/arrow/go/arrow/array"
+	"github.com/apache/arrow/go/v8/arrow"
+	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -127,7 +127,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 		featureService: featureService,
 	}
 	loggingService.memoryBuffer = memoryBuffer
-	table, err := loggingService.getLogInArrowTable(schema)
+	table, err := loggingService.GetLogInArrowTable(schema)
 	defer table.Release()
 	tr := array.NewTableReader(table, -1)
 	expected_schema := map[string]arrow.DataType{
