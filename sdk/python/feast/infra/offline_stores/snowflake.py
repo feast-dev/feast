@@ -82,7 +82,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     database: Optional[str] = None
     """ Snowflake database name """
 
-    schema_: Optional[str] = Field("PUBLIC", alias="schema")
+    schema_: Optional[str] = Field(None, alias="schema")
     """ Snowflake schema name """
 
     class Config:
