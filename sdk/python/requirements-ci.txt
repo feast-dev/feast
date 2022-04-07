@@ -1,6 +1,6 @@
 cryptography==3.1
 flake8
-black==19.10b0
+black==22.3.0
 isort>=5
 grpcio-tools==1.31.0
 pyspark==3.0.1
@@ -20,6 +20,6 @@ pytest-lazy-fixture==0.6.3
 pytest-timeout==1.4.2
 pytest-ordering==0.6.*
 pytest-mock==1.10.4
-PyYAML==5.3.1
+PyYAML==5.4.*
 great-expectations==0.13.2
 adlfs==0.5.9
