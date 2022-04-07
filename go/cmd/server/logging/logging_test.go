@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	gotypes "github.com/feast-dev/feast/go/types"
+
 	"github.com/apache/arrow/go/arrow"
 	"github.com/apache/arrow/go/arrow/array"
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -83,8 +85,8 @@ func TestSerializeToArrowTable(t *testing.T) {
 	schema, err := GetTypesFromFeatureService(featureService, entities, featureViews, odfvs)
 	assert.Nil(t, err)
 	loggingService, err := NewLoggingService(nil, 1, false)
+	assert.Nil(t, err)
 	ts := timestamppb.New(time.Now())
-	log.Println("Sdfs")
 	log1 := Log{
 		EntityValue: []*types.Value{
 			{Val: &types.Value_Int64Val{Int64Val: 1001}},
@@ -140,12 +142,26 @@ func TestSerializeToArrowTable(t *testing.T) {
 		"int64":     arrow.PrimitiveTypes.Int64,
 		"float32":   arrow.PrimitiveTypes.Float32,
 	}
-	//mem := memory.NewCheckedAllocator(memory.NewGoAllocator())
 
-	//expectedReturnedColumns := make([]arrow.Array, 5)
+	expected_columns := map[string]*types.RepeatedValue{
+		"double": {
+			Val: []*types.Value{{Val: &types.Value_DoubleVal{DoubleVal: 0.97}},
+				{Val: &types.Value_DoubleVal{DoubleVal: 8.97}}}},
+		"driver_id": {
+			Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}},
+				{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
+		"float32": {
+			Val: []*types.Value{{Val: &types.Value_FloatVal{FloatVal: 0.64}},
+				{Val: &types.Value_FloatVal{FloatVal: 1.56}}}},
+		"int32": {
+			Val: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 55}},
+				{Val: &types.Value_Int32Val{Int32Val: 200}}}},
+		"int64": {
+			Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1000}},
+				{Val: &types.Value_Int64Val{Int64Val: 1001}}}},
+	}
 
 	defer tr.Release()
-	//returnedColumns := make([][]float64, 5)
 	for tr.Next() {
 		rec := tr.Record()
 		assert.NotNil(t, rec)
@@ -154,16 +170,28 @@ func TestSerializeToArrowTable(t *testing.T) {
 			assert.Contains(t, expected_schema, field.Name)
 			assert.Equal(t, field.Type, expected_schema[field.Name])
 		}
-		// log.Println(expected_schema.Fields())
-		// assert.True(t, reflect.DeepEqual(rec.Schema().Fields(), expected_schema.Fields()))
-		// log.Println(rec.Schema())
-		// log.Println(rec.NumRows())
-		//assert.True(t, reflect.DeepEqual(rec.Columns(), expectedColumns))
+		values, err := GetProtoFromRecord(rec)
+
+		assert.Nil(t, err)
+		assert.True(t, reflect.DeepEqual(values, expected_columns))
+		log.Println(values)
 	}
 
 	assert.Nil(t, err)
 }
-
+func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
+	r := make(map[string]*types.RepeatedValue)
+	schema := rec.Schema()
+	for idx, column := range rec.Columns() {
+		field := schema.Field(idx)
+		values, err := gotypes.ArrowValuesToProtoValues(column)
+		if err != nil {
+			return nil, err
+		}
+		r[field.Name] = &types.RepeatedValue{Val: values}
+	}
+	return r, nil
+}
 func InitializeFeatureRepoVariablesForTest() (*feast.FeatureService, []*feast.Entity, []*feast.FeatureView, []*feast.OnDemandFeatureView) {
 	f1 := feast.NewFeature(
 		"int64",

@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
