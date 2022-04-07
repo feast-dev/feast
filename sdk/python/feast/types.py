@@ -170,7 +170,9 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueTypeProto.Enum", FeastType] = {
 }
 
 
-def from_value_type(value_type: ValueTypeProto.Enum,) -> FeastType:
+def from_value_type(
+    value_type: ValueTypeProto.Enum,
+) -> FeastType:
     """
     Converts a ValueTypeProto.Enum to a Feast type.
 

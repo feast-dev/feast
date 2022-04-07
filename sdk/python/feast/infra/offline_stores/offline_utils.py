@@ -132,9 +132,9 @@ def get_feature_view_query_context(
             v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
         features = [reverse_field_mapping.get(feature, feature) for feature in features]
-        event_timestamp_column = reverse_field_mapping.get(
-            feature_view.batch_source.event_timestamp_column,
-            feature_view.batch_source.event_timestamp_column,
+        timestamp_field = reverse_field_mapping.get(
+            feature_view.batch_source.timestamp_field,
+            feature_view.batch_source.timestamp_field,
         )
         created_timestamp_column = reverse_field_mapping.get(
             feature_view.batch_source.created_timestamp_column,
@@ -154,7 +154,7 @@ def get_feature_view_query_context(
             entities=join_keys,
             features=features,
             field_mapping=feature_view.batch_source.field_mapping,
-            event_timestamp_column=event_timestamp_column,
+            event_timestamp_column=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             # TODO: Make created column optional and not hardcoded
             table_subquery=feature_view.batch_source.get_table_query_string(),
