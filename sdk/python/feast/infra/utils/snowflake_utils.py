@@ -69,6 +69,7 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     else:
         kwargs["schema"] = '"PUBLIC"'
 
+    #https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
     if "private_key" in kwargs:
         kwargs["private_key"] = parse_private_key_path(
             kwargs["private_key"], kwargs["private_key_passphrase"]
