@@ -13,13 +13,11 @@
 # limitations under the License.
 
 import enum
-import re
 import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from google.protobuf.json_format import MessageToJson
-from numpy import deprecate
 
 from feast import type_map
 from feast.data_format import StreamFormat

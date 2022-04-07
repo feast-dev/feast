@@ -169,7 +169,7 @@ def test_on_demand_features_type_inference():
     # Create Feature Views
     date_request = RequestSource(
         name="date_request",
-        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP),],
+        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
     )
 
     @on_demand_feature_view(
@@ -229,7 +229,7 @@ def test_datasource_inference():
     # Create Feature Views
     date_request = RequestSource(
         name="date_request",
-        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP),],
+        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
     )
 
     @on_demand_feature_view(

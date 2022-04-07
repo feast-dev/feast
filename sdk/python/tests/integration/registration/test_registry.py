@@ -249,7 +249,7 @@ def test_modify_feature_views_success(test_registry):
 
     request_source = RequestSource(
         name="request_source",
-        schema=[Field(name="my_input_1", dtype=PrimitiveFeastType.INT32),],
+        schema=[Field(name="my_input_1", dtype=PrimitiveFeastType.INT32)],
     )
 
     fv1 = FeatureView(
