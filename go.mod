@@ -19,7 +19,12 @@ require (
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
+<<<<<<< HEAD
 	github.com/apache/thrift v0.15.0 // indirect
+=======
+	github.com/apache/arrow/go/v8 v8.0.0-20220405223432-9fa34df27eb1 // indirect
+	github.com/apache/thrift v0.16.0 // indirect
+>>>>>>> e0ce4335 (Fix go)
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -27,6 +32,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gonuts/commander v0.1.0 // indirect
 	github.com/gonuts/flag v0.1.0 // indirect
+<<<<<<< HEAD
 <<<<<<< HEAD
 	github.com/google/flatbuffers v2.0.5+incompatible // indirect
 	github.com/klauspost/asmfmt v1.3.1 // indirect
@@ -45,15 +51,23 @@ require (
 =======
 >>>>>>> 8a7ccbe5 (semi working state)
 	github.com/google/flatbuffers v2.0.0+incompatible // indirect
+=======
+	github.com/google/flatbuffers v2.0.5+incompatible // indirect
+>>>>>>> e0ce4335 (Fix go)
 	github.com/google/go-cmp v0.5.7 // indirect
+	github.com/klauspost/asmfmt v1.3.1 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
-	github.com/pierrec/lz4/v4 v4.1.9 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
+	github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 // indirect
+	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
+	github.com/pierrec/lz4/v4 v4.1.12 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/exp v0.0.0-20211028214138-64b4c8e87d1a // indirect
+	github.com/zeebo/xxh3 v1.0.1 // indirect
+	golang.org/x/exp v0.0.0-20211216164055-b2b84827b756 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
+	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.10 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
