@@ -17,13 +17,8 @@ import (
 )
 
 type Log struct {
-	// Example: driver_id, customer_id
-	EntityName []string
 	// Example: val{int64_val: 5017}, val{int64_val: 1003}
 	EntityValue []*types.Value
-
-	// Feature names is 1:1 correspondence with featureValue, featureStatus, and timestamp
-	FeatureNames []string
 
 	FeatureValues   []*types.Value
 	FeatureStatuses []serving.FieldStatus
@@ -154,14 +149,6 @@ func (s *LoggingService) getLogInArrowTable(fcoSchema *Schema) (array.Table, err
 				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
 			}
 			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], log.EntityValue[idAndType.index])
-		}
-		for i := 0; i < 0; i++ {
-			entityKey := log.EntityName[i]
-			entityVal := log.EntityValue[i]
-			if _, ok := entityNameToEntityValues[entityKey]; !ok {
-				entityNameToEntityValues[entityKey] = make([]*types.Value, 0)
-			}
-			entityNameToEntityValues[entityKey] = append(columnNameToProtoValueArray[entityKey], entityVal)
 		}
 
 		for featureName, idAndType := range fcoSchema.FeaturesTypes {

@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"log"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -40,7 +39,6 @@ func TestLoggingChannelTimeout(t *testing.T) {
 	assert.Empty(t, loggingService.memoryBuffer.logs)
 	ts := timestamppb.New(time.Now())
 	newLog := Log{
-		FeatureNames:    []string{"feature1", "feature2"},
 		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
 		EventTimestamps: []*timestamppb.Timestamp{ts, ts},
 	}
@@ -50,7 +48,6 @@ func TestLoggingChannelTimeout(t *testing.T) {
 	newTs := timestamppb.New(time.Now())
 
 	newLog2 := Log{
-		FeatureNames:    []string{"feature4", "feature5"},
 		FeatureStatuses: []serving.FieldStatus{serving.FieldStatus_PRESENT},
 		EventTimestamps: []*timestamppb.Timestamp{newTs, newTs},
 	}
@@ -64,8 +61,6 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
 	schema, err := GetTypesFromFeatureService(featureService, entities, featureViews, odfvs)
 	assert.Nil(t, err)
-	log.Println(schema.EntityTypes)
-	log.Println(schema.FeaturesTypes)
 	assert.Contains(t, schema.EntityTypes, "driver_id")
 	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], &IndexAndType{
 		dtype: types.ValueType_INT64,
@@ -165,7 +160,6 @@ func TestSerializeToArrowTable(t *testing.T) {
 	for tr.Next() {
 		rec := tr.Record()
 		assert.NotNil(t, rec)
-		log.Println(rec.Schema())
 		for _, field := range rec.Schema().Fields() {
 			assert.Contains(t, expected_schema, field.Name)
 			assert.Equal(t, field.Type, expected_schema[field.Name])
@@ -174,7 +168,6 @@ func TestSerializeToArrowTable(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.True(t, reflect.DeepEqual(values, expected_columns))
-		log.Println(values)
 	}
 
 	assert.Nil(t, err)
