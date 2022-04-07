@@ -31,7 +31,8 @@ from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
-
+from feast.field import Field
+from feast.types import PrimitiveFeastType
 
 @pytest.fixture
 def local_registry() -> Registry:
@@ -247,7 +248,10 @@ def test_modify_feature_views_success(test_registry):
     )
 
     request_source = RequestSource(
-        name="request_source", schema={"my_input_1": ValueType.INT32}
+        name="request_source",
+        schema=[
+            Field(name="my_input_1", dtype=PrimitiveFeastType.INT32),
+        ],
     )
 
     fv1 = FeatureView(

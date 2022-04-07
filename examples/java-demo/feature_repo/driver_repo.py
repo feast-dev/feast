@@ -5,6 +5,8 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from feast.request_feature_view import RequestFeatureView
 from feast.types import Float32, Float64, Int64, String
 from google.protobuf.duration_pb2 import Duration
+from feast.field import Field
+from feast.types import PrimitiveFeastType
 
 from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
@@ -33,7 +35,10 @@ driver_hourly_stats_view = FeatureView(
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
     name="vals_to_add",
-    schema={"val_to_add": ValueType.INT64, "val_to_add_2": ValueType.INT64},
+    schema=[
+        Field(name="val_to_add", dtype=PrimitiveFeastType.INT64),
+        Field(name="val_to_add_2", dtype=PrimitiveFeastType.INT64),
+    ],
 )
 
 # Define an on demand feature view which can generate new features based on
@@ -59,6 +64,9 @@ def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
 driver_age_request_fv = RequestFeatureView(
     name="driver_age",
     request_data_source=RequestSource(
-        name="driver_age", schema={"driver_age": ValueType.INT64,}
+        name="driver_age",
+        schema=[
+            Field(name="driver_age", dtype=PrimitiveFeastType.INT64),
+        ],
     ),
 )

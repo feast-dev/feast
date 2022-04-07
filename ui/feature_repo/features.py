@@ -14,6 +14,8 @@ from feast import (
 from feast.data_source import RequestSource
 from feast.request_feature_view import RequestFeatureView
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.field import Field
+from feast.types import PrimitiveFeastType
 import pandas as pd
 
 zipcode = Entity(
@@ -130,7 +132,10 @@ credit_history = FeatureView(
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
-    name="transaction", schema={"transaction_amt": ValueType.INT64},
+    name="transaction",
+    schema=[
+        Field(name="transaction_amt", dtype=PrimitiveFeastType.INT64),
+    ],
 )
 
 # Define an on demand feature view which can generate new features based on

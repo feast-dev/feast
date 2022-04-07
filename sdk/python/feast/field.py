@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
 from feast.types import FeastType, from_value_type
@@ -62,6 +63,8 @@ class Field:
 
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
+        if isinstance(self.dtype, ValueType):
+            return self.dtype.Enum
         value_type = self.dtype.to_value_type()
         return FieldProto(name=self.name, value_type=value_type.value)
 
