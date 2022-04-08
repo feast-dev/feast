@@ -176,7 +176,7 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 		columns = append(columns, valArrowArray)
 	}
 
-	for featureName, _ := range fcoSchema.FeaturesTypes {
+	for featureName := range fcoSchema.FeaturesTypes {
 
 		proto_arr := columnNameToProtoValueArray[featureName]
 
