@@ -4,7 +4,16 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from feast import Feature, FeatureView, OnDemandFeatureView, PushSource, ValueType
+from feast import (
+    Feature,
+    FeatureView,
+    Field,
+    Float32,
+    Float64,
+    OnDemandFeatureView,
+    PushSource,
+    ValueType,
+)
 from feast.data_source import DataSource, RequestSource
 
 
@@ -55,16 +64,17 @@ def conv_rate_plus_100_feature_view(
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
+    # Test that positional arguments and Features still work for ODFVs.
     _features = features or [
         Feature("conv_rate_plus_100", ValueType.DOUBLE),
         Feature("conv_rate_plus_val_to_add", ValueType.DOUBLE),
         Feature("conv_rate_plus_100_rounded", ValueType.INT32),
     ]
     return OnDemandFeatureView(
-        name=conv_rate_plus_100.__name__,
-        sources=sources,
-        features=[] if infer_features else _features,
-        udf=conv_rate_plus_100,
+        conv_rate_plus_100.__name__,
+        [] if infer_features else _features,
+        sources,
+        conv_rate_plus_100,
     )
 
 
@@ -90,14 +100,17 @@ def similarity_feature_view(
     infer_features: bool = False,
     features: Optional[List[Feature]] = None,
 ) -> OnDemandFeatureView:
-    _features = features or [
-        Feature("cos_double", ValueType.DOUBLE),
-        Feature("cos_float", ValueType.FLOAT),
+    _fields = [
+        Field(name="cos_double", dtype=Float64),
+        Field(name="cos_float", dtype=Float32),
     ]
+    if features is not None:
+        _fields = [Field.from_feature(feature) for feature in features]
+
     return OnDemandFeatureView(
         name=similarity.__name__,
         sources=sources,
-        features=[] if infer_features else _features,
+        schema=[] if infer_features else _fields,
         udf=similarity,
     )
 
