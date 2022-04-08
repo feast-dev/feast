@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 from attr import dataclass
 
-from feast.feature import Feature
+from feast.field import Field
 from feast.protos.feast.core.FeatureViewProjection_pb2 import (
     FeatureViewProjection as FeatureViewProjectionProto,
 )
@@ -27,7 +27,7 @@ class FeatureViewProjection:
 
     name: str
     name_alias: Optional[str]
-    features: List[Feature]
+    features: List[Field]
     join_key_map: Dict[str, str] = {}
 
     def name_to_use(self):
@@ -53,7 +53,7 @@ class FeatureViewProjection:
             join_key_map=dict(proto.join_key_map),
         )
         for feature_column in proto.feature_columns:
-            feature_view_projection.features.append(Feature.from_proto(feature_column))
+            feature_view_projection.features.append(Field.from_proto(feature_column))
 
         return feature_view_projection
 
