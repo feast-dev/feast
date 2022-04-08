@@ -1,17 +1,11 @@
 import re
 from typing import List
 
-from feast import (
-    BigQuerySource,
-    Entity,
-    Feature,
-    FileSource,
-    RedshiftSource,
-    SnowflakeSource,
-)
+from feast import BigQuerySource, Entity, FileSource, RedshiftSource, SnowflakeSource
 from feast.data_source import DataSource, RequestSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
+from feast.field import Field, from_value_type
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
@@ -193,14 +187,18 @@ def update_feature_views_with_inferred_features(
                         if col_name in fv.batch_source.field_mapping
                         else col_name
                     )
-                    fv.features.append(
-                        Feature(
-                            feature_name,
+                    field = Field(
+                        name=feature_name,
+                        dtype=from_value_type(
                             fv.batch_source.source_datatype_to_feast_value_type()(
                                 col_datatype
-                            ),
-                        )
+                            )
+                        ),
                     )
+                    # Note that schema and features are two different attributes of a
+                    # FeatureView, and that features should be present in both.
+                    fv.schema.append(field)
+                    fv.features.append(field)
 
             if not fv.features:
                 raise RegistryInferenceFailure(

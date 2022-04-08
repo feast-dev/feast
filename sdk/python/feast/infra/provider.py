@@ -352,9 +352,9 @@ def _convert_arrow_to_proto(
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
-    columns = [(f.name, f.dtype) for f in feature_view.features] + list(
-        join_keys.items()
-    )
+    columns = [
+        (field.name, field.dtype.to_value_type()) for field in feature_view.schema
+    ] + list(join_keys.items())
 
     proto_values_by_column = {
         column: python_values_to_proto_values(
