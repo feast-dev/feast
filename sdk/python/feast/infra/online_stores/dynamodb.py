@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from pydantic import StrictStr
-from pydantic.typing import Literal
+from pydantic.typing import Literal, Union
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
@@ -50,17 +50,20 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["dynamodb"] = "dynamodb"
     """Online store type selector"""
 
+    batch_size: int = 40
+    """Number of items to retrieve in a DynamoDB BatchGetItem call."""
+
+    endpoint_url: Union[str, None] = None
+    """DynamoDB local development endpoint Url, i.e. http://localhost:8000"""
+
     region: StrictStr
     """AWS Region Name"""
-
-    table_name_template: StrictStr = "{project}.{table_name}"
-    """DynamoDB table name template"""
 
     sort_response: bool = True
     """Whether or not to sort BatchGetItem response."""
 
-    batch_size: int = 40
-    """Number of items to retrieve in a DynamoDB BatchGetItem call."""
+    table_name_template: StrictStr = "{project}.{table_name}"
+    """DynamoDB table name template"""
 
 
 class DynamoDBOnlineStore(OnlineStore):
@@ -95,8 +98,12 @@ class DynamoDBOnlineStore(OnlineStore):
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb_client = self._get_dynamodb_client(online_config.region)
-        dynamodb_resource = self._get_dynamodb_resource(online_config.region)
+        dynamodb_client = self._get_dynamodb_client(
+            online_config.region, online_config.endpoint_url
+        )
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region, online_config.endpoint_url
+        )
 
         for table_instance in tables_to_keep:
             try:
@@ -141,7 +148,9 @@ class DynamoDBOnlineStore(OnlineStore):
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb_resource = self._get_dynamodb_resource(online_config.region)
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region, online_config.endpoint_url
+        )
 
         for table in tables:
             _delete_table_idempotent(
@@ -175,7 +184,9 @@ class DynamoDBOnlineStore(OnlineStore):
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb_resource = self._get_dynamodb_resource(online_config.region)
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region, online_config.endpoint_url
+        )
 
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
@@ -217,7 +228,9 @@ class DynamoDBOnlineStore(OnlineStore):
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb_resource = self._get_dynamodb_resource(online_config.region)
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region, online_config.endpoint_url
+        )
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
         )
@@ -260,14 +273,16 @@ class DynamoDBOnlineStore(OnlineStore):
                 result.extend(batch_size_nones)
         return result
 
-    def _get_dynamodb_client(self, region: str):
+    def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
         if self._dynamodb_client is None:
-            self._dynamodb_client = _initialize_dynamodb_client(region)
+            self._dynamodb_client = _initialize_dynamodb_client(region, endpoint_url)
         return self._dynamodb_client
 
-    def _get_dynamodb_resource(self, region: str):
+    def _get_dynamodb_resource(self, region: str, endpoint_url: Optional[str] = None):
         if self._dynamodb_resource is None:
-            self._dynamodb_resource = _initialize_dynamodb_resource(region)
+            self._dynamodb_resource = _initialize_dynamodb_resource(
+                region, endpoint_url
+            )
         return self._dynamodb_resource
 
     def _sort_dynamodb_response(self, responses: list, order: list):
@@ -285,12 +300,12 @@ class DynamoDBOnlineStore(OnlineStore):
         return table_responses_ordered
 
 
-def _initialize_dynamodb_client(region: str):
-    return boto3.client("dynamodb", region_name=region)
+def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None):
+    return boto3.client("dynamodb", region_name=region, endpoint_url=endpoint_url)
 
 
-def _initialize_dynamodb_resource(region: str):
-    return boto3.resource("dynamodb", region_name=region)
+def _initialize_dynamodb_resource(region: str, endpoint_url: Optional[str] = None):
+    return boto3.resource("dynamodb", region_name=region, endpoint_url=endpoint_url)
 
 
 # TODO(achals): This form of user-facing templating is experimental.
@@ -327,13 +342,20 @@ class DynamoDBTable(InfraObject):
     Attributes:
         name: The name of the table.
         region: The region of the table.
+        endpoint_url: Local DynamoDB Endpoint Url.
+        _dynamodb_client: Boto3 DynamoDB client.
+        _dynamodb_resource: Boto3 DynamoDB resource.
     """
 
     region: str
+    endpoint_url = None
+    _dynamodb_client = None
+    _dynamodb_resource = None
 
-    def __init__(self, name: str, region: str):
+    def __init__(self, name: str, region: str, endpoint_url: Optional[str] = None):
         super().__init__(name)
         self.region = region
+        self.endpoint_url = endpoint_url
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         dynamodb_table_proto = self.to_proto()
@@ -362,8 +384,8 @@ class DynamoDBTable(InfraObject):
         )
 
     def update(self):
-        dynamodb_client = _initialize_dynamodb_client(region=self.region)
-        dynamodb_resource = _initialize_dynamodb_resource(region=self.region)
+        dynamodb_client = self._get_dynamodb_client(self.region, self.endpoint_url)
+        dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
 
         try:
             dynamodb_resource.create_table(
@@ -384,5 +406,17 @@ class DynamoDBTable(InfraObject):
         dynamodb_client.get_waiter("table_exists").wait(TableName=f"{self.name}")
 
     def teardown(self):
-        dynamodb_resource = _initialize_dynamodb_resource(region=self.region)
+        dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
         _delete_table_idempotent(dynamodb_resource, self.name)
+
+    def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
+        if self._dynamodb_client is None:
+            self._dynamodb_client = _initialize_dynamodb_client(region, endpoint_url)
+        return self._dynamodb_client
+
+    def _get_dynamodb_resource(self, region: str, endpoint_url: Optional[str] = None):
+        if self._dynamodb_resource is None:
+            self._dynamodb_resource = _initialize_dynamodb_resource(
+                region, endpoint_url
+            )
+        return self._dynamodb_resource
