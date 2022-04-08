@@ -342,13 +342,20 @@ class DynamoDBTable(InfraObject):
     Attributes:
         name: The name of the table.
         region: The region of the table.
+        endpoint_url: Local DynamoDB Endpoint Url.
+        _dynamodb_client: Boto3 DynamoDB client.
+        _dynamodb_resource: Boto3 DynamoDB resource.
     """
 
     region: str
+    endpoint_url = None
+    _dynamodb_client = None
+    _dynamodb_resource = None
 
-    def __init__(self, name: str, region: str):
+    def __init__(self, name: str, region: str, endpoint_url: Optional[str] = None):
         super().__init__(name)
         self.region = region
+        self.endpoint_url = endpoint_url
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         dynamodb_table_proto = self.to_proto()
@@ -377,12 +384,8 @@ class DynamoDBTable(InfraObject):
         )
 
     def update(self):
-        dynamodb_client = _initialize_dynamodb_client(
-            region=self.region, endpoint_url=None
-        )
-        dynamodb_resource = _initialize_dynamodb_resource(
-            region=self.region, endpoint_url=None
-        )
+        dynamodb_client = self._get_dynamodb_client(self.region, self.endpoint_url)
+        dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
 
         try:
             dynamodb_resource.create_table(
@@ -403,7 +406,17 @@ class DynamoDBTable(InfraObject):
         dynamodb_client.get_waiter("table_exists").wait(TableName=f"{self.name}")
 
     def teardown(self):
-        dynamodb_resource = _initialize_dynamodb_resource(
-            region=self.region, endpoint_url=None
-        )
+        dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
         _delete_table_idempotent(dynamodb_resource, self.name)
+
+    def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
+        if self._dynamodb_client is None:
+            self._dynamodb_client = _initialize_dynamodb_client(region, endpoint_url)
+        return self._dynamodb_client
+
+    def _get_dynamodb_resource(self, region: str, endpoint_url: Optional[str] = None):
+        if self._dynamodb_resource is None:
+            self._dynamodb_resource = _initialize_dynamodb_resource(
+                region, endpoint_url
+            )
+        return self._dynamodb_resource
