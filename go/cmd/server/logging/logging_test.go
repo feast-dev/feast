@@ -1,9 +1,7 @@
 package logging
 
 import (
-	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 
@@ -17,20 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// Return absolute path to the test_repo directory regardless of the working directory
-func getRepoPath(basePath string) string {
-	// Get the file path of this source file, regardless of the working directory
-	if basePath == "" {
-		_, filename, _, ok := runtime.Caller(0)
-		if !ok {
-			panic("couldn't find file path of the test file")
-		}
-		return filepath.Join(filename, "..", "..", "feature_repo")
-	} else {
-		return filepath.Join(basePath, "feature_repo")
-	}
-}
 
 func TestLoggingChannelTimeout(t *testing.T) {
 	// Pregenerated using `feast init`.
@@ -76,58 +60,8 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 }
 
 func TestSerializeToArrowTable(t *testing.T) {
-	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
-	schema, err := GetTypesFromFeatureService(featureService, entities, featureViews, odfvs)
+	table, err := GenerateLogsAndConvertToArrowTable()
 	assert.Nil(t, err)
-	loggingService, err := NewLoggingService(nil, 1, false)
-	assert.Nil(t, err)
-	ts := timestamppb.New(time.Now())
-	log1 := Log{
-		EntityValue: []*types.Value{
-			{Val: &types.Value_Int64Val{Int64Val: 1001}},
-		},
-		FeatureValues: []*types.Value{
-			{Val: &types.Value_Int64Val{Int64Val: 1000}},
-			{Val: &types.Value_FloatVal{FloatVal: 0.64}},
-			{Val: &types.Value_Int32Val{Int32Val: 55}},
-			{Val: &types.Value_DoubleVal{DoubleVal: 0.97}},
-		},
-		FeatureStatuses: []serving.FieldStatus{
-			serving.FieldStatus_PRESENT,
-			serving.FieldStatus_PRESENT,
-			serving.FieldStatus_PRESENT,
-			serving.FieldStatus_PRESENT,
-		},
-		EventTimestamps: []*timestamppb.Timestamp{
-			ts, ts, ts, ts,
-		},
-	}
-	log2 := Log{
-		EntityValue: []*types.Value{
-			{Val: &types.Value_Int64Val{Int64Val: 1003}},
-		},
-		FeatureValues: []*types.Value{
-			{Val: &types.Value_Int64Val{Int64Val: 1001}},
-			{Val: &types.Value_FloatVal{FloatVal: 1.56}},
-			{Val: &types.Value_Int32Val{Int32Val: 200}},
-			{Val: &types.Value_DoubleVal{DoubleVal: 8.97}},
-		},
-		FeatureStatuses: []serving.FieldStatus{
-			serving.FieldStatus_PRESENT,
-			serving.FieldStatus_PRESENT,
-			serving.FieldStatus_PRESENT,
-			serving.FieldStatus_PRESENT,
-		},
-		EventTimestamps: []*timestamppb.Timestamp{
-			ts, ts, ts, ts,
-		},
-	}
-	memoryBuffer := &MemoryBuffer{
-		logs:           []*Log{&log1, &log2},
-		featureService: featureService,
-	}
-	loggingService.memoryBuffer = memoryBuffer
-	table, err := loggingService.GetLogInArrowTable(schema)
 	defer table.Release()
 	tr := array.NewTableReader(table, -1)
 	expected_schema := map[string]arrow.DataType{
@@ -170,6 +104,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 		assert.True(t, reflect.DeepEqual(values, expected_columns))
 	}
 }
+
 func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
 	r := make(map[string]*types.RepeatedValue)
 	schema := rec.Schema()
@@ -233,4 +168,71 @@ func InitializeFeatureRepoVariablesForTest() (*feast.FeatureService, []*feast.En
 		[]*feast.FeatureViewProjection{projection1, projection2},
 	)
 	return featureService, []*feast.Entity{entity1}, []*feast.FeatureView{featureView1, featureView2}, []*feast.OnDemandFeatureView{}
+}
+
+func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
+	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
+	schema, err := GetTypesFromFeatureService(featureService, entities, featureViews, odfvs)
+	if err != nil {
+		return nil, err
+	}
+	loggingService, err := NewLoggingService(nil, 2, false)
+	if err != nil {
+		return nil, err
+	}
+	ts := timestamppb.New(time.Now())
+	log1 := Log{
+		EntityValue: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1001}},
+		},
+		FeatureValues: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1000}},
+			{Val: &types.Value_FloatVal{FloatVal: 0.64}},
+			{Val: &types.Value_Int32Val{Int32Val: 55}},
+			{Val: &types.Value_DoubleVal{DoubleVal: 0.97}},
+		},
+		FeatureStatuses: []serving.FieldStatus{
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+		},
+		EventTimestamps: []*timestamppb.Timestamp{
+			ts, ts, ts, ts,
+		},
+	}
+	log2 := Log{
+		EntityValue: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1003}},
+		},
+		FeatureValues: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1001}},
+			{Val: &types.Value_FloatVal{FloatVal: 1.56}},
+			{Val: &types.Value_Int32Val{Int32Val: 200}},
+			{Val: &types.Value_DoubleVal{DoubleVal: 8.97}},
+		},
+		FeatureStatuses: []serving.FieldStatus{
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+		},
+		EventTimestamps: []*timestamppb.Timestamp{
+			ts, ts, ts, ts,
+		},
+	}
+
+	dummyTicker := time.NewTicker(10 * time.Second)
+	// stop the ticker so that the logs are not flushed to offline storage
+	dummyTicker.Stop()
+	loggingService.EmitLog(&log1)
+
+	loggingService.EmitLog(&log2)
+	loggingService.ProcessMemoryBuffer(dummyTicker)
+	loggingService.ProcessMemoryBuffer(dummyTicker)
+	table, err := ConvertMemoryBufferToArrowTable(loggingService.memoryBuffer, schema)
+	if err != nil {
+		return nil, err
+	}
+	return table, nil
 }
