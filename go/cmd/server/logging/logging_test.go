@@ -8,6 +8,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
@@ -96,7 +97,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 			assert.Contains(t, expected_schema, field.Name)
 			assert.Equal(t, field.Type, expected_schema[field.Name])
 		}
-		values, err := GetProtoFromRecord(rec)
+		values, err := test.GetProtoFromRecord(rec)
 
 		assert.Nil(t, err)
 		assert.True(t, reflect.DeepEqual(values, expected_columns))

@@ -41,10 +41,14 @@ type LoggingService struct {
 func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogging bool) (*LoggingService, error) {
 	// start handler processes?
 	var featureService *feast.FeatureService = nil
-	featureService, err := fs.GetFeatureService(featureServiceName, fs.GetRepoConfig().Project)
-	if err != nil {
-		return nil, err
+	var err error
+	if enableLogging {
+		featureService, err = fs.GetFeatureService(featureServiceName, fs.GetRepoConfig().Project)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	loggingService := &LoggingService{
 		logChannel: make(chan *Log, logChannelCapacity),
 		memoryBuffer: &MemoryBuffer{
@@ -53,6 +57,7 @@ func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureSe
 		},
 		fs: fs,
 	}
+
 	if !enableLogging || fs == nil {
 		loggingService.offlineLogStorage = nil
 	} else {
@@ -141,6 +146,8 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	columnNameToTimestamp := make(map[string][]int64)
 	entityNameToEntityValues := make(map[string][]*types.Value)
 	for _, l := range memoryBuffer.logs {
+		// EntityTypes maps an entity name to the specific type and also which index in the entityValues array it is
+		// e.g if an Entity Key is {driver_id, customer_id}, then the driver_id entitytype would be dtype=int64, index=0.
 		for entityName, idAndType := range fcoSchema.EntityTypes {
 			if _, ok := entityNameToEntityValues[entityName]; !ok {
 				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
