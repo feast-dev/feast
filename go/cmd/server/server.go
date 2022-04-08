@@ -52,7 +52,8 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
 		},
 	}
-	// Entities are currently part of the features as a value
+	// Entities are currently part of the features as a value and the order that we add it to the resp MetaData
+	// Need to figure out a way to map the correct entities to the correct ordering
 	entityValues := make(map[string][]*prototypes.Value, 0)
 	for name, values := range request.Entities {
 		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, name)
@@ -89,7 +90,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	return resp, nil
 }
 
-func generateLogs(s *servingServiceServer, entities map[string][]*prototypes.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*prototypes.RepeatedValue) error {
+func generateLogs(s *servingServiceServer, entityMap map[string][]*prototypes.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*prototypes.RepeatedValue) error {
 	// Add a log with the request context
 	if len(requestData) > 0 {
 		requestContextLog := logging.Log{
@@ -101,7 +102,20 @@ func generateLogs(s *servingServiceServer, entities map[string][]*prototypes.Val
 	if len(features) <= 0 {
 		return nil
 	}
+
+	entityArr, err := s.fs.ListEntities(true)
+	if err != nil {
+		return err
+	}
+
+	joinKeys := make([]string, 0)
+	for _, entity := range entityArr {
+		joinKeys = append(joinKeys, entity.Joinkey)
+	}
+
 	numFeatures := len(featureNames)
+	// Should be equivalent to how many entities there are(each feature row has (entity) number of features)
+	// acc_rate []
 	numRows := len(features[0].Values)
 	featureValueLogRows := make([][]*prototypes.Value, numRows)
 	featureStatusLogRows := make([][]serving.FieldStatus, numRows)
@@ -117,8 +131,9 @@ func generateLogs(s *servingServiceServer, entities map[string][]*prototypes.Val
 			eventTimestampLogRows[row_idx][idx-1] = features[idx].EventTimestamps[row_idx]
 		}
 		entityRow := make([]*prototypes.Value, 0)
-		for _, val := range entities {
-			entityRow = append(entityRow, val[row_idx])
+		// ensure that the entity values are in the order that the schema defines which is the order that ListEntities returns the entities
+		for _, joinKey := range joinKeys {
+			entityRow = append(entityRow, entityMap[joinKey][row_idx])
 		}
 		newLog := logging.Log{
 			EntityValue:     entityRow,

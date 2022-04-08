@@ -148,7 +148,9 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	for _, l := range memoryBuffer.logs {
 		// EntityTypes maps an entity name to the specific type and also which index in the entityValues array it is
 		// e.g if an Entity Key is {driver_id, customer_id}, then the driver_id entitytype would be dtype=int64, index=0.
-		for entityName, idAndType := range fcoSchema.EntityTypes {
+		// It's in the order of the entities as given by the schema.
+		for _, entityName := range fcoSchema.Entities {
+			idAndType := fcoSchema.EntityTypes[entityName]
 			if _, ok := entityNameToEntityValues[entityName]; !ok {
 				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
 			}
@@ -170,13 +172,14 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 
 	fields := make([]arrow.Field, 0)
 	columns := make([]array.Interface, 0)
-	for name, val := range entityNameToEntityValues {
-		valArrowArray, err := gotypes.ProtoValuesToArrowArray(val, arrowMemory, len(columnNameToProtoValueArray))
+	for _, entityName := range fcoSchema.Entities {
+		protoArr := entityNameToEntityValues[entityName]
+		valArrowArray, err := gotypes.ProtoValuesToArrowArray(protoArr, arrowMemory, len(columnNameToProtoValueArray))
 		if err != nil {
 			return nil, err
 		}
 		fields = append(fields, arrow.Field{
-			Name: name,
+			Name: entityName,
 			Type: valArrowArray.DataType(),
 		})
 		columns = append(columns, valArrowArray)
@@ -226,6 +229,10 @@ func GetTypesFromFeatureService(featureService *feast.FeatureService, entities [
 	fvs := make(map[string]*feast.FeatureView)
 	odFvs := make(map[string]*feast.OnDemandFeatureView)
 
+	entityNames := make([]string, 0)
+	for _, entity := range entities {
+		entityNames = append(entityNames, entity.Joinkey)
+	}
 	//featureViews, err := fs.listFeatureViews(hideDummyEntity)
 
 	for _, featureView := range featureViews {
@@ -270,6 +277,7 @@ func GetTypesFromFeatureService(featureService *feast.FeatureService, entities [
 		}
 	}
 	schema := &Schema{
+		Entities:         entityNames,
 		EntityTypes:      entityJoinKeyToType,
 		FeaturesTypes:    allFeatureTypes,
 		RequestDataTypes: nil,
