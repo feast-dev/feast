@@ -40,6 +40,7 @@ type LoggingService struct {
 
 func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogging bool) (*LoggingService, error) {
 	// start handler processes?
+	var featureService *feast.FeatureService = nil
 	featureService, err := fs.GetFeatureService(featureServiceName, fs.GetRepoConfig().Project)
 	if err != nil {
 		return nil, err
@@ -139,17 +140,19 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	columnNameToStatus := make(map[string][]int32)
 	columnNameToTimestamp := make(map[string][]int64)
 	entityNameToEntityValues := make(map[string][]*types.Value)
-	for _, log := range memoryBuffer.logs {
+	for _, l := range memoryBuffer.logs {
 		// TODO(kevjumba) get it from the featureview
 		// Get the entities from the feature view
 		// Grab the corresponding join keys and then process using joinkey map to get the entity key related to the features
 		// For each entity key create a new column
 		//  populate entitynametoentityvalues map
+		log.Println(fcoSchema.EntityTypes)
+		log.Println(l.EntityValue)
 		for entityName, idAndType := range fcoSchema.EntityTypes {
 			if _, ok := entityNameToEntityValues[entityName]; !ok {
 				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
 			}
-			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], log.EntityValue[idAndType.index])
+			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], l.EntityValue[idAndType.index])
 		}
 
 		for featureName, idAndType := range fcoSchema.FeaturesTypes {
@@ -159,9 +162,9 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 				columnNameToStatus[featureName] = make([]int32, 0)
 				columnNameToTimestamp[featureName] = make([]int64, 0)
 			}
-			columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], log.FeatureValues[idAndType.index])
-			columnNameToStatus[featureName] = append(columnNameToStatus[featureName], int32(log.FeatureStatuses[idAndType.index]))
-			columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], log.EventTimestamps[idAndType.index].AsTime().UnixNano()/int64(time.Millisecond))
+			columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], l.FeatureValues[idAndType.index])
+			columnNameToStatus[featureName] = append(columnNameToStatus[featureName], int32(l.FeatureStatuses[idAndType.index]))
+			columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], l.EventTimestamps[idAndType.index].AsTime().UnixNano()/int64(time.Millisecond))
 		}
 	}
 
@@ -207,6 +210,7 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 }
 
 type Schema struct {
+	Entities         []string
 	EntityTypes      map[string]*IndexAndType
 	FeaturesTypes    map[string]*IndexAndType
 	RequestDataTypes map[string]*IndexAndType
@@ -282,7 +286,7 @@ func (s *LoggingService) GetFcos() ([]*feast.Entity, []*feast.FeatureView, []*fe
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	entities, err := s.fs.ListEntities(false)
+	entities, err := s.fs.ListEntities(true)
 	if err != nil {
 		return nil, nil, nil, err
 	}

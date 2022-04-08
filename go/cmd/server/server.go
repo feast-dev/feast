@@ -53,7 +53,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		},
 	}
 	// Entities are currently part of the features as a value
-	entityValues := make([]*prototypes.Value, 0)
+	entityValues := make(map[string][]*prototypes.Value, 0)
 	for name, values := range request.Entities {
 		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, name)
 		vec := &serving.GetOnlineFeaturesResponse_FeatureVector{
@@ -62,13 +62,14 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: make([]*timestamp.Timestamp, 0),
 		}
 		resp.Results = append(resp.Results, vec)
-
+		valueSlice := make([]*prototypes.Value, 0)
 		for _, v := range values.Val {
-			entityValues = append(entityValues, v)
+			valueSlice = append(valueSlice, v)
 			vec.Values = append(vec.Values, v)
 			vec.Statuses = append(vec.Statuses, serving.FieldStatus_PRESENT)
 			vec.EventTimestamps = append(vec.EventTimestamps, &timestamp.Timestamp{})
 		}
+		entityValues[name] = valueSlice
 	}
 	featureNames := make([]string, len(featureVectors))
 	for idx, vector := range featureVectors {
@@ -84,24 +85,26 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: vector.Timestamps,
 		})
 	}
-	go generateLogs(s, entityValues, featureNames, resp.Results, request)
+	go generateLogs(s, entityValues, featureNames, resp.Results, request.RequestContext)
 	return resp, nil
 }
 
-func generateLogs(s *servingServiceServer, entityValues []*prototypes.Value, featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector, request *serving.GetOnlineFeaturesRequest) error {
+func generateLogs(s *servingServiceServer, entities map[string][]*prototypes.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*prototypes.RepeatedValue) error {
 	// Add a log with the request context
-	if request.RequestContext != nil && len(request.RequestContext) > 0 {
+	if requestData != nil && len(requestData) > 0 {
 		requestContextLog := logging.Log{
-			RequestContext: request.RequestContext,
+			RequestContext: requestData,
 		}
 		s.loggingService.EmitLog(&requestContextLog)
 	}
 
-	if len(results) <= 0 {
+	//schema := getSchemaFromFeatureService(featureService)
+	//featuresByName := make(map[string]*serving.GetOnlineFeaturesResponse_FeatureVector)
+	if len(features) <= 0 {
 		return nil
 	}
 	numFeatures := len(featureNames)
-	numRows := len(results[0].Values)
+	numRows := len(features[0].Values)
 	featureValueLogRows := make([][]*prototypes.Value, numRows)
 	featureStatusLogRows := make([][]serving.FieldStatus, numRows)
 	eventTimestampLogRows := make([][]*timestamppb.Timestamp, numRows)
@@ -110,13 +113,17 @@ func generateLogs(s *servingServiceServer, entityValues []*prototypes.Value, fea
 		featureValueLogRows[row_idx] = make([]*prototypes.Value, numFeatures)
 		featureStatusLogRows[row_idx] = make([]serving.FieldStatus, numFeatures)
 		eventTimestampLogRows[row_idx] = make([]*timestamppb.Timestamp, numFeatures)
-		for idx := 1; idx < len(results); idx++ {
-			featureValueLogRows[row_idx][idx-1] = results[idx].Values[row_idx]
-			featureStatusLogRows[row_idx][idx-1] = results[idx].Statuses[row_idx]
-			eventTimestampLogRows[row_idx][idx-1] = results[idx].EventTimestamps[row_idx]
+		for idx := 1; idx < len(features); idx++ {
+			featureValueLogRows[row_idx][idx-1] = features[idx].Values[row_idx]
+			featureStatusLogRows[row_idx][idx-1] = features[idx].Statuses[row_idx]
+			eventTimestampLogRows[row_idx][idx-1] = features[idx].EventTimestamps[row_idx]
+		}
+		entityRow := make([]*prototypes.Value, 0)
+		for _, val := range entities {
+			entityRow = append(entityRow, val[row_idx])
 		}
 		newLog := logging.Log{
-			EntityValue:     entityValues,
+			EntityValue:     entityRow,
 			FeatureValues:   featureValueLogRows[row_idx],
 			FeatureStatuses: featureStatusLogRows[row_idx],
 			EventTimestamps: eventTimestampLogRows[row_idx],

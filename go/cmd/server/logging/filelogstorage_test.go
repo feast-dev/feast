@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"context"
-	"os"
 	"reflect"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/apache/arrow/go/v8/parquet/file"
 	"github.com/apache/arrow/go/v8/parquet/pqarrow"
+	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -78,17 +78,12 @@ func TestFlushToStorage(t *testing.T) {
 			assert.Contains(t, expected_schema, field.Name)
 			assert.Equal(t, field.Type, expected_schema[field.Name])
 		}
-		values, err := GetProtoFromRecord(rec)
+		values, err := test.GetProtoFromRecord(rec)
 
 		assert.Nil(t, err)
 		assert.True(t, reflect.DeepEqual(values, expected_columns))
 	}
 
-	err = CleanUpTestLogs(logPath)
+	err = test.CleanUpLogs(logPath)
 	assert.Nil(t, err)
-
-}
-
-func CleanUpTestLogs(absPath string) error {
-	return os.Remove(absPath)
 }

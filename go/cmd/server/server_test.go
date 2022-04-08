@@ -5,13 +5,16 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/apache/arrow/go/v8/parquet/file"
+	"github.com/apache/arrow/go/v8/parquet/pqarrow"
 	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/test"
@@ -184,78 +187,73 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		},
 	}
 
-	// featureNames := []string{"driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate", "driver_hourly_stats:avg_daily_trips"}
-	// expectedEntityValuesResp := []*types.Value{
-	// 	{Val: &types.Value_Int64Val{Int64Val: 1001}},
-	// 	{Val: &types.Value_Int64Val{Int64Val: 1003}},
-	// 	{Val: &types.Value_Int64Val{Int64Val: 1005}},
-	// }
-
-	// expectedFeatureNamesResp := []string{"conv_rate", "acc_rate", "avg_daily_trips"}
 	request := &serving.GetOnlineFeaturesRequest{
 		Kind: &serving.GetOnlineFeaturesRequest_FeatureService{
 			FeatureService: "test_service",
 		},
 		Entities: entities,
 	}
-	_, err = client.GetOnlineFeatures(ctx, request)
+	response, err := client.GetOnlineFeatures(ctx, request)
 	time.Sleep(1 * time.Second)
 	assert.Nil(t, err)
-	// assert.NotNil(t, response)
+	assert.NotNil(t, response)
 	// // Wait for logger to flush.
-	// // TODO(Change this when we add param for flush duration)
-	// time.Sleep(200 * time.Millisecond)
-	// expectedLogValues, expectedLogStatuses, expectedLogMillis := GetExpectedLogRows(featureNames, response.Results)
-	// // read from parquet log file
-	// fr, err := local.NewLocalFileReader("log.parquet")
-	// assert.Nil(t, err)
+	// Get the featurenames without the entity order
+	featureNames := response.Metadata.FeatureNames.Val[len(request.Entities):]
+	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results)
+	expectedLogValues["driver_id"] = entities["driver_id"]
+	logPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
+	assert.Nil(t, err)
+	w, err := logging.CreateOrOpenLogFile(logPath)
+	assert.Nil(t, err)
 
-	// pr, err := reader.NewParquetReader(fr, new(logging.ParquetLog), 4)
-	// if err != nil {
-	// 	log.Println("Can't create parquet reader", err)
-	// 	return
-	// }
+	pf, err := file.NewParquetReader(w)
+	assert.Nil(t, err)
 
-	// num := int(pr.GetNumRows())
-	// assert.Equal(t, num, 3)
-	// logs := make([]logging.ParquetLog, 3) //read 10 rows
-	// err = pr.Read(&logs)
-	// assert.Nil(t, err)
-	// for i := 0; i < 3; i++ {
-	// 	assert.Equal(t, logs[i].EntityName, "driver_id")
-	// 	assert.Equal(t, logs[i].EntityValue, expectedEntityValuesResp[i].String())
-	// 	assert.True(t, reflect.DeepEqual(logs[i].FeatureNames, expectedFeatureNamesResp))
-	// 	numValues := len(expectedFeatureNamesResp)
-	// 	assert.Equal(t, numValues, len(logs[i].FeatureValues))
-	// 	assert.Equal(t, numValues, len(logs[i].EventTimestamps))
-	// 	assert.Equal(t, numValues, len(logs[i].FeatureStatuses))
-	// 	assert.True(t, reflect.DeepEqual(logs[i].FeatureValues, expectedLogValues[i]))
-	// 	assert.True(t, reflect.DeepEqual(logs[i].FeatureStatuses, expectedLogStatuses[i]))
-	// 	assert.True(t, reflect.DeepEqual(logs[i].EventTimestamps, expectedLogMillis[i]))
-	// }
-	err = os.Remove("log.parquet")
+	reader, err := pqarrow.NewFileReader(pf, pqarrow.ArrowReadProperties{}, memory.DefaultAllocator)
+	assert.Nil(t, err)
+
+	tbl, err := reader.ReadTable(ctx)
+	assert.Nil(t, err)
+	tr := array.NewTableReader(tbl, -1)
+	defer tbl.Release()
+	defer tr.Release()
+	for tr.Next() {
+		rec := tr.Record()
+		assert.NotNil(t, rec)
+		values, err := test.GetProtoFromRecord(rec)
+
+		assert.Nil(t, err)
+		assert.Equal(t, len(values), len(expectedLogValues))
+		for name, val := range values {
+			assert.Equal(t, len(val.Val), len(expectedLogValues[name].Val))
+			for idx, featureVal := range val.Val {
+				assert.Equal(t, featureVal.Val, expectedLogValues[name].Val[idx].Val)
+			}
+		}
+	}
+	err = test.CleanUpLogs(logPath)
 	assert.Nil(t, err)
 }
 
-func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector) ([][]string, [][]bool, [][]int64) {
+func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector) (map[string]*types.RepeatedValue, [][]int32, [][]int64) {
 	numFeatures := len(featureNames)
 	numRows := len(results[0].Values)
-	featureValueLogRows := make([][]string, numRows)
-	featureStatusLogRows := make([][]bool, numRows)
+	featureValueLogRows := make(map[string]*types.RepeatedValue)
+	featureStatusLogRows := make([][]int32, numRows)
 	eventTimestampLogRows := make([][]int64, numRows)
-
-	for row_idx := 0; row_idx < numRows; row_idx++ {
-		featureValueLogRows[row_idx] = make([]string, numFeatures)
-		featureStatusLogRows[row_idx] = make([]bool, numFeatures)
-		eventTimestampLogRows[row_idx] = make([]int64, numFeatures)
-		for idx := 1; idx < len(results); idx++ {
-			featureValueLogRows[row_idx][idx-1] = results[idx].Values[row_idx].String()
-			if results[idx].Statuses[row_idx] == serving.FieldStatus_PRESENT {
-				featureStatusLogRows[row_idx][idx-1] = true
-			} else {
-				featureStatusLogRows[row_idx][idx-1] = false
-			}
+	for idx := 1; idx < len(results); idx++ {
+		valArray := make([]*types.Value, 0)
+		for row_idx := 0; row_idx < numRows; row_idx++ {
+			featureStatusLogRows[row_idx] = make([]int32, numFeatures)
+			eventTimestampLogRows[row_idx] = make([]int64, numFeatures)
+			valArray = append(valArray, results[idx].Values[row_idx])
+			featureStatusLogRows[row_idx][idx-1] = int32(serving.FieldStatus_PRESENT)
 			eventTimestampLogRows[row_idx][idx-1] = results[idx].EventTimestamps[row_idx].AsTime().UnixNano() / int64(time.Millisecond)
+
+		}
+		featureValueLogRows[featureNames[idx-1]] = &types.RepeatedValue{
+			Val: valArray,
 		}
 	}
 
@@ -264,11 +262,11 @@ func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeatu
 
 func generateFeatureService(fs *feast.FeatureStore) {
 	f1 := core.FeatureSpecV2{
-		Name:      "conv_rate",
+		Name:      "acc_rate",
 		ValueType: types.ValueType_FLOAT,
 	}
 	f2 := core.FeatureSpecV2{
-		Name:      "acc_rate",
+		Name:      "conv_rate",
 		ValueType: types.ValueType_FLOAT,
 	}
 	f3 := core.FeatureSpecV2{

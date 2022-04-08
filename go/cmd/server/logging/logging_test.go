@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	gotypes "github.com/feast-dev/feast/go/types"
-
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -105,19 +103,6 @@ func TestSerializeToArrowTable(t *testing.T) {
 	}
 }
 
-func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
-	r := make(map[string]*types.RepeatedValue)
-	schema := rec.Schema()
-	for idx, column := range rec.Columns() {
-		field := schema.Field(idx)
-		values, err := gotypes.ArrowValuesToProtoValues(column)
-		if err != nil {
-			return nil, err
-		}
-		r[field.Name] = &types.RepeatedValue{Val: values}
-	}
-	return r, nil
-}
 func InitializeFeatureRepoVariablesForTest() (*feast.FeatureService, []*feast.Entity, []*feast.FeatureView, []*feast.OnDemandFeatureView) {
 	f1 := feast.NewFeature(
 		"int64",
@@ -176,7 +161,7 @@ func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	loggingService, err := NewLoggingService(nil, 2, false)
+	loggingService, err := NewLoggingService(nil, 2, "", false)
 	if err != nil {
 		return nil, err
 	}

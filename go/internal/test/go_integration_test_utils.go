@@ -3,7 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/apache/arrow/go/v8/arrow/array"
+
 	"github.com/apache/arrow/go/v8/arrow/memory"
 
 	"github.com/apache/arrow/go/v8/arrow"
@@ -14,6 +14,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/feast-dev/feast/go/protos/feast/types"
+	gotypes "github.com/feast-dev/feast/go/types"
 )
 
 type Row struct {
@@ -127,4 +131,22 @@ func CleanUpRepo(basePath string) error {
 		return fmt.Errorf("couldn't remove feature repo path %s", err)
 	}
 	return nil
+}
+
+func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
+	r := make(map[string]*types.RepeatedValue)
+	schema := rec.Schema()
+	for idx, column := range rec.Columns() {
+		field := schema.Field(idx)
+		values, err := gotypes.ArrowValuesToProtoValues(column)
+		if err != nil {
+			return nil, err
+		}
+		r[field.Name] = &types.RepeatedValue{Val: values}
+	}
+	return r, nil
+}
+
+func CleanUpLogs(absPath string) error {
+	return os.Remove(absPath)
 }
