@@ -49,7 +49,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	// Disable logging for now
-	loggingService, err := logging.NewLoggingService(fs, 1000, false)
+	loggingService, err := logging.NewLoggingService(fs, 1000, "", false)
 	if err != nil {
 		log.Fatalln(err)
 	}

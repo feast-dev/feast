@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 
 	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -33,19 +32,6 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 // Results contains values including the value of the feature, the event timestamp, and feature status in a columnar format.
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
-	if featuresOrService.FeatureService != nil {
-		log.Println("INDSFS")
-
-		log.Println(featuresOrService.FeatureService.Projections[0].Features)
-		log.Println(featuresOrService.FeatureService.Projections[0].JoinKeyMap)
-	}
-	// if featuresOrService.FeatureService != nil {
-	// 	if schema, ok := schemaCache[featuresOrService.FeatureService]; !ok {
-	// 		generateLogSchemaFromFeatureService(featuresOrService.FeatureService)
-	// 	}
-
-	// }
-
 	if err != nil {
 		return nil, err
 	}

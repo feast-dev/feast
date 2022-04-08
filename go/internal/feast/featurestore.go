@@ -3,6 +3,10 @@ package feast
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"sort"
+	"strings"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -28,6 +32,56 @@ type FeatureStore struct {
 type Features struct {
 	FeaturesRefs   []string
 	FeatureService *model.FeatureService
+}
+
+/*
+	FeatureVector type represent result of retrieving single feature for multiple rows.
+	It can be imagined as a column in output dataframe / table.
+	It contains of feature name, list of values (across all rows),
+	list of statuses and list of timestamp. All these lists have equal length.
+	And this length is also equal to number of entity rows received in request.
+*/
+type FeatureVector struct {
+	Name       string
+	Values     array.Interface
+	Statuses   []serving.FieldStatus
+	Timestamps []*timestamppb.Timestamp
+}
+
+type featureViewAndRefs struct {
+	view        *FeatureView
+	featureRefs []string
+}
+
+func (fs *FeatureStore) Registry() *Registry {
+	return fs.registry
+}
+
+func (f *featureViewAndRefs) View() *FeatureView {
+	return f.view
+}
+
+func (f *featureViewAndRefs) FeatureRefs() []string {
+	return f.featureRefs
+}
+
+/*
+	We group all features from a single request by entities they attached to.
+	Thus, we will be able to call online retrieval per entity and not per each feature view.
+	In this struct we collect all features and views that belongs to a group.
+	We also store here projected entity keys (only ones that needed to retrieve these features)
+	and indexes to map result of retrieval into output response.
+*/
+type GroupedFeaturesPerEntitySet struct {
+	// A list of requested feature references of the form featureViewName:featureName that share this entity set
+	featureNames     []string
+	featureViewNames []string
+	// full feature references as they supposed to appear in response
+	aliasedFeatureNames []string
+	// Entity set as a list of EntityKeys to pass to OnlineRead
+	entityKeys []*prototypes.EntityKey
+	// Reversed mapping to project result of retrieval from storage to response
+	indices [][]int
 }
 
 // NewFeatureStore constructs a feature store fat client using the
@@ -191,7 +245,7 @@ func (fs *FeatureStore) ParseFeatures(kind interface{}) (*Features, error) {
 		return &Features{FeaturesRefs: featureList.Features.GetVal(), FeatureService: nil}, nil
 	}
 	if featureServiceRequest, ok := kind.(*serving.GetOnlineFeaturesRequest_FeatureService); ok {
-		featureService, err := fs.registry.GetFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
+		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
 		if err != nil {
 			return nil, err
 		}

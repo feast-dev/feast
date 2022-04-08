@@ -18,7 +18,7 @@ import (
 
 func TestLoggingChannelTimeout(t *testing.T) {
 	// Pregenerated using `feast init`.
-	loggingService, err := NewLoggingService(nil, 1, false)
+	loggingService, err := NewLoggingService(nil, 1, "", false)
 	assert.Nil(t, err)
 	assert.Empty(t, loggingService.memoryBuffer.logs)
 	ts := timestamppb.New(time.Now())

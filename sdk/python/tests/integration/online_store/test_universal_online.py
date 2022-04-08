@@ -703,8 +703,7 @@ def test_online_retrieval_with_go_server(
     fs = go_environment.feature_store
     entities, datasets, data_sources = go_data_sources
     feature_views = construct_universal_feature_views(data_sources, with_odfv=False)
-    print("ASdfasdf")
-    print(feature_views.location)
+
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
         features=[

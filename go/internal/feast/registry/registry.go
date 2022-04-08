@@ -3,10 +3,11 @@ package registry
 import (
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/model"
 
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )
@@ -34,6 +35,17 @@ type Registry struct {
 	cachedRegistryProtoLastUpdated time.Time
 	cachedRegistryProtoTtl         time.Duration
 	mu                             sync.Mutex
+}
+
+func (r *Registry) CacheFeatureService(featureService *core.FeatureService) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.cachedFeatureServices == nil {
+		r.cachedFeatureServices = make(map[string]map[string]*core.FeatureService)
+	}
+	r.cachedFeatureServices[featureService.Spec.Project] = map[string]*core.FeatureService{
+		featureService.Spec.Name: featureService,
+	}
 }
 
 func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
@@ -94,11 +106,11 @@ func (r *Registry) getRegistryProto() (*core.Registry, error) {
 	if err != nil {
 		return registryProto, err
 	}
-	r.load(registryProto)
+	r.Load(registryProto)
 	return registryProto, nil
 }
 
-func (r *Registry) load(registry *core.Registry) {
+func (r *Registry) Load(registry *core.Registry) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.cachedRegistry = registry

@@ -26,12 +26,6 @@ type Log struct {
 	RequestContext  map[string]*types.RepeatedValue
 }
 
-// driver_id,
-// 1003, 1004
-// [acc rate conv rate avg_daily_trips]
-// [entityvalues, acc_rate conv_rate avg_daily_trips, acc_ratestatus, conv_rate_status]
-// [entityvalues, entity value]
-
 type MemoryBuffer struct {
 	featureService *feast.FeatureService
 	logs           []*Log
@@ -44,12 +38,17 @@ type LoggingService struct {
 	offlineLogStorage OfflineLogStorage
 }
 
-func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, enableLogging bool) (*LoggingService, error) {
+func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogging bool) (*LoggingService, error) {
 	// start handler processes?
+	featureService, err := fs.GetFeatureService(featureServiceName, fs.GetRepoConfig().Project)
+	if err != nil {
+		return nil, err
+	}
 	loggingService := &LoggingService{
 		logChannel: make(chan *Log, logChannelCapacity),
 		memoryBuffer: &MemoryBuffer{
-			logs: make([]*Log, 0),
+			logs:           make([]*Log, 0),
+			featureService: featureService,
 		},
 		fs: fs,
 	}
@@ -105,19 +104,23 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		return fmt.Errorf("could not get offline storage type for config: %s", s.fs.GetRepoConfig().OfflineStore)
 	}
 	if offlineStoreType == "file" {
-
-		//s.offlineLogStorage.FlushToStorage(s.memoryBuffer)
-		//Clean memory buffer
-		// Convert row level logs array in memory buffer to an array table in columnar
-		// entities, fvs, odfvs, err := s.GetFcos()
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// fcoSchema, err := GetTypesFromFeatureService(s.memoryBuffer.featureService, entities, fvs, odfvs)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// table, err := s.getLogInArrowTable(fcoSchema)
+		entities, featureViews, odfvs, err := s.GetFcos()
+		if err != nil {
+			return err
+		}
+		schema, err := GetTypesFromFeatureService(s.memoryBuffer.featureService, entities, featureViews, odfvs)
+		if err != nil {
+			return err
+		}
+		table, err := ConvertMemoryBufferToArrowTable(s.memoryBuffer, schema)
+		if err != nil {
+			return err
+		}
+		fileStore, err := NewFileOfflineStore(s.fs.GetRepoConfig().Project, s.fs.GetRepoConfig().OfflineStore)
+		if err != nil {
+			return err
+		}
+		fileStore.FlushToStorage(table)
 		s.memoryBuffer.logs = s.memoryBuffer.logs[:0]
 	} else {
 		// Currently don't support any other offline flushing.
