@@ -161,6 +161,21 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 
 Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
 
+#### (Experimental) Run full integration tests against containerized services
+Test across clouds requires existing accounts on GCP / AWS / Snowflake, and may incur costs when using these services.
+
+For this approach of running tests, you'll need to have docker set up locally: [Get Docker](https://docs.docker.com/get-docker/)
+
+It's possible to run some integration tests against emulated local versions of these services, using ephemeral containers. 
+These tests create new temporary tables / datasets locally only, and they are cleaned up. when the containers are torn down.
+
+The services with containerized replacements currently implemented are:
+- Datastore
+- Redis
+
+You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.
+
+
 ## Feast Java Serving
 See [Java contributing guide](java/CONTRIBUTING.md)
 

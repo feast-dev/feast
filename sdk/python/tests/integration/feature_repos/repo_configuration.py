@@ -44,6 +44,15 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
+from tests.integration.feature_repos.universal.online_store.datastore import (
+    DatastoreOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store.redis import (
+    RedisOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store_creator import (
+    OnlineStoreCreator,
+)
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 # Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes
@@ -114,6 +123,18 @@ if full_repo_configs_module is not None:
         ) from e
 else:
     FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
+
+if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
+    replacements = {"datastore": DatastoreOnlineStoreCreator}
+    replacement_dicts = [(REDIS_CONFIG, RedisOnlineStoreCreator)]
+    for c in FULL_REPO_CONFIGS:
+        if isinstance(c.online_store, dict):
+            for _replacement in replacement_dicts:
+                if c.online_store == _replacement[0]:
+                    c.online_store_creator = _replacement[1]
+        elif c.online_store in replacements:
+            c.online_store_creator = replacements[c.online_store]
+
 
 GO_REPO_CONFIGS = [
     IntegrationTestRepoConfig(
@@ -303,6 +324,7 @@ class Environment:
     data_source_creator: DataSourceCreator
     python_feature_server: bool
     worker_id: str
+    online_store_creator: Optional[OnlineStoreCreator] = None
 
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
@@ -345,9 +367,16 @@ def construct_test_environment(
     project = f"{test_suite_name}_{run_id}_{run_num}"
 
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
-
     offline_store_config = offline_creator.create_offline_store_config()
-    online_store = test_repo_config.online_store
+
+    if test_repo_config.online_store_creator:
+        online_creator = test_repo_config.online_store_creator(project)
+        online_store = (
+            test_repo_config.online_store
+        ) = online_creator.create_online_store()
+    else:
+        online_creator = None
+        online_store = test_repo_config.online_store
 
     repo_dir_name = tempfile.mkdtemp()
 
@@ -397,6 +426,7 @@ def construct_test_environment(
         data_source_creator=offline_creator,
         python_feature_server=test_repo_config.python_feature_server,
         worker_id=worker_id,
+        online_store_creator=online_creator,
     )
 
     return environment

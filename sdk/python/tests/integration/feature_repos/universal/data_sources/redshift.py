@@ -19,8 +19,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     tables: List[str] = []
 
     def __init__(self, project_name: str):
-        super().__init__()
-        self.project_name = project_name
+        super().__init__(project_name)
         self.client = aws_utils.get_redshift_data_client("us-west-2")
         self.s3 = aws_utils.get_s3_resource("us-west-2")
 

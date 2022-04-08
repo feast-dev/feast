@@ -9,6 +9,9 @@ from feast.saved_dataset import SavedDatasetStorage
 
 
 class DataSourceCreator(ABC):
+    def __init__(self, project_name: str):
+        self.project_name = project_name
+
     @abstractmethod
     def create_data_source(
         self,

@@ -190,6 +190,8 @@ def environment(request, worker_id: str):
         e.feature_store.teardown()
         if proc.is_alive():
             proc.kill()
+        if e.online_store_creator:
+            e.online_store_creator.teardown()
 
     request.addfinalizer(cleanup)
 
@@ -251,6 +253,8 @@ def go_data_sources(request, go_environment):
     def cleanup():
         # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
         go_environment.data_source_creator.teardown()
+        if go_environment.online_store_creator:
+            go_environment.online_store_creator.teardown()
 
     request.addfinalizer(cleanup)
     return construct_universal_test_data(go_environment)
@@ -267,6 +271,8 @@ def e2e_data_sources(environment: Environment, request):
 
     def cleanup():
         environment.data_source_creator.teardown()
+        if environment.online_store_creator:
+            environment.online_store_creator.teardown()
 
     request.addfinalizer(cleanup)
 
