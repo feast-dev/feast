@@ -91,15 +91,13 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 
 func generateLogs(s *servingServiceServer, entities map[string][]*prototypes.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*prototypes.RepeatedValue) error {
 	// Add a log with the request context
-	if requestData != nil && len(requestData) > 0 {
+	if len(requestData) > 0 {
 		requestContextLog := logging.Log{
 			RequestContext: requestData,
 		}
 		s.loggingService.EmitLog(&requestContextLog)
 	}
 
-	//schema := getSchemaFromFeatureService(featureService)
-	//featuresByName := make(map[string]*serving.GetOnlineFeaturesResponse_FeatureVector)
 	if len(features) <= 0 {
 		return nil
 	}

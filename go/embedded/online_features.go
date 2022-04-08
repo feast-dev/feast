@@ -142,6 +142,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if featureServiceName != "" {
 		featureService, err = s.fs.GetFeatureService(featureServiceName)
 	}
+
 	resp, err := s.fs.GetOnlineFeatures(
 		context.Background(),
 		featureRefs,

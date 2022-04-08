@@ -244,7 +244,7 @@ func (fs *FeatureStore) ParseFeatures(kind interface{}) (*Features, error) {
 		return &Features{FeaturesRefs: featureList.Features.GetVal(), FeatureService: nil}, nil
 	}
 	if featureServiceRequest, ok := kind.(*serving.GetOnlineFeaturesRequest_FeatureService); ok {
-		featureService, err := fs.registry.getFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
+		featureService, err := fs.registry.GetFeatureService(fs.config.Project, featureServiceRequest.FeatureService)
 		if err != nil {
 			return nil, err
 		}

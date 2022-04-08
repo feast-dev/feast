@@ -141,13 +141,6 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	columnNameToTimestamp := make(map[string][]int64)
 	entityNameToEntityValues := make(map[string][]*types.Value)
 	for _, l := range memoryBuffer.logs {
-		// TODO(kevjumba) get it from the featureview
-		// Get the entities from the feature view
-		// Grab the corresponding join keys and then process using joinkey map to get the entity key related to the features
-		// For each entity key create a new column
-		//  populate entitynametoentityvalues map
-		log.Println(fcoSchema.EntityTypes)
-		log.Println(l.EntityValue)
 		for entityName, idAndType := range fcoSchema.EntityTypes {
 			if _, ok := entityNameToEntityValues[entityName]; !ok {
 				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
