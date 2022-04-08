@@ -169,8 +169,6 @@ func TestSerializeToArrowTable(t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, reflect.DeepEqual(values, expected_columns))
 	}
-
-	assert.Nil(t, err)
 }
 func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
 	r := make(map[string]*types.RepeatedValue)
