@@ -13,6 +13,7 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
+from feast.field import Field, from_value_type
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -57,7 +58,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     # TODO(adchia): remove inputs from proto and declaration
     name: str
-    features: List[Feature]
+    features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
     udf: MethodType
@@ -68,8 +69,9 @@ class OnDemandFeatureView(BaseFeatureView):
     @log_exceptions
     def __init__(
         self,
-        name: str,
-        features: List[Feature],
+        *args,
+        name: Optional[str] = None,
+        features: Optional[List[Feature]] = None,
         sources: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
         ] = None,
@@ -77,6 +79,7 @@ class OnDemandFeatureView(BaseFeatureView):
         inputs: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
         ] = None,
+        schema: Optional[List[Field]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -86,8 +89,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
         Args:
             name: The unique name of the on demand feature view.
-            features: The list of features in the output of the on demand feature view, after
-                the transformation has been applied.
+            features (deprecated): The list of features in the output of the on demand
+                feature view, after the transformation has been applied.
             sources (optional): A map from input source names to the actual input sources,
                 which may be feature views, feature view projections, or request data sources.
                 These sources serve as inputs to the udf, which will refer to them by name.
@@ -96,18 +99,32 @@ class OnDemandFeatureView(BaseFeatureView):
             inputs (optional): A map from input source names to the actual input sources,
                 which may be feature views, feature view projections, or request data sources.
                 These sources serve as inputs to the udf, which will refer to them by name.
+            schema (optional): The list of features in the output of the on demand feature
+                view, after the transformation has been applied.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
                 of the primary maintainer.
         """
-        super().__init__(
-            name=name,
-            features=features,
-            description=description,
-            tags=tags,
-            owner=owner,
-        )
+        positional_attributes = ["name", "features", "sources", "udf"]
+
+        _name = name
+
+        _schema = schema or []
+        if len(_schema) == 0 and features is not None:
+            _schema = [Field.from_feature(feature) for feature in features]
+        if features is not None:
+            warnings.warn(
+                (
+                    "The `features` parameter is being deprecated in favor of the `schema` parameter. "
+                    "Please switch from using `features` to `schema`. This will also requiring switching "
+                    "feature definitions from using `Feature` to `Field`. Feast 0.21 and onwards will not "
+                    "support the `features` parameter."
+                ),
+                DeprecationWarning,
+            )
+
+        _sources = sources or inputs
         if inputs and sources:
             raise ValueError("At most one of `sources` or `inputs` can be specified.")
         elif inputs:
@@ -118,14 +135,71 @@ class OnDemandFeatureView(BaseFeatureView):
                 ),
                 DeprecationWarning,
             )
-            sources = inputs
-        elif not inputs and not sources:
-            raise ValueError("At least one of `inputs` or `sources` must be specified.")
 
-        assert sources is not None
+        _udf = udf
+
+        if args:
+            warnings.warn(
+                (
+                    "On demand feature view parameters should be specified as keyword arguments "
+                    "instead of positional arguments. Feast 0.23 and onwards will not support "
+                    "positional arguments in on demand feature view definitions."
+                ),
+                DeprecationWarning,
+            )
+            if len(args) > len(positional_attributes):
+                raise ValueError(
+                    f"Only {', '.join(positional_attributes)} are allowed as positional args "
+                    f"when defining feature views, for backwards compatibility."
+                )
+            if len(args) >= 1:
+                _name = args[0]
+            if len(args) >= 2:
+                _schema = args[1]
+                # Convert Features to Fields.
+                if len(_schema) > 0 and isinstance(_schema[0], Feature):
+                    _schema = [Field.from_feature(feature) for feature in _schema]
+                warnings.warn(
+                    (
+                        "The `features` parameter is being deprecated in favor of the `schema` parameter. "
+                        "Please switch from using `features` to `schema`. This will also requiring switching "
+                        "feature definitions from using `Feature` to `Field`. Feast 0.21 and onwards will not "
+                        "support the `features` parameter."
+                    ),
+                    DeprecationWarning,
+                )
+            if len(args) >= 3:
+                _sources = args[2]
+                warnings.warn(
+                    (
+                        "The `inputs` parameter is being deprecated. Please use `sources` instead. "
+                        "Feast 0.21 and onwards will not support the `inputs` parameter."
+                    ),
+                    DeprecationWarning,
+                )
+            if len(args) >= 4:
+                _udf = args[3]
+
+        if not _name:
+            raise ValueError(
+                "The name of the on demand feature view must be specified."
+            )
+
+        if not _sources:
+            raise ValueError("The `sources` parameter must be specified.")
+
+        super().__init__(
+            name=_name,
+            features=_schema,
+            description=description,
+            tags=tags,
+            owner=owner,
+        )
+
+        assert _sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}
-        for source_name, odfv_source in sources.items():
+        for source_name, odfv_source in _sources.items():
             if isinstance(odfv_source, RequestSource):
                 self.source_request_sources[source_name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
@@ -135,10 +209,10 @@ class OnDemandFeatureView(BaseFeatureView):
                     source_name
                 ] = odfv_source.projection
 
-        if udf is None:
+        if _udf is None:
             raise ValueError("The `udf` parameter must be specified.")
-        assert udf
-        self.udf = udf
+        assert _udf
+        self.udf = _udf
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -147,7 +221,7 @@ class OnDemandFeatureView(BaseFeatureView):
     def __copy__(self):
         fv = OnDemandFeatureView(
             name=self.name,
-            features=self.features,
+            schema=self.features,
             sources=dict(
                 **self.source_feature_view_projections, **self.source_request_sources,
             ),
@@ -242,11 +316,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
-            features=[
-                Feature(
+            schema=[
+                Field(
                     name=feature.name,
-                    dtype=ValueType(feature.value_type),
-                    labels=dict(feature.labels),
+                    dtype=from_value_type(ValueType(feature.value_type)),
                 )
                 for feature in on_demand_feature_view_proto.spec.features
             ],
@@ -330,7 +403,7 @@ class OnDemandFeatureView(BaseFeatureView):
         df = pd.DataFrame()
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
-                dtype = feast_value_type_to_pandas_type(feature.dtype)
+                dtype = feast_value_type_to_pandas_type(feature.dtype.to_value_type())
                 df[f"{feature_view_projection.name}__{feature.name}"] = pd.Series(
                     dtype=dtype
                 )
@@ -343,8 +416,11 @@ class OnDemandFeatureView(BaseFeatureView):
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
             inferred_features.append(
-                Feature(
-                    name=f, dtype=python_type_to_feast_value_type(f, type_name=str(dt))
+                Field(
+                    name=f,
+                    dtype=from_value_type(
+                        python_type_to_feast_value_type(f, type_name=str(dt))
+                    ),
                 )
             )
 
@@ -380,6 +456,8 @@ class OnDemandFeatureView(BaseFeatureView):
         return requested_on_demand_feature_views
 
 
+# TODO(felixwang9817): Force this decorator to accept kwargs and switch from
+# `features` to `schema`.
 def on_demand_feature_view(
     features: List[Feature], sources: Dict[str, Union[FeatureView, RequestSource]]
 ):
