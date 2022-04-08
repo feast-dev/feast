@@ -67,7 +67,6 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		},
 	}
 	// Entities are currently part of the features as a value
-	entityNames := make([]string, 0)
 	entityValues := make([]*prototypes.Value, 0)
 	for name, values := range request.Entities {
 		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, name)
@@ -79,7 +78,6 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		resp.Results = append(resp.Results, vec)
 
 		for _, v := range values.Val {
-			entityNames = append(entityNames, name)
 			entityValues = append(entityValues, v)
 			vec.Values = append(vec.Values, v)
 			vec.Statuses = append(vec.Statuses, serving.FieldStatus_PRESENT)
@@ -100,11 +98,11 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: vector.Timestamps,
 		})
 	}
-	go generateLogs(s, entityNames, entityValues, featureNames, resp.Results, request)
+	go generateLogs(s, entityValues, featureNames, resp.Results, request)
 	return resp, nil
 }
 
-func generateLogs(s *servingServiceServer, entityNames []string, entityValues []*prototypes.Value, featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector, request *serving.GetOnlineFeaturesRequest) error {
+func generateLogs(s *servingServiceServer, entityValues []*prototypes.Value, featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector, request *serving.GetOnlineFeaturesRequest) error {
 	// Add a log with the request context
 	if request.RequestContext != nil && len(request.RequestContext) > 0 {
 		requestContextLog := logging.Log{
@@ -132,9 +130,7 @@ func generateLogs(s *servingServiceServer, entityNames []string, entityValues []
 			eventTimestampLogRows[row_idx][idx-1] = results[idx].EventTimestamps[row_idx]
 		}
 		newLog := logging.Log{
-			EntityName:      entityNames,
 			EntityValue:     entityValues,
-			FeatureNames:    featureNames,
 			FeatureValues:   featureValueLogRows[row_idx],
 			FeatureStatuses: featureStatusLogRows[row_idx],
 			EventTimestamps: eventTimestampLogRows[row_idx],
