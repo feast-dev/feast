@@ -49,7 +49,7 @@ func getClient(ctx context.Context, basePath string, enableLogging bool) (servin
 	server := grpc.NewServer()
 	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
 
-	//TODO(kevjumba): either add this officially or talk in design review about what the correct solution for what do with path.
+	// TODO(kevjumba): either add this officially or talk in design review about what the correct solution for what do with path.
 	// Currently in python we use the path in FileSource but it is not specified in configuration unless it is using file_url?
 	if enableLogging {
 		if config.OfflineStore == nil {
@@ -197,7 +197,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
-	// // Wait for logger to flush.
+	// Wait for logger to flush.
 	// Get the featurenames without the entity order
 	featureNames := response.Metadata.FeatureNames.Val[len(request.Entities):]
 	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results)
