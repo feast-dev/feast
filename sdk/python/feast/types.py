@@ -15,17 +15,17 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Union
 
-from feast.protos.feast.types.Value_pb2 import ValueType as ValueTypeProto
+from feast.value_type import ValueType
 
 PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
-    "INVALID": "INVALID",
-    "STRING": "STRING",
+    "INVALID": "UNKNOWN",
     "BYTES": "BYTES",
-    "BOOL": "BOOL",
+    "STRING": "STRING",
     "INT32": "INT32",
     "INT64": "INT64",
-    "FLOAT32": "FLOAT",
     "FLOAT64": "DOUBLE",
+    "FLOAT32": "FLOAT",
+    "BOOL": "BOOL",
     "UNIX_TIMESTAMP": "UNIX_TIMESTAMP",
 }
 
@@ -40,14 +40,14 @@ class ComplexFeastType(ABC):
         pass
 
     @abstractmethod
-    def to_value_type(self) -> ValueTypeProto.Enum:
+    def to_value_type(self) -> ValueType:
         """
-        Converts a ComplexFeastType object to the corresponding ValueTypeProto.Enum value.
+        Converts a ComplexFeastType object to the corresponding ValueType enum.
         """
         raise NotImplementedError
 
     def __hash__(self):
-        return hash(self.to_value_type())
+        return hash(self.to_value_type().value)
 
     def __eq__(self, other):
         return self.to_value_type() == other.to_value_type()
@@ -57,8 +57,7 @@ class PrimitiveFeastType(Enum):
     """
     A PrimitiveFeastType represents a primitive type in Feast.
 
-    Note that these values must match the values in ValueTypeProto.Enum. See
-    /feast/protos/types/Value.proto for the exact values.
+    Note that these values must match the values in /feast/protos/types/Value.proto.
     """
 
     INVALID = 0
@@ -71,12 +70,12 @@ class PrimitiveFeastType(Enum):
     BOOL = 7
     UNIX_TIMESTAMP = 8
 
-    def to_value_type(self) -> ValueTypeProto.Enum:
+    def to_value_type(self) -> ValueType:
         """
-        Converts a PrimitiveFeastType object to the corresponding ValueTypeProto.Enum value.
+        Converts a PrimitiveFeastType object to the corresponding ValueType enum.
         """
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.name]
-        return ValueTypeProto.Enum.Value(value_type_name)
+        return ValueType[value_type_name]
 
     def __str__(self):
         return PRIMITIVE_FEAST_TYPES_TO_STRING[self.name]
@@ -136,11 +135,11 @@ class Array(ComplexFeastType):
 
         self.base_type = base_type
 
-    def to_value_type(self) -> int:
+    def to_value_type(self) -> ValueType:
         assert isinstance(self.base_type, PrimitiveFeastType)
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_list_name = value_type_name + "_LIST"
-        return ValueTypeProto.Enum.Value(value_type_list_name)
+        return ValueType[value_type_list_name]
 
     def __str__(self):
         return f"Array({self.base_type})"
@@ -149,33 +148,33 @@ class Array(ComplexFeastType):
 FeastType = Union[ComplexFeastType, PrimitiveFeastType]
 
 
-VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueTypeProto.Enum", FeastType] = {
-    ValueTypeProto.Enum.INVALID: Invalid,
-    ValueTypeProto.Enum.BYTES: Bytes,
-    ValueTypeProto.Enum.STRING: String,
-    ValueTypeProto.Enum.INT32: Int32,
-    ValueTypeProto.Enum.INT64: Int64,
-    ValueTypeProto.Enum.DOUBLE: Float64,
-    ValueTypeProto.Enum.FLOAT: Float32,
-    ValueTypeProto.Enum.BOOL: Bool,
-    ValueTypeProto.Enum.UNIX_TIMESTAMP: UnixTimestamp,
-    ValueTypeProto.Enum.BYTES_LIST: Array(Bytes),
-    ValueTypeProto.Enum.STRING_LIST: Array(String),
-    ValueTypeProto.Enum.INT32_LIST: Array(Int32),
-    ValueTypeProto.Enum.INT64_LIST: Array(Int64),
-    ValueTypeProto.Enum.DOUBLE_LIST: Array(Float64),
-    ValueTypeProto.Enum.FLOAT_LIST: Array(Float32),
-    ValueTypeProto.Enum.BOOL_LIST: Array(Bool),
-    ValueTypeProto.Enum.UNIX_TIMESTAMP_LIST: Array(UnixTimestamp),
+VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
+    ValueType.UNKNOWN: Invalid,
+    ValueType.BYTES: Bytes,
+    ValueType.STRING: String,
+    ValueType.INT32: Int32,
+    ValueType.INT64: Int64,
+    ValueType.DOUBLE: Float64,
+    ValueType.FLOAT: Float32,
+    ValueType.BOOL: Bool,
+    ValueType.UNIX_TIMESTAMP: UnixTimestamp,
+    ValueType.BYTES_LIST: Array(Bytes),
+    ValueType.STRING_LIST: Array(String),
+    ValueType.INT32_LIST: Array(Int32),
+    ValueType.INT64_LIST: Array(Int64),
+    ValueType.DOUBLE_LIST: Array(Float64),
+    ValueType.FLOAT_LIST: Array(Float32),
+    ValueType.BOOL_LIST: Array(Bool),
+    ValueType.UNIX_TIMESTAMP_LIST: Array(UnixTimestamp),
 }
 
 
-def from_value_type(value_type: ValueTypeProto.Enum,) -> FeastType:
+def from_value_type(value_type: ValueType,) -> FeastType:
     """
-    Converts a ValueTypeProto.Enum to a Feast type.
+    Converts a ValueType enum to a Feast type.
 
     Args:
-        value_type: The ValueTypeProto.Enum to be converted.
+        value_type: The ValueType to be converted.
 
     Raises:
         ValueError: The conversion could not be performed.
