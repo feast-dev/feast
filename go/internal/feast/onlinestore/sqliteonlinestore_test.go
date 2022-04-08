@@ -70,11 +70,11 @@ func TestSqliteOnlineRead(t *testing.T) {
 	assert.Nil(t, err)
 	entities := map[int64]bool{1005: true, 1001: true, 1003: true}
 	correctFeatures := test.GetLatestFeatures(rows, entities)
-	expectedFeatureValues := []*types.Value{}
+	expectedFeatureValues := make([]*types.Value, 0)
 	for _, key := range []int64{1005, 1001, 1003} {
-		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Conv_rate}})
-		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Acc_rate}})
-		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].Avg_daily_trips)}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].ConvRate}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].AccRate}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].AvgDailyTrips)}})
 	}
 	expectedFeatureNames := []string{"conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips"}
 	assert.True(t, reflect.DeepEqual(expectedFeatureValues, returnedFeatureValues))
