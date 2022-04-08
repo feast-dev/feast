@@ -15,6 +15,12 @@ import (
 	"unsafe"
 )
 
+/*
+	TransformationCallback is a Python callback function's expected signature.
+	The function should accept name of the on demand feature view and pointers to input & output record batches.
+	Each record batch is being passed as two pointers: pointer to array (data) and pointer to schema.
+	Python function is expected to return number of rows added to the output record batch.
+*/
 type TransformationCallback func(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int
 
 func augmentResponseWithOnDemandTransforms(

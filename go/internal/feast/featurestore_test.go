@@ -22,10 +22,6 @@ func getRegistryPath() map[string]interface{} {
 	return registry
 }
 
-func dummyTransformCallback(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int {
-	return 0
-}
-
 func TestNewFeatureStore(t *testing.T) {
 	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	config := RepoConfig{
@@ -36,7 +32,7 @@ func TestNewFeatureStore(t *testing.T) {
 			"type": "redis",
 		},
 	}
-	fs, err := NewFeatureStore(&config, dummyTransformCallback)
+	fs, err := NewFeatureStore(&config, nil)
 	assert.Nil(t, err)
 	assert.IsType(t, &RedisOnlineStore{}, fs.onlineStore)
 }
@@ -62,7 +58,7 @@ func TestGetOnlineFeaturesRedis(t *testing.T) {
 		{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
 	}
 
-	fs, err := NewFeatureStore(&config, dummyTransformCallback)
+	fs, err := NewFeatureStore(&config, nil)
 	assert.Nil(t, err)
 	ctx := context.Background()
 	response, err := fs.GetOnlineFeatures(

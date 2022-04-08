@@ -19,10 +19,10 @@ import (
 )
 
 type FeatureStore struct {
-	config                *RepoConfig
-	registry              *Registry
-	onlineStore           OnlineStore
-	tranformationCallback TransformationCallback
+	config                 *RepoConfig
+	registry               *Registry
+	onlineStore            OnlineStore
+	transformationCallback TransformationCallback
 }
 
 // A Features struct specifies a list of features to be retrieved from the online store. These features
@@ -86,10 +86,10 @@ func NewFeatureStore(config *RepoConfig, callback TransformationCallback) (*Feat
 	registry.initializeRegistry()
 
 	return &FeatureStore{
-		config:                config,
-		registry:              registry,
-		onlineStore:           onlineStore,
-		tranformationCallback: callback,
+		config:                 config,
+		registry:               registry,
+		onlineStore:            onlineStore,
+		transformationCallback: callback,
 	}, nil
 }
 
@@ -189,21 +189,22 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		result = append(result, vectors...)
 	}
 
-	onDemandFeatures, err := augmentResponseWithOnDemandTransforms(
-		requestedOnDemandFeatureViews,
-		requestData,
-		joinKeyToEntityValues,
-		result,
-		fs.tranformationCallback,
-		arrowMemory,
-		numRows,
-		fullFeatureNames,
-	)
-	if err != nil {
-		return nil, err
+	if fs.transformationCallback != nil {
+		onDemandFeatures, err := augmentResponseWithOnDemandTransforms(
+			requestedOnDemandFeatureViews,
+			requestData,
+			joinKeyToEntityValues,
+			result,
+			fs.transformationCallback,
+			arrowMemory,
+			numRows,
+			fullFeatureNames,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, onDemandFeatures...)
 	}
-
-	result = append(result, onDemandFeatures...)
 
 	result, err = keepOnlyRequestedFeatures(result, featureRefs, featureService, fullFeatureNames)
 	if err != nil {
