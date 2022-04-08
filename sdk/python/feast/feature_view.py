@@ -24,6 +24,7 @@ from feast.data_source import DataSource, PushSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
+from feast.field import Field
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -58,12 +59,15 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source (optional): The batch source of data where this group of features is stored.
-            This is optional ONLY a push source is specified as the stream_source, since push sources
-            contain their own batch sources.
+        batch_source (optional): The batch source of data where this group of features
+            is stored. This is optional ONLY if a push source is specified as the
+            stream_source, since push sources contain their own batch sources.
         stream_source (optional): The stream source of data where this group of features
             is stored.
-        features: The list of features defined as part of this feature view.
+        schema: The schema of the feature view, including feature, timestamp, and entity
+            columns.
+        features: The list of features defined as part of this feature view. Each
+            feature should also be included in the schema.
         online: A boolean indicating whether online retrieval is enabled for this feature
             view.
         description: A human-readable description.
@@ -77,7 +81,8 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
-    features: List[Feature]
+    schema: List[Field]
+    features: List[Field]
     online: bool
     description: str
     tags: Dict[str, str]
@@ -98,6 +103,7 @@ class FeatureView(BaseFeatureView):
         online: bool = True,
         description: str = "",
         owner: str = "",
+        schema: Optional[List[Field]] = None,
     ):
         """
         Creates a FeatureView object.
@@ -111,13 +117,15 @@ class FeatureView(BaseFeatureView):
             batch_source: The batch source of data where this group of features is stored.
             stream_source (optional): The stream source of data where this group of features
                 is stored.
-            features (optional): The list of features defined as part of this feature view.
+            features (deprecated): The list of features defined as part of this feature view.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             online (optional): A boolean indicating whether online retrieval is enabled for
                 this feature view.
             description (optional): A human-readable description.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            schema (optional): The schema of the feature view, including feature, timestamp,
+                and entity columns.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -170,7 +178,26 @@ class FeatureView(BaseFeatureView):
         else:
             raise ValueError(f"unknown value type specified for ttl {type(_ttl)}")
 
-        _features = features or []
+        if features is not None:
+            warnings.warn(
+                (
+                    "The `features` parameter is being deprecated in favor of the `schema` parameter. "
+                    "Please switch from using `features` to `schema`. This will also requiring switching "
+                    "feature definitions from using `Feature` to `Field`. Feast 0.21 and onwards will not "
+                    "support the `features` parameter."
+                ),
+                DeprecationWarning,
+            )
+
+        _schema = schema or []
+        if len(_schema) == 0 and features is not None:
+            _schema = [Field.from_feature(feature) for feature in features]
+        self.schema = _schema
+
+        # TODO(felixwang9817): Infer which fields in the schema are features, timestamps,
+        # and entities. For right now we assume that all fields are features, since the
+        # current `features` parameter only accepts feature columns.
+        _features = _schema
 
         if stream_source is not None and isinstance(stream_source, PushSource):
             if stream_source.batch_source is None or not isinstance(
@@ -187,7 +214,9 @@ class FeatureView(BaseFeatureView):
                 )
             self.batch_source = batch_source
 
-        cols = [entity for entity in self.entities] + [feat.name for feat in _features]
+        cols = [entity for entity in self.entities] + [
+            field.name for field in _features
+        ]
         for col in cols:
             if (
                 self.batch_source.field_mapping is not None
@@ -200,7 +229,7 @@ class FeatureView(BaseFeatureView):
                 )
 
         super().__init__(
-            name=name,
+            name=_name,
             features=_features,
             description=description,
             tags=tags,
@@ -221,7 +250,7 @@ class FeatureView(BaseFeatureView):
             ttl=self.ttl,
             batch_source=self.batch_source,
             stream_source=self.stream_source,
-            features=self.features,
+            schema=self.schema,
             tags=self.tags,
             online=self.online,
         )
@@ -338,7 +367,7 @@ class FeatureView(BaseFeatureView):
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
-            features=[feature.to_proto() for feature in self.features],
+            features=[field.to_proto() for field in self.schema],
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -370,13 +399,9 @@ class FeatureView(BaseFeatureView):
         feature_view = cls(
             name=feature_view_proto.spec.name,
             entities=[entity for entity in feature_view_proto.spec.entities],
-            features=[
-                Feature(
-                    name=feature.name,
-                    dtype=ValueType(feature.value_type),
-                    labels=dict(feature.labels),
-                )
-                for feature in feature_view_proto.spec.features
+            schema=[
+                Field.from_proto(field_proto)
+                for field_proto in feature_view_proto.spec.features
             ],
             description=feature_view_proto.spec.description,
             tags=dict(feature_view_proto.spec.tags),
