@@ -4,7 +4,7 @@ import random
 import string
 from logging import getLogger
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterator, List, Optional, Tuple, cast, Any
+from typing import Any, Dict, Iterator, List, Optional, Tuple, cast
 
 import pandas as pd
 from cryptography.hazmat.backends import default_backend
@@ -42,8 +42,8 @@ def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCu
 
 
 def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
-    if config.type == "snowflake.offline":
-        config_header = "connections.feast_offline_store"
+    assert config.type == "snowflake.offline"
+    config_header = "connections.feast_offline_store"
 
     config_dict = dict(config)
 
@@ -68,8 +68,8 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     else:
         kwargs["schema"] = '"PUBLIC"'
 
-    #https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
-    #https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
+    # https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
+    # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
     if "private_key" in kwargs:
         kwargs["private_key"] = parse_private_key_path(
             kwargs["private_key"], kwargs["private_key_passphrase"]
