@@ -4,7 +4,7 @@ import random
 import string
 from logging import getLogger
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterator, List, Optional, Tuple, cast
+from typing import Dict, Iterator, List, Optional, Tuple, cast, Any
 
 import pandas as pd
 from cryptography.hazmat.backends import default_backend
@@ -50,10 +50,9 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     # read config file
     config_reader = configparser.ConfigParser()
     config_reader.read([config_dict["config_path"]])
+    kwargs: Dict[str, Any] = {}
     if config_reader.has_section(config_header):
         kwargs = dict(config_reader[config_header])
-    else:
-        kwargs = {}
 
     if "schema" in kwargs:
         kwargs["schema_"] = kwargs.pop("schema")
