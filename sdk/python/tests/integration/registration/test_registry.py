@@ -24,10 +24,12 @@ from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
+from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 
 
@@ -173,11 +175,11 @@ def test_apply_feature_view_success(test_registry):
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[
-            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
@@ -197,13 +199,13 @@ def test_apply_feature_view_success(test_registry):
         len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[0].dtype == Int64
         and feature_views[0].features[1].name == "fs1_my_feature_2"
-        and feature_views[0].features[1].dtype == ValueType.STRING
+        and feature_views[0].features[1].dtype == String
         and feature_views[0].features[2].name == "fs1_my_feature_3"
-        and feature_views[0].features[2].dtype == ValueType.STRING_LIST
+        and feature_views[0].features[2].dtype == Array(String)
         and feature_views[0].features[3].name == "fs1_my_feature_4"
-        and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
+        and feature_views[0].features[3].dtype == Array(Bytes)
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
@@ -211,13 +213,13 @@ def test_apply_feature_view_success(test_registry):
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[0].dtype == Int64
         and feature_view.features[1].name == "fs1_my_feature_2"
-        and feature_view.features[1].dtype == ValueType.STRING
+        and feature_view.features[1].dtype == String
         and feature_view.features[2].name == "fs1_my_feature_3"
-        and feature_view.features[2].dtype == ValueType.STRING_LIST
+        and feature_view.features[2].dtype == Array(String)
         and feature_view.features[3].name == "fs1_my_feature_4"
-        and feature_view.features[3].dtype == ValueType.BYTES_LIST
+        and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
@@ -250,7 +252,7 @@ def test_modify_feature_views_success(test_registry):
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[Feature(name="fs1_my_feature_1", dtype=ValueType.INT64)],
+        schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
@@ -300,9 +302,9 @@ def test_modify_feature_views_success(test_registry):
         len(on_demand_feature_views) == 1
         and on_demand_feature_views[0].name == "odfv1"
         and on_demand_feature_views[0].features[0].name == "odfv1_my_feature_1"
-        and on_demand_feature_views[0].features[0].dtype == ValueType.FLOAT
+        and on_demand_feature_views[0].features[0].dtype == Float32
         and on_demand_feature_views[0].features[1].name == "odfv1_my_feature_2"
-        and on_demand_feature_views[0].features[1].dtype == ValueType.INT32
+        and on_demand_feature_views[0].features[1].dtype == Int32
     )
     request_schema = on_demand_feature_views[0].get_request_data_schema()
     assert (
@@ -314,9 +316,9 @@ def test_modify_feature_views_success(test_registry):
     assert (
         feature_view.name == "odfv1"
         and feature_view.features[0].name == "odfv1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.FLOAT
+        and feature_view.features[0].dtype == Float32
         and feature_view.features[1].name == "odfv1_my_feature_2"
-        and feature_view.features[1].dtype == ValueType.INT32
+        and feature_view.features[1].dtype == Int32
     )
     request_schema = feature_view.get_request_data_schema()
     assert (
@@ -332,7 +334,7 @@ def test_modify_feature_views_success(test_registry):
         len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[0].dtype == Int64
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
@@ -340,7 +342,7 @@ def test_modify_feature_views_success(test_registry):
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[0].dtype == Int64
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
@@ -366,11 +368,11 @@ def test_apply_feature_view_integration(test_registry):
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[
-            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
@@ -390,13 +392,13 @@ def test_apply_feature_view_integration(test_registry):
         len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[0].dtype == Int64
         and feature_views[0].features[1].name == "fs1_my_feature_2"
-        and feature_views[0].features[1].dtype == ValueType.STRING
+        and feature_views[0].features[1].dtype == String
         and feature_views[0].features[2].name == "fs1_my_feature_3"
-        and feature_views[0].features[2].dtype == ValueType.STRING_LIST
+        and feature_views[0].features[2].dtype == Array(String)
         and feature_views[0].features[3].name == "fs1_my_feature_4"
-        and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
+        and feature_views[0].features[3].dtype == Array(Bytes)
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
@@ -404,13 +406,13 @@ def test_apply_feature_view_integration(test_registry):
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[0].dtype == Int64
         and feature_view.features[1].name == "fs1_my_feature_2"
-        and feature_view.features[1].dtype == ValueType.STRING
+        and feature_view.features[1].dtype == String
         and feature_view.features[2].name == "fs1_my_feature_3"
-        and feature_view.features[2].dtype == ValueType.STRING_LIST
+        and feature_view.features[2].dtype == Array(String)
         and feature_view.features[3].name == "fs1_my_feature_4"
-        and feature_view.features[3].dtype == ValueType.BYTES_LIST
+        and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
@@ -441,11 +443,11 @@ def test_apply_data_source(test_registry: Registry):
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[
-            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},

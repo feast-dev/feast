@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from feast import Feature, ValueType
+from feast import Field, Float64
 from feast.errors import SpecifiedFeaturesNotPresentError
 from feast.infra.offline_stores.file_source import FileSource
 from tests.integration.feature_repos.universal.entities import customer, driver, item
@@ -76,7 +76,7 @@ def test_infer_odfv_features_with_error(environment, universal_data_sources):
 
     (entities, datasets, data_sources) = universal_data_sources
 
-    features = [Feature("conv_rate_plus_200", ValueType.DOUBLE)]
+    features = [Field(name="conv_rate_plus_200", dtype=Float64)]
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     request_source = create_conv_rate_request_source()
     driver_odfv = conv_rate_plus_100_feature_view(
