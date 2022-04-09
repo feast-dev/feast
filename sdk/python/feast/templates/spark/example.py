@@ -5,7 +5,7 @@
 from datetime import timedelta
 from pathlib import Path
 
-from feast import Entity, Feature, FeatureView, ValueType
+from feast import Entity, FeatureView, Field, Float32, Int64, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
@@ -41,10 +41,10 @@ driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
     ttl=timedelta(days=7),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
     batch_source=driver_hourly_stats,
@@ -54,10 +54,10 @@ customer_daily_profile_view = FeatureView(
     name="customer_daily_profile",
     entities=["customer_id"],
     ttl=timedelta(days=7),
-    features=[
-        Feature(name="current_balance", dtype=ValueType.FLOAT),
-        Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
-        Feature(name="lifetime_trip_count", dtype=ValueType.INT64),
+    schema=[
+        Field(name="current_balance", dtype=Float32),
+        Field(name="avg_passenger_count", dtype=Float32),
+        Field(name="lifetime_trip_count", dtype=Int64),
     ],
     online=True,
     batch_source=customer_daily_profile,

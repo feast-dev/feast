@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
+from feast import BigQuerySource, Entity, FeatureView, Field, Float32, Int64, ValueType
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
 # retrieve features. Entities are also used to join multiple tables/views during the
@@ -49,10 +49,10 @@ driver_stats_fv = FeatureView(
     # The list of features defined below act as a schema to both define features
     # for both materialization of features into a store, and are used as references
     # during retrieval for building a training dataset or serving features
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on BigQuery for driver statistics
