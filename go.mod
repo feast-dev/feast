@@ -3,12 +3,7 @@ module github.com/feast-dev/feast
 go 1.17
 
 require (
-<<<<<<< HEAD
 	github.com/apache/arrow/go/v8 v8.0.0-20220408212425-58fe60f59289
-=======
-	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40
-	github.com/apache/arrow/go/v8 v8.0.0-20220405223432-9fa34df27eb1
->>>>>>> 61c3b837 (Working state)
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-python/gopy v0.4.0
 	github.com/go-redis/redis/v8 v8.11.4
@@ -17,39 +12,26 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.12
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/stretchr/testify v1.7.0
-<<<<<<< HEAD
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
-=======
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
->>>>>>> 61c3b837 (Working state)
 )
 
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
-<<<<<<< HEAD
-<<<<<<< HEAD
 	github.com/apache/thrift v0.15.0 // indirect
-=======
 	github.com/apache/arrow/go/v8 v8.0.0-20220405223432-9fa34df27eb1 // indirect
-=======
->>>>>>> 61c3b837 (Working state)
-	github.com/apache/thrift v0.16.0 // indirect
->>>>>>> e0ce4335 (Fix go)
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/goccy/go-json v0.9.6 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-<<<<<<< HEAD
 	github.com/gonuts/commander v0.1.0 // indirect
 	github.com/gonuts/flag v0.1.0 // indirect
-<<<<<<< HEAD
-<<<<<<< HEAD
 	github.com/google/flatbuffers v2.0.5+incompatible // indirect
 	github.com/klauspost/asmfmt v1.3.1 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
@@ -64,18 +46,10 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
-=======
->>>>>>> 8a7ccbe5 (semi working state)
-	github.com/google/flatbuffers v2.0.0+incompatible // indirect
-=======
-	github.com/google/flatbuffers v2.0.5+incompatible // indirect
->>>>>>> e0ce4335 (Fix go)
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/klauspost/asmfmt v1.3.1 // indirect
-=======
 	github.com/google/flatbuffers v2.0.6+incompatible // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
->>>>>>> 61c3b837 (Working state)
 	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 // indirect
