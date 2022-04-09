@@ -1,11 +1,14 @@
 from datetime import timedelta
 
 from feast import (
+    Bool,
     Entity,
-    Feature,
     FeatureService,
     FeatureView,
+    Field,
     FileSource,
+    Int64,
+    String,
     ValueType,
 )
 from feast.data_source import RequestSource
@@ -31,13 +34,13 @@ zipcode_features = FeatureView(
     name="zipcode_features",
     entities=["zipcode"],
     ttl=timedelta(days=3650),
-    features=[
-        Feature(name="city", dtype=ValueType.STRING),
-        Feature(name="state", dtype=ValueType.STRING),
-        Feature(name="location_type", dtype=ValueType.STRING),
-        Feature(name="tax_returns_filed", dtype=ValueType.INT64),
-        Feature(name="population", dtype=ValueType.INT64),
-        Feature(name="total_wages", dtype=ValueType.INT64),
+    schema=[
+        Field(name="city", dtype=String),
+        Field(name="state", dtype=String),
+        Field(name="location_type", dtype=String),
+        Field(name="tax_returns_filed", dtype=Int64),
+        Field(name="population", dtype=Int64),
+        Field(name="total_wages", dtype=Int64),
     ],
     batch_source=zipcode_source,
     tags={
@@ -52,13 +55,13 @@ zipcode_features = FeatureView(
     name="zipcode_features",
     entities=["zipcode"],
     ttl=timedelta(days=3650),
-    features=[
-        Feature(name="city", dtype=ValueType.STRING),
-        Feature(name="state", dtype=ValueType.STRING),
-        Feature(name="location_type", dtype=ValueType.STRING),
-        Feature(name="tax_returns_filed", dtype=ValueType.INT64),
-        Feature(name="population", dtype=ValueType.INT64),
-        Feature(name="total_wages", dtype=ValueType.INT64),
+    schema=[
+        Field(name="city", dtype=String),
+        Field(name="state", dtype=String),
+        Field(name="location_type", dtype=String),
+        Field(name="tax_returns_filed", dtype=Int64),
+        Field(name="population", dtype=Int64),
+        Field(name="total_wages", dtype=Int64),
     ],
     batch_source=zipcode_source,
     tags={
@@ -73,9 +76,9 @@ zipcode_money_features = FeatureView(
     name="zipcode_money_features",
     entities=["zipcode"],
     ttl=timedelta(days=3650),
-    features=[
-        Feature(name="tax_returns_filed", dtype=ValueType.INT64),
-        Feature(name="total_wages", dtype=ValueType.INT64),
+    schema=[
+        Field(name="tax_returns_filed", dtype=Int64),
+        Field(name="total_wages", dtype=Int64),
     ],
     batch_source=zipcode_source,
     tags={
@@ -104,16 +107,16 @@ credit_history = FeatureView(
     name="credit_history",
     entities=["dob_ssn"],
     ttl=timedelta(days=9000),
-    features=[
-        Feature(name="credit_card_due", dtype=ValueType.INT64),
-        Feature(name="mortgage_due", dtype=ValueType.INT64),
-        Feature(name="student_loan_due", dtype=ValueType.INT64),
-        Feature(name="vehicle_loan_due", dtype=ValueType.INT64),
-        Feature(name="hard_pulls", dtype=ValueType.INT64),
-        Feature(name="missed_payments_2y", dtype=ValueType.INT64),
-        Feature(name="missed_payments_1y", dtype=ValueType.INT64),
-        Feature(name="missed_payments_6m", dtype=ValueType.INT64),
-        Feature(name="bankruptcies", dtype=ValueType.INT64),
+    schema=[
+        Field(name="credit_card_due", dtype=Int64),
+        Field(name="mortgage_due", dtype=Int64),
+        Field(name="student_loan_due", dtype=Int64),
+        Field(name="vehicle_loan_due", dtype=Int64),
+        Field(name="hard_pulls", dtype=Int64),
+        Field(name="missed_payments_2y", dtype=Int64),
+        Field(name="missed_payments_1y", dtype=Int64),
+        Field(name="missed_payments_6m", dtype=Int64),
+        Field(name="bankruptcies", dtype=Int64),
     ],
     batch_source=credit_history_source,
     tags={
@@ -134,8 +137,8 @@ input_request = RequestSource(
 # existing feature views and RequestSource features
 @on_demand_feature_view(
     inputs={"credit_history": credit_history, "transaction": input_request,},
-    features=[
-        Feature(name="transaction_gt_last_credit_card_due", dtype=ValueType.BOOL),
+    schema=[
+        Field(name="transaction_gt_last_credit_card_due", dtype=Bool),
     ],
 )
 def transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:
