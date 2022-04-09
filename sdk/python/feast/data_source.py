@@ -36,6 +36,7 @@ class SourceType(enum.Enum):
     BATCH_BIGQUERY = 2
     STREAM_KAFKA = 3
     STREAM_KINESIS = 4
+    BATCH_TRINO = 5
 
 
 class KafkaOptions:
@@ -141,6 +142,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery_source.BigQuerySource",
     DataSourceProto.SourceType.BATCH_REDSHIFT: "feast.infra.offline_stores.redshift_source.RedshiftSource",
     DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
+    DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino_source.TrinoSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
