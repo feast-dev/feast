@@ -5,28 +5,31 @@ import numpy as np
 import pandas as pd
 
 from feast import (
+    Array,
     Feature,
     FeatureView,
     Field,
     Float32,
     Float64,
+    Int32,
     OnDemandFeatureView,
     PushSource,
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
+from feast.types import FeastType
 
 
 def driver_feature_view(
     data_source: DataSource,
     name="test_correctness",
     infer_features: bool = False,
-    value_type: ValueType = ValueType.FLOAT,
+    dtype: FeastType = Float32,
 ) -> FeatureView:
     return FeatureView(
         name=name,
         entities=["driver"],
-        features=None if infer_features else [Feature("value", value_type)],
+        schema=None if infer_features else [Field(name="value", dtype=dtype)],
         ttl=timedelta(days=5),
         batch_source=data_source,
     )
@@ -41,7 +44,10 @@ def global_feature_view(
     return FeatureView(
         name=name,
         entities=[],
-        features=None if infer_features else [Feature("entityless_value", value_type)],
+        # Test that Features still work for FeatureViews.
+        features=None
+        if infer_features
+        else [Feature(name="entityless_value", dtype=value_type)],
         ttl=timedelta(days=5),
         batch_source=data_source,
     )
@@ -66,9 +72,9 @@ def conv_rate_plus_100_feature_view(
 ) -> OnDemandFeatureView:
     # Test that positional arguments and Features still work for ODFVs.
     _features = features or [
-        Feature("conv_rate_plus_100", ValueType.DOUBLE),
-        Feature("conv_rate_plus_val_to_add", ValueType.DOUBLE),
-        Feature("conv_rate_plus_100_rounded", ValueType.INT32),
+        Feature(name="conv_rate_plus_100", dtype=ValueType.DOUBLE),
+        Feature(name="conv_rate_plus_val_to_add", dtype=ValueType.DOUBLE),
+        Feature(name="conv_rate_plus_100_rounded", dtype=ValueType.INT32),
     ]
     return OnDemandFeatureView(
         conv_rate_plus_100.__name__,
@@ -133,11 +139,11 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
     item_embeddings_feature_view = FeatureView(
         name="item_embeddings",
         entities=["item"],
-        features=None
+        schema=None
         if infer_features
         else [
-            Feature(name="embedding_double", dtype=ValueType.DOUBLE_LIST),
-            Feature(name="embedding_float", dtype=ValueType.FLOAT_LIST),
+            Field(name="embedding_double", dtype=Array(Float64)),
+            Field(name="embedding_float", dtype=Array(Float32)),
         ],
         batch_source=source,
         ttl=timedelta(hours=2),
@@ -149,12 +155,12 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
         entities=["driver"],
-        features=None
+        schema=None
         if infer_features
         else [
-            Feature(name="conv_rate", dtype=ValueType.FLOAT),
-            Feature(name="acc_rate", dtype=ValueType.FLOAT),
-            Feature(name="avg_daily_trips", dtype=ValueType.INT32),
+            Field(name="conv_rate", dtype=Float32),
+            Field(name="acc_rate", dtype=Float32),
+            Field(name="avg_daily_trips", dtype=Int32),
         ],
         batch_source=source,
         ttl=timedelta(hours=2),
@@ -166,12 +172,12 @@ def create_customer_daily_profile_feature_view(source, infer_features: bool = Fa
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
         entities=["customer_id"],
-        features=None
+        schema=None
         if infer_features
         else [
-            Feature(name="current_balance", dtype=ValueType.FLOAT),
-            Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
-            Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
+            Field(name="current_balance", dtype=Float32),
+            Field(name="avg_passenger_count", dtype=Float32),
+            Field(name="lifetime_trip_count", dtype=Int32),
         ],
         batch_source=source,
         ttl=timedelta(days=2),
@@ -186,6 +192,7 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
         features=None
         if infer_features
         else [
+            # Test that Features still work for FeatureViews.
             Feature(name="num_rides", dtype=ValueType.INT32),
             Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
         ],
@@ -199,9 +206,9 @@ def create_order_feature_view(source, infer_features: bool = False):
     return FeatureView(
         name="order",
         entities=["driver", "customer_id"],
-        features=None
+        schema=None
         if infer_features
-        else [Feature(name="order_is_success", dtype=ValueType.INT32)],
+        else [Field(name="order_is_success", dtype=Int32)],
         batch_source=source,
         ttl=timedelta(days=2),
     )
@@ -211,9 +218,7 @@ def create_location_stats_feature_view(source, infer_features: bool = False):
     location_stats_feature_view = FeatureView(
         name="location_stats",
         entities=["location_id"],
-        features=None
-        if infer_features
-        else [Feature(name="temperature", dtype=ValueType.INT32)],
+        schema=None if infer_features else [Field(name="temperature", dtype=Int32)],
         batch_source=source,
         ttl=timedelta(days=2),
     )
@@ -224,6 +229,7 @@ def create_field_mapping_feature_view(source):
     return FeatureView(
         name="field_mapping",
         entities=[],
+        # Test that Features still work for FeatureViews.
         features=[Feature(name="feature_name", dtype=ValueType.INT32)],
         batch_source=source,
         ttl=timedelta(days=2),
@@ -243,6 +249,7 @@ def create_pushable_feature_view(batch_source: DataSource):
     return FeatureView(
         name="pushable_location_stats",
         entities=["location_id"],
+        # Test that Features still work for FeatureViews.
         features=[Feature(name="temperature", dtype=ValueType.INT32)],
         ttl=timedelta(days=2),
         stream_source=push_source,

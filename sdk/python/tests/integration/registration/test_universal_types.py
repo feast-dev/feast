@@ -9,6 +9,7 @@ import pyarrow as pa
 import pytest
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.types import Array, Bool, Float32, Int32, Int64, UnixTimestamp
 from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.repo_configuration import (
@@ -265,28 +266,28 @@ def create_feature_view(
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
-            value_type = ValueType.INT32_LIST
+            dtype = Array(Int32)
         elif feature_dtype == "int64":
-            value_type = ValueType.INT64_LIST
+            dtype = Array(Int64)
         elif feature_dtype == "float":
-            value_type = ValueType.FLOAT_LIST
+            dtype = Array(Float32)
         elif feature_dtype == "bool":
-            value_type = ValueType.BOOL_LIST
+            dtype = Array(Bool)
         elif feature_dtype == "datetime":
-            value_type = ValueType.UNIX_TIMESTAMP_LIST
+            dtype = Array(UnixTimestamp)
     else:
         if feature_dtype == "int32":
-            value_type = ValueType.INT32
+            dtype = Int32
         elif feature_dtype == "int64":
-            value_type = ValueType.INT64
+            dtype = Int64
         elif feature_dtype == "float":
-            value_type = ValueType.FLOAT
+            dtype = Float32
         elif feature_dtype == "bool":
-            value_type = ValueType.BOOL
+            dtype = Bool
         elif feature_dtype == "datetime":
-            value_type = ValueType.UNIX_TIMESTAMP
+            dtype = UnixTimestamp
 
-    return driver_feature_view(data_source, name=name, value_type=value_type,)
+    return driver_feature_view(data_source, name=name, dtype=dtype,)
 
 
 def assert_expected_historical_feature_types(
