@@ -31,7 +31,10 @@ class Field:
     dtype: FeastType
 
     def __init__(
-        self, *, name: str, dtype: FeastType,
+        self,
+        *,
+        name: str,
+        dtype: FeastType,
     ):
         """
         Creates a Field object.

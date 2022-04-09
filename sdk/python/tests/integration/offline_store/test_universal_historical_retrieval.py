@@ -209,7 +209,10 @@ def get_expected_training_df(
                 (f"global_stats__{k}" if full_feature_names else k): global_record.get(
                     k, None
                 )
-                for k in ("num_rides", "avg_ride_length",)
+                for k in (
+                    "num_rides",
+                    "avg_ride_length",
+                )
             }
         )
 
@@ -447,7 +450,6 @@ def test_historical_features_with_entities_from_query(
     environment, universal_data_sources, full_feature_names
 ):
     store = environment.feature_store
-
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
@@ -455,13 +457,17 @@ def test_historical_features_with_entities_from_query(
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
-    if (
-        environment.test_repo_config.offline_store_creator.__name__
-        == SnowflakeDataSourceCreator.__name__
-    ):
-        entity_df_query = f'''SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp" FROM "{orders_table}"'''
+    data_source_creator = environment.test_repo_config.offline_store_creator
+    if data_source_creator.__name__ == SnowflakeDataSourceCreator.__name__:
+        entity_df_query = f"""
+        SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
+        FROM "{orders_table}"
+        """
     else:
-        entity_df_query = f"SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp FROM {orders_table}"
+        entity_df_query = f"""
+        SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp
+        FROM {orders_table}
+        """
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
@@ -623,11 +629,12 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)
     tomorrow = now + timedelta(days=1)
+    day_after_tomorrow = now + timedelta(days=2)
 
     entity_df = pd.DataFrame(
         data=[
-            {"driver_id": 1001, "event_timestamp": now + timedelta(days=2)},
-            {"driver_id": 1002, "event_timestamp": now + timedelta(days=2)},
+            {"driver_id": 1001, "event_timestamp": day_after_tomorrow},
+            {"driver_id": 1002, "event_timestamp": day_after_tomorrow},
         ]
     )
 
@@ -666,12 +673,12 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         data=[
             {
                 "driver_id": 1001,
-                "event_timestamp": now + timedelta(days=2),
+                "event_timestamp": day_after_tomorrow,
                 "avg_daily_trips": 20,
             },
             {
                 "driver_id": 1002,
-                "event_timestamp": now + timedelta(days=2),
+                "event_timestamp": day_after_tomorrow,
                 "avg_daily_trips": 40,
             },
         ]
@@ -834,5 +841,7 @@ def assert_frame_equal(expected_df, actual_df, keys):
     )
 
     pd_assert_frame_equal(
-        expected_df, actual_df, check_dtype=False,
+        expected_df,
+        actual_df,
+        check_dtype=False,
     )

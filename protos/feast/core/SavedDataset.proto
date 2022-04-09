@@ -57,6 +57,7 @@ message SavedDatasetStorage {
     DataSource.RedshiftOptions redshift_storage = 6;
     DataSource.SnowflakeOptions snowflake_storage = 7;
     DataSource.TrinoOptions trino_storage = 8;
+    DataSource.SparkOptions spark_storage = 9;
   }
 }
 

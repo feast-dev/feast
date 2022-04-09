@@ -88,7 +88,8 @@ def feature_store_with_s3_registry():
 
 
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_entity_success(test_feature_store):
     entity = Entity(
@@ -160,7 +161,8 @@ def test_apply_entity_integration(test_feature_store):
 
 
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_feature_view_success(test_feature_store):
     # Create Feature Views
@@ -211,7 +213,8 @@ def test_apply_feature_view_success(test_feature_store):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_feature_view_inference_success(test_feature_store, dataframe_source):
@@ -351,7 +354,8 @@ def test_apply_feature_view_integration(test_feature_store):
 
 
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_object_and_read(test_feature_store):
     assert isinstance(test_feature_store, FeatureStore)
@@ -427,7 +431,8 @@ def test_apply_remote_repo():
 
 
 @pytest.mark.parametrize(
-    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_reapply_feature_view_success(test_feature_store, dataframe_source):

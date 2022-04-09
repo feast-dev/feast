@@ -112,7 +112,8 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
             # Go implementation for online retrieval
             IntegrationTestRepoConfig(
-                online_store=REDIS_CONFIG, go_feature_server=True,
+                online_store=REDIS_CONFIG,
+                go_feature_server=True,
             ),
         ]
     )
@@ -141,7 +142,10 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
 
 
 GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_server=True,),
+    IntegrationTestRepoConfig(
+        online_store=REDIS_CONFIG,
+        go_feature_server=True,
+    ),
 ]
 
 
@@ -294,7 +298,8 @@ class UniversalFeatureViews:
 
 
 def construct_universal_feature_views(
-    data_sources: UniversalDataSources, with_odfv: bool = True,
+    data_sources: UniversalDataSources,
+    with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     return UniversalFeatureViews(
@@ -397,7 +402,8 @@ def construct_test_environment(
         # Note: even if it's a local feature server, the repo config does not have this configured
         feature_server = None
         registry = RegistryConfig(
-            path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
+            path=str(Path(repo_dir_name) / "registry.db"),
+            cache_ttl_seconds=1,
         )
     config = RepoConfig(
         registry=registry,
