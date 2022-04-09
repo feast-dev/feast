@@ -1,5 +1,7 @@
+from copy import deepcopy
 from dataclasses import dataclass
 
+import boto3
 import pytest
 from moto import mock_dynamodb2
 
@@ -162,7 +164,7 @@ def test_online_read(repo_config, n_samples):
     data = _create_n_customer_test_samples(n=n_samples)
     _insert_data_test_table(data, PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
 
-    entity_keys, features = zip(*data)
+    entity_keys, features, *rest = zip(*data)
     dynamodb_store = DynamoDBOnlineStore()
     returned_items = dynamodb_store.online_read(
         config=repo_config,
@@ -171,3 +173,24 @@ def test_online_read(repo_config, n_samples):
     )
     assert len(returned_items) == len(data)
     assert [item[1] for item in returned_items] == list(features)
+
+
+@mock_dynamodb2
+def test_write_batch_non_duplicates(repo_config):
+    """Test DynamoDBOnline Store deduplicate write batch request items."""
+    dynamodb_tbl = f"{TABLE_NAME}_batch_non_duplicates"
+    _create_test_table(PROJECT, dynamodb_tbl, REGION)
+    data = _create_n_customer_test_samples()
+    data_duplicate = deepcopy(data)
+    dynamodb_resource = boto3.resource("dynamodb", region_name=REGION)
+    table_instance = dynamodb_resource.Table(f"{PROJECT}.{dynamodb_tbl}")
+    dynamodb_store = DynamoDBOnlineStore()
+    # Insert duplicate data
+    dynamodb_store._write_batch_non_duplicates(
+        table_instance, data + data_duplicate, progress=None
+    )
+    # Request more items than inserted
+    response = table_instance.scan(Limit=20)
+    returned_items = response.get("Items", None)
+    assert returned_items is not None
+    assert len(returned_items) == len(data)
