@@ -13,7 +13,7 @@ import pytest
 import requests
 from botocore.exceptions import BotoCoreError
 
-from feast import Entity, Feature, FeatureService, FeatureView, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, String, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
@@ -121,7 +121,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
         # Create Feature View
         fv1 = FeatureView(
             name="feature_view_123",
-            features=[Feature(name="string_col", dtype=ValueType.STRING)],
+            schema=[Field(name="string_col", dtype=String)],
             entities=["id"],
             batch_source=file_source,
             ttl=timedelta(minutes=5),

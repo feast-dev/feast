@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from feast import BigQuerySource, Feature, FeatureView, ValueType
+from feast import BigQuerySource, FeatureView, Field, Float32, String
 from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.online_read_write_test import basic_rw_test
 
@@ -29,10 +29,10 @@ def test_partial() -> None:
             name="driver_locations_100",
             entities=["driver"],
             ttl=timedelta(days=1),
-            features=[
-                Feature(name="lat", dtype=ValueType.FLOAT),
-                Feature(name="lon", dtype=ValueType.STRING),
-                Feature(name="name", dtype=ValueType.STRING),
+            schema=[
+                Field(name="lat", dtype=Float32),
+                Field(name="lon", dtype=String),
+                Field(name="name", dtype=String),
             ],
             online=True,
             batch_source=driver_locations_source,
