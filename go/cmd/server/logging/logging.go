@@ -145,28 +145,30 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	columnNameToStatus := make(map[string][]int32)
 	columnNameToTimestamp := make(map[string][]int64)
 	entityNameToEntityValues := make(map[string][]*types.Value)
+
 	for _, l := range memoryBuffer.logs {
 		// EntityTypes maps an entity name to the specific type and also which index in the entityValues array it is
 		// e.g if an Entity Key is {driver_id, customer_id}, then the driver_id entitytype would be dtype=int64, index=0.
 		// It's in the order of the entities as given by the schema.
-		for _, entityName := range fcoSchema.Entities {
-			idAndType := fcoSchema.EntityTypes[entityName]
+		for idx, entityName := range fcoSchema.Entities {
 			if _, ok := entityNameToEntityValues[entityName]; !ok {
 				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
 			}
-			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], l.EntityValue[idAndType.index])
+			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], l.EntityValue[idx])
 		}
 
-		for featureName, idAndType := range fcoSchema.FeaturesTypes {
+		// Contains both fv and odfv feature value types => add them in order of how the appear in the featureService
+		for idx, featureName := range fcoSchema.Features {
+			// for featureName, idAndType := range fcoSchema.FeaturesTypes {
 			// populate the proto value arrays with values from memory buffer in separate columns one for each feature name
 			if _, ok := columnNameToProtoValueArray[featureName]; !ok {
 				columnNameToProtoValueArray[featureName] = make([]*types.Value, 0)
 				columnNameToStatus[featureName] = make([]int32, 0)
 				columnNameToTimestamp[featureName] = make([]int64, 0)
 			}
-			columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], l.FeatureValues[idAndType.index])
-			columnNameToStatus[featureName] = append(columnNameToStatus[featureName], int32(l.FeatureStatuses[idAndType.index]))
-			columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], l.EventTimestamps[idAndType.index].AsTime().UnixNano()/int64(time.Millisecond))
+			columnNameToProtoValueArray[featureName] = append(columnNameToProtoValueArray[featureName], l.FeatureValues[idx])
+			columnNameToStatus[featureName] = append(columnNameToStatus[featureName], int32(l.FeatureStatuses[idx]))
+			columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], l.EventTimestamps[idx].AsTime().UnixNano()/int64(time.Millisecond))
 		}
 	}
 
@@ -174,29 +176,43 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	columns := make([]array.Interface, 0)
 	for _, entityName := range fcoSchema.Entities {
 		protoArr := entityNameToEntityValues[entityName]
+		if len(protoArr) == 0 {
+			break
+		}
 		valArrowArray, err := gotypes.ProtoValuesToArrowArray(protoArr, arrowMemory, len(columnNameToProtoValueArray))
+		if err != nil {
+			return nil, err
+		}
+		arrowType, err := gotypes.ValueTypeEnumToArrowType(fcoSchema.EntityTypes[entityName])
 		if err != nil {
 			return nil, err
 		}
 		fields = append(fields, arrow.Field{
 			Name: entityName,
-			Type: valArrowArray.DataType(),
+			Type: arrowType,
 		})
 		columns = append(columns, valArrowArray)
 	}
 
-	for featureName := range fcoSchema.FeaturesTypes {
+	for _, featureName := range fcoSchema.Features {
 
-		proto_arr := columnNameToProtoValueArray[featureName]
-
-		arrowArray, err := gotypes.ProtoValuesToArrowArray(proto_arr, arrowMemory, len(columnNameToProtoValueArray))
+		protoArr := columnNameToProtoValueArray[featureName]
+		if len(protoArr) == 0 {
+			break
+		}
+		arrowArray, err := gotypes.ProtoValuesToArrowArray(protoArr, arrowMemory, len(columnNameToProtoValueArray))
 		if err != nil {
 			return nil, err
 		}
 
+		arrowType, err := gotypes.ValueTypeEnumToArrowType(fcoSchema.FeaturesTypes[featureName])
+
+		if err != nil {
+			return nil, err
+		}
 		fields = append(fields, arrow.Field{
 			Name: featureName,
-			Type: arrowArray.DataType(),
+			Type: arrowType,
 		})
 		columns = append(columns, arrowArray)
 	}
@@ -204,6 +220,7 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 		fields,
 		nil,
 	)
+
 	result := array.Record(array.NewRecord(schema, columns, int64(len(memoryBuffer.logs))))
 	// create an arrow table -> write this to parquet.
 
@@ -213,16 +230,10 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 }
 
 type Schema struct {
-	Entities         []string
-	EntityTypes      map[string]*IndexAndType
-	FeaturesTypes    map[string]*IndexAndType
-	RequestDataTypes map[string]*IndexAndType
-}
-
-type IndexAndType struct {
-	dtype types.ValueType_Enum
-	// index of the fco(entity, feature, request) as it is ordered in logs
-	index int
+	Entities      []string
+	Features      []string
+	EntityTypes   map[string]types.ValueType_Enum
+	FeaturesTypes map[string]types.ValueType_Enum
 }
 
 func GetTypesFromFeatureService(featureService *feast.FeatureService, entities []*feast.Entity, featureViews []*feast.FeatureView, onDemandFeatureViews []*feast.OnDemandFeatureView) (*Schema, error) {
@@ -243,18 +254,14 @@ func GetTypesFromFeatureService(featureService *feast.FeatureService, entities [
 		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
 	}
 
-	entityJoinKeyToType := make(map[string]*IndexAndType)
-	entityNameToJoinKeyMap := make(map[string]string)
-	for idx, entity := range entities {
-		entityNameToJoinKeyMap[entity.Name] = entity.Joinkey
-		entityJoinKeyToType[entity.Joinkey] = &IndexAndType{
-			dtype: entity.Valuetype,
-			index: idx,
-		}
+	entityJoinKeyToType := make(map[string]types.ValueType_Enum)
+	for _, entity := range entities {
+		entityJoinKeyToType[entity.Joinkey] = entity.Valuetype
 	}
-	allFeatureTypes := make(map[string]*IndexAndType)
+
+	allFeatureTypes := make(map[string]types.ValueType_Enum)
 	//allRequestDataTypes := make(map[string]*types.ValueType_Enum)
-	featureIndex := 0
+	features := make([]string, 0)
 	for _, featureProjection := range featureService.Projections {
 		// Create copies of FeatureView that may contains the same *FeatureView but
 		// each differentiated by a *FeatureViewProjection
@@ -262,25 +269,23 @@ func GetTypesFromFeatureService(featureService *feast.FeatureService, entities [
 		if fv, ok := fvs[featureViewName]; ok {
 			for _, f := range fv.Base.Features {
 				// add feature to map
-				allFeatureTypes[f.Name] = &IndexAndType{
-					dtype: f.Dtype,
-					index: featureIndex,
-				}
-				featureIndex += 1
+				features = append(features, f.Name)
+				allFeatureTypes[f.Name] = f.Dtype
 			}
-		} else if _, ok := odFvs[featureViewName]; ok {
-			// append this -> odfv.getRequestDataSchema() all request data schema
-			// allRequestDataTypes[featureViewName] = odfv.
-			featureIndex += 1
+		} else if odfv, ok := odFvs[featureViewName]; ok {
+			for name, valueType := range odfv.GetRequestDataSchema() {
+				features = append(features, name)
+				allFeatureTypes[name] = valueType
+			}
 		} else {
 			return nil, fmt.Errorf("no such feature view found in feature service %s", featureViewName)
 		}
 	}
 	schema := &Schema{
-		Entities:         entityNames,
-		EntityTypes:      entityJoinKeyToType,
-		FeaturesTypes:    allFeatureTypes,
-		RequestDataTypes: nil,
+		Entities:      entityNames,
+		Features:      features,
+		EntityTypes:   entityJoinKeyToType,
+		FeaturesTypes: allFeatureTypes,
 	}
 	return schema, nil
 }
