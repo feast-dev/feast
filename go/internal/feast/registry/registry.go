@@ -1,8 +1,9 @@
-package feast
+package registry
 
 import (
 	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"net/url"
 	"sync"
 	"time"
@@ -59,7 +60,7 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, er
 	return r, nil
 }
 
-func (r *Registry) initializeRegistry() {
+func (r *Registry) InitializeRegistry() {
 	_, err := r.getRegistryProto()
 	if err != nil {
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
@@ -157,14 +158,14 @@ func (r *Registry) loadOnDemandFeatureViews(registry *core.Registry) {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listEntities(project string) ([]*Entity, error) {
+func (r *Registry) ListEntities(project string) ([]*model.Entity, error) {
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
-		return []*Entity{}, nil
+		return []*model.Entity{}, nil
 	} else {
-		entities := make([]*Entity, len(cachedEntities))
+		entities := make([]*model.Entity, len(cachedEntities))
 		index := 0
 		for _, entityProto := range cachedEntities {
-			entities[index] = NewEntityFromProto(entityProto)
+			entities[index] = model.NewEntityFromProto(entityProto)
 			index += 1
 		}
 		return entities, nil
@@ -176,14 +177,14 @@ func (r *Registry) listEntities(project string) ([]*Entity, error) {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listFeatureViews(project string) ([]*FeatureView, error) {
+func (r *Registry) ListFeatureViews(project string) ([]*model.FeatureView, error) {
 	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
-		return []*FeatureView{}, nil
+		return []*model.FeatureView{}, nil
 	} else {
-		featureViews := make([]*FeatureView, len(cachedFeatureViews))
+		featureViews := make([]*model.FeatureView, len(cachedFeatureViews))
 		index := 0
 		for _, featureViewProto := range cachedFeatureViews {
-			featureViews[index] = NewFeatureViewFromProto(featureViewProto)
+			featureViews[index] = model.NewFeatureViewFromProto(featureViewProto)
 			index += 1
 		}
 		return featureViews, nil
@@ -195,14 +196,14 @@ func (r *Registry) listFeatureViews(project string) ([]*FeatureView, error) {
 	Returns empty list if project not found
 */
 
-func (r *Registry) listFeatureServices(project string) ([]*FeatureService, error) {
+func (r *Registry) ListFeatureServices(project string) ([]*model.FeatureService, error) {
 	if cachedFeatureServices, ok := r.cachedFeatureServices[project]; !ok {
-		return []*FeatureService{}, nil
+		return []*model.FeatureService{}, nil
 	} else {
-		featureServices := make([]*FeatureService, len(cachedFeatureServices))
+		featureServices := make([]*model.FeatureService, len(cachedFeatureServices))
 		index := 0
 		for _, featureServiceProto := range cachedFeatureServices {
-			featureServices[index] = NewFeatureServiceFromProto(featureServiceProto)
+			featureServices[index] = model.NewFeatureServiceFromProto(featureServiceProto)
 			index += 1
 		}
 		return featureServices, nil
@@ -214,64 +215,64 @@ func (r *Registry) listFeatureServices(project string) ([]*FeatureService, error
 	Returns empty list if project not found
 */
 
-func (r *Registry) listOnDemandFeatureViews(project string) ([]*OnDemandFeatureView, error) {
+func (r *Registry) ListOnDemandFeatureViews(project string) ([]*model.OnDemandFeatureView, error) {
 	if cachedOnDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
-		return []*OnDemandFeatureView{}, nil
+		return []*model.OnDemandFeatureView{}, nil
 	} else {
-		onDemandFeatureViews := make([]*OnDemandFeatureView, len(cachedOnDemandFeatureViews))
+		onDemandFeatureViews := make([]*model.OnDemandFeatureView, len(cachedOnDemandFeatureViews))
 		index := 0
 		for _, onDemandFeatureViewProto := range cachedOnDemandFeatureViews {
-			onDemandFeatureViews[index] = NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
+			onDemandFeatureViews[index] = model.NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto)
 			index += 1
 		}
 		return onDemandFeatureViews, nil
 	}
 }
 
-func (r *Registry) getEntity(project, entityName string) (*Entity, error) {
+func (r *Registry) GetEntity(project, entityName string) (*model.Entity, error) {
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
 		return nil, fmt.Errorf("no cached entities found for project %s", project)
 	} else {
 		if entity, ok := cachedEntities[entityName]; !ok {
 			return nil, fmt.Errorf("no cached entity %s found for project %s", entityName, project)
 		} else {
-			return NewEntityFromProto(entity), nil
+			return model.NewEntityFromProto(entity), nil
 		}
 	}
 }
 
-func (r *Registry) getFeatureView(project, featureViewName string) (*FeatureView, error) {
+func (r *Registry) GetFeatureView(project, featureViewName string) (*model.FeatureView, error) {
 	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached feature views found for project %s", project)
 	} else {
 		if featureViewProto, ok := cachedFeatureViews[featureViewName]; !ok {
 			return nil, fmt.Errorf("no cached feature view %s found for project %s", featureViewName, project)
 		} else {
-			return NewFeatureViewFromProto(featureViewProto), nil
+			return model.NewFeatureViewFromProto(featureViewProto), nil
 		}
 	}
 }
 
-func (r *Registry) getFeatureService(project, featureServiceName string) (*FeatureService, error) {
+func (r *Registry) GetFeatureService(project, featureServiceName string) (*model.FeatureService, error) {
 	if cachedFeatureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return nil, fmt.Errorf("no cached feature services found for project %s", project)
 	} else {
 		if featureServiceProto, ok := cachedFeatureServices[featureServiceName]; !ok {
 			return nil, fmt.Errorf("no cached feature service %s found for project %s", featureServiceName, project)
 		} else {
-			return NewFeatureServiceFromProto(featureServiceProto), nil
+			return model.NewFeatureServiceFromProto(featureServiceProto), nil
 		}
 	}
 }
 
-func (r *Registry) getOnDemandFeatureView(project, onDemandFeatureViewName string) (*OnDemandFeatureView, error) {
+func (r *Registry) GetOnDemandFeatureView(project, onDemandFeatureViewName string) (*model.OnDemandFeatureView, error) {
 	if cachedOnDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached on demand feature views found for project %s", project)
 	} else {
 		if onDemandFeatureViewProto, ok := cachedOnDemandFeatureViews[onDemandFeatureViewName]; !ok {
 			return nil, fmt.Errorf("no cached on demand feature view %s found for project %s", onDemandFeatureViewName, project)
 		} else {
-			return NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto), nil
+			return model.NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto), nil
 		}
 	}
 }

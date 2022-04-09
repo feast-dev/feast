@@ -1,4 +1,4 @@
-package feast
+package registry
 
 import (
 	"encoding/json"

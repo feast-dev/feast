@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"google.golang.org/grpc"
 	"log"
@@ -26,15 +27,15 @@ func main() {
 		log.Fatalln(fmt.Sprintf("One of %s of %s environment variables must be set", flagFeastRepoPath, flagFeastRepoConfig))
 	}
 
-	var repoConfig *feast.RepoConfig
+	var repoConfig *registry.RepoConfig
 	var err error
 	if repoConfigJSON != "" {
-		repoConfig, err = feast.NewRepoConfigFromJSON(repoPath, repoConfigJSON)
+		repoConfig, err = registry.NewRepoConfigFromJSON(repoPath, repoConfigJSON)
 		if err != nil {
 			log.Fatalln(err)
 		}
 	} else {
-		repoConfig, err = feast.NewRepoConfigFromFile(repoPath)
+		repoConfig, err = registry.NewRepoConfigFromFile(repoPath)
 		if err != nil {
 			log.Fatalln(err)
 		}

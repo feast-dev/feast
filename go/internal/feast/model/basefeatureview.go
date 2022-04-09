@@ -1,4 +1,4 @@
-package feast
+package model
 
 import (
 	"fmt"
@@ -22,30 +22,30 @@ func NewBaseFeatureView(name string, featureProtos []*core.FeatureSpecV2) *BaseF
 	return base
 }
 
-func (fv *BaseFeatureView) withProjection(projection *FeatureViewProjection) (*BaseFeatureView, error) {
+func (fv *BaseFeatureView) WithProjection(projection *FeatureViewProjection) (*BaseFeatureView, error) {
 	if projection.Name != fv.Name {
 		return nil, fmt.Errorf("the projection for the %s FeatureView cannot be applied because it differs "+
-			"in name; the projection is named %s and the name indicates which "+
+			"in Name; the projection is named %s and the Name indicates which "+
 			"FeatureView the projection is for", fv.Name, projection.Name)
 	}
 	features := make(map[string]bool)
 	for _, feature := range fv.Features {
-		features[feature.name] = true
+		features[feature.Name] = true
 	}
 	for _, feature := range projection.Features {
-		if _, ok := features[feature.name]; !ok {
+		if _, ok := features[feature.Name]; !ok {
 			return nil, fmt.Errorf("the projection for %s cannot be applied because it contains %s which the "+
-				"FeatureView doesn't have", projection.Name, feature.name)
+				"FeatureView doesn't have", projection.Name, feature.Name)
 		}
 	}
 	return &BaseFeatureView{Name: fv.Name, Features: fv.Features, Projection: projection}, nil
 }
 
-func (fv *BaseFeatureView) projectWithFeatures(featureNames []string) *FeatureViewProjection {
+func (fv *BaseFeatureView) ProjectWithFeatures(featureNames []string) *FeatureViewProjection {
 	features := make([]*Feature, 0)
 	for _, feature := range fv.Features {
 		for _, allowedFeatureName := range featureNames {
-			if feature.name == allowedFeatureName {
+			if feature.Name == allowedFeatureName {
 				features = append(features, feature)
 			}
 		}

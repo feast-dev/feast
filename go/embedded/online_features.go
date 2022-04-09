@@ -3,11 +3,15 @@ package embedded
 import (
 	"context"
 	"fmt"
-	"github.com/apache/arrow/go/v7/arrow"
-	"github.com/apache/arrow/go/v7/arrow/array"
-	"github.com/apache/arrow/go/v7/arrow/cdata"
-	"github.com/apache/arrow/go/v7/arrow/memory"
+	"github.com/apache/arrow/go/v8/arrow"
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/apache/arrow/go/v8/arrow/cdata"
+	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/internal/feast/transformation"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"log"
@@ -27,8 +31,8 @@ type DataTable struct {
 	SchemaPtr uintptr
 }
 
-func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback feast.TransformationCallback) *OnlineFeatureService {
-	repoConfig, err := feast.NewRepoConfigFromJSON(conf.RepoPath, conf.RepoConfig)
+func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback transformation.TransformationCallback) *OnlineFeatureService {
+	repoConfig, err := registry.NewRepoConfigFromJSON(conf.RepoPath, conf.RepoConfig)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -44,7 +48,7 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[string]int32, error) {
 	viewNames := make(map[string]interface{})
 	for _, featureRef := range featureRefs {
-		viewName, _, err := feast.ParseFeatureReference(featureRef)
+		viewName, _, err := onlineserving.ParseFeatureReference(featureRef)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +56,7 @@ func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[stri
 	}
 
 	entities, _ := s.fs.ListEntities(true)
-	entitiesByName := make(map[string]*feast.Entity)
+	entitiesByName := make(map[string]*model.Entity)
 	for _, entity := range entities {
 		entitiesByName[entity.Name] = entity
 	}
@@ -83,7 +87,7 @@ func (s *OnlineFeatureService) GetEntityTypesMapByFeatureService(featureServiceN
 	joinKeyTypes := make(map[string]int32)
 
 	entities, _ := s.fs.ListEntities(true)
-	entitiesByName := make(map[string]*feast.Entity)
+	entitiesByName := make(map[string]*model.Entity)
 	for _, entity := range entities {
 		entitiesByName[entity.Name] = entity
 	}
@@ -133,7 +137,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		return err
 	}
 
-	var featureService *feast.FeatureService
+	var featureService *model.FeatureService
 	if featureServiceName != "" {
 		featureService, err = s.fs.GetFeatureService(featureServiceName)
 	}
