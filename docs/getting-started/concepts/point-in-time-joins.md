@@ -10,9 +10,9 @@ The above table can be registered with Feast through the following feature view:
 driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],
-    features=[
-        Feature(name="trips_today", dtype=ValueType.INT64),
-        Feature(name="earnings_today", dtype=ValueType.FLOAT),
+    schema=[
+        Field(name="trips_today", dtype=Int64),
+        Field(name="earnings_today", dtype=Float32),
     ],
     ttl=timedelta(hours=2),
     batch_source=FileSource(

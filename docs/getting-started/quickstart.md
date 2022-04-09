@@ -80,16 +80,16 @@ online_store:
 ```python
 # This is an example feature definition file
 
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, FileSource, ValueType
+from feast import Entity, FeatureView, Field, FileSource, Float32, Int64, ValueType
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
     path="/content/feature_repo/data/driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
@@ -106,10 +106,10 @@ driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],  # reference entity by name
     ttl=Duration(seconds=86400 * 1),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
     batch_source=driver_hourly_stats,
@@ -149,16 +149,16 @@ feast apply
 ```python
 # This is an example feature definition file
 
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, FileSource, ValueType
+from feast import Entity, FeatureView, Field, FileSource, Float32, Int64, ValueType
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
     path="/content/feature_repo/data/driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
@@ -175,10 +175,10 @@ driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],  # reference entity by name
     ttl=Duration(seconds=86400 * 1),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
     batch_source=driver_hourly_stats,

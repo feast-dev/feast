@@ -112,9 +112,9 @@ driver_locations = FeatureView(
     name="driver_locations",
     entities=["driver"],
     ttl=timedelta(days=1),
-    features=[
-        Feature(name="lat", dtype=ValueType.FLOAT),
-        Feature(name="lon", dtype=ValueType.STRING),
+    schema=[
+        Field(name="lat", dtype=Float32),
+        Field(name="lon", dtype=String),
     ],
     batch_source=driver_locations_source,
 )

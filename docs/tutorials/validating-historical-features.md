@@ -137,10 +137,10 @@ trips_stats_fv = FeatureView(
     name='trip_stats',
     entities=['taxi'],
     features=[
-        Feature("total_miles_travelled", ValueType.DOUBLE),
-        Feature("total_trip_seconds", ValueType.DOUBLE),
-        Feature("total_earned", ValueType.DOUBLE),
-        Feature("trip_count", ValueType.INT64),
+        Field(name="total_miles_travelled", dtype=Float64),
+        Field(name="total_trip_seconds", dtype=Float64),
+        Field(name="total_earned", dtype=Float64),
+        Field(name="trip_count", dtype=Int64),
 
     ],
     ttl=Duration(seconds=86400),

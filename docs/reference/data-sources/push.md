@@ -25,7 +25,7 @@ push_source = PushSource(
 fv = FeatureView(
     name="feature view",
     entities=["user_id"],
-    features=[Feature(name="life_time_value", dtype=ValueType.INT64)],
+    schema=[Field(name="life_time_value", dtype=Int64)],
     stream_source=push_source,
 )
 ```
