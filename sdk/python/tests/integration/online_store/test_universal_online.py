@@ -397,7 +397,11 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
     feature_service = FeatureService(
         "convrate_plus100",
-        features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
+        features=[
+            feature_views.driver[["conv_rate"]],
+            feature_views.driver_odfv,
+            feature_views.customer[["current_balance"]],
+        ],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"net"
 	"path/filepath"
 	"reflect"
@@ -37,11 +38,11 @@ func getClient(ctx context.Context, basePath string) (serving.ServingServiceClie
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	config, err := feast.NewRepoConfigFromFile(getRepoPath(basePath))
+	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
 	if err != nil {
 		panic(err)
 	}
-	fs, err := feast.NewFeatureStore(config)
+	fs, err := feast.NewFeatureStore(config, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -123,9 +124,9 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	expectedAvgDailyTripsValues := []*types.Value{}
 
 	for _, key := range []int64{1001, 1003, 1005} {
-		expectedConvRateValues = append(expectedConvRateValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Conv_rate}})
-		expectedAccRateValues = append(expectedAccRateValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Acc_rate}})
-		expectedAvgDailyTripsValues = append(expectedAvgDailyTripsValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].Avg_daily_trips)}})
+		expectedConvRateValues = append(expectedConvRateValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].ConvRate}})
+		expectedAccRateValues = append(expectedAccRateValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].AccRate}})
+		expectedAvgDailyTripsValues = append(expectedAvgDailyTripsValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].AvgDailyTrips)}})
 	}
 	// Columnar so get in column format row by row should have column names of all features
 	assert.Equal(t, len(response.Results), 4)

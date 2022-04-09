@@ -1,7 +1,8 @@
-package feast
+package onlinestore
 
 import (
 	"context"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -12,12 +13,12 @@ import (
 )
 
 func TestSqliteSetup(t *testing.T) {
-	dir := "../test"
+	dir := "../../test"
 	feature_repo_path := filepath.Join(dir, "feature_repo")
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	config, err := NewRepoConfigFromFile(feature_repo_path)
+	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
 	assert.Equal(t, "feature_repo", config.Project)
 	assert.Equal(t, "data/registry.db", config.GetRegistryConfig().Path)
@@ -31,11 +32,11 @@ func TestSqliteSetup(t *testing.T) {
 }
 
 func TestSqliteOnlineRead(t *testing.T) {
-	dir := "../test"
+	dir := "../../test"
 	feature_repo_path := filepath.Join(dir, "feature_repo")
 	test.SetupFeatureRepo(dir)
 	defer test.CleanUpRepo(dir)
-	config, err := NewRepoConfigFromFile(feature_repo_path)
+	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
 	store, err := NewSqliteOnlineStore("feature_repo", config, config.OnlineStore)
 	defer store.Destruct()
@@ -61,19 +62,19 @@ func TestSqliteOnlineRead(t *testing.T) {
 	returnedFeatureNames := make([]string, 0)
 	for _, featureVector := range featureData {
 		for idx := range featureVector {
-			returnedFeatureValues = append(returnedFeatureValues, &featureVector[idx].value)
-			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].reference.FeatureName)
+			returnedFeatureValues = append(returnedFeatureValues, &featureVector[idx].Value)
+			returnedFeatureNames = append(returnedFeatureNames, featureVector[idx].Reference.FeatureName)
 		}
 	}
 	rows, err := test.ReadParquet(filepath.Join(feature_repo_path, "data", "driver_stats.parquet"))
 	assert.Nil(t, err)
 	entities := map[int64]bool{1005: true, 1001: true, 1003: true}
 	correctFeatures := test.GetLatestFeatures(rows, entities)
-	expectedFeatureValues := []*types.Value{}
+	expectedFeatureValues := make([]*types.Value, 0)
 	for _, key := range []int64{1005, 1001, 1003} {
-		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Conv_rate}})
-		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].Acc_rate}})
-		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].Avg_daily_trips)}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].ConvRate}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_FloatVal{FloatVal: correctFeatures[key].AccRate}})
+		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].AvgDailyTrips)}})
 	}
 	expectedFeatureNames := []string{"conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips"}
 	assert.True(t, reflect.DeepEqual(expectedFeatureValues, returnedFeatureValues))

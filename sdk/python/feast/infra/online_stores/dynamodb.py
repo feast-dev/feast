@@ -191,21 +191,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
         )
-        with table_instance.batch_writer() as batch:
-            for entity_key, features, timestamp, created_ts in data:
-                entity_id = compute_entity_id(entity_key)
-                batch.put_item(
-                    Item={
-                        "entity_id": entity_id,  # PartitionKey
-                        "event_ts": str(utils.make_tzaware(timestamp)),
-                        "values": {
-                            k: v.SerializeToString()
-                            for k, v in features.items()  # Serialized Features
-                        },
-                    }
-                )
-                if progress:
-                    progress(1)
+        self._write_batch_non_duplicates(table_instance, data, progress)
 
     @log_exceptions_and_usage(online_store="dynamodb")
     def online_read(
@@ -298,6 +284,32 @@ class DynamoDBOnlineStore(OnlineStore):
         )
         _, table_responses_ordered = zip(*table_responses_ordered)
         return table_responses_ordered
+
+    @log_exceptions_and_usage(online_store="dynamodb")
+    def _write_batch_non_duplicates(
+        self,
+        table_instance,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ):
+        """Deduplicate write batch request items on ``entity_id`` primary key."""
+        with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
+            for entity_key, features, timestamp, created_ts in data:
+                entity_id = compute_entity_id(entity_key)
+                batch.put_item(
+                    Item={
+                        "entity_id": entity_id,  # PartitionKey
+                        "event_ts": str(utils.make_tzaware(timestamp)),
+                        "values": {
+                            k: v.SerializeToString()
+                            for k, v in features.items()  # Serialized Features
+                        },
+                    }
+                )
+                if progress:
+                    progress(1)
 
 
 def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None):

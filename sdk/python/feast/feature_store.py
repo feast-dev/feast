@@ -137,7 +137,6 @@ class FeatureStore:
         self._registry = Registry(registry_config, repo_path=self.repo_path)
         self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
-        self._go_server = None
 
     @log_exceptions
     def version(self) -> str:
@@ -772,6 +771,11 @@ class FeatureStore:
 
         self._registry.commit()
 
+        # go server needs to be reloaded to apply new configuration.
+        # we're stopping it here
+        # new server will be instantiated on the next online request
+        self._teardown_go_server()
+
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
@@ -784,6 +788,7 @@ class FeatureStore:
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
+        self._teardown_go_server()
 
     @log_exceptions_and_usage
     def get_historical_features(
@@ -1303,7 +1308,7 @@ class FeatureStore:
             # Lazily start the go server on the first request
             if self._go_server is None:
                 self._go_server = EmbeddedOnlineFeatureServer(
-                    str(self.repo_path.absolute()), self.config
+                    str(self.repo_path.absolute()), self.config, self
                 )
 
             return self._go_server.get_online_features(
@@ -1312,8 +1317,8 @@ class FeatureStore:
                 if isinstance(features, FeatureService)
                 else None,
                 entities=columnar,
+                request_data={},  # TODO: add request data parameter to public API
                 full_feature_names=full_feature_names,
-                project=self.config.project,
             )
 
         return self._get_online_features(
@@ -1961,6 +1966,9 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
+
+    def _teardown_go_server(self):
+        self._go_server = None
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

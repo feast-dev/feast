@@ -1,4 +1,4 @@
-package feast
+package model
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -15,32 +15,32 @@ const (
 var DUMMY_ENTITY types.Value = types.Value{Val: &types.Value_StringVal{StringVal: DUMMY_ENTITY_VAL}}
 
 type FeatureView struct {
-	base *BaseFeatureView
-	ttl  *durationpb.Duration
+	Base *BaseFeatureView
+	Ttl  *durationpb.Duration
 	// Make entities set so that search for dummy entity is faster
-	entities map[string]struct{}
+	Entities map[string]struct{}
 }
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
-	featureView := &FeatureView{base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
-		ttl: &(*proto.Spec.Ttl),
+	featureView := &FeatureView{Base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
+		Ttl: &(*proto.Spec.Ttl),
 	}
 	if len(proto.Spec.Entities) == 0 {
-		featureView.entities = map[string]struct{}{DUMMY_ENTITY_NAME: {}}
+		featureView.Entities = map[string]struct{}{DUMMY_ENTITY_NAME: {}}
 	} else {
-		featureView.entities = make(map[string]struct{})
+		featureView.Entities = make(map[string]struct{})
 		for _, entityName := range proto.Spec.Entities {
-			featureView.entities[entityName] = struct{}{}
+			featureView.Entities[entityName] = struct{}{}
 		}
 	}
 	return featureView
 }
 
 func (fs *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureView {
-	ttl := durationpb.Duration{Seconds: fs.ttl.Seconds, Nanos: fs.ttl.Nanos}
-	featureView := &FeatureView{base: base,
-		ttl:      &ttl,
-		entities: fs.entities,
+	ttl := durationpb.Duration{Seconds: fs.Ttl.Seconds, Nanos: fs.Ttl.Nanos}
+	featureView := &FeatureView{Base: base,
+		Ttl:      &ttl,
+		Entities: fs.Entities,
 	}
 	return featureView
 }

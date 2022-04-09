@@ -1,8 +1,9 @@
-package feast
+package onlinestore
 
 import (
 	"context"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -10,9 +11,9 @@ import (
 )
 
 type FeatureData struct {
-	reference serving.FeatureReferenceV2
-	timestamp timestamp.Timestamp
-	value     types.Value
+	Reference serving.FeatureReferenceV2
+	Timestamp timestamp.Timestamp
+	Value     types.Value
 }
 
 type OnlineStore interface {
@@ -49,7 +50,7 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 	}
 }
 
-func NewOnlineStore(config *RepoConfig) (OnlineStore, error) {
+func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
 		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)

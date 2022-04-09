@@ -1,4 +1,4 @@
-package feast
+package model
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -6,11 +6,11 @@ import (
 )
 
 type FeatureService struct {
-	name                 string
-	project              string
-	createdTimestamp     *timestamppb.Timestamp
-	lastUpdatedTimestamp *timestamppb.Timestamp
-	projections          []*FeatureViewProjection
+	Name                 string
+	Project              string
+	CreatedTimestamp     *timestamppb.Timestamp
+	LastUpdatedTimestamp *timestamppb.Timestamp
+	Projections          []*FeatureViewProjection
 }
 
 func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
@@ -18,10 +18,10 @@ func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
 	for index, projectionProto := range proto.Spec.Features {
 		projections[index] = NewFeatureViewProjectionFromProto(projectionProto)
 	}
-	return &FeatureService{name: proto.Spec.Name,
-		project:              proto.Spec.Project,
-		createdTimestamp:     proto.Meta.CreatedTimestamp,
-		lastUpdatedTimestamp: proto.Meta.LastUpdatedTimestamp,
-		projections:          projections,
+	return &FeatureService{Name: proto.Spec.Name,
+		Project:              proto.Spec.Project,
+		CreatedTimestamp:     proto.Meta.CreatedTimestamp,
+		LastUpdatedTimestamp: proto.Meta.LastUpdatedTimestamp,
+		Projections:          projections,
 	}
 }

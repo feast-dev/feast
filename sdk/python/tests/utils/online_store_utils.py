@@ -19,6 +19,8 @@ def _create_n_customer_test_samples(n=10):
                 "name": ValueProto(string_val="John"),
                 "age": ValueProto(int64_val=3),
             },
+            datetime.utcnow(),
+            None,
         )
         for i in range(n)
     ]
@@ -42,13 +44,13 @@ def _delete_test_table(project, tbl_name, region):
 def _insert_data_test_table(data, project, tbl_name, region):
     dynamodb_resource = boto3.resource("dynamodb", region_name=region)
     table_instance = dynamodb_resource.Table(f"{project}.{tbl_name}")
-    for entity_key, features in data:
+    for entity_key, features, timestamp, created_ts in data:
         entity_id = compute_entity_id(entity_key)
         with table_instance.batch_writer() as batch:
             batch.put_item(
                 Item={
                     "entity_id": entity_id,
-                    "event_ts": str(utils.make_tzaware(datetime.utcnow())),
+                    "event_ts": str(utils.make_tzaware(timestamp)),
                     "values": {k: v.SerializeToString() for k, v in features.items()},
                 }
             )

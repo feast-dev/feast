@@ -1,10 +1,11 @@
-package feast
+package onlinestore
 
 import (
 	"crypto/sha1"
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"strings"
 	"sync"
 	"time"
@@ -28,7 +29,7 @@ type SqliteOnlineStore struct {
 }
 
 // Creates a new sqlite online store object. onlineStoreConfig should have relative path of database file with respect to repoConfig.repoPath.
-func NewSqliteOnlineStore(project string, repoConfig *RepoConfig, onlineStoreConfig map[string]interface{}) (*SqliteOnlineStore, error) {
+func NewSqliteOnlineStore(project string, repoConfig *registry.RepoConfig, onlineStoreConfig map[string]interface{}) (*SqliteOnlineStore, error) {
 	store := SqliteOnlineStore{project: project}
 	if db_path, ok := onlineStoreConfig["path"]; !ok {
 		return nil, fmt.Errorf("cannot find sqlite path %s", db_path)
@@ -52,7 +53,7 @@ func (s *SqliteOnlineStore) Destruct() {
 	s.db.Close()
 }
 
-// Returns FeatureData 2D array. Each row corresponds to one entity value and each column corresponds to a single feature where the number of columns should be
+// Returns FeatureData 2D array. Each row corresponds to one entity Value and each column corresponds to a single feature where the number of columns should be
 // same length as the length of featureNames. Reads from every table in featureViewNames with the entity keys described.
 func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	featureCount := len(featureNames)
@@ -85,7 +86,7 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 		results[idx] = make([]FeatureData, featureCount)
 	}
 	for _, featureViewName := range featureViewNames {
-		query_string := fmt.Sprintf(`SELECT entity_key, feature_name, value, event_ts
+		query_string := fmt.Sprintf(`SELECT entity_key, feature_name, Value, event_ts
 									FROM %s
 									WHERE entity_key IN (%s)
 									ORDER BY entity_key`, tableId(project, featureViewName), strings.Join(in_query, ","))
@@ -107,9 +108,9 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			if err := proto.Unmarshal(valueString, &value); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
-			results[entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]][featureNamesToIdx[feature_name]] = FeatureData{reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
-				timestamp: *timestamppb.New(event_ts),
-				value:     types.Value{Val: value.Val},
+			results[entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]][featureNamesToIdx[feature_name]] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
+				Timestamp: *timestamppb.New(event_ts),
+				Value:     types.Value{Val: value.Val},
 			}
 		}
 	}

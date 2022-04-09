@@ -2,9 +2,9 @@ package types
 
 import (
 	"fmt"
-	"github.com/apache/arrow/go/arrow"
-	"github.com/apache/arrow/go/arrow/array"
-	"github.com/apache/arrow/go/arrow/memory"
+	"github.com/apache/arrow/go/v8/arrow"
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
@@ -128,7 +128,7 @@ func copyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) e
 	return nil
 }
 
-func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
+func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	values := make([]*types.Value, 0)
 
 	if listArr, ok := arr.(*array.List); ok {
@@ -250,7 +250,7 @@ func ArrowValuesToProtoValues(arr array.Interface) ([]*types.Value, error) {
 	return values, nil
 }
 
-func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.Allocator, numRows int) (array.Interface, error) {
+func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.Allocator, numRows int) (arrow.Array, error) {
 	var fieldType arrow.DataType
 	var err error
 

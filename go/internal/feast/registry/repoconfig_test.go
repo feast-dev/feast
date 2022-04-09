@@ -1,4 +1,4 @@
-package feast
+package registry
 
 import (
 	"github.com/stretchr/testify/assert"
