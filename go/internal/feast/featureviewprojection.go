@@ -5,37 +5,37 @@ import (
 )
 
 type FeatureViewProjection struct {
-	name       string
-	nameAlias  string
-	features   []*Feature
-	joinKeyMap map[string]string
+	Name       string
+	NameAlias  string
+	Features   []*Feature
+	JoinKeyMap map[string]string
 }
 
-func (fv *FeatureViewProjection) nameToUse() string {
-	if len(fv.nameAlias) == 0 {
-		return fv.name
+func (fv *FeatureViewProjection) NameToUse() string {
+	if len(fv.NameAlias) == 0 {
+		return fv.Name
 	}
-	return fv.nameAlias
+	return fv.NameAlias
 }
 
 func NewFeatureViewProjectionFromProto(proto *core.FeatureViewProjection) *FeatureViewProjection {
-	featureProjection := &FeatureViewProjection{name: proto.FeatureViewName,
-		nameAlias:  proto.FeatureViewNameAlias,
-		joinKeyMap: proto.JoinKeyMap,
+	featureProjection := &FeatureViewProjection{Name: proto.FeatureViewName,
+		NameAlias:  proto.FeatureViewNameAlias,
+		JoinKeyMap: proto.JoinKeyMap,
 	}
 
 	features := make([]*Feature, len(proto.FeatureColumns))
 	for index, featureSpecV2 := range proto.FeatureColumns {
 		features[index] = NewFeatureFromProto(featureSpecV2)
 	}
-	featureProjection.features = features
+	featureProjection.Features = features
 	return featureProjection
 }
 
 func NewFeatureViewProjectionFromDefinition(base *BaseFeatureView) *FeatureViewProjection {
-	return &FeatureViewProjection{name: base.name,
-		nameAlias:  "",
-		features:   base.features,
-		joinKeyMap: make(map[string]string),
+	return &FeatureViewProjection{Name: base.Name,
+		NameAlias:  "",
+		Features:   base.Features,
+		JoinKeyMap: make(map[string]string),
 	}
 }

@@ -45,7 +45,7 @@ def test_registration_and_retrieval_from_custom_s3_endpoint(universal_data_sourc
         fs.materialize(environment.start_date, environment.end_date)
 
         out = fs.get_online_features(
-            features=["driver_stats:conv_rate"], entity_rows=[{"driver": 5001}]
+            features=["driver_stats:conv_rate"], entity_rows=[{"driver_id": 5001}]
         ).to_dict()
         assert out["conv_rate"][0] is not None
 

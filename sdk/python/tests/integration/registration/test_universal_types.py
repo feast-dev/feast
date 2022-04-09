@@ -230,7 +230,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
 
     driver_id_value = "1" if config.entity_type == ValueType.STRING else 1
     online_features = fs.get_online_features(
-        features=features, entity_rows=[{"driver": driver_id_value}],
+        features=features, entity_rows=[{"driver_id": driver_id_value}],
     ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
