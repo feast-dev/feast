@@ -3,10 +3,13 @@ from datetime import timedelta
 from feast import (
     BigQuerySource,
     Entity,
-    Feature,
     FeatureService,
     FeatureView,
+    Field,
+    Float32,
+    Int64,
     PushSource,
+    String,
     ValueType,
 )
 
@@ -66,10 +69,7 @@ driver_locations = FeatureView(
     name="driver_locations",
     entities=["driver"],
     ttl=timedelta(days=1),
-    features=[
-        Feature(name="lat", dtype=ValueType.FLOAT),
-        Feature(name="lon", dtype=ValueType.STRING),
-    ],
+    schema=[Field(name="lat", dtype=Float32), Field(name="lon", dtype=String)],
     online=True,
     batch_source=driver_locations_source,
     tags={},
@@ -79,9 +79,9 @@ pushed_driver_locations = FeatureView(
     name="pushed_driver_locations",
     entities=["driver"],
     ttl=timedelta(days=1),
-    features=[
-        Feature(name="driver_lat", dtype=ValueType.FLOAT),
-        Feature(name="driver_long", dtype=ValueType.STRING),
+    schema=[
+        Field(name="driver_lat", dtype=Float32),
+        Field(name="driver_long", dtype=String),
     ],
     online=True,
     stream_source=driver_locations_push_source,
@@ -92,10 +92,10 @@ customer_profile = FeatureView(
     name="customer_profile",
     entities=["customer"],
     ttl=timedelta(days=1),
-    features=[
-        Feature(name="avg_orders_day", dtype=ValueType.FLOAT),
-        Feature(name="name", dtype=ValueType.STRING),
-        Feature(name="age", dtype=ValueType.INT64),
+    schema=[
+        Field(name="avg_orders_day", dtype=Float32),
+        Field(name="name", dtype=String),
+        Field(name="age", dtype=Int64),
     ],
     online=True,
     batch_source=customer_profile_source,
@@ -106,7 +106,7 @@ customer_driver_combined = FeatureView(
     name="customer_driver_combined",
     entities=["customer", "driver"],
     ttl=timedelta(days=1),
-    features=[Feature(name="trips", dtype=ValueType.INT64)],
+    schema=[Field(name="trips", dtype=Int64)],
     online=True,
     batch_source=customer_driver_combined_source,
     tags={},
