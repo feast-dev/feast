@@ -130,7 +130,10 @@ class TrinoRetrievalJob(RetrievalJob):
         """
         Run the retrieval and persist the results in the same offline store used for read.
         """
-        assert isinstance(storage, SavedDatasetTrinoStorage)
+        if not isinstance(storage, SavedDatasetTrinoStorage):
+            raise ValueError(
+                f"The storage object is not a `SavedDatasetTrinoStorage` but is instead a {type(storage)}"
+            )
         self.to_trino(destination_table=storage.trino_options.table)
 
     @property
@@ -306,7 +309,10 @@ class TrinoOfflineStore(OfflineStore):
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> RetrievalJob:
-        assert isinstance(data_source, TrinoSource)
+        if not isinstance(data_source, TrinoSource):
+            raise ValueError(
+                f"The data_source object is not a TrinoSource object but is instead a {type(data_source)}"
+            )
         from_expression = data_source.get_table_query_string()
 
         client = _get_trino_client(

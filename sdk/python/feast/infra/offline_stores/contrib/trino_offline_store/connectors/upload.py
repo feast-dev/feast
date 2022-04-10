@@ -80,7 +80,7 @@ def pyarrow_schema_from_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
             raise ValueError(
                 f"Not supported type '{field.type}' in entity_df for '{field.name}'."
             )
-        trino_schema.update({field.name: trino_type})
+        trino_schema[field.name] = trino_type
     return trino_schema
 
 

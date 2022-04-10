@@ -45,6 +45,19 @@ class Trino:
         self.http_scheme = http_scheme or os.getenv("TRINO_HTTP_SCHEME")
         self._cursor: Optional[Cursor] = None
 
+        if self.host is None:
+            raise ValueError("TRINO_HOST must be set if not passed in")
+        if self.port is None:
+            raise ValueError("TRINO_PORT must be set if not passed in")
+        if self.user is None:
+            raise ValueError("TRINO_USER must be set if not passed in")
+        if self.catalog is None:
+            raise ValueError("TRINO_CATALOG must be set if not passed in")
+        if self.auth is None:
+            raise ValueError("TRINO_AUTH must be set if not passed in")
+        if self.http_scheme is None:
+            raise ValueError("TRINO_HTTP_SCHEME must be set if not passed in")
+
     def _get_cursor(self) -> Cursor:
         if self._cursor is None:
             self._cursor = trino.dbapi.connect(

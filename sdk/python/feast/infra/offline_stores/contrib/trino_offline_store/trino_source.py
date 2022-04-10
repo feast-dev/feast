@@ -83,6 +83,7 @@ class TrinoOptions:
 class TrinoSource(DataSource):
     def __init__(
         self,
+        *,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
@@ -181,7 +182,7 @@ class TrinoSource(DataSource):
 
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        # data_source_proto.date_partition_column = self.date_partition_column
+        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
