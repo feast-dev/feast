@@ -41,7 +41,7 @@ func TestNewFeatureStore(t *testing.T) {
 }
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {
-	//t.Skip("@todo(achals): feature_repo isn't checked in yet")
+	t.Skip("@todo(achals): feature_repo isn't checked in yet")
 	config := registry.RepoConfig{
 		Project:  "feature_repo",
 		Registry: getRegistryPath(),

@@ -194,15 +194,18 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		Entities: entities,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
+	// Wait for logger to flush.
 	time.Sleep(1 * time.Second)
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
-	// Wait for logger to flush.
-	// Get the featurenames without the entity order
+
+	// Get the featurenames without the entity names that are appended at the front.
 	featureNames := response.Metadata.FeatureNames.Val[len(request.Entities):]
+	// Generated expected log rows and values
+	// TODO(kevjumba): implement for timestamp and status
 	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results)
 	expectedLogValues["driver_id"] = entities["driver_id"]
-	logPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
+	logPath, err := filepath.Abs(filepath.Join(dir, "log.parquet"))
 	assert.Nil(t, err)
 	w, err := logging.CreateOrOpenLogFile(logPath)
 	assert.Nil(t, err)
@@ -225,6 +228,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, len(values), len(expectedLogValues))
+		// Need to iterate through and compare because certain values in types.RepeatedValues aren't accurately being compared.
 		for name, val := range values {
 			assert.Equal(t, len(val.Val), len(expectedLogValues[name].Val))
 			for idx, featureVal := range val.Val {
@@ -236,6 +240,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+// Generate the expected log rows based on the resulting feature vector returned from GetOnlineFeatures.
 func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeaturesResponse_FeatureVector) (map[string]*types.RepeatedValue, [][]int32, [][]int64) {
 	numFeatures := len(featureNames)
 	numRows := len(results[0].Values)

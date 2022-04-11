@@ -101,6 +101,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 	}
 }
 
+// Initialize all dummy featureservice, entities and featureviews/on demand featureviews for testing.
 func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView) {
 	f1 := model.NewFeature(
 		"int64",
@@ -153,6 +154,7 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 	return featureService, []*model.Entity{entity1}, []*model.FeatureView{featureView1, featureView2}, []*model.OnDemandFeatureView{}
 }
 
+// Create dummy FeatureService, Entities, and FeatureViews add them to the logger and convert the logs to Arrow table.
 func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
 	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)

@@ -40,7 +40,6 @@ type LoggingService struct {
 }
 
 func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogging bool) (*LoggingService, error) {
-	// start handler processes?
 	var featureService *model.FeatureService = nil
 	var err error
 	if enableLogging {
@@ -94,16 +93,20 @@ func (s *LoggingService) processLogs() {
 	}
 }
 
+// Select that eitheringests new logs that are added to the logging channel, one at a time to add
+// to the in memory buffer or flushes all of them synchronously to the OfflineStorage on a time interval.
 func (s *LoggingService) ProcessMemoryBuffer(t *time.Ticker) {
 	select {
 	case t := <-t.C:
 		s.flushLogsToOfflineStorage(t)
 	case new_log := <-s.logChannel:
-		log.Printf("Pushing %s to memory.\n", new_log.FeatureValues)
+		log.Printf("Adding %s to memory.\n", new_log.FeatureValues)
 		s.memoryBuffer.logs = append(s.memoryBuffer.logs, new_log)
 	}
 }
 
+// Acquires the logging schema from the feature service, converts the memory buffer array of rows of logs and flushes
+// them to the offline storage.
 func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 	log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(s.memoryBuffer.logs))
 	offlineStoreType, ok := getOfflineStoreType(s.fs.GetRepoConfig().OfflineStore)
@@ -158,9 +161,8 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], l.EntityValue[idx])
 		}
 
-		// Contains both fv and odfv feature value types => add them in order of how the appear in the featureService
+		// Contains both fv and odfv feature value types => they are processed in order of how the appear in the featureService
 		for idx, featureName := range fcoSchema.Features {
-			// for featureName, idAndType := range fcoSchema.FeaturesTypes {
 			// populate the proto value arrays with values from memory buffer in separate columns one for each feature name
 			if _, ok := columnNameToProtoValueArray[featureName]; !ok {
 				columnNameToProtoValueArray[featureName] = make([]*types.Value, 0)
@@ -223,10 +225,8 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	)
 
 	result := array.Record(array.NewRecord(schema, columns, int64(len(memoryBuffer.logs))))
-	// create an arrow table -> write this to parquet.
 
 	tbl := array.NewTableFromRecords(schema, []array.Record{result})
-	// arrow table -> write this to parquet
 	return array.Table(tbl), nil
 }
 
@@ -245,7 +245,6 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 	for _, entity := range entities {
 		entityNames = append(entityNames, entity.JoinKey)
 	}
-	//featureViews, err := fs.listFeatureViews(hideDummyEntity)
 
 	for _, featureView := range featureViews {
 		fvs[featureView.Base.Name] = featureView
@@ -261,7 +260,6 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 	}
 
 	allFeatureTypes := make(map[string]types.ValueType_Enum)
-	//allRequestDataTypes := make(map[string]*types.ValueType_Enum)
 	features := make([]string, 0)
 	for _, featureProjection := range featureService.Projections {
 		// Create copies of FeatureView that may contains the same *FeatureView but

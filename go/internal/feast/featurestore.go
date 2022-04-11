@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -12,9 +11,7 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/feast-dev/feast/go/protos/feast/types"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FeatureStore struct {
@@ -32,58 +29,12 @@ type Features struct {
 	FeatureService *model.FeatureService
 }
 
-/*
-	FeatureVector type represent result of retrieving single feature for multiple rows.
-	It can be imagined as a column in output dataframe / table.
-	It contains of feature name, list of values (across all rows),
-	list of statuses and list of timestamp. All these lists have equal length.
-	And this length is also equal to number of entity rows received in request.
-*/
-type FeatureVector struct {
-	Name       string
-	Values     array.Interface
-	Statuses   []serving.FieldStatus
-	Timestamps []*timestamppb.Timestamp
-}
-
-type featureViewAndRefs struct {
-	view        *model.FeatureView
-	featureRefs []string
-}
-
 func (fs *FeatureStore) Registry() *registry.Registry {
 	return fs.registry
 }
 
-func (f *featureViewAndRefs) View() *model.FeatureView {
-	return f.view
-}
-
-func (f *featureViewAndRefs) FeatureRefs() []string {
-	return f.featureRefs
-}
-
 func (fs *FeatureStore) GetRepoConfig() *registry.RepoConfig {
 	return fs.config
-}
-
-/*
-	We group all features from a single request by entities they attached to.
-	Thus, we will be able to call online retrieval per entity and not per each feature view.
-	In this struct we collect all features and views that belongs to a group.
-	We also store here projected entity keys (only ones that needed to retrieve these features)
-	and indexes to map result of retrieval into output response.
-*/
-type GroupedFeaturesPerEntitySet struct {
-	// A list of requested feature references of the form featureViewName:featureName that share this entity set
-	featureNames     []string
-	featureViewNames []string
-	// full feature references as they supposed to appear in response
-	aliasedFeatureNames []string
-	// Entity set as a list of EntityKeys to pass to OnlineRead
-	entityKeys []*prototypes.EntityKey
-	// Reversed mapping to project result of retrieval from storage to response
-	indices [][]int
 }
 
 // NewFeatureStore constructs a feature store fat client using the
@@ -325,14 +276,14 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 	return fv, nil
 }
 
-func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*types.EntityKey,
+func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*prototypes.EntityKey,
 	requestedFeatureViewNames []string,
 	requestedFeatureNames []string,
 ) ([][]onlinestore.FeatureData, error) {
 	numRows := len(entityRows)
-	entityRowsValue := make([]*types.EntityKey, numRows)
+	entityRowsValue := make([]*prototypes.EntityKey, numRows)
 	for index, entityKey := range entityRows {
-		entityRowsValue[index] = &types.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
+		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
 }

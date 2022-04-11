@@ -54,7 +54,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	}
 	// Entities are currently part of the features as a value and the order that we add it to the resp MetaData
 	// Need to figure out a way to map the correct entities to the correct ordering
-	entityValues := make(map[string][]*prototypes.Value, 0)
+	entityValuesMap := make(map[string][]*prototypes.Value, 0)
 	featureNames := make([]string, len(featureVectors))
 	for idx, vector := range featureVectors {
 
@@ -65,7 +65,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			return nil, err
 		}
 		if _, ok := request.Entities[vector.Name]; ok {
-			entityValues[vector.Name] = values
+			entityValuesMap[vector.Name] = values
 		}
 		resp.Results = append(resp.Results, &serving.GetOnlineFeaturesResponse_FeatureVector{
 			Values:          values,
@@ -74,7 +74,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		})
 	}
 
-	go generateLogs(s, entityValues, featureNames, resp.Results, request.RequestContext)
+	go generateLogs(s, entityValuesMap, featureNames, resp.Results, request.RequestContext)
 	return resp, nil
 }
 

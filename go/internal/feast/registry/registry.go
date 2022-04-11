@@ -106,11 +106,11 @@ func (r *Registry) getRegistryProto() (*core.Registry, error) {
 	if err != nil {
 		return registryProto, err
 	}
-	r.Load(registryProto)
+	r.load(registryProto)
 	return registryProto, nil
 }
 
-func (r *Registry) Load(registry *core.Registry) {
+func (r *Registry) load(registry *core.Registry) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.cachedRegistry = registry
