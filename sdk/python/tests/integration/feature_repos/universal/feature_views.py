@@ -20,6 +20,7 @@ from feast.data_source import DataSource, RequestSource
 from feast.types import FeastType, PrimitiveFeastType
 from tests.integration.feature_repos.universal.entities import location
 from feast.field import Field
+from feast.data_source import DataSource, RequestSource
 
 def driver_feature_view(
     data_source: DataSource,

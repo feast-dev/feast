@@ -459,7 +459,7 @@ class RequestSource(DataSource):
     """
 
     name: str
-    schema: Union[Dict[str, ValueType], List[Field]]
+    schema: List[Field]
 
     def __init__(
         self,
@@ -477,7 +477,19 @@ class RequestSource(DataSource):
                 "Please use List[Field] instead for the schema",
                 DeprecationWarning,
             )
-        self.schema = schema
+            schemaList = []
+            for key, valueType in schema.items():
+                schemaList.append(
+                    Field(name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[valueType])
+                )
+            self.schema = schemaList
+        elif isinstance(schema, List):
+            self.schema = schema
+        else:
+            raise Exception(
+                "Schema type must be either dictionary or list, not "
+                + str(type(schema))
+            )
 
     def validate(self, config: RepoConfig):
         pass
@@ -499,35 +511,13 @@ class RequestSource(DataSource):
             or self.tags != other.tags
         ):
             return False
-        else:
-            if isinstance(self.schema, List) and isinstance(other.schema, List):
-                for field1, field2 in zip(self.schema, other.schema):
-                    if field1 != field2:
-                        return False
-                return True
-            elif isinstance(self.schema, Dict) and isinstance(other.schema, Dict):
-                for key, value in self.schema.items():
-                    if key not in other.schema:
-                        return False
-                    elif value != other.schema[key]:
-                        return False
-                return True
-            elif isinstance(self.schema, Dict) and isinstance(other.schema, List):
-                dict_schema = self.schema
-                list_schema = other.schema
-            elif isinstance(self.schema, List) and isinstance(other.schema, Dict):
-                dict_schema = other.schema
-                list_schema = self.schema
-
-            temp_schema = {}
-            for field in list_schema:
-                temp_schema[field.name] = field.dtype
-            for name, value in dict_schema.items():
-                if name not in temp_schema:
-                    return False
-                elif VALUE_TYPES_TO_FEAST_TYPES[value.value] != temp_schema[name]:
+        if isinstance(self.schema, List) and isinstance(other.schema, List):
+            for field1, field2 in zip(self.schema, other.schema):
+                if field1 != field2:
                     return False
             return True
+        else:
+            return False
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
