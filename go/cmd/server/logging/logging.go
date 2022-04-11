@@ -114,7 +114,7 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		if err != nil {
 			return err
 		}
-		schema, err := GetTypesFromFeatureService(s.memoryBuffer.featureService, entities, featureViews, odfvs)
+		schema, err := GetSchemaFromFeatureService(s.memoryBuffer.featureService, entities, featureViews, odfvs)
 		if err != nil {
 			return err
 		}
@@ -236,7 +236,7 @@ type Schema struct {
 	FeaturesTypes map[string]types.ValueType_Enum
 }
 
-func GetTypesFromFeatureService(featureService *feast.FeatureService, entities []*feast.Entity, featureViews []*feast.FeatureView, onDemandFeatureViews []*feast.OnDemandFeatureView) (*Schema, error) {
+func GetSchemaFromFeatureService(featureService *feast.FeatureService, entities []*feast.Entity, featureViews []*feast.FeatureView, onDemandFeatureViews []*feast.OnDemandFeatureView) (*Schema, error) {
 	fvs := make(map[string]*feast.FeatureView)
 	odFvs := make(map[string]*feast.OnDemandFeatureView)
 
