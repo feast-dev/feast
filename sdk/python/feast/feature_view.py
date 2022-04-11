@@ -245,6 +245,7 @@ class FeatureView(BaseFeatureView):
                 else:
                     self.batch_source = source.batch_source
             else:
+                self.stream_source = stream_source
                 self.batch_source = source
         else:
             warnings.warn(
