@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/feast-dev/feast/go/internal/feast/registry"
-	"log"
 	"net"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"

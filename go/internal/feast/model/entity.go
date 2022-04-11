@@ -21,7 +21,7 @@ func NewEntityFromProto(proto *core.Entity) *Entity {
 func CreateNewEntity(name string, valueType types.ValueType_Enum, joinKey string) *Entity {
 	return &Entity{
 		Name:      name,
-		Valuetype: valueType,
-		Joinkey:   joinKey,
+		ValueType: valueType,
+		JoinKey:   joinKey,
 	}
 }

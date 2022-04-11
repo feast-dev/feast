@@ -10,6 +10,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	gotypes "github.com/feast-dev/feast/go/types"
@@ -27,7 +28,7 @@ type Log struct {
 }
 
 type MemoryBuffer struct {
-	featureService *feast.FeatureService
+	featureService *model.FeatureService
 	logs           []*Log
 }
 
@@ -40,10 +41,10 @@ type LoggingService struct {
 
 func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogging bool) (*LoggingService, error) {
 	// start handler processes?
-	var featureService *feast.FeatureService = nil
+	var featureService *model.FeatureService = nil
 	var err error
 	if enableLogging {
-		featureService, err = fs.GetFeatureService(featureServiceName, fs.GetRepoConfig().Project)
+		featureService, err = fs.GetFeatureService(featureServiceName)
 		if err != nil {
 			return nil, err
 		}
@@ -236,13 +237,13 @@ type Schema struct {
 	FeaturesTypes map[string]types.ValueType_Enum
 }
 
-func GetSchemaFromFeatureService(featureService *feast.FeatureService, entities []*feast.Entity, featureViews []*feast.FeatureView, onDemandFeatureViews []*feast.OnDemandFeatureView) (*Schema, error) {
-	fvs := make(map[string]*feast.FeatureView)
-	odFvs := make(map[string]*feast.OnDemandFeatureView)
+func GetSchemaFromFeatureService(featureService *model.FeatureService, entities []*model.Entity, featureViews []*model.FeatureView, onDemandFeatureViews []*model.OnDemandFeatureView) (*Schema, error) {
+	fvs := make(map[string]*model.FeatureView)
+	odFvs := make(map[string]*model.OnDemandFeatureView)
 
 	entityNames := make([]string, 0)
 	for _, entity := range entities {
-		entityNames = append(entityNames, entity.Joinkey)
+		entityNames = append(entityNames, entity.JoinKey)
 	}
 	//featureViews, err := fs.listFeatureViews(hideDummyEntity)
 
@@ -256,7 +257,7 @@ func GetSchemaFromFeatureService(featureService *feast.FeatureService, entities 
 
 	entityJoinKeyToType := make(map[string]types.ValueType_Enum)
 	for _, entity := range entities {
-		entityJoinKeyToType[entity.Joinkey] = entity.Valuetype
+		entityJoinKeyToType[entity.JoinKey] = entity.ValueType
 	}
 
 	allFeatureTypes := make(map[string]types.ValueType_Enum)
@@ -290,7 +291,7 @@ func GetSchemaFromFeatureService(featureService *feast.FeatureService, entities 
 	return schema, nil
 }
 
-func (s *LoggingService) GetFcos() ([]*feast.Entity, []*feast.FeatureView, []*feast.OnDemandFeatureView, error) {
+func (s *LoggingService) GetFcos() ([]*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView, error) {
 	odfvs, err := s.fs.ListOnDemandFeatureViews()
 	if err != nil {
 		return nil, nil, nil, err

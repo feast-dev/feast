@@ -3,10 +3,8 @@ package feast
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sort"
-	"strings"
 
+	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -16,6 +14,7 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FeatureStore struct {
@@ -48,20 +47,24 @@ type FeatureVector struct {
 }
 
 type featureViewAndRefs struct {
-	view        *FeatureView
+	view        *model.FeatureView
 	featureRefs []string
 }
 
-func (fs *FeatureStore) Registry() *Registry {
+func (fs *FeatureStore) Registry() *registry.Registry {
 	return fs.registry
 }
 
-func (f *featureViewAndRefs) View() *FeatureView {
+func (f *featureViewAndRefs) View() *model.FeatureView {
 	return f.view
 }
 
 func (f *featureViewAndRefs) FeatureRefs() []string {
 	return f.featureRefs
+}
+
+func (fs *FeatureStore) GetRepoConfig() *registry.RepoConfig {
+	return fs.config
 }
 
 /*
@@ -300,6 +303,10 @@ func (fs *FeatureStore) ListEntities(hideDummyEntity bool) ([]*model.Entity, err
 		}
 	}
 	return entities, nil
+}
+
+func (fs *FeatureStore) ListOnDemandFeatureViews() ([]*model.OnDemandFeatureView, error) {
+	return fs.registry.ListOnDemandFeatureViews(fs.config.Project)
 }
 
 /*

@@ -28,10 +28,10 @@ func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
 
 func NewFeatureService(name string, project string, createdTimestamp *timestamppb.Timestamp, lastUpdatedTimestamp *timestamppb.Timestamp, projections []*FeatureViewProjection) *FeatureService {
 	return &FeatureService{
-		name:                 name,
-		project:              project,
-		createdTimestamp:     createdTimestamp,
-		lastUpdatedTimestamp: lastUpdatedTimestamp,
+		Name:                 name,
+		Project:              project,
+		CreatedTimestamp:     createdTimestamp,
+		LastUpdatedTimestamp: lastUpdatedTimestamp,
 		Projections:          projections,
 	}
 }

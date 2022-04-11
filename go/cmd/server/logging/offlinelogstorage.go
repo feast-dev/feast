@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/apache/arrow/go/v8/arrow/array"
-	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 )
 
 type OfflineLogStorage interface {
@@ -21,7 +21,7 @@ func getOfflineStoreType(offlineStoreConfig map[string]interface{}) (string, boo
 	}
 }
 
-func NewOfflineStore(config *feast.RepoConfig) (OfflineLogStorage, error) {
+func NewOfflineStore(config *registry.RepoConfig) (OfflineLogStorage, error) {
 	onlineStoreType, _ := getOfflineStoreType(config.OfflineStore)
 	if onlineStoreType == "file" {
 		offlineStore, err := NewFileOfflineStore(config.Project, config.OfflineStore)

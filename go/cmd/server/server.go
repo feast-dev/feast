@@ -55,30 +55,17 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	// Entities are currently part of the features as a value and the order that we add it to the resp MetaData
 	// Need to figure out a way to map the correct entities to the correct ordering
 	entityValues := make(map[string][]*prototypes.Value, 0)
-	for name, values := range request.Entities {
-		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, name)
-		vec := &serving.GetOnlineFeaturesResponse_FeatureVector{
-			Values:          make([]*prototypes.Value, 0),
-			Statuses:        make([]serving.FieldStatus, 0),
-			EventTimestamps: make([]*timestamp.Timestamp, 0),
-		}
-		resp.Results = append(resp.Results, vec)
-		valueSlice := make([]*prototypes.Value, 0)
-		for _, v := range values.Val {
-			valueSlice = append(valueSlice, v)
-			vec.Values = append(vec.Values, v)
-			vec.Statuses = append(vec.Statuses, serving.FieldStatus_PRESENT)
-			vec.EventTimestamps = append(vec.EventTimestamps, &timestamp.Timestamp{})
-		}
-		entityValues[name] = valueSlice
-	}
 	featureNames := make([]string, len(featureVectors))
 	for idx, vector := range featureVectors {
+
 		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, vector.Name)
 		featureNames[idx] = vector.Name
 		values, err := types.ArrowValuesToProtoValues(vector.Values)
 		if err != nil {
 			return nil, err
+		}
+		if _, ok := request.Entities[vector.Name]; ok {
+			entityValues[vector.Name] = values
 		}
 		resp.Results = append(resp.Results, &serving.GetOnlineFeaturesResponse_FeatureVector{
 			Values:          values,
@@ -86,6 +73,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: vector.Timestamps,
 		})
 	}
+
 	go generateLogs(s, entityValues, featureNames, resp.Results, request.RequestContext)
 	return resp, nil
 }
@@ -110,7 +98,7 @@ func generateLogs(s *servingServiceServer, entityMap map[string][]*prototypes.Va
 
 	joinKeys := make([]string, 0)
 	for _, entity := range entityArr {
-		joinKeys = append(joinKeys, entity.Joinkey)
+		joinKeys = append(joinKeys, entity.JoinKey)
 	}
 
 	numFeatures := len(featureNames)

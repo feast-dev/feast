@@ -7,7 +7,7 @@ import (
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
-	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -42,20 +42,16 @@ func TestLoggingChannelTimeout(t *testing.T) {
 
 func TestSchemaTypeRetrieval(t *testing.T) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
-	schema, err := GetTypesFromFeatureService(featureService, entities, featureViews, odfvs)
+	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)
 	assert.Nil(t, err)
 	assert.Contains(t, schema.EntityTypes, "driver_id")
-	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], &IndexAndType{
-		dtype: types.ValueType_INT64,
-		index: 0,
-	}))
+	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], types.ValueType_INT64))
 
 	features := []string{"int64", "float32", "int32", "double"}
 	for idx, featureName := range features {
 		assert.Contains(t, schema.FeaturesTypes, featureName)
-		assert.Equal(t, schema.FeaturesTypes[featureName].index, idx)
+		assert.Equal(t, schema.FeaturesTypes[featureName], idx)
 	}
-
 }
 
 func TestSerializeToArrowTable(t *testing.T) {
@@ -104,61 +100,61 @@ func TestSerializeToArrowTable(t *testing.T) {
 	}
 }
 
-func InitializeFeatureRepoVariablesForTest() (*feast.FeatureService, []*feast.Entity, []*feast.FeatureView, []*feast.OnDemandFeatureView) {
-	f1 := feast.NewFeature(
+func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView) {
+	f1 := model.NewFeature(
 		"int64",
 		types.ValueType_INT64,
 	)
-	f2 := feast.NewFeature(
+	f2 := model.NewFeature(
 		"float32",
 		types.ValueType_FLOAT,
 	)
-	projection1 := feast.NewFeatureViewProjection(
+	projection1 := model.NewFeatureViewProjection(
 		"featureView1",
 		"",
-		[]*feast.Feature{f1, f2},
+		[]*model.Feature{f1, f2},
 		map[string]string{},
 	)
-	baseFeatureView1 := feast.CreateBaseFeatureView(
+	baseFeatureView1 := model.CreateBaseFeatureView(
 		"featureView1",
-		[]*feast.Feature{f1, f2},
+		[]*model.Feature{f1, f2},
 		projection1,
 	)
-	featureView1 := feast.CreateFeatureView(baseFeatureView1, nil, map[string]struct{}{})
-	entity1 := feast.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
-	f3 := feast.NewFeature(
+	featureView1 := model.CreateFeatureView(baseFeatureView1, nil, map[string]struct{}{})
+	entity1 := model.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
+	f3 := model.NewFeature(
 		"int32",
 		types.ValueType_INT32,
 	)
-	f4 := feast.NewFeature(
+	f4 := model.NewFeature(
 		"double",
 		types.ValueType_DOUBLE,
 	)
-	projection2 := feast.NewFeatureViewProjection(
+	projection2 := model.NewFeatureViewProjection(
 		"featureView2",
 		"",
-		[]*feast.Feature{f3, f4},
+		[]*model.Feature{f3, f4},
 		map[string]string{},
 	)
-	baseFeatureView2 := feast.CreateBaseFeatureView(
+	baseFeatureView2 := model.CreateBaseFeatureView(
 		"featureView2",
-		[]*feast.Feature{f3, f4},
+		[]*model.Feature{f3, f4},
 		projection2,
 	)
-	featureView2 := feast.CreateFeatureView(baseFeatureView2, nil, map[string]struct{}{})
-	featureService := feast.NewFeatureService(
+	featureView2 := model.CreateFeatureView(baseFeatureView2, nil, map[string]struct{}{})
+	featureService := model.NewFeatureService(
 		"test_service",
 		"test_project",
 		nil,
 		nil,
-		[]*feast.FeatureViewProjection{projection1, projection2},
+		[]*model.FeatureViewProjection{projection1, projection2},
 	)
-	return featureService, []*feast.Entity{entity1}, []*feast.FeatureView{featureView1, featureView2}, []*feast.OnDemandFeatureView{}
+	return featureService, []*model.Entity{entity1}, []*model.FeatureView{featureView1, featureView2}, []*model.OnDemandFeatureView{}
 }
 
 func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
-	schema, err := GetTypesFromFeatureService(featureService, entities, featureViews, odfvs)
+	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )
 
@@ -54,5 +55,13 @@ func (fv *BaseFeatureView) ProjectWithFeatures(featureNames []string) *FeatureVi
 	return &FeatureViewProjection{
 		Name:     fv.Name,
 		Features: features,
+	}
+}
+
+func CreateBaseFeatureView(name string, features []*Feature, projection *FeatureViewProjection) *BaseFeatureView {
+	return &BaseFeatureView{
+		Name:       name,
+		Features:   features,
+		Projection: projection,
 	}
 }

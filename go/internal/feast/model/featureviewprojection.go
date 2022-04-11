@@ -39,3 +39,11 @@ func NewFeatureViewProjectionFromDefinition(base *BaseFeatureView) *FeatureViewP
 		JoinKeyMap: make(map[string]string),
 	}
 }
+
+func NewFeatureViewProjection(name string, nameAlias string, features []*Feature, joinKeyMap map[string]string) *FeatureViewProjection {
+	return &FeatureViewProjection{Name: name,
+		NameAlias:  nameAlias,
+		Features:   features,
+		JoinKeyMap: joinKeyMap,
+	}
+}
