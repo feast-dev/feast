@@ -19,22 +19,22 @@ type FileLogStorage struct {
 
 func NewFileOfflineStore(project string, offlineStoreConfig map[string]interface{}) (*FileLogStorage, error) {
 	store := FileLogStorage{project: project}
-	var abs_path string
+	var absPath string
 	var err error
 	// TODO(kevjumba) remove this default catch.
 	if val, ok := offlineStoreConfig["path"]; !ok {
-		abs_path, err = filepath.Abs("log.parquet")
+		absPath, err = filepath.Abs("log.parquet")
 	} else {
 		result, ok := val.(string)
 		if !ok {
 			return nil, errors.New("cannot convert offlinestore path to string")
 		}
-		abs_path, err = filepath.Abs(filepath.Join(result, "log.parquet"))
+		absPath, err = filepath.Abs(filepath.Join(result, "log.parquet"))
 	}
 	if err != nil {
 		return nil, err
 	}
-	store.path = abs_path
+	store.path = absPath
 	return &store, nil
 }
 

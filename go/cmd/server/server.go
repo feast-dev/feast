@@ -8,7 +8,6 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type servingServiceServer struct {
@@ -73,66 +72,6 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: vector.Timestamps,
 		})
 	}
-
-	go generateLogs(s, entityValuesMap, featureNames, resp.Results, request.RequestContext)
+	go s.loggingService.GenerateLogs(entityValuesMap, featureNames, resp.Results[len(request.Entities):], request.RequestContext)
 	return resp, nil
-}
-
-func generateLogs(s *servingServiceServer, entityMap map[string][]*prototypes.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*prototypes.RepeatedValue) error {
-	// Add a log with the request context
-	if len(requestData) > 0 {
-		requestContextLog := logging.Log{
-			RequestContext: requestData,
-		}
-		s.loggingService.EmitLog(&requestContextLog)
-	}
-
-	if len(features) <= 0 {
-		return nil
-	}
-
-	entityArr, err := s.fs.ListEntities(true)
-	if err != nil {
-		return err
-	}
-
-	joinKeys := make([]string, 0)
-	for _, entity := range entityArr {
-		joinKeys = append(joinKeys, entity.JoinKey)
-	}
-
-	numFeatures := len(featureNames)
-	// Should be equivalent to how many entities there are(each feature row has (entity) number of features)
-	// acc_rate []
-	numRows := len(features[0].Values)
-	featureValueLogRows := make([][]*prototypes.Value, numRows)
-	featureStatusLogRows := make([][]serving.FieldStatus, numRows)
-	eventTimestampLogRows := make([][]*timestamppb.Timestamp, numRows)
-
-	for row_idx := 0; row_idx < numRows; row_idx++ {
-		featureValueLogRows[row_idx] = make([]*prototypes.Value, numFeatures)
-		featureStatusLogRows[row_idx] = make([]serving.FieldStatus, numFeatures)
-		eventTimestampLogRows[row_idx] = make([]*timestamppb.Timestamp, numFeatures)
-		for idx := 1; idx < len(features); idx++ {
-			featureValueLogRows[row_idx][idx-1] = features[idx].Values[row_idx]
-			featureStatusLogRows[row_idx][idx-1] = features[idx].Statuses[row_idx]
-			eventTimestampLogRows[row_idx][idx-1] = features[idx].EventTimestamps[row_idx]
-		}
-		entityRow := make([]*prototypes.Value, 0)
-		// ensure that the entity values are in the order that the schema defines which is the order that ListEntities returns the entities
-		for _, joinKey := range joinKeys {
-			entityRow = append(entityRow, entityMap[joinKey][row_idx])
-		}
-		newLog := logging.Log{
-			EntityValue:     entityRow,
-			FeatureValues:   featureValueLogRows[row_idx],
-			FeatureStatuses: featureStatusLogRows[row_idx],
-			EventTimestamps: eventTimestampLogRows[row_idx],
-		}
-		err := s.loggingService.EmitLog(&newLog)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

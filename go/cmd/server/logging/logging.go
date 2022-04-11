@@ -304,3 +304,59 @@ func (s *LoggingService) GetFcos() ([]*model.Entity, []*model.FeatureView, []*mo
 	}
 	return entities, fvs, odfvs, nil
 }
+
+func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue) error {
+	// Add a log with the request context
+	if len(requestData) > 0 {
+		requestContextLog := Log{
+			RequestContext: requestData,
+		}
+		l.EmitLog(&requestContextLog)
+	}
+
+	if len(features) <= 0 {
+		return nil
+	}
+
+	entityArr, err := l.fs.ListEntities(true)
+	if err != nil {
+		return err
+	}
+
+	joinKeys := make([]string, 0)
+	for _, entity := range entityArr {
+		joinKeys = append(joinKeys, entity.JoinKey)
+	}
+
+	numFeatures := len(featureNames)
+	// Should be equivalent to how many entities there are(each feature row has (entity) number of features)
+	// acc_rate []
+	numRows := len(features[0].Values)
+
+	for row_idx := 0; row_idx < numRows; row_idx++ {
+		featureValueLogRow := make([]*types.Value, numFeatures)
+		featureStatusLogRow := make([]serving.FieldStatus, numFeatures)
+		eventTimestampLogRow := make([]*timestamppb.Timestamp, numFeatures)
+		for idx := 0; idx < len(features); idx++ {
+			featureValueLogRow[idx] = features[idx].Values[row_idx]
+			featureStatusLogRow[idx] = features[idx].Statuses[row_idx]
+			eventTimestampLogRow[idx] = features[idx].EventTimestamps[row_idx]
+		}
+		entityRow := make([]*types.Value, 0)
+		// ensure that the entity values are in the order that the schema defines which is the order that ListEntities returns the entities
+		for _, joinKey := range joinKeys {
+			entityRow = append(entityRow, entityMap[joinKey][row_idx])
+		}
+		newLog := Log{
+			EntityValue:     entityRow,
+			FeatureValues:   featureValueLogRow,
+			FeatureStatuses: featureStatusLogRow,
+			EventTimestamps: eventTimestampLogRow,
+		}
+		err := l.EmitLog(&newLog)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

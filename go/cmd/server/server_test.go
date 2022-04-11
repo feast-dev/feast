@@ -173,9 +173,9 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "."
-	err := test.SetupFeatureRepo(dir)
-	assert.Nil(t, err)
-	defer test.CleanUpRepo(dir)
+	// err := test.SetupFeatureRepo(dir)
+	// assert.Nil(t, err)
+	// defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
