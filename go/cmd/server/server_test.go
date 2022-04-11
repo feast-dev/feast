@@ -173,9 +173,9 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "."
-	// err := test.SetupFeatureRepo(dir)
-	// assert.Nil(t, err)
-	// defer test.CleanUpRepo(dir)
+	err := test.SetupFeatureRepo(dir)
+	assert.Nil(t, err)
+	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
@@ -207,10 +207,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	expectedLogValues["driver_id"] = entities["driver_id"]
 	logPath, err := filepath.Abs(filepath.Join(dir, "log.parquet"))
 	assert.Nil(t, err)
-	w, err := logging.CreateOrOpenLogFile(logPath)
-	assert.Nil(t, err)
-
-	pf, err := file.NewParquetReader(w)
+	pf, err := file.OpenParquetFile(logPath, false)
 	assert.Nil(t, err)
 
 	reader, err := pqarrow.NewFileReader(pf, pqarrow.ArrowReadProperties{}, memory.DefaultAllocator)

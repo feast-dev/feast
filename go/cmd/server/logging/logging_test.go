@@ -11,6 +11,7 @@ import (
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	gotypes "github.com/feast-dev/feast/go/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -56,48 +57,28 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 }
 
 func TestSerializeToArrowTable(t *testing.T) {
-	table, err := GenerateLogsAndConvertToArrowTable()
+	table, expectedSchema, expectedColumns, err := GenerateLogsAndConvertToArrowTable()
 	assert.Nil(t, err)
 	defer table.Release()
 	tr := array.NewTableReader(table, -1)
-	expected_schema := map[string]arrow.DataType{
-		"driver_id": arrow.PrimitiveTypes.Int64,
-		"int32":     arrow.PrimitiveTypes.Int32,
-		"double":    arrow.PrimitiveTypes.Float64,
-		"int64":     arrow.PrimitiveTypes.Int64,
-		"float32":   arrow.PrimitiveTypes.Float32,
-	}
-
-	expected_columns := map[string]*types.RepeatedValue{
-		"double": {
-			Val: []*types.Value{{Val: &types.Value_DoubleVal{DoubleVal: 0.97}},
-				{Val: &types.Value_DoubleVal{DoubleVal: 8.97}}}},
-		"driver_id": {
-			Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}},
-				{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
-		"float32": {
-			Val: []*types.Value{{Val: &types.Value_FloatVal{FloatVal: 0.64}},
-				{Val: &types.Value_FloatVal{FloatVal: 1.56}}}},
-		"int32": {
-			Val: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 55}},
-				{Val: &types.Value_Int32Val{Int32Val: 200}}}},
-		"int64": {
-			Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1000}},
-				{Val: &types.Value_Int64Val{Int64Val: 1001}}}},
-	}
 
 	defer tr.Release()
 	for tr.Next() {
 		rec := tr.Record()
 		assert.NotNil(t, rec)
 		for _, field := range rec.Schema().Fields() {
-			assert.Contains(t, expected_schema, field.Name)
-			assert.Equal(t, field.Type, expected_schema[field.Name])
+			assert.Contains(t, expectedSchema, field.Name)
+			assert.Equal(t, field.Type, expectedSchema[field.Name])
 		}
 		values, err := test.GetProtoFromRecord(rec)
 
 		assert.Nil(t, err)
-		assert.True(t, reflect.DeepEqual(values, expected_columns))
+		for name, val := range values {
+			assert.Equal(t, len(val.Val), len(expectedColumns[name].Val))
+			for idx, featureVal := range val.Val {
+				assert.Equal(t, featureVal.Val, expectedColumns[name].Val[idx].Val)
+			}
+		}
 	}
 }
 
@@ -155,15 +136,16 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 }
 
 // Create dummy FeatureService, Entities, and FeatureViews add them to the logger and convert the logs to Arrow table.
-func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
+// Returns arrow table, expected test schema, and expected columns.
+func GenerateTestLogsAndConvertToArrowTable() (array.Table, map[string]arrow.DataType, map[string]*types.RepeatedValue, error) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
 	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	loggingService, err := NewLoggingService(nil, 2, "", false)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	ts := timestamppb.New(time.Now())
 	log1 := Log{
@@ -207,6 +189,50 @@ func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
 		},
 	}
 
+	expectedSchema := make(map[string]arrow.DataType)
+	for joinKey, entityType := range schema.EntityTypes {
+		arrowType, err := gotypes.ValueTypeEnumToArrowType(entityType)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		expectedSchema[joinKey] = arrowType
+	}
+	for featureName, featureType := range schema.FeaturesTypes {
+		arrowType, err := gotypes.ValueTypeEnumToArrowType(featureType)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		expectedSchema[featureName] = arrowType
+	}
+
+	expectedColumns := map[string]*types.RepeatedValue{
+		"driver_id": {
+			Val: []*types.Value{
+				log1.EntityValue[0],
+				log2.EntityValue[0]},
+		},
+		"int64": {
+			Val: []*types.Value{
+				log1.FeatureValues[0],
+				log2.FeatureValues[0]},
+		},
+		"float32": {
+			Val: []*types.Value{
+				log1.FeatureValues[1],
+				log2.FeatureValues[1]},
+		},
+		"int32": {
+			Val: []*types.Value{
+				log1.FeatureValues[2],
+				log2.FeatureValues[2]},
+		},
+		"double": {
+			Val: []*types.Value{
+				log1.FeatureValues[3],
+				log2.FeatureValues[3]},
+		},
+	}
+
 	dummyTicker := time.NewTicker(10 * time.Second)
 	// stop the ticker so that the logs are not flushed to offline storage
 	dummyTicker.Stop()
@@ -217,7 +243,7 @@ func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
 	loggingService.HandleLogFlushing(dummyTicker)
 	table, err := ConvertMemoryBufferToArrowTable(loggingService.memoryBuffer, schema)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-	return table, nil
+	return table, expectedSchema, expectedColumns, nil
 }
