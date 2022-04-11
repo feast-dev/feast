@@ -704,7 +704,7 @@ class PushSource(DataSource):
         for key, val in schema_pb.items():
             schema[key] = ValueType(val)
 
-        assert data_source.push_options.HasField("batch_source")
+        assert data_source.HasField("batch_source")
         batch_source = DataSource.from_proto(data_source.batch_source)
 
         return PushSource(
