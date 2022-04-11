@@ -266,6 +266,7 @@ class FeatureView(BaseFeatureView):
                     raise ValueError(
                         f"A batch_source needs to be specified for feature view `{name}`"
                     )
+                self.stream_source = stream_source
                 self.batch_source = batch_source
         self.source = source
 
