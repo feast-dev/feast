@@ -38,7 +38,7 @@ def test_online_retrieval(environment, universal_data_sources, benchmark):
     sample_customers = random.sample(entities.customer_vals, 10)
 
     entity_rows = [
-        {"driver": d, "customer_id": c, "val_to_add": 50}
+        {"driver_id": d, "customer_id": c, "val_to_add": 50}
         for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
