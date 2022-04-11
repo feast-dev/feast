@@ -173,9 +173,9 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "."
-	err := test.SetupFeatureRepo(dir)
-	assert.Nil(t, err)
-	defer test.CleanUpRepo(dir)
+	// err := test.SetupFeatureRepo(dir)
+	// assert.Nil(t, err)
+	// defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
@@ -203,7 +203,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	featureNames := response.Metadata.FeatureNames.Val[len(request.Entities):]
 	// Generated expected log rows and values
 	// TODO(kevjumba): implement for timestamp and status
-	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results)
+	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results[len(request.Entities):])
 	expectedLogValues["driver_id"] = entities["driver_id"]
 	logPath, err := filepath.Abs(filepath.Join(dir, "log.parquet"))
 	assert.Nil(t, err)
@@ -247,17 +247,17 @@ func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeatu
 	featureValueLogRows := make(map[string]*types.RepeatedValue)
 	featureStatusLogRows := make([][]int32, numRows)
 	eventTimestampLogRows := make([][]int64, numRows)
-	for idx := 1; idx < len(results); idx++ {
+	for idx := 0; idx < len(results); idx++ {
 		valArray := make([]*types.Value, 0)
 		for row_idx := 0; row_idx < numRows; row_idx++ {
 			featureStatusLogRows[row_idx] = make([]int32, numFeatures)
 			eventTimestampLogRows[row_idx] = make([]int64, numFeatures)
 			valArray = append(valArray, results[idx].Values[row_idx])
-			featureStatusLogRows[row_idx][idx-1] = int32(serving.FieldStatus_PRESENT)
-			eventTimestampLogRows[row_idx][idx-1] = results[idx].EventTimestamps[row_idx].AsTime().UnixNano() / int64(time.Millisecond)
+			featureStatusLogRows[row_idx][idx] = int32(serving.FieldStatus_PRESENT)
+			eventTimestampLogRows[row_idx][idx] = results[idx].EventTimestamps[row_idx].AsTime().UnixNano() / int64(time.Millisecond)
 
 		}
-		featureValueLogRows[featureNames[idx-1]] = &types.RepeatedValue{
+		featureValueLogRows[featureNames[idx]] = &types.RepeatedValue{
 			Val: valArray,
 		}
 	}
