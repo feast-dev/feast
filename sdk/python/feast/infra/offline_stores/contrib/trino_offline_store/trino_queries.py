@@ -53,10 +53,6 @@ class Trino:
             raise ValueError("TRINO_USER must be set if not passed in")
         if self.catalog is None:
             raise ValueError("TRINO_CATALOG must be set if not passed in")
-        if self.auth is None:
-            raise ValueError("TRINO_AUTH must be set if not passed in")
-        if self.http_scheme is None:
-            raise ValueError("TRINO_HTTP_SCHEME must be set if not passed in")
 
     def _get_cursor(self) -> Cursor:
         if self._cursor is None:

@@ -58,15 +58,15 @@ CONNECTORS_WITHOUT_WITH_STATEMENTS: Set[str] = {
 }
 
 CREATE_SCHEMA_QUERY_TEMPLATE = """
-    CREATE TABLE IF NOT EXISTS {table} (
-        {schema}
-    )
-    {with_statement}
+CREATE TABLE IF NOT EXISTS {table} (
+    {schema}
+)
+{with_statement}
 """
 
 INSERT_ROWS_QUERY_TEMPLATE = """
-    INSERT INTO {table} ({columns})
-    VALUES {values}
+INSERT INTO {table} ({columns})
+VALUES {values}
 """
 
 
@@ -121,6 +121,10 @@ def format_pandas_row(df: pd.DataFrame) -> str:
                 formated_values.append(f"TIMESTAMP '{row_value}'")
             elif isinstance(row_value, list):
                 formated_values.append(f"ARRAY{row_value}")
+            elif isinstance(row_value, np.ndarray):
+                formated_values.append(f"ARRAY{row_value.tolist()}")
+            elif isinstance(row_value, tuple):
+                formated_values.append(f"ARRAY{list(row_value)}")
             elif isinstance(row_value, str):
                 formated_values.append(f"'{row_value}'")
             elif _is_nan(row_value):
@@ -144,7 +148,8 @@ def upload_pandas_dataframe_to_trino(
     client: Trino,
     df: pd.DataFrame,
     table: str,
-    connector_args: Optional[Dict[str, Any]] = None,
+    connector_args: Optional[Dict[str, str]] = None,
+    batch_size: int = 1000000,  # 1 million rows by default
 ) -> None:
     connector_args = connector_args or {}
     connector_name = connector_args["type"]
@@ -179,7 +184,7 @@ def upload_pandas_dataframe_to_trino(
     )
 
     # Upload batchs of 1M rows at a time
-    for batch_df in pandas_dataframe_fix_batches(df=df, batch_size=1000000):
+    for batch_df in pandas_dataframe_fix_batches(df=df, batch_size=batch_size):
         client.execute_query(
             INSERT_ROWS_QUERY_TEMPLATE.format(
                 table=table,

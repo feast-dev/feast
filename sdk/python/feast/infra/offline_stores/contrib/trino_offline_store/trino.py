@@ -47,7 +47,7 @@ class TrinoOfflineStoreConfig(FeastConfigBaseModel):
     catalog: StrictStr
     """ Catalog of the Trino cluster """
 
-    connector: Dict[str, Any]
+    connector: Dict[str, str]
     """
     Trino connector to use as well as potential extra parameters.
     Needs to contain at least the path, for example
@@ -341,7 +341,7 @@ def _upload_entity_df_and_get_entity_schema(
     client: Trino,
     table_name: str,
     entity_df: Union[pd.DataFrame, str],
-    connector: Dict[str, Any],
+    connector: Dict[str, str],
 ) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a Trino table and returns the resulting table"""
     if type(entity_df) is str:
