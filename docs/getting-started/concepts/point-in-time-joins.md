@@ -7,6 +7,8 @@ Feature values in Feast are modeled as time-series records. Below is an example 
 The above table can be registered with Feast through the following feature view:
 
 ```python
+from feast import FeatureView, Field, FileSource, Float32, Int64
+
 driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],

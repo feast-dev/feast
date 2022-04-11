@@ -107,7 +107,7 @@ pyarrow.parquet.write_table(entities_2019_table, "entities.parquet")
 import pyarrow.parquet
 import pandas as pd
 
-from feast import Feature, FeatureView, Entity, FeatureStore
+from feast import Feature, FeatureView, Entity, FeatureStore, Field, Float64, Int64
 from feast.value_type import ValueType
 from feast.data_format import ParquetFormat
 from feast.on_demand_feature_view import on_demand_feature_view

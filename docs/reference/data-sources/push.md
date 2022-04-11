@@ -14,7 +14,7 @@ When using a PushSource as a stream source in the definition of a feature view, 
 ### Defining a push source
 
 ```python
-from feast import PushSource, ValueType, BigQuerySource, FeatureView, Feature
+from feast import PushSource, ValueType, BigQuerySource, FeatureView, Feature, Field, Int64
 
 push_source = PushSource(
     name="push_source",

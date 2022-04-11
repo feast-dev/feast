@@ -7,6 +7,8 @@ A feature view is an object that represents a logical group of time-series featu
 {% tabs %}
 {% tab title="driver_trips_feature_view.py" %}
 ```python
+from feast import BigQuerySource, FeatureView, Field, Float32, Int64
+
 driver_stats_fv = FeatureView(
     name="driver_activity",
     entities=["driver"],
@@ -39,6 +41,8 @@ If a feature view contains features that are not related to a specific entity, t
 {% tabs %}
 {% tab title="global_stats.py" %}
 ```python
+from feast import BigQuerySource, FeatureView, Field, Int64
+
 global_stats_fv = FeatureView(
     name="global_stats",
     entities=[],
@@ -70,6 +74,8 @@ It is suggested that you dynamically specify the new FeatureView name using `.wi
 {% tabs %}
 {% tab title="location_stats_feature_view.py" %}
 ```python
+from feast import BigQuerySource, Entity, FeatureView, Field, Int32, ValueType
+
 location = Entity(name="location", join_key="location_id", value_type=ValueType.INT64)
 
 location_stats_fv= FeatureView(
@@ -115,6 +121,8 @@ A feature is an individual measurable property. It is typically a property obser
 Features are defined as part of feature views. Since Feast does not transform data, a feature is essentially a schema that only contains a name and a type:
 
 ```python
+from feast import Field, Float32
+
 trips_today = Field(
     name="trips_today",
     dtype=Float32
