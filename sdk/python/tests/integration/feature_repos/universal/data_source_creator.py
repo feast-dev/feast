@@ -9,7 +9,7 @@ from feast.saved_dataset import SavedDatasetStorage
 
 
 class DataSourceCreator(ABC):
-    def __init__(self, project_name: str):
+    def __init__(self, project_name: str, *args, **kwargs):
         self.project_name = project_name
 
     @abstractmethod

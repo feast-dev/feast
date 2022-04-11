@@ -23,7 +23,7 @@ class SparkDataSourceCreator(DataSourceCreator):
     spark_offline_store_config = None
     spark_session = None
 
-    def __init__(self, project_name: str):
+    def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.spark_conf = {
             "master": "local[*]",
