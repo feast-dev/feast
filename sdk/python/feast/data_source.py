@@ -360,6 +360,7 @@ class KafkaSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
+        batch_source: Optional[DataSource] = None,
     ):
         super().__init__(
             event_timestamp_column=event_timestamp_column,
@@ -372,6 +373,7 @@ class KafkaSource(DataSource):
             name=name,
             timestamp_field=timestamp_field,
         )
+        self.batch_source = batch_source
         self.kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers,
             message_format=message_format,
@@ -411,6 +413,7 @@ class KafkaSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
+            batch_source=DataSource.from_proto(data_source.batch_source),
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -427,6 +430,8 @@ class KafkaSource(DataSource):
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
+        if self.batch_source:
+            data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
         return data_source_proto
 
     @staticmethod
@@ -546,6 +551,7 @@ class KinesisSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
+            batch_source=DataSource.from_proto(data_source.batch_source),
         )
 
     @staticmethod
@@ -569,6 +575,7 @@ class KinesisSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
+        batch_source: Optional[DataSource] = None,
     ):
         super().__init__(
             name=name,
@@ -581,6 +588,7 @@ class KinesisSource(DataSource):
             owner=owner,
             timestamp_field=timestamp_field,
         )
+        self.batch_source = batch_source
         self.kinesis_options = KinesisOptions(
             record_format=record_format, region=region, stream_name=stream_name
         )
@@ -618,6 +626,8 @@ class KinesisSource(DataSource):
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
+        if self.batch_source:
+            data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
 
         return data_source_proto
 
@@ -634,6 +644,7 @@ class PushSource(DataSource):
 
     def __init__(
         self,
+        *,
         name: str,
         schema: Dict[str, ValueType],
         batch_source: DataSource,
@@ -694,7 +705,7 @@ class PushSource(DataSource):
             schema[key] = ValueType(val)
 
         assert data_source.push_options.HasField("batch_source")
-        batch_source = DataSource.from_proto(data_source.push_options.batch_source)
+        batch_source = DataSource.from_proto(data_source.batch_source)
 
         return PushSource(
             name=data_source.name,
@@ -714,9 +725,7 @@ class PushSource(DataSource):
         if self.batch_source:
             batch_source_proto = self.batch_source.to_proto()
 
-        options = DataSourceProto.PushOptions(
-            schema=schema_pb, batch_source=batch_source_proto
-        )
+        options = DataSourceProto.PushOptions(schema=schema_pb,)
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
@@ -725,6 +734,7 @@ class PushSource(DataSource):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            batch_source=batch_source_proto,
         )
 
         return data_source_proto
