@@ -26,7 +26,7 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 
 // Defines a Data Source that can be used source Feature data
-// Next available id: 26
+// Next available id: 27
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
@@ -82,6 +82,10 @@ message DataSource {
   // first party sources as well.
   string data_source_class_type = 17;
 
+  // Optional batch source for streaming sources for historical features and materialization.
+  DataSource batch_source = 26;
+
+
   // Defines options for DataSource that sources features from a file
   message FileOptions {
     FileFormat file_format = 1;
@@ -128,6 +132,7 @@ message DataSource {
 
     // Defines the stream data format encoding feature/entity data in Kafka messages.
     StreamFormat message_format = 3;
+
   }
 
   // Defines options for DataSource that sources features from Kinesis records.
@@ -199,8 +204,6 @@ message DataSource {
   message PushOptions {
     // Mapping of feature name to type
     map<string, feast.types.ValueType.Enum> schema = 1;
-    // Optional batch source for the push source for historical features and materialization.
-    DataSource batch_source = 2;
   }
 
 

@@ -12,8 +12,8 @@ def test_push_with_batch():
         batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
+    assert push_source_proto.HasField("batch_source")
     assert push_source_proto.push_options is not None
-    assert push_source_proto.push_options.HasField("batch_source")
 
     push_source_unproto = PushSource.from_proto(push_source_proto)
 
