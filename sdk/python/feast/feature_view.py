@@ -20,7 +20,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, PushSource
+from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
@@ -88,6 +88,7 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    source: Optional[DataSource]
 
     @log_exceptions
     def __init__(
@@ -104,6 +105,7 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
+        source: Optional[DataSource] = None,
     ):
         """
         Creates a FeatureView object.
@@ -126,6 +128,8 @@ class FeatureView(BaseFeatureView):
                 primary maintainer.
             schema (optional): The schema of the feature view, including feature, timestamp,
                 and entity columns.
+            source (optional): The source of data for this group of features. May be a stream source, or a batch source.
+                If a stream source, the source should contain a batch_source for backfills & batch materialization.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -163,6 +167,8 @@ class FeatureView(BaseFeatureView):
         self.name = _name
         self.entities = _entities if _entities else [DUMMY_ENTITY_NAME]
 
+        self._initialize_sources(_name, batch_source, stream_source, source)
+
         if isinstance(_ttl, Duration):
             self.ttl = timedelta(seconds=int(_ttl.seconds))
             warnings.warn(
@@ -199,20 +205,6 @@ class FeatureView(BaseFeatureView):
         # current `features` parameter only accepts feature columns.
         _features = _schema
 
-        if stream_source is not None and isinstance(stream_source, PushSource):
-            if stream_source.batch_source is None or not isinstance(
-                stream_source.batch_source, DataSource
-            ):
-                raise ValueError(
-                    f"A batch_source needs to be specified for feature view `{name}`"
-                )
-            self.batch_source = stream_source.batch_source
-        else:
-            if batch_source is None:
-                raise ValueError(
-                    f"A batch_source needs to be specified for feature view `{name}`"
-                )
-            self.batch_source = batch_source
 
         cols = [entity for entity in self.entities] + [
             field.name for field in _features
@@ -236,8 +228,45 @@ class FeatureView(BaseFeatureView):
             owner=owner,
         )
         self.online = online
-        self.stream_source = stream_source
         self.materialization_intervals = []
+
+    def _initialize_sources(self, name, batch_source, stream_source, source):
+        if source:
+            if (
+                isinstance(source, PushSource)
+                or isinstance(source, KafkaSource)
+                or isinstance(source, KinesisSource)
+            ):
+                self.stream_source = source
+                if not source.batch_source:
+                    raise ValueError(
+                        f"A batch_source needs to be specified for stream source `{source.name}`"
+                    )
+                else:
+                    self.batch_source = source.batch_source
+            else:
+                self.batch_source = source
+        else:
+            warnings.warn(
+                "batch_source and stream_source have been deprecated in favor or `source`."
+                "The deprecated fields will be removed in Feast 0.23.",
+                DeprecationWarning,
+            )
+            if stream_source is not None and isinstance(stream_source, PushSource):
+                if stream_source.batch_source is None or not isinstance(
+                    stream_source.batch_source, DataSource
+                ):
+                    raise ValueError(
+                        f"A batch_source needs to be specified for feature view `{name}`"
+                    )
+                self.batch_source = stream_source.batch_source
+            else:
+                if batch_source is None:
+                    raise ValueError(
+                        f"A batch_source needs to be specified for feature view `{name}`"
+                    )
+                self.batch_source = batch_source
+        self.source = source
 
     # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
