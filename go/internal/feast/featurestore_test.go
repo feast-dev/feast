@@ -10,9 +10,6 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/stretchr/testify/assert"
 )
 
 // Return absolute path to the test_repo registry regardless of the working directory
@@ -45,7 +42,7 @@ func TestNewFeatureStore(t *testing.T) {
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {
 	//t.Skip("@todo(achals): feature_repo isn't checked in yet")
-	config := RepoConfig{
+	config := registry.RepoConfig{
 		Project:  "feature_repo",
 		Registry: getRegistryPath(),
 		Provider: "local",
