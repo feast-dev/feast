@@ -57,7 +57,7 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 }
 
 func TestSerializeToArrowTable(t *testing.T) {
-	table, expectedSchema, expectedColumns, err := GenerateLogsAndConvertToArrowTable()
+	table, expectedSchema, expectedColumns, err := GenerateTestLogsAndConvertToArrowTable()
 	assert.Nil(t, err)
 	defer table.Release()
 	tr := array.NewTableReader(table, -1)

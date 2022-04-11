@@ -15,7 +15,7 @@ import (
 )
 
 func TestFlushToStorage(t *testing.T) {
-	table, expectedSchema, expectedColumns, err := GenerateLogsAndConvertToArrowTable()
+	table, expectedSchema, expectedColumns, err := GenerateTestLogsAndConvertToArrowTable()
 	defer table.Release()
 	assert.Nil(t, err)
 	offlineStoreConfig := map[string]interface{}{
