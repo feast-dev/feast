@@ -1,14 +1,24 @@
+import json
 import traceback
+import warnings
 
+import pandas as pd
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.logger import logger
 from fastapi.params import Depends
 from google.protobuf.json_format import MessageToDict, Parse
+from pydantic import BaseModel
 
 import feast
 from feast import proto_json
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
+
+
+class WriteToFeatureStoreRequest(BaseModel):
+    feature_view_name: str
+    df: dict
+    allow_registry_cache: bool = True
 
 
 def get_app(store: "feast.FeatureStore"):
@@ -51,6 +61,28 @@ def get_app(store: "feast.FeatureStore"):
             # Convert the Protobuf object to JSON and return it
             return MessageToDict(  # type: ignore
                 response_proto, preserving_proto_field_name=True, float_precision=18
+            )
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/write-to-online-store")
+    def write_to_online_store(body=Depends(get_body)):
+        warnings.warn(
+            "write_to_online_store is an experimental feature. "
+            "This API is unstable and it could be changed in the future. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
+        try:
+            request = WriteToFeatureStoreRequest(**json.loads(body))
+            df = pd.DataFrame(request.df)
+            store.write_to_online_store(
+                feature_view_name=request.feature_view_name,
+                df=df,
+                allow_registry_cache=request.allow_registry_cache,
             )
         except Exception as e:
             # Print the original exception on the server side
