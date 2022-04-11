@@ -28,7 +28,7 @@ class TrinoSourceCreator(DataSourceCreator):
 
     tables: List[str] = []
 
-    def __init__(self, project_name: str, /, **kwargs):
+    def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.tables_created: List[str] = []
 
