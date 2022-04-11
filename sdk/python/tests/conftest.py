@@ -168,8 +168,7 @@ def start_test_local_server(repo_path: str, port: int):
     fs.serve("localhost", port, no_access_log=True)
 
 
-@pytest.fixture(scope="session")
-def trino_container() -> DockerContainer:
+class TrinoContainerSingleton:
     current_file = pathlib.Path(__file__).resolve()
     catalog_dir = current_file.parent.joinpath(
         "integration/feature_repos/universal/data_sources/catalog"
@@ -180,20 +179,33 @@ def trino_container() -> DockerContainer:
         .with_volume_mapping(catalog_dir, "/etc/catalog/")
         .with_exposed_ports("8080")
     )
-    container.start()
-    log_string_to_wait_for = "SERVER STARTED"
-    wait_for_logs(container=container, predicate=log_string_to_wait_for, timeout=30)
-    yield container
-    container.stop()
+    is_running = False
+
+    @classmethod
+    def get_singleton(cls):
+        if not cls.is_running:
+            cls.container.start()
+            log_string_to_wait_for = "SERVER STARTED"
+            wait_for_logs(
+                container=cls.container, predicate=log_string_to_wait_for, timeout=30
+            )
+            cls.is_running = True
+        return cls.container
+
+    @classmethod
+    def teardown(cls):
+        cls.container.stop()
 
 
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request, worker_id: str, trino_container):
+def environment(request, worker_id: str):
     if "TrinoSourceCreator" in request.param.offline_store_creator.__name__:
         e = construct_test_environment(
-            request.param, worker_id=worker_id, offline_container=trino_container
+            request.param,
+            worker_id=worker_id,
+            offline_container=TrinoContainerSingleton.get_singleton(),
         )
     else:
         e = construct_test_environment(request.param, worker_id=worker_id)
