@@ -48,9 +48,10 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], types.ValueType_INT64))
 
 	features := []string{"int64", "float32", "int32", "double"}
+	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum()}
 	for idx, featureName := range features {
 		assert.Contains(t, schema.FeaturesTypes, featureName)
-		assert.Equal(t, schema.FeaturesTypes[featureName], idx)
+		assert.Equal(t, schema.FeaturesTypes[featureName], types[idx])
 	}
 }
 
