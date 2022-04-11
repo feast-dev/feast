@@ -95,6 +95,10 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0",
 ]
 
+TRINO_REQUIRED = [
+    "trino>=0.305.0,<0.400.0",
+]
+
 GE_REQUIRED = [
     "great_expectations>=0.14.0,<0.15.0"
 ]
@@ -147,6 +151,7 @@ CI_REQUIRED = (
         + AWS_REQUIRED
         + SNOWFLAKE_REQUIRED
         + SPARK_REQUIRED
+        + TRINO_REQUIRED
         + GE_REQUIRED
 )
 
@@ -404,6 +409,7 @@ setup(
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
+        "trino": TRINO_REQUIRED,
         "ge": GE_REQUIRED,
     },
     include_package_data=True,

@@ -20,6 +20,7 @@ OS := linux
 ifeq ($(shell uname -s), Darwin)
 	OS = osx
 endif
+TRINO_VERSION ?= 376
 
 # General
 
@@ -120,6 +121,18 @@ build-java:
 
 build-java-no-tests:
 	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -DskipITs=true -Drevision=${REVISION} clean package
+
+# Trino plugin
+
+start-trino-locally:
+	cd ${ROOT_DIR}; docker run --detach --rm -p 8080:8080 --name trino -v ${ROOT_DIR}/sdk/python/feast/infra/offline_stores/contrib/trino_offline_store/test_config/properties/:/etc/catalog/:ro trinodb/trino:${TRINO_VERSION}
+	sleep 15
+
+test-trino-plugin-locally:
+	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests FEAST_USAGE=False IS_TEST=True python -m pytest --integration --universal tests/
+
+kill-trino-locally:
+	cd ${ROOT_DIR}; docker stop trino
 
 # Go SDK & embedded
 

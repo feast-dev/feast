@@ -45,6 +45,7 @@ message DataSource {
     CUSTOM_SOURCE = 6;
     REQUEST_SOURCE = 7;
     PUSH_SOURCE = 9;
+    BATCH_TRINO = 10;
   }
 
   // Unique name of data source within the project
@@ -97,6 +98,16 @@ message DataSource {
 
   // Defines options for DataSource that sources features from a BigQuery Query
   message BigQueryOptions {
+    // Full table reference in the form of [project:dataset.table]
+    string table = 1;
+
+    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
+    // entity columns
+    string query = 2;
+  }
+
+  // Defines options for DataSource that sources features from a Trino Query
+  message TrinoOptions {
     // Full table reference in the form of [project:dataset.table]
     string table = 1;
 
@@ -204,5 +215,6 @@ message DataSource {
     CustomSourceOptions custom_options = 16;
     SnowflakeOptions snowflake_options = 19;
     PushOptions push_options = 22;
+    TrinoOptions trino_options = 30;
   }
 }
