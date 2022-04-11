@@ -213,8 +213,8 @@ func GenerateLogsAndConvertToArrowTable() (array.Table, error) {
 	loggingService.EmitLog(&log1)
 
 	loggingService.EmitLog(&log2)
-	loggingService.ProcessMemoryBuffer(dummyTicker)
-	loggingService.ProcessMemoryBuffer(dummyTicker)
+	loggingService.HandleLogFlushing(dummyTicker)
+	loggingService.HandleLogFlushing(dummyTicker)
 	table, err := ConvertMemoryBufferToArrowTable(loggingService.memoryBuffer, schema)
 	if err != nil {
 		return nil, err

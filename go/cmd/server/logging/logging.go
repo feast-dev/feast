@@ -89,13 +89,13 @@ func (s *LoggingService) processLogs() {
 	defer ticker.Stop()
 
 	for {
-		s.ProcessMemoryBuffer(ticker)
+		s.HandleLogFlushing(ticker)
 	}
 }
 
 // Select that eitheringests new logs that are added to the logging channel, one at a time to add
 // to the in memory buffer or flushes all of them synchronously to the OfflineStorage on a time interval.
-func (s *LoggingService) ProcessMemoryBuffer(t *time.Ticker) {
+func (s *LoggingService) HandleLogFlushing(t *time.Ticker) {
 	select {
 	case t := <-t.C:
 		s.flushLogsToOfflineStorage(t)
@@ -108,7 +108,6 @@ func (s *LoggingService) ProcessMemoryBuffer(t *time.Ticker) {
 // Acquires the logging schema from the feature service, converts the memory buffer array of rows of logs and flushes
 // them to the offline storage.
 func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
-	log.Printf("Flushing buffer to offline storage with channel length: %d\n at time: "+t.String(), len(s.memoryBuffer.logs))
 	offlineStoreType, ok := getOfflineStoreType(s.fs.GetRepoConfig().OfflineStore)
 	if !ok {
 		return fmt.Errorf("could not get offline storage type for config: %s", s.fs.GetRepoConfig().OfflineStore)
@@ -154,11 +153,11 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 		// EntityTypes maps an entity name to the specific type and also which index in the entityValues array it is
 		// e.g if an Entity Key is {driver_id, customer_id}, then the driver_id entitytype would be dtype=int64, index=0.
 		// It's in the order of the entities as given by the schema.
-		for idx, entityName := range fcoSchema.Entities {
-			if _, ok := entityNameToEntityValues[entityName]; !ok {
-				entityNameToEntityValues[entityName] = make([]*types.Value, 0)
+		for idx, joinKey := range fcoSchema.Entities {
+			if _, ok := entityNameToEntityValues[joinKey]; !ok {
+				entityNameToEntityValues[joinKey] = make([]*types.Value, 0)
 			}
-			entityNameToEntityValues[entityName] = append(entityNameToEntityValues[entityName], l.EntityValue[idx])
+			entityNameToEntityValues[joinKey] = append(entityNameToEntityValues[joinKey], l.EntityValue[idx])
 		}
 
 		// Contains both fv and odfv feature value types => they are processed in order of how the appear in the featureService
@@ -266,7 +265,7 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		// each differentiated by a *FeatureViewProjection
 		featureViewName := featureProjection.Name
 		if fv, ok := fvs[featureViewName]; ok {
-			for _, f := range fv.Base.Features {
+			for _, f := range fv.Base.Projection.Features {
 				// add feature to map
 				features = append(features, f.Name)
 				allFeatureTypes[f.Name] = f.Dtype
@@ -330,7 +329,6 @@ func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featu
 
 	numFeatures := len(featureNames)
 	// Should be equivalent to how many entities there are(each feature row has (entity) number of features)
-	// acc_rate []
 	numRows := len(features[0].Values)
 
 	for row_idx := 0; row_idx < numRows; row_idx++ {
