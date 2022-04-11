@@ -73,6 +73,7 @@ class BaseFeatureView(ABC):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
+        assert name is not None
         self.name = name
         self.features = features or []
         self.description = description
