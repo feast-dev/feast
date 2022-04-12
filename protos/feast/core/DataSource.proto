@@ -40,13 +40,13 @@ message DataSource {
     BATCH_SNOWFLAKE = 8;
     BATCH_BIGQUERY = 2;
     BATCH_REDSHIFT = 5;
-    BATCH_SPARK = 10;
     STREAM_KAFKA = 3;
     STREAM_KINESIS = 4;
     CUSTOM_SOURCE = 6;
     REQUEST_SOURCE = 7;
     PUSH_SOURCE = 9;
     BATCH_TRINO = 10;
+    BATCH_SPARK = 11;
   }
 
   // Unique name of data source within the project

@@ -149,8 +149,7 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=self.features,
             sources=dict(
-                **self.source_feature_view_projections,
-                **self.source_request_sources,
+                **self.source_feature_view_projections, **self.source_request_sources,
             ),
             udf=self.udf,
             description=self.description,
@@ -194,10 +193,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources[source_name] = OnDemandSource(
                 feature_view_projection=fv_projection.to_proto()
             )
-        for (
-            source_name,
-            request_sources,
-        ) in self.source_request_sources.items():
+        for (source_name, request_sources,) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
                 request_data_source=request_sources.to_proto()
             )
@@ -207,8 +203,7 @@ class OnDemandFeatureView(BaseFeatureView):
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
             user_defined_function=UserDefinedFunctionProto(
-                name=self.udf.__name__,
-                body=dill.dumps(self.udf, recurse=True),
+                name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
             ),
             description=self.description,
             tags=self.tags,
@@ -288,9 +283,7 @@ class OnDemandFeatureView(BaseFeatureView):
         return schema
 
     def get_transformed_features_df(
-        self,
-        df_with_features: pd.DataFrame,
-        full_feature_names: bool = False,
+        self, df_with_features: pd.DataFrame, full_feature_names: bool = False,
     ) -> pd.DataFrame:
         # Apply on demand transformations
         columns_to_cleanup = []

@@ -17,9 +17,7 @@ def setup_feature_store():
     init_repo("feature_repo", "local")
     fs = FeatureStore(repo_path="feature_repo")
     driver = Entity(
-        name="driver_id",
-        value_type=ValueType.INT64,
-        description="driver id",
+        name="driver_id", value_type=ValueType.INT64, description="driver id",
     )
     driver_hourly_stats = FileSource(
         path="feature_repo/data/driver_stats.parquet",
@@ -91,8 +89,7 @@ def test_docstrings():
                         setup_function()
 
                     test_suite = doctest.DocTestSuite(
-                        temp_module,
-                        optionflags=doctest.ELLIPSIS,
+                        temp_module, optionflags=doctest.ELLIPSIS,
                     )
                     if test_suite.countTestCases() > 0:
                         result = unittest.TextTestRunner(sys.stdout).run(test_suite)

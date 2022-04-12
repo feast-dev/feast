@@ -84,11 +84,7 @@ class GoServerConnection:
             else feast.__path__[0] + "/binaries/server"
         )
         # Automatically reconnect with go subprocess exits
-        self._process = Popen(
-            [executable],
-            cwd=cwd,
-            env=env,
-        )
+        self._process = Popen([executable], cwd=cwd, env=env,)
 
         channel = grpc.insecure_channel(f"unix:{self.sock_file}")
         self._client = ServingServiceStub(channel)

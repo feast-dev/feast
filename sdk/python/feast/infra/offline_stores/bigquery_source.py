@@ -203,9 +203,7 @@ class BigQueryOptions:
     """
 
     def __init__(
-        self,
-        table: Optional[str],
-        query: Optional[str],
+        self, table: Optional[str], query: Optional[str],
     ):
         self._table = table
         self._query = query
@@ -251,8 +249,7 @@ class BigQueryOptions:
         """
 
         bigquery_options = cls(
-            table=bigquery_options_proto.table,
-            query=bigquery_options_proto.query,
+            table=bigquery_options_proto.table, query=bigquery_options_proto.query,
         )
 
         return bigquery_options
@@ -266,8 +263,7 @@ class BigQueryOptions:
         """
 
         bigquery_options_proto = DataSourceProto.BigQueryOptions(
-            table=self.table,
-            query=self.query,
+            table=self.table, query=self.query,
         )
 
         return bigquery_options_proto

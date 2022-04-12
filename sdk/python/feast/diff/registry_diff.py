@@ -153,9 +153,7 @@ def diff_registry_objects(
 
 
 def extract_objects_for_keep_delete_update_add(
-    registry: Registry,
-    current_project: str,
-    desired_repo_contents: RepoContents,
+    registry: Registry, current_project: str, desired_repo_contents: RepoContents,
 ) -> Tuple[
     Dict[FeastObjectType, Set[FeastObject]],
     Dict[FeastObjectType, Set[FeastObject]],
@@ -202,9 +200,7 @@ def extract_objects_for_keep_delete_update_add(
 
 
 def diff_between(
-    registry: Registry,
-    current_project: str,
-    desired_repo_contents: RepoContents,
+    registry: Registry, current_project: str, desired_repo_contents: RepoContents,
 ) -> RegistryDiff:
     """
     Returns the difference between the current and desired repo states.
@@ -297,9 +293,7 @@ def apply_diff_to_registry(
                     BaseFeatureView, feast_object_diff.current_feast_object
                 )
                 registry.delete_feature_view(
-                    feature_view_obj.name,
-                    project,
-                    commit=False,
+                    feature_view_obj.name, project, commit=False,
                 )
 
         if feast_object_diff.transition_type in [

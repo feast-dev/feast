@@ -63,9 +63,7 @@ def bootstrap():
     replace_str_in_file(
         driver_file, config_file, "%REDSHIFT_S3_STAGING_LOCATION%", s3_staging_location
     )
-    replace_str_in_file(
-        config_file,
-    )
+    replace_str_in_file(config_file,)
     replace_str_in_file(config_file, "%REDSHIFT_IAM_ROLE%", iam_role)
 
 

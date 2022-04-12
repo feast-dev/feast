@@ -15,15 +15,9 @@ CURRENT_DIR = Path(__file__).parent
 
 
 # Entity definitions
-driver = Entity(
-    name="driver_id",
-    value_type=ValueType.INT64,
-    description="driver id",
-)
+driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
 customer = Entity(
-    name="customer_id",
-    value_type=ValueType.INT64,
-    description="customer id",
+    name="customer_id", value_type=ValueType.INT64, description="customer id",
 )
 
 # Sources

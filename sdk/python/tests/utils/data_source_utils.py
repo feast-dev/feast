@@ -40,10 +40,7 @@ def simple_bq_source_using_table_arg(df, event_timestamp_column=None) -> BigQuer
     job = client.load_table_from_dataframe(df, table)
     job.result()
 
-    return BigQuerySource(
-        table=table,
-        timestamp_field=event_timestamp_column,
-    )
+    return BigQuerySource(table=table, timestamp_field=event_timestamp_column,)
 
 
 def simple_bq_source_using_query_arg(df, event_timestamp_column=None) -> BigQuerySource:

@@ -59,7 +59,5 @@ def test_online_retrieval(environment, universal_data_sources, benchmark):
     unprefixed_feature_refs.remove("conv_rate_plus_val_to_add")
 
     benchmark(
-        fs.get_online_features,
-        features=feature_refs,
-        entity_rows=entity_rows,
+        fs.get_online_features, features=feature_refs, entity_rows=entity_rows,
     )
