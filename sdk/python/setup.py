@@ -111,7 +111,7 @@ CI_REQUIRED = (
         "flake8",
         "black==19.10b0",
         "isort>=5",
-        "grpcio-tools==1.34.0",
+        "grpcio-tools==1.43.0",
         "grpcio-testing==1.34.0",
         "minio==7.1.0",
         "mock==2.0.0",
@@ -438,7 +438,7 @@ setup(
     setup_requires=[
         "setuptools_scm",
         "grpcio",
-        "grpcio-tools==1.34.0",
+        "grpcio-tools==1.43.0",
         "mypy-protobuf==3.1",
         "sphinx!=4.0.0",
     ],
