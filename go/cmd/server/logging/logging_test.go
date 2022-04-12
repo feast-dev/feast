@@ -270,19 +270,25 @@ func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataTy
 			{Val: &types.Value_Int64Val{Int64Val: 1001}},
 		},
 		FeatureValues: []*types.Value{
-			{Val: &types.Value_Int64Val{Int64Val: 1000}},
-			{Val: &types.Value_FloatVal{FloatVal: 0.64}},
-			{Val: &types.Value_Int32Val{Int32Val: 55}},
-			{Val: &types.Value_DoubleVal{DoubleVal: 0.97}},
+			/* normal feature values */
+			{Val: &types.Value_Int64Val{Int64Val: rand.Int63()}},
+			{Val: &types.Value_FloatVal{FloatVal: rand.Float32()}},
+			{Val: &types.Value_Int32Val{Int32Val: rand.Int31()}},
+			{Val: &types.Value_DoubleVal{DoubleVal: rand.Float64()}},
+			/* odfv values */
+			{Val: &types.Value_Int32Val{Int32Val: rand.Int31()}},
+			{Val: &types.Value_DoubleVal{DoubleVal: rand.Float64()}},
 		},
 		FeatureStatuses: []serving.FieldStatus{
 			serving.FieldStatus_PRESENT,
 			serving.FieldStatus_PRESENT,
 			serving.FieldStatus_PRESENT,
 			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
 		},
 		EventTimestamps: []*timestamppb.Timestamp{
-			ts, ts, ts, ts,
+			ts, ts, ts, ts, ts, ts,
 		},
 	}
 	log2 := Log{
@@ -290,19 +296,25 @@ func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataTy
 			{Val: &types.Value_Int64Val{Int64Val: 1003}},
 		},
 		FeatureValues: []*types.Value{
-			{Val: &types.Value_Int64Val{Int64Val: 1001}},
-			{Val: &types.Value_FloatVal{FloatVal: 1.56}},
-			{Val: &types.Value_Int32Val{Int32Val: 200}},
-			{Val: &types.Value_DoubleVal{DoubleVal: 8.97}},
+			/* normal feature values */
+			{Val: &types.Value_Int64Val{Int64Val: rand.Int63()}},
+			{Val: &types.Value_FloatVal{FloatVal: rand.Float32()}},
+			{Val: &types.Value_Int32Val{Int32Val: rand.Int31()}},
+			{Val: &types.Value_DoubleVal{DoubleVal: rand.Float64()}},
+			/* odfv values */
+			{Val: &types.Value_Int32Val{Int32Val: rand.Int31()}},
+			{Val: &types.Value_DoubleVal{DoubleVal: rand.Float64()}},
 		},
 		FeatureStatuses: []serving.FieldStatus{
 			serving.FieldStatus_PRESENT,
 			serving.FieldStatus_PRESENT,
 			serving.FieldStatus_PRESENT,
 			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
 		},
 		EventTimestamps: []*timestamppb.Timestamp{
-			ts, ts, ts, ts,
+			ts, ts, ts, ts, ts, ts,
 		},
 	}
 
@@ -348,6 +360,16 @@ func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataTy
 			Val: []*types.Value{
 				log1.FeatureValues[3],
 				log2.FeatureValues[3]},
+		},
+		"od_bf1__odfv_f1": {
+			Val: []*types.Value{
+				log1.FeatureValues[4],
+				log2.FeatureValues[4]},
+		},
+		"od_bf1__odfv_f2": {
+			Val: []*types.Value{
+				log1.FeatureValues[5],
+				log2.FeatureValues[5]},
 		},
 	}
 	loggingService, err := SetupLoggingServiceWithLogs([]*Log{&log1, &log2})
