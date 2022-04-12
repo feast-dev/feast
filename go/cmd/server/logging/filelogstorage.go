@@ -2,6 +2,7 @@ package logging
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/parquet"
 	"github.com/apache/arrow/go/v8/parquet/pqarrow"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 )
 
 type FileLogStorage struct {
@@ -17,19 +19,39 @@ type FileLogStorage struct {
 	path    string
 }
 
-func NewFileOfflineStore(project string, offlineStoreConfig map[string]interface{}) (*FileLogStorage, error) {
+func GetFileConfig(config *registry.RepoConfig) (*OfflineLogStoreConfig, error) {
+	fileConfig := OfflineLogStoreConfig{
+		storeType: "file",
+	}
+	if onlineStorePath, ok := config.OfflineStore["path"]; ok {
+		path, success := onlineStorePath.(string)
+		if !success {
+			return &fileConfig, fmt.Errorf("path, %s, cannot be converted to string", path)
+		}
+		fileConfig.path = path
+	} else {
+		return nil, errors.New("need path for file log storage")
+		// absPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// fileConfig.path = absPath
+		// return &fileConfig, nil
+	}
+	return &fileConfig, nil
+}
+
+// This offline store is currently only used for testing. It will be instantiated during go unit tests to log to file
+// and the parquet files will be cleaned up after the test is run.
+func NewFileOfflineStore(project string, offlineStoreConfig *OfflineLogStoreConfig) (*FileLogStorage, error) {
 	store := FileLogStorage{project: project}
 	var absPath string
 	var err error
 	// TODO(kevjumba) remove this default catch.
-	if val, ok := offlineStoreConfig["path"]; !ok {
-		absPath, err = filepath.Abs("log.parquet")
+	if offlineStoreConfig.path != "" {
+		absPath, err = filepath.Abs(offlineStoreConfig.path)
 	} else {
-		result, ok := val.(string)
-		if !ok {
-			return nil, errors.New("cannot convert offlinestore path to string")
-		}
-		absPath, err = filepath.Abs(filepath.Join(result, "log.parquet"))
+		return nil, errors.New("need path for file log storage")
 	}
 	if err != nil {
 		return nil, err

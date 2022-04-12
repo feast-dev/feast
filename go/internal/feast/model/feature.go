@@ -15,9 +15,3 @@ func NewFeatureFromProto(proto *core.FeatureSpecV2) *Feature {
 		Dtype: proto.ValueType,
 	}
 }
-
-func NewFeature(name string, dtype types.ValueType_Enum) *Feature {
-	return &Feature{Name: name,
-		Dtype: dtype,
-	}
-}

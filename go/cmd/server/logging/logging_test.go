@@ -28,7 +28,8 @@ func TestLoggingChannelTimeout(t *testing.T) {
 	}
 	loggingService.EmitLog(&newLog)
 	// Wait for memory buffer flush
-	time.Sleep(20 * time.Millisecond)
+	assert.Eventually(t, func() bool { return true }, 100*time.Millisecond, 20*time.Millisecond)
+
 	newTs := timestamppb.New(time.Now())
 
 	newLog2 := Log{
@@ -57,7 +58,7 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 }
 
 func TestSerializeToArrowTable(t *testing.T) {
-	table, expectedSchema, expectedColumns, err := GenerateTestLogsAndConvertToArrowTable()
+	table, expectedSchema, expectedColumns, err := GetTestArrowTableAndExpectedResults()
 	assert.Nil(t, err)
 	defer table.Release()
 	tr := array.NewTableReader(table, -1)
@@ -84,48 +85,48 @@ func TestSerializeToArrowTable(t *testing.T) {
 
 // Initialize all dummy featureservice, entities and featureviews/on demand featureviews for testing.
 func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView) {
-	f1 := model.NewFeature(
+	f1 := test.CreateNewFeature(
 		"int64",
 		types.ValueType_INT64,
 	)
-	f2 := model.NewFeature(
+	f2 := test.CreateNewFeature(
 		"float32",
 		types.ValueType_FLOAT,
 	)
-	projection1 := model.NewFeatureViewProjection(
+	projection1 := test.CreateNewFeatureViewProjection(
 		"featureView1",
 		"",
 		[]*model.Feature{f1, f2},
 		map[string]string{},
 	)
-	baseFeatureView1 := model.CreateBaseFeatureView(
+	baseFeatureView1 := test.CreateBaseFeatureView(
 		"featureView1",
 		[]*model.Feature{f1, f2},
 		projection1,
 	)
 	featureView1 := model.CreateFeatureView(baseFeatureView1, nil, map[string]struct{}{})
-	entity1 := model.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
-	f3 := model.NewFeature(
+	entity1 := test.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
+	f3 := test.CreateNewFeature(
 		"int32",
 		types.ValueType_INT32,
 	)
-	f4 := model.NewFeature(
+	f4 := test.CreateNewFeature(
 		"double",
 		types.ValueType_DOUBLE,
 	)
-	projection2 := model.NewFeatureViewProjection(
+	projection2 := test.CreateNewFeatureViewProjection(
 		"featureView2",
 		"",
 		[]*model.Feature{f3, f4},
 		map[string]string{},
 	)
-	baseFeatureView2 := model.CreateBaseFeatureView(
+	baseFeatureView2 := test.CreateBaseFeatureView(
 		"featureView2",
 		[]*model.Feature{f3, f4},
 		projection2,
 	)
 	featureView2 := model.CreateFeatureView(baseFeatureView2, nil, map[string]struct{}{})
-	featureService := model.NewFeatureService(
+	featureService := test.CreateNewFeatureService(
 		"test_service",
 		"test_project",
 		nil,
@@ -137,16 +138,13 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 
 // Create dummy FeatureService, Entities, and FeatureViews add them to the logger and convert the logs to Arrow table.
 // Returns arrow table, expected test schema, and expected columns.
-func GenerateTestLogsAndConvertToArrowTable() (array.Table, map[string]arrow.DataType, map[string]*types.RepeatedValue, error) {
+func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataType, map[string]*types.RepeatedValue, error) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
 	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	loggingService, err := NewLoggingService(nil, 2, "", false)
-	if err != nil {
-		return nil, nil, nil, err
-	}
+
 	ts := timestamppb.New(time.Now())
 	log1 := Log{
 		EntityValue: []*types.Value{
@@ -232,18 +230,33 @@ func GenerateTestLogsAndConvertToArrowTable() (array.Table, map[string]arrow.Dat
 				log2.FeatureValues[3]},
 		},
 	}
+	loggingService, err := SetupLoggingServiceWithLogs([]*Log{&log1, &log2})
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
-	dummyTicker := time.NewTicker(10 * time.Second)
-	// stop the ticker so that the logs are not flushed to offline storage
-	dummyTicker.Stop()
-	loggingService.EmitLog(&log1)
-
-	loggingService.EmitLog(&log2)
-	loggingService.HandleLogFlushing(dummyTicker)
-	loggingService.HandleLogFlushing(dummyTicker)
 	table, err := ConvertMemoryBufferToArrowTable(loggingService.memoryBuffer, schema)
+
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return table, expectedSchema, expectedColumns, nil
+}
+
+func SetupLoggingServiceWithLogs(logs []*Log) (*LoggingService, error) {
+	loggingService, err := NewLoggingService(nil, len(logs), "", false)
+	if err != nil {
+		return nil, err
+	}
+	dummyTicker := time.NewTicker(10 * time.Second)
+	// stop the ticker so that the logs are not flushed to offline storage
+	dummyTicker.Stop()
+	for _, log := range logs {
+		loggingService.EmitLog(log)
+	}
+	// manually handle flushing logs
+	for i := 0; i < len(logs); i++ {
+		loggingService.HandleLogFlushing(dummyTicker)
+	}
+	return loggingService, nil
 }

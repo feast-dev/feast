@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/parquet/file"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	gotypes "github.com/feast-dev/feast/go/types"
 )
@@ -149,4 +151,44 @@ func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, erro
 
 func CleanUpLogs(absPath string) error {
 	return os.Remove(absPath)
+}
+
+func CreateBaseFeatureView(name string, features []*model.Feature, projection *model.FeatureViewProjection) *model.BaseFeatureView {
+	return &model.BaseFeatureView{
+		Name:       name,
+		Features:   features,
+		Projection: projection,
+	}
+}
+
+func CreateNewEntity(name string, valueType types.ValueType_Enum, joinKey string) *model.Entity {
+	return &model.Entity{
+		Name:      name,
+		ValueType: valueType,
+		JoinKey:   joinKey,
+	}
+}
+
+func CreateNewFeature(name string, dtype types.ValueType_Enum) *model.Feature {
+	return &model.Feature{Name: name,
+		Dtype: dtype,
+	}
+}
+
+func CreateNewFeatureService(name string, project string, createdTimestamp *timestamppb.Timestamp, lastUpdatedTimestamp *timestamppb.Timestamp, projections []*model.FeatureViewProjection) *model.FeatureService {
+	return &model.FeatureService{
+		Name:                 name,
+		Project:              project,
+		CreatedTimestamp:     createdTimestamp,
+		LastUpdatedTimestamp: lastUpdatedTimestamp,
+		Projections:          projections,
+	}
+}
+
+func CreateNewFeatureViewProjection(name string, nameAlias string, features []*model.Feature, joinKeyMap map[string]string) *model.FeatureViewProjection {
+	return &model.FeatureViewProjection{Name: name,
+		NameAlias:  nameAlias,
+		Features:   features,
+		JoinKeyMap: joinKeyMap,
+	}
 }

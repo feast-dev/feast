@@ -125,11 +125,10 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		if err != nil {
 			return err
 		}
-		fileStore, err := NewFileOfflineStore(s.fs.GetRepoConfig().Project, s.fs.GetRepoConfig().OfflineStore)
+		s.offlineLogStorage.FlushToStorage(table)
 		if err != nil {
 			return err
 		}
-		fileStore.FlushToStorage(table)
 		s.memoryBuffer.logs = s.memoryBuffer.logs[:0]
 	} else {
 		// Currently don't support any other offline flushing.

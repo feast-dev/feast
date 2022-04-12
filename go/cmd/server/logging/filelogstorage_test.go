@@ -15,17 +15,18 @@ import (
 )
 
 func TestFlushToStorage(t *testing.T) {
-	table, expectedSchema, expectedColumns, err := GenerateTestLogsAndConvertToArrowTable()
+	table, expectedSchema, expectedColumns, err := GetTestArrowTableAndExpectedResults()
 	defer table.Release()
 	assert.Nil(t, err)
-	offlineStoreConfig := map[string]interface{}{
-		"path": ".",
+	offlineStoreConfig := OfflineLogStoreConfig{
+		storeType: "file",
+		path:      "./log.parquet",
 	}
-	fileStore, err := NewFileOfflineStore("test", offlineStoreConfig)
+	fileStore, err := NewFileOfflineStore("test", &offlineStoreConfig)
 	assert.Nil(t, err)
 	err = fileStore.FlushToStorage(array.Table(table))
 	assert.Nil(t, err)
-	logPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
+	logPath, err := filepath.Abs(offlineStoreConfig.path)
 	assert.Nil(t, err)
 	w, err := CreateOrOpenLogFile(logPath)
 	assert.Nil(t, err)

@@ -17,11 +17,3 @@ func NewEntityFromProto(proto *core.Entity) *Entity {
 		JoinKey:   proto.Spec.JoinKey,
 	}
 }
-
-func CreateNewEntity(name string, valueType types.ValueType_Enum, joinKey string) *Entity {
-	return &Entity{
-		Name:      name,
-		ValueType: valueType,
-		JoinKey:   joinKey,
-	}
-}

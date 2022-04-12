@@ -53,12 +53,13 @@ func getClient(ctx context.Context, basePath string, enableLogging bool) (servin
 	// Currently in python we use the path in FileSource but it is not specified in configuration unless it is using file_url?
 	if enableLogging {
 		if config.OfflineStore == nil {
-			config.OfflineStore = map[string]interface{}{
-				"path": ".",
-			}
-		} else {
-			config.OfflineStore["path"] = "."
+			config.OfflineStore = map[string]interface{}{}
 		}
+		absPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
+		if err != nil {
+			panic(err)
+		}
+		config.OfflineStore["path"] = absPath
 	}
 
 	if err != nil {
@@ -68,7 +69,7 @@ func getClient(ctx context.Context, basePath string, enableLogging bool) (servin
 	if err != nil {
 		panic(err)
 	}
-	generateFeatureService(fs)
+	CreateFeatureServiceInFeatureStore(fs)
 	loggingService, err := logging.NewLoggingService(fs, 1000, "test_service", enableLogging)
 	if err != nil {
 		panic(err)
@@ -166,7 +167,6 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(response.Results[3].Values, expectedAvgDailyTripsValues))
 
 	assert.True(t, reflect.DeepEqual(response.Metadata.FeatureNames.Val, expectedFeatureNamesResp))
-	time.Sleep(1 * time.Second)
 }
 
 func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
@@ -195,7 +195,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
 	// Wait for logger to flush.
-	time.Sleep(1 * time.Second)
+	assert.Eventually(t, func() bool { return true }, 1*time.Second, 200*time.Millisecond)
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
 
@@ -262,7 +262,7 @@ func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeatu
 	return featureValueLogRows, featureStatusLogRows, eventTimestampLogRows
 }
 
-func generateFeatureService(fs *feast.FeatureStore) {
+func CreateFeatureServiceInFeatureStore(fs *feast.FeatureStore) {
 	f1 := core.FeatureSpecV2{
 		Name:      "acc_rate",
 		ValueType: types.ValueType_FLOAT,

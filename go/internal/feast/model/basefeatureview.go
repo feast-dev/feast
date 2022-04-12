@@ -57,11 +57,3 @@ func (fv *BaseFeatureView) ProjectWithFeatures(featureNames []string) *FeatureVi
 		Features: features,
 	}
 }
-
-func CreateBaseFeatureView(name string, features []*Feature, projection *FeatureViewProjection) *BaseFeatureView {
-	return &BaseFeatureView{
-		Name:       name,
-		Features:   features,
-		Projection: projection,
-	}
-}

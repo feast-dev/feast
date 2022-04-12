@@ -7,7 +7,14 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 )
 
+type OfflineLogStoreConfig struct {
+	storeType string
+	project   string
+	path      string
+}
+
 type OfflineLogStorage interface {
+	// Todo: Maybe we can add a must implement function that retrieves the correct config based on type
 	FlushToStorage(array.Table) error
 }
 
@@ -24,7 +31,11 @@ func getOfflineStoreType(offlineStoreConfig map[string]interface{}) (string, boo
 func NewOfflineStore(config *registry.RepoConfig) (OfflineLogStorage, error) {
 	onlineStoreType, _ := getOfflineStoreType(config.OfflineStore)
 	if onlineStoreType == "file" {
-		offlineStore, err := NewFileOfflineStore(config.Project, config.OfflineStore)
+		fileConfig, err := GetFileConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		offlineStore, err := NewFileOfflineStore(config.Project, fileConfig)
 		return offlineStore, err
 	} else {
 		return nil, errors.New("no offline storage besides file is currently supported")
