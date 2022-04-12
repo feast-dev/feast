@@ -134,7 +134,7 @@ jobs:
         os: [ ubuntu-latest, macOS-latest ]
         compile-go: [ True ]
         include:
-          - python-version: 3.7
+          - python-version: "3.7"
             os: ubuntu-latest
             compile-go: False
     env:
@@ -177,7 +177,7 @@ jobs:
         os: [ ubuntu-latest, macOS-latest ]
         compile-go: [ True ]
         include:
-          - python-version: 3.7
+          - python-version: "3.7"
             os: ubuntu-latest
             compile-go: False
     needs: get-version

@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7 ]
+        python-version: [ "3.7" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
