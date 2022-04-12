@@ -19,9 +19,9 @@ type OfflineLogStorage interface {
 }
 
 func getOfflineStoreType(offlineStoreConfig map[string]interface{}) (string, bool) {
-	if onlineStoreType, ok := offlineStoreConfig["type"]; !ok {
+	if onlineStoreType, ok := offlineStoreConfig["storeType"]; !ok {
 		// Assume file for case of no specified.
-		return "file", true
+		return "", true
 	} else {
 		result, ok := onlineStoreType.(string)
 		return result, ok
@@ -29,8 +29,11 @@ func getOfflineStoreType(offlineStoreConfig map[string]interface{}) (string, boo
 }
 
 func NewOfflineStore(config *registry.RepoConfig) (OfflineLogStorage, error) {
-	onlineStoreType, _ := getOfflineStoreType(config.OfflineStore)
-	if onlineStoreType == "file" {
+	offlineStoreType, _ := getOfflineStoreType(config.OfflineStore)
+	if offlineStoreType == "" {
+		// No offline store specified.
+		return nil, nil
+	} else if offlineStoreType == "file" {
 		fileConfig, err := GetFileConfig(config)
 		if err != nil {
 			return nil, err

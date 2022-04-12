@@ -28,7 +28,7 @@ func TestLoggingChannelTimeout(t *testing.T) {
 	}
 	loggingService.EmitLog(&newLog)
 	// Wait for memory buffer flush
-	assert.Eventually(t, func() bool { return true }, 100*time.Millisecond, 20*time.Millisecond)
+	assert.Eventually(t, func() bool { return true }, 100*time.Millisecond, DEFAULT_LOG_INSERT_TIMEOUT)
 
 	newTs := timestamppb.New(time.Now())
 

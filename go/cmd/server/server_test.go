@@ -42,7 +42,7 @@ func getRepoPath(basePath string) string {
 }
 
 // Starts a new grpc server, registers the serving service and returns a client.
-func getClient(ctx context.Context, basePath string, enableLogging bool) (serving.ServingServiceClient, func()) {
+func getClient(ctx context.Context, offlineStoreType string, basePath string, enableLogging bool) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
 
@@ -60,6 +60,7 @@ func getClient(ctx context.Context, basePath string, enableLogging bool) (servin
 			panic(err)
 		}
 		config.OfflineStore["path"] = absPath
+		config.OfflineStore["storeType"] = offlineStoreType
 	}
 
 	if err != nil {
@@ -104,7 +105,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	client, closer := getClient(ctx, dir, false)
+	client, closer := getClient(ctx, "", dir, false)
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -118,7 +119,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	client, closer := getClient(ctx, dir, false)
+	client, closer := getClient(ctx, "", dir, false)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -176,7 +177,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	err := test.SetupFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
-	client, closer := getClient(ctx, dir, true)
+	client, closer := getClient(ctx, "file", dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -195,7 +196,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
 	// Wait for logger to flush.
-	assert.Eventually(t, func() bool { return true }, 1*time.Second, 200*time.Millisecond)
+	assert.Eventually(t, func() bool { return true }, 1*time.Second, logging.DEFAULT_LOG_FLUSH_INTERVAL)
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
 
@@ -233,8 +234,8 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 			}
 		}
 	}
-	err = test.CleanUpLogs(logPath)
-	assert.Nil(t, err)
+	// err = test.CleanUpLogs(logPath)
+	// assert.Nil(t, err)
 }
 
 // Generate the expected log rows based on the resulting feature vector returned from GetOnlineFeatures.

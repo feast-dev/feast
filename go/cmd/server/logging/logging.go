@@ -17,6 +17,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const DEFAULT_LOG_FLUSH_INTERVAL = 100 * time.Millisecond
+const DEFAULT_LOG_INSERT_TIMEOUT = 20 * time.Millisecond
+
 type Log struct {
 	// Example: val{int64_val: 5017}, val{int64_val: 1003}
 	EntityValue []*types.Value
@@ -37,16 +40,19 @@ type LoggingService struct {
 	logChannel        chan *Log
 	fs                *feast.FeatureStore
 	offlineLogStorage OfflineLogStorage
+	logInsertTTl      time.Duration
+	logFlushInterval  time.Duration
 }
 
-func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogging bool) (*LoggingService, error) {
+func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureServiceName string, enableLogProcessing bool) (*LoggingService, error) {
 	var featureService *model.FeatureService = nil
 	var err error
-	if enableLogging {
+	if fs != nil {
 		featureService, err = fs.GetFeatureService(featureServiceName)
 		if err != nil {
 			return nil, err
 		}
+
 	}
 
 	loggingService := &LoggingService{
@@ -55,20 +61,23 @@ func NewLoggingService(fs *feast.FeatureStore, logChannelCapacity int, featureSe
 			logs:           make([]*Log, 0),
 			featureService: featureService,
 		},
-		fs: fs,
+		fs:               fs,
+		logInsertTTl:     DEFAULT_LOG_INSERT_TIMEOUT,
+		logFlushInterval: DEFAULT_LOG_FLUSH_INTERVAL,
 	}
 
-	if !enableLogging || fs == nil {
-		loggingService.offlineLogStorage = nil
-	} else {
+	if fs != nil {
 		offlineLogStorage, err := NewOfflineStore(fs.GetRepoConfig())
 		loggingService.offlineLogStorage = offlineLogStorage
-
 		if err != nil {
 			return nil, err
 		}
-		// Start goroutine to process logs
+	}
+
+	// Start goroutine to process logs
+	if enableLogProcessing {
 		go loggingService.processLogs()
+
 	}
 	return loggingService, nil
 }
@@ -77,7 +86,7 @@ func (s *LoggingService) EmitLog(l *Log) error {
 	select {
 	case s.logChannel <- l:
 		return nil
-	case <-time.After(20 * time.Millisecond):
+	case <-time.After(s.logInsertTTl):
 		return fmt.Errorf("could not add to log channel with capacity %d. Operation timed out. Current log channel length is %d", cap(s.logChannel), len(s.logChannel))
 	}
 }
@@ -85,7 +94,7 @@ func (s *LoggingService) EmitLog(l *Log) error {
 func (s *LoggingService) processLogs() {
 	// start a periodic flush
 	// TODO(kevjumba): set param so users can configure flushing duration
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(s.logFlushInterval)
 	defer ticker.Stop()
 
 	for {
@@ -263,9 +272,8 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		// Create copies of FeatureView that may contains the same *FeatureView but
 		// each differentiated by a *FeatureViewProjection
 		featureViewName := featureProjection.Name
-		if fv, ok := fvs[featureViewName]; ok {
-			for _, f := range fv.Base.Projection.Features {
-				// add feature to map
+		if _, ok := fvs[featureViewName]; ok {
+			for _, f := range featureProjection.Features {
 				features = append(features, f.Name)
 				allFeatureTypes[f.Name] = f.Dtype
 			}
@@ -278,6 +286,7 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 			return nil, fmt.Errorf("no such feature view found in feature service %s", featureViewName)
 		}
 	}
+
 	schema := &Schema{
 		Entities:      joinKeys,
 		Features:      features,

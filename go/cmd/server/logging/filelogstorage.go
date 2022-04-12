@@ -31,12 +31,6 @@ func GetFileConfig(config *registry.RepoConfig) (*OfflineLogStoreConfig, error) 
 		fileConfig.path = path
 	} else {
 		return nil, errors.New("need path for file log storage")
-		// absPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// fileConfig.path = absPath
-		// return &fileConfig, nil
 	}
 	return &fileConfig, nil
 }
@@ -60,7 +54,7 @@ func NewFileOfflineStore(project string, offlineStoreConfig *OfflineLogStoreConf
 	return &store, nil
 }
 
-func CreateOrOpenLogFile(absPath string) (*os.File, error) {
+func OpenLogFile(absPath string) (*os.File, error) {
 	var _, err = os.Stat(absPath)
 
 	// create file if not exists
@@ -71,16 +65,12 @@ func CreateOrOpenLogFile(absPath string) (*os.File, error) {
 		}
 		return file, nil
 	} else {
-		var file, err = os.OpenFile(absPath, os.O_RDWR, 0644)
-		if err != nil {
-			return nil, err
-		}
-		return file, nil
+		return nil, fmt.Errorf("path %s already exists", absPath)
 	}
 }
 
 func (f *FileLogStorage) FlushToStorage(tbl array.Table) error {
-	w, err := CreateOrOpenLogFile(f.path)
+	w, err := OpenLogFile(f.path)
 	var writer io.Writer = w
 	if err != nil {
 		return err

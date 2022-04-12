@@ -1,9 +1,9 @@
 package logging
 
 import (
+	"context"
 	"path/filepath"
 
-	"context"
 	"testing"
 
 	"github.com/apache/arrow/go/v8/arrow/array"
@@ -15,6 +15,7 @@ import (
 )
 
 func TestFlushToStorage(t *testing.T) {
+	ctx := context.Background()
 	table, expectedSchema, expectedColumns, err := GetTestArrowTableAndExpectedResults()
 	defer table.Release()
 	assert.Nil(t, err)
@@ -28,11 +29,7 @@ func TestFlushToStorage(t *testing.T) {
 	assert.Nil(t, err)
 	logPath, err := filepath.Abs(offlineStoreConfig.path)
 	assert.Nil(t, err)
-	w, err := CreateOrOpenLogFile(logPath)
-	assert.Nil(t, err)
-	ctx := context.Background()
-
-	pf, err := file.NewParquetReader(w)
+	pf, err := file.OpenParquetFile(logPath, false)
 	assert.Nil(t, err)
 
 	reader, err := pqarrow.NewFileReader(pf, pqarrow.ArrowReadProperties{}, memory.DefaultAllocator)
