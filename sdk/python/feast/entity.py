@@ -40,6 +40,9 @@ class Entity:
         owner: The owner of the entity, typically the email of the primary maintainer.
         created_timestamp: The time when the entity was created.
         last_updated_timestamp: The time when the entity was last updated.
+        join_keys: A list of property that uniquely identifies different entities within the
+            collection. This is meant to replace the `join_key` parameter, but currently only
+            supports a list of size one.
     """
 
     name: str
