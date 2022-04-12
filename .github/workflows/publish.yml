@@ -126,37 +126,85 @@ jobs:
         run: ./infra/scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
 
   publish-python-sdk:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
+        os: [ ubuntu-latest, macOS-latest ]
+        compile-go: [ True ]
+        include:
+          - python-version: 3.7
+            os: ubuntu-latest
+            compile-go: False
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-    container: python:3.7
+      COMPILE_GO: ${{ matrix.compile-go }}
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.7
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies PYTHON=3.7
+        run: make install-python-ci-dependencies PYTHON=${{ matrix.python-version }}
       - name: Publish Python Package
         run: |
           cd sdk/python
           python3 -m pip install --user --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel
-          python3 -m twine upload --verbose dist/*
+          python3 -m twine upload --verbose dist/*.whl
 
   publish-python-sdk-no-telemetry:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
+        os: [ ubuntu-latest, macOS-latest ]
+        compile-go: [ True ]
+        include:
+          - python-version: 3.7
+            os: ubuntu-latest
+            compile-go: False
     needs: get-version
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-    container: python:3.7
+      COMPILE_GO: ${{ matrix.compile-go }}
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.7
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies PYTHON=3.7
+        run: make install-python-ci-dependencies PYTHON=${{ matrix.python-version }}
       - name: Publish Python Package
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.get-version.outputs.version_without_prefix }}
@@ -166,7 +214,7 @@ jobs:
           sed -i 's/NAME = "feast"/NAME = "feast-no-telemetry"/g' setup.py
           python3 -m pip install --user --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel
-          python3 -m twine upload --verbose dist/*
+          python3 -m twine upload --verbose dist/*.whl
 
   publish-java-sdk:
     container: maven:3.6-jdk-11

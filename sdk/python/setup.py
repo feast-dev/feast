@@ -28,9 +28,11 @@ try:
     from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
     from setuptools.command.install import install
+    from setuptools.dist import Distribution
 except ImportError:
     from distutils.command.build_py import build_py
     from distutils.core import setup
+    from distutils.dist import Distribution
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -355,9 +357,11 @@ class BuildGoEmbeddedCommand(Command):
             "feast/embedded_go/lib",
             "-vm",
             "python3",
+            "-no-make",
             "github.com/feast-dev/feast/go/embedded"
         ], env={
             "PATH": self.path_val,
+            "CGO_LDFLAGS_ALLOW": ".*",
             **self.go_env,
         })
 
@@ -387,6 +391,13 @@ class DevelopCommand(develop):
             self.run_command("build_go_protos")
             self.run_command("build_go_lib")
         develop.run(self)
+
+
+class BinaryDistribution(Distribution):
+    """Distribution which forces a binary package with platform name
+     when go compilation is enabled"""
+    def has_ext_modules(self):
+        return os.getenv("COMPILE_GO", "false").lower() == "true"
 
 
 setup(
@@ -445,4 +456,5 @@ setup(
         "build_py": BuildCommand,
         "develop": DevelopCommand,
     },
+    distclass=BinaryDistribution,  # generate wheel with platform-specific name
 )
