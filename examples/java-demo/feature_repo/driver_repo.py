@@ -1,9 +1,12 @@
 import pandas as pd
-from feast import Entity, Feature, FeatureView, FileSource, ValueType
 from feast.data_source import RequestSource
+from feast.field import Field
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.request_feature_view import RequestFeatureView
+from feast.types import Float32, Float64, Int64, String
 from google.protobuf.duration_pb2 import Duration
+
+from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
 driver_hourly_stats = FileSource(
     path="data/driver_stats_with_string.parquet",
@@ -15,11 +18,11 @@ driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
     ttl=Duration(seconds=86400000),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
-        Feature(name="string_feature", dtype=ValueType.STRING),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="string_feature", dtype=String),
     ],
     online=True,
     batch_source=driver_hourly_stats,
@@ -40,9 +43,9 @@ input_request = RequestSource(
         "driver_hourly_stats": driver_hourly_stats_view,
         "vals_to_add": input_request,
     },
-    features=[
-        Feature(name="conv_rate_plus_val1", dtype=ValueType.DOUBLE),
-        Feature(name="conv_rate_plus_val2", dtype=ValueType.DOUBLE),
+    schema=[
+        Field(name="conv_rate_plus_val1", dtype=Float64),
+        Field(name="conv_rate_plus_val2", dtype=Float64),
     ],
 )
 def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
