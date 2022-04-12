@@ -97,7 +97,7 @@ class FeatureView(BaseFeatureView):
         self,
         *args,
         name: Optional[str] = None,
-        entities: Optional[List[str]] = None,
+        entities: Optional[Union[List[Entity], List[str]]] = None,
         ttl: Optional[Union[Duration, timedelta]] = None,
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
@@ -167,7 +167,11 @@ class FeatureView(BaseFeatureView):
             raise ValueError("feature view name needs to be specified")
 
         self.name = _name
-        self.entities = _entities if _entities else [DUMMY_ENTITY_NAME]
+        self.entities = (
+            [e.name if isinstance(e, Entity) else e for e in _entities]
+            if _entities
+            else [DUMMY_ENTITY_NAME]
+        )
 
         self._initialize_sources(_name, batch_source, stream_source, source)
 
