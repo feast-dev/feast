@@ -33,7 +33,7 @@ message DataSource {
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 11
+  // Next available id: 12
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
