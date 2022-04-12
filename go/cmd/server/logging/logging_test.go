@@ -42,17 +42,36 @@ func TestLoggingChannelTimeout(t *testing.T) {
 
 func TestSchemaTypeRetrieval(t *testing.T) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
-	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)
+	entityMap := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+	}
+	schema, err := GetSchemaFromFeatureService(featureService, entities, entityMap, featureViews, odfvs)
 	assert.Nil(t, err)
 	assert.Contains(t, schema.EntityTypes, "driver_id")
 	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], types.ValueType_INT64))
 
-	features := []string{"int64", "float32", "int32", "double"}
-	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum()}
+	features := []string{"featureView1__int64", "featureView1__float32", "featureView2__int32", "featureView2__double", "od_bf1__odfv_f1", "od_bf1__odfv_f2"}
+	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum()}
 	for idx, featureName := range features {
 		assert.Contains(t, schema.FeaturesTypes, featureName)
 		assert.Equal(t, schema.FeaturesTypes[featureName], types[idx])
 	}
+}
+
+func TestSchemaRetrievalIgnoresEntitiesNotInFeatureService(t *testing.T) {
+	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
+	//Remove entities in featureservice
+	for _, featureView := range featureViews {
+		featureView.Entities = make(map[string]struct{})
+	}
+	entityMap := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+	}
+	schema, err := GetSchemaFromFeatureService(featureService, entities, entityMap, featureViews, odfvs)
+	assert.Nil(t, err)
+	assert.Empty(t, schema.EntityTypes)
 }
 
 func TestSerializeToArrowTable(t *testing.T) {
@@ -73,6 +92,9 @@ func TestSerializeToArrowTable(t *testing.T) {
 
 		assert.Nil(t, err)
 		for name, val := range values {
+			if name == "RequestId" {
+				continue
+			}
 			assert.Equal(t, len(val.Val), len(expectedColumns[name].Val))
 			for idx, featureVal := range val.Val {
 				assert.Equal(t, featureVal.Val, expectedColumns[name].Val[idx].Val)
@@ -102,7 +124,7 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 		[]*model.Feature{f1, f2},
 		projection1,
 	)
-	featureView1 := model.CreateFeatureView(baseFeatureView1, nil, map[string]struct{}{})
+	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, map[string]struct{}{"driver_id": {}})
 	entity1 := test.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
 	f3 := test.CreateNewFeature(
 		"int32",
@@ -123,22 +145,47 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 		[]*model.Feature{f3, f4},
 		projection2,
 	)
-	featureView2 := model.CreateFeatureView(baseFeatureView2, nil, map[string]struct{}{})
+	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, map[string]struct{}{"driver_id": {}})
+
+	f5 := test.CreateNewFeature(
+		"odfv_f1",
+		types.ValueType_INT32,
+	)
+	f6 := test.CreateNewFeature(
+		"odfv_f2",
+		types.ValueType_DOUBLE,
+	)
+	projection3 := test.CreateNewFeatureViewProjection(
+		"od_bf1",
+		"",
+		[]*model.Feature{f5, f6},
+		map[string]string{},
+	)
+	od_bf1 := test.CreateBaseFeatureView(
+		"od_bf1",
+		[]*model.Feature{f5, f6},
+		projection3,
+	)
+	odfv := model.NewOnDemandFeatureViewFromBase(od_bf1)
 	featureService := test.CreateNewFeatureService(
 		"test_service",
 		"test_project",
 		nil,
 		nil,
-		[]*model.FeatureViewProjection{projection1, projection2},
+		[]*model.FeatureViewProjection{projection1, projection2, projection3},
 	)
-	return featureService, []*model.Entity{entity1}, []*model.FeatureView{featureView1, featureView2}, []*model.OnDemandFeatureView{}
+	return featureService, []*model.Entity{entity1}, []*model.FeatureView{featureView1, featureView2}, []*model.OnDemandFeatureView{odfv}
 }
 
 // Create dummy FeatureService, Entities, and FeatureViews add them to the logger and convert the logs to Arrow table.
 // Returns arrow table, expected test schema, and expected columns.
 func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataType, map[string]*types.RepeatedValue, error) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
-	schema, err := GetSchemaFromFeatureService(featureService, entities, featureViews, odfvs)
+	entityMap := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+	}
+	schema, err := GetSchemaFromFeatureService(featureService, entities, entityMap, featureViews, odfvs)
 	if err != nil {
 		return nil, nil, nil, err
 	}

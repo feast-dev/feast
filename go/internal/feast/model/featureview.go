@@ -44,11 +44,3 @@ func (fs *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureVie
 	}
 	return featureView
 }
-
-func CreateFeatureView(base *BaseFeatureView, ttl *durationpb.Duration, entities map[string]struct{}) *FeatureView {
-	return &FeatureView{
-		Base:     base,
-		Ttl:      ttl,
-		Entities: entities,
-	}
-}

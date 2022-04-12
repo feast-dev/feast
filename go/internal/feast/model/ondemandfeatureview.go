@@ -48,7 +48,7 @@ func (fs *OnDemandFeatureView) NewWithProjection(projection *FeatureViewProjecti
 	return featureView, nil
 }
 
-func (fs *OnDemandFeatureView) NewOnDemandFeatureViewFromBase(base *BaseFeatureView) *OnDemandFeatureView {
+func NewOnDemandFeatureViewFromBase(base *BaseFeatureView) *OnDemandFeatureView {
 
 	featureView := &OnDemandFeatureView{Base: base}
 	return featureView

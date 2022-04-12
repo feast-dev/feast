@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/apache/arrow/go/v8/arrow"
@@ -190,5 +191,13 @@ func CreateNewFeatureViewProjection(name string, nameAlias string, features []*m
 		NameAlias:  nameAlias,
 		Features:   features,
 		JoinKeyMap: joinKeyMap,
+	}
+}
+
+func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities map[string]struct{}) *model.FeatureView {
+	return &model.FeatureView{
+		Base:     base,
+		Ttl:      ttl,
+		Entities: entities,
 	}
 }
