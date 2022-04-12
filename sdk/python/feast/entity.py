@@ -13,7 +13,7 @@
 # limitations under the License.
 import warnings
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
 
@@ -40,6 +40,9 @@ class Entity:
         owner: The owner of the entity, typically the email of the primary maintainer.
         created_timestamp: The time when the entity was created.
         last_updated_timestamp: The time when the entity was last updated.
+        join_keys: A list of property that uniquely identifies different entities within the
+            collection. This is meant to replace the `join_key` parameter, but currently only
+            supports a list of size one.
     """
 
     name: str
@@ -50,6 +53,7 @@ class Entity:
     owner: str
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
+    join_keys: List[str]
 
     @log_exceptions
     def __init__(
@@ -61,6 +65,7 @@ class Entity:
         join_key: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        join_keys: Optional[List[str]] = None,
     ):
         """Creates an Entity object."""
         if len(args) == 1:
@@ -82,7 +87,17 @@ class Entity:
             raise ValueError("Name needs to be specified")
 
         self.value_type = value_type
-        self.join_key = join_key if join_key else self.name
+
+        self.join_keys = join_keys or []
+        if join_keys and len(join_keys) > 1:
+            raise ValueError(
+                "An entity may only have single join key. "
+                "Multiple join keys will be supported in the future."
+            )
+        if join_keys and len(join_keys) == 1:
+            self.join_key = join_keys[0]
+        else:
+            self.join_key = join_key if join_key else self.name
         self.description = description
         self.tags = tags if tags is not None else {}
         self.owner = owner
