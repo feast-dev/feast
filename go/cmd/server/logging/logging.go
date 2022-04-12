@@ -239,9 +239,9 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 	fvs := make(map[string]*model.FeatureView)
 	odFvs := make(map[string]*model.OnDemandFeatureView)
 
-	entityNames := make([]string, 0)
+	joinKeys := make([]string, 0)
 	for _, entity := range entities {
-		entityNames = append(entityNames, entity.JoinKey)
+		joinKeys = append(joinKeys, entity.JoinKey)
 	}
 
 	for _, featureView := range featureViews {
@@ -279,7 +279,7 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		}
 	}
 	schema := &Schema{
-		Entities:      entityNames,
+		Entities:      joinKeys,
 		Features:      features,
 		EntityTypes:   entityJoinKeyToType,
 		FeaturesTypes: allFeatureTypes,
