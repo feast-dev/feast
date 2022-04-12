@@ -136,7 +136,7 @@ input_request = RequestSource(
 # Define an on demand feature view which can generate new features based on
 # existing feature views and RequestSource features
 @on_demand_feature_view(
-    inputs={"credit_history": credit_history, "transaction": input_request,},
+    sources={"credit_history": credit_history, "transaction": input_request,},
     schema=[
         Field(name="transaction_gt_last_credit_card_due", dtype=Bool),
     ],
