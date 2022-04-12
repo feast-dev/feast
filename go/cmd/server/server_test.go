@@ -192,7 +192,8 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		Kind: &serving.GetOnlineFeaturesRequest_FeatureService{
 			FeatureService: "test_service",
 		},
-		Entities: entities,
+		Entities:         entities,
+		FullFeatureNames: true,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
 	// Wait for logger to flush.

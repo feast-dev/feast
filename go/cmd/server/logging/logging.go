@@ -284,8 +284,8 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		featureViewName := featureProjection.Name
 		if _, ok := fvs[featureViewName]; ok {
 			for _, f := range featureProjection.Features {
-				features = append(features, f.Name)
-				allFeatureTypes[f.Name] = f.Dtype
+				features = append(features, GetFullFeatureName(featureViewName, f.Name))
+				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
 			}
 		} else if odfv, ok := odFvs[featureViewName]; ok {
 			for name, valueType := range odfv.GetRequestDataSchema() {
@@ -304,6 +304,10 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		FeaturesTypes: allFeatureTypes,
 	}
 	return schema, nil
+}
+
+func GetFullFeatureName(featureViewName string, featureName string) string {
+	return fmt.Sprintf("%s__%s", featureViewName, featureName)
 }
 
 func (s *LoggingService) GetFcos() ([]*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView, error) {

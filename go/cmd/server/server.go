@@ -58,7 +58,6 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 	entityValuesMap := make(map[string][]*prototypes.Value, 0)
 	featureNames := make([]string, len(featureVectors))
 	for idx, vector := range featureVectors {
-
 		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, vector.Name)
 		featureNames[idx] = vector.Name
 		values, err := types.ArrowValuesToProtoValues(vector.Values)
@@ -68,6 +67,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		if _, ok := request.Entities[vector.Name]; ok {
 			entityValuesMap[vector.Name] = values
 		}
+
 		resp.Results = append(resp.Results, &serving.GetOnlineFeaturesResponse_FeatureVector{
 			Values:          values,
 			Statuses:        vector.Statuses,
