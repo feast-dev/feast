@@ -61,9 +61,9 @@ class FeatureView(BaseFeatureView):
             can result in extremely computationally intensive queries.
         batch_source (optional): The batch source of data where this group of features
             is stored. This is optional ONLY if a push source is specified as the
-            stream_source, since push sources contain their own batch sources.
+            stream_source, since push sources contain their own batch sources. This is deprecated in favor of `source`.
         stream_source (optional): The stream source of data where this group of features
-            is stored.
+            is stored. This is deprecated in favor of `source`.
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns.
         features: The list of features defined as part of this feature view. Each
@@ -74,6 +74,8 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        source (optional): The source of data for this group of features. May be a stream source, or a batch source.
+            If a stream source, the source should contain a batch_source for backfills & batch materialization.
     """
 
     name: str
