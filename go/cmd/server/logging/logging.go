@@ -288,9 +288,10 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
 			}
 		} else if odfv, ok := odFvs[featureViewName]; ok {
-			for name, valueType := range odfv.GetRequestDataSchema() {
-				features = append(features, name)
-				allFeatureTypes[name] = valueType
+			for _, f := range odfv.Base.Features {
+				// TODO(kevjumba) check in test here.
+				features = append(features, GetFullFeatureName(featureViewName, f.Name))
+				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
 			}
 		} else {
 			return nil, fmt.Errorf("no such feature view found in feature service %s", featureViewName)
