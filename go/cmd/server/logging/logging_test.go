@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -43,17 +44,35 @@ func TestLoggingChannelTimeout(t *testing.T) {
 func TestSchemaTypeRetrieval(t *testing.T) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
 	entityMap := make(map[string]*model.Entity)
+	expectedEntityNames := make([]string, 0)
+	expectedFeatureNames := make([]string, 0)
 	for _, entity := range entities {
 		entityMap[entity.Name] = entity
+		expectedEntityNames = append(expectedEntityNames, entity.Name)
 	}
+	for _, featureView := range featureViews {
+		for _, f := range featureView.Base.Features {
+			expectedFeatureNames = append(expectedFeatureNames, GetFullFeatureName(featureView.Base.Name, f.Name))
+		}
+	}
+	for _, featureView := range odfvs {
+		for _, f := range featureView.Base.Features {
+			expectedFeatureNames = append(expectedFeatureNames, GetFullFeatureName(featureView.Base.Name, f.Name))
+		}
+	}
+
 	schema, err := GetSchemaFromFeatureService(featureService, entities, entityMap, featureViews, odfvs)
 	assert.Nil(t, err)
-	assert.Contains(t, schema.EntityTypes, "driver_id")
+
+	assert.Equal(t, expectedFeatureNames, schema.Features)
+	assert.Equal(t, expectedEntityNames, schema.Entities)
+	for _, entityName := range expectedEntityNames {
+		assert.Contains(t, schema.EntityTypes, entityName)
+	}
 	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], types.ValueType_INT64))
 
-	features := []string{"featureView1__int64", "featureView1__float32", "featureView2__int32", "featureView2__double", "od_bf1__odfv_f1", "od_bf1__odfv_f2"}
 	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum()}
-	for idx, featureName := range features {
+	for idx, featureName := range expectedFeatureNames {
 		assert.Contains(t, schema.FeaturesTypes, featureName)
 		assert.Equal(t, schema.FeaturesTypes[featureName], types[idx])
 	}
@@ -72,6 +91,61 @@ func TestSchemaRetrievalIgnoresEntitiesNotInFeatureService(t *testing.T) {
 	schema, err := GetSchemaFromFeatureService(featureService, entities, entityMap, featureViews, odfvs)
 	assert.Nil(t, err)
 	assert.Empty(t, schema.EntityTypes)
+}
+
+func TestSchemaUsesOrderInFeatureService(t *testing.T) {
+	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
+	expectedEntityNames := make([]string, 0)
+	expectedFeatureNames := make([]string, 0)
+	entityMap := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+	}
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+		expectedEntityNames = append(expectedEntityNames, entity.Name)
+	}
+	// Source of truth for order of featureNames
+	for _, featureView := range featureViews {
+		for _, f := range featureView.Base.Features {
+			expectedFeatureNames = append(expectedFeatureNames, GetFullFeatureName(featureView.Base.Name, f.Name))
+		}
+	}
+	for _, featureView := range odfvs {
+		for _, f := range featureView.Base.Features {
+			expectedFeatureNames = append(expectedFeatureNames, GetFullFeatureName(featureView.Base.Name, f.Name))
+		}
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	// Shuffle the featureNames in incorrect order
+	for _, featureView := range featureViews {
+		rand.Shuffle(len(featureView.Base.Features), func(i, j int) {
+			featureView.Base.Features[i], featureView.Base.Features[j] = featureView.Base.Features[j], featureView.Base.Features[i]
+		})
+	}
+	for _, featureView := range odfvs {
+		rand.Shuffle(len(featureView.Base.Features), func(i, j int) {
+			featureView.Base.Features[i], featureView.Base.Features[j] = featureView.Base.Features[j], featureView.Base.Features[i]
+		})
+	}
+
+	schema, err := GetSchemaFromFeatureService(featureService, entities, entityMap, featureViews, odfvs)
+	assert.Nil(t, err)
+
+	// Ensure the same results
+	assert.Equal(t, expectedFeatureNames, schema.Features)
+	assert.Equal(t, expectedEntityNames, schema.Entities)
+	for _, entityName := range expectedEntityNames {
+		assert.Contains(t, schema.EntityTypes, entityName)
+	}
+	assert.True(t, reflect.DeepEqual(schema.EntityTypes["driver_id"], types.ValueType_INT64))
+
+	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum()}
+	for idx, featureName := range expectedFeatureNames {
+		assert.Contains(t, schema.FeaturesTypes, featureName)
+		assert.Equal(t, schema.FeaturesTypes[featureName], types[idx])
+	}
 }
 
 func TestSerializeToArrowTable(t *testing.T) {

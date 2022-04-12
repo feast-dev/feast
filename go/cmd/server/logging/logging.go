@@ -290,8 +290,8 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 					joinKeysSet[entity.JoinKey] = nil
 				}
 			}
-		} else if odfv, ok := odFvs[featureViewName]; ok {
-			for _, f := range odfv.Base.Features {
+		} else if _, ok := odFvs[featureViewName]; ok {
+			for _, f := range featureProjection.Features {
 				// TODO(kevjumba) check in test here.
 				features = append(features, GetFullFeatureName(featureViewName, f.Name))
 				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
