@@ -130,7 +130,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest ]
         compile-go: [ True ]
         include:
@@ -173,7 +173,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest ]
         compile-go: [ True ]
         include:
