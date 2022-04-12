@@ -342,7 +342,7 @@ func (s *LoggingService) GetFcos() ([]*model.Entity, map[string]*model.Entity, [
 	return entities, entityMap, fvs, odfvs, nil
 }
 
-func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, entityMap map[string][]*types.Value, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
+func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, joinKeyToEntityValues map[string][]*types.Value, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
 	if len(features) <= 0 {
 		return nil
 	}
@@ -370,13 +370,13 @@ func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, enti
 			featureStatusLogRow[idx] = features[idx].Statuses[row_idx]
 			eventTimestampLogRow[idx] = features[idx].EventTimestamps[row_idx]
 		}
-		entityRow := make([]*types.Value, 0)
+		valuesPerEntityRow := make([]*types.Value, 0)
 		// ensure that the entity values are in the order that the schema defines which is the order that ListEntities returns the entities
 		for _, joinKey := range schema.Entities {
-			entityRow = append(entityRow, entityMap[joinKey][row_idx])
+			valuesPerEntityRow = append(valuesPerEntityRow, joinKeyToEntityValues[joinKey][row_idx])
 		}
 		newLog := Log{
-			EntityValue:     entityRow,
+			EntityValue:     valuesPerEntityRow,
 			FeatureValues:   featureValueLogRow,
 			FeatureStatuses: featureStatusLogRow,
 			EventTimestamps: eventTimestampLogRow,
