@@ -730,7 +730,7 @@ class PushSource(DataSource):
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
             push_options=options,
-            timestamp_sdk/python/feast/feature_view.pyself.timestamp_field,
+            timestamp_field=self.timestamp_field,
             description=self.description,
             tags=self.tags,
             owner=self.owner,

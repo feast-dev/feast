@@ -207,7 +207,6 @@ class FeatureView(BaseFeatureView):
         # current `features` parameter only accepts feature columns.
         _features = _schema
 
-
         cols = [entity for entity in self.entities] + [
             field.name for field in _features
         ]
