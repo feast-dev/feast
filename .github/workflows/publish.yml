@@ -130,11 +130,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
         os: [ ubuntu-latest, macOS-latest ]
+        compile-go: [ True ]
+        include:
+          - python-version: 3.7
+            os: ubuntu-latest
+            compile-go: False
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      COMPILE_GO: ${{ matrix.compile-go }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -167,12 +173,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
         os: [ ubuntu-latest, macOS-latest ]
+        compile-go: [ True ]
+        include:
+          - python-version: 3.7
+            os: ubuntu-latest
+            compile-go: False
     needs: get-version
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      COMPILE_GO: ${{ matrix.compile-go }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python

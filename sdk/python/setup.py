@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 from distutils.cmd import Command
+from distutils.dist import Distribution
 from pathlib import Path
 from subprocess import CalledProcessError
 
@@ -386,6 +387,13 @@ class DevelopCommand(develop):
         develop.run(self)
 
 
+class BinaryDistribution(Distribution):
+    """Distribution which forces a binary package with platform name
+     when go compilation is enabled"""
+    def has_ext_modules(foo):
+        return os.getenv("COMPILE_GO", "false").lower() == "true"
+
+
 setup(
     name=NAME,
     author=AUTHOR,
@@ -441,4 +449,5 @@ setup(
         "build_py": BuildCommand,
         "develop": DevelopCommand,
     },
+    distclass=BinaryDistribution,  # generate wheel with platform-specific name
 )
