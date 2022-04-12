@@ -28,6 +28,7 @@ type Log struct {
 	FeatureStatuses []serving.FieldStatus
 	EventTimestamps []*timestamppb.Timestamp
 	RequestContext  map[string]*types.RepeatedValue
+	RequestId       string
 }
 
 type MemoryBuffer struct {
@@ -157,6 +158,8 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 	columnNameToTimestamp := make(map[string][]int64)
 	entityNameToEntityValues := make(map[string][]*types.Value)
 
+	strBuilder := array.NewStringBuilder(arrowMemory)
+
 	for _, l := range memoryBuffer.logs {
 		// EntityTypes maps an entity name to the specific type and also which index in the entityValues array it is
 		// e.g if an Entity Key is {driver_id, customer_id}, then the driver_id entitytype would be dtype=int64, index=0.
@@ -180,6 +183,7 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 			columnNameToStatus[featureName] = append(columnNameToStatus[featureName], int32(l.FeatureStatuses[idx]))
 			columnNameToTimestamp[featureName] = append(columnNameToTimestamp[featureName], l.EventTimestamps[idx].AsTime().UnixNano()/int64(time.Millisecond))
 		}
+		strBuilder.Append(l.RequestId)
 	}
 
 	fields := make([]arrow.Field, 0)
@@ -226,6 +230,12 @@ func ConvertMemoryBufferToArrowTable(memoryBuffer *MemoryBuffer, fcoSchema *Sche
 		})
 		columns = append(columns, arrowArray)
 	}
+	fields = append(fields, arrow.Field{
+		Name: "RequestId",
+		Type: &arrow.StringType{},
+	})
+
+	columns = append(columns, strBuilder.NewArray())
 	schema := arrow.NewSchema(
 		fields,
 		nil,
@@ -312,7 +322,7 @@ func (s *LoggingService) GetFcos() ([]*model.Entity, []*model.FeatureView, []*mo
 	return entities, fvs, odfvs, nil
 }
 
-func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue) error {
+func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
 	// Add a log with the request context
 	if len(requestData) > 0 {
 		requestContextLog := Log{
@@ -358,6 +368,7 @@ func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featu
 			FeatureValues:   featureValueLogRow,
 			FeatureStatuses: featureStatusLogRow,
 			EventTimestamps: eventTimestampLogRow,
+			RequestId:       requestId,
 		}
 		err := l.EmitLog(&newLog)
 		if err != nil {

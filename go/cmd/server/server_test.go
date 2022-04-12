@@ -225,17 +225,23 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		values, err := test.GetProtoFromRecord(rec)
 
 		assert.Nil(t, err)
-		assert.Equal(t, len(values), len(expectedLogValues))
+		assert.Equal(t, len(values)-1 /*request id column not counted*/, len(expectedLogValues))
 		// Need to iterate through and compare because certain values in types.RepeatedValues aren't accurately being compared.
 		for name, val := range values {
-			assert.Equal(t, len(val.Val), len(expectedLogValues[name].Val))
-			for idx, featureVal := range val.Val {
-				assert.Equal(t, featureVal.Val, expectedLogValues[name].Val[idx].Val)
+			if name == "RequestId" {
+				// Ensure there are request ids for each entity.
+				assert.Equal(t, len(val.Val), len(response.Results[0].Values))
+			} else {
+				assert.Equal(t, len(val.Val), len(expectedLogValues[name].Val))
+				for idx, featureVal := range val.Val {
+					assert.Equal(t, featureVal.Val, expectedLogValues[name].Val[idx].Val)
+				}
 			}
+
 		}
 	}
-	// err = test.CleanUpLogs(logPath)
-	// assert.Nil(t, err)
+	err = test.CleanUpLogs(logPath)
+	assert.Nil(t, err)
 }
 
 // Generate the expected log rows based on the resulting feature vector returned from GetOnlineFeatures.

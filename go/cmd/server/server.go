@@ -8,6 +8,7 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	"github.com/google/uuid"
 )
 
 type servingServiceServer struct {
@@ -30,6 +31,7 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 // Metadata contains featurenames that corresponds to the number of rows in response.Results.
 // Results contains values including the value of the feature, the event timestamp, and feature status in a columnar format.
 func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
+	requestId := GenerateRequestId()
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
 	if err != nil {
 		return nil, err
@@ -72,6 +74,11 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: vector.Timestamps,
 		})
 	}
-	go s.loggingService.GenerateLogs(entityValuesMap, featureNames, resp.Results[len(request.Entities):], request.RequestContext)
+	go s.loggingService.GenerateLogs(entityValuesMap, featureNames, resp.Results[len(request.Entities):], request.RequestContext, requestId)
 	return resp, nil
+}
+
+func GenerateRequestId() string {
+	id := uuid.New()
+	return id.String()
 }
