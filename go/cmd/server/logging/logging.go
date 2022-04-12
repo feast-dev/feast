@@ -123,11 +123,11 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		return fmt.Errorf("could not get offline storage type for config: %s", s.fs.GetRepoConfig().OfflineStore)
 	}
 	if offlineStoreType == "file" {
-		entities, featureViews, odfvs, err := s.GetFcos()
+		entities, entityMap, featureViews, odfvs, err := s.GetFcos()
 		if err != nil {
 			return err
 		}
-		schema, err := GetSchemaFromFeatureService(s.memoryBuffer.featureService, entities, featureViews, odfvs)
+		schema, err := GetSchemaFromFeatureService(s.memoryBuffer.featureService, entities, entityMap, featureViews, odfvs)
 		if err != nil {
 			return err
 		}
@@ -254,26 +254,41 @@ type Schema struct {
 	FeaturesTypes map[string]types.ValueType_Enum
 }
 
-func GetSchemaFromFeatureService(featureService *model.FeatureService, entities []*model.Entity, featureViews []*model.FeatureView, onDemandFeatureViews []*model.OnDemandFeatureView) (*Schema, error) {
+func GetSchemaFromFeatureService(featureService *model.FeatureService, entities []*model.Entity, entityMap map[string]*model.Entity, featureViews []*model.FeatureView, onDemandFeatureViews []*model.OnDemandFeatureView) (*Schema, error) {
 	fvs := make(map[string]*model.FeatureView)
 	odFvs := make(map[string]*model.OnDemandFeatureView)
 
 	joinKeys := make([]string, 0)
-	for _, entity := range entities {
-		joinKeys = append(joinKeys, entity.JoinKey)
-	}
+	// All joinkeys in the featureService are put in here
+	joinKeysSet := make(map[string]interface{})
+	entityJoinKeyToType := make(map[string]types.ValueType_Enum)
 
 	for _, featureView := range featureViews {
 		fvs[featureView.Base.Name] = featureView
 	}
 
-	for _, onDemandFeatureView := range onDemandFeatureViews {
-		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
+	for _, projection := range featureService.Projections {
+		fv := fvs[projection.Name]
+		for entityName := range fv.Entities {
+			entity := entityMap[entityName]
+			if joinKeyAlias, ok := projection.JoinKeyMap[entity.JoinKey]; ok {
+				joinKeysSet[joinKeyAlias] = nil
+			} else {
+				joinKeysSet[entity.JoinKey] = nil
+			}
+		}
 	}
 
-	entityJoinKeyToType := make(map[string]types.ValueType_Enum)
+	// Only get entities in the current feature service.
 	for _, entity := range entities {
-		entityJoinKeyToType[entity.JoinKey] = entity.ValueType
+		if _, ok := joinKeysSet[entity.Name]; ok {
+			joinKeys = append(joinKeys, entity.JoinKey)
+			entityJoinKeyToType[entity.JoinKey] = entity.ValueType
+		}
+	}
+
+	for _, onDemandFeatureView := range onDemandFeatureViews {
+		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
 	}
 
 	allFeatureTypes := make(map[string]types.ValueType_Enum)
@@ -311,43 +326,39 @@ func GetFullFeatureName(featureViewName string, featureName string) string {
 	return fmt.Sprintf("%s__%s", featureViewName, featureName)
 }
 
-func (s *LoggingService) GetFcos() ([]*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView, error) {
+func (s *LoggingService) GetFcos() ([]*model.Entity, map[string]*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView, error) {
 	odfvs, err := s.fs.ListOnDemandFeatureViews()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	fvs, err := s.fs.ListFeatureViews()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	entities, err := s.fs.ListEntities(true)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return entities, fvs, odfvs, nil
+	entityMap := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+	}
+	return entities, entityMap, fvs, odfvs, nil
 }
 
-func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
-	// Add a log with the request context
-	// if len(requestData) > 0 {
-	// 	requestContextLog := Log{
-	// 		RequestContext: requestData,
-	// 	}
-	// 	l.EmitLog(&requestContextLog)
-	// }
-
+func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
 	if len(features) <= 0 {
 		return nil
 	}
 
-	entityArr, err := l.fs.ListEntities(true)
+	entities, entitySet, featureViews, odfvs, err := l.GetFcos()
 	if err != nil {
 		return err
 	}
+	schema, err := GetSchemaFromFeatureService(featureService, entities, entitySet, featureViews, odfvs)
 
-	joinKeys := make([]string, 0)
-	for _, entity := range entityArr {
-		joinKeys = append(joinKeys, entity.JoinKey)
+	if err != nil {
+		return err
 	}
 
 	numFeatures := len(featureNames)
@@ -365,7 +376,7 @@ func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featu
 		}
 		entityRow := make([]*types.Value, 0)
 		// ensure that the entity values are in the order that the schema defines which is the order that ListEntities returns the entities
-		for _, joinKey := range joinKeys {
+		for _, joinKey := range schema.Entities {
 			entityRow = append(entityRow, entityMap[joinKey][row_idx])
 		}
 		newLog := Log{
