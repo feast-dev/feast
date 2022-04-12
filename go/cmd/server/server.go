@@ -75,7 +75,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 		})
 	}
 	if featuresOrService.FeatureService != nil {
-		go s.loggingService.GenerateLogs(featuresOrService.FeatureService, entityValuesMap, featureNames, resp.Results[len(request.Entities):], request.RequestContext, requestId)
+		go s.loggingService.GenerateLogs(featuresOrService.FeatureService, entityValuesMap, resp.Results[len(request.Entities):], request.RequestContext, requestId)
 	}
 	return resp, nil
 }

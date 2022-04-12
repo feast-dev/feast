@@ -267,26 +267,6 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		fvs[featureView.Base.Name] = featureView
 	}
 
-	for _, projection := range featureService.Projections {
-		fv := fvs[projection.Name]
-		for entityName := range fv.Entities {
-			entity := entityMap[entityName]
-			if joinKeyAlias, ok := projection.JoinKeyMap[entity.JoinKey]; ok {
-				joinKeysSet[joinKeyAlias] = nil
-			} else {
-				joinKeysSet[entity.JoinKey] = nil
-			}
-		}
-	}
-
-	// Only get entities in the current feature service.
-	for _, entity := range entities {
-		if _, ok := joinKeysSet[entity.Name]; ok {
-			joinKeys = append(joinKeys, entity.JoinKey)
-			entityJoinKeyToType[entity.JoinKey] = entity.ValueType
-		}
-	}
-
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
 	}
@@ -297,10 +277,18 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 		// Create copies of FeatureView that may contains the same *FeatureView but
 		// each differentiated by a *FeatureViewProjection
 		featureViewName := featureProjection.Name
-		if _, ok := fvs[featureViewName]; ok {
+		if fv, ok := fvs[featureViewName]; ok {
 			for _, f := range featureProjection.Features {
 				features = append(features, GetFullFeatureName(featureViewName, f.Name))
 				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
+			}
+			for entityName := range fv.Entities {
+				entity := entityMap[entityName]
+				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entity.JoinKey]; ok {
+					joinKeysSet[joinKeyAlias] = nil
+				} else {
+					joinKeysSet[entity.JoinKey] = nil
+				}
 			}
 		} else if odfv, ok := odFvs[featureViewName]; ok {
 			for _, f := range odfv.Base.Features {
@@ -310,6 +298,14 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 			}
 		} else {
 			return nil, fmt.Errorf("no such feature view found in feature service %s", featureViewName)
+		}
+	}
+
+	// Only get entities in the current feature service.
+	for _, entity := range entities {
+		if _, ok := joinKeysSet[entity.Name]; ok {
+			joinKeys = append(joinKeys, entity.JoinKey)
+			entityJoinKeyToType[entity.JoinKey] = entity.ValueType
 		}
 	}
 
@@ -346,7 +342,7 @@ func (s *LoggingService) GetFcos() ([]*model.Entity, map[string]*model.Entity, [
 	return entities, entityMap, fvs, odfvs, nil
 }
 
-func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
+func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, entityMap map[string][]*types.Value, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
 	if len(features) <= 0 {
 		return nil
 	}
@@ -361,7 +357,7 @@ func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, enti
 		return err
 	}
 
-	numFeatures := len(featureNames)
+	numFeatures := len(schema.Features)
 	// Should be equivalent to how many entities there are(each feature row has (entity) number of features)
 	numRows := len(features[0].Values)
 
