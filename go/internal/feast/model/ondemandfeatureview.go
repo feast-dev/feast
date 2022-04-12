@@ -55,8 +55,8 @@ func (fs *OnDemandFeatureView) ProjectWithFeatures(featureNames []string) (*OnDe
 func (fs *OnDemandFeatureView) GetRequestDataSchema() map[string]types.ValueType_Enum {
 	schema := make(map[string]types.ValueType_Enum)
 	for _, requestDataSource := range fs.SourceRequestDataSources {
-		for fieldName, fieldValueType := range requestDataSource.Schema {
-			schema[fieldName] = fieldValueType
+		for _, spec := range requestDataSource.Schema {
+			schema[spec.Name] = spec.ValueType
 		}
 	}
 	return schema
