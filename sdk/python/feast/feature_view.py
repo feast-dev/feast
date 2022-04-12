@@ -255,12 +255,6 @@ class FeatureView(BaseFeatureView):
                 DeprecationWarning,
             )
             if stream_source is not None and isinstance(stream_source, PushSource):
-                if stream_source.batch_source is None or not isinstance(
-                    stream_source.batch_source, DataSource
-                ):
-                    raise ValueError(
-                        f"A batch_source needs to be specified for feature view `{name}`"
-                    )
                 self.stream_source = stream_source
                 self.batch_source = stream_source.batch_source
             else:
