@@ -31,7 +31,7 @@ def driver_feature_view(
         entities=["driver"],
         schema=None if infer_features else [Field(name="value", dtype=dtype)],
         ttl=timedelta(days=5),
-        batch_source=data_source,
+        source=data_source,
     )
 
 
@@ -49,7 +49,7 @@ def global_feature_view(
         if infer_features
         else [Feature(name="entityless_value", dtype=value_type)],
         ttl=timedelta(days=5),
-        batch_source=data_source,
+        source=data_source,
     )
 
 
@@ -162,7 +162,7 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
             Field(name="acc_rate", dtype=Float32),
             Field(name="avg_daily_trips", dtype=Int32),
         ],
-        batch_source=source,
+        source=source,
         ttl=timedelta(hours=2),
     )
     return driver_stats_feature_view
@@ -179,7 +179,7 @@ def create_customer_daily_profile_feature_view(source, infer_features: bool = Fa
             Field(name="avg_passenger_count", dtype=Float32),
             Field(name="lifetime_trip_count", dtype=Int32),
         ],
-        batch_source=source,
+        source=source,
         ttl=timedelta(days=2),
     )
     return customer_profile_feature_view
@@ -196,7 +196,7 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
             Feature(name="num_rides", dtype=ValueType.INT32),
             Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
         ],
-        batch_source=source,
+        source=source,
         ttl=timedelta(days=2),
     )
     return global_stats_feature_view
@@ -209,7 +209,7 @@ def create_order_feature_view(source, infer_features: bool = False):
         schema=None
         if infer_features
         else [Field(name="order_is_success", dtype=Int32)],
-        batch_source=source,
+        source=source,
         ttl=timedelta(days=2),
     )
 
@@ -219,7 +219,7 @@ def create_location_stats_feature_view(source, infer_features: bool = False):
         name="location_stats",
         entities=["location_id"],
         schema=None if infer_features else [Field(name="temperature", dtype=Int32)],
-        batch_source=source,
+        source=source,
         ttl=timedelta(days=2),
     )
     return location_stats_feature_view
@@ -231,7 +231,7 @@ def create_field_mapping_feature_view(source):
         entities=[],
         # Test that Features still work for FeatureViews.
         features=[Feature(name="feature_name", dtype=ValueType.INT32)],
-        batch_source=source,
+        source=source,
         ttl=timedelta(days=2),
     )
 
@@ -252,5 +252,5 @@ def create_pushable_feature_view(batch_source: DataSource):
         # Test that Features still work for FeatureViews.
         features=[Feature(name="temperature", dtype=ValueType.INT32)],
         ttl=timedelta(days=2),
-        stream_source=push_source,
+        source=push_source,
     )
