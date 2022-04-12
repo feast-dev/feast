@@ -29,9 +29,8 @@ from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
-from feast.types import Array, Bytes, Float32, Int32, Int64, String, PrimitiveFeastType
+from feast.types import Array, Bytes, Float32, Int32, Int64, PrimitiveFeastType, String
 from feast.value_type import ValueType
-from feast.field import Field
 
 
 @pytest.fixture

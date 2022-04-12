@@ -29,7 +29,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import String, UnixTimestamp, PrimitiveFeastType
+from feast.types import PrimitiveFeastType, String, UnixTimestamp
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
