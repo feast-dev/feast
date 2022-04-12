@@ -27,7 +27,7 @@ type Log struct {
 	FeatureValues   []*types.Value
 	FeatureStatuses []serving.FieldStatus
 	EventTimestamps []*timestamppb.Timestamp
-	RequestContext  map[string]*types.RepeatedValue
+	RequestContext  map[string]*types.Value
 	RequestId       string
 }
 
@@ -99,13 +99,13 @@ func (s *LoggingService) processLogs() {
 	defer ticker.Stop()
 
 	for {
-		s.HandleLogFlushing(ticker)
+		s.PerformPeriodicAppendToMemoryBufferAndLogFlush(ticker)
 	}
 }
 
-// Select that eitheringests new logs that are added to the logging channel, one at a time to add
-// to the in memory buffer or flushes all of them synchronously to the OfflineStorage on a time interval.
-func (s *LoggingService) HandleLogFlushing(t *time.Ticker) {
+// Select that either ingests new logs that are added to the logging channel, one at a time to add
+// to the in-memory buffer or flushes all of them synchronously to the OfflineStorage on a time interval.
+func (s *LoggingService) PerformPeriodicAppendToMemoryBufferAndLogFlush(t *time.Ticker) {
 	select {
 	case t := <-t.C:
 		s.flushLogsToOfflineStorage(t)
@@ -329,12 +329,12 @@ func (s *LoggingService) GetFcos() ([]*model.Entity, []*model.FeatureView, []*mo
 
 func (l *LoggingService) GenerateLogs(entityMap map[string][]*types.Value, featureNames []string, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
 	// Add a log with the request context
-	if len(requestData) > 0 {
-		requestContextLog := Log{
-			RequestContext: requestData,
-		}
-		l.EmitLog(&requestContextLog)
-	}
+	// if len(requestData) > 0 {
+	// 	requestContextLog := Log{
+	// 		RequestContext: requestData,
+	// 	}
+	// 	l.EmitLog(&requestContextLog)
+	// }
 
 	if len(features) <= 0 {
 		return nil

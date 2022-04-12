@@ -54,7 +54,7 @@ func NewFileOfflineStore(project string, offlineStoreConfig *OfflineLogStoreConf
 	return &store, nil
 }
 
-func OpenLogFile(absPath string) (*os.File, error) {
+func openLogFile(absPath string) (*os.File, error) {
 	var _, err = os.Stat(absPath)
 
 	// create file if not exists
@@ -70,7 +70,7 @@ func OpenLogFile(absPath string) (*os.File, error) {
 }
 
 func (f *FileLogStorage) FlushToStorage(tbl array.Table) error {
-	w, err := OpenLogFile(f.path)
+	w, err := openLogFile(f.path)
 	var writer io.Writer = w
 	if err != nil {
 		return err

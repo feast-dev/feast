@@ -195,6 +195,7 @@ func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataTy
 		}
 		expectedSchema[joinKey] = arrowType
 	}
+	expectedSchema["RequestId"] = arrow.BinaryTypes.String
 	for featureName, featureType := range schema.FeaturesTypes {
 		arrowType, err := gotypes.ValueTypeEnumToArrowType(featureType)
 		if err != nil {
@@ -209,22 +210,22 @@ func GetTestArrowTableAndExpectedResults() (array.Table, map[string]arrow.DataTy
 				log1.EntityValue[0],
 				log2.EntityValue[0]},
 		},
-		"int64": {
+		"featureView1__int64": {
 			Val: []*types.Value{
 				log1.FeatureValues[0],
 				log2.FeatureValues[0]},
 		},
-		"float32": {
+		"featureView1__float32": {
 			Val: []*types.Value{
 				log1.FeatureValues[1],
 				log2.FeatureValues[1]},
 		},
-		"int32": {
+		"featureView2__int32": {
 			Val: []*types.Value{
 				log1.FeatureValues[2],
 				log2.FeatureValues[2]},
 		},
-		"double": {
+		"featureView2__double": {
 			Val: []*types.Value{
 				log1.FeatureValues[3],
 				log2.FeatureValues[3]},
@@ -256,7 +257,7 @@ func SetupLoggingServiceWithLogs(logs []*Log) (*LoggingService, error) {
 	}
 	// manually handle flushing logs
 	for i := 0; i < len(logs); i++ {
-		loggingService.HandleLogFlushing(dummyTicker)
+		loggingService.PerformPeriodicAppendToMemoryBufferAndLogFlush(dummyTicker)
 	}
 	return loggingService, nil
 }
