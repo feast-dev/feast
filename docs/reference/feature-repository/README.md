@@ -94,7 +94,7 @@ A feature repository can also contain one or more Python files that contain feat
 ```python
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
+from feast import BigQuerySource, Entity, Feature, FeatureView, Field, Float32, String, ValueType
 
 driver_locations_source = BigQuerySource(
     table_ref="rh_prod.ride_hailing_co.drivers",
@@ -112,9 +112,9 @@ driver_locations = FeatureView(
     name="driver_locations",
     entities=["driver"],
     ttl=timedelta(days=1),
-    features=[
-        Feature(name="lat", dtype=ValueType.FLOAT),
-        Feature(name="lon", dtype=ValueType.STRING),
+    schema=[
+        Field(name="lat", dtype=Float32),
+        Field(name="lon", dtype=String),
     ],
     batch_source=driver_locations_source,
 )

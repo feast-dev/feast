@@ -16,9 +16,10 @@ from datetime import timedelta
 
 from feast import BigQuerySource
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.infra.provider import _get_column_names
+from feast.types import String
 from feast.value_type import ValueType
 
 
@@ -29,17 +30,17 @@ def test_get_column_names_preserves_feature_ordering():
         entities=["my-entity"],
         ttl=timedelta(days=1),
         batch_source=BigQuerySource(table="non-existent-mock"),
-        features=[
-            Feature(name="a", dtype=ValueType.STRING),
-            Feature(name="b", dtype=ValueType.STRING),
-            Feature(name="c", dtype=ValueType.STRING),
-            Feature(name="d", dtype=ValueType.STRING),
-            Feature(name="e", dtype=ValueType.STRING),
-            Feature(name="f", dtype=ValueType.STRING),
-            Feature(name="g", dtype=ValueType.STRING),
-            Feature(name="h", dtype=ValueType.STRING),
-            Feature(name="i", dtype=ValueType.STRING),
-            Feature(name="j", dtype=ValueType.STRING),
+        schema=[
+            Field(name="a", dtype=String),
+            Field(name="b", dtype=String),
+            Field(name="c", dtype=String),
+            Field(name="d", dtype=String),
+            Field(name="e", dtype=String),
+            Field(name="f", dtype=String),
+            Field(name="g", dtype=String),
+            Field(name="h", dtype=String),
+            Field(name="i", dtype=String),
+            Field(name="j", dtype=String),
         ],
     )
 

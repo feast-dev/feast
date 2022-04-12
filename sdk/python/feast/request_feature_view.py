@@ -4,8 +4,8 @@ from typing import Dict, List, Optional, Type
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
-from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
+from feast.field import Field, from_value_type
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
@@ -31,7 +31,7 @@ class RequestFeatureView(BaseFeatureView):
 
     name: str
     request_source: RequestSource
-    features: List[Feature]
+    features: List[Field]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -66,8 +66,8 @@ class RequestFeatureView(BaseFeatureView):
         super().__init__(
             name=name,
             features=[
-                Feature(name=name, dtype=dtype)
-                for name, dtype in request_data_source.schema.items()
+                Field(name=name, dtype=from_value_type(value_type))
+                for name, value_type in request_data_source.schema.items()
             ],
             description=description,
             tags=tags,

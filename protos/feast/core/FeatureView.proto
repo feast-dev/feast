@@ -48,7 +48,7 @@ message FeatureViewSpec {
     // Feature View. Not updatable.
     repeated string entities = 3;
 
-    // List of features specifications for each feature defined with this feature view.
+    // List of specifications for each field defined as part of this feature view.
     repeated FeatureSpecV2 features = 4;
 
     // Description of the feature view.

@@ -18,8 +18,8 @@ from typing import Dict, List, Optional, Type
 from google.protobuf.json_format import MessageToJson
 from proto import Message
 
-from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
+from feast.field import Field
 
 
 class BaseFeatureView(ABC):
@@ -41,7 +41,7 @@ class BaseFeatureView(ABC):
     """
 
     name: str
-    features: List[Feature]
+    features: List[Field]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -53,8 +53,8 @@ class BaseFeatureView(ABC):
     def __init__(
         self,
         *,
-        name: Optional[str] = None,
-        features: Optional[List[Feature]] = None,
+        name: str,
+        features: Optional[List[Field]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -64,7 +64,7 @@ class BaseFeatureView(ABC):
 
         Args:
             name: The unique name of the base feature view.
-            features: The list of features defined as part of this base feature view.
+            features (optional): The list of features defined as part of this base feature view.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the base feature view, typically the email of the
@@ -73,12 +73,9 @@ class BaseFeatureView(ABC):
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        if not name:
-            raise ValueError("Name needs to be provided")
+        assert name is not None
         self.name = name
-
         self.features = features or []
-
         self.description = description
         self.tags = tags or {}
         self.owner = owner

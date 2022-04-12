@@ -107,7 +107,7 @@ pyarrow.parquet.write_table(entities_2019_table, "entities.parquet")
 import pyarrow.parquet
 import pandas as pd
 
-from feast import Feature, FeatureView, Entity, FeatureStore
+from feast import Feature, FeatureView, Entity, FeatureStore, Field, Float64, Int64
 from feast.value_type import ValueType
 from feast.data_format import ParquetFormat
 from feast.on_demand_feature_view import on_demand_feature_view
@@ -137,10 +137,10 @@ trips_stats_fv = FeatureView(
     name='trip_stats',
     entities=['taxi'],
     features=[
-        Feature("total_miles_travelled", ValueType.DOUBLE),
-        Feature("total_trip_seconds", ValueType.DOUBLE),
-        Feature("total_earned", ValueType.DOUBLE),
-        Feature("trip_count", ValueType.INT64),
+        Field(name="total_miles_travelled", dtype=Float64),
+        Field(name="total_trip_seconds", dtype=Float64),
+        Field(name="total_earned", dtype=Float64),
+        Field(name="trip_count", dtype=Int64),
 
     ],
     ttl=Duration(seconds=86400),

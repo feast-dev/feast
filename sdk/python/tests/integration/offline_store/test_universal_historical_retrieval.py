@@ -15,12 +15,13 @@ from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityDfException,
 )
-from feast.feature import Feature
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
+from feast.types import Int32
 from feast.value_type import ValueType
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -688,7 +689,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
     driver_fv = FeatureView(
         name="driver_stats",
         entities=["driver"],
-        features=[Feature(name="avg_daily_trips", dtype=ValueType.INT32)],
+        schema=[Field(name="avg_daily_trips", dtype=Int32)],
         batch_source=driver_stats_data_source,
         ttl=None,
     )

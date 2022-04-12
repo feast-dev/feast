@@ -14,7 +14,7 @@ When using a PushSource as a stream source in the definition of a feature view, 
 ### Defining a push source
 
 ```python
-from feast import PushSource, ValueType, BigQuerySource, FeatureView, Feature
+from feast import PushSource, ValueType, BigQuerySource, FeatureView, Feature, Field, Int64
 
 push_source = PushSource(
     name="push_source",
@@ -25,7 +25,7 @@ push_source = PushSource(
 fv = FeatureView(
     name="feature view",
     entities=["user_id"],
-    features=[Feature(name="life_time_value", dtype=ValueType.INT64)],
+    schema=[Field(name="life_time_value", dtype=Int64)],
     stream_source=push_source,
 )
 ```

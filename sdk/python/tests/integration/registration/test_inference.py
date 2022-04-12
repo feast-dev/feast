@@ -172,8 +172,8 @@ def test_on_demand_features_type_inference():
     @on_demand_feature_view(
         sources={"date_request": date_request},
         features=[
-            Feature("output", ValueType.UNIX_TIMESTAMP),
-            Feature("string_output", ValueType.STRING),
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="string_output", dtype=ValueType.STRING),
         ],
     )
     def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -187,8 +187,8 @@ def test_on_demand_features_type_inference():
     @on_demand_feature_view(
         sources={"date_request": date_request},
         features=[
-            Feature("output", ValueType.UNIX_TIMESTAMP),
-            Feature("object_output", ValueType.STRING),
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="object_output", dtype=ValueType.STRING),
         ],
     )
     def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -203,8 +203,8 @@ def test_on_demand_features_type_inference():
     @on_demand_feature_view(
         sources={"date_request": date_request},
         features=[
-            Feature("output", ValueType.UNIX_TIMESTAMP),
-            Feature("missing", ValueType.STRING),
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="missing", dtype=ValueType.STRING),
         ],
     )
     def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -225,8 +225,8 @@ def test_datasource_inference():
     @on_demand_feature_view(
         sources={"date_request": date_request},
         features=[
-            Feature("output", ValueType.UNIX_TIMESTAMP),
-            Feature("string_output", ValueType.STRING),
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="string_output", dtype=ValueType.STRING),
         ],
     )
     def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -240,8 +240,8 @@ def test_datasource_inference():
     @on_demand_feature_view(
         sources={"date_request": date_request},
         features=[
-            Feature("output", ValueType.UNIX_TIMESTAMP),
-            Feature("object_output", ValueType.STRING),
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="object_output", dtype=ValueType.STRING),
         ],
     )
     def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -256,8 +256,8 @@ def test_datasource_inference():
     @on_demand_feature_view(
         sources={"date_request": date_request},
         features=[
-            Feature("output", ValueType.UNIX_TIMESTAMP),
-            Feature("missing", ValueType.STRING),
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="missing", dtype=ValueType.STRING),
         ],
     )
     def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
