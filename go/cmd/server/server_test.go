@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -196,8 +197,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		FullFeatureNames: true,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
-	// Wait for logger to flush.
-	assert.Eventually(t, func() bool { return true }, 1*time.Second, logging.DEFAULT_LOG_FLUSH_INTERVAL)
+
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
 
@@ -208,6 +208,15 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results[len(request.Entities):])
 	expectedLogValues["driver_id"] = entities["driver_id"]
 	logPath, err := filepath.Abs(filepath.Join(dir, "log.parquet"))
+	// Wait for logger to flush.
+	assert.Eventually(t, func() bool {
+		var _, err = os.Stat(logPath)
+		if os.IsNotExist(err) {
+			return false
+		} else {
+			return true
+		}
+	}, 1*time.Second, logging.DEFAULT_LOG_FLUSH_INTERVAL)
 	assert.Nil(t, err)
 	pf, err := file.OpenParquetFile(logPath, false)
 	assert.Nil(t, err)

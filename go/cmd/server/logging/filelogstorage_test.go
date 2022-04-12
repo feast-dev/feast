@@ -53,8 +53,8 @@ func TestFlushToStorage(t *testing.T) {
 		assert.Nil(t, err)
 		for name, val := range values {
 			if name == "RequestId" {
-				// Ensure there are request ids for each entity.
-				assert.Equal(t, len(val.Val), 2)
+				// Ensure there are request ids in record.
+				assert.Greater(t, len(val.Val), 0)
 			} else {
 				assert.Equal(t, len(val.Val), len(expectedColumns[name].Val))
 				for idx, featureVal := range val.Val {
