@@ -18,7 +18,6 @@ import re
 import shutil
 import subprocess
 from distutils.cmd import Command
-from distutils.dist import Distribution
 from pathlib import Path
 from subprocess import CalledProcessError
 
@@ -29,9 +28,11 @@ try:
     from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
     from setuptools.command.install import install
+    from setuptools.dist import Distribution
 except ImportError:
     from distutils.command.build_py import build_py
     from distutils.core import setup
+    from distutils.dist import Distribution
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -390,7 +391,7 @@ class DevelopCommand(develop):
 class BinaryDistribution(Distribution):
     """Distribution which forces a binary package with platform name
      when go compilation is enabled"""
-    def has_ext_modules(foo):
+    def has_ext_modules(self):
         return os.getenv("COMPILE_GO", "false").lower() == "true"
 
 
