@@ -17,7 +17,6 @@ from feast import (
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.field import Field
 from feast.types import FeastType, PrimitiveFeastType
 from tests.integration.feature_repos.universal.entities import location
 
@@ -126,7 +125,7 @@ def similarity_feature_view(
 def create_conv_rate_request_source():
     return RequestSource(
         name="conv_rate_input",
-        schema=[Field(name="val_to_add", dtype=PrimitiveFeastType.INT32),],
+        schema=[Field(name="val_to_add", dtype=PrimitiveFeastType.INT32)],
     )
 
 

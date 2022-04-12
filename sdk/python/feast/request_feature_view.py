@@ -5,8 +5,7 @@ from typing import Dict, List, Optional, Type
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.feature_view_projection import FeatureViewProjection
-from requests import request
-from feast.field import Field, from_value_type
+from feast.field import Field
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
