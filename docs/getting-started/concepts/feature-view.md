@@ -138,6 +138,8 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 On demand feature views allows users to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths:
 
 ```python
+from feast import Field, Float64, RequestSource
+
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
@@ -150,13 +152,13 @@ input_request = RequestSource(
 
 # Use the input data and feature view features to create new features
 @on_demand_feature_view(
-   inputs={
+   sources={
        'driver_hourly_stats': driver_hourly_stats_view,
        'vals_to_add': input_request
    },
-   features=[
-     Feature(name='conv_rate_plus_val1', dtype=ValueType.DOUBLE),
-     Feature(name='conv_rate_plus_val2', dtype=ValueType.DOUBLE)
+   schema=[
+     Field(name='conv_rate_plus_val1', dtype=Float64),
+     Field(name='conv_rate_plus_val2', dtype=Float64)
    ]
 )
 def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
