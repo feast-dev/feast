@@ -124,8 +124,7 @@ def similarity_feature_view(
 
 def create_conv_rate_request_source():
     return RequestSource(
-        name="conv_rate_input",
-        schema=[Field(name="val_to_add", dtype=Int32)],
+        name="conv_rate_input", schema=[Field(name="val_to_add", dtype=Int32)],
     )
 
 
