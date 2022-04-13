@@ -3,9 +3,10 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from feast import Field, Float64
+from feast import Field
 from feast.errors import SpecifiedFeaturesNotPresentError
 from feast.infra.offline_stores.file_source import FileSource
+from feast.types import Float64
 from tests.integration.feature_repos.universal.entities import customer, driver, item
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,

@@ -6,12 +6,10 @@ from feast import (
     FeatureService,
     FeatureView,
     Field,
-    Float32,
-    Int64,
     PushSource,
-    String,
     ValueType,
 )
+from feast.types import Float32, Int64, String
 
 driver_locations_source = BigQuerySource(
     table="feast-oss.public.drivers",
