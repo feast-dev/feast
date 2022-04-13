@@ -1284,28 +1284,6 @@ class FeatureStore:
                 except KeyError as e:
                     raise ValueError("All entity_rows must have the same keys.") from e
 
-        # If Go feature server is enabled, send request to it instead of going through a regular Python logic
-        if self.config.go_feature_server:
-            from feast.embedded_go.online_features_service import (
-                EmbeddedOnlineFeatureServer,
-            )
-
-            # Lazily start the go server on the first request
-            if self._go_server is None:
-                self._go_server = EmbeddedOnlineFeatureServer(
-                    str(self.repo_path.absolute()), self.config, self
-                )
-
-            return self._go_server.get_online_features(
-                features_refs=features if isinstance(features, list) else [],
-                feature_service=features
-                if isinstance(features, FeatureService)
-                else None,
-                entities=columnar,
-                request_data={},  # TODO: add request data parameter to public API
-                full_feature_names=full_feature_names,
-            )
-
         return self._get_online_features(
             features=features,
             entity_values=columnar,
@@ -1322,6 +1300,28 @@ class FeatureStore:
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
+        # If Go feature server is enabled, send request to it instead of going through regular Python logic
+        if self.config.go_feature_server:
+            from feast.embedded_go.online_features_service import (
+                EmbeddedOnlineFeatureServer,
+            )
+
+            # Lazily start the go server on the first request
+            if self._go_server is None:
+                self._go_server = EmbeddedOnlineFeatureServer(
+                    str(self.repo_path.absolute()), self.config, self
+                )
+
+            return self._go_server.get_online_features(
+                features_refs=features if isinstance(features, list) else [],
+                feature_service=features
+                if isinstance(features, FeatureService)
+                else None,
+                entities=entity_values,
+                request_data={},  # TODO: add request data parameter to public API
+                full_feature_names=full_feature_names,
+            )
+
         _feature_refs = self._get_features(features, allow_cache=True)
         (
             requested_feature_views,
