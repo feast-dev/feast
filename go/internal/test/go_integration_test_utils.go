@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -121,12 +122,22 @@ func SetupCleanFeatureRepo(basePath string) error {
 	return nil
 }
 
-func MaterializeInInitializedRepo(basePath string) error {
+func SetupInitializedRepo(basePath string) error {
 	path, err := filepath.Abs(basePath)
 	if err != nil {
 		return err
 	}
-	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo/"))
+	applyCommand := exec.Command("feast", "apply")
+	applyCommand.Env = os.Environ()
+	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	if err != nil {
+		return err
+	}
+	var stderr bytes.Buffer
+
+	applyCommand.Dir = feature_repo_path
+	applyCommand.Stderr = &stderr
+	err = applyCommand.Run()
 	if err != nil {
 		return err
 	}
@@ -135,6 +146,7 @@ func MaterializeInInitializedRepo(basePath string) error {
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second())
+
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = feature_repo_path
