@@ -28,8 +28,6 @@ func TestLoggingChannelTimeout(t *testing.T) {
 		EventTimestamps: []*timestamppb.Timestamp{ts, ts},
 	}
 	loggingService.EmitLog(&newLog)
-	// Wait for memory buffer flush
-
 	newTs := timestamppb.New(time.Now())
 
 	newLog2 := Log{

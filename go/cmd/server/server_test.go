@@ -19,13 +19,11 @@ import (
 	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/test"
-	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Return absolute path to the test_repo directory regardless of the working directory
@@ -71,7 +69,6 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, en
 	if err != nil {
 		panic(err)
 	}
-	CreateFeatureServiceInFeatureStore(fs)
 	loggingService, err := logging.NewLoggingService(fs, 1000, "test_service", enableLogging)
 	if err != nil {
 		panic(err)
@@ -103,7 +100,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "."
-	err := test.SetupFeatureRepo(dir)
+	err := test.SetupFeatureCleanRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, "", dir, false)
@@ -117,7 +114,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "."
-	err := test.SetupFeatureRepo(dir)
+	err := test.SetupFeatureCleanRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, "", dir, false)
@@ -174,8 +171,8 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "."
-	err := test.SetupFeatureRepo(dir)
+	dir := "./logging/"
+	err := test.SetupFeatureRepoFromInitializedRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, "file", dir, true)
@@ -275,44 +272,5 @@ func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeatu
 			Val: valArray,
 		}
 	}
-
 	return featureValueLogRows, featureStatusLogRows, eventTimestampLogRows
-}
-
-func CreateFeatureServiceInFeatureStore(fs *feast.FeatureStore) {
-	f1 := core.FeatureSpecV2{
-		Name:      "acc_rate",
-		ValueType: types.ValueType_FLOAT,
-	}
-	f2 := core.FeatureSpecV2{
-		Name:      "conv_rate",
-		ValueType: types.ValueType_FLOAT,
-	}
-	f3 := core.FeatureSpecV2{
-		Name:      "avg_daily_trips",
-		ValueType: types.ValueType_INT64,
-	}
-	projection1 := core.FeatureViewProjection{
-		FeatureViewName:      "driver_hourly_stats",
-		FeatureViewNameAlias: "",
-		FeatureColumns:       []*core.FeatureSpecV2{&f1, &f2, &f3},
-		JoinKeyMap:           map[string]string{},
-	}
-	featureServiceSpec := &core.FeatureServiceSpec{
-		Name:     "test_service",
-		Project:  "feature_repo",
-		Features: []*core.FeatureViewProjection{&projection1},
-	}
-	ts := timestamppb.New(time.Now())
-	featureServiceMeta := &core.FeatureServiceMeta{
-		CreatedTimestamp:     ts,
-		LastUpdatedTimestamp: ts,
-	}
-	featureService := &core.FeatureService{
-		Spec: featureServiceSpec,
-		Meta: featureServiceMeta,
-	}
-	registry := fs.Registry()
-
-	registry.CacheFeatureService(featureService)
 }

@@ -85,7 +85,7 @@ func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 	return correctFeatureRows
 }
 
-func SetupFeatureRepo(basePath string) error {
+func SetupFeatureCleanRepo(basePath string) error {
 	cmd := exec.Command("feast", "init", "feature_repo")
 	path, err := filepath.Abs(basePath)
 	cmd.Env = os.Environ()
@@ -98,6 +98,34 @@ func SetupFeatureRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
+	applyCommand := exec.Command("feast", "apply")
+	applyCommand.Env = os.Environ()
+	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	if err != nil {
+		return err
+	}
+	applyCommand.Dir = feature_repo_path
+	err = applyCommand.Run()
+	if err != nil {
+		return err
+	}
+	t := time.Now()
+
+	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
+	materializeCommand.Env = os.Environ()
+	materializeCommand.Dir = feature_repo_path
+	err = materializeCommand.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SetupFeatureRepoFromInitializedRepo(basePath string) error {
+	path, err := filepath.Abs(basePath)
 	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
 	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
