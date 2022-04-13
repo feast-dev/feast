@@ -182,7 +182,7 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
     ts = pd.Timestamp(datetime.utcnow()).round("ms")
     entity_df["ts"] = [
         ts - timedelta(hours=4),
-        ts - timedelta(hours=1),
+        ts - timedelta(hours=2),
     ]
     features = [f"{fv.name}:value"]
 
