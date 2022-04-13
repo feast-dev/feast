@@ -100,7 +100,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "logging/"
-	err := test.SetupFeatureRepoFromInitializedRepo(dir)
+	err := test.MaterializeInInitializedRepo(dir)
 	assert.Nil(t, err)
 	client, closer := getClient(ctx, "", dir, false)
 	defer closer()
@@ -113,7 +113,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "logging/"
-	err := test.SetupFeatureRepoFromInitializedRepo(dir)
+	err := test.MaterializeInInitializedRepo(dir)
 	assert.Nil(t, err)
 	client, closer := getClient(ctx, "", dir, false)
 	defer closer()
@@ -170,7 +170,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
 	dir := "logging/"
-	err := test.SetupFeatureRepoFromInitializedRepo(dir)
+	err := test.MaterializeInInitializedRepo(dir)
 	assert.Nil(t, err)
 	client, closer := getClient(ctx, "file", dir, true)
 	defer closer()

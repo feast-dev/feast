@@ -121,21 +121,15 @@ func SetupCleanFeatureRepo(basePath string) error {
 	return nil
 }
 
-func SetupFeatureRepoFromInitializedRepo(basePath string) error {
+func MaterializeInInitializedRepo(basePath string) error {
 	path, err := filepath.Abs(basePath)
 	if err != nil {
 		return err
 	}
-
-	applyCommand := exec.Command("feast", "apply")
-	applyCommand.Env = os.Environ()
-	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo/"))
 	if err != nil {
-
 		return err
 	}
-	applyCommand.Dir = feature_repo_path
-	applyCommand.Run()
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
@@ -144,10 +138,8 @@ func SetupFeatureRepoFromInitializedRepo(basePath string) error {
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = feature_repo_path
-	err = materializeCommand.Run()
-	if err != nil {
-		return err
-	}
+	materializeCommand.Start()
+	materializeCommand.Wait()
 	return nil
 }
 
