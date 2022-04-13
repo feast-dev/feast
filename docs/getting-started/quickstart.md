@@ -82,7 +82,8 @@ online_store:
 
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, Float32, Int64, ValueType
+from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
@@ -151,7 +152,8 @@ feast apply
 
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, Float32, Int64, ValueType
+from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation

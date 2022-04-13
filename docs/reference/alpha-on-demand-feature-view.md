@@ -28,7 +28,8 @@ See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.c
 We register `RequestDataSource` inputs and the transform in `on_demand_feature_view`:
 
 ```python
-from feast import Field, Float64, RequestSource
+from feast import Field, RequestSource
+from feast.types import Float64
 
 # Define a request data source which encodes features / information only 
 # available at request time (e.g. part of the user initiated HTTP request)
