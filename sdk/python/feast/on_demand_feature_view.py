@@ -360,7 +360,9 @@ class OnDemandFeatureView(BaseFeatureView):
             elif isinstance(request_source.schema, Dict):
                 schema.update(request_source.schema)
             else:
-                raise Exception(f"Request source schema is not correct type: ${str(type(request_source.schema))}")
+                raise Exception(
+                    f"Request source schema is not correct type: ${str(type(request_source.schema))}"
+                )
         return schema
 
     def get_transformed_features_df(
