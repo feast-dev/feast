@@ -136,9 +136,8 @@ func SetupInitializedRepo(basePath string) error {
 	// var stderr bytes.Buffer
 	// var stdout bytes.Buffer
 	applyCommand.Dir = feature_repo_path
-	out, err := applyCommand.Output()
+	err = applyCommand.Run()
 	if err != nil {
-		log.Println(out)
 		return err
 
 	}
@@ -151,8 +150,12 @@ func SetupInitializedRepo(basePath string) error {
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = feature_repo_path
-	materializeCommand.Start()
-	materializeCommand.Wait()
+	out, err := materializeCommand.Output()
+	if err != nil {
+		log.Println(feature_repo_path)
+		log.Println(out)
+		return err
+	}
 	return nil
 }
 
