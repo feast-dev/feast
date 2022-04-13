@@ -85,7 +85,7 @@ func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 	return correctFeatureRows
 }
 
-func SetupFeatureCleanRepo(basePath string) error {
+func SetupCleanFeatureRepo(basePath string) error {
 	cmd := exec.Command("feast", "init", "feature_repo")
 	path, err := filepath.Abs(basePath)
 	cmd.Env = os.Environ()
@@ -105,10 +105,7 @@ func SetupFeatureCleanRepo(basePath string) error {
 		return err
 	}
 	applyCommand.Dir = feature_repo_path
-	err = applyCommand.Run()
-	if err != nil {
-		return err
-	}
+	applyCommand.Run()
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
@@ -138,10 +135,7 @@ func SetupFeatureRepoFromInitializedRepo(basePath string) error {
 		return err
 	}
 	applyCommand.Dir = feature_repo_path
-	err = applyCommand.Run()
-	if err != nil {
-		return err
-	}
+	applyCommand.Run()
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
