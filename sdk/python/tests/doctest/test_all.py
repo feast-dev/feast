@@ -17,11 +17,10 @@ def setup_feature_store():
         FeatureView,
         Field,
         FileSource,
-        Float32,
-        Int64,
         ValueType,
     )
     from feast.repo_operations import init_repo
+    from feast.types import Float32, Int64
 
     init_repo("feature_repo", "local")
     fs = FeatureStore(repo_path="feature_repo")
