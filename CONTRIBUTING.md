@@ -171,6 +171,7 @@ These tests create new temporary tables / datasets locally only, and they are cl
 
 The services with containerized replacements currently implemented are:
 - Datastore
+- DynamoDB
 - Redis
 
 You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.

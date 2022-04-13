@@ -48,6 +48,9 @@ from tests.integration.feature_repos.universal.feature_views import (
 from tests.integration.feature_repos.universal.online_store.datastore import (
     DatastoreOnlineStoreCreator,
 )
+from tests.integration.feature_repos.universal.online_store.dynamodb import (
+    DynamoDBOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
@@ -131,7 +134,10 @@ else:
 
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
     replacements = {"datastore": DatastoreOnlineStoreCreator}
-    replacement_dicts = [(REDIS_CONFIG, RedisOnlineStoreCreator)]
+    replacement_dicts = [
+        (REDIS_CONFIG, RedisOnlineStoreCreator),
+        (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
+    ]
     for c in FULL_REPO_CONFIGS:
         if isinstance(c.online_store, dict):
             for _replacement in replacement_dicts:
