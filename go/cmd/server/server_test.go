@@ -146,7 +146,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 		{Val: &types.Value_Int64Val{Int64Val: 1005}},
 	}
 	expectedFeatureNamesResp := []string{"driver_id", "conv_rate", "acc_rate", "avg_daily_trips"}
-	rows, err := test.ReadParquet(filepath.Join(dir, "feature_repo", "data", "driver_stats.parquet"))
+	rows, err := test.ReadParquet(filepath.Join(dir, "feature_repo", "driver_stats.parquet"))
 	assert.Nil(t, err)
 	entityKeys := map[int64]bool{1001: true, 1003: true, 1005: true}
 	correctFeatures := test.GetLatestFeatures(rows, entityKeys)
