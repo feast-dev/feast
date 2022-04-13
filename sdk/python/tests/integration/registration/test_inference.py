@@ -29,7 +29,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import String, UnixTimestamp
+from feast.types import PrimitiveFeastType, String, UnixTimestamp
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -168,7 +168,8 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
 def test_on_demand_features_type_inference():
     # Create Feature Views
     date_request = RequestSource(
-        name="date_request", schema={"some_date": ValueType.UNIX_TIMESTAMP}
+        name="date_request",
+        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
     )
 
     @on_demand_feature_view(
@@ -224,11 +225,17 @@ def test_on_demand_features_type_inference():
         test_view_with_missing_feature.infer_features()
 
 
-def test_datasource_inference():
+# TODO(kevjumba): remove this in feast 0.23 when deprecating
+@pytest.mark.parametrize(
+    "request_source_schema",
+    [
+        [Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
+        {"some_date": ValueType.UNIX_TIMESTAMP},
+    ],
+)
+def test_datasource_inference(request_source_schema):
     # Create Feature Views
-    date_request = RequestSource(
-        name="date_request", schema={"some_date": ValueType.UNIX_TIMESTAMP}
-    )
+    date_request = RequestSource(name="date_request", schema=request_source_schema,)
 
     @on_demand_feature_view(
         # Note: we deliberately use positional arguments here to test that they work correctly,

@@ -246,7 +246,7 @@ Finally, the custom data source class can be use in the feature repo to define a
 ```python
 pdriver_hourly_stats = CustomFileDataSource(
     path="feature_repo/data/driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 

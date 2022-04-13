@@ -80,6 +80,15 @@ class PrimitiveFeastType(Enum):
     def __str__(self):
         return PRIMITIVE_FEAST_TYPES_TO_STRING[self.name]
 
+    def __eq__(self, other):
+        if isinstance(other, PrimitiveFeastType):
+            return self.value == other.value
+        else:
+            return False
+
+    def __hash__(self):
+        return hash((PRIMITIVE_FEAST_TYPES_TO_STRING[self.name]))
+
 
 Invalid = PrimitiveFeastType.INVALID
 Bytes = PrimitiveFeastType.BYTES

@@ -2,7 +2,9 @@ import pytest
 
 from feast import ValueType
 from feast.data_source import PushSource, RequestDataSource, RequestSource
+from feast.field import Field
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.types import PrimitiveFeastType
 
 
 def test_push_with_batch():
@@ -30,5 +32,17 @@ def test_request_data_source_deprecation():
         )
         request_data_source_proto = request_data_source.to_proto()
         returned_request_source = RequestSource.from_proto(request_data_source_proto)
-        assert returned_request_source.name == request_data_source.name
-        assert returned_request_source.schema == request_data_source.schema
+        assert returned_request_source == request_data_source
+
+
+def test_request_source_primitive_type_to_proto():
+    schema = [
+        Field(name="f1", dtype=PrimitiveFeastType.FLOAT32),
+        Field(name="f2", dtype=PrimitiveFeastType.BOOL),
+    ]
+    request_source = RequestSource(
+        name="source", schema=schema, description="desc", tags={}, owner="feast",
+    )
+    request_proto = request_source.to_proto()
+    deserialized_request_source = RequestSource.from_proto(request_proto)
+    assert deserialized_request_source == request_source

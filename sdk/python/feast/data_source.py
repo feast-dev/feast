@@ -15,14 +15,16 @@
 import enum
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from google.protobuf.json_format import MessageToJson
 
 from feast import type_map
 from feast.data_format import StreamFormat
+from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
+from feast.types import VALUE_TYPES_TO_FEAST_TYPES
 from feast.value_type import ValueType
 
 
@@ -449,7 +451,7 @@ class RequestSource(DataSource):
 
     Args:
         name: Name of the request data source
-        schema: Schema mapping from the input feature name to a ValueType
+        schema Union[Dict[str, ValueType], List[Field]]: Schema mapping from the input feature name to a ValueType
         description (optional): A human-readable description.
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the request data source, typically the email of the primary
@@ -457,19 +459,37 @@ class RequestSource(DataSource):
     """
 
     name: str
-    schema: Dict[str, ValueType]
+    schema: List[Field]
 
     def __init__(
         self,
         name: str,
-        schema: Dict[str, ValueType],
+        schema: Union[Dict[str, ValueType], List[Field]],
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
         """Creates a RequestSource object."""
         super().__init__(name=name, description=description, tags=tags, owner=owner)
-        self.schema = schema
+        if isinstance(schema, Dict):
+            warnings.warn(
+                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
+                "Please use List[Field] instead for the schema",
+                DeprecationWarning,
+            )
+            schemaList = []
+            for key, valueType in schema.items():
+                schemaList.append(
+                    Field(name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[valueType])
+                )
+            self.schema = schemaList
+        elif isinstance(schema, List):
+            self.schema = schema
+        else:
+            raise Exception(
+                "Schema type must be either dictionary or list, not "
+                + str(type(schema))
+            )
 
     def validate(self, config: RepoConfig):
         pass
@@ -479,33 +499,86 @@ class RequestSource(DataSource):
     ) -> Iterable[Tuple[str, str]]:
         pass
 
+    def __eq__(self, other):
+        if not isinstance(other, RequestSource):
+            raise TypeError(
+                "Comparisons should only involve RequestSource class objects."
+            )
+        if (
+            self.name != other.name
+            or self.description != other.description
+            or self.owner != other.owner
+            or self.tags != other.tags
+        ):
+            return False
+        if isinstance(self.schema, List) and isinstance(other.schema, List):
+            for field1, field2 in zip(self.schema, other.schema):
+                if field1 != field2:
+                    return False
+            return True
+        else:
+            return False
+
+    def __hash__(self):
+        return super().__hash__()
+
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+
+        deprecated_schema = data_source.request_data_options.deprecated_schema
         schema_pb = data_source.request_data_options.schema
-        schema = {}
-        for key, val in schema_pb.items():
-            schema[key] = ValueType(val)
-        return RequestSource(
-            name=data_source.name,
-            schema=schema,
-            description=data_source.description,
-            tags=dict(data_source.tags),
-            owner=data_source.owner,
-        )
+
+        if deprecated_schema and not schema_pb:
+            warnings.warn(
+                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
+                "Please use List[Field] instead for the schema",
+                DeprecationWarning,
+            )
+            dict_schema = {}
+            for key, val in deprecated_schema.items():
+                dict_schema[key] = ValueType(val)
+            return RequestSource(
+                name=data_source.name,
+                schema=dict_schema,
+                description=data_source.description,
+                tags=dict(data_source.tags),
+                owner=data_source.owner,
+            )
+        else:
+            list_schema = []
+            for field_proto in schema_pb:
+                list_schema.append(Field.from_proto(field_proto))
+
+            return RequestSource(
+                name=data_source.name,
+                schema=list_schema,
+                description=data_source.description,
+                tags=dict(data_source.tags),
+                owner=data_source.owner,
+            )
 
     def to_proto(self) -> DataSourceProto:
-        schema_pb = {}
-        for key, value in self.schema.items():
-            schema_pb[key] = value.value
-        options = DataSourceProto.RequestDataOptions(schema=schema_pb)
+
+        schema_pb = []
+
+        if isinstance(self.schema, Dict):
+            for key, value in self.schema.items():
+                schema_pb.append(
+                    Field(
+                        name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[value.value]
+                    ).to_proto()
+                )
+        else:
+            for field in self.schema:
+                schema_pb.append(field.to_proto())
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.REQUEST_SOURCE,
-            request_data_options=options,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
         )
+        data_source_proto.request_data_options.schema.extend(schema_pb)
 
         return data_source_proto
 

@@ -8,7 +8,6 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
 from feast.value_type import ValueType
 from google.protobuf.duration_pb2 import Duration
-
 from feast import FileSource
 
 file_path = "driver_stats.parquet"

@@ -24,6 +24,7 @@ option java_package = "feast.proto.core";
 
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
+import "feast/core/Feature.proto";
 
 // Defines a Data Source that can be used source Feature data
 // Next available id: 28
@@ -212,7 +213,10 @@ message DataSource {
   message RequestDataOptions {
     reserved 1;
     // Mapping of feature name to type
-    map<string, feast.types.ValueType.Enum> schema = 2;
+    map<string, feast.types.ValueType.Enum> deprecated_schema = 2;
+
+    repeated FeatureSpecV2 schema = 3;
+
   }
 
   // Defines options for DataSource that supports pushing data to it. This allows data to be pushed to

@@ -74,7 +74,7 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        return cls(name=field_proto.name, dtype=from_value_type(value_type))
+        return cls(name=field_proto.name, dtype=from_value_type(value_type=value_type))
 
     @classmethod
     def from_feature(cls, feature: Feature):

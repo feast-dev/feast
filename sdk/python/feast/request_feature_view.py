@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Type
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.feature_view_projection import FeatureViewProjection
-from feast.field import Field, from_value_type
+from feast.field import Field
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
@@ -63,12 +63,17 @@ class RequestFeatureView(BaseFeatureView):
             DeprecationWarning,
         )
 
+        if isinstance(request_data_source.schema, Dict):
+            new_features = [
+                Field(name=name, dtype=dtype)
+                for name, dtype in request_data_source.schema.items()
+            ]
+        else:
+            new_features = request_data_source.schema
+
         super().__init__(
             name=name,
-            features=[
-                Field(name=name, dtype=from_value_type(value_type))
-                for name, value_type in request_data_source.schema.items()
-            ],
+            features=new_features,
             description=description,
             tags=tags,
             owner=owner,

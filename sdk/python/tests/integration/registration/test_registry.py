@@ -29,7 +29,7 @@ from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
-from feast.types import Array, Bytes, Float32, Int32, Int64, String
+from feast.types import Array, Bytes, Float32, Int32, Int64, PrimitiveFeastType, String
 from feast.value_type import ValueType
 
 
@@ -237,7 +237,15 @@ def test_apply_feature_view_success(test_registry):
 @pytest.mark.parametrize(
     "test_registry", [lazy_fixture("local_registry")],
 )
-def test_modify_feature_views_success(test_registry):
+# TODO(kevjumba): remove this in feast 0.23 when deprecating
+@pytest.mark.parametrize(
+    "request_source_schema",
+    [
+        [Field(name="my_input_1", dtype=PrimitiveFeastType.INT32)],
+        {"my_input_1": ValueType.INT32},
+    ],
+)
+def test_modify_feature_views_success(test_registry, request_source_schema):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
@@ -246,9 +254,7 @@ def test_modify_feature_views_success(test_registry):
         created_timestamp_column="timestamp",
     )
 
-    request_source = RequestSource(
-        name="request_source", schema={"my_input_1": ValueType.INT32}
-    )
+    request_source = RequestSource(name="request_source", schema=request_source_schema,)
 
     fv1 = FeatureView(
         name="my_feature_view_1",
