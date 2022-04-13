@@ -29,7 +29,7 @@ module.exports = {
                 {breaking: true, release: 'minor'},
                 {tag: 'Breaking', release: 'minor'},
             ]
-        }]
+        }],
 
         ["@semantic-release/exec", {
             // Validate the type of release we are doing
