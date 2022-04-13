@@ -224,12 +224,18 @@ def test_on_demand_features_type_inference():
     with pytest.raises(SpecifiedFeaturesNotPresentError):
         test_view_with_missing_feature.infer_features()
 
-
-def test_datasource_inference():
+#TODO(kevjumba): remove this in feast 0.23 when deprecating
+@pytest.mark.parametrize(
+    "request_source_schema", [
+        [Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
+        {"some_date": ValueType.UNIX_TIMESTAMP},
+    ],
+)
+def test_datasource_inference(request_source_schema):
     # Create Feature Views
     date_request = RequestSource(
         name="date_request",
-        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
+        schema=request_source_schema,
     )
 
     @on_demand_feature_view(
