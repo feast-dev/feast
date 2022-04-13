@@ -130,11 +130,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest ]
         compile-go: [ True ]
         include:
-          - python-version: 3.7
+          - python-version: "3.7"
             os: ubuntu-latest
             compile-go: False
     env:
@@ -173,11 +173,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9, 3.10 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest ]
         compile-go: [ True ]
         include:
-          - python-version: 3.7
+          - python-version: "3.7"
             os: ubuntu-latest
             compile-go: False
     needs: get-version

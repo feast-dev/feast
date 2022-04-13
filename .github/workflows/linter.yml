@@ -59,7 +59,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: "3.7"
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1"
