@@ -1,9 +1,9 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -127,19 +127,20 @@ func SetupInitializedRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-	applyCommand := exec.Command("feast", "apply")
+	applyCommand := exec.Command("/bin/sh", "-c", "feast apply")
 	applyCommand.Env = os.Environ()
 	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
 		return err
 	}
-	var stderr bytes.Buffer
-
+	// var stderr bytes.Buffer
+	// var stdout bytes.Buffer
 	applyCommand.Dir = feature_repo_path
-	applyCommand.Stderr = &stderr
-	err = applyCommand.Run()
+	out, err := applyCommand.Output()
 	if err != nil {
+		log.Println(out)
 		return err
+
 	}
 	t := time.Now()
 
