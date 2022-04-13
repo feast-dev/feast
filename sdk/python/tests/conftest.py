@@ -173,17 +173,18 @@ class TrinoContainerSingleton:
     catalog_dir = current_file.parent.joinpath(
         "integration/feature_repos/universal/data_sources/catalog"
     )
-
-    container = (
-        DockerContainer("trinodb/trino:376")
-        .with_volume_mapping(catalog_dir, "/etc/catalog/")
-        .with_exposed_ports("8080")
-    )
+    container = None
     is_running = False
 
     @classmethod
     def get_singleton(cls):
         if not cls.is_running:
+            cls.container = (
+                DockerContainer("trinodb/trino:376")
+                .with_volume_mapping(cls.catalog_dir, "/etc/catalog/")
+                .with_exposed_ports("8080")
+            )
+
             cls.container.start()
             log_string_to_wait_for = "SERVER STARTED"
             wait_for_logs(
@@ -194,7 +195,8 @@ class TrinoContainerSingleton:
 
     @classmethod
     def teardown(cls):
-        cls.container.stop()
+        if cls.container:
+            cls.container.stop()
 
 
 @pytest.fixture(
