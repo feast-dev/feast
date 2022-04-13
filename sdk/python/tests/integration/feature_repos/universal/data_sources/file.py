@@ -21,7 +21,7 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 class FileDataSourceCreator(DataSourceCreator):
     files: List[Any]
 
-    def __init__(self, project_name: str):
+    def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.files = []
 
