@@ -37,17 +37,6 @@ type Registry struct {
 	mu                             sync.Mutex
 }
 
-func (r *Registry) CacheFeatureService(featureService *core.FeatureService) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.cachedFeatureServices == nil {
-		r.cachedFeatureServices = make(map[string]map[string]*core.FeatureService)
-	}
-	r.cachedFeatureServices[featureService.Spec.Project] = map[string]*core.FeatureService{
-		featureService.Spec.Name: featureService,
-	}
-}
-
 func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
 	registryStoreType := registryConfig.RegistryStoreType
 	registryPath := registryConfig.Path
