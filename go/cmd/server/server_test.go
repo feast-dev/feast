@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -172,6 +173,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	dir := "logging/"
 	err := test.SetupInitializedRepo(dir)
 	assert.Nil(t, err)
+	log.Println("setup correctly")
 	client, closer := getClient(ctx, "file", dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
