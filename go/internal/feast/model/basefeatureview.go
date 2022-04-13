@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )
 

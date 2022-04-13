@@ -4,6 +4,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -14,8 +17,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"sort"
-	"strings"
 )
 
 /*
@@ -249,7 +250,7 @@ func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, entities []*mode
 			joinKeyToAliasMap = map[string]string{}
 		}
 
-		for entityName := range featureView.Entities {
+		for _, entityName := range featureView.Entities {
 			joinKey := entitiesByName[entityName].JoinKey
 			entityNameToJoinKeyMap[entityName] = joinKey
 
@@ -516,8 +517,8 @@ func GroupFeatureRefs(requestedFeatureViews []*FeatureViewAndRefs,
 		joinKeys := make([]string, 0)
 		fv := featuresAndView.View
 		featureNames := featuresAndView.FeatureRefs
-		for entity := range fv.Entities {
-			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entity])
+		for _, entityName := range fv.Entities {
+			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entityName])
 		}
 
 		groupKeyBuilder := make([]string, 0)

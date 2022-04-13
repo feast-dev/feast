@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
@@ -45,6 +46,46 @@ func ProtoTypeToArrowType(sample *types.Value) (arrow.DataType, error) {
 	default:
 		return nil,
 			fmt.Errorf("unsupported proto type in proto to arrow conversion: %s", sample.Val)
+	}
+}
+
+func ValueTypeEnumToArrowType(t types.ValueType_Enum) (arrow.DataType, error) {
+	switch t {
+	case types.ValueType_BYTES:
+		return arrow.BinaryTypes.Binary, nil
+	case types.ValueType_STRING:
+		return arrow.BinaryTypes.String, nil
+	case types.ValueType_INT32:
+		return arrow.PrimitiveTypes.Int32, nil
+	case types.ValueType_INT64:
+		return arrow.PrimitiveTypes.Int64, nil
+	case types.ValueType_FLOAT:
+		return arrow.PrimitiveTypes.Float32, nil
+	case types.ValueType_DOUBLE:
+		return arrow.PrimitiveTypes.Float64, nil
+	case types.ValueType_BOOL:
+		return arrow.FixedWidthTypes.Boolean, nil
+	case types.ValueType_BOOL_LIST:
+		return arrow.ListOf(arrow.FixedWidthTypes.Boolean), nil
+	case types.ValueType_STRING_LIST:
+		return arrow.ListOf(arrow.BinaryTypes.String), nil
+	case types.ValueType_BYTES_LIST:
+		return arrow.ListOf(arrow.BinaryTypes.Binary), nil
+	case types.ValueType_INT32_LIST:
+		return arrow.ListOf(arrow.PrimitiveTypes.Int32), nil
+	case types.ValueType_INT64_LIST:
+		return arrow.ListOf(arrow.PrimitiveTypes.Int64), nil
+	case types.ValueType_FLOAT_LIST:
+		return arrow.ListOf(arrow.PrimitiveTypes.Float32), nil
+	case types.ValueType_DOUBLE_LIST:
+		return arrow.ListOf(arrow.PrimitiveTypes.Float64), nil
+	case types.ValueType_UNIX_TIMESTAMP:
+		return arrow.FixedWidthTypes.Time64ns, nil
+	case types.ValueType_UNIX_TIMESTAMP_LIST:
+		return arrow.ListOf(arrow.FixedWidthTypes.Time64ns), nil
+	default:
+		return nil,
+			fmt.Errorf("unsupported value type enum in enum to arrow type conversion: %s", t)
 	}
 }
 

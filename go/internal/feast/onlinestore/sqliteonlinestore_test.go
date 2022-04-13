@@ -2,20 +2,21 @@ package onlinestore
 
 import (
 	"context"
-	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSqliteSetup(t *testing.T) {
+func TestSqliteAndFeatureRepoSetup(t *testing.T) {
 	dir := "../../test"
 	feature_repo_path := filepath.Join(dir, "feature_repo")
-	err := test.SetupFeatureRepo(dir)
+	err := test.SetupCleanFeatureRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
 	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
@@ -34,7 +35,7 @@ func TestSqliteSetup(t *testing.T) {
 func TestSqliteOnlineRead(t *testing.T) {
 	dir := "../../test"
 	feature_repo_path := filepath.Join(dir, "feature_repo")
-	test.SetupFeatureRepo(dir)
+	test.SetupCleanFeatureRepo(dir)
 	defer test.CleanUpRepo(dir)
 	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)

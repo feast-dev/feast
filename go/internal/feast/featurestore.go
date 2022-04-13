@@ -3,6 +3,7 @@ package feast
 import (
 	"context"
 	"errors"
+
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -10,7 +11,6 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/feast-dev/feast/go/protos/feast/types"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 )
 
@@ -27,6 +27,14 @@ type FeatureStore struct {
 type Features struct {
 	FeaturesRefs   []string
 	FeatureService *model.FeatureService
+}
+
+func (fs *FeatureStore) Registry() *registry.Registry {
+	return fs.registry
+}
+
+func (fs *FeatureStore) GetRepoConfig() *registry.RepoConfig {
+	return fs.config
 }
 
 // NewFeatureStore constructs a feature store fat client using the
@@ -114,7 +122,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	entitylessCase := false
 	for _, featureView := range featureViews {
-		if _, ok := featureView.Entities[model.DUMMY_ENTITY_NAME]; ok {
+		if featureView.HasEntity(model.DUMMY_ENTITY_NAME) {
 			entitylessCase = true
 			break
 		}
@@ -248,6 +256,10 @@ func (fs *FeatureStore) ListEntities(hideDummyEntity bool) ([]*model.Entity, err
 	return entities, nil
 }
 
+func (fs *FeatureStore) ListOnDemandFeatureViews() ([]*model.OnDemandFeatureView, error) {
+	return fs.registry.ListOnDemandFeatureViews(fs.config.Project)
+}
+
 /*
 Group feature views that share the same set of join keys. For each group, we store only unique rows and save indices to retrieve those
 rows for each requested feature
@@ -258,20 +270,20 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := fv.Entities[model.DUMMY_ENTITY_NAME]; ok && hideDummyEntity {
-		fv.Entities = make(map[string]struct{})
+	if fv.HasEntity(model.DUMMY_ENTITY_NAME) && hideDummyEntity {
+		fv.Entities = []string{}
 	}
 	return fv, nil
 }
 
-func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*types.EntityKey,
+func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*prototypes.EntityKey,
 	requestedFeatureViewNames []string,
 	requestedFeatureNames []string,
 ) ([][]onlinestore.FeatureData, error) {
 	numRows := len(entityRows)
-	entityRowsValue := make([]*types.EntityKey, numRows)
+	entityRowsValue := make([]*prototypes.EntityKey, numRows)
 	for index, entityKey := range entityRows {
-		entityRowsValue[index] = &types.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
+		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
 }

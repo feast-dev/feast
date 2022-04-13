@@ -3,10 +3,11 @@ package registry
 import (
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/model"
 
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )

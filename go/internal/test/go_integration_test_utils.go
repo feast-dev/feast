@@ -3,8 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/apache/arrow/go/v8/arrow/array"
+	"log"
+
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/parquet/file"
@@ -14,6 +17,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/protos/feast/types"
+	gotypes "github.com/feast-dev/feast/go/types"
 )
 
 type Row struct {
@@ -78,7 +86,7 @@ func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 	return correctFeatureRows
 }
 
-func SetupFeatureRepo(basePath string) error {
+func SetupCleanFeatureRepo(basePath string) error {
 	cmd := exec.Command("feast", "init", "feature_repo")
 	path, err := filepath.Abs(basePath)
 	cmd.Env = os.Environ()
@@ -93,15 +101,12 @@ func SetupFeatureRepo(basePath string) error {
 	}
 	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
-	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
 		return err
 	}
-	applyCommand.Dir = feature_repo_path
-	err = applyCommand.Run()
-	if err != nil {
-		return err
-	}
+	applyCommand.Dir = featureRepoPath
+	applyCommand.Run()
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
@@ -109,22 +114,140 @@ func SetupFeatureRepo(basePath string) error {
 		t.Hour(), t.Minute(), t.Second())
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
-	materializeCommand.Dir = feature_repo_path
+	materializeCommand.Dir = featureRepoPath
 	err = materializeCommand.Run()
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SetupInitializedRepo(basePath string) error {
+	path, err := filepath.Abs(basePath)
+	if err != nil {
+		return err
+	}
+	applyCommand := exec.Command("feast", "apply")
+	applyCommand.Env = os.Environ()
+	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	if err != nil {
+		return err
+	}
+	// var stderr bytes.Buffer
+	// var stdout bytes.Buffer
+	applyCommand.Dir = featureRepoPath
+	err = applyCommand.Run()
+	if err != nil {
+		return err
+
+	}
+	t := time.Now()
+
+	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+
+	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
+	materializeCommand.Env = os.Environ()
+	materializeCommand.Dir = featureRepoPath
+	out, err := materializeCommand.Output()
+	if err != nil {
+		log.Println(string(out))
 		return err
 	}
 	return nil
 }
 
-func CleanUpRepo(basePath string) error {
-	feature_repo_path, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
+func CleanUpInitializedRepo(basePath string) {
+	featureRepoPath, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-	err = os.RemoveAll(feature_repo_path)
+
+	err = os.Remove(filepath.Join(featureRepoPath, "data", "registry.db"))
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-	return nil
+	err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func CleanUpRepo(basePath string) {
+	featureRepoPath, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.RemoveAll(featureRepoPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
+	r := make(map[string]*types.RepeatedValue)
+	schema := rec.Schema()
+	for idx, column := range rec.Columns() {
+		field := schema.Field(idx)
+		values, err := gotypes.ArrowValuesToProtoValues(column)
+		if err != nil {
+			return nil, err
+		}
+		r[field.Name] = &types.RepeatedValue{Val: values}
+	}
+	return r, nil
+}
+
+func CleanUpFile(absPath string) error {
+	return os.Remove(absPath)
+}
+
+func CreateBaseFeatureView(name string, features []*model.Feature, projection *model.FeatureViewProjection) *model.BaseFeatureView {
+	return &model.BaseFeatureView{
+		Name:       name,
+		Features:   features,
+		Projection: projection,
+	}
+}
+
+func CreateNewEntity(name string, valueType types.ValueType_Enum, joinKey string) *model.Entity {
+	return &model.Entity{
+		Name:      name,
+		ValueType: valueType,
+		JoinKey:   joinKey,
+	}
+}
+
+func CreateNewFeature(name string, dtype types.ValueType_Enum) *model.Feature {
+	return &model.Feature{Name: name,
+		Dtype: dtype,
+	}
+}
+
+func CreateNewFeatureService(name string, project string, createdTimestamp *timestamppb.Timestamp, lastUpdatedTimestamp *timestamppb.Timestamp, projections []*model.FeatureViewProjection) *model.FeatureService {
+	return &model.FeatureService{
+		Name:                 name,
+		Project:              project,
+		CreatedTimestamp:     createdTimestamp,
+		LastUpdatedTimestamp: lastUpdatedTimestamp,
+		Projections:          projections,
+	}
+}
+
+func CreateNewFeatureViewProjection(name string, nameAlias string, features []*model.Feature, joinKeyMap map[string]string) *model.FeatureViewProjection {
+	return &model.FeatureViewProjection{Name: name,
+		NameAlias:  nameAlias,
+		Features:   features,
+		JoinKeyMap: joinKeyMap,
+	}
+}
+
+func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string) *model.FeatureView {
+	return &model.FeatureView{
+		Base:     base,
+		Ttl:      ttl,
+		Entities: entities,
+	}
 }
