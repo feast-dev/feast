@@ -123,11 +123,11 @@ func (s *LoggingService) flushLogsToOfflineStorage(t time.Time) error {
 		return fmt.Errorf("could not get offline storage type for config: %s", s.fs.GetRepoConfig().OfflineStore)
 	}
 	if offlineStoreType == "file" {
-		entities, entityMap, featureViews, odfvs, err := s.GetFcos()
+		entityMap, featureViews, odfvs, err := s.GetFcos()
 		if err != nil {
 			return err
 		}
-		schema, err := GetSchemaFromFeatureService(s.memoryBuffer.featureService, entities, entityMap, featureViews, odfvs)
+		schema, err := GetSchemaFromFeatureService(s.memoryBuffer.featureService, entityMap, featureViews, odfvs)
 		if err != nil {
 			return err
 		}
@@ -254,7 +254,7 @@ type Schema struct {
 	FeaturesTypes map[string]types.ValueType_Enum
 }
 
-func GetSchemaFromFeatureService(featureService *model.FeatureService, entities []*model.Entity, entityMap map[string]*model.Entity, featureViews []*model.FeatureView, onDemandFeatureViews []*model.OnDemandFeatureView) (*Schema, error) {
+func GetSchemaFromFeatureService(featureService *model.FeatureService, entityMap map[string]*model.Entity, featureViews []*model.FeatureView, onDemandFeatureViews []*model.OnDemandFeatureView) (*Schema, error) {
 	fvs := make(map[string]*model.FeatureView)
 	odFvs := make(map[string]*model.OnDemandFeatureView)
 
@@ -262,9 +262,10 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 	// All joinkeys in the featureService are put in here
 	joinKeysSet := make(map[string]interface{})
 	entityJoinKeyToType := make(map[string]types.ValueType_Enum)
-
+	var entities []string
 	for _, featureView := range featureViews {
 		fvs[featureView.Base.Name] = featureView
+		entities = featureView.Entities
 	}
 
 	for _, onDemandFeatureView := range onDemandFeatureViews {
@@ -282,7 +283,7 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 				features = append(features, GetFullFeatureName(featureViewName, f.Name))
 				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
 			}
-			for entityName := range fv.Entities {
+			for entityName := range fv.EntitiesMap {
 				entity := entityMap[entityName]
 				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entity.JoinKey]; ok {
 					joinKeysSet[joinKeyAlias] = nil
@@ -303,9 +304,9 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entities 
 
 	// Only get entities in the current feature service.
 	for _, entity := range entities {
-		if _, ok := joinKeysSet[entity.Name]; ok {
-			joinKeys = append(joinKeys, entity.JoinKey)
-			entityJoinKeyToType[entity.JoinKey] = entity.ValueType
+		if _, ok := joinKeysSet[entity]; ok {
+			joinKeys = append(joinKeys, entityMap[entity].JoinKey)
+			entityJoinKeyToType[entityMap[entity].JoinKey] = entityMap[entity].ValueType
 		}
 	}
 
@@ -322,24 +323,24 @@ func GetFullFeatureName(featureViewName string, featureName string) string {
 	return fmt.Sprintf("%s__%s", featureViewName, featureName)
 }
 
-func (s *LoggingService) GetFcos() ([]*model.Entity, map[string]*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView, error) {
+func (s *LoggingService) GetFcos() (map[string]*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView, error) {
 	odfvs, err := s.fs.ListOnDemandFeatureViews()
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	fvs, err := s.fs.ListFeatureViews()
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	entities, err := s.fs.ListEntities(true)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	entityMap := make(map[string]*model.Entity)
 	for _, entity := range entities {
 		entityMap[entity.Name] = entity
 	}
-	return entities, entityMap, fvs, odfvs, nil
+	return entityMap, fvs, odfvs, nil
 }
 
 func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, joinKeyToEntityValues map[string][]*types.Value, features []*serving.GetOnlineFeaturesResponse_FeatureVector, requestData map[string]*types.RepeatedValue, requestId string) error {
@@ -347,11 +348,11 @@ func (l *LoggingService) GenerateLogs(featureService *model.FeatureService, join
 		return nil
 	}
 
-	entities, entitySet, featureViews, odfvs, err := l.GetFcos()
+	entitySet, featureViews, odfvs, err := l.GetFcos()
 	if err != nil {
 		return err
 	}
-	schema, err := GetSchemaFromFeatureService(featureService, entities, entitySet, featureViews, odfvs)
+	schema, err := GetSchemaFromFeatureService(featureService, entitySet, featureViews, odfvs)
 
 	if err != nil {
 		return err

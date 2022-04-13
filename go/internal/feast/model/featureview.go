@@ -18,7 +18,8 @@ type FeatureView struct {
 	Base *BaseFeatureView
 	Ttl  *durationpb.Duration
 	// Make entities set so that search for dummy entity is faster
-	Entities map[string]struct{}
+	EntitiesMap map[string]struct{}
+	Entities    []string
 }
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
@@ -26,12 +27,14 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 		Ttl: &(*proto.Spec.Ttl),
 	}
 	if len(proto.Spec.Entities) == 0 {
-		featureView.Entities = map[string]struct{}{DUMMY_ENTITY_NAME: {}}
+		featureView.EntitiesMap = map[string]struct{}{DUMMY_ENTITY_NAME: {}}
+		featureView.Entities = []string{}
 	} else {
-		featureView.Entities = make(map[string]struct{})
+		featureView.EntitiesMap = make(map[string]struct{})
 		for _, entityName := range proto.Spec.Entities {
-			featureView.Entities[entityName] = struct{}{}
+			featureView.EntitiesMap[entityName] = struct{}{}
 		}
+		featureView.Entities = proto.Spec.Entities
 	}
 	return featureView
 }
@@ -39,8 +42,9 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 func (fs *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureView {
 	ttl := durationpb.Duration{Seconds: fs.Ttl.Seconds, Nanos: fs.Ttl.Nanos}
 	featureView := &FeatureView{Base: base,
-		Ttl:      &ttl,
-		Entities: fs.Entities,
+		Ttl:         &ttl,
+		EntitiesMap: fs.EntitiesMap,
+		Entities:    fs.Entities,
 	}
 	return featureView
 }
