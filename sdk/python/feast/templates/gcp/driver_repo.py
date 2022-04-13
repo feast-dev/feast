@@ -1,6 +1,7 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, FeatureView, Field, Float32, Int64, ValueType
+from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
+from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
 # retrieve features. Entities are also used to join multiple tables/views during the
