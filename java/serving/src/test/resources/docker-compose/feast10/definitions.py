@@ -5,11 +5,9 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, Float64, Int64, PrimitiveFeastType
+from feast.types import Float32, Float64, Int64
 from feast.value_type import ValueType
 from google.protobuf.duration_pb2 import Duration
-from feast import FileSource
-
 from feast import FileSource
 
 file_path = "driver_stats.parquet"
@@ -44,8 +42,8 @@ driver_hourly_stats_view = FeatureView(
 input_request = RequestSource(
     name="vals_to_add",
     schema=[
-        Field(name="val_to_add", dtype=PrimitiveFeastType.INT64),
-        Field(name="val_to_add_2", dtype=PrimitiveFeastType.INT64),
+        Field(name="val_to_add", dtype=Int64),
+        Field(name="val_to_add_2", dtype=Int64),
     ],
 )
 

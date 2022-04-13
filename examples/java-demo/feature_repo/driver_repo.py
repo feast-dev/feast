@@ -6,7 +6,6 @@ from feast.request_feature_view import RequestFeatureView
 from feast.types import Float32, Float64, Int64, String
 from google.protobuf.duration_pb2 import Duration
 from feast.field import Field
-from feast.types import PrimitiveFeastType
 
 from feast import Entity, Feature, FeatureView, FileSource, ValueType
 
@@ -36,8 +35,8 @@ driver_hourly_stats_view = FeatureView(
 input_request = RequestSource(
     name="vals_to_add",
     schema=[
-        Field(name="val_to_add", dtype=PrimitiveFeastType.INT64),
-        Field(name="val_to_add_2", dtype=PrimitiveFeastType.INT64),
+        Field(name="val_to_add", dtype=Int64),
+        Field(name="val_to_add_2", dtype=Int64),
     ],
 )
 
@@ -66,7 +65,7 @@ driver_age_request_fv = RequestFeatureView(
     request_data_source=RequestSource(
         name="driver_age",
         schema=[
-            Field(name="driver_age", dtype=PrimitiveFeastType.INT64),
+            Field(name="driver_age", dtype=Int64),
         ],
     ),
 )
