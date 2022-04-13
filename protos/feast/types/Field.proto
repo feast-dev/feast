@@ -26,5 +26,5 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
 
 message Field {
   string name = 1;
-  feast.types.Value value = 2;
+  feast.types.ValueType.Enum value = 2;
 }

@@ -14,7 +14,7 @@
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.protos.feast.types.Value_pb2 import ValueType
+from feast.value_type import ValueType
 from feast.types import FeastType, from_value_type
 
 
@@ -76,7 +76,7 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        return cls(name=field_proto.name, dtype=from_value_type(value_type))
+        return cls(name=field_proto.name, dtype=from_value_type(value_type=value_type))
 
     @classmethod
     def from_feature(cls, feature: Feature):
