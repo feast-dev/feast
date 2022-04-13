@@ -40,7 +40,7 @@ class Entity:
         owner: The owner of the entity, typically the email of the primary maintainer.
         created_timestamp: The time when the entity was created.
         last_updated_timestamp: The time when the entity was last updated.
-        join_keys: A list of property that uniquely identifies different entities within the
+        join_keys: A list of properties that uniquely identifies different entities within the
             collection. This is meant to replace the `join_key` parameter, but currently only
             supports a list of size one.
     """
@@ -67,7 +67,25 @@ class Entity:
         owner: str = "",
         join_keys: Optional[List[str]] = None,
     ):
-        """Creates an Entity object."""
+        """
+        Creates an Entity object.
+
+        Args:
+            name: The unique name of the entity.
+            value_type: The type of the entity, such as string or float.
+            description: A human-readable description.
+            join_key (deprecated): A property that uniquely identifies different entities within the
+                collection. The join_key property is typically used for joining entities
+                with their associated features. If not specified, defaults to the name.
+            tags: A dictionary of key-value pairs to store arbitrary metadata.
+            owner: The owner of the entity, typically the email of the primary maintainer.
+            join_keys: A list of properties that uniquely identifies different entities within the
+                collection. This is meant to replace the `join_key` parameter, but currently only
+                supports a list of size one.
+
+        Raises:
+            ValueError: Parameters are specified incorrectly.
+        """
         if len(args) == 1:
             warnings.warn(
                 (
@@ -88,6 +106,15 @@ class Entity:
 
         self.value_type = value_type
 
+        if join_key:
+            warnings.warn(
+                (
+                    "The `join_key` parameter is being deprecated in favor of the `join_keys` parameter. "
+                    "Please switch from using `join_key` to `join_keys`. Feast 0.22 and onwards will not "
+                    "support the `join_key` parameter."
+                ),
+                DeprecationWarning,
+            )
         self.join_keys = join_keys or []
         if join_keys and len(join_keys) > 1:
             raise ValueError(
