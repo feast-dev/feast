@@ -102,6 +102,8 @@ func TestGetFeastServingInfo(t *testing.T) {
 	dir := "logging/"
 	err := test.SetupInitializedRepo(dir)
 	assert.Nil(t, err)
+	defer test.CleanUpInitializedRepo(dir)
+
 	client, closer := getClient(ctx, "", dir, false)
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
@@ -115,6 +117,8 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	dir := "logging/"
 	err := test.SetupInitializedRepo(dir)
 	assert.Nil(t, err)
+	defer test.CleanUpInitializedRepo(dir)
+
 	client, closer := getClient(ctx, "", dir, false)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
@@ -172,6 +176,8 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	dir := "logging/"
 	err := test.SetupInitializedRepo(dir)
 	assert.Nil(t, err)
+	defer test.CleanUpInitializedRepo(dir)
+
 	client, closer := getClient(ctx, "file", dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)

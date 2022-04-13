@@ -101,11 +101,11 @@ func SetupCleanFeatureRepo(basePath string) error {
 	}
 	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
-	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
 		return err
 	}
-	applyCommand.Dir = feature_repo_path
+	applyCommand.Dir = featureRepoPath
 	applyCommand.Run()
 	t := time.Now()
 
@@ -114,11 +114,12 @@ func SetupCleanFeatureRepo(basePath string) error {
 		t.Hour(), t.Minute(), t.Second())
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
-	materializeCommand.Dir = feature_repo_path
+	materializeCommand.Dir = featureRepoPath
 	err = materializeCommand.Run()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -127,15 +128,15 @@ func SetupInitializedRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-	applyCommand := exec.Command("/bin/sh", "-c", "feast apply")
+	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
-	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
 		return err
 	}
 	// var stderr bytes.Buffer
 	// var stdout bytes.Buffer
-	applyCommand.Dir = feature_repo_path
+	applyCommand.Dir = featureRepoPath
 	err = applyCommand.Run()
 	if err != nil {
 		return err
@@ -149,26 +150,40 @@ func SetupInitializedRepo(basePath string) error {
 
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
-	materializeCommand.Dir = feature_repo_path
+	materializeCommand.Dir = featureRepoPath
 	out, err := materializeCommand.Output()
 	if err != nil {
-		log.Println(feature_repo_path)
-		log.Println(out)
+		log.Println(string(out))
 		return err
 	}
 	return nil
 }
 
-func CleanUpRepo(basePath string) error {
-	feature_repo_path, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
+func CleanUpInitializedRepo(basePath string) {
+	featureRepoPath, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-	err = os.RemoveAll(feature_repo_path)
+
+	err = os.Remove(filepath.Join(featureRepoPath, "data", "registry.db"))
 	if err != nil {
-		return fmt.Errorf("couldn't remove feature repo path %s", err)
+		log.Fatal(err)
 	}
-	return nil
+	err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func CleanUpRepo(basePath string) {
+	featureRepoPath, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.RemoveAll(featureRepoPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {

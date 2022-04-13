@@ -23,7 +23,7 @@ driver = Entity(name="driver_id", value_type=ValueType.INT64, description="drive
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
-    ttl=Duration(seconds=86400 * 1),
+    ttl=Duration(seconds=86400 * 365 * 10),
     features=[
         Feature(name="conv_rate", dtype=ValueType.FLOAT),
         Feature(name="acc_rate", dtype=ValueType.FLOAT),

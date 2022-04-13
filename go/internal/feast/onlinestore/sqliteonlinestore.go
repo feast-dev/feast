@@ -82,9 +82,6 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 		featureNamesToIdx[name] = idx
 	}
 
-	for idx := 0; idx < len(entityKeys); idx++ {
-		results[idx] = make([]FeatureData, featureCount)
-	}
 	for _, featureViewName := range featureViewNames {
 		query_string := fmt.Sprintf(`SELECT entity_key, feature_name, Value, event_ts
 									FROM %s
@@ -108,7 +105,11 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			if err := proto.Unmarshal(valueString, &value); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
-			results[entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]][featureNamesToIdx[feature_name]] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
+			rowIdx := entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]
+			if results[rowIdx] == nil {
+				results[rowIdx] = make([]FeatureData, featureCount)
+			}
+			results[rowIdx][featureNamesToIdx[feature_name]] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: feature_name},
 				Timestamp: *timestamppb.New(event_ts),
 				Value:     types.Value{Val: value.Val},
 			}
