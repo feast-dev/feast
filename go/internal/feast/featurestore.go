@@ -122,7 +122,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	entitylessCase := false
 	for _, featureView := range featureViews {
-		if _, ok := featureView.EntitiesMap[model.DUMMY_ENTITY_NAME]; ok {
+		if featureView.HasEntity(model.DUMMY_ENTITY_NAME) {
 			entitylessCase = true
 			break
 		}
@@ -270,8 +270,8 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := fv.EntitiesMap[model.DUMMY_ENTITY_NAME]; ok && hideDummyEntity {
-		fv.EntitiesMap = make(map[string]struct{})
+	if fv.HasEntity(model.DUMMY_ENTITY_NAME) && hideDummyEntity {
+		fv.Entities = []string{}
 	}
 	return fv, nil
 }

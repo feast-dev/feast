@@ -283,7 +283,7 @@ func GetSchemaFromFeatureService(featureService *model.FeatureService, entityMap
 				features = append(features, GetFullFeatureName(featureViewName, f.Name))
 				allFeatureTypes[GetFullFeatureName(featureViewName, f.Name)] = f.Dtype
 			}
-			for entityName := range fv.EntitiesMap {
+			for _, entityName := range fv.Entities {
 				entity := entityMap[entityName]
 				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entity.JoinKey]; ok {
 					joinKeysSet[joinKeyAlias] = nil

@@ -80,7 +80,7 @@ func TestSchemaRetrievalIgnoresEntitiesNotInFeatureService(t *testing.T) {
 	featureService, entities, featureViews, odfvs := InitializeFeatureRepoVariablesForTest()
 	//Remove entities in featureservice
 	for _, featureView := range featureViews {
-		featureView.EntitiesMap = make(map[string]struct{})
+		featureView.Entities = []string{}
 	}
 	entityMap := make(map[string]*model.Entity)
 	for _, entity := range entities {
@@ -196,7 +196,7 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 		[]*model.Feature{f1, f2},
 		projection1,
 	)
-	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, []string{"driver_id"}, map[string]struct{}{"driver_id": {}})
+	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, []string{"driver_id"})
 	entity1 := test.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
 	f3 := test.CreateNewFeature(
 		"int32",
@@ -217,7 +217,7 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 		[]*model.Feature{f3, f4},
 		projection2,
 	)
-	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, []string{"driver_id"}, map[string]struct{}{"driver_id": {}})
+	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, []string{"driver_id"})
 
 	f5 := test.CreateNewFeature(
 		"odfv_f1",

@@ -250,7 +250,7 @@ func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, entities []*mode
 			joinKeyToAliasMap = map[string]string{}
 		}
 
-		for entityName := range featureView.EntitiesMap {
+		for _, entityName := range featureView.Entities {
 			joinKey := entitiesByName[entityName].JoinKey
 			entityNameToJoinKeyMap[entityName] = joinKey
 
@@ -517,8 +517,8 @@ func GroupFeatureRefs(requestedFeatureViews []*FeatureViewAndRefs,
 		joinKeys := make([]string, 0)
 		fv := featuresAndView.View
 		featureNames := featuresAndView.FeatureRefs
-		for entity := range fv.EntitiesMap {
-			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entity])
+		for _, entityName := range fv.Entities {
+			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entityName])
 		}
 
 		groupKeyBuilder := make([]string, 0)

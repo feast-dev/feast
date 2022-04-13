@@ -229,11 +229,10 @@ func CreateNewFeatureViewProjection(name string, nameAlias string, features []*m
 	}
 }
 
-func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string, entitiesMap map[string]struct{}) *model.FeatureView {
+func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string) *model.FeatureView {
 	return &model.FeatureView{
-		Base:        base,
-		Ttl:         ttl,
-		Entities:    entities,
-		EntitiesMap: entitiesMap,
+		Base:     base,
+		Ttl:      ttl,
+		Entities: entities,
 	}
 }
