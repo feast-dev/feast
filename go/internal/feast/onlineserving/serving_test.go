@@ -1,13 +1,14 @@
 package onlineserving
 
 import (
+	"testing"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"testing"
 )
 
 func TestGroupingFeatureRefs(t *testing.T) {
@@ -18,19 +19,19 @@ func TestGroupingFeatureRefs(t *testing.T) {
 				NameAlias: "aliasViewA",
 			},
 		},
-		Entities: map[string]struct{}{"driver": {}, "customer": {}},
+		EntitiesMap: map[string]struct{}{"driver": {}, "customer": {}},
 	}
 	viewB := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewB"},
-		Entities: map[string]struct{}{"driver": {}, "customer": {}},
+		Base:        &model.BaseFeatureView{Name: "viewB"},
+		EntitiesMap: map[string]struct{}{"driver": {}, "customer": {}},
 	}
 	viewC := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewC"},
-		Entities: map[string]struct{}{"driver": {}},
+		Base:        &model.BaseFeatureView{Name: "viewC"},
+		EntitiesMap: map[string]struct{}{"driver": {}},
 	}
 	viewD := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewD"},
-		Entities: map[string]struct{}{"customer": {}},
+		Base:        &model.BaseFeatureView{Name: "viewD"},
+		EntitiesMap: map[string]struct{}{"customer": {}},
 	}
 	refGroups, _ := GroupFeatureRefs(
 		[]*FeatureViewAndRefs{
@@ -103,11 +104,11 @@ func TestGroupingFeatureRefsWithJoinKeyAliases(t *testing.T) {
 				JoinKeyMap: map[string]string{"location_id": "destination_id"},
 			},
 		},
-		Entities: map[string]struct{}{"location": {}},
+		EntitiesMap: map[string]struct{}{"location": {}},
 	}
 	viewB := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewB"},
-		Entities: map[string]struct{}{"location": {}},
+		Base:        &model.BaseFeatureView{Name: "viewB"},
+		EntitiesMap: map[string]struct{}{"location": {}},
 	}
 
 	refGroups, _ := GroupFeatureRefs(
@@ -162,7 +163,7 @@ func TestGroupingFeatureRefsWithMissingKey(t *testing.T) {
 				JoinKeyMap: map[string]string{"location_id": "destination_id"},
 			},
 		},
-		Entities: map[string]struct{}{"location": {}},
+		EntitiesMap: map[string]struct{}{"location": {}},
 	}
 
 	_, err := GroupFeatureRefs(
