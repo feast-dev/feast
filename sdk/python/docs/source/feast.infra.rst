@@ -8,14 +8,32 @@ Subpackages
    :maxdepth: 4
 
    feast.infra.offline_stores
+   feast.infra.online_stores
+   feast.infra.utils
 
 Submodules
 ----------
+
+feast.infra.aws module
+----------------------
+
+.. automodule:: feast.infra.aws
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 feast.infra.gcp module
 ----------------------
 
 .. automodule:: feast.infra.gcp
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.infra\_object module
+--------------------------------
+
+.. automodule:: feast.infra.infra_object
    :members:
    :undoc-members:
    :show-inheritance:
@@ -32,6 +50,14 @@ feast.infra.local module
 ------------------------
 
 .. automodule:: feast.infra.local
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.passthrough\_provider module
+----------------------------------------
+
+.. automodule:: feast.infra.passthrough_provider
    :members:
    :undoc-members:
    :show-inheritance:
