@@ -105,7 +105,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 infra/scripts/*.conf
-go/internal/test/feature_repo
+go/cmd/server/logging/feature_repo/data/online_store.db
+go/cmd/server/logging/feature_repo/data/registry.db
 
 # Translations
 *.mo

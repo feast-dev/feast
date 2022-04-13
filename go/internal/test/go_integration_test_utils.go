@@ -126,10 +126,15 @@ func SetupFeatureCleanRepo(basePath string) error {
 
 func SetupFeatureRepoFromInitializedRepo(basePath string) error {
 	path, err := filepath.Abs(basePath)
+	if err != nil {
+		return err
+	}
+
 	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
 	feature_repo_path, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
+
 		return err
 	}
 	applyCommand.Dir = feature_repo_path

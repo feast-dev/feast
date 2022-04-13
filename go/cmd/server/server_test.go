@@ -54,7 +54,7 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, en
 		if config.OfflineStore == nil {
 			config.OfflineStore = map[string]interface{}{}
 		}
-		absPath, err := filepath.Abs(filepath.Join(".", "log.parquet"))
+		absPath, err := filepath.Abs(filepath.Join(getRepoPath(basePath), "log.parquet"))
 		if err != nil {
 			panic(err)
 		}
@@ -99,8 +99,8 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, en
 func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "."
-	err := test.SetupFeatureCleanRepo(dir)
+	dir := "logging/"
+	err := test.SetupFeatureRepoFromInitializedRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, "", dir, false)
@@ -113,8 +113,8 @@ func TestGetFeastServingInfo(t *testing.T) {
 func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "."
-	err := test.SetupFeatureCleanRepo(dir)
+	dir := "logging/"
+	err := test.SetupFeatureRepoFromInitializedRepo(dir)
 	assert.Nil(t, err)
 	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, "", dir, false)
@@ -171,10 +171,9 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "./logging/"
+	dir := "logging/"
 	err := test.SetupFeatureRepoFromInitializedRepo(dir)
 	assert.Nil(t, err)
-	defer test.CleanUpRepo(dir)
 	client, closer := getClient(ctx, "file", dir, true)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
@@ -204,7 +203,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	// TODO(kevjumba): implement for timestamp and status
 	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results[len(request.Entities):])
 	expectedLogValues["driver_id"] = entities["driver_id"]
-	logPath, err := filepath.Abs(filepath.Join(dir, "log.parquet"))
+	logPath, err := filepath.Abs(filepath.Join(dir, "feature_repo", "log.parquet"))
 	// Wait for logger to flush.
 	assert.Eventually(t, func() bool {
 		var _, err = os.Stat(logPath)
