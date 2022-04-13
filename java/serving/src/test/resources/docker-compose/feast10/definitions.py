@@ -41,10 +41,7 @@ driver_hourly_stats_view = FeatureView(
 
 input_request = RequestSource(
     name="vals_to_add",
-    schema=[
-        Field(name="val_to_add", dtype=Int64),
-        Field(name="val_to_add_2", dtype=Int64),
-    ],
+    schema={"val_to_add": ValueType.INT64, "val_to_add_2": ValueType.INT64},
 )
 
 
