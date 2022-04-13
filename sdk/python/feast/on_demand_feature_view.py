@@ -420,9 +420,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
                 df[f"{feature.name}"] = pd.Series(dtype=dtype)
         for request_data in self.source_request_sources.values():
-            for feature_name, feature_type in request_data.schema.items():
-                dtype = feast_value_type_to_pandas_type(feature_type)
-                df[f"{feature_name}"] = pd.Series(dtype=dtype)
+            for field in request_data.schema:
+                dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
+                df[f"{field.name}"] = pd.Series(dtype=dtype)
         output_df: pd.DataFrame = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):

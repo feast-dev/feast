@@ -81,7 +81,10 @@ class PrimitiveFeastType(Enum):
         return PRIMITIVE_FEAST_TYPES_TO_STRING[self.name]
 
     def __eq__(self, other):
-        return self.value == other.value
+        if isinstance(other, PrimitiveFeastType):
+            return self.value == other.value
+        else:
+            return False
 
     def __hash__(self):
         return hash((PRIMITIVE_FEAST_TYPES_TO_STRING[self.name]))
