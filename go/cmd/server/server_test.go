@@ -244,7 +244,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 
 		}
 	}
-	err = test.CleanUpLogs(logPath)
+	err = test.CleanUpFile(logPath)
 	assert.Nil(t, err)
 }
 

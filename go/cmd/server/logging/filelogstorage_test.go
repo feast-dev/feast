@@ -64,6 +64,6 @@ func TestFlushToStorage(t *testing.T) {
 		}
 	}
 
-	err = test.CleanUpLogs(logPath)
+	err = test.CleanUpFiles(logPath)
 	assert.Nil(t, err)
 }

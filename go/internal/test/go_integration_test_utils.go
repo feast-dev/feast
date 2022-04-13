@@ -177,7 +177,7 @@ func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, erro
 	return r, nil
 }
 
-func CleanUpLogs(absPath string) error {
+func CleanUpFile(absPath string) error {
 	return os.Remove(absPath)
 }
 
