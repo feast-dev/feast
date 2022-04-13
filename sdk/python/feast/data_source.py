@@ -519,6 +519,9 @@ class RequestSource(DataSource):
         else:
             return False
 
+    def __hash__(self):
+        return super().__hash__()
+
     @staticmethod
     def from_proto(data_source: DataSourceProto):
 
