@@ -17,6 +17,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 from distutils.cmd import Command
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -355,7 +356,8 @@ class BuildGoEmbeddedCommand(Command):
             "-output",
             "feast/embedded_go/lib",
             "-vm",
-            "python3",
+            # Path of current python executable
+            sys.executable,
             "-no-make",
             "github.com/feast-dev/feast/go/embedded"
         ], env={
