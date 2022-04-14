@@ -9,6 +9,7 @@ The above table can be registered with Feast through the following feature view:
 ```python
 from feast import FeatureView, Field, FileSource
 from feast.types import Float32, Int64
+from datetime import timedelta
 
 driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
@@ -18,7 +19,7 @@ driver_stats_fv = FeatureView(
         Field(name="earnings_today", dtype=Float32),
     ],
     ttl=timedelta(hours=2),
-    batch_source=FileSource(
+    source=FileSource(
         path="driver_hourly_stats.parquet"
     )
 )

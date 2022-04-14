@@ -117,14 +117,14 @@ driver_locations = FeatureView(
         Field(name="lat", dtype=Float32),
         Field(name="lon", dtype=String),
     ],
-    batch_source=driver_locations_source,
+    source=driver_locations_source,
 )
 ```
 {% endcode %}
 
-To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](../../getting-started/concepts/#feature-view).
+To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](../../getting-started/concepts/feature-view.md).
 
 ### Next steps
 
-* See [Create a feature repository](../../how-to-guides/feast-gcp-aws/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md), or [Feature Views](../../getting-started/concepts/#feature-view) for more information on the configuration files that live in a feature registry.
+* See [Create a feature repository](../../how-to-guides/feast-snowflake-gcp-aws/create-a-feature-repository.md) to get started with an example feature repository.
+* See [feature_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md), or [Feature Views](../../getting-started/concepts/feature-view.md) for more information on the configuration files that live in a feature registry.

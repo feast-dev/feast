@@ -64,7 +64,6 @@ class FileSource(DataSource):
             )
         self.file_options = FileOptions(
             file_format=file_format,
-            file_url=path,
             uri=path,
             s3_endpoint_override=s3_endpoint_override,
         )
@@ -191,7 +190,6 @@ class FileOptions:
     def __init__(
         self,
         file_format: Optional[FileFormat],
-        file_url: Optional[str],
         s3_endpoint_override: Optional[str],
         uri: Optional[str],
     ):
@@ -200,21 +198,12 @@ class FileOptions:
 
         Args:
             file_format (FileFormat, optional): file source format eg. parquet
-            file_url (str, optional): [DEPRECATED] file source url eg. s3:// or local file
             s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 uri)
             uri (str, optional): file source url eg. s3:// or local file
 
         """
         self._file_format = file_format
-        if file_url:
-            warnings.warn(
-                (
-                    "The option to pass a file_url parameter to FileOptions is being deprecated. "
-                    "Please pass the file url to the uri parameter instead. The parameter will be deprecated in Feast 0.23"
-                ),
-                DeprecationWarning,
-            )
-        self._uri = uri or file_url
+        self._uri = uri
         self._s3_endpoint_override = s3_endpoint_override
 
     @property
@@ -230,20 +219,6 @@ class FileOptions:
         Sets the file format of this file
         """
         self._file_format = file_format
-
-    @property
-    def file_url(self):
-        """
-        Returns the file url of this file
-        """
-        return self._file_url
-
-    @file_url.setter
-    def file_url(self, file_url):
-        """
-        Sets the file url of this file
-        """
-        self._file_url = file_url
 
     @property
     def uri(self):
@@ -286,7 +261,6 @@ class FileOptions:
         """
         file_options = cls(
             file_format=FileFormat.from_proto(file_options_proto.file_format),
-            file_url="",
             uri=file_options_proto.uri,
             s3_endpoint_override=file_options_proto.s3_endpoint_override,
         )
@@ -323,7 +297,6 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
     ):
         self.file_options = FileOptions(
             file_format=file_format,
-            file_url="",
             s3_endpoint_override=s3_endpoint_override,
             uri=path,
         )

@@ -17,8 +17,8 @@ driver_stats_fv = FeatureView(
         Field(name="trips_today", dtype=Int64),
         Field(name="rating", dtype=Float32),
     ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.driver_activity"
+    source=BigQuerySource(
+        table="feast-oss.demo_data.driver_activity"
     )
 )
 ```
@@ -28,7 +28,7 @@ driver_stats_fv = FeatureView(
 Feature views are used during
 
 * The generation of training datasets by querying the data source of feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
-* Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/alpha-stream-ingestion.md).
+* Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/data-sources/push.md).
 * Retrieval of features from the online store. Feature views provide the schema definition to Feast in order to look up features from the online store.
 
 {% hint style="info" %}
@@ -37,7 +37,7 @@ Feast does not generate feature values. It acts as the ingestion and serving sys
 
 ## Feature views without entities
 
-If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities.
+If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities (only event timestamps are needed for this feature view).
 
 {% tabs %}
 {% tab title="global_stats.py" %}
@@ -51,8 +51,8 @@ global_stats_fv = FeatureView(
     schema=[
         Field(name="total_trips_today_by_all_drivers", dtype=Int64),
     ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.global_stats"
+    source=BigQuerySource(
+        table="feast-oss.demo_data.global_stats"
     )
 )
 ```
@@ -87,8 +87,8 @@ location_stats_fv= FeatureView(
     schema=[
         Field(name="temperature", dtype=Int32)
     ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.location_stats"
+    source=BigQuerySource(
+        table="feast-oss.demo_data.location_stats"
     ),
 )
 ```

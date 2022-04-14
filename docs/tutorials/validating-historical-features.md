@@ -114,8 +114,8 @@ from feast.data_format import ParquetFormat
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.file import SavedDatasetFileStorage
+from datetime import timedelta
 
-from google.protobuf.duration_pb2 import Duration
 ```
 
 
@@ -144,8 +144,8 @@ trips_stats_fv = FeatureView(
         Field(name="trip_count", dtype=Int64),
 
     ],
-    ttl=Duration(seconds=86400),
-    batch_source=batch_source,
+    ttl=timedelta(seconds=86400),
+    source=batch_source,
 )
 ```
 
@@ -160,7 +160,7 @@ trips_stats_fv = FeatureView(
         Field("avg_trip_seconds", Float64),
         Field("earned_per_hour", Float64),
     ],
-    inputs={
+    sources={
         "stats": trips_stats_fv
     }
 )

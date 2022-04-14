@@ -147,8 +147,8 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
-  * [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
+  * [x] [Spark (community plugin)](https://docs.feast.dev/reference/data-sources/spark)
+  * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push)
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
@@ -158,7 +158,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
   * [x] [Trino (community plugin)](https://github.com/Shopify/feast-trino)
-  * [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
+  * [x] [Spark (community plugin)](https://docs.feast.dev/reference/offline-stores/spark)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
 * **Online Stores**
@@ -173,12 +173,12 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
-  * [x] [Push based streaming data ingestion](reference/alpha-stream-ingestion.md)
+  * [x] [Push based streaming data ingestion](https://docs.feast.dev/reference/data-sources/push.md)
   * [ ] Streaming ingestion on AWS
   * [ ] Streaming ingestion on GCP
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
-  * [ ] Batch transformation (SQL. In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
+  * [ ] Batch transformation (In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
   * [ ] Streaming transformation
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
@@ -204,7 +204,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
-  * [ ] Feast Web UI (in progress)
+  * [x] Feast Web UI (alpha)
   * [ ] REST API for browsing feature registry
   * [ ] Feature versioning
 

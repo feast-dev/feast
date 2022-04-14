@@ -32,7 +32,7 @@ test: test-python test-java test-go
 
 protos: compile-protos-go compile-protos-python compile-protos-docs
 
-build: protos build-java build-docker build-html
+build: protos build-java build-docker
 
 # Python SDK
 
