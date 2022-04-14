@@ -746,7 +746,7 @@ class PushSource(DataSource):
 
         """
         super().__init__(name=name, description=description, tags=tags, owner=owner)
-        self.schema = schema  # TODO: add schema inference from a batch source
+        self.schema = sorted(schema)  # TODO: add schema inference from a batch source
         self.batch_source = batch_source
         if not self.batch_source:
             raise ValueError(f"batch_source is needed for push source {self.name}")
@@ -774,7 +774,7 @@ class PushSource(DataSource):
 
         return PushSource(
             name=data_source.name,
-            schema=schema,
+            schema=sorted(schema),
             batch_source=batch_source,
             timestamp_field=data_source.timestamp_field,
             description=data_source.description,
