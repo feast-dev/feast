@@ -118,7 +118,7 @@ class RepoConfig(FeastBaseModel):
 
     repo_path: Optional[Path] = None
 
-    go_feature_server: Optional[bool] = False
+    go_feature_retrieval: Optional[bool] = False
 
     def __init__(self, **data: Any):
         super().__init__(**data)
