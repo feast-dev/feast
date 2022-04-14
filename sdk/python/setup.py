@@ -232,6 +232,7 @@ class DevelopCommand(develop):
 
 setup(
     name=NAME,
+    version='0.19.4.post1',
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
@@ -263,7 +264,6 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
         "grpcio",
