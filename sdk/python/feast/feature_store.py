@@ -1311,7 +1311,7 @@ class FeatureStore:
         }
 
         # If Go feature server is enabled, send request to it instead of going through regular Python logic
-        if self.config.go_feature_server:
+        if self.config.go_feature_retrieval:
             from feast.embedded_go.online_features_service import (
                 EmbeddedOnlineFeatureServer,
             )

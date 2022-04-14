@@ -82,7 +82,7 @@
   * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [Feature servers](reference/feature-servers/README.md)
   * [Local feature server](reference/feature-servers/local-feature-server.md)
-  * [Go feature server](reference/feature-servers/go-feature-server.md)
+  * [Go-based feature retrieval](reference/feature-servers/go-feature-retrieval.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
 * [\[Alpha\] Stream ingestion](reference/alpha-stream-ingestion.md)
