@@ -122,7 +122,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             # IntegrationTestRepoConfig(
             #     online_store=REDIS_CONFIG,
             #     python_feature_server=True,
-            #     go_feature_server=True,
+            #     go_feature_retrieval=True,
             # ),
         ]
     )
