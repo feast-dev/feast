@@ -1,5 +1,5 @@
 Feast Python API Documentation
-=============================
+==============================
 
 
 Feature Store
@@ -52,7 +52,7 @@ Spark Source
     :members:
     :exclude-members: SparkOptions
 
-Spark Source
+Trino Source
 ------------------
 
 .. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino_source
@@ -81,7 +81,7 @@ Feature View
     :members:
 
 On Demand Feature View
-==================
+======================
 
 .. automodule:: feast.on_demand_feature_view
     :members:
@@ -124,7 +124,7 @@ Provider
     :members:
 
 Passthrough Provider
-------------------
+--------------------
 
 .. automodule:: feast.infra.passthrough_provider
     :members:
@@ -163,31 +163,31 @@ File Offline Store
     :members:
 
 BigQuery Offline Store
-------------------
+----------------------
 
 .. automodule:: feast.infra.offline_stores.bigquery
     :members:
 
 Redshift Offline Store
-------------------
+----------------------
 
 .. automodule:: feast.infra.offline_stores.redshift
     :members:
 
 Snowflake Offline Store
-------------------
+-----------------------
 
 .. automodule:: feast.infra.offline_stores.snowflake
     :members:
 
 Spark Offline Store
-------------------
+-------------------
 
 .. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark
     :members:
 
 Trino Offline Store
-------------------
+-------------------
 
 .. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino
     :members:
@@ -201,19 +201,19 @@ Online Store
     :members:
 
 Sqlite Online Store
-------------------
+-------------------
 
 .. automodule:: feast.infra.online_stores.sqlite
     :members:
 
 Datastore Online Store
-------------------
+----------------------
 
 .. automodule:: feast.infra.online_stores.datastore
     :members:
 
 DynamoDB Online Store
-------------------
+---------------------
 
 .. automodule:: feast.infra.online_stores.dynamodb
     :members:
@@ -223,3 +223,4 @@ Redis Online Store
 
 .. automodule:: feast.infra.online_stores.redis
     :members:
+    :noindex:
