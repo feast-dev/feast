@@ -19,6 +19,9 @@ A quick few highlights:
   - Includes biweekly community calls at 10AM PST
 
 ## Making a pull request
+We use the convention that the assignee of a PR is the person with the next action.
+
+This means that often, the assignee may be empty (if no reviewer has been found yet), the reviewer, or the PR writer if there are comments to be addressed.
 
 ### Pull request checklist
 A quick list of things to keep in mind as you're making changes:
