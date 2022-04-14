@@ -4,7 +4,7 @@ import pathlib
 import sys
 
 USAGE = f"Usage: python {sys.argv[0]} [--help] | current_semver_version new_semver_version]"
-VERSIONS_TO_BUMP = 26
+VERSIONS_TO_BUMP = 27
 
 
 def main() -> None:
@@ -57,6 +57,8 @@ def main() -> None:
                 current_version = current_version_patch
                 found = True
                 break
+            else:
+                print(f"Found {versions_in_files} occurrences of {current_version_patch}, instead of {VERSIONS_TO_BUMP}")
         if not found:
             raise SystemExit(f"Could not find {VERSIONS_TO_BUMP} versions of {current_version} in {path_to_file_list}")
 
