@@ -118,11 +118,12 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             IntegrationTestRepoConfig(
                 online_store=REDIS_CONFIG, go_feature_server=True,
             ),
-            IntegrationTestRepoConfig(
-                online_store=REDIS_CONFIG,
-                python_feature_server=True,
-                go_feature_server=True,
-            ),
+            # TODO(felixwang9817): Enable this test once https://github.com/feast-dev/feast/issues/2544 is resolved.
+            # IntegrationTestRepoConfig(
+            #     online_store=REDIS_CONFIG,
+            #     python_feature_server=True,
+            #     go_feature_server=True,
+            # ),
         ]
     )
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
