@@ -52,8 +52,8 @@ def get_app(store: "feast.FeatureStore"):
                 raise HTTPException(status_code=500, detail="Uneven number of columns")
 
             response_proto = store._get_online_features(
-                features,
-                request_proto.entities,
+                features=features,
+                entity_values=request_proto.entities,
                 full_feature_names=full_feature_names,
                 native_entity_values=False,
             ).proto
