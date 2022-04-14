@@ -38,6 +38,28 @@ Redshift Source
     :members:
     :exclude-members: RedshiftOptions
 
+Snowflake Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.snowflake_source
+    :members:
+    :exclude-members: SnowflakeOptions
+
+Spark Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark_source
+    :members:
+    :exclude-members: SparkOptions
+
+Spark Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino_source
+    :members:
+    :exclude-members: TrinoOptions
+
+
 File Source
 ------------------
 
@@ -84,6 +106,15 @@ Registry
 .. automodule:: feast.registry
     :inherited-members:
     :members:
+
+Registry Store
+==================
+
+.. automodule:: feast.registry_store
+    :inherited-members:
+    :members:
+    :exclude-members: NoopRegistryStore
+
 
 Provider
 ==================
@@ -142,6 +173,25 @@ Redshift Offline Store
 
 .. automodule:: feast.infra.offline_stores.redshift
     :members:
+
+Snowflake Offline Store
+------------------
+
+.. automodule:: feast.infra.offline_stores.snowflake
+    :members:
+
+Spark Offline Store
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark
+    :members:
+
+Trino Offline Store
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino
+    :members:
+
 
 Online Store
 ==================

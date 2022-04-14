@@ -38,6 +38,21 @@ Redshift Source
     :members:
     :exclude-members: RedshiftOptions
 
+Snowflake Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.snowflake_source
+    :members:
+    :exclude-members: SnowflakeOptions
+
+Spark Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource
+    :members:
+    :exclude-members: SparkOptions
+
+
 File Source
 ------------------
 
@@ -84,6 +99,15 @@ Registry
 .. automodule:: feast.registry
     :inherited-members:
     :members:
+
+Registry Store
+==================
+
+.. automodule:: feast.registry_store
+    :inherited-members:
+    :members:
+    :exclude-members: NoopRegistryStore
+
 
 Provider
 ==================
