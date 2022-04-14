@@ -5,19 +5,15 @@ import numpy as np
 import pandas as pd
 
 from feast import (
-    Array,
     Feature,
     FeatureView,
     Field,
-    Float32,
-    Float64,
-    Int32,
     OnDemandFeatureView,
     PushSource,
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.types import FeastType
+from feast.types import Array, FeastType, Float32, Float64, Int32
 from tests.integration.feature_repos.universal.entities import location
 
 

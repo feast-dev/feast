@@ -17,18 +17,6 @@ from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
 from .repo_config import RepoConfig
 from .request_feature_view import RequestFeatureView
-from .types import (
-    Array,
-    Bool,
-    Bytes,
-    Float32,
-    Float64,
-    Int32,
-    Int64,
-    Invalid,
-    String,
-    UnixTimestamp,
-)
 from .value_type import ValueType
 
 logging.basicConfig(
@@ -62,15 +50,4 @@ __all__ = [
     "RequestFeatureView",
     "SnowflakeSource",
     "PushSource",
-    # Types
-    "Array",
-    "Invalid",
-    "Bytes",
-    "String",
-    "Bool",
-    "Int32",
-    "Int64",
-    "Float32",
-    "Float64",
-    "UnixTimestamp",
 ]

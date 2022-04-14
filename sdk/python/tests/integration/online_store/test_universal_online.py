@@ -13,12 +13,13 @@ import pytest
 import requests
 from botocore.exceptions import BotoCoreError
 
-from feast import Entity, FeatureService, FeatureView, Field, String, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, ValueType
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.online_response import TIMESTAMP_POSTFIX
+from feast.types import String
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     Environment,

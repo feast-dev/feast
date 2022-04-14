@@ -11,17 +11,9 @@ def setup_feature_store():
     """Prepares the local environment for a FeatureStore docstring test."""
     from datetime import datetime, timedelta
 
-    from feast import (
-        Entity,
-        FeatureStore,
-        FeatureView,
-        Field,
-        FileSource,
-        Float32,
-        Int64,
-        ValueType,
-    )
+    from feast import Entity, FeatureStore, FeatureView, Field, FileSource, ValueType
     from feast.repo_operations import init_repo
+    from feast.types import Float32, Int64
 
     init_repo("feature_repo", "local")
     fs = FeatureStore(repo_path="feature_repo")

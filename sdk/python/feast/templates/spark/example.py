@@ -5,10 +5,11 @@
 from datetime import timedelta
 from pathlib import Path
 
-from feast import Entity, FeatureView, Field, Float32, Int64, ValueType
+from feast import Entity, FeatureView, Field, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.types import Float32, Int64
 
 # Constants related to the generated data sets
 CURRENT_DIR = Path(__file__).parent

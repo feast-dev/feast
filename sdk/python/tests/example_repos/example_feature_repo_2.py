@@ -1,15 +1,7 @@
 from datetime import timedelta
 
-from feast import (
-    Entity,
-    FeatureView,
-    Field,
-    FileSource,
-    Float32,
-    Int32,
-    Int64,
-    ValueType,
-)
+from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast.types import Float32, Int32, Int64
 
 driver_hourly_stats = FileSource(
     path="%PARQUET_PATH%",  # placeholder to be replaced by the test
