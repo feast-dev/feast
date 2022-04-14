@@ -287,7 +287,7 @@ store = FeatureStore(...)
 
 def feast_writer(spark_df):
     pandas_df = spark_df.to_pandas()
-    store.write_to_online_store("driver_hourly_stats", pandas_df)
+    store.push("driver_hourly_stats", pandas_df)
 
 streamingDF.writeStream.foreachBatch(feast_writer).start()
 ```

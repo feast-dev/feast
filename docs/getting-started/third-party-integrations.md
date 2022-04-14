@@ -20,8 +20,8 @@ Don't see your offline store or online store of choice here? Check out our guide
 * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-* [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
-* [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
+* [x] [Spark (community plugin)](https://docs.feast.dev/reference/data-sources/spark)
+* [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push)
 * [ ] HTTP source
 
 ### Offline Stores
@@ -33,7 +33,7 @@ Don't see your offline store or online store of choice here? Check out our guide
 * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
 * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
 * [x] [Trino (community plugin)](https://github.com/Shopify/feast-trino)
-* [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
+* [x] [Spark (community plugin)](https://docs.feast.dev/reference/offline-stores/spark)
 * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
 * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
 

@@ -12,3 +12,4 @@ Once the above data source is materialized into Feast \(using `feast materialize
 
 ![](../../.gitbook/assets/image%20%285%29.png)
 
+Features can also be written to the online store via [push sources](https://docs.feast.dev/reference/data-sources/push) 

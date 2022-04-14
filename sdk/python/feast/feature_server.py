@@ -15,8 +15,15 @@ from feast import proto_json
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
 
 
+# TODO: deprecate this in favor of push features
 class WriteToFeatureStoreRequest(BaseModel):
     feature_view_name: str
+    df: dict
+    allow_registry_cache: bool = True
+
+
+class PushFeaturesRequest(BaseModel):
+    push_source_name: str
     df: dict
     allow_registry_cache: bool = True
 
@@ -61,6 +68,22 @@ def get_app(store: "feast.FeatureStore"):
             # Convert the Protobuf object to JSON and return it
             return MessageToDict(  # type: ignore
                 response_proto, preserving_proto_field_name=True, float_precision=18
+            )
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/push")
+    def push(body=Depends(get_body)):
+        try:
+            request = PushFeaturesRequest(**json.loads(body))
+            df = pd.DataFrame(request.df)
+            store.push(
+                push_source_name=request.push_source_name,
+                df=df,
+                allow_registry_cache=request.allow_registry_cache,
             )
         except Exception as e:
             # Print the original exception on the server side

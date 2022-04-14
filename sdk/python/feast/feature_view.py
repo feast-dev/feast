@@ -254,7 +254,7 @@ class FeatureView(BaseFeatureView):
                 self.batch_source = source
         else:
             warnings.warn(
-                "batch_source and stream_source have been deprecated in favor or `source`."
+                "batch_source and stream_source have been deprecated in favor of `source`."
                 "The deprecated fields will be removed in Feast 0.23.",
                 DeprecationWarning,
             )
@@ -279,7 +279,7 @@ class FeatureView(BaseFeatureView):
             name=self.name,
             entities=self.entities,
             ttl=self.ttl,
-            batch_source=self.batch_source,
+            source=self.batch_source,
             stream_source=self.stream_source,
             schema=self.schema,
             tags=self.tags,
@@ -443,7 +443,7 @@ class FeatureView(BaseFeatureView):
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
-            batch_source=batch_source,
+            source=batch_source,
             stream_source=stream_source,
         )
 

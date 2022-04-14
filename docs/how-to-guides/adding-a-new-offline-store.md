@@ -252,7 +252,7 @@ pdriver_hourly_stats = CustomFileDataSource(
 
 
 driver_hourly_stats_view = FeatureView(
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     ...
 )
 ```

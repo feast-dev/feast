@@ -21,7 +21,7 @@ from google.protobuf.json_format import MessageToJson
 
 from feast import type_map
 from feast.data_format import StreamFormat
-from feast.field import Field
+from feast.field import Field, from_value_type
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.types import VALUE_TYPES_TO_FEAST_TYPES
@@ -251,6 +251,9 @@ class DataSource(ABC):
         return str(MessageToJson(self.to_proto()))
 
     def __eq__(self, other):
+        if other is None:
+            return False
+
         if not isinstance(other, DataSource):
             raise TypeError("Comparisons should only involve DataSource class objects.")
 
@@ -712,7 +715,7 @@ class PushSource(DataSource):
     """
 
     name: str
-    schema: Dict[str, ValueType]
+    schema: List[Field]
     batch_source: DataSource
     timestamp_field: str
 
@@ -720,9 +723,8 @@ class PushSource(DataSource):
         self,
         *,
         name: str,
-        schema: Dict[str, ValueType],
+        schema: List[Field],
         batch_source: DataSource,
-        event_timestamp_column="timestamp",
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -735,8 +737,6 @@ class PushSource(DataSource):
             schema: Schema mapping from the input feature name to a ValueType
             batch_source: The batch source that backs this push source. It's used when materializing from the offline
                 store to the online store, and when retrieving historical features.
-            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
-                joins of feature values.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
@@ -746,22 +746,13 @@ class PushSource(DataSource):
 
         """
         super().__init__(name=name, description=description, tags=tags, owner=owner)
-        self.schema = schema
+        self.schema = sorted(schema)  # TODO: add schema inference from a batch source
         self.batch_source = batch_source
         if not self.batch_source:
             raise ValueError(f"batch_source is needed for push source {self.name}")
-        if not timestamp_field and event_timestamp_column:
-            warnings.warn(
-                (
-                    "The argument 'event_timestamp_column' is being deprecated. Please use 'timestamp_field' instead. "
-                    "instead. Feast 0.23 and onwards will not support the argument 'event_timestamp_column' for datasources."
-                ),
-                DeprecationWarning,
-            )
-        self.timestamp_field = timestamp_field or event_timestamp_column
-
-        if not self.timestamp_field:
+        if not timestamp_field:
             raise ValueError(f"timestamp field is needed for push source {self.name}")
+        self.timestamp_field = timestamp_field
 
     def validate(self, config: RepoConfig):
         pass
@@ -774,16 +765,16 @@ class PushSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         schema_pb = data_source.push_options.schema
-        schema = {}
+        schema = []
         for key, val in schema_pb.items():
-            schema[key] = ValueType(val)
+            schema.append(Field(name=key, dtype=from_value_type(ValueType(val))))
 
         assert data_source.HasField("batch_source")
         batch_source = DataSource.from_proto(data_source.batch_source)
 
         return PushSource(
             name=data_source.name,
-            schema=schema,
+            schema=sorted(schema),
             batch_source=batch_source,
             timestamp_field=data_source.timestamp_field,
             description=data_source.description,
@@ -793,8 +784,8 @@ class PushSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         schema_pb = {}
-        for key, value in self.schema.items():
-            schema_pb[key] = value.value
+        for field in self.schema:
+            schema_pb[field.name] = field.dtype.to_value_type().value
         batch_source_proto = None
         if self.batch_source:
             batch_source_proto = self.batch_source.to_proto()

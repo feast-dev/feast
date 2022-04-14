@@ -106,14 +106,14 @@ driver = Entity(name="driver", value_type=ValueType.INT64, join_key="driver_id",
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],  # reference entity by name
-    ttl=Duration(seconds=86400 * 1),
+    ttl=timedelta(seconds=86400 * 1),
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )
 ```
@@ -176,14 +176,14 @@ driver = Entity(name="driver", value_type=ValueType.INT64, join_key="driver_id",
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],  # reference entity by name
-    ttl=Duration(seconds=86400 * 1),
+    ttl=timedelta(seconds=86400 * 1),
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )
 ```

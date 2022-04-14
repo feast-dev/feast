@@ -13,7 +13,7 @@ from feast import (
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.types import Array, FeastType, Float32, Float64, Int32
+from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
 from tests.integration.feature_repos.universal.entities import location
 
 
@@ -238,11 +238,11 @@ def create_field_mapping_feature_view(source):
 def create_pushable_feature_view(batch_source: DataSource):
     push_source = PushSource(
         name="location_stats_push_source",
-        schema={
-            "location_id": ValueType.INT64,
-            "temperature": ValueType.INT32,
-            "timestamp": ValueType.UNIX_TIMESTAMP,
-        },
+        schema=[
+            Field(name="location_id", dtype=Int64),
+            Field(name="temperature", dtype=Int32),
+        ],
+        timestamp_field="timestamp",
         batch_source=batch_source,
     )
     return FeatureView(
