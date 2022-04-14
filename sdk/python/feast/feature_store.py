@@ -82,7 +82,10 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage
-from feast.type_map import python_values_to_proto_values
+from feast.type_map import (
+    feast_value_type_to_python_type,
+    python_values_to_proto_values,
+)
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
@@ -1301,6 +1304,12 @@ class FeatureStore:
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
+        # Extract Sequence from RepeatedValue Protobuf.
+        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
+            k: list(v) if isinstance(v, Sequence) else list(v.val)
+            for k, v in entity_values.items()
+        }
+
         # If Go feature server is enabled, send request to it instead of going through regular Python logic
         if self.config.go_feature_server:
             from feast.embedded_go.online_features_service import (
@@ -1313,12 +1322,27 @@ class FeatureStore:
                     str(self.repo_path.absolute()), self.config, self
                 )
 
+            entity_native_values: Dict[str, List[Any]]
+            if not native_entity_values:
+                # Convert proto types to native types since Go feature server currently
+                # only handles native types.
+                # TODO(felixwang9817): Remove this logic once native types are supported.
+                entity_native_values = {
+                    k: [
+                        feast_value_type_to_python_type(proto_value)
+                        for proto_value in v
+                    ]
+                    for k, v in entity_value_lists.items()
+                }
+            else:
+                entity_native_values = entity_value_lists
+
             return self._go_server.get_online_features(
                 features_refs=features if isinstance(features, list) else [],
                 feature_service=features
                 if isinstance(features, FeatureService)
                 else None,
-                entities=entity_values,
+                entities=entity_native_values,
                 request_data={},  # TODO: add request data parameter to public API
                 full_feature_names=full_feature_names,
             )
@@ -1344,12 +1368,6 @@ class FeatureStore:
             entity_type_map,
             join_keys_set,
         ) = self._get_entity_maps(requested_feature_views)
-
-        # Extract Sequence from RepeatedValue Protobuf.
-        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
-            k: list(v) if isinstance(v, Sequence) else list(v.val)
-            for k, v in entity_values.items()
-        }
 
         entity_proto_values: Dict[str, List[Value]]
         if native_entity_values:
