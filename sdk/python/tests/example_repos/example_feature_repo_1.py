@@ -47,7 +47,7 @@ driver_locations_push_source = PushSource(
         Field(name="driver_long", dtype=String),
     ],
     batch_source=driver_locations_source,
-    timestamp_field="event_timestamp"
+    timestamp_field="event_timestamp",
 )
 
 driver = Entity(

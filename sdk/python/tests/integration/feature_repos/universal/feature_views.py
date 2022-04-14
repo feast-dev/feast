@@ -240,7 +240,7 @@ def create_pushable_feature_view(batch_source: DataSource):
         name="location_stats_push_source",
         schema=[
             Field(name="location_id", dtype=Int64),
-            Field(name="temperature", dtype=Int32)
+            Field(name="temperature", dtype=Int32),
         ],
         timestamp_field="timestamp",
         batch_source=batch_source,
