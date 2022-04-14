@@ -107,7 +107,7 @@ GE_REQUIRED = [
 
 CI_REQUIRED = (
     [
-        "cryptography==3.3.2",
+        "cryptography==3.4.8",
         "flake8",
         "black==19.10b0",
         "isort>=5",
