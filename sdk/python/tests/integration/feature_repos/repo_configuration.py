@@ -126,6 +126,12 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             # ),
         ]
     )
+if os.getenv("FEAST_GO_FEATURE_RETRIEVAL", "False") == "True":
+    DEFAULT_FULL_REPO_CONFIGS = [
+        IntegrationTestRepoConfig(
+            online_store=REDIS_CONFIG, go_feature_retrieval=True,
+        ),
+    ]
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
@@ -151,11 +157,6 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
                     c.online_store_creator = _replacement[1]
         elif c.online_store in replacements:
             c.online_store_creator = replacements[c.online_store]
-
-
-GO_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_retrieval=True,),
-]
 
 
 @dataclass

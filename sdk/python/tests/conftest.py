@@ -33,7 +33,6 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 )
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
-    GO_REPO_CONFIGS,
     REDIS_CLUSTER_CONFIG,
     REDIS_CONFIG,
     Environment,
@@ -59,9 +58,6 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "goserver: mark tests that use the go feature server"
-    )
-    config.addinivalue_line(
-        "markers", "goserverlifecycle: mark tests that use the go feature server"
     )
 
 
@@ -234,19 +230,6 @@ def environment(request, worker_id: str):
 
 
 @pytest.fixture(
-    params=GO_REPO_CONFIGS, scope="session", ids=[str(c) for c in GO_REPO_CONFIGS]
-)
-def go_environment(request, worker_id: str):
-    e = construct_test_environment(request.param, worker_id=worker_id)
-
-    def cleanup():
-        e.feature_store.teardown()
-
-    request.addfinalizer(cleanup)
-    return e
-
-
-@pytest.fixture(
     params=[REDIS_CONFIG, REDIS_CLUSTER_CONFIG],
     scope="session",
     ids=[str(c) for c in [REDIS_CONFIG, REDIS_CLUSTER_CONFIG]],
@@ -281,18 +264,6 @@ def redis_universal_data_sources(request, local_redis_environment):
 
     request.addfinalizer(cleanup)
     return construct_universal_test_data(local_redis_environment)
-
-
-@pytest.fixture(scope="session")
-def go_data_sources(request, go_environment):
-    def cleanup():
-        # logger.info("Running cleanup in %s, Request: %s", worker_id, request.param)
-        go_environment.data_source_creator.teardown()
-        if go_environment.online_store_creator:
-            go_environment.online_store_creator.teardown()
-
-    request.addfinalizer(cleanup)
-    return construct_universal_test_data(go_environment)
 
 
 @pytest.fixture(scope="session")
