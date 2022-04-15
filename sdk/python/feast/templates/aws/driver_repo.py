@@ -8,7 +8,7 @@ from feast.types import Float32, Int64
 # construction of feature vectors
 driver = Entity(
     # Name of the entity. Must be unique within a project
-    name="driver_id",
+    name="driver",
     # The join key of an entity describes the storage level field/column on which
     # features can be looked up. The join key is also used to join feature
     # tables/views when building feature vectors
@@ -41,7 +41,7 @@ driver_stats_fv = FeatureView(
     # The list of entities specifies the keys required for joining or looking
     # up features from this feature view. The reference provided in this field
     # correspond to the name of a defined entity (or entities)
-    entities=["driver_id"],
+    entities=["driver"],
     # The timedelta is the maximum age that each feature value may have
     # relative to its lookup time. For historical features (used in training),
     # TTL is relative to each timestamp provided in the entity dataframe.
@@ -60,7 +60,7 @@ driver_stats_fv = FeatureView(
     # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on Redshift for driver statistics
     # features
-    batch_source=driver_stats_source,
+    source=driver_stats_source,
     # Tags are user defined key/value pairs that are attached to each
     # feature view
     tags={"team": "driver_performance"},
