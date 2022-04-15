@@ -308,6 +308,8 @@ class FileOfflineStore(OfflineStore):
                 source_df = source_df.sort_values(by=event_timestamp_column)
 
             except ZeroDivisionError:
+                # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
+                # try to divide by zero.
                 if created_timestamp_column:
                     source_df = source_df.sort_values(
                         by=created_timestamp_column, npartitions=1
@@ -334,7 +336,6 @@ class FileOfflineStore(OfflineStore):
                 source_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
                 columns_to_extract.add(DUMMY_ENTITY_ID)
 
-            print(source_df.head())
             source_df = source_df.persist()
 
             return source_df[list(columns_to_extract)].persist()
@@ -399,8 +400,7 @@ def _read_datasource(data_source) -> dd.DataFrame:
         else None
     )
 
-    df = dd.read_parquet(data_source.path, storage_options=storage_options,)
-    return df
+    return dd.read_parquet(data_source.path, storage_options=storage_options,)
 
 
 def _field_mapping(
