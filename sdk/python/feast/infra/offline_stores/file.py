@@ -323,6 +323,7 @@ class FileOfflineStore(OfflineStore):
                 (source_df[event_timestamp_column] >= start_date)
                 & (source_df[event_timestamp_column] < end_date)
             ]
+
             source_df = source_df.persist()
 
             columns_to_extract = set(
