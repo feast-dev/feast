@@ -542,16 +542,16 @@ class FeatureStore:
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
-            list(desired_repo_contents.feature_views),
-            list(desired_repo_contents.on_demand_feature_views),
-            list(desired_repo_contents.request_feature_views),
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.request_feature_views,
         )
-        _validate_data_sources(list(desired_repo_contents.data_sources))
+        _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
-            list(desired_repo_contents.data_sources),
-            list(desired_repo_contents.entities),
-            list(desired_repo_contents.feature_views),
-            list(desired_repo_contents.on_demand_feature_views),
+            desired_repo_contents.data_sources,
+            desired_repo_contents.entities,
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
         )
 
         # Compute the desired difference between the current objects in the registry and

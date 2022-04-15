@@ -134,6 +134,7 @@ class BaseFeatureView(ABC):
         if (
             self.name != other.name
             or sorted(self.features) != sorted(other.features)
+            or self.projection != other.projection
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
