@@ -1,3 +1,5 @@
+import os
+
 from datetime import datetime
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -6,6 +8,7 @@ import pandas as pd
 import pyarrow
 import pytz
 from pydantic.typing import Literal
+from regex import P
 
 from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
@@ -299,17 +302,24 @@ class FileOfflineStore(OfflineStore):
                 if created_timestamp_column
                 else [event_timestamp_column]
             )
+            # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
+            # will remove once a fix is added.
+            try:
+                if created_timestamp_column:
+                    source_df = source_df.sort_values(by=created_timestamp_column,)
 
-            if created_timestamp_column:
-                source_df = source_df.sort_values(by=created_timestamp_column)
+                source_df = source_df.sort_values(by=event_timestamp_column)
 
-            source_df = source_df.sort_values(by=event_timestamp_column)
+            except ZeroDivisionError:
+                if created_timestamp_column:
+                    source_df = source_df.sort_values(by=created_timestamp_column, npartitions=1)
+
+                source_df = source_df.sort_values(by=event_timestamp_column, npartitions=1)
 
             source_df = source_df[
                 (source_df[event_timestamp_column] >= start_date)
                 & (source_df[event_timestamp_column] < end_date)
             ]
-
             source_df = source_df.persist()
 
             columns_to_extract = set(
@@ -323,6 +333,7 @@ class FileOfflineStore(OfflineStore):
                 source_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
                 columns_to_extract.add(DUMMY_ENTITY_ID)
 
+            print(source_df.head())
             source_df = source_df.persist()
 
             return source_df[list(columns_to_extract)].persist()
@@ -386,8 +397,12 @@ def _read_datasource(data_source) -> dd.DataFrame:
         if data_source.file_options.s3_endpoint_override
         else None
     )
+    print(os.path.abspath(data_source.path))
 
-    return dd.read_parquet(data_source.path, storage_options=storage_options,)
+    df = dd.read_parquet(data_source.path, storage_options=storage_options,)
+    print("Asdfasdf")
+    print(df.npartitions)
+    return df
 
 
 def _field_mapping(
