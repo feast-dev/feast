@@ -28,7 +28,7 @@ cloudpickle==2.0.0
     # via dask
 colorama==0.4.4
     # via feast (setup.py)
-dask==2022.3.0
+dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.4
     # via feast (setup.py)
