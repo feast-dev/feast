@@ -299,11 +299,25 @@ class FileOfflineStore(OfflineStore):
                 if created_timestamp_column
                 else [event_timestamp_column]
             )
+            # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
+            # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
+            try:
+                if created_timestamp_column:
+                    source_df = source_df.sort_values(by=created_timestamp_column,)
 
-            if created_timestamp_column:
-                source_df = source_df.sort_values(by=created_timestamp_column)
+                source_df = source_df.sort_values(by=event_timestamp_column)
 
-            source_df = source_df.sort_values(by=event_timestamp_column)
+            except ZeroDivisionError:
+                # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
+                # try to divide by zero.
+                if created_timestamp_column:
+                    source_df = source_df.sort_values(
+                        by=created_timestamp_column, npartitions=1
+                    )
+
+                source_df = source_df.sort_values(
+                    by=event_timestamp_column, npartitions=1
+                )
 
             source_df = source_df[
                 (source_df[event_timestamp_column] >= start_date)
