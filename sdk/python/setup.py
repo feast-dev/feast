@@ -72,7 +72,7 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
-    "google-cloud-bigquery>=2.34.*,<3.0.0",
+    "google-cloud-bigquery>=2.*,<3",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.34.*,<1.41",
