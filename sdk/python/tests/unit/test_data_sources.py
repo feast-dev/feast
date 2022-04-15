@@ -10,7 +10,7 @@ from feast.types import Bool, Float32
 def test_push_with_batch():
     push_source = PushSource(
         name="test",
-        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool),],
+        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool)],
         timestamp_field="event_timestamp",
         batch_source=BigQuerySource(table="test.test"),
     )
@@ -47,3 +47,43 @@ def test_request_source_primitive_type_to_proto():
     request_proto = request_source.to_proto()
     deserialized_request_source = RequestSource.from_proto(request_proto)
     assert deserialized_request_source == request_source
+
+
+def test_hash():
+    push_source_1 = PushSource(
+        name="test",
+        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool)],
+        timestamp_field="event_timestamp",
+        batch_source=BigQuerySource(table="test.test"),
+    )
+    push_source_2 = PushSource(
+        name="test",
+        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool)],
+        timestamp_field="event_timestamp",
+        batch_source=BigQuerySource(table="test.test"),
+    )
+    push_source_3 = PushSource(
+        name="test",
+        schema=[Field(name="f1", dtype=Float32)],
+        timestamp_field="event_timestamp",
+        batch_source=BigQuerySource(table="test.test"),
+    )
+    push_source_4 = PushSource(
+        name="test",
+        schema=[Field(name="f1", dtype=Float32)],
+        timestamp_field="event_timestamp",
+        batch_source=BigQuerySource(table="test.test"),
+        description="test",
+    )
+
+    s1 = {push_source_1, push_source_2}
+    assert len(s1) == 1
+
+    s2 = {push_source_1, push_source_3}
+    assert len(s2) == 2
+
+    s3 = {push_source_3, push_source_4}
+    assert len(s3) == 2
+
+    s4 = {push_source_1, push_source_2, push_source_3, push_source_4}
+    assert len(s4) == 3

@@ -245,7 +245,7 @@ class DataSource(ABC):
         self.owner = owner or ""
 
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash((self.name, self.timestamp_field))
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
@@ -263,9 +263,9 @@ class DataSource(ABC):
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
+            or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
-            or self.description != other.description
         ):
             return False
 
@@ -392,6 +392,9 @@ class KafkaSource(DataSource):
                 "Comparisons should only involve KafkaSource class objects."
             )
 
+        if not super().__eq__(other):
+            return False
+
         if (
             self.kafka_options.bootstrap_servers
             != other.kafka_options.bootstrap_servers
@@ -401,6 +404,9 @@ class KafkaSource(DataSource):
             return False
 
         return True
+
+    def __hash__(self):
+        return super().__hash__()
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -507,13 +513,10 @@ class RequestSource(DataSource):
             raise TypeError(
                 "Comparisons should only involve RequestSource class objects."
             )
-        if (
-            self.name != other.name
-            or self.description != other.description
-            or self.owner != other.owner
-            or self.tags != other.tags
-        ):
+
+        if not super().__eq__(other):
             return False
+
         if isinstance(self.schema, List) and isinstance(other.schema, List):
             for field1, field2 in zip(self.schema, other.schema):
                 if field1 != field2:
@@ -671,23 +674,25 @@ class KinesisSource(DataSource):
         )
 
     def __eq__(self, other):
-        if other is None:
-            return False
-
         if not isinstance(other, KinesisSource):
             raise TypeError(
                 "Comparisons should only involve KinesisSource class objects."
             )
 
+        if not super().__eq__(other):
+            return False
+
         if (
-            self.name != other.name
-            or self.kinesis_options.record_format != other.kinesis_options.record_format
+            self.kinesis_options.record_format != other.kinesis_options.record_format
             or self.kinesis_options.region != other.kinesis_options.region
             or self.kinesis_options.stream_name != other.kinesis_options.stream_name
         ):
             return False
 
         return True
+
+    def __hash__(self):
+        return super().__hash__()
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
@@ -743,6 +748,21 @@ class PushSource(DataSource):
         self.batch_source = batch_source
         if not self.batch_source:
             raise ValueError(f"batch_source is needed for push source {self.name}")
+
+    def __eq__(self, other):
+        if not isinstance(other, PushSource):
+            raise TypeError("Comparisons should only involve PushSource class objects.")
+
+        if not super().__eq__(other):
+            return False
+
+        if self.batch_source != other.batch_source:
+            return False
+
+        return True
+
+    def __hash__(self):
+        return super().__hash__()
 
     def validate(self, config: RepoConfig):
         pass
