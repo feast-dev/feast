@@ -300,7 +300,7 @@ class FileOfflineStore(OfflineStore):
                 else [event_timestamp_column]
             )
             # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
-            # will remove once a fix is added.
+            # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
             try:
                 if created_timestamp_column:
                     source_df = source_df.sort_values(by=created_timestamp_column,)
