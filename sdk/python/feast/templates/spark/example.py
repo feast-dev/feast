@@ -16,9 +16,9 @@ CURRENT_DIR = Path(__file__).parent
 
 
 # Entity definitions
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(name="driver", value_type=ValueType.INT64, description="driver id",)
 customer = Entity(
-    name="customer_id", value_type=ValueType.INT64, description="customer id",
+    name="customer", value_type=ValueType.INT64, description="customer id",
 )
 
 # Sources
@@ -40,7 +40,7 @@ customer_daily_profile = SparkSource(
 # Feature Views
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=["driver"],
     ttl=timedelta(days=7),
     schema=[
         Field(name="conv_rate", dtype=Float32),
@@ -48,12 +48,12 @@ driver_hourly_stats_view = FeatureView(
         Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )
 customer_daily_profile_view = FeatureView(
     name="customer_daily_profile",
-    entities=["customer_id"],
+    entities=["customer"],
     ttl=timedelta(days=7),
     schema=[
         Field(name="current_balance", dtype=Float32),
@@ -61,6 +61,6 @@ customer_daily_profile_view = FeatureView(
         Field(name="lifetime_trip_count", dtype=Int64),
     ],
     online=True,
-    batch_source=customer_daily_profile,
+    source=customer_daily_profile,
     tags={},
 )
