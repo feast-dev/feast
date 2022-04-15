@@ -4,12 +4,15 @@ from feast import ValueType
 from feast.data_source import PushSource, RequestDataSource, RequestSource
 from feast.field import Field
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.types import PrimitiveFeastType
+from feast.types import Bool, Float32
 
 
 def test_push_with_batch():
     push_source = PushSource(
-        name="test", batch_source=BigQuerySource(table="test.test"),
+        name="test",
+        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool),],
+        timestamp_field="event_timestamp",
+        batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
     assert push_source_proto.HasField("batch_source")
@@ -35,8 +38,8 @@ def test_request_data_source_deprecation():
 
 def test_request_source_primitive_type_to_proto():
     schema = [
-        Field(name="f1", dtype=PrimitiveFeastType.FLOAT32),
-        Field(name="f2", dtype=PrimitiveFeastType.BOOL),
+        Field(name="f1", dtype=Float32),
+        Field(name="f2", dtype=Bool),
     ]
     request_source = RequestSource(
         name="source", schema=schema, description="desc", tags={}, owner="feast",
