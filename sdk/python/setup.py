@@ -68,7 +68,7 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0",
     "proto-plus<1.19.7",
     "tensorflow-metadata>=1.0.0,<2.0.0",
-    "dask>=2021.*,<2022.02.0",
+    "dask>=2021.*,<2022.4.0",
 ]
 
 GCP_REQUIRED = [
@@ -81,7 +81,6 @@ GCP_REQUIRED = [
 
 REDIS_REQUIRED = [
     "redis==3.5.3",
-    "redis-py-cluster>=2.1.3",
     "hiredis>=2.0.0",
 ]
 
@@ -108,7 +107,7 @@ GE_REQUIRED = [
 
 CI_REQUIRED = (
     [
-        "cryptography==3.3.2",
+        "cryptography==3.4.8",
         "flake8",
         "black==19.10b0",
         "isort>=5",
