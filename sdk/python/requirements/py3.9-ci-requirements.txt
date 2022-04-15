@@ -206,12 +206,10 @@ google-auth-httplib2==0.1.0
     # via google-api-python-client
 google-auth-oauthlib==0.5.1
     # via gcsfs
-google-cloud-bigquery==3.0.1
+google-cloud-bigquery==2.34.3
     # via feast (setup.py)
 google-cloud-bigquery-storage==2.13.1
-    # via
-    #   feast (setup.py)
-    #   google-cloud-bigquery
+    # via feast (setup.py)
 google-cloud-core==1.7.2
     # via
     #   feast (setup.py)
@@ -451,7 +449,6 @@ py4j==0.10.9.3
 pyarrow==6.0.1
     # via
     #   feast (setup.py)
-    #   google-cloud-bigquery
     #   snowflake-connector-python
 pyasn1==0.4.8
     # via
