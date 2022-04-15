@@ -110,7 +110,7 @@ class BaseFeatureView(ABC):
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash((self.name))
 
     def __getitem__(self, item):
         assert isinstance(item, list)

@@ -234,14 +234,19 @@ class OnDemandFeatureView(BaseFeatureView):
         return fv
 
     def __eq__(self, other):
+        if not isinstance(other, OnDemandFeatureView):
+            raise TypeError(
+                "Comparisons should only involve OnDemandFeatureView class objects."
+            )
+
         if not super().__eq__(other):
             return False
 
         if (
-            not self.source_feature_view_projections
-            == other.source_feature_view_projections
-            or not self.source_request_sources == other.source_request_sources
-            or not self.udf.__code__.co_code == other.udf.__code__.co_code
+            self.source_feature_view_projections
+            != other.source_feature_view_projections
+            or self.source_request_sources != other.source_request_sources
+            or self.udf.__code__.co_code != other.udf.__code__.co_code
         ):
             return False
 
