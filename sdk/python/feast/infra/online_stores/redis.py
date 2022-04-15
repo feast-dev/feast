@@ -42,7 +42,7 @@ from feast.usage import log_exceptions_and_usage, tracing_span
 
 try:
     from redis import Redis
-    from rediscluster import RedisCluster
+    from redis.cluster import ClusterNode, RedisCluster
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -164,7 +164,9 @@ class RedisOnlineStore(OnlineStore):
                 online_store_config.connection_string
             )
             if online_store_config.redis_type == RedisType.redis_cluster:
-                kwargs["startup_nodes"] = startup_nodes
+                kwargs["startup_nodes"] = [
+                    ClusterNode(**node) for node in startup_nodes
+                ]
                 self._client = RedisCluster(**kwargs)
             else:
                 kwargs["host"] = startup_nodes[0]["host"]

@@ -72,7 +72,7 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
-    "google-cloud-bigquery>=2.28.1",
+    "google-cloud-bigquery>=2,<3",
     "google-cloud-bigquery-storage >= 2.0.0",
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.34.*,<1.41",
@@ -80,8 +80,7 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis==3.5.3",
-    "redis-py-cluster>=2.1.3",
+    "redis==4.2.2",
     "hiredis>=2.0.0",
 ]
 
@@ -108,7 +107,7 @@ GE_REQUIRED = [
 
 CI_REQUIRED = (
     [
-        "cryptography==3.3.2",
+        "cryptography==3.4.8",
         "flake8",
         "black==19.10b0",
         "isort>=5",
