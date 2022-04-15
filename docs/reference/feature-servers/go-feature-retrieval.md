@@ -10,7 +10,7 @@ The Go Feature Retrieval component currently only supports Redis and Sqlite as o
 
 ## Installation
 
-As long as you are running macOS or linux x86 with python version 3.7-3.10, the go component comes pre-compiled when you run install feast.
+As long as you are running macOS or linux, on x86, with python version 3.7-3.10, the go component comes pre-compiled when you install feast.
 
 For developers, if you want to build from source, run `make compile-go-lib` to build and compile the go server.
 
