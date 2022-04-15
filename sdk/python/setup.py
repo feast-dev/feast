@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import glob
+import json
 import os
 import pathlib
 import re
@@ -22,18 +24,18 @@ from distutils.cmd import Command
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from setuptools import find_packages
+from setuptools import find_packages, Extension
 
 try:
     from setuptools import setup
     from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
     from setuptools.command.install import install
-    from setuptools.dist import Distribution
+    from setuptools.command.build_ext import build_ext as _build_ext
 except ImportError:
     from distutils.command.build_py import build_py
+    from distutils.command.build_ext import build_ext as _build_ext
     from distutils.core import setup
-    from distutils.dist import Distribution
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -189,7 +191,7 @@ class BuildPythonProtosCommand(Command):
 
     def initialize_options(self):
         self.python_protoc = [
-            "python",
+            sys.executable,
             "-m",
             "grpc_tools.protoc",
         ]  # find_executable("protoc")
@@ -292,7 +294,7 @@ class BuildGoProtosCommand(Command):
 
     def initialize_options(self):
         self.go_protoc = [
-            "python",
+            sys.executable,
             "-m",
             "grpc_tools.protoc",
         ]  # find_executable("protoc")
@@ -331,45 +333,6 @@ class BuildGoProtosCommand(Command):
             self._generate_go_protos(f"feast/{sub_folder}/*.proto")
 
 
-class BuildGoEmbeddedCommand(Command):
-    description = "Builds Go embedded library"
-    user_options = []
-
-    def initialize_options(self) -> None:
-        self.path_val = _generate_path_with_gopath()
-
-        self.go_env = {}
-        for var in ("GOCACHE", "GOPATH"):
-            self.go_env[var] = subprocess \
-                .check_output(["go", "env", var]) \
-                .decode("utf-8") \
-                .strip()
-
-    def finalize_options(self) -> None:
-        pass
-
-    def _compile_embedded_lib(self):
-        print("Compile embedded go")
-        subprocess.check_call([
-            "gopy",
-            "build",
-            "-output",
-            "feast/embedded_go/lib",
-            "-vm",
-            # Path of current python executable
-            sys.executable,
-            "-no-make",
-            "github.com/feast-dev/feast/go/embedded"
-        ], env={
-            "PATH": self.path_val,
-            "CGO_LDFLAGS_ALLOW": ".*",
-            **self.go_env,
-        })
-
-    def run(self):
-        self._compile_embedded_lib()
-
-
 class BuildCommand(build_py):
     """Custom build command."""
 
@@ -378,7 +341,7 @@ class BuildCommand(build_py):
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
-            self.run_command("build_go_lib")
+
         build_py.run(self)
 
 
@@ -390,15 +353,41 @@ class DevelopCommand(develop):
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
-            self.run_command("build_go_lib")
+
         develop.run(self)
 
 
-class BinaryDistribution(Distribution):
-    """Distribution which forces a binary package with platform name
-     when go compilation is enabled"""
-    def has_ext_modules(self):
-        return os.getenv("COMPILE_GO", "false").lower() == "true"
+class build_ext(_build_ext):
+    def build_extension(self, ext: Extension):
+        if not any(source.endswith('.go') or source.startswith('github') for source in ext.sources):
+            # the base class may mutate `self.compiler`
+            compiler = copy.deepcopy(self.compiler)
+            self.compiler, compiler = compiler, self.compiler
+            try:
+                return _build_ext.build_extension(self, ext)
+            finally:
+                self.compiler, compiler = compiler, self.compiler
+
+        bin_path = _generate_path_with_gopath()
+        go_env = json.loads(
+            subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()
+        )
+
+        destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
+        subprocess.check_call([
+            "gopy",
+            "build",
+            "-output",
+            destination,
+            "-vm",
+            sys.executable,
+            "-no-make",
+            *ext.sources
+        ], env={
+            "PATH": bin_path,
+            "CGO_LDFLAGS_ALLOW": ".*",
+            **go_env,
+        })
 
 
 setup(
@@ -453,9 +442,10 @@ setup(
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
-        "build_go_lib": BuildGoEmbeddedCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
+        "build_ext": build_ext,
     },
-    distclass=BinaryDistribution,  # generate wheel with platform-specific name
+    ext_modules=[Extension('feast.embedded_go.lib._embedded',
+                           ["github.com/feast-dev/feast/go/embedded"])],
 )
