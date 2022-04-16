@@ -368,6 +368,9 @@ class build_ext(_build_ext):
             finally:
                 self.compiler, compiler = compiler, self.compiler
 
+        if os.getenv("COMPILE_GO", "false").lower() == "false":
+            return
+
         bin_path = _generate_path_with_gopath()
         go_env = json.loads(
             subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()

@@ -157,6 +157,8 @@ jobs:
           CIBW_BUILD: "cp3*_x86_64"
           CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
+          CIBW_ENVIRONMENT: >
+            COMPILE_GO=True
           CIBW_BEFORE_ALL_LINUX: |
             yum install -y golang
           CIBW_BEFORE_ALL_MACOS: |
@@ -195,7 +197,7 @@ jobs:
           CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
-            SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.get-version.outputs.version_without_prefix }}"
+            COMPILE_GO=True SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.get-version.outputs.version_without_prefix }}"
           CIBW_BEFORE_ALL_LINUX: |
             yum install -y golang
           CIBW_BEFORE_ALL_MACOS: |
@@ -213,6 +215,8 @@ jobs:
 
   build-python-sdk-macos-py310:
     runs-on: macos-10.15
+    env:
+      COMPILE_GO: True
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
