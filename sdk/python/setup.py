@@ -397,6 +397,18 @@ class build_ext(_build_ext):
             **go_env,
         })
 
+    def copy_extensions_to_source(self):
+        build_py = self.get_finalized_command('build_py')
+        for ext in self.extensions:
+            fullname = self.get_ext_fullname(ext.name)
+            modpath = fullname.split('.')
+            package = '.'.join(modpath[:-1])
+            package_dir = build_py.get_package_dir(package)
+            src = os.path.join(self.build_lib, package_dir)
+
+            # copy whole directory
+            shutil.copytree(src, package_dir, dirs_exist_ok=True)
+
 
 setup(
     name=NAME,
