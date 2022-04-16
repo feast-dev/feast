@@ -138,7 +138,6 @@ def python_type_to_feast_value_type(
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
-        "object": ValueType.STRING,
     }
 
     if type_name in type_map:
