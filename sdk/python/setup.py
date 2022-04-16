@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 from distutils.cmd import Command
+from distutils.dir_util import copy_tree
 from pathlib import Path
 from subprocess import CalledProcessError
 
@@ -29,9 +30,10 @@ from setuptools import find_packages, Extension
 try:
     from setuptools import setup
     from setuptools.command.build_py import build_py
+    from setuptools.command.build_ext import build_ext as _build_ext
     from setuptools.command.develop import develop
     from setuptools.command.install import install
-    from setuptools.command.build_ext import build_ext as _build_ext
+
 except ImportError:
     from distutils.command.build_py import build_py
     from distutils.command.build_ext import build_ext as _build_ext
@@ -407,7 +409,7 @@ class build_ext(_build_ext):
             src = os.path.join(self.build_lib, package_dir)
 
             # copy whole directory
-            shutil.copytree(src, package_dir, dirs_exist_ok=True)
+            copy_tree(src, package_dir)
 
 
 setup(
