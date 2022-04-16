@@ -138,6 +138,7 @@ def python_type_to_feast_value_type(
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
+        "object": ValueType.STRING,
     }
 
     if type_name in type_map:
@@ -529,7 +530,8 @@ def snowflake_python_type_to_feast_value_type(
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "object": ValueType.UNKNOWN,
+        "object": ValueType.STRING,
+        "bool": ValueType.BOOL,
     }
 
     return type_map[snowflake_python_type_as_str.lower()]
