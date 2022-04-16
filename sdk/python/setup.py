@@ -358,8 +358,16 @@ class DevelopCommand(develop):
 
 
 class build_ext(_build_ext):
+    def finalize_options(self) -> None:
+        super().finalize_options()
+        if os.getenv("COMPILE_GO", "false").lower() == "false":
+            self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
+
+    def _is_go_ext(self, ext: Extension):
+        return any(source.endswith('.go') or source.startswith('github') for source in ext.sources)
+
     def build_extension(self, ext: Extension):
-        if not any(source.endswith('.go') or source.startswith('github') for source in ext.sources):
+        if not self._is_go_ext(ext):
             # the base class may mutate `self.compiler`
             compiler = copy.deepcopy(self.compiler)
             self.compiler, compiler = compiler, self.compiler
@@ -367,9 +375,6 @@ class build_ext(_build_ext):
                 return _build_ext.build_extension(self, ext)
             finally:
                 self.compiler, compiler = compiler, self.compiler
-
-        if os.getenv("COMPILE_GO", "false").lower() == "false":
-            return
 
         bin_path = _generate_path_with_gopath()
         go_env = json.loads(
