@@ -1,15 +1,23 @@
-# Local feature server
+# Python feature server
 
 ## Overview
 
-The local feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to get features from Feast using any programming language that can make HTTP requests. A [remote feature server](../alpha-aws-lambda-feature-server.md) on AWS Lambda is also available. A remote feature server on GCP Cloud Run is currently being developed.
+The feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to write + read features from Feast online stores using any programming language that can make HTTP requests. 
 
 ## CLI
 
-There is a new CLI command that starts the server: `feast serve`. By default Feast uses port 6566; the port be overridden by a `--port` flag.
+There is a CLI command that starts the server: `feast serve`. By default, Feast uses port 6566; the port be overridden by a `--port` flag.
+
+## Deploying as a service
+
+One can also deploy a feature server by building a docker image that bundles in the project's `feature_store.yaml`. See [helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-python-server) for example.
+
+A [remote feature server](../alpha-aws-lambda-feature-server.md) on AWS Lambda is available. A remote feature server on GCP Cloud Run is currently being developed.
+
 
 ## Example
 
+### Initializing a feature server
 Here's the local feature server usage example with the local template:
 
 ```bash
@@ -41,6 +49,7 @@ INFO:     Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
 09/10/2021 10:42:11 AM INFO:Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
 ```
 
+### Retrieving features from the online store
 After the server starts, we can execute cURL commands from another terminal tab:
 
 ```bash
@@ -141,4 +150,48 @@ curl -X POST \
       "driver_id": [1001, 1002, 1003]
     }
   }' | jq
+```
+
+### Pushing features to the online store
+You can push data corresponding to a push source to the online store (note that timestamps need to be strings):
+
+```text
+curl -X POST "http://localhost:6566/write-to-online-store" -d '{
+    "push_source_name": "driver_hourly_stats_push_source",
+    "df": {
+            "driver_id": [1001],
+            "event_timestamp": ["2022-05-13 10:59:42"],
+            "created": ["2022-05-13 10:59:42"],
+            "conv_rate": [1.0],
+            "acc_rate": [1.0],
+            "avg_daily_trips": [1000]
+    }
+  }' | jq
+```
+
+or equivalently from Python:
+```python
+import requests
+import pandas as pd
+from datetime import datetime
+
+event_df = pd.DataFrame.from_dict(
+    {
+        "driver_id": [1001],
+        "event_timestamp": [datetime(2021, 5, 13, 10, 59, 42),],
+        "created": [datetime(2021, 5, 13, 10, 59, 42),],
+        "conv_rate": [1.0],
+        "acc_rate": [1.0],
+        "avg_daily_trips": [1000],
+        "string_feature": "test2",
+    }
+)
+event_df['event_timestamp'] = event_df['event_timestamp'].astype(str)
+event_df['created'] = event_df['created'].astype(str)
+requests.post(
+    "http://localhost:6566/push", 
+    json={
+        "push_source_name":"driver_stats_push_source", 
+        "df":event_df.to_dict()
+    })
 ```

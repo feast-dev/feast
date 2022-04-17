@@ -1186,7 +1186,9 @@ class FeatureStore:
             )
 
     @log_exceptions_and_usage
-    def push(self, push_source_name: str, df: pd.DataFrame):
+    def push(
+        self, push_source_name: str, df: pd.DataFrame, allow_registry_cache: bool = True
+    ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
         Args:
@@ -1195,7 +1197,7 @@ class FeatureStore:
         """
         from feast.data_source import PushSource
 
-        all_fvs = self.list_feature_views(allow_cache=True)
+        all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
 
         fvs_with_push_sources = {
             fv
@@ -1208,7 +1210,9 @@ class FeatureStore:
         }
 
         for fv in fvs_with_push_sources:
-            self.write_to_online_store(fv.name, df, allow_registry_cache=True)
+            self.write_to_online_store(
+                fv.name, df, allow_registry_cache=allow_registry_cache
+            )
 
     @log_exceptions_and_usage
     def write_to_online_store(
