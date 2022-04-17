@@ -81,7 +81,7 @@
   * [feature\_store.yaml](reference/feature-repository/feature-store-yaml.md)
   * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [Feature servers](reference/feature-servers/README.md)
-  * [Local feature server](reference/feature-servers/local-feature-server.md)
+  * [Python feature server](reference/feature-servers/python-feature-server.md)
   * [Go-based feature retrieval](reference/feature-servers/go-feature-retrieval.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)

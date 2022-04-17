@@ -53,6 +53,8 @@ import pandas as pd
 
 fs = FeatureStore(...)
 feature_data_frame = pd.DataFrame()
-fs.push("push_source", feature_data_frame)
+fs.push("push_source_name", feature_data_frame)
 ```
+
+See also [Python feature server](../feature-servers/python-feature-server.md) for instructions on how to push data to a deployed feature server. 
 
