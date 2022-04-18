@@ -1209,13 +1209,8 @@ class FeatureStore:
         }
 
         for fv in fvs_with_push_sources:
-            push_source = cast(PushSource, fv.stream_source)
-            # If the push source's timestamp field doesn't match the batch source's timestamp field, do the mapping
-            renamed_df = df
-            if len(push_source.timestamp_field) > 0:
-                renamed_df = df.rename(columns={push_source.timestamp_field: push_source.batch_source.timestamp_field})
             self.write_to_online_store(
-                fv.name, renamed_df, allow_registry_cache=allow_registry_cache
+                fv.name, df, allow_registry_cache=allow_registry_cache
             )
 
     @log_exceptions_and_usage
