@@ -9,8 +9,7 @@ from feast.types import PrimitiveFeastType
 
 def test_push_with_batch():
     push_source = PushSource(
-        name="test",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
     assert push_source_proto.HasField("batch_source")
