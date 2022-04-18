@@ -21,7 +21,7 @@ from google.protobuf.json_format import MessageToJson
 
 from feast import type_map
 from feast.data_format import StreamFormat
-from feast.field import Field, from_value_type
+from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.types import VALUE_TYPES_TO_FEAST_TYPES

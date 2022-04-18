@@ -13,7 +13,7 @@ from feast import (
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
+from feast.types import Array, FeastType, Float32, Float64, Int32
 from tests.integration.feature_repos.universal.entities import location
 
 
