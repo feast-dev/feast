@@ -20,6 +20,7 @@ from feast.value_type import ValueType
 class FileSource(DataSource):
     def __init__(
         self,
+        *,
         path: str,
         event_timestamp_column: Optional[str] = "",
         file_format: Optional[FileFormat] = None,

@@ -186,6 +186,7 @@ class DataSource(ABC):
 
     def __init__(
         self,
+        *,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
@@ -354,11 +355,12 @@ class KafkaSource(DataSource):
 
     def __init__(
         self,
-        name: str,
-        event_timestamp_column: str,
-        bootstrap_servers: str,
-        message_format: StreamFormat,
-        topic: str,
+        *,
+        name: Optional[str] = None,
+        event_timestamp_column: Optional[str] = "",
+        bootstrap_servers: Optional[str] = "",
+        message_format: Optional[StreamFormat] = None,
+        topic: Optional[str] = "",
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
@@ -472,14 +474,17 @@ class RequestSource(DataSource):
 
     def __init__(
         self,
-        name: str,
-        schema: Union[Dict[str, ValueType], List[Field]],
+        *,
+        name: Optional[str] = None,
+        schema: Optional[Union[Dict[str, ValueType], List[Field]]] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
         """Creates a RequestSource object."""
         super().__init__(name=name, description=description, tags=tags, owner=owner)
+        if not schema:
+            raise ValueError("Schema needs to be provided for Request Source")
         if isinstance(schema, Dict):
             warnings.warn(
                 "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
@@ -643,12 +648,13 @@ class KinesisSource(DataSource):
 
     def __init__(
         self,
-        name: str,
-        event_timestamp_column: str,
-        created_timestamp_column: str,
-        record_format: StreamFormat,
-        region: str,
-        stream_name: str,
+        *,
+        name: Optional[str] = None,
+        event_timestamp_column: Optional[str] = "",
+        created_timestamp_column: Optional[str] = "",
+        record_format: Optional[StreamFormat] = None,
+        region: Optional[str] = "",
+        stream_name: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         description: Optional[str] = "",
@@ -726,8 +732,8 @@ class PushSource(DataSource):
     def __init__(
         self,
         *,
-        name: str,
-        batch_source: DataSource,
+        name: Optional[str] = None,
+        batch_source: Optional[DataSource] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",

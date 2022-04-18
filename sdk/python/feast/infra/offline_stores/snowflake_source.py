@@ -15,6 +15,7 @@ from feast.value_type import ValueType
 class SnowflakeSource(DataSource):
     def __init__(
         self,
+        *,
         database: Optional[str] = None,
         warehouse: Optional[str] = None,
         schema: Optional[str] = None,
