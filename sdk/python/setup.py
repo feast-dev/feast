@@ -109,6 +109,10 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3",
 ]
 
+HBASE_REQUIRED = [
+    "happybase>=1.2.0",
+]
+
 GE_REQUIRED = [
     "great_expectations>=0.14.0,<0.15.0"
 ]
@@ -168,6 +172,7 @@ CI_REQUIRED = (
         + POSTGRES_REQUIRED
         + TRINO_REQUIRED
         + GE_REQUIRED
+        + HBASE_REQUIRED
 )
 
 DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing==1.*"] + CI_REQUIRED
@@ -444,6 +449,7 @@ setup(
         "trino": TRINO_REQUIRED,
         "postgres": POSTGRES_REQUIRED,
         "ge": GE_REQUIRED,
+        "hbase": HBASE_REQUIRED,
         "go": GO_REQUIRED,
     },
     include_package_data=True,
