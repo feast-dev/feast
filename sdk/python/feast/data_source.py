@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from email import message
 import enum
-from venv import create
 import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
@@ -372,13 +370,18 @@ class KafkaSource(DataSource):
         timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
     ):
-        positional_attributes = ["name", "event_timestamp_column", "bootstrap_servers", "message_format", "topic"]
+        positional_attributes = [
+            "name",
+            "event_timestamp_column",
+            "bootstrap_servers",
+            "message_format",
+            "topic",
+        ]
         _name = name
         _event_timestamp_column = event_timestamp_column
         _bootstrap_servers = bootstrap_servers or ""
         _message_format = message_format
         _topic = topic or ""
-
 
         if args:
             warnings.warn(
@@ -700,7 +703,14 @@ class KinesisSource(DataSource):
         timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
     ):
-        positional_attributes = ["name", "event_timestamp_column", "created_timestamp_column", "record_format", "region", "stream_name"]
+        positional_attributes = [
+            "name",
+            "event_timestamp_column",
+            "created_timestamp_column",
+            "record_format",
+            "region",
+            "stream_name",
+        ]
         _name = name
         _event_timestamp_column = event_timestamp_column
         _created_timestamp_column = created_timestamp_column
