@@ -10,11 +10,6 @@ from feast.types import PrimitiveFeastType
 def test_push_with_batch():
     push_source = PushSource(
         name="test",
-        schema=[
-            Field(name="f1", dtype=PrimitiveFeastType.FLOAT32),
-            Field(name="f2", dtype=PrimitiveFeastType.BOOL),
-        ],
-        timestamp_field="event_timestamp",
         batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
@@ -25,8 +20,6 @@ def test_push_with_batch():
     push_source_unproto = PushSource.from_proto(push_source_proto)
 
     assert push_source.name == push_source_unproto.name
-    assert push_source.schema == push_source_unproto.schema
-    assert push_source.timestamp_field == push_source_unproto.timestamp_field
     assert push_source.batch_source.name == push_source_unproto.batch_source.name
 
 
