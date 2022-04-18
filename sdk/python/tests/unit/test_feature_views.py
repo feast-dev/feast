@@ -2,9 +2,9 @@ from datetime import timedelta
 
 import pytest
 
-from feast import KafkaSource
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
+from feast.data_source import KafkaSource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.stream_feature_view import StreamFeatureView
 

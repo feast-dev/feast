@@ -1,11 +1,10 @@
 from datetime import timedelta
 from typing import Dict, List, Optional, Union
 
-from google.protobuf.duration_pb2 import Duration
-
-from feast import Entity, Feature, Field
 from feast.data_source import DataSource
+from feast.entity import Entity
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
 SUPPORTED_STREAM_SOURCES = {
@@ -20,8 +19,7 @@ class StreamFeatureView(FeatureView):
         *,
         name: Optional[str] = None,
         entities: Optional[Union[List[Entity], List[str]]] = None,
-        ttl: Optional[Union[Duration, timedelta]] = None,
-        features: Optional[List[Feature]] = None,
+        ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
         description: str = "",
@@ -47,7 +45,6 @@ class StreamFeatureView(FeatureView):
             ttl=ttl,
             batch_source=None,
             stream_source=None,
-            features=features,
             tags=tags,
             online=online,
             description=description,
