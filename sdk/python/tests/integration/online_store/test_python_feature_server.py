@@ -80,7 +80,7 @@ def test_push():
 
 def get_temperatures(client, location_ids: List[int]):
     get_request_data = {
-        "features": ["pushable_location_stats:temperature",],
+        "features": ["pushable_location_stats:temperature"],
         "entities": {"location_id": location_ids},
     }
     response = client.post("/get-online-features", data=json.dumps(get_request_data))
