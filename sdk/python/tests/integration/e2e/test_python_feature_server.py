@@ -1,5 +1,6 @@
 import contextlib
 import json
+from datetime import datetime
 from typing import List
 
 import pytest
@@ -72,8 +73,8 @@ def test_push():
                 "df": {
                     "location_id": [1],
                     "temperature": [initial_temp * 100],
-                    "event_timestamp": ["2022-05-13 10:59:42"],
-                    "created": ["2022-05-13 10:59:42"],
+                    "event_timestamp": [str(datetime.utcnow())],
+                    "created": [str(datetime.utcnow())],
                 },
             }
         )
