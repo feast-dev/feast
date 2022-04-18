@@ -10,6 +10,8 @@ COPY go go
 COPY README.md README.md
 
 # Install Feast for AWS with Lambda dependencies
+# TODO(felixwang9817): Remove Snowflake dependencies once lazy loading of offline stores is supported.
+# See https://github.com/feast-dev/feast/issues/2566 for more details.
 RUN pip3 install -e 'sdk/python[aws,redis,snowflake]'
 RUN pip3 install -r sdk/python/feast/infra/feature_servers/aws_lambda/requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
