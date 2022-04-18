@@ -514,7 +514,7 @@ class RequestSource(DataSource):
 
     def __init__(
         self,
-        *,
+        *args,
         name: Optional[str] = None,
         schema: Optional[Union[Dict[str, ValueType], List[Field]]] = None,
         description: Optional[str] = "",
@@ -522,27 +522,48 @@ class RequestSource(DataSource):
         owner: Optional[str] = "",
     ):
         """Creates a RequestSource object."""
+        positional_attributes = ["name", "schema"]
+        _name = name
+        _schema = schema
+        if args:
+            warnings.warn(
+                (
+                    "requestsource parameters should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct request sources"
+                ),
+                DeprecationWarning,
+            )
+            if len(args) > len(positional_attributes):
+                raise ValueError(
+                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
+                    f"feature views, for backwards compatibility."
+                )
+            if len(args) >= 1:
+                _name = args[0]
+            if len(args) >= 2:
+                _schema = args[1]
+
         super().__init__(name=name, description=description, tags=tags, owner=owner)
-        if not schema:
+        if not _schema:
             raise ValueError("Schema needs to be provided for Request Source")
-        if isinstance(schema, Dict):
+        if isinstance(_schema, Dict):
             warnings.warn(
                 "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
                 "Please use List[Field] instead for the schema",
                 DeprecationWarning,
             )
             schemaList = []
-            for key, valueType in schema.items():
+            for key, valueType in _schema.items():
                 schemaList.append(
                     Field(name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[valueType])
                 )
             self.schema = schemaList
-        elif isinstance(schema, List):
-            self.schema = schema
+        elif isinstance(_schema, List):
+            self.schema = _schema
         else:
             raise Exception(
                 "Schema type must be either dictionary or list, not "
-                + str(type(schema))
+                + str(type(_schema))
             )
 
     def validate(self, config: RepoConfig):
