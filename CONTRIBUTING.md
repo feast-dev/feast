@@ -176,6 +176,7 @@ The services with containerized replacements currently implemented are:
 - Datastore
 - DynamoDB
 - Redis
+- Trino
 
 You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.
 
