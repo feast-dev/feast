@@ -195,15 +195,24 @@ class TrinoContainerSingleton:
             cls.container.stop()
 
 
+@pytest.fixture(scope="session")
+def trino_fixture(request):
+    def teardown():
+        TrinoContainerSingleton.teardown()
+
+    request.addfinalizer(teardown)
+    return TrinoContainerSingleton
+
+
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request, worker_id: str):
+def environment(request, worker_id: str, trino_fixture):
     if "TrinoSourceCreator" in request.param.offline_store_creator.__name__:
         e = construct_test_environment(
             request.param,
             worker_id=worker_id,
-            offline_container=TrinoContainerSingleton.get_singleton(),
+            offline_container=trino_fixture.get_singleton(),
         )
     else:
         e = construct_test_environment(request.param, worker_id=worker_id)
