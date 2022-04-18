@@ -714,10 +714,10 @@ class PushSource(DataSource):
     A source that can be used to ingest features on request
     """
 
-    name: str
     schema: List[Field]
     batch_source: DataSource
     timestamp_field: str
+    # TODO(adchia): remove schema + timestamp_field?
 
     def __init__(
         self,
@@ -728,7 +728,7 @@ class PushSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        timestamp_field: Optional[str] = "",
+        timestamp_field: Optional[str] = None,
     ):
         """
         Creates a PushSource object.

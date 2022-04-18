@@ -230,7 +230,9 @@ class SqliteOnlineStore(OnlineStore):
 def _initialize_conn(db_path: str):
     Path(db_path).parent.mkdir(exist_ok=True)
     return sqlite3.connect(
-        db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+        db_path,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+        check_same_thread=False,
     )
 
 

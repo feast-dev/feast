@@ -65,19 +65,19 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
 def conv_rate_plus_100_feature_view(
     sources: Dict[str, Union[RequestSource, FeatureView]],
     infer_features: bool = False,
-    features: Optional[List[Feature]] = None,
+    features: Optional[List[Field]] = None,
 ) -> OnDemandFeatureView:
     # Test that positional arguments and Features still work for ODFVs.
     _features = features or [
-        Feature(name="conv_rate_plus_100", dtype=ValueType.DOUBLE),
-        Feature(name="conv_rate_plus_val_to_add", dtype=ValueType.DOUBLE),
-        Feature(name="conv_rate_plus_100_rounded", dtype=ValueType.INT32),
+        Field(name="conv_rate_plus_100", dtype=Float64),
+        Field(name="conv_rate_plus_val_to_add", dtype=Float64),
+        Field(name="conv_rate_plus_100_rounded", dtype=Int32),
     ]
     return OnDemandFeatureView(
-        conv_rate_plus_100.__name__,
-        [] if infer_features else _features,
-        sources,
-        conv_rate_plus_100,
+        name=conv_rate_plus_100.__name__,
+        schema=[] if infer_features else _features,
+        sources=sources,
+        udf=conv_rate_plus_100,
     )
 
 
@@ -251,5 +251,5 @@ def create_pushable_feature_view(batch_source: DataSource):
         # Test that Features still work for FeatureViews.
         features=[Feature(name="temperature", dtype=ValueType.INT32)],
         ttl=timedelta(days=2),
-        source=push_source,
+        stream_source=push_source,
     )

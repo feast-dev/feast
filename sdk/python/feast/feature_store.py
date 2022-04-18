@@ -92,7 +92,6 @@ from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
 
-
 if TYPE_CHECKING:
     from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
 
@@ -115,7 +114,7 @@ class FeatureStore:
 
     @log_exceptions
     def __init__(
-        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
+            self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
         """
         Creates a FeatureStore object.
@@ -194,7 +193,7 @@ class FeatureStore:
         return self._list_entities(allow_cache)
 
     def _list_entities(
-        self, allow_cache: bool = False, hide_dummy_entity: bool = True
+            self, allow_cache: bool = False, hide_dummy_entity: bool = True
     ) -> List[Entity]:
         all_entities = self._registry.list_entities(
             self.project, allow_cache=allow_cache
@@ -230,7 +229,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def list_request_feature_views(
-        self, allow_cache: bool = False
+            self, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
         """
         Retrieves the list of feature views from the registry.
@@ -246,11 +245,11 @@ class FeatureStore:
         )
 
     def _list_feature_views(
-        self, allow_cache: bool = False, hide_dummy_entity: bool = True,
+            self, allow_cache: bool = False, hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache
+                self.project, allow_cache=allow_cache
         ):
             if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
@@ -259,7 +258,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def list_on_demand_feature_views(
-        self, allow_cache: bool = False
+            self, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
         """
         Retrieves the list of on demand feature views from the registry.
@@ -305,7 +304,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_feature_service(
-        self, name: str, allow_cache: bool = False
+            self, name: str, allow_cache: bool = False
     ) -> FeatureService:
         """
         Retrieves a feature service.
@@ -324,7 +323,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_feature_view(
-        self, name: str, allow_registry_cache: bool = False
+            self, name: str, allow_registry_cache: bool = False
     ) -> FeatureView:
         """
         Retrieves a feature view.
@@ -342,10 +341,10 @@ class FeatureStore:
         return self._get_feature_view(name, allow_registry_cache=allow_registry_cache)
 
     def _get_feature_view(
-        self,
-        name: str,
-        hide_dummy_entity: bool = True,
-        allow_registry_cache: bool = False,
+            self,
+            name: str,
+            hide_dummy_entity: bool = True,
+            allow_registry_cache: bool = False,
     ) -> FeatureView:
         feature_view = self._registry.get_feature_view(
             name, self.project, allow_cache=allow_registry_cache
@@ -413,7 +412,7 @@ class FeatureStore:
         return self._registry.delete_feature_service(name, self.project)
 
     def _get_features(
-        self, features: Union[List[str], FeatureService], allow_cache: bool = False,
+            self, features: Union[List[str], FeatureService], allow_cache: bool = False,
     ) -> List[str]:
         _features = features
 
@@ -447,19 +446,19 @@ class FeatureStore:
         """Returns True if _plan and _apply_diffs should be used, False otherwise."""
         # Currently only the local provider with sqlite online store supports _plan and _apply_diffs.
         return self.config.provider == "local" and (
-            self.config.online_store and self.config.online_store.type == "sqlite"
+                self.config.online_store and self.config.online_store.type == "sqlite"
         )
 
     def _validate_all_feature_views(
-        self,
-        views_to_update: List[FeatureView],
-        odfvs_to_update: List[OnDemandFeatureView],
-        request_views_to_update: List[RequestFeatureView],
+            self,
+            views_to_update: List[FeatureView],
+            odfvs_to_update: List[OnDemandFeatureView],
+            request_views_to_update: List[RequestFeatureView],
     ):
         """Validates all feature views."""
         if (
-            not flags_helper.enable_on_demand_feature_views(self.config)
-            and len(odfvs_to_update) > 0
+                not flags_helper.enable_on_demand_feature_views(self.config)
+                and len(odfvs_to_update) > 0
         ):
             raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
 
@@ -470,11 +469,11 @@ class FeatureStore:
         )
 
     def _make_inferences(
-        self,
-        data_sources_to_update: List[DataSource],
-        entities_to_update: List[Entity],
-        views_to_update: List[FeatureView],
-        odfvs_to_update: List[OnDemandFeatureView],
+            self,
+            data_sources_to_update: List[DataSource],
+            entities_to_update: List[Entity],
+            views_to_update: List[FeatureView],
+            odfvs_to_update: List[OnDemandFeatureView],
     ):
         """Makes inferences for entities, feature views, and odfvs."""
         update_entities_with_inferred_types_from_feature_views(
@@ -500,7 +499,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def _plan(
-        self, desired_repo_contents: RepoContents
+            self, desired_repo_contents: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
@@ -578,7 +577,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def _apply_diffs(
-        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
+            self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
     ):
         """Applies the given diffs to the metadata store and infrastructure.
 
@@ -596,18 +595,18 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def apply(
-        self,
-        objects: Union[
-            DataSource,
-            Entity,
-            FeatureView,
-            OnDemandFeatureView,
-            RequestFeatureView,
-            FeatureService,
-            List[FeastObject],
-        ],
-        objects_to_delete: Optional[List[FeastObject]] = None,
-        partial: bool = True,
+            self,
+            objects: Union[
+                DataSource,
+                Entity,
+                FeatureView,
+                OnDemandFeatureView,
+                RequestFeatureView,
+                FeatureService,
+                List[FeastObject],
+            ],
+            objects_to_delete: Optional[List[FeastObject]] = None,
+            partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -702,7 +701,7 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(
-            views_to_update, odfvs_to_update, request_views_to_update
+                views_to_update, odfvs_to_update, request_views_to_update
         ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
@@ -790,10 +789,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_historical_features(
-        self,
-        entity_df: Union[pd.DataFrame, str],
-        features: Union[List[str], FeatureService],
-        full_feature_names: bool = False,
+            self,
+            entity_df: Union[pd.DataFrame, str],
+            features: Union[List[str], FeatureService],
+            full_feature_names: bool = False,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -918,12 +917,12 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def create_saved_dataset(
-        self,
-        from_: RetrievalJob,
-        name: str,
-        storage: SavedDatasetStorage,
-        tags: Optional[Dict[str, str]] = None,
-        feature_service: Optional[FeatureService] = None,
+            self,
+            from_: RetrievalJob,
+            name: str,
+            storage: SavedDatasetStorage,
+            tags: Optional[Dict[str, str]] = None,
+            feature_service: Optional[FeatureService] = None,
     ) -> SavedDataset:
         """
         Execute provided retrieval job and persist its outcome in given storage.
@@ -1008,7 +1007,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def materialize_incremental(
-        self, end_date: datetime, feature_views: Optional[List[str]] = None,
+            self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1100,10 +1099,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def materialize(
-        self,
-        start_date: datetime,
-        end_date: datetime,
-        feature_views: Optional[List[str]] = None,
+            self,
+            start_date: datetime,
+            end_date: datetime,
+            feature_views: Optional[List[str]] = None,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1187,7 +1186,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def push(
-        self, push_source_name: str, df: pd.DataFrame, allow_registry_cache: bool = True
+            self, push_source_name: str, df: pd.DataFrame, allow_registry_cache: bool = True
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
@@ -1203,23 +1202,28 @@ class FeatureStore:
             fv
             for fv in all_fvs
             if (
-                fv.stream_source is not None
-                and isinstance(fv.stream_source, PushSource)
-                and fv.stream_source.name == push_source_name
+                    fv.stream_source is not None
+                    and isinstance(fv.stream_source, PushSource)
+                    and fv.stream_source.name == push_source_name
             )
         }
 
         for fv in fvs_with_push_sources:
+            push_source = cast(PushSource, fv.stream_source)
+            # If the push source's timestamp field doesn't match the batch source's timestamp field, do the mapping
+            renamed_df = df
+            if len(push_source.timestamp_field) > 0:
+                renamed_df = df.rename(columns={push_source.timestamp_field: push_source.batch_source.timestamp_field})
             self.write_to_online_store(
-                fv.name, df, allow_registry_cache=allow_registry_cache
+                fv.name, renamed_df, allow_registry_cache=allow_registry_cache
             )
 
     @log_exceptions_and_usage
     def write_to_online_store(
-        self,
-        feature_view_name: str,
-        df: pd.DataFrame,
-        allow_registry_cache: bool = True,
+            self,
+            feature_view_name: str,
+            df: pd.DataFrame,
+            allow_registry_cache: bool = True,
     ):
         """
         ingests data directly into the Online store
@@ -1238,10 +1242,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_online_features(
-        self,
-        features: Union[List[str], FeatureService],
-        entity_rows: List[Dict[str, Any]],
-        full_feature_names: bool = False,
+            self,
+            features: Union[List[str], FeatureService],
+            entity_rows: List[Dict[str, Any]],
+            full_feature_names: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -1300,13 +1304,13 @@ class FeatureStore:
         )
 
     def _get_online_features(
-        self,
-        features: Union[List[str], FeatureService],
-        entity_values: Mapping[
-            str, Union[Sequence[Any], Sequence[Value], RepeatedValue]
-        ],
-        full_feature_names: bool = False,
-        native_entity_values: bool = True,
+            self,
+            features: Union[List[str], FeatureService],
+            entity_values: Mapping[
+                str, Union[Sequence[Any], Sequence[Value], RepeatedValue]
+            ],
+            full_feature_names: bool = False,
+            native_entity_values: bool = True,
     ):
         # Extract Sequence from RepeatedValue Protobuf.
         entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
@@ -1422,8 +1426,8 @@ class FeatureStore:
         for join_key_or_entity_name, values in entity_proto_values.items():
             # Found request data
             if (
-                join_key_or_entity_name in needed_request_data
-                or join_key_or_entity_name in needed_request_fv_features
+                    join_key_or_entity_name in needed_request_data
+                    or join_key_or_entity_name in needed_request_fv_features
             ):
                 if join_key_or_entity_name in needed_request_fv_features:
                     # If the data was requested as a feature then
@@ -1509,10 +1513,10 @@ class FeatureStore:
 
     @staticmethod
     def _get_columnar_entity_values(
-        rowise: Optional[List[Dict[str, Any]]], columnar: Optional[Dict[str, List[Any]]]
+            rowise: Optional[List[Dict[str, Any]]], columnar: Optional[Dict[str, List[Any]]]
     ) -> Dict[str, List[Any]]:
         if (rowise is None and columnar is None) or (
-            rowise is not None and columnar is not None
+                rowise is not None and columnar is not None
         ):
             raise ValueError(
                 "Exactly one of `columnar_entity_values` and `rowise_entity_values` must be set."
@@ -1528,7 +1532,7 @@ class FeatureStore:
         return cast(Dict[str, List[Any]], columnar)
 
     def _get_entity_maps(
-        self, feature_views
+            self, feature_views
     ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
@@ -1559,9 +1563,9 @@ class FeatureStore:
 
     @staticmethod
     def _get_table_entity_values(
-        table: FeatureView,
-        entity_name_to_join_key_map: Dict[str, str],
-        join_key_proto_values: Dict[str, List[Value]],
+            table: FeatureView,
+            entity_name_to_join_key_map: Dict[str, str],
+            join_key_proto_values: Dict[str, List[Value]],
     ) -> Dict[str, List[Value]]:
         # The correct join_keys expected by the OnlineStore for this Feature View.
         table_join_keys = [
@@ -1582,8 +1586,8 @@ class FeatureStore:
 
     @staticmethod
     def _populate_result_rows_from_columnar(
-        online_features_response: GetOnlineFeaturesResponse,
-        data: Dict[str, List[Value]],
+            online_features_response: GetOnlineFeaturesResponse,
+            data: Dict[str, List[Value]],
     ):
         timestamp = Timestamp()  # Only initialize this timestamp once.
         # Add more values to the existing result rows
@@ -1599,8 +1603,8 @@ class FeatureStore:
 
     @staticmethod
     def get_needed_request_data(
-        grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
-        grouped_request_fv_refs: List[Tuple[RequestFeatureView, List[str]]],
+            grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
+            grouped_request_fv_refs: List[Tuple[RequestFeatureView, List[str]]],
     ) -> Tuple[Set[str], Set[str]]:
         needed_request_data: Set[str] = set()
         needed_request_fv_features: Set[str] = set()
@@ -1614,12 +1618,12 @@ class FeatureStore:
 
     @staticmethod
     def ensure_request_data_values_exist(
-        needed_request_data: Set[str],
-        needed_request_fv_features: Set[str],
-        request_data_features: Dict[str, List[Any]],
+            needed_request_data: Set[str],
+            needed_request_fv_features: Set[str],
+            request_data_features: Dict[str, List[Any]],
     ):
         if len(needed_request_data) + len(needed_request_fv_features) != len(
-            request_data_features.keys()
+                request_data_features.keys()
         ):
             missing_features = [
                 x
@@ -1633,10 +1637,10 @@ class FeatureStore:
             )
 
     def _get_unique_entities(
-        self,
-        table: FeatureView,
-        join_key_values: Dict[str, List[Value]],
-        entity_name_to_join_key_map: Dict[str, str],
+            self,
+            table: FeatureView,
+            join_key_values: Dict[str, List[Value]],
+            entity_name_to_join_key_map: Dict[str, str],
     ) -> Tuple[Tuple[Dict[str, Value], ...], Tuple[List[int], ...]]:
         """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
 
@@ -1672,11 +1676,11 @@ class FeatureStore:
         return unique_entities, indexes
 
     def _read_from_online_store(
-        self,
-        entity_rows: Iterable[Mapping[str, Value]],
-        provider: Provider,
-        requested_features: List[str],
-        table: FeatureView,
+            self,
+            entity_rows: Iterable[Mapping[str, Value]],
+            provider: Provider,
+            requested_features: List[str],
+            table: FeatureView,
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """Read and process data from the OnlineStore for a given FeatureView.
 
@@ -1731,16 +1735,16 @@ class FeatureStore:
 
     @staticmethod
     def _populate_response_from_feature_data(
-        feature_data: Iterable[
-            Tuple[
-                Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
-            ]
-        ],
-        indexes: Iterable[List[int]],
-        online_features_response: GetOnlineFeaturesResponse,
-        full_feature_names: bool,
-        requested_features: Iterable[str],
-        table: FeatureView,
+            feature_data: Iterable[
+                Tuple[
+                    Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
+                ]
+            ],
+            indexes: Iterable[List[int]],
+            online_features_response: GetOnlineFeaturesResponse,
+            full_feature_names: bool,
+            requested_features: Iterable[str],
+            table: FeatureView,
     ):
         """Populate the GetOnlineFeaturesResponse with feature data.
 
@@ -1776,8 +1780,8 @@ class FeatureStore:
         # Populate the result with data fetched from the OnlineStore
         # which is guaranteed to be aligned with `requested_features`.
         for (
-            feature_idx,
-            (timestamp_vector, statuses_vector, values_vector),
+                feature_idx,
+                (timestamp_vector, statuses_vector, values_vector),
         ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
             online_features_response.results.append(
                 GetOnlineFeaturesResponse.FeatureVector(
@@ -1789,10 +1793,10 @@ class FeatureStore:
 
     @staticmethod
     def _augment_response_with_on_demand_transforms(
-        online_features_response: GetOnlineFeaturesResponse,
-        feature_refs: List[str],
-        requested_on_demand_feature_views: List[OnDemandFeatureView],
-        full_feature_names: bool,
+            online_features_response: GetOnlineFeaturesResponse,
+            feature_refs: List[str],
+            requested_on_demand_feature_views: List[OnDemandFeatureView],
+            full_feature_names: bool,
     ):
         """Computes on demand feature values and adds them to the result rows.
 
@@ -1858,8 +1862,8 @@ class FeatureStore:
 
     @staticmethod
     def _drop_unneeded_columns(
-        online_features_response: GetOnlineFeaturesResponse,
-        requested_result_row_names: Set[str],
+            online_features_response: GetOnlineFeaturesResponse,
+            requested_result_row_names: Set[str],
     ):
         """
         Unneeded feature values such as request data and unrequested input feature views will
@@ -1884,10 +1888,10 @@ class FeatureStore:
             del online_features_response.results[idx]
 
     def _get_feature_views_to_use(
-        self,
-        features: Optional[Union[List[str], FeatureService]],
-        allow_cache=False,
-        hide_dummy_entity: bool = True,
+            self,
+            features: Optional[Union[List[str], FeatureService]],
+            allow_cache=False,
+            hide_dummy_entity: bool = True,
     ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
 
         fvs = {
@@ -2015,10 +2019,10 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 
 
 def _group_feature_refs(
-    features: List[str],
-    all_feature_views: List[FeatureView],
-    all_request_feature_views: List[RequestFeatureView],
-    all_on_demand_feature_views: List[OnDemandFeatureView],
+        features: List[str],
+        all_feature_views: List[FeatureView],
+        all_request_feature_views: List[RequestFeatureView],
+        all_on_demand_feature_views: List[OnDemandFeatureView],
 ) -> Tuple[
     List[Tuple[FeatureView, List[str]]],
     List[Tuple[OnDemandFeatureView, List[str]]],
@@ -2080,7 +2084,7 @@ def _group_feature_refs(
 
 
 def _print_materialization_log(
-    start_date, end_date, num_feature_views: int, online_store: str
+        start_date, end_date, num_feature_views: int, online_store: str
 ):
     if start_date:
         print(
@@ -2131,7 +2135,7 @@ def _validate_data_sources(data_sources: List[DataSource]):
 
 
 def apply_list_mapping(
-    lst: Iterable[Any], mapping_indexes: Iterable[List[int]]
+        lst: Iterable[Any], mapping_indexes: Iterable[List[int]]
 ) -> Iterable[Any]:
     output_len = sum(len(item) for item in mapping_indexes)
     output = [None] * output_len

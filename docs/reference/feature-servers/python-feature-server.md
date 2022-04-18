@@ -156,7 +156,7 @@ curl -X POST \
 You can push data corresponding to a push source to the online store (note that timestamps need to be strings):
 
 ```text
-curl -X POST "http://localhost:6566/write-to-online-store" -d '{
+curl -X POST "http://localhost:6566/push" -d '{
     "push_source_name": "driver_hourly_stats_push_source",
     "df": {
             "driver_id": [1001],
