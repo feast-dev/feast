@@ -62,7 +62,6 @@ def test_get_online_features():
 def test_push():
     client = setup_python_fs_client()
     initial_temp = get_temperatures(client, location_ids=[1])[0]
-    # Note that the timestamp field in the push df is different from the batch source ("event_timestamp")
     json_data = json.dumps(
         {
             "push_source_name": "location_stats_push_source",
