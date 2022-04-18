@@ -237,13 +237,7 @@ def create_field_mapping_feature_view(source):
 
 def create_pushable_feature_view(batch_source: DataSource):
     push_source = PushSource(
-        name="location_stats_push_source",
-        schema=[
-            Field(name="location_id", dtype=Int64),
-            Field(name="temperature", dtype=Int32),
-        ],
-        timestamp_field="timestamp",
-        batch_source=batch_source,
+        name="location_stats_push_source", batch_source=batch_source,
     )
     return FeatureView(
         name="pushable_location_stats",

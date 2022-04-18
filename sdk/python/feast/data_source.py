@@ -714,45 +714,35 @@ class PushSource(DataSource):
     A source that can be used to ingest features on request
     """
 
-    schema: List[Field]
+    # TODO(adchia): consider adding schema here in case where Feast manages pushing events to the offline store
+    # TODO(adchia): consider a "mode" to support pushing raw vs transformed events
     batch_source: DataSource
-    timestamp_field: str
-    # TODO(adchia): remove schema + timestamp_field?
 
     def __init__(
         self,
         *,
         name: str,
-        schema: List[Field],
         batch_source: DataSource,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        timestamp_field: Optional[str] = None,
     ):
         """
         Creates a PushSource object.
         Args:
             name: Name of the push source
-            schema: Schema mapping from the input feature name to a ValueType
             batch_source: The batch source that backs this push source. It's used when materializing from the offline
                 store to the online store, and when retrieving historical features.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): Event timestamp foe;d used for point in time
-                joins of feature values.
 
         """
         super().__init__(name=name, description=description, tags=tags, owner=owner)
-        self.schema = sorted(schema)  # TODO: add schema inference from a batch source
         self.batch_source = batch_source
         if not self.batch_source:
             raise ValueError(f"batch_source is needed for push source {self.name}")
-        if not timestamp_field:
-            raise ValueError(f"timestamp field is needed for push source {self.name}")
-        self.timestamp_field = timestamp_field
 
     def validate(self, config: RepoConfig):
         pass
@@ -764,38 +754,25 @@ class PushSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        schema_pb = data_source.push_options.schema
-        schema = []
-        for key, val in schema_pb.items():
-            schema.append(Field(name=key, dtype=from_value_type(ValueType(val))))
-
         assert data_source.HasField("batch_source")
         batch_source = DataSource.from_proto(data_source.batch_source)
 
         return PushSource(
             name=data_source.name,
-            schema=sorted(schema),
             batch_source=batch_source,
-            timestamp_field=data_source.timestamp_field,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
-        schema_pb = {}
-        for field in self.schema:
-            schema_pb[field.name] = field.dtype.to_value_type().value
         batch_source_proto = None
         if self.batch_source:
             batch_source_proto = self.batch_source.to_proto()
 
-        options = DataSourceProto.PushOptions(schema=schema_pb,)
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
-            push_options=options,
-            timestamp_field=self.timestamp_field,
             description=self.description,
             tags=self.tags,
             owner=self.owner,

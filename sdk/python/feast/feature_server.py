@@ -77,6 +77,12 @@ def get_app(store: "feast.FeatureStore"):
 
     @app.post("/push")
     def push(body=Depends(get_body)):
+        warnings.warn(
+            "push is an experimental feature. "
+            "This API is unstable and it could be changed in the future. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
         try:
             request = PushFeaturesRequest(**json.loads(body))
             df = pd.DataFrame(request.df)
@@ -94,9 +100,7 @@ def get_app(store: "feast.FeatureStore"):
     @app.post("/write-to-online-store")
     def write_to_online_store(body=Depends(get_body)):
         warnings.warn(
-            "write_to_online_store is an experimental feature. "
-            "This API is unstable and it could be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
+            "write_to_online_store is deprecated. Please consider using /push instead",
             RuntimeWarning,
         )
         try:

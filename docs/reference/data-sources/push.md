@@ -1,5 +1,7 @@
 # Push source
 
+**Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
+
 ## Description
 
 Push sources allow feature values to be pushed to the online store in real time. This allows fresh feature values to be made available to applications. Push sources supercede the 
@@ -31,10 +33,6 @@ from feast.types import Int64
 
 push_source = PushSource(
     name="push_source",
-    schema=[
-        Field(name="user_id", dtype=Int64),
-        Field(name="life_time_value", dtype=Int64)
-    ],
     batch_source=BigQuerySource(table="test.test"),
 )
 

@@ -1193,7 +1193,14 @@ class FeatureStore:
         Args:
             push_source_name: The name of the push source we want to push data to.
             df: the data being pushed.
+            allow_registry_cache: whether to allow cached versions of the registry.
         """
+        warnings.warn(
+            "Push source is an experimental feature. "
+            "This API is unstable and it could and might change in the future. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
         from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
