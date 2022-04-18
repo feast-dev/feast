@@ -543,7 +543,7 @@ class RequestSource(DataSource):
             if len(args) >= 2:
                 _schema = args[1]
 
-        super().__init__(name=name, description=description, tags=tags, owner=owner)
+        super().__init__(name=_name, description=description, tags=tags, owner=owner)
         if not _schema:
             raise ValueError("Schema needs to be provided for Request Source")
         if isinstance(_schema, Dict):
