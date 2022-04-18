@@ -147,7 +147,7 @@ install-go-ci-dependencies:
 	go install github.com/go-python/gopy
 
 install-protoc-dependencies:
-	pip install grpcio-tools==1.34.0
+	pip install grpcio-tools==1.44.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	cd sdk/python && python setup.py build_go_protos
