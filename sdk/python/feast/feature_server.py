@@ -77,12 +77,6 @@ def get_app(store: "feast.FeatureStore"):
 
     @app.post("/push")
     def push(body=Depends(get_body)):
-        warnings.warn(
-            "push is an experimental feature. "
-            "This API is unstable and it could be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
         try:
             request = PushFeaturesRequest(**json.loads(body))
             df = pd.DataFrame(request.df)
