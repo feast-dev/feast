@@ -37,6 +37,8 @@ def test_get_online_features():
         response = client.post(
             "/get-online-features", data=json.dumps(request_data_dict)
         )
+
+        # Check entities and features are present
         parsed_response = json.loads(response.text)
         assert "metadata" in parsed_response
         metadata = parsed_response["metadata"]
@@ -52,7 +54,6 @@ def test_get_online_features():
             assert len(result["statuses"]) == 2  # Requested two entities
             for status in result["statuses"]:
                 assert status == "PRESENT"
-
         results_driver_id_index = response_feature_names.index("driver_id")
         assert (
             results[results_driver_id_index]["values"]
@@ -77,6 +78,8 @@ def test_push():
             }
         )
         response = client.post("/push", data=json_data,)
+
+        # Check new pushed temperature is fetched
         assert response.status_code == 200
         assert get_temperatures(client, location_ids=[1]) == [initial_temp * 100]
 
