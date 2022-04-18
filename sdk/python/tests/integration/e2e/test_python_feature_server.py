@@ -114,3 +114,4 @@ def setup_python_fs_client():
         yield client
     finally:
         fs.teardown()
+        environment.data_source_creator.teardown()
