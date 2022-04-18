@@ -10,7 +10,7 @@ from feast.stream_feature_view import StreamFeatureView
 
 
 def test_create_batch_feature_view():
-    batch_source = FileSource("some path")
+    batch_source = FileSource(path="some path")
     BatchFeatureView(
         name="test batch feature view",
         entities=[],
@@ -29,7 +29,7 @@ def test_create_batch_feature_view():
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
-        batch_source=FileSource("some path"),
+        batch_source=FileSource(path="some path"),
     )
     with pytest.raises(ValueError):
         BatchFeatureView(
@@ -47,7 +47,7 @@ def test_create_stream_feature_view():
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
-        batch_source=FileSource("some path"),
+        batch_source=FileSource(path="some path"),
     )
     StreamFeatureView(
         name="test batch feature view",
@@ -66,5 +66,5 @@ def test_create_stream_feature_view():
             name="test batch feature view",
             entities=[],
             ttl=timedelta(days=30),
-            source=FileSource("some path"),
+            source=FileSource(path="some path"),
         )
