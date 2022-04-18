@@ -42,7 +42,7 @@ fv = FeatureView(
     name="feature view",
     entities=["user_id"],
     schema=[Field(name="life_time_value", dtype=Int64)],
-    stream_source=push_source,
+    source=push_source,
 )
 ```
 

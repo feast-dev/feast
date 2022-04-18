@@ -251,5 +251,5 @@ def create_pushable_feature_view(batch_source: DataSource):
         # Test that Features still work for FeatureViews.
         features=[Feature(name="temperature", dtype=ValueType.INT32)],
         ttl=timedelta(days=2),
-        stream_source=push_source,
+        source=push_source,
     )
