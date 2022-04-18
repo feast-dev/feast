@@ -401,7 +401,10 @@ def _read_datasource(data_source) -> dd.DataFrame:
         else None
     )
 
-    return dd.read_parquet(data_source.path, storage_options=storage_options,)
+    if data_source.path.endswith(".csv"):
+        return dd.read_csv(data_source.path, storage_options=storage_options,)
+    else:
+        return dd.read_parquet(data_source.path, storage_options=storage_options,)
 
 
 def _field_mapping(
