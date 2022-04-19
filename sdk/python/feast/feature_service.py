@@ -86,6 +86,7 @@ class FeatureService:
             raise ValueError("Feature service name needs to be specified")
 
         if not _features:
+            # Technically, legal to create feature service with no feature views before.
             _features = []
 
         self.name = _name
