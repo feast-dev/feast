@@ -160,19 +160,45 @@ def test_dynamodb_table_dynamodb_resource():
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
 def test_online_read(repo_config, n_samples):
     """Test DynamoDBOnlineStore online_read method."""
-    _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+    db_table_name = f"{TABLE_NAME}_online_read_{n_samples}"
+    _create_test_table(PROJECT, db_table_name, REGION)
     data = _create_n_customer_test_samples(n=n_samples)
-    _insert_data_test_table(data, PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+    _insert_data_test_table(data, PROJECT, db_table_name, REGION)
 
     entity_keys, features, *rest = zip(*data)
     dynamodb_store = DynamoDBOnlineStore()
     returned_items = dynamodb_store.online_read(
         config=repo_config,
-        table=MockFeatureView(name=f"{TABLE_NAME}_{n_samples}"),
+        table=MockFeatureView(name=db_table_name),
         entity_keys=entity_keys,
     )
     assert len(returned_items) == len(data)
     assert [item[1] for item in returned_items] == list(features)
+
+
+@mock_dynamodb2
+@pytest.mark.parametrize("n_samples", [5, 50, 100])
+def test_online_write_batch(repo_config, n_samples):
+    db_table_name = f"{TABLE_NAME}_online_write_batch_{n_samples}"
+    _create_test_table(PROJECT, db_table_name, REGION)
+    data = _create_n_customer_test_samples()
+
+    entity_keys, features, *rest = zip(*data)
+    dynamodb_store = DynamoDBOnlineStore()
+    dynamodb_store.online_write_batch(
+        config=repo_config,
+        table=MockFeatureView(name=db_table_name),
+        data=data,
+        progress=None,
+    )
+    stored_items = dynamodb_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+    )
+    assert stored_items is not None
+    assert len(stored_items) == len(data)
+    assert [item[1] for item in stored_items] == list(features)
 
 
 @mock_dynamodb2
