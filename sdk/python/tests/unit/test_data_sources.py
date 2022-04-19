@@ -1,7 +1,8 @@
 import pytest
-from feast.data_format import ProtoFormat
+from sdk.python.feast.data_format import ProtoFormat
 
 from feast import ValueType
+from feast.data_format import ProtoFormat
 from feast.data_source import (
     KafkaSource,
     KinesisSource,
@@ -10,15 +11,9 @@ from feast.data_source import (
     RequestSource,
 )
 from feast.field import Field
-from feast.types import Bool, Float32, Int64
-from feast.data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.infra.offline_stores.file_source import FileSource
-from feast.infra.offline_stores.redshift_source import RedshiftSource
-from feast.infra.offline_stores.snowflake_source import SnowflakeSource
-from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource
-from sdk.python.feast.data_format import ProtoFormat
-from feast.types import Int64
+from feast.types import Bool, Float32, Int64
+
 
 def test_push_with_batch():
     push_source = PushSource(
@@ -56,6 +51,7 @@ def test_request_source_primitive_type_to_proto():
     deserialized_request_source = RequestSource.from_proto(request_proto)
     assert deserialized_request_source == request_source
 
+
 def test_hash():
     push_source_1 = PushSource(
         name="test", batch_source=BigQuerySource(table="test.test"),
@@ -83,6 +79,7 @@ def test_hash():
 
     s4 = {push_source_1, push_source_2, push_source_3, push_source_4}
     assert len(s4) == 3
+
 
 # TODO(kevjumba): Remove this test in feast 0.23 when positional arguments are removed.
 def test_default_data_source_kw_arg_warning():
