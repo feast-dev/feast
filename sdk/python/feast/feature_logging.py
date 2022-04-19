@@ -70,8 +70,8 @@ class FeatureServiceLoggingSource(LoggingSource):
                 for (
                     request_source
                 ) in on_demand_feature_view.source_request_sources.values():
-                    for name, dtype in request_source.schema.items():
-                        fields[name] = FEAST_TYPE_TO_ARROW_TYPE[from_value_type(dtype)]
+                    for field in request_source.schema:
+                        fields[field.name] = FEAST_TYPE_TO_ARROW_TYPE[field.dtype]
 
             else:
                 for entity_name in feature_view.entities:
