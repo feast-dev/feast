@@ -1,5 +1,4 @@
 import pytest
-from sdk.python.feast.data_format import ProtoFormat
 
 from feast import ValueType
 from feast.data_format import ProtoFormat
