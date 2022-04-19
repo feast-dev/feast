@@ -386,15 +386,15 @@ class KafkaSource(DataSource):
         if args:
             warnings.warn(
                 (
-                    "kafka parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct kafka sources"
+                    "Kafka parameters should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct Kafka sources"
                 ),
                 DeprecationWarning,
             )
             if len(args) > len(positional_attributes):
                 raise ValueError(
                     f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"kafka sources, for backwards compatibility."
+                    f"Kafka sources, for backwards compatibility."
                 )
             if len(args) >= 1:
                 _name = args[0]
@@ -408,7 +408,7 @@ class KafkaSource(DataSource):
                 _topic = args[4]
 
         if _message_format is None:
-            raise ValueError("message format must be specified for kafka source")
+            raise ValueError("Message format must be specified for Kafka source")
 
         super().__init__(
             event_timestamp_column=_event_timestamp_column,
@@ -528,7 +528,7 @@ class RequestSource(DataSource):
         if args:
             warnings.warn(
                 (
-                    "requestsource parameters should be specified as a keyword argument instead of a positional arg."
+                    "Requestsource parameters should be specified as a keyword argument instead of a positional arg."
                     "Feast 0.23+ will not support positional arguments to construct request sources"
                 ),
                 DeprecationWarning,
@@ -741,7 +741,7 @@ class KinesisSource(DataSource):
         if args:
             warnings.warn(
                 (
-                    "kinesis parameters should be specified as a keyword argument instead of a positional arg."
+                    "Kinesis parameters should be specified as a keyword argument instead of a positional arg."
                     "Feast 0.23+ will not support positional arguments to construct kinesis sources"
                 ),
                 DeprecationWarning,
@@ -765,7 +765,7 @@ class KinesisSource(DataSource):
                 _stream_name = args[5]
 
         if _record_format is None:
-            raise ValueError("record format must be specified for kinesis source")
+            raise ValueError("Record format must be specified for kinesis source")
 
         super().__init__(
             name=_name,
@@ -860,7 +860,7 @@ class PushSource(DataSource):
         if args:
             warnings.warn(
                 (
-                    "push source parameters should be specified as a keyword argument instead of a positional arg."
+                    "Push source parameters should be specified as a keyword argument instead of a positional arg."
                     "Feast 0.23+ will not support positional arguments to construct push sources"
                 ),
                 DeprecationWarning,
@@ -877,7 +877,7 @@ class PushSource(DataSource):
 
         super().__init__(name=_name, description=description, tags=tags, owner=owner)
         if not _batch_source:
-            raise ValueError(f"batch_source is needed for push source {self.name}")
+            raise ValueError(f"Batch_source is needed for push source {self.name}")
         self.batch_source = _batch_source
 
     def __eq__(self, other):
