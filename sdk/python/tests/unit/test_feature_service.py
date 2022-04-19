@@ -3,6 +3,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.types import Float32
+import pytest
 
 
 def test_feature_service_with_description():
@@ -55,3 +56,26 @@ def test_hash():
 
     s4 = {feature_service_1, feature_service_2, feature_service_3, feature_service_4}
     assert len(s4) == 3
+
+
+def test_feature_view_kw_args_warning():
+    # source_class = request.param
+    with pytest.warns(DeprecationWarning):
+        service = FeatureService(
+            "name", [], tags = {"tag_1": "tag"}, description="desc"
+        )
+        assert service.name == "name"
+        assert service.tags == {"tag_1": "tag"}
+        assert service.description == "desc"
+
+    # More positional args than name and features
+    with pytest.raises(ValueError):
+        service = FeatureService(
+            "name", [], {"tag_1": "tag"}, "desc"
+        )
+
+    # No name defined.
+    with pytest.raises(ValueError):
+        service = FeatureService(
+            features=[], tags={"tag_1": "tag"}, description="desc"
+        )
