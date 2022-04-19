@@ -409,7 +409,7 @@ class KafkaSource(DataSource):
 
         if _message_format is None:
             raise ValueError("Message format must be specified for Kafka source")
-
+        print("Asdfasdf")
         super().__init__(
             event_timestamp_column=_event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
@@ -528,7 +528,7 @@ class RequestSource(DataSource):
         if args:
             warnings.warn(
                 (
-                    "Requestsource parameters should be specified as a keyword argument instead of a positional arg."
+                    "Request source parameters should be specified as a keyword argument instead of a positional arg."
                     "Feast 0.23+ will not support positional arguments to construct request sources"
                 ),
                 DeprecationWarning,
@@ -877,7 +877,7 @@ class PushSource(DataSource):
 
         super().__init__(name=_name, description=description, tags=tags, owner=owner)
         if not _batch_source:
-            raise ValueError(f"Batch_source is needed for push source {self.name}")
+            raise ValueError(f"batch_source parameter is needed for push source {self.name}")
         self.batch_source = _batch_source
 
     def __eq__(self, other):
