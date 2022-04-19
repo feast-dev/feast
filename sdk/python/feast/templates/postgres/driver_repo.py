@@ -8,7 +8,7 @@ driver = Entity(name="driver_id", join_key="driver_id",)
 driver_stats_source = PostgreSQLSource(
     name="feast_driver_hourly_stats",
     query="SELECT * FROM feast_driver_hourly_stats",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 

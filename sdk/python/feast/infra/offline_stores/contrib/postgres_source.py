@@ -14,7 +14,7 @@ class PostgreSQLSource(DataSource):
         self,
         name: str,
         query: str,
-        event_timestamp_column: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
@@ -23,7 +23,7 @@ class PostgreSQLSource(DataSource):
 
         super().__init__(
             name=name,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             date_partition_column=date_partition_column,
@@ -40,7 +40,7 @@ class PostgreSQLSource(DataSource):
 
         return (
             self._postgres_options._query == other._postgres_options._query
-            and self.event_timestamp_column == other.event_timestamp_column
+            and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
         )
@@ -54,7 +54,7 @@ class PostgreSQLSource(DataSource):
             name=postgres_options["name"],
             query=postgres_options["query"],
             field_mapping=dict(data_source.field_mapping),
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
         )
@@ -62,11 +62,12 @@ class PostgreSQLSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.CUSTOM_SOURCE,
+            data_source_class_type="feast.infra.offline_stores.contrib.postgres_source.PostgreSQLSource",
             field_mapping=self.field_mapping,
             custom_options=self._postgres_options.to_proto(),
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
