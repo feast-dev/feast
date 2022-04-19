@@ -11,6 +11,8 @@ from feast.infra.online_stores.dynamodb import (
     DynamoDBOnlineStoreConfig,
     DynamoDBTable,
 )
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from tests.utils.online_store_utils import (
     _create_n_customer_test_samples,
@@ -172,6 +174,34 @@ def test_online_read(repo_config, n_samples):
         entity_keys=entity_keys,
     )
     assert len(returned_items) == len(data)
+    assert [item[1] for item in returned_items] == list(features)
+
+
+@mock_dynamodb2
+def test_online_read_unknown_entity(repo_config):
+    """Test DynamoDBOnlineStore online_read method."""
+    n_samples = 2
+    _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+    data = _create_n_customer_test_samples(n=n_samples)
+    _insert_data_test_table(data, PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    # Append a nonsensical value
+    entity_keys = list(entity_keys)
+    entity_keys.append(
+        EntityKeyProto(
+            join_keys=["customer"], entity_values=[ValueProto(string_val="12359")]
+        )
+    )
+    features = list(features)
+    features.append(None)
+    dynamodb_store = DynamoDBOnlineStore()
+    returned_items = dynamodb_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=f"{TABLE_NAME}_{n_samples}"),
+        entity_keys=entity_keys,
+    )
+    assert len(returned_items) == len(entity_keys)
     assert [item[1] for item in returned_items] == list(features)
 
 

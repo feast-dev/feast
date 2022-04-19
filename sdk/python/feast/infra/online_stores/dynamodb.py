@@ -254,9 +254,11 @@ class DynamoDBOnlineStore(OnlineStore):
                         val.ParseFromString(value_bin.value)
                         res[feature_name] = val
                     result.append((datetime.fromisoformat(tbl_res["event_ts"]), res))
-            else:
-                batch_size_nones = ((None, None),) * len(batch)
-                result.extend(batch_size_nones)
+
+            # Not all entities in a batch may have responses
+            # Pad with remaining values in batch that were not found
+            batch_size_nones = ((None, None),) * (len(batch) - len(result))
+            result.extend(batch_size_nones)
         return result
 
     def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
