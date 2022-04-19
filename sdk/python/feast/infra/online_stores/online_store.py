@@ -76,9 +76,9 @@ class OnlineStore(ABC):
             entity_keys: a list of entity keys that should be read from the FeatureStore.
             requested_features: (Optional) A subset of the features that should be read from the FeatureStore.
         Returns:
-            Data is returned as a list, one item per entity key. Each item in the list is a tuple
-            of event_ts for the row, and the feature data as a dict from feature names to values.
-            Values are returned as Value proto message.
+            Data is returned as a list, one item per entity key in the original order as the entity_keys argument.
+            Each item in the list is a tuple of event_ts for the row, and the feature data as a dict from feature names
+            to values. Values are returned as Value proto message.
         """
         ...
 
