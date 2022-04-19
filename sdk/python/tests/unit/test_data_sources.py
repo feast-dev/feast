@@ -9,15 +9,10 @@ from feast.types import Bool, Float32
 
 def test_push_with_batch():
     push_source = PushSource(
-        name="test",
-        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool)],
-        timestamp_field="event_timestamp",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
     assert push_source_proto.HasField("batch_source")
-    assert push_source_proto.timestamp_field is not None
-    assert push_source_proto.push_options is not None
 
     push_source_unproto = PushSource.from_proto(push_source_proto)
 
@@ -51,28 +46,17 @@ def test_request_source_primitive_type_to_proto():
 
 def test_hash():
     push_source_1 = PushSource(
-        name="test",
-        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool)],
-        timestamp_field="event_timestamp",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_2 = PushSource(
-        name="test",
-        schema=[Field(name="f1", dtype=Float32), Field(name="f2", dtype=Bool)],
-        timestamp_field="event_timestamp",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_3 = PushSource(
-        name="test",
-        schema=[Field(name="f1", dtype=Float32)],
-        timestamp_field="event_timestamp",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test2"),
     )
     push_source_4 = PushSource(
         name="test",
-        schema=[Field(name="f1", dtype=Float32)],
-        timestamp_field="event_timestamp",
-        batch_source=BigQuerySource(table="test.test"),
+        batch_source=BigQuerySource(table="test.test2"),
         description="test",
     )
 

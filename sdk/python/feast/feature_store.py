@@ -533,12 +533,12 @@ class FeatureStore:
             ...     batch_source=driver_hourly_stats,
             ... )
             >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents(
-            ...     data_sources={driver_hourly_stats},
-            ...     feature_views={driver_hourly_stats_view},
-            ...     on_demand_feature_views=set(),
-            ...     request_feature_views=set(),
-            ...     entities={driver},
-            ...     feature_services=set())) # register entity and feature view
+            ...     data_sources=[driver_hourly_stats],
+            ...     feature_views=[driver_hourly_stats_view],
+            ...     on_demand_feature_views=list(),
+            ...     request_feature_views=list(),
+            ...     entities=[driver],
+            ...     feature_services=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
