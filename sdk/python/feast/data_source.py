@@ -856,7 +856,7 @@ class PushSource(DataSource):
         """
         positional_attributes = ["name", "batch_source"]
         _name = name
-        _batch_source=batch_source
+        _batch_source = batch_source
         if args:
             warnings.warn(
                 (
