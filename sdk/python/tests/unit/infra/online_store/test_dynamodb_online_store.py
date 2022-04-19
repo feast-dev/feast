@@ -11,6 +11,8 @@ from feast.infra.online_stores.dynamodb import (
     DynamoDBOnlineStoreConfig,
     DynamoDBTable,
 )
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from tests.utils.online_store_utils import (
     _create_n_customer_test_samples,
@@ -49,7 +51,6 @@ def test_online_store_config_default():
     assert dynamodb_store_config.batch_size == 40
     assert dynamodb_store_config.endpoint_url is None
     assert dynamodb_store_config.region == aws_region
-    assert dynamodb_store_config.sort_response is True
     assert dynamodb_store_config.table_name_template == "{project}.{table_name}"
 
 
@@ -70,20 +71,17 @@ def test_online_store_config_custom_params():
     aws_region = "us-west-2"
     batch_size = 20
     endpoint_url = "http://localhost:8000"
-    sort_response = False
     table_name_template = "feast_test.dynamodb_table"
     dynamodb_store_config = DynamoDBOnlineStoreConfig(
         region=aws_region,
         batch_size=batch_size,
         endpoint_url=endpoint_url,
-        sort_response=sort_response,
         table_name_template=table_name_template,
     )
     assert dynamodb_store_config.type == "dynamodb"
     assert dynamodb_store_config.batch_size == batch_size
     assert dynamodb_store_config.endpoint_url == endpoint_url
     assert dynamodb_store_config.region == aws_region
-    assert dynamodb_store_config.sort_response == sort_response
     assert dynamodb_store_config.table_name_template == table_name_template
 
 
@@ -173,6 +171,42 @@ def test_online_read(repo_config, n_samples):
     )
     assert len(returned_items) == len(data)
     assert [item[1] for item in returned_items] == list(features)
+
+
+@mock_dynamodb2
+def test_online_read_unknown_entity(repo_config):
+    """Test DynamoDBOnlineStore online_read method."""
+    n_samples = 2
+    _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+    data = _create_n_customer_test_samples(n=n_samples)
+    _insert_data_test_table(data, PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    # Append a nonsensical entity to search for
+    entity_keys = list(entity_keys)
+    features = list(features)
+    dynamodb_store = DynamoDBOnlineStore()
+
+    # Have the unknown entity be in the beginning, middle, and end of the list of entities.
+    for pos in range(len(entity_keys)):
+        entity_keys_with_unknown = deepcopy(entity_keys)
+        entity_keys_with_unknown.insert(
+            pos,
+            EntityKeyProto(
+                join_keys=["customer"], entity_values=[ValueProto(string_val="12359")]
+            ),
+        )
+        features_with_none = deepcopy(features)
+        features_with_none.insert(pos, None)
+        returned_items = dynamodb_store.online_read(
+            config=repo_config,
+            table=MockFeatureView(name=f"{TABLE_NAME}_{n_samples}"),
+            entity_keys=entity_keys_with_unknown,
+        )
+        assert len(returned_items) == len(entity_keys_with_unknown)
+        assert [item[1] for item in returned_items] == list(features_with_none)
+        # The order should match the original entity key order
+        assert returned_items[pos] == (None, None)
 
 
 @mock_dynamodb2

@@ -59,9 +59,6 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     region: StrictStr
     """AWS Region Name"""
 
-    sort_response: bool = True
-    """Whether or not to sort BatchGetItem response."""
-
     table_name_template: StrictStr = "{project}.{table_name}"
     """DynamoDB table name template"""
 
@@ -204,9 +201,6 @@ class DynamoDBOnlineStore(OnlineStore):
         """
         Retrieve feature values from the online DynamoDB store.
 
-        Note: This method is currently not optimized to retrieve a lot of data at a time
-        as it does sequential gets from the DynamoDB table.
-
         Args:
             config: The RepoConfig for the current FeatureStore.
             table: Feast FeatureView.
@@ -224,7 +218,6 @@ class DynamoDBOnlineStore(OnlineStore):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
         batch_size = online_config.batch_size
-        sort_response = online_config.sort_response
         entity_ids_iter = iter(entity_ids)
         while True:
             batch = list(itertools.islice(entity_ids_iter, batch_size))
@@ -243,20 +236,27 @@ class DynamoDBOnlineStore(OnlineStore):
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
             if table_responses:
-                if sort_response:
-                    table_responses = self._sort_dynamodb_response(
-                        table_responses, entity_ids
-                    )
+                table_responses = self._sort_dynamodb_response(
+                    table_responses, entity_ids
+                )
+                entity_idx = 0
                 for tbl_res in table_responses:
+                    entity_id = tbl_res["entity_id"]
+                    while entity_id != batch[entity_idx]:
+                        result.append((None, None))
+                        entity_idx += 1
                     res = {}
                     for feature_name, value_bin in tbl_res["values"].items():
                         val = ValueProto()
                         val.ParseFromString(value_bin.value)
                         res[feature_name] = val
                     result.append((datetime.fromisoformat(tbl_res["event_ts"]), res))
-            else:
-                batch_size_nones = ((None, None),) * len(batch)
-                result.extend(batch_size_nones)
+                    entity_idx += 1
+
+            # Not all entities in a batch may have responses
+            # Pad with remaining values in batch that were not found
+            batch_size_nones = ((None, None),) * (len(batch) - len(result))
+            result.extend(batch_size_nones)
         return result
 
     def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
