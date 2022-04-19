@@ -41,6 +41,11 @@ def repo_config():
     )
 
 
+@pytest.fixture
+def dynamodb_online_store():
+    return DynamoDBOnlineStore()
+
+
 def test_online_store_config_default():
     """Test DynamoDBOnlineStoreConfig default parameters."""
     aws_region = "us-west-2"
@@ -128,11 +133,11 @@ def test_dynamodb_table_dynamodb_client():
     assert dynamodb_client.meta.endpoint_url == endpoint_url
 
 
-def test_online_store_config_dynamodb_resource():
+def test_online_store_config_dynamodb_resource(dynamodb_online_store):
     """Test DynamoDBOnlineStoreConfig configure DynamoDB Resource with endpoint_url."""
     aws_region = "us-west-2"
     endpoint_url = "http://localhost:8000"
-    dynamodb_store = DynamoDBOnlineStore()
+    dynamodb_store = dynamodb_online_store
     dynamodb_store_config = DynamoDBOnlineStoreConfig(
         region=aws_region, endpoint_url=endpoint_url
     )
@@ -158,7 +163,7 @@ def test_dynamodb_table_dynamodb_resource():
 
 @mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
-def test_online_read(repo_config, n_samples):
+def test_online_read(repo_config, dynamodb_online_store, n_samples):
     """Test DynamoDBOnlineStore online_read method."""
     db_table_name = f"{TABLE_NAME}_online_read_{n_samples}"
     _create_test_table(PROJECT, db_table_name, REGION)
@@ -166,7 +171,7 @@ def test_online_read(repo_config, n_samples):
     _insert_data_test_table(data, PROJECT, db_table_name, REGION)
 
     entity_keys, features, *rest = zip(*data)
-    dynamodb_store = DynamoDBOnlineStore()
+    dynamodb_store = dynamodb_online_store
     returned_items = dynamodb_store.online_read(
         config=repo_config,
         table=MockFeatureView(name=db_table_name),
@@ -178,13 +183,14 @@ def test_online_read(repo_config, n_samples):
 
 @mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
-def test_online_write_batch(repo_config, n_samples):
+def test_online_write_batch(repo_config, dynamodb_online_store, n_samples):
+    """Test DynamoDBOnlineStore online_write_batch method."""
     db_table_name = f"{TABLE_NAME}_online_write_batch_{n_samples}"
     _create_test_table(PROJECT, db_table_name, REGION)
     data = _create_n_customer_test_samples()
 
     entity_keys, features, *rest = zip(*data)
-    dynamodb_store = DynamoDBOnlineStore()
+    dynamodb_store = dynamodb_online_store
     dynamodb_store.online_write_batch(
         config=repo_config,
         table=MockFeatureView(name=db_table_name),
@@ -202,7 +208,37 @@ def test_online_write_batch(repo_config, n_samples):
 
 
 @mock_dynamodb2
-def test_write_batch_non_duplicates(repo_config):
+def test_update(repo_config, dynamodb_online_store):
+    """Test DynamoDBOnlineStore update method."""
+    # create dummy table to keep
+    db_table_keep_name = f"{TABLE_NAME}_keep_update"
+    _create_test_table(PROJECT, db_table_keep_name, REGION)
+    # create dummy table to delete
+    db_table_delete_name = f"{TABLE_NAME}_delete_update"
+    _create_test_table(PROJECT, db_table_delete_name, REGION)
+
+    dynamodb_store = dynamodb_online_store
+    dynamodb_store.update(
+        config=repo_config,
+        tables_to_delete=[MockFeatureView(name=db_table_delete_name)],
+        tables_to_keep=[MockFeatureView(name=db_table_keep_name)],
+        entities_to_delete=None,
+        entities_to_keep=None,
+        partial=None,
+    )
+
+    # check only db_table_keep_name exists
+    dynamodb_client = dynamodb_store._get_dynamodb_client(REGION)
+    existing_tables = dynamodb_client.list_tables()
+    existing_tables = existing_tables.get("TableNames", None)
+
+    assert existing_tables is not None
+    assert len(existing_tables) == 1
+    assert existing_tables[0] == f"test_aws.{db_table_keep_name}"
+
+
+@mock_dynamodb2
+def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     """Test DynamoDBOnline Store deduplicate write batch request items."""
     dynamodb_tbl = f"{TABLE_NAME}_batch_non_duplicates"
     _create_test_table(PROJECT, dynamodb_tbl, REGION)
@@ -210,7 +246,7 @@ def test_write_batch_non_duplicates(repo_config):
     data_duplicate = deepcopy(data)
     dynamodb_resource = boto3.resource("dynamodb", region_name=REGION)
     table_instance = dynamodb_resource.Table(f"{PROJECT}.{dynamodb_tbl}")
-    dynamodb_store = DynamoDBOnlineStore()
+    dynamodb_store = dynamodb_online_store
     # Insert duplicate data
     dynamodb_store._write_batch_non_duplicates(
         table_instance, data + data_duplicate, progress=None
