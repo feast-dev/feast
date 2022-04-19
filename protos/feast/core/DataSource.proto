@@ -222,8 +222,7 @@ message DataSource {
   // Defines options for DataSource that supports pushing data to it. This allows data to be pushed to
   // the online store on-demand, such as by stream consumers.
   message PushOptions {
-    // Mapping of feature name to type
-    map<string, feast.types.ValueType.Enum> schema = 1;
+    reserved 1;
   }
 
 

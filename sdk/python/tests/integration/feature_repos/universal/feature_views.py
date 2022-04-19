@@ -13,7 +13,7 @@ from feast import (
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
+from feast.types import Array, FeastType, Float32, Float64, Int32
 from tests.integration.feature_repos.universal.entities import location
 
 
@@ -65,19 +65,19 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
 def conv_rate_plus_100_feature_view(
     sources: Dict[str, Union[RequestSource, FeatureView]],
     infer_features: bool = False,
-    features: Optional[List[Feature]] = None,
+    features: Optional[List[Field]] = None,
 ) -> OnDemandFeatureView:
     # Test that positional arguments and Features still work for ODFVs.
     _features = features or [
-        Feature(name="conv_rate_plus_100", dtype=ValueType.DOUBLE),
-        Feature(name="conv_rate_plus_val_to_add", dtype=ValueType.DOUBLE),
-        Feature(name="conv_rate_plus_100_rounded", dtype=ValueType.INT32),
+        Field(name="conv_rate_plus_100", dtype=Float64),
+        Field(name="conv_rate_plus_val_to_add", dtype=Float64),
+        Field(name="conv_rate_plus_100_rounded", dtype=Int32),
     ]
     return OnDemandFeatureView(
-        conv_rate_plus_100.__name__,
-        [] if infer_features else _features,
-        sources,
-        conv_rate_plus_100,
+        name=conv_rate_plus_100.__name__,
+        schema=[] if infer_features else _features,
+        sources=sources,
+        udf=conv_rate_plus_100,
     )
 
 
@@ -237,13 +237,7 @@ def create_field_mapping_feature_view(source):
 
 def create_pushable_feature_view(batch_source: DataSource):
     push_source = PushSource(
-        name="location_stats_push_source",
-        schema=[
-            Field(name="location_id", dtype=Int64),
-            Field(name="temperature", dtype=Int32),
-        ],
-        timestamp_field="timestamp",
-        batch_source=batch_source,
+        name="location_stats_push_source", batch_source=batch_source,
     )
     return FeatureView(
         name="pushable_location_stats",
