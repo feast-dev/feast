@@ -270,7 +270,6 @@ class FeatureView(BaseFeatureView):
                 self.batch_source = batch_source
         self.source = source
 
-    # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
         return super().__hash__()
 
@@ -298,17 +297,13 @@ class FeatureView(BaseFeatureView):
             return False
 
         if (
-            self.tags != other.tags
+            sorted(self.entities) != sorted(other.entities)
             or self.ttl != other.ttl
             or self.online != other.online
+            or self.batch_source != other.batch_source
+            or self.stream_source != other.stream_source
+            or self.schema != other.schema
         ):
-            return False
-
-        if sorted(self.entities) != sorted(other.entities):
-            return False
-        if self.batch_source != other.batch_source:
-            return False
-        if self.stream_source != other.stream_source:
             return False
 
         return True

@@ -533,25 +533,25 @@ class FeatureStore:
             ...     batch_source=driver_hourly_stats,
             ... )
             >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents(
-            ...     data_sources={driver_hourly_stats},
-            ...     feature_views={driver_hourly_stats_view},
-            ...     on_demand_feature_views=set(),
-            ...     request_feature_views=set(),
-            ...     entities={driver},
-            ...     feature_services=set())) # register entity and feature view
+            ...     data_sources=[driver_hourly_stats],
+            ...     feature_views=[driver_hourly_stats_view],
+            ...     on_demand_feature_views=list(),
+            ...     request_feature_views=list(),
+            ...     entities=[driver],
+            ...     feature_services=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
-            list(desired_repo_contents.feature_views),
-            list(desired_repo_contents.on_demand_feature_views),
-            list(desired_repo_contents.request_feature_views),
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.request_feature_views,
         )
-        _validate_data_sources(list(desired_repo_contents.data_sources))
+        _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
-            list(desired_repo_contents.data_sources),
-            list(desired_repo_contents.entities),
-            list(desired_repo_contents.feature_views),
-            list(desired_repo_contents.on_demand_feature_views),
+            desired_repo_contents.data_sources,
+            desired_repo_contents.entities,
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
         )
 
         # Compute the desired difference between the current objects in the registry and

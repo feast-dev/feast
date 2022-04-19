@@ -30,7 +30,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, PrimitiveFeastType, String, UnixTimestamp
+from feast.types import Float32, String, UnixTimestamp
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -229,7 +229,7 @@ def test_on_demand_features_type_inference():
 @pytest.mark.parametrize(
     "request_source_schema",
     [
-        [Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
+        [Field(name="some_date", dtype=UnixTimestamp)],
         {"some_date": ValueType.UNIX_TIMESTAMP},
     ],
 )

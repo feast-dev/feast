@@ -63,3 +63,22 @@ def test_multiple_args():
 def test_name_keyword(recwarn):
     Entity(name="my-entity", value_type=ValueType.STRING)
     assert len(recwarn) == 0
+
+
+def test_hash():
+    entity1 = Entity(name="my-entity", value_type=ValueType.STRING)
+    entity2 = Entity(name="my-entity", value_type=ValueType.STRING)
+    entity3 = Entity(name="my-entity", value_type=ValueType.FLOAT)
+    entity4 = Entity(name="my-entity", value_type=ValueType.FLOAT, description="test")
+
+    s1 = {entity1, entity2}
+    assert len(s1) == 1
+
+    s2 = {entity1, entity3}
+    assert len(s2) == 2
+
+    s3 = {entity3, entity4}
+    assert len(s3) == 2
+
+    s4 = {entity1, entity2, entity3, entity4}
+    assert len(s4) == 3
