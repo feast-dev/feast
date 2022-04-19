@@ -46,7 +46,7 @@ def dynamodb_online_store():
     return DynamoDBOnlineStore()
 
 
-def test_online_store_config_default():
+def test_dynamodb_online_store_config_default():
     """Test DynamoDBOnlineStoreConfig default parameters."""
     aws_region = "us-west-2"
     dynamodb_store_config = DynamoDBOnlineStoreConfig(region=aws_region)
@@ -70,7 +70,7 @@ def test_dynamodb_table_default_params():
     assert dynamodb_table._dynamodb_resource is None
 
 
-def test_online_store_config_custom_params():
+def test_dynamodb_online_store_config_custom_params():
     """Test DynamoDBOnlineStoreConfig custom parameters."""
     aws_region = "us-west-2"
     batch_size = 20
@@ -105,7 +105,7 @@ def test_dynamodb_table_custom_params():
     assert dynamodb_table._dynamodb_resource is None
 
 
-def test_online_store_config_dynamodb_client():
+def test_dynamodb_online_store_config_dynamodb_client():
     """Test DynamoDBOnlineStoreConfig configure DynamoDB client with endpoint_url."""
     aws_region = "us-west-2"
     endpoint_url = "http://localhost:8000"
@@ -133,7 +133,7 @@ def test_dynamodb_table_dynamodb_client():
     assert dynamodb_client.meta.endpoint_url == endpoint_url
 
 
-def test_online_store_config_dynamodb_resource(dynamodb_online_store):
+def test_dynamodb_online_store_config_dynamodb_resource(dynamodb_online_store):
     """Test DynamoDBOnlineStoreConfig configure DynamoDB Resource with endpoint_url."""
     aws_region = "us-west-2"
     endpoint_url = "http://localhost:8000"
@@ -163,7 +163,9 @@ def test_dynamodb_table_dynamodb_resource():
 
 @mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
-def test_online_read(repo_config, dynamodb_online_store, n_samples):
+def test_dynamodb_online_store_online_read(
+    repo_config, dynamodb_online_store, n_samples
+):
     """Test DynamoDBOnlineStore online_read method."""
     db_table_name = f"{TABLE_NAME}_online_read_{n_samples}"
     _create_test_table(PROJECT, db_table_name, REGION)
@@ -183,7 +185,9 @@ def test_online_read(repo_config, dynamodb_online_store, n_samples):
 
 @mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
-def test_online_write_batch(repo_config, dynamodb_online_store, n_samples):
+def test_dynamodb_online_store_online_write_batch(
+    repo_config, dynamodb_online_store, n_samples
+):
     """Test DynamoDBOnlineStore online_write_batch method."""
     db_table_name = f"{TABLE_NAME}_online_write_batch_{n_samples}"
     _create_test_table(PROJECT, db_table_name, REGION)
@@ -208,7 +212,7 @@ def test_online_write_batch(repo_config, dynamodb_online_store, n_samples):
 
 
 @mock_dynamodb2
-def test_update(repo_config, dynamodb_online_store):
+def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore update method."""
     # create dummy table to keep
     db_table_keep_name = f"{TABLE_NAME}_keep_update"
@@ -238,7 +242,36 @@ def test_update(repo_config, dynamodb_online_store):
 
 
 @mock_dynamodb2
-def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
+def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
+    """Test DynamoDBOnlineStore teardown method."""
+    db_table_delete_name_one = f"{TABLE_NAME}_delete_teardown_1"
+    db_table_delete_name_two = f"{TABLE_NAME}_delete_teardown_2"
+    _create_test_table(PROJECT, db_table_delete_name_one, REGION)
+    _create_test_table(PROJECT, db_table_delete_name_two, REGION)
+
+    dynamodb_store = dynamodb_online_store
+    dynamodb_store.teardown(
+        config=repo_config,
+        tables=[
+            MockFeatureView(name=db_table_delete_name_one),
+            MockFeatureView(name=db_table_delete_name_two),
+        ],
+        entities=None,
+    )
+
+    # Check tables non exist
+    dynamodb_client = dynamodb_store._get_dynamodb_client(REGION)
+    existing_tables = dynamodb_client.list_tables()
+    existing_tables = existing_tables.get("TableNames", None)
+
+    assert existing_tables is not None
+    assert len(existing_tables) == 0
+
+
+@mock_dynamodb2
+def test_dynamodb_online_store_write_batch_non_duplicates(
+    repo_config, dynamodb_online_store
+):
     """Test DynamoDBOnline Store deduplicate write batch request items."""
     dynamodb_tbl = f"{TABLE_NAME}_batch_non_duplicates"
     _create_test_table(PROJECT, dynamodb_tbl, REGION)
