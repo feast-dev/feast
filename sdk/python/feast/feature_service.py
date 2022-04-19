@@ -85,6 +85,9 @@ class FeatureService:
         if not _name:
             raise ValueError("Feature service name needs to be specified")
 
+        if not _features:
+            _features = []
+
         self.name = _name
         self.feature_view_projections = []
 
