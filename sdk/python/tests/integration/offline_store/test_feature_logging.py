@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
+from google.api_core.exceptions import NotFound
 
 from feast.feature_logging import LoggingConfig
 from feast.feature_service import FeatureService
@@ -64,8 +65,12 @@ def test_feature_service_logging(environment, universal_data_sources):
             config=store.config,
             registry=store._registry,
         )
+        try:
+            df = retrieval_job.to_df()
+        except NotFound:
+            # Table was not created yet
+            return None, False
 
-        df = retrieval_job.to_df()
         return df, df.shape[0] == logs_df.shape[0]
 
     persisted_logs = wait_retry_backoff(
