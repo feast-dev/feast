@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, Dict, Type, cast
+from typing import TYPE_CHECKING, Dict, Optional, Type, cast
 
 import pyarrow as pa
 from pytz import UTC
@@ -133,8 +133,11 @@ class LoggingConfig:
         self.destination = destination
 
     @classmethod
-    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingConfig":
+    def from_proto(cls, config_proto: LoggingConfigProto) -> Optional["LoggingConfig"]:
         proto_attr_name = cast(str, config_proto.WhichOneof("destination"))
+        if proto_attr_name is None:
+            return
+
         destination_class = _DestinationRegistry.classes_by_proto_attr_name[
             proto_attr_name
         ]

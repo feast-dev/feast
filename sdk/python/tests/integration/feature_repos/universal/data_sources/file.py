@@ -1,3 +1,4 @@
+import os.path
 import shutil
 import tempfile
 import uuid
@@ -81,6 +82,8 @@ class FileDataSourceCreator(DataSourceCreator):
             f.close()
 
         for d in self.dirs:
+            if not os.path.exists(d):
+                continue
             shutil.rmtree(d)
 
 
@@ -156,6 +159,15 @@ class S3FileDataSourceCreator(DataSourceCreator):
         return SavedDatasetFileStorage(
             path=f"s3://{self.bucket}/persisted/{str(uuid.uuid4())}",
             file_format=ParquetFormat(),
+            s3_endpoint_override=f"http://{host}:{port}",
+        )
+
+    def create_logged_features_destination(self) -> LoggingDestination:
+        port = self.minio.get_exposed_port("9000")
+        host = self.minio.get_container_host_ip()
+
+        return FileLoggingDestination(
+            path=f"s3://{self.bucket}/logged_features/{str(uuid.uuid4())}",
             s3_endpoint_override=f"http://{host}:{port}",
         )
 
