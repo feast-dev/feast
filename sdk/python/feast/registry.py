@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import dill
@@ -98,7 +98,7 @@ class FeastObjectType(Enum):
     @staticmethod
     def get_objects_from_repo_contents(
         repo_contents: RepoContents,
-    ) -> Dict["FeastObjectType", Set[Any]]:
+    ) -> Dict["FeastObjectType", List[Any]]:
         return {
             FeastObjectType.DATA_SOURCE: repo_contents.data_sources,
             FeastObjectType.ENTITY: repo_contents.entities,

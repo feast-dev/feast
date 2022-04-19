@@ -110,7 +110,7 @@ class BaseFeatureView(ABC):
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash((self.name))
 
     def __getitem__(self, item):
         assert isinstance(item, list)
@@ -134,6 +134,7 @@ class BaseFeatureView(ABC):
         if (
             self.name != other.name
             or sorted(self.features) != sorted(other.features)
+            or self.projection != other.projection
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
