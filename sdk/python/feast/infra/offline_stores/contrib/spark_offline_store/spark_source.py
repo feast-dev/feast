@@ -30,6 +30,7 @@ class SparkSourceFormat(Enum):
 class SparkSource(DataSource):
     def __init__(
         self,
+        *,
         name: Optional[str] = None,
         table: Optional[str] = None,
         query: Optional[str] = None,

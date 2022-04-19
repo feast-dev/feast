@@ -137,7 +137,7 @@ class FeatureView(BaseFeatureView):
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
 
-        positional_attributes = ["name, entities, ttl"]
+        positional_attributes = ["name", "entities", "ttl"]
 
         _name = name
         _entities = entities
