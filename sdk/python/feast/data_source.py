@@ -877,7 +877,9 @@ class PushSource(DataSource):
 
         super().__init__(name=_name, description=description, tags=tags, owner=owner)
         if not _batch_source:
-            raise ValueError(f"batch_source parameter is needed for push source {self.name}")
+            raise ValueError(
+                f"batch_source parameter is needed for push source {self.name}"
+            )
         self.batch_source = _batch_source
 
     def __eq__(self, other):
