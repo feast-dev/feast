@@ -1,5 +1,3 @@
-from multiprocessing.sharedctypes import Value
-
 import pytest
 from sdk.python.feast.data_format import ProtoFormat
 
