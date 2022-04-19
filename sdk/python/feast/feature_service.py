@@ -1,6 +1,7 @@
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
-import warnings
+
 from google.protobuf.json_format import MessageToJson
 
 from feast.base_feature_view import BaseFeatureView
