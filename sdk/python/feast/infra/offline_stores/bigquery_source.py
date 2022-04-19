@@ -16,6 +16,7 @@ from feast.value_type import ValueType
 class BigQuerySource(DataSource):
     def __init__(
         self,
+        *,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",

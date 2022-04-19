@@ -20,7 +20,8 @@ from feast.value_type import ValueType
 class FileSource(DataSource):
     def __init__(
         self,
-        path: str,
+        *args,
+        path: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
         file_format: Optional[FileFormat] = None,
         created_timestamp_column: Optional[str] = "",
@@ -58,13 +59,31 @@ class FileSource(DataSource):
             >>> from feast import FileSource
             >>> file_source = FileSource(path="my_features.parquet", timestamp_field="event_timestamp")
         """
-        if path is None:
+        positional_attributes = ["path"]
+        _path = path
+        if args:
+            if args:
+                warnings.warn(
+                    (
+                        "File Source parameters should be specified as a keyword argument instead of a positional arg."
+                        "Feast 0.23+ will not support positional arguments to construct File sources"
+                    ),
+                    DeprecationWarning,
+                )
+                if len(args) > len(positional_attributes):
+                    raise ValueError(
+                        f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
+                        f"File sources, for backwards compatibility."
+                    )
+                if len(args) >= 1:
+                    _path = args[0]
+        if _path is None:
             raise ValueError(
                 'No "path" argument provided. Please set "path" to the location of your file source.'
             )
         self.file_options = FileOptions(
             file_format=file_format,
-            uri=path,
+            uri=_path,
             s3_endpoint_override=s3_endpoint_override,
         )
 
