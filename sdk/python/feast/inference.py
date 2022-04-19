@@ -2,7 +2,7 @@ import re
 from typing import List
 
 from feast import BigQuerySource, Entity, FileSource, RedshiftSource, SnowflakeSource
-from feast.data_source import DataSource, RequestSource
+from feast.data_source import DataSource, PushSource, RequestSource
 from feast.errors import RegistryInferenceFailure
 from feast.feature_view import FeatureView
 from feast.field import Field, from_value_type
@@ -74,6 +74,8 @@ def update_data_sources_with_inferred_event_timestamp_col(
     for data_source in data_sources:
         if isinstance(data_source, RequestSource):
             continue
+        if isinstance(data_source, PushSource):
+            data_source = data_source.batch_source
         if data_source.timestamp_field is None or data_source.timestamp_field == "":
             # prepare right match pattern for data source
             ts_column_type_regex_pattern = ""

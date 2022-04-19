@@ -40,14 +40,7 @@ customer_driver_combined_source = BigQuerySource(
 )
 
 driver_locations_push_source = PushSource(
-    name="driver_locations_push",
-    schema=[
-        Field(name="driver_id", dtype=String),
-        Field(name="driver_lat", dtype=Float32),
-        Field(name="driver_long", dtype=String),
-    ],
-    batch_source=driver_locations_source,
-    timestamp_field="event_timestamp",
+    name="driver_locations_push", batch_source=driver_locations_source,
 )
 
 driver = Entity(
