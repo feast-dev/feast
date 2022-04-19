@@ -14,6 +14,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import pyarrow
 import pyarrow as pa
 from dateutil import parser
 from pydantic import StrictStr
@@ -23,6 +24,7 @@ from pytz import utc
 from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -30,7 +32,10 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.offline_stores.redshift_source import SavedDatasetRedshiftStorage
+from feast.infra.offline_stores.redshift_source import (
+    RedshiftLoggingDestination,
+    SavedDatasetRedshiftStorage,
+)
 from feast.infra.utils import aws_utils
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -255,6 +260,36 @@ class RedshiftOfflineStore(OfflineStore):
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
+        )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: pyarrow.Table,
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        destination = logging_config.destination
+        assert isinstance(destination, RedshiftLoggingDestination)
+
+        redshift_client = aws_utils.get_redshift_data_client(
+            config.offline_store.region
+        )
+        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
+        s3_path = f"{config.offline_store.s3_staging_location}/logged_features/{uuid.uuid4()}.parquet"
+
+        aws_utils.upload_arrow_table_to_redshift(
+            table=data,
+            redshift_data_client=redshift_client,
+            cluster_id=config.offline_store.cluster_id,
+            database=config.offline_store.database,
+            user=config.offline_store.user,
+            s3_resource=s3_resource,
+            s3_path=s3_path,
+            iam_role=config.offline_store.iam_role,
+            table_name=destination.table_ref,
+            fail_if_exists=False,
         )
 
 

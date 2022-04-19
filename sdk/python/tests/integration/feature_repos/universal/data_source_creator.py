@@ -4,6 +4,7 @@ from typing import Dict, Optional
 import pandas as pd
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.repo_config import FeastConfigBaseModel
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -49,6 +50,10 @@ class DataSourceCreator(ABC):
 
     @abstractmethod
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
+        ...
+
+    @abstractmethod
+    def create_logged_features_destination(self) -> LoggingDestination:
         ...
 
     @abstractmethod

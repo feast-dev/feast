@@ -21,6 +21,7 @@ import pyarrow
 
 from feast.data_source import DataSource
 from feast.dqm.errors import ValidationFailed
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
@@ -241,3 +242,19 @@ class OfflineStore(ABC):
             end_date: Ending date of query
         """
         pass
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: pyarrow.Table,
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        """
+        Flush data with logged features to specified destination in offline store.
+        Data should be appended to existing table / destination or create a new one if it doesn't exist.
+
+        This is optional method that could be supported only be some stores.
+        """
+        raise NotImplementedError()

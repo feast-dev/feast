@@ -4,7 +4,11 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -327,3 +331,28 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 
     def to_data_source(self) -> DataSource:
         return RedshiftSource(table=self.redshift_options.table)
+
+
+class RedshiftLoggingDestination(LoggingDestination):
+    _proto_attr_name = "redshift_destination"
+
+    table_ref: str
+
+    def __init__(self, table_ref: str):
+        self.table_ref = table_ref
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return RedshiftLoggingDestination(
+            table_ref=config_proto.redshift_destination.table_ref,
+        )
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            redshift_destination=LoggingConfigProto.RedshiftDestination(
+                table_ref=self.table_ref
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return RedshiftSource(table=self.table_ref)

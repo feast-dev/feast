@@ -4,7 +4,11 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -253,3 +257,28 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
 
     def to_data_source(self) -> DataSource:
         return BigQuerySource(table=self.bigquery_options.table)
+
+
+class BigqueryLoggingDestination(LoggingDestination):
+    _proto_attr_name = "bigquery_destination"
+
+    table_ref: str
+
+    def __init__(self, table_ref):
+        self.table_ref = table_ref
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return BigqueryLoggingDestination(
+            table_ref=config_proto.bigquery_destination.table_ref,
+        )
+
+    def to_data_source(self) -> DataSource:
+        return BigQuerySource(table=self.table_ref)
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            bigquery_destination=LoggingConfigProto.BigQueryDestination(
+                table_ref=self.table_ref
+            )
+        )

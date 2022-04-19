@@ -4,14 +4,19 @@ from typing import Callable, List, Optional, Tuple, Union
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow
+import pyarrow.parquet
 import pytz
 from pydantic.typing import Literal
 
 from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
-from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.infra.offline_stores.file_source import (
+    FileLoggingDestination,
+    SavedDatasetFileStorage,
+)
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
@@ -365,6 +370,28 @@ class FileOfflineStore(OfflineStore):
             created_timestamp_column=None,
             start_date=start_date,
             end_date=end_date,
+        )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: pyarrow.Table,
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        destination = logging_config.destination
+        assert isinstance(destination, FileLoggingDestination)
+
+        filesystem, path = FileSource.create_filesystem_and_path(
+            destination.path, destination.s3_endpoint_override,
+        )
+
+        pyarrow.parquet.write_to_dataset(
+            data,
+            root_path=path,
+            partition_cols=[source.get_partition_column(registry)],
+            filesystem=filesystem,
         )
 
 

@@ -9,7 +9,7 @@ import pandas
 import pyarrow
 from tqdm import tqdm
 
-from feast import errors
+from feast import FeatureService, errors
 from feast.entity import Entity
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.importer import import_class
@@ -184,6 +184,30 @@ class Provider(abc.ABC):
              RetrievalJob object, which is lazy wrapper for actual query performed under the hood.
 
         """
+        ...
+
+    @abc.abstractmethod
+    def write_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        logs: pyarrow.Table,
+        config: RepoConfig,
+        registry: Registry,
+    ):
+        """
+
+        """
+        ...
+
+    @abc.abstractmethod
+    def retrieve_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        from_: datetime,
+        to: datetime,
+        config: RepoConfig,
+        registry: Registry,
+    ) -> RetrievalJob:
         ...
 
     def get_feature_server_endpoint(self) -> Optional[str]:

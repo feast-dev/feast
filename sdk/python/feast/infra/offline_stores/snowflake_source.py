@@ -3,7 +3,11 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -329,3 +333,38 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     def to_data_source(self) -> DataSource:
         return SnowflakeSource(table=self.snowflake_options.table)
+
+
+class SnowflakeLoggingDestination(LoggingDestination):
+    table: str
+    schema: Optional[str]
+    database: Optional[str]
+
+    def __init__(
+        self, table: str, schema: Optional[str] = None, database: Optional[str] = None
+    ):
+        self.table = table
+        self.schema = schema
+        self.database = database
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return SnowflakeLoggingDestination(
+            table=config_proto.snowflake_destination.table,
+            schema=config_proto.snowflake_destination.schema or None,
+            database=config_proto.snowflake_destination.database or None,
+        )
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            snowflake_destination=LoggingConfigProto.SnowflakeDestination(
+                table=self.table,
+                schema=self.schema or "",
+                database=self.database or "",
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return SnowflakeSource(
+            table=self.table, schema=self.schema, database=self.database,
+        )

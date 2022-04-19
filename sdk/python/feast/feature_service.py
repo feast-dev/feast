@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Union
 from google.protobuf.json_format import MessageToJson
 
 from feast.base_feature_view import BaseFeatureView
+from feast.feature_logging import LoggingConfig
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -44,6 +45,7 @@ class FeatureService:
     owner: str
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
+    logging_config: Optional[LoggingConfig] = None
 
     @log_exceptions
     def __init__(
@@ -54,6 +56,7 @@ class FeatureService:
         tags: Dict[str, str] = None,
         description: str = "",
         owner: str = "",
+        logging_config: Optional[LoggingConfig] = None,
     ):
         """
         Creates a FeatureService object.
@@ -106,6 +109,7 @@ class FeatureService:
         self.owner = owner
         self.created_timestamp = None
         self.last_updated_timestamp = None
+        self.logging_config = logging_config
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -152,6 +156,9 @@ class FeatureService:
             tags=dict(feature_service_proto.spec.tags),
             description=feature_service_proto.spec.description,
             owner=feature_service_proto.spec.owner,
+            logging_config=LoggingConfig.from_proto(
+                feature_service_proto.spec.logging_config
+            ),
         )
         fs.feature_view_projections.extend(
             [
@@ -192,6 +199,9 @@ class FeatureService:
             tags=self.tags,
             description=self.description,
             owner=self.owner,
+            logging_config=self.logging_config.to_proto()
+            if self.logging_config
+            else None,
         )
 
         return FeatureServiceProto(spec=spec, meta=meta)
