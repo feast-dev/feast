@@ -199,7 +199,7 @@ Trino Offline Store
     :members:
 
 PostgreSQL Offline Store
--------------------
+------------------------
 
 .. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres
     :members:
@@ -238,7 +238,7 @@ Redis Online Store
     :noindex:
 
 PostgreSQL Online Store
-------------------
+-----------------------
 
 .. automodule:: feast.infra.online_stores.contrib.postgres
     :members:
