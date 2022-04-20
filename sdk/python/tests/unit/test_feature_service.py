@@ -60,7 +60,6 @@ def test_hash():
 
 
 def test_feature_view_kw_args_warning():
-    # source_class = request.param
     with pytest.warns(DeprecationWarning):
         service = FeatureService("name", [], tags={"tag_1": "tag"}, description="desc")
         assert service.name == "name"
@@ -74,3 +73,31 @@ def test_feature_view_kw_args_warning():
     # No name defined.
     with pytest.raises(ValueError):
         service = FeatureService(features=[], tags={"tag_1": "tag"}, description="desc")
+
+def no_warnings(func):
+    def wrapper_no_warnings(*args, **kwargs):
+        with pytest.warns(None) as warnings:
+            func(*args, **kwargs)
+
+        if len(warnings) > 0:
+            raise AssertionError(
+                "Warnings were raised: " + ", ".join([str(w) for w in warnings])
+            )
+
+    return wrapper_no_warnings
+
+@no_warnings
+def test_feature_view_kw_args_normal():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    _ = FeatureService(
+        name="my-feature-service", features=[feature_view[["feature1", "feature2"]]]
+    )
