@@ -1,11 +1,12 @@
 from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, ValueType
+from feast import Entity, FeatureView, Field
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source import (
     PostgreSQLSource,
 )
+from feast.types import Float32, Int64
 
-driver = Entity(name="driver_id", join_key="driver_id",)
+driver = Entity(name="driver_id", join_keys=["driver_id"],)
 
 
 driver_stats_source = PostgreSQLSource(
@@ -19,10 +20,10 @@ driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
     ttl=timedelta(weeks=52),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
-    batch_source=driver_stats_source,
+    source=driver_stats_source,
 )
