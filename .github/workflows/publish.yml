@@ -175,44 +175,6 @@ jobs:
           path: ./wheelhouse/*.whl
 
 
-  build-python-sdk-no-telemetry:
-    name: Build no telemetry wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
-    needs: get-version
-    steps:
-      - uses: actions/checkout@v2
-      - run: |
-          cd sdk/python
-          sed -i.bak 's/DEFAULT_FEAST_USAGE_VALUE = "True"/DEFAULT_FEAST_USAGE_VALUE = "False"/g' feast/constants.py
-          sed -i.bak 's/NAME = "feast"/NAME = "feast-no-telemetry"/g' setup.py
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.4.0
-        with:
-          package-dir: sdk/python
-        env:
-          CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          CIBW_ENVIRONMENT: >
-            COMPILE_GO=True SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.get-version.outputs.version_without_prefix }}"
-          CIBW_BEFORE_ALL_LINUX: |
-            yum install -y golang
-          CIBW_BEFORE_ALL_MACOS: |
-            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target /
-          CIBW_BEFORE_BUILD: |
-            make install-protoc-dependencies
-            make install-go-proto-dependencies
-            make install-go-ci-dependencies
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: wheels
-          path: ./wheelhouse/*.whl
-
   build-python-sdk-macos-py310:
     runs-on: macos-10.15
     env:
