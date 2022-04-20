@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 import numpy as np
+from numpy import dtype
 import pandas as pd
 import psycopg2
 import psycopg2.extras
@@ -36,7 +37,7 @@ def df_to_create_table_sql(entity_df, table_name) -> str:
 
 def df_to_postgres_table(
     config: PostgreSQLConfig, df: pd.DataFrame, table_name: str
-) -> Dict[str, np.dtype[Any]]:
+) -> Dict[str, np.dtype]:
     """
     Create a table for the data frame, insert all the values, and return the table schema
     """
@@ -55,7 +56,7 @@ def df_to_postgres_table(
 
 def get_query_schema(
     config: PostgreSQLConfig, sql_query: str
-) -> Dict[str, np.dtype[Any]]:
+) -> Dict[str, np.dtype]:
     """
     We'll use the statement when we perform the query rather than copying data to a
     new table
