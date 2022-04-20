@@ -2,7 +2,7 @@ import json
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast.data_source import DataSource
-from feast.infra.utils.postgres.utils import _get_conn
+from feast.infra.utils.postgres.connection_utils import _get_conn
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.type_map import pg_type_code_to_pg_type, pg_type_to_feast_value_type

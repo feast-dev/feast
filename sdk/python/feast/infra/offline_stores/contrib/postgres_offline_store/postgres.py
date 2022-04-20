@@ -29,12 +29,12 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from feast.infra.utils.postgres.utils import (
+from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
     df_to_postgres_table,
     get_query_schema,
 )
+from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
 from feast.repo_config import RepoConfig

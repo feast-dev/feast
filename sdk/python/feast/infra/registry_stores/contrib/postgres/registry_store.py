@@ -1,8 +1,8 @@
 import psycopg2
 from psycopg2 import sql
 
+from feast.infra.utils.postgres.connection_utils import _get_conn
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from feast.infra.utils.postgres.utils import _get_conn
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import RegistryStore
 from feast.repo_config import RegistryConfig

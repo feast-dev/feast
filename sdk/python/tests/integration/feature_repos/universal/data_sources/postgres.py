@@ -7,7 +7,7 @@ from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLSource,
 )
-from feast.infra.utils.postgres.utils import _get_conn, df_to_postgres_table
+from feast.infra.utils.postgres.connection_utils import _get_conn, df_to_postgres_table
 from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,

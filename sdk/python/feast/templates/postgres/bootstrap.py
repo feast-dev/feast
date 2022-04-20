@@ -1,8 +1,8 @@
 import click
 import psycopg2
 
+from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from feast.infra.utils.postgres.utils import df_to_postgres_table
 
 
 def bootstrap():
