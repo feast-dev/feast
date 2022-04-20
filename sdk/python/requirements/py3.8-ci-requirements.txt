@@ -440,6 +440,8 @@ protobuf==3.19.4
     #   tensorflow-metadata
 psutil==5.9.0
     # via feast (setup.py)
+psycopg2-binary==2.9.3
+    # via feast (setup.py)
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
