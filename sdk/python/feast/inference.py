@@ -32,7 +32,7 @@ def update_entities_with_inferred_types_from_feature_views(
         if not (incomplete_entities_keys & set(view.entities)):
             continue  # skip if view doesn't contain any entities that need inference
 
-        col_names_and_types = view.batch_source.get_table_column_names_and_types(config)
+        col_names_and_types = list(view.batch_source.get_table_column_names_and_types(config))
         for entity_name in view.entities:
             if entity_name in incomplete_entities:
                 entity = incomplete_entities[entity_name]
