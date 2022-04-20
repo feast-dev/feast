@@ -54,8 +54,8 @@ def test_update_entities_with_inferred_types_from_feature_views(
             name="fv2", entities=["id"], batch_source=file_source_2, ttl=None,
         )
 
-        actual_1 = Entity(name="id", join_key="id_join_key")
-        actual_2 = Entity(name="id", join_key="id_join_key")
+        actual_1 = Entity(name="id", join_keys=["id_join_key"])
+        actual_2 = Entity(name="id", join_keys=["id_join_key"])
 
         update_entities_with_inferred_types_from_feature_views(
             [actual_1], [fv1], RepoConfig(provider="local", project="test")
@@ -64,16 +64,16 @@ def test_update_entities_with_inferred_types_from_feature_views(
             [actual_2], [fv2], RepoConfig(provider="local", project="test")
         )
         assert actual_1 == Entity(
-            name="id", join_key="id_join_key", value_type=ValueType.INT64
+            name="id", join_keys=["id_join_key"], value_type=ValueType.INT64
         )
         assert actual_2 == Entity(
-            name="id", join_key="id_join_key", value_type=ValueType.STRING
+            name="id", join_keys=["id_join_key"], value_type=ValueType.STRING
         )
 
         with pytest.raises(RegistryInferenceFailure):
             # two viable data types
             update_entities_with_inferred_types_from_feature_views(
-                [Entity(name="id", join_key="id_join_key")],
+                [Entity(name="id", join_keys=["id_join_key"])],
                 [fv1, fv2],
                 RepoConfig(provider="local", project="test"),
             )
@@ -289,8 +289,8 @@ def test_datasource_inference(request_source_schema):
 
 def test_update_feature_views_with_inferred_features():
     file_source = FileSource(name="test", path="test path")
-    entity1 = Entity(name="test1", join_key="test_column_1")
-    entity2 = Entity(name="test2", join_key="test_column_2")
+    entity1 = Entity(name="test1", join_keys=["test_column_1"])
+    entity2 = Entity(name="test2", join_keys=["test_column_2"])
     feature_view_1 = FeatureView(
         name="test1",
         entities=[entity1],

@@ -129,7 +129,7 @@ batch_source = FileSource(
 
 
 ```python
-taxi_entity = Entity(name='taxi', join_key='taxi_id')
+taxi_entity = Entity(name='taxi', join_keys=['taxi_id'])
 ```
 
 
