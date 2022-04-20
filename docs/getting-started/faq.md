@@ -3,7 +3,7 @@
 {% hint style="info" %}
 **Don't see your question?**
 
-We encourage you to ask questions on [Slack](https://slack.feast.dev) or [Github](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
+We encourage you to ask questions on [Slack](https://slack.feast.dev) or [GitHub](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
 {% endhint %}
 
 ## Getting started
@@ -83,7 +83,7 @@ Yes. For example, the Postgres [connector](https://github.com/nossrannug/feast-p
 
 Yes. There are two ways to use S3 in Feast:
 
-* Using Redshift as a data source via Spectrum ([AWS tutorial](https://docs.aws.amazon.com/redshift/latest/dg/tutorial-nested-data-create-table.html)), and then continuing with the [Running Feast with GCP/AWS](../how-to-guides/feast-gcp-aws/) guide. See a [presentation](https://youtu.be/pMFbRJ7AnBk?t=9463) we did on this at our apply() meetup.
+* Using Redshift as a data source via Spectrum ([AWS tutorial](https://docs.aws.amazon.com/redshift/latest/dg/tutorial-nested-data-create-table.html)), and then continuing with the [Running Feast with Snowflake/GCP/AWS](../how-to-guides/feast-snowflake-gcp-aws/) guide. See a [presentation](https://youtu.be/pMFbRJ7AnBk?t=9463) we did on this at our apply() meetup.
 * Using the `s3_endpoint_override` in a `FileSource` data source. This endpoint is more suitable for quick proof of concepts that won't necessarily scale for production use cases.
 
 ### How can I use Spark with Feast?
