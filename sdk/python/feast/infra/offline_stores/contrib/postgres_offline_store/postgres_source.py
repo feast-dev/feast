@@ -62,7 +62,7 @@ class PostgreSQLSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.postgres_source.PostgreSQLSource",
+            data_source_class_type="feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source.PostgreSQLSource",
             field_mapping=self.field_mapping,
             custom_options=self._postgres_options.to_proto(),
         )
