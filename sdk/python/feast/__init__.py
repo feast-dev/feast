@@ -21,6 +21,8 @@ from .feature_store import FeatureStore
 from .feature_view import FeatureView
 from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
+from .base_feature_view import BaseFeatureView
+from .stream_feature_view import StreamFeatureView
 from .repo_config import RepoConfig
 from .request_feature_view import RequestFeatureView
 from .value_type import ValueType
@@ -38,6 +40,7 @@ except DistributionNotFound:
     pass
 
 __all__ = [
+    "BaseFeatureView"
     "Entity",
     "KafkaSource",
     "KinesisSource",
@@ -49,6 +52,7 @@ __all__ = [
     "OnDemandFeatureView",
     "RepoConfig",
     "SourceType",
+    "StreamFeatureView",
     "ValueType",
     "BigQuerySource",
     "FileSource",

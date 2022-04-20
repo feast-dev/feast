@@ -14,6 +14,7 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.types import Array, FeastType, Float32, Float64, Int32
+from sdk.python.feast.base_feature_view import BaseFeatureView
 from tests.integration.feature_repos.universal.entities import location
 
 
@@ -149,9 +150,39 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
     )
     return item_embeddings_feature_view
 
+def create_item_embeddings_base_feature_view(source, infer_features: bool = False):
+    item_embeddings_feature_view = BaseFeatureView(
+        name="item_embeddings",
+        entities=["item"],
+        schema=None
+        if infer_features
+        else [
+            Field(name="embedding_double", dtype=Array(Float64)),
+            Field(name="embedding_float", dtype=Array(Float32)),
+        ],
+        batch_source=source,
+        ttl=timedelta(hours=2),
+    )
+    return item_embeddings_feature_view
 
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
+        name="driver_stats",
+        entities=["driver"],
+        schema=None
+        if infer_features
+        else [
+            Field(name="conv_rate", dtype=Float32),
+            Field(name="acc_rate", dtype=Float32),
+            Field(name="avg_daily_trips", dtype=Int32),
+        ],
+        source=source,
+        ttl=timedelta(hours=2),
+    )
+    return driver_stats_feature_view
+
+def create_driver_hourly_stats_base_feature_view(source, infer_features: bool = False):
+    driver_stats_feature_view = BaseFeatureView(
         name="driver_stats",
         entities=["driver"],
         schema=None

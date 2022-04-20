@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Type, Union
 import dill
 import pandas as pd
 
+from feast.batch_feature_view import BatchFeatureView
+from feast.stream_feature_view import StreamFeatureView
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
@@ -73,7 +75,7 @@ class OnDemandFeatureView(BaseFeatureView):
         name: Optional[str] = None,
         features: Optional[List[Feature]] = None,
         sources: Optional[
-            Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
+            List[Union[BatchFeatureView, StreamFeatureView, RequestSource]]
         ] = None,
         udf: Optional[MethodType] = None,
         inputs: Optional[
@@ -92,11 +94,11 @@ class OnDemandFeatureView(BaseFeatureView):
             features (deprecated): The list of features in the output of the on demand
                 feature view, after the transformation has been applied.
             sources (optional): A map from input source names to the actual input sources,
-                which may be feature views, feature view projections, or request data sources.
+                which may be feature views, or request data sources.
                 These sources serve as inputs to the udf, which will refer to them by name.
             udf (optional): The user defined transformation function, which must take pandas
                 dataframes as inputs.
-            inputs (optional): A map from input source names to the actual input sources,
+            inputs (optional): (Deprecated) A map from input source names to the actual input sources,
                 which may be feature views, feature view projections, or request data sources.
                 These sources serve as inputs to the udf, which will refer to them by name.
             schema (optional): The list of features in the output of the on demand feature
@@ -199,14 +201,14 @@ class OnDemandFeatureView(BaseFeatureView):
         assert _sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}
-        for source_name, odfv_source in _sources.items():
+        for odfv_source in _sources:
             if isinstance(odfv_source, RequestSource):
-                self.source_request_sources[source_name] = odfv_source
+                self.source_request_sources[odfv_source.name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
-                self.source_feature_view_projections[source_name] = odfv_source
+                self.source_feature_view_projections[odfv_source.name] = odfv_source
             else:
                 self.source_feature_view_projections[
-                    source_name
+                    odfv_source.name
                 ] = odfv_source.projection
 
         if _udf is None:
@@ -222,8 +224,8 @@ class OnDemandFeatureView(BaseFeatureView):
         fv = OnDemandFeatureView(
             name=self.name,
             schema=self.features,
-            sources=dict(
-                **self.source_feature_view_projections, **self.source_request_sources,
+            sources=list(
+                **self.source_feature_view_projections.values(), **self.source_request_sources.values(),
             ),
             udf=self.udf,
             description=self.description,
@@ -476,7 +478,7 @@ class OnDemandFeatureView(BaseFeatureView):
 def on_demand_feature_view(
     *args,
     features: Optional[List[Feature]] = None,
-    sources: Optional[Dict[str, Union[FeatureView, RequestSource]]] = None,
+    sources: Optional[List[Union[BatchFeatureView, StreamFeatureView, RequestSource]]] = None,
     inputs: Optional[Dict[str, Union[FeatureView, RequestSource]]] = None,
     schema: Optional[List[Field]] = None,
     description: str = "",
@@ -490,7 +492,7 @@ def on_demand_feature_view(
         features (deprecated): The list of features in the output of the on demand
             feature view, after the transformation has been applied.
         sources (optional): A map from input source names to the actual input sources,
-            which may be feature views, feature view projections, or request data sources.
+            which may be feature views, or request data sources.
             These sources serve as inputs to the udf, which will refer to them by name.
         inputs (optional): A map from input source names to the actual input sources,
             which may be feature views, feature view projections, or request data sources.

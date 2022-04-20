@@ -45,7 +45,7 @@ def test_hash():
         ],
         source=file_source,
     )
-    sources = {"my-feature-view": feature_view}
+    sources = [feature_view]
     on_demand_feature_view_1 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
         sources=sources,

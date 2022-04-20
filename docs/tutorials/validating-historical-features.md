@@ -134,7 +134,7 @@ taxi_entity = Entity(name='taxi', join_keys=['taxi_id'])
 
 
 ```python
-trips_stats_fv = FeatureView(
+trips_stats_fv = BaseFeatureView(
     name='trip_stats',
     entities=['taxi'],
     features=[
@@ -160,9 +160,9 @@ trips_stats_fv = FeatureView(
         Field("avg_trip_seconds", Float64),
         Field("earned_per_hour", Float64),
     ],
-    sources={
-        "stats": trips_stats_fv
-    }
+    sources=[
+      trips_stats_fv,
+    ]
 )
 def on_demand_stats(inp):
     out = pd.DataFrame()

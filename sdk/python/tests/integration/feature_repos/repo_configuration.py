@@ -39,6 +39,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_conv_rate_request_source,
     create_customer_daily_profile_feature_view,
     create_driver_hourly_stats_feature_view,
+    create_driver_hourly_stats_base_feature_view,
     create_field_mapping_feature_view,
     create_global_stats_feature_view,
     create_location_stats_feature_view,
@@ -311,15 +312,13 @@ def construct_universal_feature_views(
     data_sources: UniversalDataSources, with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
+    driver_hourly_stats_base_feature_view = create_driver_hourly_stats_base_feature_view(data_sources.driver)
     return UniversalFeatureViews(
         customer=create_customer_daily_profile_feature_view(data_sources.customer),
         global_fv=create_global_stats_feature_view(data_sources.global_ds),
         driver=driver_hourly_stats,
         driver_odfv=conv_rate_plus_100_feature_view(
-            {
-                "driver": driver_hourly_stats,
-                "input_request": create_conv_rate_request_source(),
-            }
+            [driver_hourly_stats_base_feature_view, create_conv_rate_request_source()]
         )
         if with_odfv
         else None,
