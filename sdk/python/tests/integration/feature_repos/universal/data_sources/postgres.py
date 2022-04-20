@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from feast.data_source import DataSource
-from feast.infra.offline_stores.contrib.postgres import (
+from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLSource,
 )
