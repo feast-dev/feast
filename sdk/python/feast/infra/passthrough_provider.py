@@ -227,7 +227,7 @@ class PassthroughProvider(Provider):
     ):
         assert (
             feature_service.logging_config is not None
-        ), "Logging should be configured for a feature service before calling this function"
+        ), "Logging should be configured for the feature service before calling this function"
 
         self.offline_store.write_logged_features(
             config=config,
@@ -247,7 +247,7 @@ class PassthroughProvider(Provider):
     ) -> RetrievalJob:
         assert (
             feature_service.logging_config is not None
-        ), "Logging should be configured for a feature service before calling this function"
+        ), "Logging should be configured for the feature service before calling this function"
 
         logging_source = FeatureServiceLoggingSource(feature_service, config.project)
         schema = logging_source.get_schema(registry)

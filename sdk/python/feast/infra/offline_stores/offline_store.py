@@ -252,9 +252,18 @@ class OfflineStore(ABC):
         registry: Registry,
     ):
         """
-        Flush data with logged features to specified destination in offline store.
-        Data should be appended to existing table / destination or create a new one if it doesn't exist.
+        Write logged features to a specified destination (taken from logging_config) in the offline store.
+        Data can be appended to an existing table (destination) or a new one will be created automatically
+         (if it doesn't exist).
+        Hence, this function can be called repeatedly with the same destination to flush logs in chunks.
 
-        This is optional method that could be supported only be some stores.
+        Args:
+            config: Repo configuration object
+            data: Arrow table produced by logging source.
+            source: Logging source that provides schema and some additional metadata.
+            logging_config: used to determine destination
+            registry: Feast registry
+
+        This is an optional method that could be supported only be some stores.
         """
         raise NotImplementedError()

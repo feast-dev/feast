@@ -1978,12 +1978,16 @@ class FeatureStore:
         self._go_server = None
 
     def write_logged_features(self, logs: pa.Table, source: Union[FeatureService]):
+        """
+        Write logs produced by a source (currently only feature service is supported as a source)
+        to an offline store.
+        """
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")
 
         assert (
             source.logging_config is not None
-        ), "Feature service must have logging config attached"
+        ), "Feature service must be configured with logging config in order to use this functionality"
 
         self._get_provider().write_feature_service_logs(
             feature_service=source,

@@ -195,7 +195,10 @@ class Provider(abc.ABC):
         registry: Registry,
     ):
         """
+        Write features and entities logged by a feature server to an offline store.
 
+        Schema of logs table is being inferred from the provided feature service.
+        Only feature services with configured logging are accepted.
         """
         ...
 
@@ -208,6 +211,14 @@ class Provider(abc.ABC):
         config: RepoConfig,
         registry: Registry,
     ) -> RetrievalJob:
+        """
+        Read logged features from an offline store for a given time window [from, to).
+        Target table is determined based on logging configuration from the feature service.
+
+        Returns:
+             RetrievalJob object, which wraps the query to the offline store.
+
+        """
         ...
 
     def get_feature_server_endpoint(self) -> Optional[str]:

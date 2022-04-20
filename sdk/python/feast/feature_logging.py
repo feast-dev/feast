@@ -24,14 +24,17 @@ if TYPE_CHECKING:
 class LoggingSource:
     @abc.abstractmethod
     def get_schema(self, registry: "Registry") -> pa.Schema:
+        """ Generate schema for logs destination. """
         raise NotImplementedError
 
     @abc.abstractmethod
     def get_partition_column(self, registry: "Registry") -> str:
+        """ Return partition column that must exist in generated schema. """
         raise NotImplementedError
 
     @abc.abstractmethod
     def get_log_timestamp_column(self) -> str:
+        """ Return timestamp column that must exist in generated schema. """
         raise NotImplementedError
 
 
