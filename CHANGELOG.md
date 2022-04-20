@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.20.1](https://github.com/feast-dev/feast/compare/v0.20.0...v0.20.1) (2022-04-20)
+
+
+### Bug Fixes
+
+* Addresses ZeroDivisionError when materializing file source with same timestamps ([#2551](https://github.com/feast-dev/feast/issues/2551)) ([5539c51](https://github.com/feast-dev/feast/commit/5539c51646d3d2150df7476aa5ac9d075998b235))
+* Build platform specific python packages with ci-build-wheel ([#2555](https://github.com/feast-dev/feast/issues/2555)) ([1757639](https://github.com/feast-dev/feast/commit/17576396980a02e6ad7d70d69367df0823ef5408))
+* Enforce kw args featureservice ([#2575](https://github.com/feast-dev/feast/issues/2575)) ([4dce254](https://github.com/feast-dev/feast/commit/4dce254dc8c4f7de0c6005907ceba53b44f264ce))
+* Enforce kw args in datasources ([#2567](https://github.com/feast-dev/feast/issues/2567)) ([6374634](https://github.com/feast-dev/feast/commit/6374634c35b3820c4ed12edc7b2e70a9c561bfe5))
+* Fix `__hash__` methods ([#2556](https://github.com/feast-dev/feast/issues/2556)) ([dd8b854](https://github.com/feast-dev/feast/commit/dd8b8546fce90fab099cab71ab318681c3a0c998))
+* Fix DynamoDB fetches when there are entities that are not found ([#2573](https://github.com/feast-dev/feast/issues/2573)) ([882328f](https://github.com/feast-dev/feast/commit/882328f9b6da45a310916e5af23e0926b4186a85))
+* Fix push sources and add docs / tests pushing via the python feature server ([#2561](https://github.com/feast-dev/feast/issues/2561)) ([c5006c2](https://github.com/feast-dev/feast/commit/c5006c2cf47fd489d8f740d300f06b8fab387148))
+* Fixed data mapping errors for Snowflake ([#2558](https://github.com/feast-dev/feast/issues/2558)) ([abd6be7](https://github.com/feast-dev/feast/commit/abd6be73ec0b795e1ea043d9db2744156f04c5d3))
+* Small typo in CLI ([#2578](https://github.com/feast-dev/feast/issues/2578)) ([8717bc8](https://github.com/feast-dev/feast/commit/8717bc8c19be13158eb7c3de42d38383803195b9))
+* Switch from `join_key` to `join_keys` in tests and docs ([#2580](https://github.com/feast-dev/feast/issues/2580)) ([6130b80](https://github.com/feast-dev/feast/commit/6130b80f64b0952ed209213a371d959f41b9a350))
+* Update build_go_protos to use a consistent python path ([#2550](https://github.com/feast-dev/feast/issues/2550)) ([1c523bf](https://github.com/feast-dev/feast/commit/1c523bf8acd1d554efa4b6211420185f2b66ec36))
+* Update RedisCluster to use redis-py official implementation ([#2554](https://github.com/feast-dev/feast/issues/2554)) ([c47fa2a](https://github.com/feast-dev/feast/commit/c47fa2a58ddaee892095b867a022cfcf236ff7c1))
+* Use cwd when getting module path ([#2577](https://github.com/feast-dev/feast/issues/2577)) ([28752f2](https://github.com/feast-dev/feast/commit/28752f23a365716d98b9266d449ee0aa0572165f))
+
 # [0.20.0](https://github.com/feast-dev/feast/compare/v0.19.0...v0.20.0) (2022-04-14)
 
 
