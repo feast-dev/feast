@@ -13,8 +13,7 @@ def main():
     # Load the feature store from the current path
     fs = FeatureStore(repo_path=".")
 
-    # Deploy the feature store to Snowflake
-    print("Deploying feature store to Snowflake...")
+    print("Deploying feature store to Postgres...")
     fs.apply([driver, driver_stats_fv])
 
     # Select features
@@ -37,7 +36,6 @@ def main():
 
     print("Retrieving training data...")
 
-    # Retrieve historical features by joining the entity dataframe to the Snowflake table source
     training_df = fs.get_historical_features(
         features=features, entity_df=entity_df
     ).to_df()
