@@ -57,7 +57,8 @@ module.exports = {
                 assets: [
                     "CHANGELOG.md",
                     "java/pom.xml",
-                    "infra/charts/**/*.*"
+                    "infra/charts/**/*.*",
+                    "ui/package.json"
                 ],
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"
             }
