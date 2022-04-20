@@ -11,3 +11,6 @@ Please see [Offline Store](../../getting-started/architecture-and-components/off
 {% page-ref page="redshift.md" %}
 
 {% page-ref page="spark.md" %}
+
+{% page-ref page="postgres.md" %}
+
