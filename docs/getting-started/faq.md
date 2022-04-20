@@ -38,7 +38,7 @@ Feast currently does not support any access control other than the access contro
 
 ### Does Feast support streaming sources?
 
-Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/alpha-stream-ingestion.md).
+Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/data-sources/push.md).
 
 ### Does Feast support composite keys?
 
