@@ -63,7 +63,7 @@ azure-identity==1.9.0
     # via adlfs
 azure-storage-blob==12.11.0
     # via adlfs
-babel==2.9.1
+babel==2.10.0
     # via sphinx
 backcall==0.2.0
     # via ipython
@@ -579,10 +579,10 @@ responses==0.20.0
     # via moto
 rsa==4.8
     # via google-auth
-ruamel-yaml==0.17.17
+ruamel.yaml==0.17.17
     # via great-expectations
-ruamel-yaml-clib==0.2.6
-    # via ruamel-yaml
+ruamel.yaml.clib==0.2.6
+    # via ruamel.yaml
 s3transfer==0.5.2
     # via boto3
 scipy==1.8.0
