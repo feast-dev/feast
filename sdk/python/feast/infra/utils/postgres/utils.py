@@ -22,7 +22,7 @@ def _get_conn(config: PostgreSQLConfig):
     return conn
 
 
-def df_to_create_table_sql(entity_df, table_name) -> str:
+def _df_to_create_table_sql(entity_df, table_name) -> str:
     pa_table = pa.Table.from_pandas(entity_df)
     columns = [
         f""""{f.name}" {arrow_to_pg_type(str(f.type))}""" for f in pa_table.schema
@@ -41,7 +41,7 @@ def df_to_postgres_table(
     Create a table for the data frame, insert all the values, and return the table schema
     """
     with _get_conn(config) as conn, conn.cursor() as cur:
-        cur.execute(df_to_create_table_sql(df, table_name))
+        cur.execute(_df_to_create_table_sql(df, table_name))
         psycopg2.extras.execute_values(
             cur,
             f"""

@@ -24,6 +24,14 @@ feast.base\_feature\_view module
    :undoc-members:
    :show-inheritance:
 
+feast.batch\_feature\_view module
+---------------------------------
+
+.. automodule:: feast.batch_feature_view
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.cli module
 ----------------
 
@@ -260,6 +268,14 @@ feast.saved\_dataset module
 ---------------------------
 
 .. automodule:: feast.saved_dataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.stream\_feature\_view module
+----------------------------------
+
+.. automodule:: feast.stream_feature_view
    :members:
    :undoc-members:
    :show-inheritance:
