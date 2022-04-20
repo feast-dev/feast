@@ -79,7 +79,7 @@ It is suggested that you dynamically specify the new FeatureView name using `.wi
 from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
 from feast.types import Int32
 
-location = Entity(name="location", join_key="location_id", value_type=ValueType.INT64)
+location = Entity(name="location", join_keys=["location_id"], value_type=ValueType.INT64)
 
 location_stats_fv= FeatureView(
     name="location_stats",

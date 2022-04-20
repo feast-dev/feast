@@ -16,7 +16,7 @@ driver_hourly_stats = FileSource(
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64,)
+driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64,)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this

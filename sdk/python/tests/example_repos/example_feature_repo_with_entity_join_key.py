@@ -15,7 +15,7 @@ driver = Entity(
     name="driver_id",
     value_type=ValueType.INT64,
     description="driver id",
-    join_key="driver",
+    join_keys=["driver"],
 )
 
 
