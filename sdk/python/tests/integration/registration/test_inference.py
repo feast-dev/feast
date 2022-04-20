@@ -24,13 +24,12 @@ from feast.field import Field
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_entities_with_inferred_types_from_feature_views,
-    update_feature_views_with_inferred_features,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, String, UnixTimestamp
+from feast.types import PrimitiveFeastType, String, UnixTimestamp
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -169,14 +168,15 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
 def test_on_demand_features_type_inference():
     # Create Feature Views
     date_request = RequestSource(
-        name="date_request", schema=[Field(name="some_date", dtype=UnixTimestamp)],
+        name="date_request",
+        schema=[Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
     )
 
     @on_demand_feature_view(
         sources={"date_request": date_request},
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="string_output", dtype=String),
+        features=[
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="string_output", dtype=ValueType.STRING),
         ],
     )
     def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -285,50 +285,3 @@ def test_datasource_inference(request_source_schema):
 
     with pytest.raises(SpecifiedFeaturesNotPresentError):
         test_view_with_missing_feature.infer_features()
-
-
-def test_update_feature_views_with_inferred_features():
-    file_source = FileSource(name="test", path="test path")
-    entity1 = Entity(name="test1", join_keys=["test_column_1"])
-    entity2 = Entity(name="test2", join_keys=["test_column_2"])
-    feature_view_1 = FeatureView(
-        name="test1",
-        entities=[entity1],
-        schema=[
-            Field(name="feature", dtype=Float32),
-            Field(name="test_column_1", dtype=String),
-        ],
-        source=file_source,
-    )
-    feature_view_2 = FeatureView(
-        name="test2",
-        entities=[entity1, entity2],
-        schema=[
-            Field(name="feature", dtype=Float32),
-            Field(name="test_column_1", dtype=String),
-            Field(name="test_column_2", dtype=String),
-        ],
-        source=file_source,
-    )
-
-    assert len(feature_view_1.schema) == 2
-    assert len(feature_view_1.features) == 2
-
-    # The entity field should be deleted from the schema and features of the feature view.
-    update_feature_views_with_inferred_features(
-        [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
-    )
-    assert len(feature_view_1.schema) == 1
-    assert len(feature_view_1.features) == 1
-
-    assert len(feature_view_2.schema) == 3
-    assert len(feature_view_2.features) == 3
-
-    # The entity fields should be deleted from the schema and features of the feature view.
-    update_feature_views_with_inferred_features(
-        [feature_view_2],
-        [entity1, entity2],
-        RepoConfig(provider="local", project="test"),
-    )
-    assert len(feature_view_2.schema) == 1
-    assert len(feature_view_2.features) == 1
