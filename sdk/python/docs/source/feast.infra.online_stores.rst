@@ -1,6 +1,14 @@
 feast.infra.online\_stores package
 ==================================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   feast.infra.online_stores.contrib
+
 Submodules
 ----------
 
