@@ -3,7 +3,6 @@ import logging
 from pkg_resources import DistributionNotFound, get_distribution
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.infra.offline_stores.contrib.postgres import PostgreSQLSource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
@@ -58,5 +57,4 @@ __all__ = [
     "SnowflakeSource",
     "PushSource",
     "RequestSource",
-    "PostgreSQLSource",
 ]

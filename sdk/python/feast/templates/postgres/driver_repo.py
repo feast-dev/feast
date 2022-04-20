@@ -1,6 +1,7 @@
 from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, PostgreSQLSource, ValueType
+from feast import Entity, Feature, FeatureView, ValueType
+from feast.infra.offline_stores.contrib.postgres_source import PostgreSQLSource
 
 driver = Entity(name="driver_id", join_key="driver_id",)
 
