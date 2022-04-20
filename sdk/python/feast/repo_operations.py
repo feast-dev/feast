@@ -28,9 +28,9 @@ from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
 
 
-def py_path_to_module(path: Path, repo_root: Path) -> str:
+def py_path_to_module(path: Path) -> str:
     return (
-        str(path.relative_to(repo_root))[: -len(".py")]
+        str(path.relative_to(os.getcwd()))[: -len(".py")]
         .replace("./", "")
         .replace("/", ".")
     )
@@ -111,7 +111,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
     )
 
     for repo_file in get_repo_files(repo_root):
-        module_path = py_path_to_module(repo_file, repo_root)
+        module_path = py_path_to_module(repo_file)
         module = importlib.import_module(module_path)
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
