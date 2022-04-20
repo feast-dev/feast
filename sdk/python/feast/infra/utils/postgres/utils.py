@@ -1,7 +1,6 @@
-from typing import Any, Dict
+from typing import Dict
 
 import numpy as np
-from numpy import dtype
 import pandas as pd
 import psycopg2
 import psycopg2.extras
@@ -54,9 +53,7 @@ def df_to_postgres_table(
         return dict(zip(df.columns, df.dtypes))
 
 
-def get_query_schema(
-    config: PostgreSQLConfig, sql_query: str
-) -> Dict[str, np.dtype]:
+def get_query_schema(config: PostgreSQLConfig, sql_query: str) -> Dict[str, np.dtype]:
     """
     We'll use the statement when we perform the query rather than copying data to a
     new table
