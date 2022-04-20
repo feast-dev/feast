@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Feast CLI comes bundled with the Feast Python package. It is immediately available after [installing Feast](../how-to-guides/feast-gcp-aws/install-feast.md).
+The Feast CLI comes bundled with the Feast Python package. It is immediately available after [installing Feast](../how-to-guides/feast-snowflake-gcp-aws/install-feast.md).
 
 ```text
 Usage: feast [OPTIONS] COMMAND [ARGS]...
@@ -54,7 +54,7 @@ feast apply
 **What does Feast apply do?**
 
 1. Feast will scan Python files in your feature repository and find all Feast object definitions, such as feature views, entities, and data sources.
-2. Feast will validate your feature definitions
+2. Feast will validate your feature definitions (e.g. for uniqueness of features)
 3. Feast will sync the metadata about Feast objects to the registry. If a registry does not exist, then it will be instantiated. The standard registry is a simple protobuf binary file that is stored on disk \(locally or in an object store\).
 4. Feast CLI will create all necessary feature store infrastructure. The exact infrastructure that is deployed or configured depends on the `provider` configuration that you have set in `feature_store.yaml`. For example, setting `local` as your provider will result in a `sqlite` online store being created. 
 
