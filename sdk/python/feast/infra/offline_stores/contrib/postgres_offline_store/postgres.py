@@ -17,7 +17,6 @@ import pandas as pd
 import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from psycopg2 import sql
-from pydantic import StrictStr
 from pydantic.typing import Literal
 from pytz import utc
 
@@ -47,7 +46,6 @@ from .postgres_source import PostgreSQLSource
 
 class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
-    db_schema: StrictStr
 
 
 class PostgreSQLOfflineStore(OfflineStore):
