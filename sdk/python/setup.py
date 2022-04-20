@@ -161,6 +161,7 @@ CI_REQUIRED = (
         + AWS_REQUIRED
         + SNOWFLAKE_REQUIRED
         + SPARK_REQUIRED
+        + POSTGRES_REQUIRED
         + TRINO_REQUIRED
         + GE_REQUIRED
 )
