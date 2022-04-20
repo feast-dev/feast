@@ -100,7 +100,7 @@ charset-normalizer==2.0.12
     #   aiohttp
     #   requests
     #   snowflake-connector-python
-click==8.1.2
+click==8.0.1
     # via
     #   black
     #   feast (setup.py)
