@@ -74,6 +74,7 @@ def test_feature_view_kw_args_warning():
     with pytest.raises(ValueError):
         service = FeatureService(features=[], tags={"tag_1": "tag"}, description="desc")
 
+
 def no_warnings(func):
     def wrapper_no_warnings(*args, **kwargs):
         with pytest.warns(None) as warnings:
@@ -85,6 +86,7 @@ def no_warnings(func):
             )
 
     return wrapper_no_warnings
+
 
 @no_warnings
 def test_feature_view_kw_args_normal():
