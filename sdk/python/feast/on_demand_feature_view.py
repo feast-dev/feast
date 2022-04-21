@@ -140,14 +140,15 @@ class OnDemandFeatureView(BaseFeatureView):
                 if isinstance(source, FeatureView):
                     _sources.append(feature_view_to_batch_feature_view(source))
                 elif isinstance(source, FeatureViewProjection):
-                    _sources.append(BatchFeatureView(
-                        name=source.name,
-                        schema=source.features,
-                    ))
+                    _sources.append(
+                        BatchFeatureView(name=source.name, schema=source.features,)
+                    )
                 elif isinstance(source, RequestSource):
                     _sources.append(source)
                 else:
-                    raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
+                    raise ValueError(
+                        "input can only accept FeatureView, FeatureViewProjection, or RequestSource"
+                    )
         _udf = udf
 
         if args:
@@ -186,14 +187,15 @@ class OnDemandFeatureView(BaseFeatureView):
                     if isinstance(source, FeatureView):
                         _sources.append(feature_view_to_batch_feature_view(source))
                     elif isinstance(source, FeatureViewProjection):
-                        _sources.append(BatchFeatureView(
-                            name=source.name,
-                            schema=source.features,
-                        ))
+                        _sources.append(
+                            BatchFeatureView(name=source.name, schema=source.features,)
+                        )
                     elif isinstance(source, RequestSource):
                         _sources.append(source)
                     else:
-                        raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
+                        raise ValueError(
+                            "input can only accept FeatureView, FeatureViewProjection, or RequestSource"
+                        )
                 warnings.warn(
                     (
                         "The `inputs` parameter is being deprecated. Please use `sources` instead. "
@@ -558,14 +560,15 @@ def on_demand_feature_view(
             if isinstance(source, FeatureView):
                 _sources.append(feature_view_to_batch_feature_view(source))
             elif isinstance(source, FeatureViewProjection):
-                _sources.append(BatchFeatureView(
-                    name=source.name,
-                    schema=source.features,
-                ))
+                _sources.append(
+                    BatchFeatureView(name=source.name, schema=source.features,)
+                )
             elif isinstance(source, RequestSource):
                 _sources.append(source)
             else:
-                raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
+                raise ValueError(
+                    "input can only accept FeatureView, FeatureViewProjection, or RequestSource"
+                )
 
     if args:
         warnings.warn(
@@ -601,21 +604,25 @@ def on_demand_feature_view(
                 if isinstance(source, FeatureView):
                     _sources.append(feature_view_to_batch_feature_view(source))
                 elif isinstance(source, FeatureViewProjection):
-                    _sources.append(BatchFeatureView(
-                        name=source.name, # type: ignore
-                        schema=source.features, # type: ignore
-                    ))
+                    _sources.append(
+                        BatchFeatureView(
+                            name=source.name,  # type: ignore
+                            schema=source.features,  # type: ignore
+                        )
+                    )
                 elif isinstance(source, RequestSource):
                     _sources.append(source)
                 else:
-                    raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
+                    raise ValueError(
+                        "input can only accept FeatureView, FeatureViewProjection, or RequestSource"
+                    )
                 warnings.warn(
-                (
-                    "The `inputs` parameter is being deprecated. Please use `sources` instead. "
-                    "Feast 0.21 and onwards will not support the `inputs` parameter."
-                ),
-                DeprecationWarning,
-            )
+                    (
+                        "The `inputs` parameter is being deprecated. Please use `sources` instead. "
+                        "Feast 0.21 and onwards will not support the `inputs` parameter."
+                    ),
+                    DeprecationWarning,
+                )
 
     if not _sources:
         raise ValueError("The `sources` parameter must be specified.")
@@ -636,6 +643,7 @@ def on_demand_feature_view(
         return on_demand_feature_view_obj
 
     return decorator
+
 
 def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
     return BatchFeatureView(

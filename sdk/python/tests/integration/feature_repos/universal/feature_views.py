@@ -3,9 +3,9 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
+from sdk.python.feast.batch_feature_view import BatchFeatureView
 
 from feast import (
-    BaseFeatureView,
     Feature,
     FeatureView,
     Field,
@@ -15,7 +15,6 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.types import Array, FeastType, Float32, Float64, Int32
-from sdk.python.feast.batch_feature_view import BatchFeatureView
 from tests.integration.feature_repos.universal.entities import location
 
 
