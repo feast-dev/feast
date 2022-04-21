@@ -259,19 +259,22 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     assert existing_tables is not None
     assert len(existing_tables) == 0
 
-    
-def test_dynamodb_online_store_online_read_unknown_entity(repo_config):
+
+def test_dynamodb_online_store_online_read_unknown_entity(
+    repo_config, dynamodb_online_store
+):
     """Test DynamoDBOnlineStore online_read method."""
     n_samples = 2
     _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
     data = _create_n_customer_test_samples(n=n_samples)
-    _insert_data_test_table(data, PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+    _insert_data_test_table(
+        data, PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION
+    )
 
     entity_keys, features, *rest = zip(*data)
     # Append a nonsensical entity to search for
     entity_keys = list(entity_keys)
     features = list(features)
-    dynamodb_store = DynamoDBOnlineStore()
 
     # Have the unknown entity be in the beginning, middle, and end of the list of entities.
     for pos in range(len(entity_keys)):
@@ -284,7 +287,7 @@ def test_dynamodb_online_store_online_read_unknown_entity(repo_config):
         )
         features_with_none = deepcopy(features)
         features_with_none.insert(pos, None)
-        returned_items = dynamodb_store.online_read(
+        returned_items = dynamodb_online_store.online_read(
             config=repo_config,
             table=MockFeatureView(name=f"{TABLE_NAME}_{n_samples}"),
             entity_keys=entity_keys_with_unknown,
@@ -296,7 +299,7 @@ def test_dynamodb_online_store_online_read_unknown_entity(repo_config):
 
 
 @mock_dynamodb2
-def test_write_batch_non_duplicates(repo_config):
+def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     """Test DynamoDBOnline Store deduplicate write batch request items."""
     dynamodb_tbl = f"{TABLE_NAME}_batch_non_duplicates"
     _create_test_table(PROJECT, dynamodb_tbl, REGION)
