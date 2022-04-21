@@ -118,6 +118,14 @@ class _DestinationRegistry(type):
 
 
 class LoggingDestination:
+    """
+    Logging destination contains details about where exactly logs should be written inside an offline store.
+    It is implementation specific - each offline store must implement LoggingDestination subclass.
+
+    Kind of logging destination will be determined by matching attribute name in LoggingConfig protobuf message
+    and "_proto_attr_name" property of each subclass.
+    """
+
     _proto_attr_name: str
 
     @classmethod
@@ -131,6 +139,9 @@ class LoggingDestination:
 
     @abc.abstractmethod
     def to_data_source(self) -> DataSource:
+        """
+        Convert this object into a data source to read logs from an offline store.
+        """
         raise NotImplementedError
 
 
