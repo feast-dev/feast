@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
+from isort import stream
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
@@ -439,8 +440,9 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
-            stream_source=stream_source,
         )
+        if stream_source:
+            feature_view.stream_source = stream_source
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.
