@@ -1,0 +1,7 @@
+project: my_project
+registry: data/registry.db
+provider: local
+online_store:
+    type: hbase
+    host: 127.0.0.1
+    port: 9090

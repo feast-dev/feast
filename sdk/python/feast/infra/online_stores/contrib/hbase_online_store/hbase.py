@@ -9,11 +9,8 @@ from happybase import Connection
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.online_stores.contrib.hbase_online_store.hbase_utils import (
-    HbaseConstants,
-    HbaseUtils,
-)
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.utils.hbase_utils import HbaseConstants, HbaseUtils
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
