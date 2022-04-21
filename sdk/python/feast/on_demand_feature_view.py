@@ -85,7 +85,7 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
-    ):
+    ): # noqa: C901
         """
         Creates an OnDemandFeatureView object.
 
