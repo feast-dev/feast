@@ -125,8 +125,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 ),
                 DeprecationWarning,
             )
-
-        _sources = sources or inputs
+        _sources = sources or []
         if inputs and sources:
             raise ValueError("At most one of `sources` or `inputs` can be specified.")
         elif inputs:
@@ -137,7 +136,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 ),
                 DeprecationWarning,
             )
-
+            for source in inputs.values():
+                _sources.append(source)
         _udf = udf
 
         if args:
@@ -171,7 +171,9 @@ class OnDemandFeatureView(BaseFeatureView):
                     DeprecationWarning,
                 )
             if len(args) >= 3:
-                _sources = args[2]
+                _inputs = args[2]
+                for source in _inputs.values():
+                    _sources.append(source)
                 warnings.warn(
                     (
                         "The `inputs` parameter is being deprecated. Please use `sources` instead. "
@@ -197,7 +199,8 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=tags,
             owner=owner,
         )
-
+        print("Asdf")
+        print(_sources)
         assert _sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}
@@ -304,23 +307,26 @@ class OnDemandFeatureView(BaseFeatureView):
         Returns:
             A OnDemandFeatureView object based on the on-demand feature view protobuf.
         """
-        sources = {}
+        sources = []
         for (
-            source_name,
+            _,
             on_demand_source,
         ) in on_demand_feature_view_proto.spec.sources.items():
             if on_demand_source.WhichOneof("source") == "feature_view":
-                sources[source_name] = FeatureView.from_proto(
+                sources.append(
+                    FeatureView.from_proto(
                     on_demand_source.feature_view
-                ).projection
+                ).projection)
             elif on_demand_source.WhichOneof("source") == "feature_view_projection":
-                sources[source_name] = FeatureViewProjection.from_proto(
+                sources.append(
+                    FeatureViewProjection.from_proto(
                     on_demand_source.feature_view_projection
-                )
+                ))
             else:
-                sources[source_name] = RequestSource.from_proto(
+                sources.append(
+                    RequestSource.from_proto(
                     on_demand_source.request_data_source
-                )
+                ))
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[
@@ -520,7 +526,7 @@ def on_demand_feature_view(
             DeprecationWarning,
         )
 
-    _sources = sources or inputs
+    _sources = sources or []
     if inputs and sources:
         raise ValueError("At most one of `sources` or `inputs` can be specified.")
     elif inputs:
@@ -531,6 +537,8 @@ def on_demand_feature_view(
             ),
             DeprecationWarning,
         )
+        for source in inputs.values():
+            _sources.append(source)
 
     if args:
         warnings.warn(
@@ -561,7 +569,9 @@ def on_demand_feature_view(
                 DeprecationWarning,
             )
         if len(args) >= 2:
-            _sources = args[1]
+            _inputs = args[1]
+            for source in _inputs.values():
+                _sources.append(source)
             warnings.warn(
                 (
                     "The `inputs` parameter is being deprecated. Please use `sources` instead. "

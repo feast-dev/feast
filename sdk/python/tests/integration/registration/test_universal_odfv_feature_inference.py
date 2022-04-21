@@ -7,7 +7,6 @@ from feast import Field
 from feast.errors import SpecifiedFeaturesNotPresentError
 from feast.infra.offline_stores.file_source import FileSource
 from feast.types import Float64
-from sdk.python.tests.integration.feature_repos.universal.feature_views import create_driver_hourly_stats_base_feature_view
 from tests.integration.feature_repos.universal.entities import customer, driver, item
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
