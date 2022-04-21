@@ -69,7 +69,7 @@ class OnDemandFeatureView(BaseFeatureView):
     owner: str
 
     @log_exceptions
-    def __init__( # noqa: C901
+    def __init__(  # noqa: C901
         self,
         *args,
         name: Optional[str] = None,
