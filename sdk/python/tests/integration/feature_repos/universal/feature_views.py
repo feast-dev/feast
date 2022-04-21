@@ -3,9 +3,9 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from sdk.python.feast.batch_feature_view import BatchFeatureView
 
 from feast import (
+    BatchFeatureView,
     Feature,
     FeatureView,
     Field,
