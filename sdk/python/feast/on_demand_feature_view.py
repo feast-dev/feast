@@ -543,7 +543,6 @@ def on_demand_feature_view(
             ),
             DeprecationWarning,
         )
-
     _sources = sources or []
     if inputs and sources:
         raise ValueError("At most one of `sources` or `inputs` can be specified.")
