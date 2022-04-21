@@ -105,15 +105,14 @@ def test_dynamodb_table_custom_params():
     assert dynamodb_table._dynamodb_resource is None
 
 
-def test_dynamodb_online_store_config_dynamodb_client():
+def test_dynamodb_online_store_config_dynamodb_client(dynamodb_online_store):
     """Test DynamoDBOnlineStoreConfig configure DynamoDB client with endpoint_url."""
     aws_region = "us-west-2"
     endpoint_url = "http://localhost:8000"
-    dynamodb_store = DynamoDBOnlineStore()
     dynamodb_store_config = DynamoDBOnlineStoreConfig(
         region=aws_region, endpoint_url=endpoint_url
     )
-    dynamodb_client = dynamodb_store._get_dynamodb_client(
+    dynamodb_client = dynamodb_online_store._get_dynamodb_client(
         dynamodb_store_config.region, dynamodb_store_config.endpoint_url
     )
     assert dynamodb_client.meta.region_name == aws_region
@@ -137,11 +136,10 @@ def test_dynamodb_online_store_config_dynamodb_resource(dynamodb_online_store):
     """Test DynamoDBOnlineStoreConfig configure DynamoDB Resource with endpoint_url."""
     aws_region = "us-west-2"
     endpoint_url = "http://localhost:8000"
-    dynamodb_store = dynamodb_online_store
     dynamodb_store_config = DynamoDBOnlineStoreConfig(
         region=aws_region, endpoint_url=endpoint_url
     )
-    dynamodb_resource = dynamodb_store._get_dynamodb_resource(
+    dynamodb_resource = dynamodb_online_store._get_dynamodb_resource(
         dynamodb_store_config.region, dynamodb_store_config.endpoint_url
     )
     assert dynamodb_resource.meta.client.meta.region_name == aws_region
@@ -173,8 +171,7 @@ def test_dynamodb_online_store_online_read(
     _insert_data_test_table(data, PROJECT, db_table_name, REGION)
 
     entity_keys, features, *rest = zip(*data)
-    dynamodb_store = dynamodb_online_store
-    returned_items = dynamodb_store.online_read(
+    returned_items = dynamodb_online_store.online_read(
         config=repo_config,
         table=MockFeatureView(name=db_table_name),
         entity_keys=entity_keys,
@@ -194,14 +191,13 @@ def test_dynamodb_online_store_online_write_batch(
     data = _create_n_customer_test_samples()
 
     entity_keys, features, *rest = zip(*data)
-    dynamodb_store = dynamodb_online_store
-    dynamodb_store.online_write_batch(
+    dynamodb_online_store.online_write_batch(
         config=repo_config,
         table=MockFeatureView(name=db_table_name),
         data=data,
         progress=None,
     )
-    stored_items = dynamodb_store.online_read(
+    stored_items = dynamodb_online_store.online_read(
         config=repo_config,
         table=MockFeatureView(name=db_table_name),
         entity_keys=entity_keys,
@@ -221,8 +217,7 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     db_table_delete_name = f"{TABLE_NAME}_delete_update"
     _create_test_table(PROJECT, db_table_delete_name, REGION)
 
-    dynamodb_store = dynamodb_online_store
-    dynamodb_store.update(
+    dynamodb_online_store.update(
         config=repo_config,
         tables_to_delete=[MockFeatureView(name=db_table_delete_name)],
         tables_to_keep=[MockFeatureView(name=db_table_keep_name)],
@@ -232,7 +227,7 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     )
 
     # check only db_table_keep_name exists
-    dynamodb_client = dynamodb_store._get_dynamodb_client(REGION)
+    dynamodb_client = dynamodb_online_store._get_dynamodb_client(REGION)
     existing_tables = dynamodb_client.list_tables()
     existing_tables = existing_tables.get("TableNames", None)
 
@@ -249,8 +244,7 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     _create_test_table(PROJECT, db_table_delete_name_one, REGION)
     _create_test_table(PROJECT, db_table_delete_name_two, REGION)
 
-    dynamodb_store = dynamodb_online_store
-    dynamodb_store.teardown(
+    dynamodb_online_store.teardown(
         config=repo_config,
         tables=[
             MockFeatureView(name=db_table_delete_name_one),
@@ -260,7 +254,7 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     )
 
     # Check tables non exist
-    dynamodb_client = dynamodb_store._get_dynamodb_client(REGION)
+    dynamodb_client = dynamodb_online_store._get_dynamodb_client(REGION)
     existing_tables = dynamodb_client.list_tables()
     existing_tables = existing_tables.get("TableNames", None)
 
@@ -279,9 +273,8 @@ def test_dynamodb_online_store_write_batch_non_duplicates(
     data_duplicate = deepcopy(data)
     dynamodb_resource = boto3.resource("dynamodb", region_name=REGION)
     table_instance = dynamodb_resource.Table(f"{PROJECT}.{dynamodb_tbl}")
-    dynamodb_store = dynamodb_online_store
     # Insert duplicate data
-    dynamodb_store._write_batch_non_duplicates(
+    dynamodb_online_store._write_batch_non_duplicates(
         table_instance, data + data_duplicate, progress=None
     )
     # Request more items than inserted
