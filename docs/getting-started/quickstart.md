@@ -98,7 +98,7 @@ driver_hourly_stats = FileSource(
 # fetch features.
 # Entity has a name used for later reference (in a feature view, eg)
 # and join_key to identify physical field name used in storages
-driver = Entity(name="driver", value_type=ValueType.INT64, join_key="driver_id", description="driver id",)
+driver = Entity(name="driver", value_type=ValueType.INT64, join_keys=["driver_id"], description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
@@ -168,7 +168,7 @@ driver_hourly_stats = FileSource(
 # fetch features.
 # Entity has a name used for later reference (in a feature view, eg)
 # and join_key to identify physical field name used in storages
-driver = Entity(name="driver", value_type=ValueType.INT64, join_key="driver_id", description="driver id",)
+driver = Entity(name="driver", value_type=ValueType.INT64, join_keys=["driver_id"], description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this

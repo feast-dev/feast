@@ -59,6 +59,12 @@ Trino Source
     :members:
     :exclude-members: TrinoOptions
 
+PostgreSQL Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source
+    :members:
+    :exclude-members: PostgreSQLOptions
 
 File Source
 ------------------
@@ -192,6 +198,12 @@ Trino Offline Store
 .. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino
     :members:
 
+PostgreSQL Offline Store
+------------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres
+    :members:
+
 
 Online Store
 ==================
@@ -222,5 +234,12 @@ Redis Online Store
 ------------------
 
 .. automodule:: feast.infra.online_stores.redis
+    :members:
+    :noindex:
+
+PostgreSQL Online Store
+-----------------------
+
+.. automodule:: feast.infra.online_stores.contrib.postgres
     :members:
     :noindex:

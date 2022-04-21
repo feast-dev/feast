@@ -14,8 +14,8 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
   * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
-  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [x] [Spark (community plugin)](https://docs.feast.dev/reference/data-sources/spark)
+  * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/data-sources/postgres)
+  * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/data-sources/spark)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
   * [ ] HTTP source
 * **Offline Stores**
@@ -24,9 +24,9 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
   * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
-  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [x] [Trino (community plugin)](https://github.com/Shopify/feast-trino)
-  * [x] [Spark (community plugin)](https://docs.feast.dev/reference/offline-stores/spark)
+  * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/offline-stores/postgres)
+  * [x] [Trino (contrib plugin)](https://github.com/Shopify/feast-trino)
+  * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/offline-stores/spark)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
 * **Online Stores**
@@ -35,7 +35,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
-  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
+  * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
   * [ ] Bigtable (in progress)
   * [ ] Cassandra

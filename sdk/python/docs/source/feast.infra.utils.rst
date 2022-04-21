@@ -1,6 +1,14 @@
 feast.infra.utils package
 =========================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   feast.infra.utils.postgres
+
 Submodules
 ----------
 

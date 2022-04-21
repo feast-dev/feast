@@ -20,7 +20,7 @@ certifi==2021.10.8
     # via requests
 charset-normalizer==2.0.12
     # via requests
-click==8.1.2
+click==8.0.1
     # via
     #   feast (setup.py)
     #   uvicorn
@@ -32,7 +32,7 @@ dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.4
     # via feast (setup.py)
-fastapi==0.75.1
+fastapi==0.75.2
     # via feast (setup.py)
 fastavro==1.4.10
     # via
@@ -154,7 +154,7 @@ toolz==0.11.2
     #   partd
 tqdm==4.64.0
     # via feast (setup.py)
-typing-extensions==4.1.1
+typing-extensions==4.2.0
     # via pydantic
 urllib3==1.26.9
     # via requests
@@ -164,5 +164,5 @@ uvloop==0.16.0
     # via uvicorn
 watchgod==0.8.2
     # via uvicorn
-websockets==10.2
+websockets==10.3
     # via uvicorn

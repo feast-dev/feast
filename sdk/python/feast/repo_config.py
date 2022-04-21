@@ -35,6 +35,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
     "snowflake.online": "feast.infra.online_stores.snowflake.SnowflakeOnlineStore",
+    "postgres": "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -44,6 +45,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "snowflake.offline": "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
     "spark": "feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStore",
     "trino": "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
+    "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {

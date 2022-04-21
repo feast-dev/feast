@@ -32,7 +32,9 @@ def update_entities_with_inferred_types_from_feature_views(
         if not (incomplete_entities_keys & set(view.entities)):
             continue  # skip if view doesn't contain any entities that need inference
 
-        col_names_and_types = view.batch_source.get_table_column_names_and_types(config)
+        col_names_and_types = list(
+            view.batch_source.get_table_column_names_and_types(config)
+        )
         for entity_name in view.entities:
             if entity_name in incomplete_entities:
                 entity = incomplete_entities[entity_name]
@@ -152,8 +154,13 @@ def update_feature_views_with_inferred_features(
         config: The config for the current feature store.
     """
     entity_name_to_join_key_map = {entity.name: entity.join_key for entity in entities}
+    join_keys = entity_name_to_join_key_map.values()
 
     for fv in fvs:
+        # First drop all Entity fields. Then infer features if necessary.
+        fv.schema = [field for field in fv.schema if field.name not in join_keys]
+        fv.features = [field for field in fv.features if field.name not in join_keys]
+
         if not fv.features:
             columns_to_exclude = {
                 fv.batch_source.timestamp_field,

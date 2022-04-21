@@ -113,7 +113,7 @@ def version():
 @click.pass_context
 def endpoint(ctx: click.Context):
     """
-    Display feature server endpoints.
+    Display feature server endpoints
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
@@ -539,7 +539,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     "--template",
     "-t",
     type=click.Choice(
-        ["local", "gcp", "aws", "snowflake", "spark"], case_sensitive=False
+        ["local", "gcp", "aws", "snowflake", "spark", "postgres"], case_sensitive=False
     ),
     help="Specify a template for the created project",
     default="local",
@@ -593,7 +593,7 @@ def serve_command(ctx: click.Context, host: str, port: int, no_access_log: bool)
 )
 @click.pass_context
 def serve_transformations_command(ctx: click.Context, port: int):
-    """[Experimental] Start a the feature consumption server locally on a given port."""
+    """[Experimental] Start a feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))

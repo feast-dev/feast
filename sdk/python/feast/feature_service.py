@@ -1,3 +1,4 @@
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -47,8 +48,9 @@ class FeatureService:
     @log_exceptions
     def __init__(
         self,
-        name: str,
-        features: List[Union[FeatureView, OnDemandFeatureView]],
+        *args,
+        name: Optional[str] = None,
+        features: Optional[List[Union[FeatureView, OnDemandFeatureView]]] = None,
         tags: Dict[str, str] = None,
         description: str = "",
         owner: str = "",
@@ -59,10 +61,38 @@ class FeatureService:
         Raises:
             ValueError: If one of the specified features is not a valid type.
         """
-        self.name = name
+        positional_attributes = ["name", "features"]
+        _name = name
+        _features = features
+        if args:
+            warnings.warn(
+                (
+                    "Feature service parameters should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct feature service"
+                ),
+                DeprecationWarning,
+            )
+            if len(args) > len(positional_attributes):
+                raise ValueError(
+                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
+                    f"feature service, for backwards compatibility."
+                )
+            if len(args) >= 1:
+                _name = args[0]
+            if len(args) >= 2:
+                _features = args[1]
+
+        if not _name:
+            raise ValueError("Feature service name needs to be specified")
+
+        if not _features:
+            # Technically, legal to create feature service with no feature views before.
+            _features = []
+
+        self.name = _name
         self.feature_view_projections = []
 
-        for feature_grouping in features:
+        for feature_grouping in _features:
             if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
             else:
@@ -85,7 +115,7 @@ class FeatureService:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash((self.name))
 
     def __eq__(self, other):
         if not isinstance(other, FeatureService):
