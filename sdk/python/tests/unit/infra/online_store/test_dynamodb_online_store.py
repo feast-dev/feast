@@ -260,12 +260,13 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     assert len(existing_tables) == 0
 
 
+@mock_dynamodb2
 def test_dynamodb_online_store_online_read_unknown_entity(
     repo_config, dynamodb_online_store
 ):
     """Test DynamoDBOnlineStore online_read method."""
     n_samples = 2
-    _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
+    _create_test_table(PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION)
     data = _create_n_customer_test_samples(n=n_samples)
     _insert_data_test_table(
         data, PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION
@@ -289,7 +290,7 @@ def test_dynamodb_online_store_online_read_unknown_entity(
         features_with_none.insert(pos, None)
         returned_items = dynamodb_online_store.online_read(
             config=repo_config,
-            table=MockFeatureView(name=f"{TABLE_NAME}_{n_samples}"),
+            table=MockFeatureView(name=f"{TABLE_NAME}_unknown_entity_{n_samples}"),
             entity_keys=entity_keys_with_unknown,
         )
         assert len(returned_items) == len(entity_keys_with_unknown)
