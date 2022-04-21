@@ -5,7 +5,7 @@ import pyarrow as pa
 from pytz import UTC
 
 from feast.data_source import DataSource
-from feast.embedded_go.type_map import FEAST_TYPE_TO_ARROW_TYPE
+from feast.embedded_go.type_map import FEAST_TYPE_TO_ARROW_TYPE, PA_TIMESTAMP_TYPE
 from feast.errors import (
     FeastObjectNotFoundException,
     FeatureViewNotFoundException,
@@ -53,7 +53,7 @@ class FeatureServiceLoggingSource(LoggingSource):
                 ] = FEAST_TYPE_TO_ARROW_TYPE[feature.dtype]
                 fields[
                     f"{projection.name_to_use()}__{feature.name}__timestamp"
-                ] = pa.timestamp("ns", tz=UTC)
+                ] = PA_TIMESTAMP_TYPE
                 fields[
                     f"{projection.name_to_use()}__{feature.name}__status"
                 ] = pa.int32()
@@ -88,7 +88,7 @@ class FeatureServiceLoggingSource(LoggingSource):
 
         # system columns
         fields["request_id"] = pa.string()
-        fields["log_timestamp"] = pa.timestamp("ns", tz=UTC)
+        fields["log_timestamp"] = pa.timestamp("us", tz=UTC)
         fields["log_date"] = pa.date32()
 
         return pa.schema(

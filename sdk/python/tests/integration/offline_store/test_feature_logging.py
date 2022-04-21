@@ -7,7 +7,7 @@ import pyarrow as pa
 import pytest
 from google.api_core.exceptions import NotFound
 
-from feast.feature_logging import LoggingConfig
+from feast.feature_logging import FeatureServiceLoggingSource, LoggingConfig
 from feast.feature_service import FeatureService
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 from feast.wait import wait_retry_backoff
@@ -48,12 +48,16 @@ def test_feature_service_logging(environment, universal_data_sources):
     first_batch = logs_df.iloc[: num_rows // 2, :]
     second_batch = logs_df.iloc[num_rows // 2 :, :]
 
+    schema = FeatureServiceLoggingSource(
+        feature_service=feature_service, project=store.project
+    ).get_schema(store._registry)
+
     store.write_logged_features(
-        source=feature_service, logs=pa.Table.from_pandas(first_batch),
+        source=feature_service, logs=pa.Table.from_pandas(first_batch, schema=schema),
     )
 
     store.write_logged_features(
-        source=feature_service, logs=pa.Table.from_pandas(second_batch),
+        source=feature_service, logs=pa.Table.from_pandas(second_batch, schema=schema),
     )
     expected_columns = list(set(logs_df.columns) - {"log_date"})
 
