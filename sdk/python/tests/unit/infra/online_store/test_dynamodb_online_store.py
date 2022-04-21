@@ -260,7 +260,7 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     assert len(existing_tables) == 0
 
     
-def test_online_read_unknown_entity(repo_config):
+def test_dynamodb_online_store_online_read_unknown_entity(repo_config):
     """Test DynamoDBOnlineStore online_read method."""
     n_samples = 2
     _create_test_table(PROJECT, f"{TABLE_NAME}_{n_samples}", REGION)
