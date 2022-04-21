@@ -2,7 +2,7 @@
 import calendar
 import struct
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from happybase import Connection
 
@@ -20,12 +20,26 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
 class HbaseOnlineStoreConfig(FeastConfigBaseModel):
-    type: str
+    """Online store config for Hbase store"""
+
+    type: Literal["hbase"] = "hbase"
+    """Online store type selector"""
+
     host: str
+    """Hostname of Hbase Thrift server"""
+
     port: str
+    """Port in which Hbase Thrift server is running"""
 
 
 class HbaseConnection:
+    """
+    Hbase connecttion to connect to hbase.
+
+    Attributes:
+        store_config: Online store config for Hbase store.
+    """
+
     def __init__(self, store_config: HbaseOnlineStoreConfig):
         self._store_config = store_config
         self._real_conn = Connection(
@@ -34,16 +48,31 @@ class HbaseConnection:
 
     @property
     def real_conn(self) -> Connection:
+        """Stores the real happybase Connection to connect to hbase."""
         return self._real_conn
 
     def close(self) -> None:
+        """Close the happybase connection."""
         self.real_conn.close()
 
 
 class HbaseOnlineStore(OnlineStore):
+    """
+    Online feature store for Hbase.
+
+    Attributes:
+        _conn: Happybase Connection to connect to hbase thrift server.
+    """
+
     _conn: Connection = None
 
     def _get_conn(self, config: RepoConfig):
+        """
+        Get or Create Hbase Connection from Repoconfig.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+        """
 
         store_config = config.online_store
         assert isinstance(store_config, HbaseOnlineStoreConfig)
@@ -61,6 +90,18 @@ class HbaseOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+        """
+        Write a batch of feature rows to Hbase online store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
+            a dict containing feature values, an event timestamp for the row, and
+            the created timestamp for the row if it exists.
+            progress: Optional function to be called once every mini-batch of rows is written to
+            the online store. Can be used to display progress.
+        """
 
         hbase = HbaseUtils(self._get_conn(config))
         project = config.project
@@ -97,6 +138,14 @@ class HbaseOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Retrieve feature values from the Hbase online store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            entity_keys: a list of entity keys that should be read from the FeatureStore.
+        """
         hbase = HbaseUtils(self._get_conn(config))
         project = config.project
         table_name = _table_id(project, table)
@@ -132,6 +181,14 @@ class HbaseOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        """
+        Update tables from the Hbase Online Store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            tables_to_delete: Tables to delete from the Hbase Online Store.
+            tables_to_keep: Tables to keep in the Hbase Online Store.
+        """
         hbase = HbaseUtils(self._get_conn(config))
         project = config.project
 
@@ -151,6 +208,13 @@ class HbaseOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
+        """
+        Delete tables from the Hbase Online Store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            tables: Tables to delete from the feature repo.
+        """
         hbase = HbaseUtils(self._get_conn(config))
         project = config.project
 
@@ -160,4 +224,11 @@ class HbaseOnlineStore(OnlineStore):
 
 
 def _table_id(project: str, table: FeatureView) -> str:
+    """
+    Returns table name given the project_name and the feature_view.
+
+    Args:
+        project: Name of the feast project.
+        table: Feast FeatureView.
+    """
     return f"{project}_{table.name}"
