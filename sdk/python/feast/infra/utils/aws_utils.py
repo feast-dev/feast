@@ -244,6 +244,7 @@ def upload_arrow_table_to_redshift(
     iam_role: str,
     s3_path: str,
     table_name: str,
+    schema: Optional[pyarrow.Schema] = None,
     fail_if_exists: bool = True,
 ):
     """Uploads an Arrow Table to Redshift to a new or existing table.
@@ -265,6 +266,7 @@ def upload_arrow_table_to_redshift(
                   The role must grant permission to read the S3 location.
         table_name: The name of the new Redshift table where we copy the dataframe
         table: The Arrow Table to upload
+        schema: (Optionally) client may provide arrow Schema which will be converted into redshift table schema
         fail_if_exists: fail if table with such name exists or append data to existing table
 
     Raises:
@@ -275,11 +277,9 @@ def upload_arrow_table_to_redshift(
 
     bucket, key = get_bucket_and_key(s3_path)
 
+    schema = schema or table.schema
     column_query_list = ", ".join(
-        [
-            f"{field.name} {pa_to_redshift_value_type(field.type)}"
-            for field in table.schema
-        ]
+        [f"{field.name} {pa_to_redshift_value_type(field.type)}" for field in schema]
     )
 
     # Write the PyArrow Table on disk in Parquet format and upload it to S3
