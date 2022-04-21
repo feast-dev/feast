@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
-from isort import stream
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
