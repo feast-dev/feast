@@ -14,57 +14,15 @@ from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types import Value_pb2
 from feast.repo_config import RepoConfig
+from feast.types import from_value_type
 from feast.value_type import ValueType
 
 from .lib.embedded import DataTable, NewOnlineFeatureService, OnlineFeatureServiceConfig
 from .lib.go import Slice_string
+from .type_map import FEAST_TYPE_TO_ARROW_TYPE, arrow_array_to_array_of_proto
 
 if TYPE_CHECKING:
     from feast.feature_store import FeatureStore
-
-
-ARROW_TYPE_TO_PROTO_FIELD = {
-    pa.int32(): "int32_val",
-    pa.int64(): "int64_val",
-    pa.float32(): "float_val",
-    pa.float64(): "double_val",
-    pa.bool_(): "bool_val",
-    pa.string(): "string_val",
-    pa.binary(): "bytes_val",
-    pa.time32("s"): "unix_timestamp_val",
-}
-
-ARROW_LIST_TYPE_TO_PROTO_FIELD = {
-    pa.int32(): "int32_list_val",
-    pa.int64(): "int64_list_val",
-    pa.float32(): "float_list_val",
-    pa.float64(): "double_list_val",
-    pa.bool_(): "bool_list_val",
-    pa.string(): "string_list_val",
-    pa.binary(): "bytes_list_val",
-    pa.time32("s"): "unix_timestamp_list_val",
-}
-
-ARROW_LIST_TYPE_TO_PROTO_LIST_CLASS = {
-    pa.int32(): Value_pb2.Int32List,
-    pa.int64(): Value_pb2.Int64List,
-    pa.float32(): Value_pb2.FloatList,
-    pa.float64(): Value_pb2.DoubleList,
-    pa.bool_(): Value_pb2.BoolList,
-    pa.string(): Value_pb2.StringList,
-    pa.binary(): Value_pb2.BytesList,
-    pa.time32("s"): Value_pb2.Int64List,
-}
-
-# used for entity types only
-PROTO_TYPE_TO_ARROW_TYPE = {
-    ValueType.INT32: pa.int32(),
-    ValueType.INT64: pa.int64(),
-    ValueType.FLOAT: pa.float32(),
-    ValueType.DOUBLE: pa.float64(),
-    ValueType.STRING: pa.string(),
-    ValueType.BYTES: pa.binary(),
-}
 
 
 class EmbeddedOnlineFeatureServer:
@@ -179,8 +137,10 @@ def _to_arrow(value, type_hint: Optional[ValueType]) -> pa.Array:
     if isinstance(value, Value_pb2.RepeatedValue):
         _proto_to_arrow(value)
 
-    if type_hint in PROTO_TYPE_TO_ARROW_TYPE:
-        return pa.array(value, PROTO_TYPE_TO_ARROW_TYPE[type_hint])
+    if type_hint:
+        feast_type = from_value_type(type_hint)
+        if feast_type in FEAST_TYPE_TO_ARROW_TYPE:
+            return pa.array(value, FEAST_TYPE_TO_ARROW_TYPE[feast_type])
 
     return pa.array(value)
 
@@ -263,31 +223,9 @@ def record_batch_to_online_response(record_batch):
                 [Value_pb2.Value()] * len(record_batch.columns[idx])
             )
         else:
-            if isinstance(field.type, pa.ListType):
-                proto_list_class = ARROW_LIST_TYPE_TO_PROTO_LIST_CLASS[
-                    field.type.value_type
-                ]
-                proto_field_name = ARROW_LIST_TYPE_TO_PROTO_FIELD[field.type.value_type]
-
-                column = record_batch.columns[idx]
-                if field.type.value_type == pa.time32("s"):
-                    column = column.cast(pa.list_(pa.int32()))
-
-                for v in column.tolist():
-                    feature_vector.values.append(
-                        Value_pb2.Value(**{proto_field_name: proto_list_class(val=v)})
-                    )
-            else:
-                proto_field_name = ARROW_TYPE_TO_PROTO_FIELD[field.type]
-
-                column = record_batch.columns[idx]
-                if field.type == pa.time32("s"):
-                    column = column.cast(pa.int32())
-
-                for v in column.tolist():
-                    feature_vector.values.append(
-                        Value_pb2.Value(**{proto_field_name: v})
-                    )
+            feature_vector.values.extend(
+                arrow_array_to_array_of_proto(field.type, record_batch.columns[idx])
+            )
 
         resp.results.append(feature_vector)
         resp.metadata.feature_names.val.append(field.name)
