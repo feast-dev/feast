@@ -602,8 +602,8 @@ def on_demand_feature_view(
                     _sources.append(feature_view_to_batch_feature_view(source))
                 elif isinstance(source, FeatureViewProjection):
                     _sources.append(BatchFeatureView(
-                        name=source.name,
-                        schema=source.features,
+                        name=source.name, # type: ignore
+                        schema=source.features, # type: ignore
                     ))
                 elif isinstance(source, RequestSource):
                     _sources.append(source)
