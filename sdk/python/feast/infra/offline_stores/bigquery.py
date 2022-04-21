@@ -44,7 +44,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from ...saved_dataset import SavedDatasetStorage
 from ...usage import log_exceptions_and_usage
 from .bigquery_source import (
-    BigqueryLoggingDestination,
+    BigQueryLoggingDestination,
     BigQuerySource,
     SavedDatasetBigQueryStorage,
 )
@@ -264,7 +264,7 @@ class BigQueryOfflineStore(OfflineStore):
         registry: Registry,
     ):
         destination = logging_config.destination
-        assert isinstance(destination, BigqueryLoggingDestination)
+        assert isinstance(destination, BigQueryLoggingDestination)
 
         client = _get_bigquery_client(
             project=config.offline_store.project_id,
@@ -288,7 +288,7 @@ class BigQueryOfflineStore(OfflineStore):
 
             client.load_table_from_file(
                 file_obj=parquet_temp_file,
-                destination=destination.table_ref,
+                destination=destination.table,
                 job_config=job_config,
             )
 

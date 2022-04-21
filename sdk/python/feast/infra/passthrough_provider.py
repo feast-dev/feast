@@ -240,8 +240,8 @@ class PassthroughProvider(Provider):
     def retrieve_feature_service_logs(
         self,
         feature_service: FeatureService,
-        from_: datetime,
-        to: datetime,
+        start_date: datetime,
+        end_date: datetime,
         config: RepoConfig,
         registry: Registry,
     ) -> RetrievalJob:
@@ -262,6 +262,6 @@ class PassthroughProvider(Provider):
             join_key_columns=[],
             feature_name_columns=columns,
             event_timestamp_column=ts_column,
-            start_date=from_,
-            end_date=to,
+            start_date=start_date,
+            end_date=end_date,
         )

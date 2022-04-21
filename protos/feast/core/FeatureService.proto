@@ -78,13 +78,6 @@ message LoggingConfig {
   }
 
   message SnowflakeDestination {
-    // Snowflake table name
     string table = 1;
-
-    // Snowflake schema name
-    string schema = 2;
-
-    // Snowflake schema name
-    string database = 3;
   }
 }

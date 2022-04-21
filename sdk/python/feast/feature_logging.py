@@ -22,6 +22,11 @@ if TYPE_CHECKING:
 
 
 class LoggingSource:
+    """
+    Logging source describes object that produces logs (eg, feature service produces logs of served features).
+    It should be able to provide schema of produced logs table and additional metadata that describes logs data.
+    """
+
     @abc.abstractmethod
     def get_schema(self, registry: "Registry") -> pa.Schema:
         """ Generate schema for logs destination. """

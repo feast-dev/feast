@@ -293,8 +293,6 @@ class SnowflakeOfflineStore(OfflineStore):
             snowflake_conn,
             data.to_pandas(),
             table_name=logging_config.destination.table,
-            schema=logging_config.destination.schema,
-            database=logging_config.destination.database,
             auto_create_table=True,
         )
 

@@ -64,8 +64,8 @@ def test_feature_service_logging(environment, universal_data_sources):
     def retrieve():
         retrieval_job = store._get_provider().retrieve_feature_service_logs(
             feature_service=feature_service,
-            from_=logs_df["log_timestamp"].min(),
-            to=logs_df["log_timestamp"].max() + datetime.timedelta(seconds=1),
+            start_date=logs_df["log_timestamp"].min(),
+            end_date=logs_df["log_timestamp"].max() + datetime.timedelta(seconds=1),
             config=store.config,
             registry=store._registry,
         )

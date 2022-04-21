@@ -259,26 +259,26 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
         return BigQuerySource(table=self.bigquery_options.table)
 
 
-class BigqueryLoggingDestination(LoggingDestination):
+class BigQueryLoggingDestination(LoggingDestination):
     _proto_attr_name = "bigquery_destination"
 
-    table_ref: str
+    table: str
 
     def __init__(self, table_ref):
-        self.table_ref = table_ref
+        self.table = table_ref
 
     @classmethod
     def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
-        return BigqueryLoggingDestination(
+        return BigQueryLoggingDestination(
             table_ref=config_proto.bigquery_destination.table_ref,
         )
 
     def to_data_source(self) -> DataSource:
-        return BigQuerySource(table=self.table_ref)
+        return BigQuerySource(table=self.table)
 
     def to_proto(self) -> LoggingConfigProto:
         return LoggingConfigProto(
             bigquery_destination=LoggingConfigProto.BigQueryDestination(
-                table_ref=self.table_ref
+                table_ref=self.table
             )
         )

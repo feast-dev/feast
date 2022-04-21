@@ -10,7 +10,7 @@ from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
 from feast.infra.offline_stores.bigquery_source import (
-    BigqueryLoggingDestination,
+    BigQueryLoggingDestination,
     SavedDatasetBigQueryStorage,
 )
 from tests.integration.feature_repos.universal.data_source_creator import (
@@ -94,7 +94,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         table = self.get_prefixed_table_name(
             f"logged_features_{str(uuid.uuid4()).replace('-', '_')}"
         )
-        return BigqueryLoggingDestination(table_ref=table)
+        return BigQueryLoggingDestination(table_ref=table)
 
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.client.project}.{self.project_name}.{suffix}"
