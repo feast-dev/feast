@@ -151,7 +151,9 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
     return item_embeddings_feature_view
 
 
-def create_item_embeddings_batch_feature_view(source, infer_features: bool = False) -> BatchFeatureView:
+def create_item_embeddings_batch_feature_view(
+    source, infer_features: bool = False
+) -> BatchFeatureView:
     item_embeddings_feature_view = BatchFeatureView(
         name="item_embeddings",
         entities=["item"],
@@ -184,7 +186,9 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
     return driver_stats_feature_view
 
 
-def create_driver_hourly_stats_batch_feature_view(source, infer_features: bool = False) -> BatchFeatureView:
+def create_driver_hourly_stats_batch_feature_view(
+    source, infer_features: bool = False
+) -> BatchFeatureView:
     driver_stats_feature_view = BatchFeatureView(
         name="driver_stats",
         entities=["driver"],

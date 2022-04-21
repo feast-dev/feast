@@ -248,7 +248,8 @@ class OnDemandFeatureView(BaseFeatureView):
         fv = OnDemandFeatureView(
             name=self.name,
             schema=self.features,
-            sources=list(self.source_feature_view_projections.values()) + list(self.source_request_sources.values()),
+            sources=list(self.source_feature_view_projections.values())
+            + list(self.source_request_sources.values()),
             udf=self.udf,
             description=self.description,
             tags=self.tags,
