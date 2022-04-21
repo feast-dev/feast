@@ -109,6 +109,10 @@ GE_REQUIRED = [
     "great_expectations>=0.14.0,<0.15.0"
 ]
 
+GO_REQUIRED = [
+    "cffi==1.15.*",
+]
+
 CI_REQUIRED = (
     [
         "cryptography==3.4.8",
@@ -434,6 +438,7 @@ setup(
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
         "ge": GE_REQUIRED,
+        "go": GO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
