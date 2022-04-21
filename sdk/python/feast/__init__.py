@@ -40,7 +40,8 @@ except DistributionNotFound:
     pass
 
 __all__ = [
-    "BaseFeatureView" "Entity",
+    "BaseFeatureView",
+    "Entity",
     "KafkaSource",
     "KinesisSource",
     "Feature",
