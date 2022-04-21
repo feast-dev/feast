@@ -40,9 +40,9 @@ func ProtoTypeToArrowType(sample *types.Value) (arrow.DataType, error) {
 	case *types.Value_DoubleListVal:
 		return arrow.ListOf(arrow.PrimitiveTypes.Float64), nil
 	case *types.Value_UnixTimestampVal:
-		return arrow.FixedWidthTypes.Time32s, nil
+		return arrow.FixedWidthTypes.Timestamp_s, nil
 	case *types.Value_UnixTimestampListVal:
-		return arrow.ListOf(arrow.FixedWidthTypes.Time32s), nil
+		return arrow.ListOf(arrow.FixedWidthTypes.Timestamp_s), nil
 	default:
 		return nil,
 			fmt.Errorf("unsupported proto type in proto to arrow conversion: %s", sample.Val)
@@ -80,9 +80,9 @@ func ValueTypeEnumToArrowType(t types.ValueType_Enum) (arrow.DataType, error) {
 	case types.ValueType_DOUBLE_LIST:
 		return arrow.ListOf(arrow.PrimitiveTypes.Float64), nil
 	case types.ValueType_UNIX_TIMESTAMP:
-		return arrow.FixedWidthTypes.Time32s, nil
+		return arrow.FixedWidthTypes.Timestamp_s, nil
 	case types.ValueType_UNIX_TIMESTAMP_LIST:
-		return arrow.ListOf(arrow.FixedWidthTypes.Time32s), nil
+		return arrow.ListOf(arrow.FixedWidthTypes.Timestamp_s), nil
 	default:
 		return nil,
 			fmt.Errorf("unsupported value type enum in enum to arrow type conversion: %s", t)
@@ -119,9 +119,9 @@ func copyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) e
 		for _, v := range values {
 			fieldBuilder.Append(v.GetDoubleVal())
 		}
-	case *array.Time32Builder:
+	case *array.TimestampBuilder:
 		for _, v := range values {
-			fieldBuilder.Append(arrow.Time32(v.GetUnixTimestampVal()))
+			fieldBuilder.Append(arrow.Timestamp(v.GetUnixTimestampVal()))
 		}
 	case *array.ListBuilder:
 		for _, list := range values {
@@ -157,9 +157,9 @@ func copyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) e
 				for _, v := range list.GetDoubleListVal().GetVal() {
 					valueBuilder.Append(v)
 				}
-			case *array.Time32Builder:
+			case *array.TimestampBuilder:
 				for _, v := range list.GetUnixTimestampListVal().GetVal() {
-					valueBuilder.Append(arrow.Time32(v))
+					valueBuilder.Append(arrow.Timestamp(v))
 				}
 			}
 		}
@@ -227,10 +227,10 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 				}
 				values = append(values,
 					&types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: vals}}})
-			case arrow.FixedWidthTypes.Time32s:
+			case arrow.FixedWidthTypes.Timestamp_s:
 				vals := make([]int64, int(offsets[idx])-pos)
 				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = int64(listValues.(*array.Time32).Value(j))
+					vals[j-pos] = int64(listValues.(*array.Timestamp).Value(j))
 				}
 
 				values = append(values,
@@ -278,11 +278,11 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 			values = append(values,
 				&types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.String).Value(idx)}})
 		}
-	case arrow.FixedWidthTypes.Time32s:
+	case arrow.FixedWidthTypes.Timestamp_s:
 		for idx := 0; idx < arr.Len(); idx++ {
 			values = append(values,
 				&types.Value{Val: &types.Value_UnixTimestampVal{
-					UnixTimestampVal: int64(arr.(*array.Time32).Value(idx))}})
+					UnixTimestampVal: int64(arr.(*array.Timestamp).Value(idx))}})
 		}
 	default:
 		return nil, fmt.Errorf("unsupported arrow to proto conversion for type %s", arr.DataType())
