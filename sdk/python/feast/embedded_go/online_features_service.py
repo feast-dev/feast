@@ -31,7 +31,7 @@ ARROW_TYPE_TO_PROTO_FIELD = {
     pa.bool_(): "bool_val",
     pa.string(): "string_val",
     pa.binary(): "bytes_val",
-    pa.time64("ns"): "unix_timestamp_val",
+    pa.time32("s"): "unix_timestamp_val",
 }
 
 ARROW_LIST_TYPE_TO_PROTO_FIELD = {
@@ -42,7 +42,7 @@ ARROW_LIST_TYPE_TO_PROTO_FIELD = {
     pa.bool_(): "bool_list_val",
     pa.string(): "string_list_val",
     pa.binary(): "bytes_list_val",
-    pa.time64("ns"): "unix_timestamp_list_val",
+    pa.time32("s"): "unix_timestamp_list_val",
 }
 
 ARROW_LIST_TYPE_TO_PROTO_LIST_CLASS = {
@@ -53,7 +53,7 @@ ARROW_LIST_TYPE_TO_PROTO_LIST_CLASS = {
     pa.bool_(): Value_pb2.BoolList,
     pa.string(): Value_pb2.StringList,
     pa.binary(): Value_pb2.BytesList,
-    pa.time64("ns"): Value_pb2.Int64List,
+    pa.time32("s"): Value_pb2.Int64List,
 }
 
 # used for entity types only
@@ -270,8 +270,8 @@ def record_batch_to_online_response(record_batch):
                 proto_field_name = ARROW_LIST_TYPE_TO_PROTO_FIELD[field.type.value_type]
 
                 column = record_batch.columns[idx]
-                if field.type.value_type == pa.time64("ns"):
-                    column = column.cast(pa.list_(pa.int64()))
+                if field.type.value_type == pa.time32("s"):
+                    column = column.cast(pa.list_(pa.int32()))
 
                 for v in column.tolist():
                     feature_vector.values.append(
@@ -281,8 +281,8 @@ def record_batch_to_online_response(record_batch):
                 proto_field_name = ARROW_TYPE_TO_PROTO_FIELD[field.type]
 
                 column = record_batch.columns[idx]
-                if field.type == pa.time64("ns"):
-                    column = column.cast(pa.int64())
+                if field.type == pa.time32("s"):
+                    column = column.cast(pa.int32())
 
                 for v in column.tolist():
                     feature_vector.values.append(
