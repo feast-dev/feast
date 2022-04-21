@@ -7,9 +7,8 @@ from typing import Dict, List, Optional, Type, Union
 import dill
 import pandas as pd
 
-from feast.batch_feature_view import BatchFeatureView
-from feast.stream_feature_view import StreamFeatureView
 from feast.base_feature_view import BaseFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import RequestSource
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature import Feature
@@ -27,6 +26,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
+from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -136,8 +136,18 @@ class OnDemandFeatureView(BaseFeatureView):
                 ),
                 DeprecationWarning,
             )
-            for source in inputs.values():
-                _sources.append(source)
+            for _, source in inputs.items():
+                if isinstance(source, FeatureView):
+                    _sources.append(feature_view_to_batch_feature_view(source))
+                elif isinstance(source, FeatureViewProjection):
+                    _sources.append(BatchFeatureView(
+                        name=source.name,
+                        schema=source.features,
+                    ))
+                elif isinstance(source, RequestSource):
+                    _sources.append(source)
+                else:
+                    raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
         _udf = udf
 
         if args:
@@ -172,8 +182,18 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
             if len(args) >= 3:
                 _inputs = args[2]
-                for source in _inputs.values():
-                    _sources.append(source)
+                for _, source in _inputs.items():
+                    if isinstance(source, FeatureView):
+                        _sources.append(feature_view_to_batch_feature_view(source))
+                    elif isinstance(source, FeatureViewProjection):
+                        _sources.append(BatchFeatureView(
+                            name=source.name,
+                            schema=source.features,
+                        ))
+                    elif isinstance(source, RequestSource):
+                        _sources.append(source)
+                    else:
+                        raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
                 warnings.warn(
                     (
                         "The `inputs` parameter is being deprecated. Please use `sources` instead. "
@@ -199,8 +219,6 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=tags,
             owner=owner,
         )
-        print("Asdf")
-        print(_sources)
         assert _sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}
@@ -228,7 +246,8 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             schema=self.features,
             sources=list(
-                **self.source_feature_view_projections.values(), **self.source_request_sources.values(),
+                **self.source_feature_view_projections.values(),
+                **self.source_request_sources.values(),
             ),
             udf=self.udf,
             description=self.description,
@@ -308,25 +327,21 @@ class OnDemandFeatureView(BaseFeatureView):
             A OnDemandFeatureView object based on the on-demand feature view protobuf.
         """
         sources = []
-        for (
-            _,
-            on_demand_source,
-        ) in on_demand_feature_view_proto.spec.sources.items():
+        for (_, on_demand_source,) in on_demand_feature_view_proto.spec.sources.items():
             if on_demand_source.WhichOneof("source") == "feature_view":
                 sources.append(
-                    FeatureView.from_proto(
-                    on_demand_source.feature_view
-                ).projection)
+                    FeatureView.from_proto(on_demand_source.feature_view).projection
+                )
             elif on_demand_source.WhichOneof("source") == "feature_view_projection":
                 sources.append(
                     FeatureViewProjection.from_proto(
-                    on_demand_source.feature_view_projection
-                ))
+                        on_demand_source.feature_view_projection
+                    )
+                )
             else:
                 sources.append(
-                    RequestSource.from_proto(
-                    on_demand_source.request_data_source
-                ))
+                    RequestSource.from_proto(on_demand_source.request_data_source)
+                )
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[
@@ -484,7 +499,9 @@ class OnDemandFeatureView(BaseFeatureView):
 def on_demand_feature_view(
     *args,
     features: Optional[List[Feature]] = None,
-    sources: Optional[List[Union[BatchFeatureView, StreamFeatureView, RequestSource]]] = None,
+    sources: Optional[
+        List[Union[BatchFeatureView, StreamFeatureView, RequestSource]]
+    ] = None,
     inputs: Optional[Dict[str, Union[FeatureView, RequestSource]]] = None,
     schema: Optional[List[Field]] = None,
     description: str = "",
@@ -537,8 +554,18 @@ def on_demand_feature_view(
             ),
             DeprecationWarning,
         )
-        for source in inputs.values():
-            _sources.append(source)
+        for _, source in inputs.items():
+            if isinstance(source, FeatureView):
+                _sources.append(feature_view_to_batch_feature_view(source))
+            elif isinstance(source, FeatureViewProjection):
+                _sources.append(BatchFeatureView(
+                    name=source.name,
+                    schema=source.features,
+                ))
+            elif isinstance(source, RequestSource):
+                _sources.append(source)
+            else:
+                raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
 
     if args:
         warnings.warn(
@@ -570,9 +597,19 @@ def on_demand_feature_view(
             )
         if len(args) >= 2:
             _inputs = args[1]
-            for source in _inputs.values():
-                _sources.append(source)
-            warnings.warn(
+            for _, source in _inputs.items():
+                if isinstance(source, FeatureView):
+                    _sources.append(feature_view_to_batch_feature_view(source))
+                elif isinstance(source, FeatureViewProjection):
+                    _sources.append(BatchFeatureView(
+                        name=source.name,
+                        schema=source.features,
+                    ))
+                elif isinstance(source, RequestSource):
+                    _sources.append(source)
+                else:
+                    raise ValueError("input can only accept FeatureView, FeatureViewProjection, or RequestSource")
+                warnings.warn(
                 (
                     "The `inputs` parameter is being deprecated. Please use `sources` instead. "
                     "Feast 0.21 and onwards will not support the `inputs` parameter."
@@ -599,3 +636,15 @@ def on_demand_feature_view(
         return on_demand_feature_view_obj
 
     return decorator
+
+def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
+    return BatchFeatureView(
+        name=fv.name,
+        entities=fv.entities,
+        ttl=fv.ttl,
+        tags=fv.tags,
+        online=fv.online,
+        owner=fv.owner,
+        schema=fv.schema,
+        source=fv.source,
+    )

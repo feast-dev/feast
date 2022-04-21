@@ -15,6 +15,7 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.types import Array, FeastType, Float32, Float64, Int32
+from sdk.python.feast.batch_feature_view import BatchFeatureView
 from tests.integration.feature_repos.universal.entities import location
 
 
@@ -150,8 +151,9 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
     )
     return item_embeddings_feature_view
 
-def create_item_embeddings_base_feature_view(source, infer_features: bool = False):
-    item_embeddings_feature_view = BaseFeatureView(
+
+def create_item_embeddings_batch_feature_view(source, infer_features: bool = False):
+    item_embeddings_feature_view = BatchFeatureView(
         name="item_embeddings",
         entities=["item"],
         schema=None
@@ -164,6 +166,7 @@ def create_item_embeddings_base_feature_view(source, infer_features: bool = Fals
         ttl=timedelta(hours=2),
     )
     return item_embeddings_feature_view
+
 
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
@@ -181,8 +184,9 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
     )
     return driver_stats_feature_view
 
-def create_driver_hourly_stats_base_feature_view(source, infer_features: bool = False):
-    driver_stats_feature_view = BaseFeatureView(
+
+def create_driver_hourly_stats_batch_feature_view(source, infer_features: bool = False):
+    driver_stats_feature_view = BatchFeatureView(
         name="driver_stats",
         entities=["driver"],
         schema=None
