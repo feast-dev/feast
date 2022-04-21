@@ -5,7 +5,7 @@ import pyarrow as pa
 from pytz import UTC
 
 from feast.data_source import DataSource
-from feast.embedded_go.types import FEAST_TYPE_TO_ARROW_TYPE
+from feast.embedded_go.type_map import FEAST_TYPE_TO_ARROW_TYPE
 from feast.errors import (
     FeastObjectNotFoundException,
     FeatureViewNotFoundException,
