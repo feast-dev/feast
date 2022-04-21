@@ -114,7 +114,7 @@ GE_REQUIRED = [
 ]
 
 GO_REQUIRED = [
-    "cffi==1.15.0",
+    "cffi==1.15.*",
 ]
 
 CI_REQUIRED = (
