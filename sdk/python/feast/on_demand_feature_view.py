@@ -68,7 +68,7 @@ class OnDemandFeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
 
-    @log_exceptions
+    @log_exceptions # noqa: C901
     def __init__(  # noqa: C901
         self,
         *args,
