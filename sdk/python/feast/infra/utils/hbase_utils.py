@@ -1,7 +1,9 @@
-# Created by aurobindo.m on 18/04/22
 from typing import List
 
 from happybase import Connection
+
+from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 
 
 class HbaseConstants:
@@ -80,7 +82,7 @@ class HbaseUtils:
 
     def batch(self, table_name: str):
         """
-        Returns a 'Batch' instance that can be used for mass data manipulation in the habse table.
+        Returns a 'Batch' instance that can be used for mass data manipulation in the hbase table.
 
         Arguments:
             table_name: Name of the Hbase table.
@@ -93,7 +95,7 @@ class HbaseUtils:
 
         Arguments:
             table_name: Name of the Hbase table.
-            row_key: Row key of the row to be inserted to habse table.
+            row_key: Row key of the row to be inserted to hbase table.
             data: Mapping of column family name:column name to column values
         """
         table = self.conn.table(table_name)
@@ -112,7 +114,7 @@ class HbaseUtils:
 
         Arguments:
             table_name: Name of the Hbase table.
-            row_key: Row key of the row to be inserted to habse table.
+            row_key: Row key of the row to be inserted to hbase table.
             columns: the name of columns that needs to be fetched.
             timestamp: timestamp specifies the maximum version the cells can have.
             include_timestamp: specifies if (column, timestamp) to be return instead of only column.
@@ -133,7 +135,7 @@ class HbaseUtils:
 
         Arguments:
             table_name: Name of the Hbase table.
-            row_keys: List of row key of the row to be inserted to habse table.
+            row_keys: List of row key of the row to be inserted to hbase table.
             columns: the name of columns that needs to be fetched.
             timestamp: timestamp specifies the maximum version the cells can have.
             include_timestamp: specifies if (column, timestamp) to be return instead of only column.
@@ -156,3 +158,32 @@ class HbaseUtils:
     def close_conn(self):
         """Closes the happybase connection."""
         self.conn.close()
+
+
+def main():
+    from feast.protos.feast.types.Value_pb2 import Value
+
+    connection = Connection(host="localhost", port=9090)
+    table = connection.table("test_hbase_driver_hourly_stats")
+    row_keys = [
+        serialize_entity_key(
+            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1004)])
+        ).hex(),
+        serialize_entity_key(
+            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1005)])
+        ).hex(),
+        serialize_entity_key(
+            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1024)])
+        ).hex(),
+    ]
+    rows = table.rows(row_keys)
+
+    for row_key, row in rows:
+        for key, value in row.items():
+            col_name = bytes.decode(key, "utf-8").split(":")[1]
+            print(col_name, value)
+        print()
+
+
+if __name__ == "__main__":
+    main()

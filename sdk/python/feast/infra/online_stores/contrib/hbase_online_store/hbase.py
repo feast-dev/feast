@@ -1,4 +1,3 @@
-# Created by aurobindo.m on 18/04/22
 import calendar
 import struct
 from datetime import datetime
@@ -150,12 +149,15 @@ class HbaseOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        for entity_key in entity_keys:
-            row_key = serialize_entity_key(entity_key).hex()
-            val = hbase.row(table_name, row_key=row_key)
+        row_keys = [
+            serialize_entity_key(entity_key).hex() for entity_key in entity_keys
+        ]
+        rows = hbase.rows(table_name, row_keys=row_keys)
+
+        for _, row in rows:
             res = {}
             res_ts = None
-            for feature_name, feature_value in val.items():
+            for feature_name, feature_value in row.items():
                 f_name = HbaseConstants.get_feature_from_col(feature_name)
                 if requested_features is not None and f_name in requested_features:
                     v = ValueProto()

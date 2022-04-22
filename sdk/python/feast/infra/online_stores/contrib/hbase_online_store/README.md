@@ -1,7 +1,5 @@
-# Hbase Online Store
-Hbase is not included in current [Feast](https://github.com/feast-dev/feast) roadmap, this project intends to add Hbase 
-support for Online Store.
-
+# HBase Online Store
+HBase is not included in current [Feast](https://github.com/feast-dev/feast) roadmap, this project intends to add HBase support for Online Store.
 We create a table <project_name>_<feature_view_name> which gets updated with data on every materialize call
 
 
@@ -14,7 +12,7 @@ cd feature_repo
 
 #### Edit `feature_store.yaml`
 
-set `online_store` type to be `feast_hbase.hbase.HbaseOnlineStore`
+set `online_store` type to be `hbase`
 
 ```yaml
 project: feature_repo
@@ -38,7 +36,7 @@ Registered feature view driver_hourly_stats_view
 Deploying infrastructure for driver_hourly_stats_view
 ```
 
-### Migrate Latest Data to Online Feature Store (Hbase)
+### Migrate Latest Data to Online Feature Store (HBase)
 ```
 $ CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S") 
 $ feast -c feature_repo materialize-incremental $CURRENT_TIME
