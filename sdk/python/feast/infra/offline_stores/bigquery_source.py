@@ -260,7 +260,7 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
 
 
 class BigQueryLoggingDestination(LoggingDestination):
-    _proto_attr_name = "bigquery_destination"
+    _proto_kind = "bigquery_destination"
 
     table: str
 

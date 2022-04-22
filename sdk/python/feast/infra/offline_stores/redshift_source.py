@@ -334,7 +334,7 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 
 
 class RedshiftLoggingDestination(LoggingDestination):
-    _proto_attr_name = "redshift_destination"
+    _proto_kind = "redshift_destination"
 
     table: str
 

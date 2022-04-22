@@ -128,10 +128,10 @@ class LoggingDestination:
     It is implementation specific - each offline store must implement LoggingDestination subclass.
 
     Kind of logging destination will be determined by matching attribute name in LoggingConfig protobuf message
-    and "_proto_attr_name" property of each subclass.
+    and "_proto_kind" property of each subclass.
     """
 
-    _proto_attr_name: str
+    _proto_kind: str
 
     @classmethod
     @abc.abstractmethod
@@ -158,13 +158,14 @@ class LoggingConfig:
 
     @classmethod
     def from_proto(cls, config_proto: LoggingConfigProto) -> Optional["LoggingConfig"]:
-        proto_attr_name = cast(str, config_proto.WhichOneof("destination"))
-        if proto_attr_name is None:
+        proto_kind = cast(str, config_proto.WhichOneof("destination"))
+        if proto_kind is None:
             return
 
-        destination_class = _DestinationRegistry.classes_by_proto_attr_name[
-            proto_attr_name
-        ]
+        if proto_kind == "custom_destination":
+            proto_kind = config_proto.custom_destination.kind
+
+        destination_class = _DestinationRegistry.classes_by_proto_attr_name[proto_kind]
         return LoggingConfig(destination=destination_class.from_proto(config_proto))
 
     def to_proto(self) -> LoggingConfigProto:

@@ -297,7 +297,7 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
 
 
 class FileLoggingDestination(LoggingDestination):
-    _proto_attr_name = "file_destination"
+    _proto_kind = "file_destination"
 
     path: str
     s3_endpoint_override: str

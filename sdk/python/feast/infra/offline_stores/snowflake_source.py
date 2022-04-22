@@ -338,7 +338,7 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 class SnowflakeLoggingDestination(LoggingDestination):
     table: str
 
-    _proto_attr_name = "snowflake_destination"
+    _proto_kind = "snowflake_destination"
 
     def __init__(self, table: str):
         self.table = table

@@ -61,6 +61,7 @@ message LoggingConfig {
     BigQueryDestination bigquery_destination = 4;
     RedshiftDestination redshift_destination = 5;
     SnowflakeDestination snowflake_destination = 6;
+    CustomDestination custom_destination = 7;
   }
 
   message FileDestination {
@@ -79,5 +80,10 @@ message LoggingConfig {
 
   message SnowflakeDestination {
     string table = 1;
+  }
+
+  message CustomDestination {
+    string kind = 1;
+    map<string, string> config = 2;
   }
 }
