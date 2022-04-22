@@ -7,7 +7,13 @@ import pyarrow as pa
 import pytest
 from google.api_core.exceptions import NotFound
 
-from feast.feature_logging import FeatureServiceLoggingSource, LoggingConfig
+from feast.feature_logging import (
+    LOG_DATE_FIELD,
+    LOG_TIMESTAMP_FIELD,
+    REQUEST_ID_FIELD,
+    FeatureServiceLoggingSource,
+    LoggingConfig,
+)
 from feast.feature_service import FeatureService
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 from feast.wait import wait_retry_backoff
@@ -59,13 +65,13 @@ def test_feature_service_logging(environment, universal_data_sources):
     store.write_logged_features(
         source=feature_service, logs=pa.Table.from_pandas(second_batch, schema=schema),
     )
-    expected_columns = list(set(logs_df.columns) - {"log_date"})
+    expected_columns = list(set(logs_df.columns) - {LOG_DATE_FIELD})
 
     def retrieve():
         retrieval_job = store._get_provider().retrieve_feature_service_logs(
             feature_service=feature_service,
-            start_date=logs_df["log_timestamp"].min(),
-            end_date=logs_df["log_timestamp"].max() + datetime.timedelta(seconds=1),
+            start_date=logs_df[LOG_TIMESTAMP_FIELD].min(),
+            end_date=logs_df[LOG_TIMESTAMP_FIELD].max() + datetime.timedelta(seconds=1),
             config=store.config,
             registry=store._registry,
         )
@@ -84,8 +90,8 @@ def test_feature_service_logging(environment, universal_data_sources):
     persisted_logs = persisted_logs[expected_columns]
     logs_df = logs_df[expected_columns]
     pd.testing.assert_frame_equal(
-        logs_df.sort_values("request_id").reset_index(drop=True),
-        persisted_logs.sort_values("request_id").reset_index(drop=True),
+        logs_df.sort_values(REQUEST_ID_FIELD).reset_index(drop=True),
+        persisted_logs.sort_values(REQUEST_ID_FIELD).reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -97,11 +103,11 @@ def prepare_logs(datasets: UniversalDatasets) -> pd.DataFrame:
     num_rows = driver_df.shape[0]
 
     logs_df = driver_df[["driver_id", "val_to_add"]]
-    logs_df["request_id"] = [str(uuid.uuid4()) for _ in range(num_rows)]
-    logs_df["log_timestamp"] = pd.Series(
+    logs_df[REQUEST_ID_FIELD] = [str(uuid.uuid4()) for _ in range(num_rows)]
+    logs_df[LOG_TIMESTAMP_FIELD] = pd.Series(
         np.random.randint(0, 7 * 24 * 3600, num_rows)
     ).map(lambda secs: pd.Timestamp.utcnow() - datetime.timedelta(seconds=secs))
-    logs_df["log_date"] = logs_df["log_timestamp"].dt.date
+    logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
 
     for view, features in (
         ("driver_stats", ("conv_rate", "avg_daily_trips")),

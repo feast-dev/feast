@@ -21,6 +21,11 @@ if TYPE_CHECKING:
     from feast.registry import Registry
 
 
+REQUEST_ID_FIELD = "__request_id"
+LOG_TIMESTAMP_FIELD = "__log_timestamp"
+LOG_DATE_FIELD = "__log_date"
+
+
 class LoggingSource:
     """
     Logging source describes object that produces logs (eg, feature service produces logs of served features).
@@ -92,19 +97,19 @@ class FeatureServiceLoggingSource(LoggingSource):
                     ]
 
         # system columns
-        fields["request_id"] = pa.string()
-        fields["log_timestamp"] = pa.timestamp("us", tz=UTC)
-        fields["log_date"] = pa.date32()
+        fields[REQUEST_ID_FIELD] = pa.string()
+        fields[LOG_TIMESTAMP_FIELD] = pa.timestamp("us", tz=UTC)
+        fields[LOG_DATE_FIELD] = pa.date32()
 
         return pa.schema(
             [pa.field(name, data_type) for name, data_type in fields.items()]
         )
 
     def get_partition_column(self, registry: "Registry") -> str:
-        return "log_date"
+        return LOG_DATE_FIELD
 
     def get_log_timestamp_column(self) -> str:
-        return "log_timestamp"
+        return LOG_TIMESTAMP_FIELD
 
 
 class _DestinationRegistry(type):
