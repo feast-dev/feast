@@ -75,7 +75,14 @@ class OnDemandFeatureView(BaseFeatureView):
         name: Optional[str] = None,
         features: Optional[List[Feature]] = None,
         sources: Optional[
-            List[Union[BatchFeatureView, StreamFeatureView, RequestSource, FeatureViewProjection]]
+            List[
+                Union[
+                    BatchFeatureView,
+                    StreamFeatureView,
+                    RequestSource,
+                    FeatureViewProjection,
+                ]
+            ]
         ] = None,
         udf: Optional[MethodType] = None,
         inputs: Optional[
@@ -139,7 +146,9 @@ class OnDemandFeatureView(BaseFeatureView):
             for _, source in inputs.items():
                 if isinstance(source, FeatureView):
                     _sources.append(feature_view_to_batch_feature_view(source))
-                elif isinstance(source, RequestSource) or isinstance(source, FeatureViewProjection):
+                elif isinstance(source, RequestSource) or isinstance(
+                    source, FeatureViewProjection
+                ):
                     _sources.append(source)
                 else:
                     raise ValueError(
@@ -182,7 +191,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 for _, source in _inputs.items():
                     if isinstance(source, FeatureView):
                         _sources.append(feature_view_to_batch_feature_view(source))
-                    elif isinstance(source, RequestSource) or isinstance(source, FeatureViewProjection):
+                    elif isinstance(source, RequestSource) or isinstance(
+                        source, FeatureViewProjection
+                    ):
                         _sources.append(source)
                     else:
                         raise ValueError(
@@ -493,7 +504,14 @@ def on_demand_feature_view(
     *args,
     features: Optional[List[Feature]] = None,
     sources: Optional[
-        List[Union[BatchFeatureView, StreamFeatureView, RequestSource, FeatureViewProjection]]
+        List[
+            Union[
+                BatchFeatureView,
+                StreamFeatureView,
+                RequestSource,
+                FeatureViewProjection,
+            ]
+        ]
     ] = None,
     inputs: Optional[Dict[str, Union[FeatureView, RequestSource]]] = None,
     schema: Optional[List[Field]] = None,
@@ -549,7 +567,9 @@ def on_demand_feature_view(
         for _, source in inputs.items():
             if isinstance(source, FeatureView):
                 _sources.append(feature_view_to_batch_feature_view(source))
-            elif isinstance(source, RequestSource) or isinstance(source, FeatureViewProjection):
+            elif isinstance(source, RequestSource) or isinstance(
+                source, FeatureViewProjection
+            ):
                 _sources.append(source)
             else:
                 raise ValueError(
@@ -589,7 +609,9 @@ def on_demand_feature_view(
             for _, source in _inputs.items():
                 if isinstance(source, FeatureView):
                     _sources.append(feature_view_to_batch_feature_view(source))
-                elif isinstance(source, RequestSource) or isinstance(source, FeatureViewProjection):
+                elif isinstance(source, RequestSource) or isinstance(
+                    source, FeatureViewProjection
+                ):
                     _sources.append(source)
                 else:
                     raise ValueError(
