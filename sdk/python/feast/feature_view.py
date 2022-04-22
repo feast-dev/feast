@@ -439,8 +439,9 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
-            stream_source=stream_source,
         )
+        if stream_source:
+            feature_view.stream_source = stream_source
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.
