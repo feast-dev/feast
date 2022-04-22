@@ -21,7 +21,7 @@ There are new CLI commands:
 
 ## Example
 
-See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views. 
+See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.
 
 ### **Registering transformations**
 
@@ -32,7 +32,7 @@ from feast import Field, RequestSource
 from feast.types import Float64, Int64
 import pandas as pd
 
-# Define a request data source which encodes features / information only 
+# Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
     name="vals_to_add",
@@ -44,10 +44,10 @@ input_request = RequestSource(
 
 # Use the input data and feature view features to create new features
 @on_demand_feature_view(
-   sources={
-       'driver_hourly_stats': driver_hourly_stats_view,
-       'vals_to_add': input_request
-   },
+   sources=[
+       driver_hourly_stats_view,
+       input_request
+   ],
    schema=[
      Field(name='conv_rate_plus_val1', dtype=Float64),
      Field(name='conv_rate_plus_val2', dtype=Float64)
@@ -63,7 +63,7 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 ### **Feature retrieval**
 
 {% hint style="info" %}
-The on demand feature view's name is the function name \(i.e. `transformed_conv_rate`\). 
+The on demand feature view's name is the function name \(i.e. `transformed_conv_rate`\).
 {% endhint %}
 
 And then to retrieve historical or online features, we can call this in a feature service or reference individual features:

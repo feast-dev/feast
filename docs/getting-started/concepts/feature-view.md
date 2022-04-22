@@ -157,10 +157,10 @@ input_request = RequestSource(
 
 # Use the input data and feature view features to create new features
 @on_demand_feature_view(
-   sources={
-       'driver_hourly_stats': driver_hourly_stats_view,
-       'vals_to_add': input_request
-   },
+   sources=[
+       driver_hourly_stats_view,
+       input_request
+   ],
    schema=[
      Field(name='conv_rate_plus_val1', dtype=Float64),
      Field(name='conv_rate_plus_val2', dtype=Float64)

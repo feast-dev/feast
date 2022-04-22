@@ -43,7 +43,7 @@ input_request = RequestSource(
 # Define an on demand feature view which can generate new features based on
 # existing feature views and RequestSource features
 @on_demand_feature_view(
-    inputs=[
+    sources=[
         driver_hourly_stats_view,
         input_request,
     ],
