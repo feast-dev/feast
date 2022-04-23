@@ -58,12 +58,11 @@ def bootstrap():
     replace_str_in_file(config_file, "%AWS_REGION%", aws_region)
     replace_str_in_file(config_file, "%REDSHIFT_CLUSTER_ID%", cluster_id)
     replace_str_in_file(config_file, "%REDSHIFT_DATABASE%", database)
-    replace_str_in_file(driver_file, "%REDSHIFT_DATABASE%", database)
+    replace_str_in_file(config_file, "%REDSHIFT_DATABASE%", database)
     replace_str_in_file(config_file, "%REDSHIFT_USER%", user)
     replace_str_in_file(
-        driver_file, config_file, "%REDSHIFT_S3_STAGING_LOCATION%", s3_staging_location
+        config_file, "%REDSHIFT_S3_STAGING_LOCATION%", s3_staging_location
     )
-    replace_str_in_file(config_file,)
     replace_str_in_file(config_file, "%REDSHIFT_IAM_ROLE%", iam_role)
 
 
