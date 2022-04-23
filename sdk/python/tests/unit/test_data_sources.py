@@ -242,6 +242,6 @@ def test_proto_conversion():
     assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
     assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
     assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
-    assert KinesisSource.from_proto(kinesis_source.to_proto()) == kinesis_source
-    assert PushSource.from_proto(push_source.to_proto()) == push_source
-    assert RequestSource.from_proto(request_source.to_proto()) == request_source
+    assert DataSource.from_proto(kinesis_source.to_proto()) == kinesis_source
+    assert DataSource.from_proto(push_source.to_proto()) == push_source
+    assert DataSource.from_proto(request_source.to_proto()) == request_source
