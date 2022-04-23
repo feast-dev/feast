@@ -153,6 +153,7 @@ def test_default_data_source_kw_arg_warning():
 
 def test_proto_conversion():
     bigquery_source = BigQuerySource(
+        name="test_source",
         table="test_table",
         timestamp_field="event_timestamp",
         created_timestamp_column="created_timestamp",
@@ -162,6 +163,7 @@ def test_proto_conversion():
     )
 
     file_source = FileSource(
+        name="test_source",
         path="test_path",
         timestamp_field="event_timestamp",
         created_timestamp_column="created_timestamp",
@@ -194,13 +196,6 @@ def test_proto_conversion():
         description="test description",
         owner="test@gmail.com",
     )
-
-    assert (
-        DataSource.from_proto(bigquery_source.to_proto()) == bigquery_source
-    )
-    assert DataSource.from_proto(file_source.to_proto()) == file_source
-    assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
-    assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
 
     kafka_source = KafkaSource(
         name="test_source",
@@ -237,14 +232,15 @@ def test_proto_conversion():
 
     request_source = RequestSource(
         name="test_source",
-        schema=[
-            Field(name="test1", dtype=Float32),
-            Field(name="test1", dtype=Int64),
-        ],
+        schema=[Field(name="test1", dtype=Float32), Field(name="test1", dtype=Int64)],
         description="test description",
         owner="test@gmail.com",
     )
 
+    assert DataSource.from_proto(bigquery_source.to_proto()) == bigquery_source
+    assert DataSource.from_proto(file_source.to_proto()) == file_source
+    assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
+    assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
     assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
     assert KinesisSource.from_proto(kinesis_source.to_proto()) == kinesis_source
     assert PushSource.from_proto(push_source.to_proto()) == push_source

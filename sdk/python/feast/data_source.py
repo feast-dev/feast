@@ -467,7 +467,9 @@ class KafkaSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source),
+            batch_source=DataSource.from_proto(data_source.batch_source)
+            if data_source.batch_source
+            else None,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -700,7 +702,9 @@ class KinesisSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source),
+            batch_source=DataSource.from_proto(data_source.batch_source)
+            if data_source.batch_source
+            else None,
         )
 
     @staticmethod
