@@ -201,3 +201,18 @@ def test_proto_conversion():
     assert DataSource.from_proto(file_source.to_proto()) == file_source
     assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
     assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
+
+    kafka_source = KafkaSource(
+        name="test_source",
+        bootstrap_servers="test_servers",
+        message_format=ProtoFormat("class_path"),
+        topic="test_topic",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
+    assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
