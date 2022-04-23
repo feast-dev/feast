@@ -215,4 +215,18 @@ def test_proto_conversion():
         batch_source=file_source,
     )
 
+    kinesis_source = KinesisSource(
+        name="test_source",
+        region="test_region",
+        record_format=ProtoFormat("class_path"),
+        stream_name="test_stream",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
     assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
+    assert KinesisSource.from_proto(kinesis_source.to_proto()) == kinesis_source
