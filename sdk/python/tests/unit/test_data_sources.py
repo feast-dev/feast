@@ -3,6 +3,7 @@ import pytest
 from feast import ValueType
 from feast.data_format import ProtoFormat
 from feast.data_source import (
+    DataSource,
     KafkaSource,
     KinesisSource,
     PushSource,
@@ -195,8 +196,8 @@ def test_proto_conversion():
     )
 
     assert (
-        BigQuerySource.from_proto(bigquery_source.to_proto()) == bigquery_source_proto
+        DataSource.from_proto(bigquery_source.to_proto()) == bigquery_source
     )
-    assert FileSource.from_proto(file_source.to_proto()) == file_source
-    assert RedshiftSource.from_proto(redshift_source.to_proto()) == redshift_source
-    assert SnowflakeSource.from_proto(snowflake_source.to_proto()) == snowflake_source
+    assert DataSource.from_proto(file_source.to_proto()) == file_source
+    assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
+    assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
