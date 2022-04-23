@@ -159,6 +159,7 @@ def test_proto_conversion():
         created_timestamp_column="created_timestamp",
         field_mapping={"foo": "bar"},
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
     )
 
@@ -169,6 +170,7 @@ def test_proto_conversion():
         created_timestamp_column="created_timestamp",
         field_mapping={"foo": "bar"},
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
     )
 
@@ -181,6 +183,7 @@ def test_proto_conversion():
         created_timestamp_column="created_timestamp",
         field_mapping={"foo": "bar"},
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
     )
 
@@ -194,6 +197,7 @@ def test_proto_conversion():
         created_timestamp_column="created_timestamp",
         field_mapping={"foo": "bar"},
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
     )
 
@@ -206,6 +210,7 @@ def test_proto_conversion():
         created_timestamp_column="created_timestamp",
         field_mapping={"foo": "bar"},
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
         batch_source=file_source,
     )
@@ -219,6 +224,7 @@ def test_proto_conversion():
         created_timestamp_column="created_timestamp",
         field_mapping={"foo": "bar"},
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
         batch_source=file_source,
     )
@@ -227,6 +233,7 @@ def test_proto_conversion():
         name="test_source",
         batch_source=file_source,
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
     )
 
@@ -234,6 +241,7 @@ def test_proto_conversion():
         name="test_source",
         schema=[Field(name="test1", dtype=Float32), Field(name="test1", dtype=Int64)],
         description="test description",
+        tags={"test": "test"},
         owner="test@gmail.com",
     )
 
