@@ -249,7 +249,7 @@ class SnowflakeSource(DataSource):
 
 class SnowflakeOptions:
     """
-    DataSource snowflake options used to source features from snowflake query.
+    Configuration options for a Snowflake data source.
     """
 
     def __init__(

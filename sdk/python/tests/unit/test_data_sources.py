@@ -11,6 +11,7 @@ from feast.data_source import (
 )
 from feast.field import Field
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 from feast.types import Bool, Float32, Int64
 
@@ -149,6 +150,15 @@ def test_default_data_source_kw_arg_warning():
 
 
 def test_proto_conversion():
+    file_source = FileSource(
+        path="test_path",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        owner="test@gmail.com",
+    )
+
     snowflake_source = SnowflakeSource(
         name="test_source",
         database="test_database",
@@ -162,4 +172,5 @@ def test_proto_conversion():
         owner="test@gmail.com",
     )
 
+    assert FileSource.from_proto(file_source.to_proto()) == file_source
     assert SnowflakeSource.from_proto(snowflake_source.to_proto()) == snowflake_source
