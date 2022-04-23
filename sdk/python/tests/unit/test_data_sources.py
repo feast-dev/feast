@@ -228,5 +228,13 @@ def test_proto_conversion():
         batch_source=file_source,
     )
 
+    push_source = PushSource(
+        name="test_source",
+        batch_source=file_source,
+        description="test description",
+        owner="test@gmail.com",
+    )
+
     assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
     assert KinesisSource.from_proto(kinesis_source.to_proto()) == kinesis_source
+    assert PushSource.from_proto(push_source.to_proto()) == push_source
