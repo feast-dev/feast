@@ -151,6 +151,15 @@ def test_default_data_source_kw_arg_warning():
 
 
 def test_proto_conversion():
+    bigquery_source = BigQuerySource(
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        owner="test@gmail.com",
+    )
+
     file_source = FileSource(
         path="test_path",
         timestamp_field="event_timestamp",
@@ -185,6 +194,9 @@ def test_proto_conversion():
         owner="test@gmail.com",
     )
 
+    assert (
+        BigQuerySource.from_proto(bigquery_source.to_proto()) == bigquery_source_proto
+    )
     assert FileSource.from_proto(file_source.to_proto()) == file_source
     assert RedshiftSource.from_proto(redshift_source.to_proto()) == redshift_source
     assert SnowflakeSource.from_proto(snowflake_source.to_proto()) == snowflake_source
