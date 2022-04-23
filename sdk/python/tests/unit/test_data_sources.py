@@ -235,6 +235,17 @@ def test_proto_conversion():
         owner="test@gmail.com",
     )
 
+    request_source = RequestSource(
+        name="test_source",
+        schema=[
+            Field(name="test1", dtype=Float32),
+            Field(name="test1", dtype=Int64),
+        ],
+        description="test description",
+        owner="test@gmail.com",
+    )
+
     assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
     assert KinesisSource.from_proto(kinesis_source.to_proto()) == kinesis_source
     assert PushSource.from_proto(push_source.to_proto()) == push_source
+    assert RequestSource.from_proto(request_source.to_proto()) == request_source

@@ -500,17 +500,20 @@ class RequestSource(DataSource):
     """
     RequestSource that can be used to provide input features for on demand transforms
 
-    Args:
+    Attributes:
         name: Name of the request data source
-        schema Union[Dict[str, ValueType], List[Field]]: Schema mapping from the input feature name to a ValueType
-        description (optional): A human-readable description.
-        tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
-        owner (optional): The owner of the request data source, typically the email of the primary
+        schema: Schema mapping from the input feature name to a ValueType
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the request data source, typically the email of the primary
             maintainer.
     """
 
     name: str
     schema: List[Field]
+    description: str
+    tags: Dict[str, str]
+    owner: str
 
     def __init__(
         self,
