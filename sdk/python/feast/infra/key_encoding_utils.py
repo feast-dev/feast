@@ -14,7 +14,7 @@ def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:
     elif value_type == "int32_val":
         return struct.pack("<i", v.int32_val), ValueType.INT32
     elif value_type == "int64_val":
-        return struct.pack("<l", v.int64_val), ValueType.INT64
+        return struct.pack("<q", v.int64_val), ValueType.INT64
     else:
         raise ValueError(f"Value type not supported for Firestore: {v}")
 
