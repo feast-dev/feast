@@ -173,7 +173,7 @@ class OfflineStore(ABC):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -185,7 +185,7 @@ class OfflineStore(ABC):
         FeatureStore.materialize() method. This method pulls data from the offline store, and the FeatureStore
         class is used to write this data into the online store.
 
-        Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
+        Note that join_key_columns, feature_name_columns, timestamp_field, and created_timestamp_column
         have all already been mapped to column names of the source table and those column names are the values passed
         into this function.
 
@@ -194,7 +194,7 @@ class OfflineStore(ABC):
             data_source: Data source to pull all of the columns from
             join_key_columns: Columns of the join keys
             feature_name_columns: Columns of the feature names needed
-            event_timestamp_column: Timestamp column
+            timestamp_field: Timestamp column
             start_date: Starting date of query
             end_date: Ending date of query
         """
@@ -220,14 +220,14 @@ class OfflineStore(ABC):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
         """
         Returns a Retrieval Job for all join key columns, feature name columns, and the event timestamp columns that occur between the start_date and end_date.
 
-        Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
+        Note that join_key_columns, feature_name_columns, timestamp_field, and created_timestamp_column
         have all already been mapped to column names of the source table and those column names are the values passed
         into this function.
 
@@ -236,7 +236,7 @@ class OfflineStore(ABC):
             data_source: Data source to pull all of the columns from
             join_key_columns: Columns of the join keys
             feature_name_columns: Columns of the feature names needed
-            event_timestamp_column: Timestamp column
+            timestamp_field: Timestamp column
             start_date: Starting date of query
             end_date: Ending date of query
         """

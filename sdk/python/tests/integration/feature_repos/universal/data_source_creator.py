@@ -34,7 +34,7 @@ class DataSourceCreator(ABC):
             event_timestamp_column: (Deprecated) Pass through for the underlying data source.
             created_timestamp_column: Pass through for the underlying data source.
             field_mapping: Pass through for the underlying data source.
-            timestamp_field: (Deprecated) Pass through for the underlying data source.
+            timestamp_field: Pass through for the underlying data source.
 
 
         Returns:

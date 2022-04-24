@@ -71,7 +71,7 @@ def update_entities_with_inferred_types_from_feature_views(
 def update_data_sources_with_inferred_event_timestamp_col(
     data_sources: List[DataSource], config: RepoConfig
 ) -> None:
-    ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
+    ERROR_MSG_PREFIX = "Unable to infer DataSource timestamp_field"
 
     for data_source in data_sources:
         if isinstance(data_source, RequestSource):
