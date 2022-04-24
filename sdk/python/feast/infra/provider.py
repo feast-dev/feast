@@ -258,7 +258,7 @@ def _get_column_names(
         the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.batch_source.timestamp_field
+    timestamp_field = feature_view.batch_source.timestamp_field
     feature_names = [feature.name for feature in feature_view.features]
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
     join_keys = [
@@ -268,10 +268,10 @@ def _get_column_names(
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
-        event_timestamp_column = (
-            reverse_field_mapping[event_timestamp_column]
-            if event_timestamp_column in reverse_field_mapping.keys()
-            else event_timestamp_column
+        timestamp_field = (
+            reverse_field_mapping[timestamp_field]
+            if timestamp_field in reverse_field_mapping.keys()
+            else timestamp_field
         )
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
@@ -294,13 +294,13 @@ def _get_column_names(
         name
         for name in feature_names
         if name not in join_keys
-        and name != event_timestamp_column
+        and name != timestamp_field
         and name != created_timestamp_column
     ]
     return (
         join_keys,
         feature_names,
-        event_timestamp_column,
+        timestamp_field,
         created_timestamp_column,
     )
 

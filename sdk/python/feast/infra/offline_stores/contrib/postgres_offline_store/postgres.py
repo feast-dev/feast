@@ -55,7 +55,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -68,7 +68,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             partition_by_join_key_string = (
                 "PARTITION BY " + partition_by_join_key_string
             )
-        timestamps = [event_timestamp_column]
+        timestamps = [timestamp_field]
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(_append_alias(timestamps, "a")) + " DESC"
@@ -87,7 +87,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                 SELECT {a_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM ({from_expression}) a
-                WHERE a."{event_timestamp_column}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+                WHERE a."{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
             ) b
             WHERE _feast_row = 1
             """
@@ -191,7 +191,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
@@ -199,7 +199,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         from_expression = data_source.get_table_query_string()
 
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [event_timestamp_column]
+            join_key_columns + feature_name_columns + [timestamp_field]
         )
 
         start_date = start_date.astimezone(tz=utc)
@@ -208,7 +208,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE "{event_timestamp_column}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
         """
 
         return PostgreSQLRetrievalJob(
@@ -415,9 +415,9 @@ WITH entity_dataframe AS (
 
  1. We first join the current feature_view to the entity dataframe that has been passed.
  This JOIN has the following logic:
-    - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
+    - For each row of the entity dataframe, only keep the rows where the `timestamp_field`
     is less than the one provided in the entity dataframe
-    - If there a TTL for the current feature_view, also keep the rows where the `event_timestamp_column`
+    - If there a TTL for the current feature_view, also keep the rows where the `timestamp_field`
     is higher the the one provided minus the TTL
     - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
     computed previously
@@ -428,16 +428,16 @@ WITH entity_dataframe AS (
 
 "{{ featureview.name }}__subquery" AS (
     SELECT
-        "{{ featureview.event_timestamp_column }}" as event_timestamp,
+        "{{ featureview.timestamp_field }}" as event_timestamp,
         {{ '"' ~ featureview.created_timestamp_column ~ '" as created_timestamp,' if featureview.created_timestamp_column else '' }}
         {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             "{{ feature }}" as {% if full_feature_names %}"{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }} AS sub
-    WHERE "{{ featureview.event_timestamp_column }}" <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
+    WHERE "{{ featureview.timestamp_field }}" <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
     {% if featureview.ttl == 0 %}{% else %}
-    AND "{{ featureview.event_timestamp_column }}" >= (SELECT MIN(entity_timestamp) FROM entity_dataframe) - {{ featureview.ttl }} * interval '1' second
+    AND "{{ featureview.timestamp_field }}" >= (SELECT MIN(entity_timestamp) FROM entity_dataframe) - {{ featureview.ttl }} * interval '1' second
     {% endif %}
 ),
 

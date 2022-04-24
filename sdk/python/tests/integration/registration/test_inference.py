@@ -42,9 +42,9 @@ def test_update_entities_with_inferred_types_from_feature_views(
     simple_dataset_1, simple_dataset_2
 ):
     with prep_file_source(
-        df=simple_dataset_1, event_timestamp_column="ts_1"
+        df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source, prep_file_source(
-        df=simple_dataset_2, event_timestamp_column="ts_1"
+        df=simple_dataset_2, timestamp_field="ts_1"
     ) as file_source_2:
 
         fv1 = FeatureView(

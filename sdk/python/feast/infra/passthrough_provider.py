@@ -136,7 +136,7 @@ class PassthroughProvider(Provider):
         (
             join_key_columns,
             feature_name_columns,
-            event_timestamp_column,
+            timestamp_field,
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
@@ -145,7 +145,7 @@ class PassthroughProvider(Provider):
             data_source=feature_view.batch_source,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
@@ -210,7 +210,7 @@ class PassthroughProvider(Provider):
             data_source=dataset.storage.to_data_source(),
             join_key_columns=dataset.join_keys,
             feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_ts_column,
+            timestamp_field=event_ts_column,
             start_date=make_tzaware(dataset.min_event_timestamp),  # type: ignore
             end_date=make_tzaware(dataset.max_event_timestamp + timedelta(seconds=1)),  # type: ignore
         )

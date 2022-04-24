@@ -3,6 +3,7 @@ import pytest
 from feast import ValueType
 from feast.data_format import ProtoFormat
 from feast.data_source import (
+    DataSource,
     KafkaSource,
     KinesisSource,
     PushSource,
@@ -11,6 +12,9 @@ from feast.data_source import (
 )
 from feast.field import Field
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.redshift_source import RedshiftSource
+from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 from feast.types import Bool, Float32, Int64
 
 
@@ -140,8 +144,112 @@ def test_default_data_source_kw_arg_warning():
     # No name warning for DataSource
     with pytest.warns(UserWarning):
         source = KafkaSource(
-            event_timestamp_column="column",
+            timestamp_field="column",
             bootstrap_servers="bootstrap_servers",
             message_format=ProtoFormat("class_path"),
             topic="topic",
         )
+
+
+def test_proto_conversion():
+    bigquery_source = BigQuerySource(
+        name="test_source",
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    file_source = FileSource(
+        name="test_source",
+        path="test_path",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    redshift_source = RedshiftSource(
+        name="test_source",
+        database="test_database",
+        schema="test_schema",
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    snowflake_source = SnowflakeSource(
+        name="test_source",
+        database="test_database",
+        warehouse="test_warehouse",
+        schema="test_schema",
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    kafka_source = KafkaSource(
+        name="test_source",
+        bootstrap_servers="test_servers",
+        message_format=ProtoFormat("class_path"),
+        topic="test_topic",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
+    kinesis_source = KinesisSource(
+        name="test_source",
+        region="test_region",
+        record_format=ProtoFormat("class_path"),
+        stream_name="test_stream",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
+    push_source = PushSource(
+        name="test_source",
+        batch_source=file_source,
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    request_source = RequestSource(
+        name="test_source",
+        schema=[Field(name="test1", dtype=Float32), Field(name="test1", dtype=Int64)],
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    assert DataSource.from_proto(bigquery_source.to_proto()) == bigquery_source
+    assert DataSource.from_proto(file_source.to_proto()) == file_source
+    assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
+    assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
+    assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
+    assert DataSource.from_proto(kinesis_source.to_proto()) == kinesis_source
+    assert DataSource.from_proto(push_source.to_proto()) == push_source
+    assert DataSource.from_proto(request_source.to_proto()) == request_source

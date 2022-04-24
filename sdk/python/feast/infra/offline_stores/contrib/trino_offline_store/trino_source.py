@@ -205,7 +205,7 @@ class TrinoSource(DataSource):
             host=config.offline_store.host,
             port=config.offline_store.port,
         )
-        if self.table is not None:
+        if self.table:
             table_schema = client.execute_query(
                 f"SELECT * FROM {self.table} LIMIT 1"
             ).schema
