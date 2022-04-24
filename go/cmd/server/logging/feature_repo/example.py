@@ -9,7 +9,7 @@ from feast import Entity, Feature, FeatureView, FileSource, ValueType, FeatureSe
 # for more info.
 driver_hourly_stats = FileSource(
     path="driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 

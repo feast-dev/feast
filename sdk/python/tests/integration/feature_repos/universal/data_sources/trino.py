@@ -92,7 +92,7 @@ class TrinoSourceCreator(DataSourceCreator):
         return TrinoSource(
             name="ci_trino_offline_store",
             table=destination_name,
-            event_timestamp_column=timestamp_field,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             query=f"SELECT * FROM {destination_name}",
             field_mapping=field_mapping or {"ts_1": "ts"},

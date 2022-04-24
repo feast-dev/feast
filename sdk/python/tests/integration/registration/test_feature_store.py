@@ -216,9 +216,7 @@ def test_apply_feature_view_success(test_feature_store):
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_feature_view_inference_success(test_feature_store, dataframe_source):
-    with prep_file_source(
-        df=dataframe_source, event_timestamp_column="ts_1"
-    ) as file_source:
+    with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
         entity = Entity(
             name="id", join_keys=["id_join_key"], value_type=ValueType.INT64
         )
@@ -434,9 +432,7 @@ def test_apply_remote_repo():
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_reapply_feature_view_success(test_feature_store, dataframe_source):
-    with prep_file_source(
-        df=dataframe_source, event_timestamp_column="ts_1"
-    ) as file_source:
+    with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
 
         e = Entity(name="id", join_keys=["id_join_key"], value_type=ValueType.STRING)
 

@@ -86,7 +86,7 @@ class FeatureViewQueryContext:
     entities: List[str]
     features: List[str]  # feature reference format
     field_mapping: Dict[str, str]
-    event_timestamp_column: str
+    timestamp_field: str
     created_timestamp_column: Optional[str]
     table_subquery: str
     entity_selections: List[str]
@@ -154,7 +154,7 @@ def get_feature_view_query_context(
             entities=join_keys,
             features=features,
             field_mapping=feature_view.batch_source.field_mapping,
-            event_timestamp_column=timestamp_field,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             # TODO: Make created column optional and not hardcoded
             table_subquery=feature_view.batch_source.get_table_query_string(),

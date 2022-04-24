@@ -144,7 +144,7 @@ def test_default_data_source_kw_arg_warning():
     # No name warning for DataSource
     with pytest.warns(UserWarning):
         source = KafkaSource(
-            event_timestamp_column="column",
+            timestamp_field="column",
             bootstrap_servers="bootstrap_servers",
             message_format=ProtoFormat("class_path"),
             topic="topic",
