@@ -36,7 +36,7 @@ Registered feature view driver_hourly_stats_view
 Deploying infrastructure for driver_hourly_stats_view
 ```
 
-### Migrate Latest Data to Online Feature Store (HBase)
+### Materialize Latest Data to Online Feature Store (HBase)
 ```
 $ CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S") 
 $ feast -c feature_repo materialize-incremental $CURRENT_TIME
