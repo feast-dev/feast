@@ -211,7 +211,7 @@ class RedshiftSource(DataSource):
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
 
         client = aws_utils.get_redshift_data_client(config.offline_store.region)
-        if self.table is not None:
+        if self.table:
             try:
                 table = client.describe_table(
                     ClusterIdentifier=config.offline_store.cluster_id,
