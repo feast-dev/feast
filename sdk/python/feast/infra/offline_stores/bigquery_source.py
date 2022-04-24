@@ -171,7 +171,7 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-        if self.table is not None:
+        if self.table:
             schema = client.get_table(self.table).schema
             if not isinstance(schema[0], bigquery.schema.SchemaField):
                 raise TypeError("Could not parse BigQuery table schema.")
