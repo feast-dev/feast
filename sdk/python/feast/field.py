@@ -52,7 +52,11 @@ class Field:
         self.tags = tags or {}
 
     def __eq__(self, other):
-        if self.name != other.name or self.dtype != other.dtype or self.tags != other.tags:
+        if (
+            self.name != other.name
+            or self.dtype != other.dtype
+            or self.tags != other.tags
+        ):
             return False
         return True
 
@@ -82,7 +86,11 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        return cls(name=field_proto.name, dtype=from_value_type(value_type=value_type), tags=field_proto.tags)
+        return cls(
+            name=field_proto.name,
+            dtype=from_value_type(value_type=value_type),
+            tags=field_proto.tags,
+        )
 
     @classmethod
     def from_feature(cls, feature: Feature):
@@ -92,4 +100,6 @@ class Field:
         Args:
             feature: Feature object to convert.
         """
-        return cls(name=feature.name, dtype=from_value_type(feature.dtype), tags=feature.labels)
+        return cls(
+            name=feature.name, dtype=from_value_type(feature.dtype), tags=feature.spec.labels
+        )
