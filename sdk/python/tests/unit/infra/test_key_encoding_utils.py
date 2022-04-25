@@ -13,16 +13,16 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
                 join_keys=["customer"],
                 entity_values=[ValueProto(int64_val=int(2 ** 31))],
             ),
-            "customer",
+            b"customer",
         ),
         (
             EntityKeyProto(
                 join_keys=["user"], entity_values=[ValueProto(int32_val=int(2 ** 15))]
             ),
-            "user",
+            b"user",
         ),
     ],
 )
 def test_serialize_entity_key(entity_key, expected_contains):
     output = serialize_entity_key(entity_key)
-    assert expected_contains in str(output)
+    assert output.find(expected_contains) >= 0
