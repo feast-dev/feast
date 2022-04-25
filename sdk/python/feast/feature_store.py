@@ -529,7 +529,7 @@ class FeatureStore:
             ... )
             >>> driver_hourly_stats_view = FeatureView(
             ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
+            ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
@@ -640,7 +640,7 @@ class FeatureStore:
             ... )
             >>> driver_hourly_stats_view = FeatureView(
             ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
+            ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )

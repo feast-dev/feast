@@ -27,7 +27,7 @@ def test_get_column_names_preserves_feature_ordering():
     entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
     fv = FeatureView(
         name="my-fv",
-        entities=["my-entity"],
+        entities=[entity],
         ttl=timedelta(days=1),
         batch_source=BigQuerySource(table="non-existent-mock"),
         schema=[

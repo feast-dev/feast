@@ -21,9 +21,10 @@ from feast.value_type import ValueType
 
 
 def create_driver_hourly_stats_feature_view(source):
+    driver = Entity(name="driver", join_keys=["driver_id"])
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=["driver_id"],
+        entities=[driver],
         schema=[
             Field(name="conv_rate", dtype=Float32),
             Field(name="acc_rate", dtype=Float32),
