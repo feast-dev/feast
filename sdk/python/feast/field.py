@@ -35,7 +35,7 @@ class Field:
     tags: Dict[str, str]
 
     def __init__(
-        self, *, name: str, dtype: FeastType, tags: Optional[Dict[str, str]] = None,
+        self, *, name: Optional[str] = None, dtype: Optional[FeastType] = None, tags: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a Field object.
@@ -45,8 +45,8 @@ class Field:
             dtype: The type of the field, such as string or float.
             tags (optional): User-defined metadata in dictionary form.
         """
-        self.name = name
-        self.dtype = dtype
+        self.name = name or ""
+        self.dtype = dtype or FeastType.INVALID
         self.tags = tags or {}
 
     def __eq__(self, other):
