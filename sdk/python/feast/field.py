@@ -14,8 +14,6 @@
 
 from typing import Dict, Optional
 
-from attr import field
-
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
 from feast.types import FeastType, from_value_type
