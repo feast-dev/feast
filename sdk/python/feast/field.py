@@ -18,6 +18,7 @@ from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
 from feast.types import FeastType, from_value_type
 from feast.value_type import ValueType
+from feast.types import PrimitiveFeastType
 
 
 class Field:
@@ -35,7 +36,11 @@ class Field:
     tags: Dict[str, str]
 
     def __init__(
-        self, *, name: Optional[str] = None, dtype: Optional[FeastType] = None, tags: Optional[Dict[str, str]] = None,
+        self,
+        *,
+        name: Optional[str] = None,
+        dtype: Optional[FeastType] = None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a Field object.
@@ -46,7 +51,7 @@ class Field:
             tags (optional): User-defined metadata in dictionary form.
         """
         self.name = name or ""
-        self.dtype = dtype or FeastType.INVALID
+        self.dtype = dtype or PrimitiveFeastType.INVALID
         self.tags = tags or {}
 
     def __eq__(self, other):
