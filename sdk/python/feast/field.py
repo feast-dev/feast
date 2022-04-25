@@ -15,8 +15,8 @@
 from typing import Dict, Optional
 
 from feast.feature import Feature
-from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, PrimitiveFeastType, from_value_type
+from feast.protos.feast.types.Field_pb2 import Field as FieldProto
+from feast.types import FeastType, from_value_type
 from feast.value_type import ValueType
 
 
@@ -35,11 +35,7 @@ class Field:
     tags: Dict[str, str]
 
     def __init__(
-        self,
-        *,
-        name: Optional[str] = None,
-        dtype: Optional[FeastType] = None,
-        tags: Optional[Dict[str, str]] = None,
+        self, *, name: str, dtype: FeastType, tags: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a Field object.
@@ -49,8 +45,8 @@ class Field:
             dtype: The type of the field, such as string or float.
             tags (optional): User-defined metadata in dictionary form.
         """
-        self.name = name or ""
-        self.dtype = dtype or PrimitiveFeastType.INVALID
+        self.name = name
+        self.dtype = dtype
         self.tags = tags or {}
 
     def __eq__(self, other):
@@ -63,7 +59,7 @@ class Field:
         return True
 
     def __hash__(self):
-        return hash((self.name, hash(self.dtype), hash(self.tags)))
+        return hash((self.name, hash(self.dtype)))
 
     def __lt__(self, other):
         return self.name < other.name
@@ -77,7 +73,7 @@ class Field:
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
-        return FieldProto(name=self.name, value_type=value_type.value, labels=self.tags)
+        return FieldProto(name=self.name, value_type=value_type.value, tags=self.tags)
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -91,7 +87,7 @@ class Field:
         return cls(
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
-            tags=dict(field_proto.labels),
+            tags=dict(field_proto.tags),
         )
 
     @classmethod
