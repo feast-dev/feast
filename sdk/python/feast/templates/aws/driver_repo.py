@@ -41,7 +41,7 @@ driver_stats_fv = FeatureView(
     # The list of entities specifies the keys required for joining or looking
     # up features from this feature view. The reference provided in this field
     # correspond to the name of a defined entity (or entities)
-    entities=["driver"],
+    entities=[driver],
     # The timedelta is the maximum age that each feature value may have
     # relative to its lookup time. For historical features (used in training),
     # TTL is relative to each timestamp provided in the entity dataframe.

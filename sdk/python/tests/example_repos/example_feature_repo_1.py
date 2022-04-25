@@ -59,7 +59,7 @@ customer = Entity(
 
 driver_locations = FeatureView(
     name="driver_locations",
-    entities=["driver"],
+    entities=[driver],
     ttl=timedelta(days=1),
     schema=[Field(name="lat", dtype=Float32), Field(name="lon", dtype=String)],
     online=True,
@@ -69,7 +69,7 @@ driver_locations = FeatureView(
 
 pushed_driver_locations = FeatureView(
     name="pushed_driver_locations",
-    entities=["driver"],
+    entities=[driver],
     ttl=timedelta(days=1),
     schema=[
         Field(name="driver_lat", dtype=Float32),
@@ -82,7 +82,7 @@ pushed_driver_locations = FeatureView(
 
 customer_profile = FeatureView(
     name="customer_profile",
-    entities=["customer"],
+    entities=[customer],
     ttl=timedelta(days=1),
     schema=[
         Field(name="avg_orders_day", dtype=Float32),
@@ -96,7 +96,7 @@ customer_profile = FeatureView(
 
 customer_driver_combined = FeatureView(
     name="customer_driver_combined",
-    entities=["customer", "driver"],
+    entities=[customer, driver],
     ttl=timedelta(days=1),
     schema=[Field(name="trips", dtype=Int64)],
     online=True,

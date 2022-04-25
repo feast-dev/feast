@@ -14,7 +14,7 @@ driver = Entity(name="driver_id", value_type=ValueType.INT64, description="drive
 
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=[driver],
     ttl=timedelta(days=1),
     schema=[
         Field(name="conv_rate", dtype=Float32),

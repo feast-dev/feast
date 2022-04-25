@@ -123,7 +123,7 @@ def test_write_to_online_store_event_check(environment):
         fv1 = FeatureView(
             name="feature_view_123",
             schema=[Field(name="string_col", dtype=String)],
-            entities=["id"],
+            entities=[e],
             batch_source=file_source,
             ttl=timedelta(minutes=5),
         )

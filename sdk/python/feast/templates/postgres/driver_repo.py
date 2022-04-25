@@ -18,7 +18,7 @@ driver_stats_source = PostgreSQLSource(
 
 driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=[driver],
     ttl=timedelta(weeks=52),
     schema=[
         Field(name="conv_rate", dtype=Float32),

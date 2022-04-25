@@ -15,7 +15,12 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.types import Array, FeastType, Float32, Float64, Int32
-from tests.integration.feature_repos.universal.entities import location
+from tests.integration.feature_repos.universal.entities import (
+    customer,
+    driver,
+    item,
+    location,
+)
 
 
 def driver_feature_view(
@@ -27,7 +32,7 @@ def driver_feature_view(
 ) -> FeatureView:
     return FeatureView(
         name=name,
-        entities=entities or ["driver"],
+        entities=entities or [driver()],
         schema=None if infer_features else [Field(name="value", dtype=dtype)],
         ttl=timedelta(days=5),
         source=data_source,
@@ -139,7 +144,7 @@ def create_similarity_request_source():
 def create_item_embeddings_feature_view(source, infer_features: bool = False):
     item_embeddings_feature_view = FeatureView(
         name="item_embeddings",
-        entities=["item"],
+        entities=[item()],
         schema=None
         if infer_features
         else [
@@ -157,7 +162,7 @@ def create_item_embeddings_batch_feature_view(
 ) -> BatchFeatureView:
     item_embeddings_feature_view = BatchFeatureView(
         name="item_embeddings",
-        entities=["item"],
+        entities=[item()],
         schema=None
         if infer_features
         else [
@@ -173,7 +178,7 @@ def create_item_embeddings_batch_feature_view(
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=["driver"],
+        entities=[driver()],
         schema=None
         if infer_features
         else [
@@ -192,7 +197,7 @@ def create_driver_hourly_stats_batch_feature_view(
 ) -> BatchFeatureView:
     driver_stats_feature_view = BatchFeatureView(
         name="driver_stats",
-        entities=["driver"],
+        entities=[driver()],
         schema=None
         if infer_features
         else [
@@ -209,7 +214,7 @@ def create_driver_hourly_stats_batch_feature_view(
 def create_customer_daily_profile_feature_view(source, infer_features: bool = False):
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
-        entities=["customer_id"],
+        entities=[customer()],
         schema=None
         if infer_features
         else [
@@ -243,7 +248,7 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
 def create_order_feature_view(source, infer_features: bool = False):
     return FeatureView(
         name="order",
-        entities=["driver", "customer_id"],
+        entities=[customer(), driver()],
         schema=None
         if infer_features
         else [Field(name="order_is_success", dtype=Int32)],
@@ -280,7 +285,7 @@ def create_pushable_feature_view(batch_source: DataSource):
     )
     return FeatureView(
         name="pushable_location_stats",
-        entities=["location_id"],
+        entities=[location()],
         # Test that Features still work for FeatureViews.
         features=[Feature(name="temperature", dtype=ValueType.INT32)],
         ttl=timedelta(days=2),

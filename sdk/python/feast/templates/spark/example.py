@@ -40,7 +40,7 @@ customer_daily_profile = SparkSource(
 # Feature Views
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver"],
+    entities=[driver],
     ttl=timedelta(days=7),
     schema=[
         Field(name="conv_rate", dtype=Float32),
@@ -53,7 +53,7 @@ driver_hourly_stats_view = FeatureView(
 )
 customer_daily_profile_view = FeatureView(
     name="customer_daily_profile",
-    entities=["customer"],
+    entities=[customer],
     ttl=timedelta(days=7),
     schema=[
         Field(name="current_balance", dtype=Float32),

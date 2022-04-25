@@ -173,6 +173,8 @@ def test_apply_feature_view_success(test_registry):
         created_timestamp_column="timestamp",
     )
 
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
@@ -181,7 +183,7 @@ def test_apply_feature_view_success(test_registry):
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
-        entities=["fs1_my_entity_1"],
+        entities=[entity],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
@@ -327,10 +329,12 @@ def test_modify_feature_views_success(test_registry, request_source_schema):
 
     request_source = RequestSource(name="request_source", schema=request_source_schema,)
 
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
-        entities=["fs1_my_entity_1"],
+        entities=[entity],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
@@ -443,6 +447,8 @@ def test_apply_feature_view_integration(test_registry):
         created_timestamp_column="timestamp",
     )
 
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
@@ -451,7 +457,7 @@ def test_apply_feature_view_integration(test_registry):
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
-        entities=["fs1_my_entity_1"],
+        entities=[entity],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
@@ -518,6 +524,8 @@ def test_apply_data_source(test_registry: Registry):
         created_timestamp_column="timestamp",
     )
 
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
@@ -526,7 +534,7 @@ def test_apply_data_source(test_registry: Registry):
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
-        entities=["fs1_my_entity_1"],
+        entities=[entity],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
