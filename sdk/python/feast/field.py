@@ -16,9 +16,8 @@ from typing import Dict, Optional
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type
+from feast.types import FeastType, PrimitiveFeastType, from_value_type
 from feast.value_type import ValueType
-from feast.types import PrimitiveFeastType
 
 
 class Field:
