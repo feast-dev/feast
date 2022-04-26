@@ -35,6 +35,7 @@ def test_partial() -> None:
                 Field(name="lat", dtype=Float32),
                 Field(name="lon", dtype=String),
                 Field(name="name", dtype=String),
+                Field(name="test", dtype=String),
             ],
             online=True,
             batch_source=driver_locations_source,

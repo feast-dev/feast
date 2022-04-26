@@ -20,6 +20,7 @@ driver_hourly_stats_view = FeatureView(
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="driver_id", dtype=Int32),
     ],
     online=True,
     source=driver_hourly_stats,

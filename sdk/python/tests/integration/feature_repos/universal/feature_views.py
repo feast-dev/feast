@@ -14,7 +14,7 @@ from feast import (
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.types import Array, FeastType, Float32, Float64, Int32
+from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
 from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
@@ -28,7 +28,7 @@ def driver_feature_view(
     name="test_correctness",
     infer_features: bool = False,
     dtype: FeastType = Float32,
-    entity_type: FeastType = Int32,
+    entity_type: FeastType = Int64,
 ) -> FeatureView:
     d = driver()
     return FeatureView(
@@ -178,15 +178,19 @@ def create_item_embeddings_batch_feature_view(
 
 
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
+    # TODO(felixwang9817): Figure out why not adding an entity field here
+    # breaks type tests.
+    d = driver()
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=[driver()],
+        entities=[d],
         schema=None
         if infer_features
         else [
             Field(name="conv_rate", dtype=Float32),
             Field(name="acc_rate", dtype=Float32),
             Field(name="avg_daily_trips", dtype=Int32),
+            Field(name=d.join_key, dtype=Int64),
         ],
         source=source,
         ttl=timedelta(hours=2),
