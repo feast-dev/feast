@@ -38,11 +38,6 @@ class LoggingSource:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_partition_column(self, registry: "Registry") -> str:
-        """ Return partition column that must exist in generated schema. """
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def get_log_timestamp_column(self) -> str:
         """ Return timestamp column that must exist in generated schema. """
         raise NotImplementedError
@@ -99,14 +94,10 @@ class FeatureServiceLoggingSource(LoggingSource):
         # system columns
         fields[REQUEST_ID_FIELD] = pa.string()
         fields[LOG_TIMESTAMP_FIELD] = pa.timestamp("us", tz=UTC)
-        fields[LOG_DATE_FIELD] = pa.date32()
 
         return pa.schema(
             [pa.field(name, data_type) for name, data_type in fields.items()]
         )
-
-    def get_partition_column(self, registry: "Registry") -> str:
-        return LOG_DATE_FIELD
 
     def get_log_timestamp_column(self) -> str:
         return LOG_TIMESTAMP_FIELD

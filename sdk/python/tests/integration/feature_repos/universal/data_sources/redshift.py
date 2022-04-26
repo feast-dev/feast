@@ -84,7 +84,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         )
         self.tables.append(table)
 
-        return RedshiftLoggingDestination(table_ref=table)
+        return RedshiftLoggingDestination(table_name=table)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config

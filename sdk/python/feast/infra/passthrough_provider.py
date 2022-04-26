@@ -253,8 +253,7 @@ class PassthroughProvider(Provider):
         schema = logging_source.get_schema(registry)
         logging_config = feature_service.logging_config
         ts_column = logging_source.get_log_timestamp_column()
-        partition_column = logging_source.get_partition_column(registry)
-        columns = list(set(schema.names) - {ts_column, partition_column})
+        columns = list(set(schema.names) - {ts_column})
 
         return self.offline_store.pull_all_from_table_or_query(
             config=config,

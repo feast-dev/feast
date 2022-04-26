@@ -264,7 +264,7 @@ class BigQueryLoggingDestination(LoggingDestination):
 
     table: str
 
-    def __init__(self, table_ref):
+    def __init__(self, *, table_ref):
         self.table = table_ref
 
     @classmethod

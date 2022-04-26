@@ -336,23 +336,23 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 class RedshiftLoggingDestination(LoggingDestination):
     _proto_kind = "redshift_destination"
 
-    table: str
+    table_name: str
 
-    def __init__(self, table_ref: str):
-        self.table = table_ref
+    def __init__(self, *, table_name: str):
+        self.table_name = table_name
 
     @classmethod
     def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
         return RedshiftLoggingDestination(
-            table_ref=config_proto.redshift_destination.table_ref,
+            table_name=config_proto.redshift_destination.table_name,
         )
 
     def to_proto(self) -> LoggingConfigProto:
         return LoggingConfigProto(
             redshift_destination=LoggingConfigProto.RedshiftDestination(
-                table_ref=self.table
+                table_name=self.table_name
             )
         )
 
     def to_data_source(self) -> DataSource:
-        return RedshiftSource(table=self.table)
+        return RedshiftSource(table=self.table_name)

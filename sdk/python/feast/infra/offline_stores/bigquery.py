@@ -274,12 +274,11 @@ class BigQueryOfflineStore(OfflineStore):
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             schema=arrow_schema_to_bq_schema(source.get_schema(registry)),
+            time_partitioning=bigquery.TimePartitioning(
+                type_=bigquery.TimePartitioningType.DAY,
+                field=source.get_log_timestamp_column(),
+            ),
         )
-        partition_col = source.get_partition_column(registry)
-        if partition_col:
-            job_config.time_partitioning = bigquery.TimePartitioning(
-                type_=bigquery.TimePartitioningType.DAY, field=partition_col
-            )
 
         with tempfile.TemporaryFile() as parquet_temp_file:
             pyarrow.parquet.write_table(table=data, where=parquet_temp_file)

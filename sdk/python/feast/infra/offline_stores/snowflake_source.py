@@ -336,25 +336,25 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
 
 class SnowflakeLoggingDestination(LoggingDestination):
-    table: str
+    table_name: str
 
     _proto_kind = "snowflake_destination"
 
-    def __init__(self, table: str):
-        self.table = table
+    def __init__(self, *, table_name: str):
+        self.table_name = table_name
 
     @classmethod
     def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
         return SnowflakeLoggingDestination(
-            table=config_proto.snowflake_destination.table,
+            table_name=config_proto.snowflake_destination.table_name,
         )
 
     def to_proto(self) -> LoggingConfigProto:
         return LoggingConfigProto(
             snowflake_destination=LoggingConfigProto.SnowflakeDestination(
-                table=self.table,
+                table_name=self.table_name,
             )
         )
 
     def to_data_source(self) -> DataSource:
-        return SnowflakeSource(table=self.table,)
+        return SnowflakeSource(table=self.table_name,)

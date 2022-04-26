@@ -390,7 +390,7 @@ class FileOfflineStore(OfflineStore):
         pyarrow.parquet.write_to_dataset(
             data,
             root_path=path,
-            partition_cols=[source.get_partition_column(registry)],
+            partition_cols=destination.partition_by,
             filesystem=filesystem,
         )
 

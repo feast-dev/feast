@@ -288,7 +288,7 @@ class RedshiftOfflineStore(OfflineStore):
             s3_resource=s3_resource,
             s3_path=s3_path,
             iam_role=config.offline_store.iam_role,
-            table_name=destination.table,
+            table_name=destination.table_name,
             schema=source.get_schema(registry),
             fail_if_exists=False,
         )

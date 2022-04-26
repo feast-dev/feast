@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
@@ -301,22 +301,35 @@ class FileLoggingDestination(LoggingDestination):
 
     path: str
     s3_endpoint_override: str
+    partition_by: Optional[List[str]]
 
-    def __init__(self, *, path: str, s3_endpoint_override=""):
+    def __init__(
+        self,
+        *,
+        path: str,
+        s3_endpoint_override="",
+        partition_by: Optional[List[str]] = None,
+    ):
         self.path = path
         self.s3_endpoint_override = s3_endpoint_override
+        self.partition_by = partition_by
 
     @classmethod
     def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
         return FileLoggingDestination(
             path=config_proto.file_destination.path,
             s3_endpoint_override=config_proto.file_destination.s3_endpoint_override,
+            partition_by=list(config_proto.file_destination.partition_by)
+            if config_proto.file_destination.partition_by
+            else None,
         )
 
     def to_proto(self) -> LoggingConfigProto:
         return LoggingConfigProto(
             file_destination=LoggingConfigProto.FileDestination(
-                path=self.path, s3_endpoint_override=self.s3_endpoint_override,
+                path=self.path,
+                s3_endpoint_override=self.s3_endpoint_override,
+                partition_by=self.partition_by,
             )
         )
 

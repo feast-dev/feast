@@ -76,7 +76,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         )
         self.tables.append(table)
 
-        return SnowflakeLoggingDestination(table=table)
+        return SnowflakeLoggingDestination(table_name=table)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config
