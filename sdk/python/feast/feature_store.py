@@ -517,11 +517,11 @@ class FeatureStore:
         Examples:
             Generate a plan adding an Entity and a FeatureView.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from feast.feature_store import RepoContents
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
+            >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
@@ -629,10 +629,10 @@ class FeatureStore:
         Examples:
             Register an Entity and a FeatureView.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
+            >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",

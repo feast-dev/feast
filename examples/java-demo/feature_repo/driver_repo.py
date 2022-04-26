@@ -7,14 +7,14 @@ from feast.types import Float32, Float64, Int64, String
 from google.protobuf.duration_pb2 import Duration
 from feast.field import Field
 
-from feast import Entity, Feature, BatchFeatureView, FileSource, ValueType
+from feast import Entity, Feature, BatchFeatureView, FileSource
 
 driver_hourly_stats = FileSource(
     path="data/driver_stats_with_string.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(name="driver_id", description="driver id",)
 driver_hourly_stats_view = BatchFeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],

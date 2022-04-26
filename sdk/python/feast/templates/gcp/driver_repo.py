@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
+from feast import BigQuerySource, Entity, FeatureView, Field
 from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
@@ -13,8 +13,6 @@ driver = Entity(
     # features can be looked up. The join keys are also used to join feature
     # tables/views when building feature vectors
     join_keys=["driver_id"],
-    # The storage level type for an entity
-    value_type=ValueType.INT64,
 )
 
 # Indicates a data source from which feature values can be retrieved. Sources are queried when building training
