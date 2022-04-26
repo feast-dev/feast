@@ -1,14 +1,6 @@
 from datetime import timedelta
 
-from feast import (
-    BigQuerySource,
-    Entity,
-    FeatureService,
-    FeatureView,
-    Field,
-    PushSource,
-    ValueType,
-)
+from feast import BigQuerySource, Entity, FeatureService, FeatureView, Field, PushSource
 from feast.types import Float32, Int64, String
 
 driver_locations_source = BigQuerySource(
@@ -46,14 +38,12 @@ driver_locations_push_source = PushSource(
 driver = Entity(
     name="driver",  # The name is derived from this argument, not object name.
     join_keys=["driver_id"],
-    value_type=ValueType.INT64,
     description="driver id",
 )
 
 customer = Entity(
     name="customer",  # The name is derived from this argument, not object name.
     join_keys=["customer_id"],
-    value_type=ValueType.STRING,
 )
 
 

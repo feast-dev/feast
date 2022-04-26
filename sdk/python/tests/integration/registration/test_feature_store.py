@@ -27,10 +27,8 @@ from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float64, Int64, String
-from feast.value_type import ValueType
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -93,10 +91,7 @@ def feature_store_with_s3_registry():
 )
 def test_apply_entity_success(test_feature_store):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -108,7 +103,6 @@ def test_apply_entity_success(test_feature_store):
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -127,10 +121,7 @@ def test_apply_entity_success(test_feature_store):
 )
 def test_apply_entity_integration(test_feature_store):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -142,7 +133,6 @@ def test_apply_entity_integration(test_feature_store):
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -151,7 +141,6 @@ def test_apply_entity_integration(test_feature_store):
     entity = test_feature_store.get_entity("driver_car_id")
     assert (
         entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -219,9 +208,7 @@ def test_apply_feature_view_success(test_feature_store):
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_feature_view_inference_success(test_feature_store, dataframe_source):
     with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
-        entity = Entity(
-            name="id", join_keys=["id_join_key"], value_type=ValueType.INT64
-        )
+        entity = Entity(name="id", join_keys=["id_join_key"])
 
         fv1 = FeatureView(
             name="fv1",
@@ -368,13 +355,9 @@ def test_apply_object_and_read(test_feature_store):
         created_timestamp_column="timestamp",
     )
 
-    e1 = Entity(
-        name="fs1_my_entity_1", value_type=ValueType.STRING, description="something"
-    )
+    e1 = Entity(name="fs1_my_entity_1", description="something")
 
-    e2 = Entity(
-        name="fs1_my_entity_2", value_type=ValueType.STRING, description="something"
-    )
+    e2 = Entity(name="fs1_my_entity_2", description="something")
 
     fv1 = FeatureView(
         name="my_feature_view_1",
@@ -438,7 +421,7 @@ def test_apply_remote_repo():
 def test_reapply_feature_view_success(test_feature_store, dataframe_source):
     with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
 
-        e = Entity(name="id", join_keys=["id_join_key"], value_type=ValueType.STRING)
+        e = Entity(name="id", join_keys=["id_join_key"])
 
         # Create Feature View
         fv1 = FeatureView(

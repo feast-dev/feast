@@ -26,7 +26,6 @@ from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
-from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
@@ -73,10 +72,7 @@ def s3_registry() -> Registry:
 )
 def test_apply_entity_success(test_registry):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -90,7 +86,6 @@ def test_apply_entity_success(test_registry):
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -99,7 +94,6 @@ def test_apply_entity_success(test_registry):
     entity = test_registry.get_entity("driver_car_id", project)
     assert (
         entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -122,10 +116,7 @@ def test_apply_entity_success(test_registry):
 )
 def test_apply_entity_integration(test_registry):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -139,7 +130,6 @@ def test_apply_entity_integration(test_registry):
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -148,7 +138,6 @@ def test_apply_entity_integration(test_registry):
     entity = test_registry.get_entity("driver_car_id", project)
     assert (
         entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -507,10 +496,7 @@ def test_commit():
     test_registry = Registry(registry_config, None)
 
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -525,7 +511,6 @@ def test_commit():
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -534,7 +519,6 @@ def test_commit():
     entity = test_registry.get_entity("driver_car_id", project, allow_cache=True)
     assert (
         entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -560,7 +544,6 @@ def test_commit():
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -569,7 +552,6 @@ def test_commit():
     entity = test_registry.get_entity("driver_car_id", project)
     assert (
         entity.name == "driver_car_id"
-        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"

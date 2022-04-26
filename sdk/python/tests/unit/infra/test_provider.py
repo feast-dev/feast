@@ -20,11 +20,10 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.provider import _get_column_names
 from feast.types import String
-from feast.value_type import ValueType
 
 
 def test_get_column_names_preserves_feature_ordering():
-    entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
+    entity = Entity("my-entity", description="My entity")
     fv = FeatureView(
         name="my-fv",
         entities=[entity],

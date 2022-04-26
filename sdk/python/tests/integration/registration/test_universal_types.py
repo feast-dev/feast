@@ -139,7 +139,7 @@ def test_entity_inference_types_match(offline_types_test_fixtures):
     fs = environment.feature_store
 
     # Don't specify value type in entity to force inference
-    entity = driver(value_type=ValueType.UNKNOWN)
+    entity = driver()
     fs.apply([fv, entity])
 
     entities = fs.list_entities()
@@ -225,7 +225,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
-    entity = driver(value_type=config.entity_type)
+    entity = driver()
     fs.apply([fv, entity])
     fs.materialize(
         environment.start_date,
