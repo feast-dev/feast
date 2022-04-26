@@ -5,7 +5,7 @@
 from datetime import timedelta
 from pathlib import Path
 
-from feast import Entity, FeatureService, FeatureView, Field, ValueType
+from feast import Entity, FeatureService, FeatureView, Field
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
@@ -16,10 +16,8 @@ CURRENT_DIR = Path(__file__).parent
 
 
 # Entity definitions
-driver = Entity(name="driver", value_type=ValueType.INT64, description="driver id",)
-customer = Entity(
-    name="customer", value_type=ValueType.INT64, description="customer id",
-)
+driver = Entity(name="driver", description="driver id",)
+customer = Entity(name="customer", description="customer id",)
 
 # Sources
 driver_hourly_stats = SparkSource(

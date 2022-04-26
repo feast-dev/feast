@@ -36,7 +36,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.usage import log_exceptions
-from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -44,9 +43,7 @@ warnings.simplefilter("once", DeprecationWarning)
 DUMMY_ENTITY_ID = "__dummy_id"
 DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
-DUMMY_ENTITY = Entity(
-    name=DUMMY_ENTITY_NAME, join_keys=[DUMMY_ENTITY_ID], value_type=ValueType.STRING,
-)
+DUMMY_ENTITY = Entity(name=DUMMY_ENTITY_NAME, join_keys=[DUMMY_ENTITY_ID],)
 
 
 class FeatureView(BaseFeatureView):
