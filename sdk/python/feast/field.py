@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, Optional
+
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
 from feast.types import FeastType, from_value_type
@@ -25,13 +27,15 @@ class Field:
     Attributes:
         name: The name of the field.
         dtype: The type of the field, such as string or float.
+        tags: User-defined metadata in dictionary form.
     """
 
     name: str
     dtype: FeastType
+    tags: Dict[str, str]
 
     def __init__(
-        self, *, name: str, dtype: FeastType,
+        self, *, name: str, dtype: FeastType, tags: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a Field object.
@@ -39,12 +43,18 @@ class Field:
         Args:
             name: The name of the field.
             dtype: The type of the field, such as string or float.
+            tags (optional): User-defined metadata in dictionary form.
         """
         self.name = name
         self.dtype = dtype
+        self.tags = tags or {}
 
     def __eq__(self, other):
-        if self.name != other.name or self.dtype != other.dtype:
+        if (
+            self.name != other.name
+            or self.dtype != other.dtype
+            or self.tags != other.tags
+        ):
             return False
         return True
 
@@ -58,12 +68,12 @@ class Field:
         return f"{self.name}-{self.dtype}"
 
     def __str__(self):
-        return f"Field(name={self.name}, dtype={self.dtype})"
+        return f"Field(name={self.name}, dtype={self.dtype}, tags={self.tags})"
 
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
-        return FieldProto(name=self.name, value_type=value_type.value)
+        return FieldProto(name=self.name, value_type=value_type.value, tags=self.tags)
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -74,7 +84,11 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        return cls(name=field_proto.name, dtype=from_value_type(value_type=value_type))
+        return cls(
+            name=field_proto.name,
+            dtype=from_value_type(value_type=value_type),
+            tags=dict(field_proto.tags),
+        )
 
     @classmethod
     def from_feature(cls, feature: Feature):
@@ -84,4 +98,6 @@ class Field:
         Args:
             feature: Feature object to convert.
         """
-        return cls(name=feature.name, dtype=from_value_type(feature.dtype))
+        return cls(
+            name=feature.name, dtype=from_value_type(feature.dtype), tags=feature.labels
+        )
