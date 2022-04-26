@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 import pandas as pd
+from testcontainers.postgres import PostgresContainer
 
 from feast.data_source import DataSource
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
@@ -20,15 +21,16 @@ class PostgreSQLDataSourceCreator(DataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.project_name = project_name
-
+        self.container = PostgresContainer(user="postgres")
+        self.container.start()
         self.offline_store_config = PostgreSQLOfflineStoreConfig(
             type="postgres",
             host="localhost",
-            port=5432,
-            database="postgres",
+            port=self.container.get_exposed_port(5432),
+            database=self.container.POSTGRES_DB,
             db_schema="public",
-            user="postgres",
-            password="docker",
+            user=self.container.POSTGRES_USER,
+            password=self.container.POSTGRES_PASSWORD,
         )
 
     def create_data_source(
@@ -69,3 +71,4 @@ class PostgreSQLDataSourceCreator(DataSourceCreator):
         with _get_conn(self.offline_store_config) as conn, conn.cursor() as cur:
             for table in self.tables:
                 cur.execute("DROP TABLE IF EXISTS " + table)
+        self.container.stop()

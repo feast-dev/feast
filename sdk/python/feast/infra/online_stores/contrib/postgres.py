@@ -64,7 +64,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                             created_ts,
                         )
                     )
-            # Controll the batch so that we can update the progress
+            # Control the batch so that we can update the progress
             batch_size = 5000
             for i in range(0, len(insert_values), batch_size):
                 cur_batch = insert_values[i : i + batch_size]

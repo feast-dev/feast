@@ -79,7 +79,7 @@ test-python-universal-postgres:
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
 		FEAST_USAGE=False \
 		IS_TEST=True \
-		python -m pytest --integration --universal \
+		python -m pytest -x --integration --universal \
 			-k "not test_historical_retrieval_fails_on_validation and \
 				not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
