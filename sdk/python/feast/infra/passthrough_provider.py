@@ -260,7 +260,7 @@ class PassthroughProvider(Provider):
             data_source=logging_config.destination.to_data_source(),
             join_key_columns=[],
             feature_name_columns=columns,
-            event_timestamp_column=ts_column,
+            timestamp_field=ts_column,
             start_date=start_date,
             end_date=end_date,
         )
