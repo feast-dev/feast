@@ -143,9 +143,11 @@ class LoggingDestination:
 
 class LoggingConfig:
     destination: LoggingDestination
+    sample_rate: float
 
-    def __init__(self, destination: LoggingDestination):
+    def __init__(self, destination: LoggingDestination, sample_rate: float = 1.0):
         self.destination = destination
+        self.sample_rate = sample_rate
 
     @classmethod
     def from_proto(cls, config_proto: LoggingConfigProto) -> Optional["LoggingConfig"]:
@@ -157,8 +159,12 @@ class LoggingConfig:
             proto_kind = config_proto.custom_destination.kind
 
         destination_class = _DestinationRegistry.classes_by_proto_attr_name[proto_kind]
-        return LoggingConfig(destination=destination_class.from_proto(config_proto))
+        return LoggingConfig(
+            destination=destination_class.from_proto(config_proto),
+            sample_rate=config_proto.sample_rate,
+        )
 
     def to_proto(self) -> LoggingConfigProto:
         proto = self.destination.to_proto()
+        proto.sample_rate = self.sample_rate
         return proto

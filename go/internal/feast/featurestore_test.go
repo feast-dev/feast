@@ -6,10 +6,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/stretchr/testify/assert"
 )
 
 // Return absolute path to the test_repo registry regardless of the working directory

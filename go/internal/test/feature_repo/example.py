@@ -3,6 +3,8 @@
 from google.protobuf.duration_pb2 import Duration
 
 from feast import Entity, Feature, FeatureView, FileSource, ValueType, FeatureService
+from feast.feature_logging import LoggingConfig
+from feast.infra.offline_stores.file_source import FileLoggingDestination
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
@@ -36,5 +38,6 @@ driver_hourly_stats_view = FeatureView(
 
 driver_stats_fs = FeatureService(
     name="test_service",
-    features=[driver_hourly_stats_view]
+    features=[driver_hourly_stats_view],
+    logging_config=LoggingConfig(destination=FileLoggingDestination(path=""))
 )

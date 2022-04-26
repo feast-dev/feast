@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -10,20 +11,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/apache/arrow/go/v8/parquet/file"
 	"github.com/apache/arrow/go/v8/parquet/pqarrow"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/test/bufconn"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 // Return absolute path to the test_repo directory regardless of the working directory
@@ -41,27 +45,12 @@ func getRepoPath(basePath string) string {
 }
 
 // Starts a new grpc server, registers the serving service and returns a client.
-func getClient(ctx context.Context, offlineStoreType string, basePath string, enableLogging bool) (serving.ServingServiceClient, func()) {
+func getClient(ctx context.Context, offlineStoreType string, basePath string, logPath string) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
 	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
-
-	// TODO(kevjumba): either add this officially or talk in design review about what the correct solution for what do with path.
-	// Currently in python we use the path in FileSource but it is not specified in configuration unless it is using file_url?
-	if enableLogging {
-		if config.OfflineStore == nil {
-			config.OfflineStore = map[string]interface{}{}
-		}
-		absPath, err := filepath.Abs(filepath.Join(getRepoPath(basePath), "log.parquet"))
-		if err != nil {
-			panic(err)
-		}
-		config.OfflineStore["path"] = absPath
-		config.OfflineStore["storeType"] = offlineStoreType
-	}
-
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +58,20 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, en
 	if err != nil {
 		panic(err)
 	}
-	loggingService, err := logging.NewLoggingService(fs, 1000, "test_service", enableLogging)
+
+	var logSink logging.LogSink
+	if logPath != "" {
+		logSink, err = logging.NewFileLogSink(logPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+	loggingService, err := logging.NewLoggingService(fs, logSink, logging.LoggingOptions{
+		WriteInterval:   10 * time.Millisecond,
+		FlushInterval:   logging.DefaultOptions.FlushInterval,
+		EmitTimeout:     logging.DefaultOptions.EmitTimeout,
+		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -99,12 +101,13 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, en
 func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "logging/"
+	dir := "../../internal/test/"
 	err := test.SetupInitializedRepo(dir)
-	assert.Nil(t, err)
 	defer test.CleanUpInitializedRepo(dir)
 
-	client, closer := getClient(ctx, "", dir, false)
+	require.Nil(t, err)
+
+	client, closer := getClient(ctx, "", dir, "")
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -114,12 +117,13 @@ func TestGetFeastServingInfo(t *testing.T) {
 func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "logging/"
+	dir := "../../internal/test/"
 	err := test.SetupInitializedRepo(dir)
-	assert.Nil(t, err)
 	defer test.CleanUpInitializedRepo(dir)
 
-	client, closer := getClient(ctx, "", dir, false)
+	require.Nil(t, err)
+
+	client, closer := getClient(ctx, "", dir, "")
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -173,12 +177,14 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "logging/"
+	dir := "../../internal/test/"
 	err := test.SetupInitializedRepo(dir)
-	assert.Nil(t, err)
 	defer test.CleanUpInitializedRepo(dir)
 
-	client, closer := getClient(ctx, "file", dir, true)
+	require.Nil(t, err)
+
+	logPath := t.TempDir()
+	client, closer := getClient(ctx, "file", dir, logPath)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -207,18 +213,20 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	// TODO(kevjumba): implement for timestamp and status
 	expectedLogValues, _, _ := GetExpectedLogRows(featureNames, response.Results[len(request.Entities):])
 	expectedLogValues["driver_id"] = entities["driver_id"]
-	logPath, err := filepath.Abs(filepath.Join(dir, "feature_repo", "log.parquet"))
+
 	// Wait for logger to flush.
-	assert.Eventually(t, func() bool {
-		var _, err = os.Stat(logPath)
-		if os.IsNotExist(err) {
+	require.Eventually(t, func() bool {
+		files, err := ioutil.ReadDir(logPath)
+		if err != nil || len(files) == 0 {
 			return false
-		} else {
-			return true
 		}
-	}, 1*time.Second, logging.DEFAULT_LOG_FLUSH_INTERVAL)
-	assert.Nil(t, err)
-	pf, err := file.OpenParquetFile(logPath, false)
+		stat, err := os.Stat(filepath.Join(logPath, files[0].Name()))
+		return err == nil && stat.Size() > 0
+	}, 1*time.Second, 100*time.Millisecond)
+
+	files, err := ioutil.ReadDir(logPath)
+	logFile := filepath.Join(logPath, files[0].Name())
+	pf, err := file.OpenParquetFile(logFile, false)
 	assert.Nil(t, err)
 
 	reader, err := pqarrow.NewFileReader(pf, pqarrow.ArrowReadProperties{}, memory.DefaultAllocator)
@@ -232,26 +240,23 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	for tr.Next() {
 		rec := tr.Record()
 		assert.NotNil(t, rec)
-		values, err := test.GetProtoFromRecord(rec)
+		actualValues, err := test.GetProtoFromRecord(rec)
 
 		assert.Nil(t, err)
-		assert.Equal(t, len(values)-1 /*request id column not counted*/, len(expectedLogValues))
-		// Need to iterate through and compare because certain values in types.RepeatedValues aren't accurately being compared.
-		for name, val := range values {
+		// Need to iterate through and compare because certain actualValues in types.RepeatedValues aren't accurately being compared.
+		for name, val := range expectedLogValues {
 			if name == "RequestId" {
 				// Ensure there are request ids for each entity.
-				assert.Equal(t, len(val.Val), len(response.Results[0].Values))
+				assert.Equal(t, len(val.Val), len(actualValues[name].Val))
 			} else {
-				assert.Equal(t, len(val.Val), len(expectedLogValues[name].Val))
+				assert.Equal(t, len(val.Val), len(actualValues[name].Val))
 				for idx, featureVal := range val.Val {
-					assert.Equal(t, featureVal.Val, expectedLogValues[name].Val[idx].Val)
+					assert.Equal(t, featureVal.Val, actualValues[name].Val[idx].Val)
 				}
 			}
 
 		}
 	}
-	err = test.CleanUpFile(logPath)
-	assert.Nil(t, err)
 }
 
 // Generate the expected log rows based on the resulting feature vector returned from GetOnlineFeatures.

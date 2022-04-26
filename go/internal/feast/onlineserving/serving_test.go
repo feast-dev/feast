@@ -3,12 +3,13 @@ package onlineserving
 import (
 	"testing"
 
-	"github.com/feast-dev/feast/go/internal/feast/model"
-	"github.com/feast-dev/feast/go/protos/feast/core"
-	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/protos/feast/core"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
 func TestGroupingFeatureRefs(t *testing.T) {

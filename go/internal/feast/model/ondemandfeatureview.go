@@ -49,8 +49,10 @@ func (fs *OnDemandFeatureView) NewWithProjection(projection *FeatureViewProjecti
 }
 
 func NewOnDemandFeatureViewFromBase(base *BaseFeatureView) *OnDemandFeatureView {
-
-	featureView := &OnDemandFeatureView{Base: base}
+	featureView := &OnDemandFeatureView{
+		Base:                         base,
+		SourceFeatureViewProjections: map[string]*FeatureViewProjection{},
+		SourceRequestDataSources:     map[string]*core.DataSource_RequestDataOptions{}}
 	return featureView
 }
 

@@ -2,13 +2,15 @@ package server
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/google/uuid"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"github.com/google/uuid"
 )
 
 const feastServerVersion = "0.0.1"
@@ -55,7 +57,7 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 			FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
 		},
 	}
-	// Entities are currently part of the features as a value and the order that we add it to the resp MetaData
+	// JoinKeys are currently part of the features as a value and the order that we add it to the resp MetaData
 	// Need to figure out a way to map the correct entities to the correct ordering
 	entityValuesMap := make(map[string][]*prototypes.Value, 0)
 	featureNames := make([]string, len(featureVectors))
@@ -76,8 +78,17 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 			EventTimestamps: vector.Timestamps,
 		})
 	}
+
 	if featuresOrService.FeatureService != nil && s.loggingService != nil {
-		go s.loggingService.GenerateLogs(featuresOrService.FeatureService, entityValuesMap, resp.Results[len(request.Entities):], request.RequestContext, requestId)
+		logger, err := s.loggingService.GetOrCreateLogger(featuresOrService.FeatureService)
+		if err != nil {
+			fmt.Printf("Couldn't instantiate logger for feature service %s: %+v", featuresOrService.FeatureService.Name, err)
+		}
+
+		err = logger.Log(entityValuesMap, resp.Results[len(request.Entities):], resp.Metadata.FeatureNames.Val[len(request.Entities):], request.RequestContext, requestId)
+		if err != nil {
+			fmt.Printf("LoggerImpl error[%s]: %+v", featuresOrService.FeatureService.Name, err)
+		}
 	}
 	return resp, nil
 }
