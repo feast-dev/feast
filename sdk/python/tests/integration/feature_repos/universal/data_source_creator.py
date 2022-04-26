@@ -52,9 +52,8 @@ class DataSourceCreator(ABC):
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
         ...
 
-    @abstractmethod
     def create_logged_features_destination(self) -> LoggingDestination:
-        ...
+        pass
 
     @abstractmethod
     def teardown(self):
