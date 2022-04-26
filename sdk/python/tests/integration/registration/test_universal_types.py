@@ -117,11 +117,6 @@ def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
 
     # Don't specify value type in entity to force inference
-    entity = Entity(
-        name=f"driver_{entity_type.name.lower()}",
-        value_type=ValueType.UNKNOWN,
-        join_key="driver_id",
-    )
     df = create_dataset(entity_type, feature_dtype="int32",)
     data_source = environment.data_source_creator.create_data_source(
         df,
@@ -134,7 +129,6 @@ def test_entity_inference_types_match(environment, entity_type):
         feature_is_list=False,
         has_empty_list=False,
         data_source=data_source,
-        entity=entity.name,
     )
     fs.apply([fv, entity])
 
@@ -263,7 +257,7 @@ def test_feature_get_online_features_types_match(
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity="driver"
+    name, feature_dtype, feature_is_list, has_empty_list, data_source,
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
@@ -288,7 +282,7 @@ def create_feature_view(
         elif feature_dtype == "datetime":
             dtype = UnixTimestamp
 
-    return driver_feature_view(data_source, name=name, dtype=dtype, entities=[entity])
+    return driver_feature_view(data_source, name=name, dtype=dtype)
 
 
 def assert_expected_historical_feature_types(

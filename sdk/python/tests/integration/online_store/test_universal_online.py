@@ -13,7 +13,7 @@ import pytest
 import requests
 from botocore.exceptions import BotoCoreError
 
-from feast import Entity, FeatureService, FeatureView, Field, ValueType
+from feast import Entity, FeatureService, FeatureView, Field
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
@@ -117,7 +117,7 @@ def test_write_to_online_store_event_check(environment):
     }
     dataframe_source = pd.DataFrame(data)
     with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
-        e = Entity(name="id", value_type=ValueType.STRING)
+        e = Entity(name="id")
 
         # Create Feature View
         fv1 = FeatureView(
