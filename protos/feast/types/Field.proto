@@ -29,7 +29,7 @@ message Field {
   string name = 1;
 
   // Value type of the feature. Not updatable.
-  feast.types.ValueType.Enum value = 2;
+  feast.types.ValueType.Enum value_type = 2;
 
   // User defined metadata
   map<string,string> tags = 3;
