@@ -16,6 +16,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import pyarrow
 import pyarrow as pa
 from pydantic import Field
 from pydantic.typing import Literal
@@ -24,6 +25,7 @@ from pytz import utc
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -33,6 +35,7 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.snowflake_source import (
     SavedDatasetSnowflakeStorage,
+    SnowflakeLoggingDestination,
     SnowflakeSource,
 )
 from feast.infra.utils.snowflake_utils import (
@@ -272,6 +275,25 @@ class SnowflakeOfflineStore(OfflineStore):
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
+        )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: pyarrow.Table,
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        assert isinstance(logging_config.destination, SnowflakeLoggingDestination)
+
+        snowflake_conn = get_snowflake_conn(config.offline_store)
+
+        write_pandas(
+            snowflake_conn,
+            data.to_pandas(),
+            table_name=logging_config.destination.table_name,
+            auto_create_table=True,
         )
 
 

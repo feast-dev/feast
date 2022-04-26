@@ -34,6 +34,7 @@ from typing import (
 )
 
 import pandas as pd
+import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -1975,6 +1976,25 @@ class FeatureStore:
 
     def _teardown_go_server(self):
         self._go_server = None
+
+    def write_logged_features(self, logs: pa.Table, source: Union[FeatureService]):
+        """
+        Write logs produced by a source (currently only feature service is supported as a source)
+        to an offline store.
+        """
+        if not isinstance(source, FeatureService):
+            raise ValueError("Only feature service is currently supported as a source")
+
+        assert (
+            source.logging_config is not None
+        ), "Feature service must be configured with logging config in order to use this functionality"
+
+        self._get_provider().write_feature_service_logs(
+            feature_service=source,
+            logs=logs,
+            config=self.config,
+            registry=self._registry,
+        )
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

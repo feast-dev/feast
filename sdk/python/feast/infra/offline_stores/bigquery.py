@@ -1,4 +1,5 @@
 import contextlib
+import tempfile
 import uuid
 from datetime import date, datetime, timedelta
 from typing import (
@@ -28,6 +29,7 @@ from feast.errors import (
     FeastProviderLoginError,
     InvalidEntityType,
 )
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -41,13 +43,18 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 from ...saved_dataset import SavedDatasetStorage
 from ...usage import log_exceptions_and_usage
-from .bigquery_source import BigQuerySource, SavedDatasetBigQueryStorage
+from .bigquery_source import (
+    BigQueryLoggingDestination,
+    BigQuerySource,
+    SavedDatasetBigQueryStorage,
+)
 
 try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
-    from google.cloud.bigquery import Client, Table
+    from google.cloud.bigquery import Client, SchemaField, Table
+    from google.cloud.bigquery._pandas_helpers import ARROW_SCALAR_IDS_TO_BQ
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -247,6 +254,42 @@ class BigQueryOfflineStore(OfflineStore):
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
         )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: pyarrow.Table,
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        destination = logging_config.destination
+        assert isinstance(destination, BigQueryLoggingDestination)
+
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
+
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.PARQUET,
+            schema=arrow_schema_to_bq_schema(source.get_schema(registry)),
+            time_partitioning=bigquery.TimePartitioning(
+                type_=bigquery.TimePartitioningType.DAY,
+                field=source.get_log_timestamp_column(),
+            ),
+        )
+
+        with tempfile.TemporaryFile() as parquet_temp_file:
+            pyarrow.parquet.write_table(table=data, where=parquet_temp_file)
+
+            parquet_temp_file.seek(0)
+
+            client.load_table_from_file(
+                file_obj=parquet_temp_file,
+                destination=destination.table,
+                job_config=job_config,
+            )
 
 
 class BigQueryRetrievalJob(RetrievalJob):
@@ -513,7 +556,9 @@ def _get_entity_df_event_timestamp_range(
     return entity_df_event_timestamp_range
 
 
-def _get_bigquery_client(project: Optional[str] = None, location: Optional[str] = None):
+def _get_bigquery_client(
+    project: Optional[str] = None, location: Optional[str] = None
+) -> bigquery.Client:
     try:
         client = bigquery.Client(project=project, location=location)
     except DefaultCredentialsError as e:
@@ -531,6 +576,24 @@ def _get_bigquery_client(project: Optional[str] = None, location: Optional[str] 
         )
 
     return client
+
+
+def arrow_schema_to_bq_schema(arrow_schema: pyarrow.Schema) -> List[SchemaField]:
+    bq_schema = []
+
+    for field in arrow_schema:
+        if pyarrow.types.is_list(field.type):
+            detected_mode = "REPEATED"
+            detected_type = ARROW_SCALAR_IDS_TO_BQ[field.type.value_type.id]
+        else:
+            detected_mode = "NULLABLE"
+            detected_type = ARROW_SCALAR_IDS_TO_BQ[field.type.id]
+
+        bq_schema.append(
+            SchemaField(name=field.name, field_type=detected_type, mode=detected_mode)
+        )
+
+    return bq_schema
 
 
 # TODO: Optimizations
