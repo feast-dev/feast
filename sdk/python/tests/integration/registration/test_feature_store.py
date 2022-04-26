@@ -295,6 +295,7 @@ def test_apply_feature_view_integration(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="test", dtype=Int64),
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
@@ -303,7 +304,7 @@ def test_apply_feature_view_integration(test_feature_store):
     )
 
     # Register Feature View
-    test_feature_store.apply([fv1])
+    test_feature_store.apply([fv1, entity])
 
     feature_views = test_feature_store.list_feature_views()
 
@@ -367,6 +368,7 @@ def test_apply_object_and_read(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="fs1_my_entity_1", dtype=Int64),
         ],
         entities=[e1],
         tags={"team": "matchmaking"},
@@ -381,6 +383,7 @@ def test_apply_object_and_read(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="fs1_my_entity_2", dtype=Int64),
         ],
         entities=[e2],
         tags={"team": "matchmaking"},
