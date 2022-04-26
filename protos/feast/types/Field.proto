@@ -25,12 +25,6 @@ option java_outer_classname = "FieldProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
 
 message Field {
-  // Name of the feature. Not updatable.
   string name = 1;
-
-  // Value type of the feature. Not updatable.
-  feast.types.ValueType.Enum value_type = 2;
-
-  // User defined metadata
-  map<string,string> tags = 3;
+  feast.types.ValueType.Enum value = 2;
 }
