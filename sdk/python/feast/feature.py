@@ -91,7 +91,7 @@ class Feature:
         value_type = ValueTypeProto.Enum.Value(self.dtype.name)
 
         return FeatureSpecProto(
-            name=self.name, value_type=value_type, labels=self.labels,
+            name=self.name, value_type=value_type, tags=self.labels,
         )
 
     @classmethod
@@ -106,7 +106,7 @@ class Feature:
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
-            labels=dict(feature_proto.labels),
+            labels=dict(feature_proto.tags),
         )
 
         return feature
