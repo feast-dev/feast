@@ -167,7 +167,7 @@ compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	cd sdk/python && python setup.py build_go_protos
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
-	cd sdk/python && python setup.py build_go_lib
+	cd sdk/python && COMPILE_GO=True python setup.py build_ext --inplace
 
 # Needs feast package to setup the feature store
 test-go: compile-protos-go

@@ -132,6 +132,17 @@ class EmbeddedOnlineFeatureServer:
         resp = record_batch_to_online_response(record_batch)
         return OnlineResponse(resp)
 
+    def start_server(self, host: str, port: int, server_type: str):
+        server_type = server_type.lower()
+        if server_type == "grpc":
+            self._service.StartGprcServer(host, port)
+        elif server_type == "http":
+            # TODO(tsotne): implement go-based http server
+            raise NotImplemented("Go-based HTTP server will be implemented soon")
+        else:
+            raise ValueError("The server type must be either 'http' or 'grpc'")
+
+
 
 def _to_arrow(value, type_hint: Optional[ValueType]) -> pa.Array:
     if isinstance(value, Value_pb2.RepeatedValue):

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -16,8 +16,8 @@ import (
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/apache/arrow/go/v8/parquet/file"
 	"github.com/apache/arrow/go/v8/parquet/pqarrow"
-	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -73,7 +73,7 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, en
 	if err != nil {
 		panic(err)
 	}
-	servingServiceServer := newServingServiceServer(fs, loggingService)
+	servingServiceServer := NewGrpcServingServiceServer(fs, loggingService)
 
 	serving.RegisterServingServiceServer(server, servingServiceServer)
 	go func() {
