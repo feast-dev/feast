@@ -265,6 +265,8 @@ grpcio-tools==1.44.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
+happybase==1.2.0
+    # via feast (setup.py)
 hiredis==2.0.0
     # via feast (setup.py)
 httplib2==0.20.4
@@ -430,6 +432,7 @@ notebook==6.4.10
 numpy==1.21.5
     # via
     #   altair
+    #   feast (setup.py)
     #   great-expectations
     #   pandas
     #   pandavro
@@ -481,6 +484,8 @@ platformdirs==2.5.1
     # via virtualenv
 pluggy==1.0.0
     # via pytest
+ply==3.11
+    # via thriftpy2
 portalocker==2.4.0
     # via msal-extensions
 pre-commit==2.17.0
@@ -682,7 +687,7 @@ six==1.16.0
     #   google-cloud-core
     #   google-resumable-media
     #   grpcio
-    #   isodate
+    #   happybase
     #   mock
     #   msrestazure
     #   pandavro
@@ -727,8 +732,8 @@ terminado==0.13.2
     # via notebook
 testcontainers==3.5.3
     # via feast (setup.py)
-testpath==0.6.0
-    # via nbconvert
+thriftpy2==0.4.14
+    # via happybase
 toml==0.10.2
     # via
     #   black
