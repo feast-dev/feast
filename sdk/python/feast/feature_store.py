@@ -1964,8 +1964,8 @@ class FeatureStore:
         if self.config.go_feature_retrieval:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
-            # TODO(tsotne) add http/grpc flag in CLI and replace the hardcoded variable
-            self._go_server.start_server(host, port, "grpc")
+            # TODO(tsotne) add http/grpc flag in CLI and call appropriate method here depending on that
+            self._go_server.start_grpc_server(host, port)
         else:
             # Start the python server if go server isn't enabled
             feature_server.start_server(self, host, port, no_access_log)
