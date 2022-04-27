@@ -255,6 +255,8 @@ grpcio-tools==1.44.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
+happybase==1.2.0
+    # via feast (setup.py)
 hiredis==2.0.0
     # via feast (setup.py)
 httplib2==0.20.4
@@ -356,9 +358,10 @@ nbformat==5.3.0
     # via great-expectations
 nodeenv==1.6.0
     # via pre-commit
-numpy==1.22.3
+numpy==1.21.6
     # via
     #   altair
+    #   feast (setup.py)
     #   great-expectations
     #   pandas
     #   pandavro
@@ -407,6 +410,8 @@ platformdirs==2.5.2
     # via virtualenv
 pluggy==1.0.0
     # via pytest
+ply==3.11
+    # via thriftpy2
 portalocker==2.4.0
     # via msal-extensions
 pre-commit==2.18.1
@@ -579,10 +584,10 @@ responses==0.20.0
     # via moto
 rsa==4.8
     # via google-auth
-ruamel.yaml==0.17.17
+ruamel-yaml==0.17.17
     # via great-expectations
-ruamel.yaml.clib==0.2.6
-    # via ruamel.yaml
+ruamel-yaml-clib==0.2.6
+    # via ruamel-yaml
 s3transfer==0.5.2
     # via boto3
 scipy==1.8.0
@@ -598,6 +603,7 @@ six==1.16.0
     #   google-cloud-core
     #   google-resumable-media
     #   grpcio
+    #   happybase
     #   mock
     #   msrestazure
     #   pandavro
@@ -642,6 +648,8 @@ termcolor==1.1.0
     # via great-expectations
 testcontainers==3.5.3
     # via feast (setup.py)
+thriftpy2==0.4.14
+    # via happybase
 toml==0.10.2
     # via
     #   black
