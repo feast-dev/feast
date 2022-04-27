@@ -101,7 +101,7 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, lo
 func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "../../internal/test/"
+	dir := "../../test/"
 	err := test.SetupInitializedRepo(dir)
 	defer test.CleanUpInitializedRepo(dir)
 
@@ -117,7 +117,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "../../internal/test/"
+	dir := "../../test/"
 	err := test.SetupInitializedRepo(dir)
 	defer test.CleanUpInitializedRepo(dir)
 
@@ -177,7 +177,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
 	// Pregenerated using `feast init`.
-	dir := "../../internal/test/"
+	dir := "../../test/"
 	err := test.SetupInitializedRepo(dir)
 	defer test.CleanUpInitializedRepo(dir)
 
