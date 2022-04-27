@@ -138,10 +138,9 @@ class EmbeddedOnlineFeatureServer:
             self._service.StartGprcServer(host, port)
         elif server_type == "http":
             # TODO(tsotne): implement go-based http server
-            raise NotImplemented("Go-based HTTP server will be implemented soon")
+            raise NotImplementedError("Go-based HTTP server will be implemented soon")
         else:
             raise ValueError("The server type must be either 'http' or 'grpc'")
-
 
 
 def _to_arrow(value, type_hint: Optional[ValueType]) -> pa.Array:

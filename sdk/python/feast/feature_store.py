@@ -111,7 +111,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
     _provider: Provider
-    _go_server: Optional["EmbeddedOnlineFeatureServer"]
+    _go_server: "EmbeddedOnlineFeatureServer"
 
     @log_exceptions
     def __init__(

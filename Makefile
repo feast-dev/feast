@@ -178,7 +178,7 @@ format-go:
 	gofmt -s -w go/
 
 lint-go: compile-protos-go
-	go vet ./go/internal/feast ./go/cmd/server
+	go vet ./go/internal/feast ./go/embedded
 
 # Docker
 
