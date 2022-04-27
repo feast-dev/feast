@@ -132,6 +132,9 @@ class EmbeddedOnlineFeatureServer:
         resp = record_batch_to_online_response(record_batch)
         return OnlineResponse(resp)
 
+    def start_grpc_server(self, host: str, port: int):
+        self._service.StartGprcServer(host, port)
+
 
 def _to_arrow(value, type_hint: Optional[ValueType]) -> pa.Array:
     if isinstance(value, Value_pb2.RepeatedValue):
