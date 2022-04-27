@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
@@ -286,4 +287,33 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
+}
+
+func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.OnDemandFeatureView, error) {
+	odfvs, err := fs.ListOnDemandFeatureViews()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	fvs, err := fs.ListFeatureViews()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	entities, err := fs.ListEntities(true)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	entityMap := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entityMap[entity.Name] = entity
+	}
+	fvMap := make(map[string]*model.FeatureView)
+	for _, fv := range fvs {
+		fvMap[fv.Base.Name] = fv
+	}
+	odfvMap := make(map[string]*model.OnDemandFeatureView)
+	for _, odfv := range odfvs {
+		odfvMap[odfv.Base.Name] = odfv
+	}
+	return entityMap, fvMap, odfvMap, nil
 }

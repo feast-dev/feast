@@ -6,6 +6,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
+
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
@@ -89,7 +90,7 @@ func ValueTypeEnumToArrowType(t types.ValueType_Enum) (arrow.DataType, error) {
 	}
 }
 
-func copyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) error {
+func CopyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) error {
 	switch fieldBuilder := builder.(type) {
 	case *array.BooleanBuilder:
 		for _, v := range values {
@@ -307,7 +308,7 @@ func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.A
 
 	if fieldType != nil {
 		builder := array.NewBuilder(arrowAllocator, fieldType)
-		err = copyProtoValuesToArrowArray(builder, protoValues)
+		err = CopyProtoValuesToArrowArray(builder, protoValues)
 		if err != nil {
 			return nil, err
 		}

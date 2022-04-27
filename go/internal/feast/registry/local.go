@@ -1,13 +1,15 @@
 package registry
 
 import (
-	"github.com/feast-dev/feast/go/protos/feast/core"
-	"github.com/golang/protobuf/proto"
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/feast-dev/feast/go/protos/feast/core"
 )
 
 // A LocalRegistryStore is a file-based implementation of the RegistryStore interface.

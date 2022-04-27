@@ -3,20 +3,23 @@ package embedded
 import (
 	"context"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/server"
-	"github.com/feast-dev/feast/go/internal/feast/server/logging"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+
+	"github.com/feast-dev/feast/go/internal/feast/server"
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/cdata"
 	"github.com/apache/arrow/go/v8/arrow/memory"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
