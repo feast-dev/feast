@@ -220,7 +220,7 @@ func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
 	serving.RegisterServingServiceServer(grpcServer, ser)
 
 	// Notify this channel when receiving interrupt or termination signals from OS
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
