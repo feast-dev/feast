@@ -7,6 +7,7 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
+from .batch_feature_view import BatchFeatureView
 from .data_source import (
     KafkaSource,
     KinesisSource,
@@ -23,6 +24,7 @@ from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
 from .repo_config import RepoConfig
 from .request_feature_view import RequestFeatureView
+from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
 
 logging.basicConfig(
@@ -38,6 +40,7 @@ except DistributionNotFound:
     pass
 
 __all__ = [
+    "BatchFeatureView",
     "Entity",
     "KafkaSource",
     "KinesisSource",
@@ -49,6 +52,7 @@ __all__ = [
     "OnDemandFeatureView",
     "RepoConfig",
     "SourceType",
+    "StreamFeatureView",
     "ValueType",
     "BigQuerySource",
     "FileSource",

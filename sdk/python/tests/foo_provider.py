@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
+import pyarrow
 from tqdm import tqdm
 
-from feast import Entity, FeatureView, RepoConfig
+from feast import Entity, FeatureService, FeatureView, RepoConfig
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -78,4 +79,23 @@ class FooProvider(Provider):
         pass
 
     def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
+        pass
+
+    def write_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        logs: pyarrow.Table,
+        config: RepoConfig,
+        registry: Registry,
+    ):
+        pass
+
+    def retrieve_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        from_: datetime,
+        to: datetime,
+        config: RepoConfig,
+        registry: Registry,
+    ) -> RetrievalJob:
         pass

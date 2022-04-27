@@ -42,9 +42,9 @@ def test_update_entities_with_inferred_types_from_feature_views(
     simple_dataset_1, simple_dataset_2
 ):
     with prep_file_source(
-        df=simple_dataset_1, event_timestamp_column="ts_1"
+        df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source, prep_file_source(
-        df=simple_dataset_2, event_timestamp_column="ts_1"
+        df=simple_dataset_2, timestamp_field="ts_1"
     ) as file_source_2:
 
         fv1 = FeatureView(
@@ -173,7 +173,7 @@ def test_on_demand_features_type_inference():
     )
 
     @on_demand_feature_view(
-        sources={"date_request": date_request},
+        sources=[date_request],
         schema=[
             Field(name="output", dtype=UnixTimestamp),
             Field(name="string_output", dtype=String),
@@ -245,7 +245,7 @@ def test_datasource_inference(request_source_schema):
             Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
             Feature(name="string_output", dtype=ValueType.STRING),
         ],
-        sources={"date_request": date_request},
+        sources=[date_request],
     )
     def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -256,7 +256,7 @@ def test_datasource_inference(request_source_schema):
     test_view.infer_features()
 
     @on_demand_feature_view(
-        sources={"date_request": date_request},
+        sources=[date_request],
         schema=[
             Field(name="output", dtype=UnixTimestamp),
             Field(name="object_output", dtype=String),
@@ -272,7 +272,7 @@ def test_datasource_inference(request_source_schema):
         invalid_test_view.infer_features()
 
     @on_demand_feature_view(
-        sources={"date_request": date_request},
+        sources=[date_request],
         features=[
             Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
             Feature(name="missing", dtype=ValueType.STRING),

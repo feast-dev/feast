@@ -4,6 +4,7 @@ from typing import Dict, Optional
 import pandas as pd
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.repo_config import FeastConfigBaseModel
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -34,7 +35,7 @@ class DataSourceCreator(ABC):
             event_timestamp_column: (Deprecated) Pass through for the underlying data source.
             created_timestamp_column: Pass through for the underlying data source.
             field_mapping: Pass through for the underlying data source.
-            timestamp_field: (Deprecated) Pass through for the underlying data source.
+            timestamp_field: Pass through for the underlying data source.
 
 
         Returns:
@@ -50,6 +51,9 @@ class DataSourceCreator(ABC):
     @abstractmethod
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
         ...
+
+    def create_logged_features_destination(self) -> LoggingDestination:
+        pass
 
     @abstractmethod
     def teardown(self):

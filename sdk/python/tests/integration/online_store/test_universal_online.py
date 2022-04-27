@@ -114,9 +114,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
         "ts_1": [hour_ago, now, now],
     }
     dataframe_source = pd.DataFrame(data)
-    with prep_file_source(
-        df=dataframe_source, event_timestamp_column="ts_1"
-    ) as file_source:
+    with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
         e = Entity(name="id", value_type=ValueType.STRING)
 
         # Create Feature View

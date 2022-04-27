@@ -14,6 +14,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import pyarrow
 import pyarrow as pa
 from dateutil import parser
 from pydantic import StrictStr
@@ -23,6 +24,7 @@ from pytz import utc
 from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -30,7 +32,10 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.offline_stores.redshift_source import SavedDatasetRedshiftStorage
+from feast.infra.offline_stores.redshift_source import (
+    RedshiftLoggingDestination,
+    SavedDatasetRedshiftStorage,
+)
 from feast.infra.utils import aws_utils
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -71,7 +76,7 @@ class RedshiftOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -86,7 +91,7 @@ class RedshiftOfflineStore(OfflineStore):
             partition_by_join_key_string = (
                 "PARTITION BY " + partition_by_join_key_string
             )
-        timestamp_columns = [event_timestamp_column]
+        timestamp_columns = [timestamp_field]
         if created_timestamp_column:
             timestamp_columns.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamp_columns) + " DESC"
@@ -110,7 +115,7 @@ class RedshiftOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
-                WHERE {event_timestamp_column} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+                WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
             )
             WHERE _feast_row = 1
             """
@@ -130,7 +135,7 @@ class RedshiftOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
@@ -138,7 +143,7 @@ class RedshiftOfflineStore(OfflineStore):
         from_expression = data_source.get_table_query_string()
 
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [event_timestamp_column]
+            join_key_columns + feature_name_columns + [timestamp_field]
         )
 
         redshift_client = aws_utils.get_redshift_data_client(
@@ -152,7 +157,7 @@ class RedshiftOfflineStore(OfflineStore):
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {event_timestamp_column} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
         """
 
         return RedshiftRetrievalJob(
@@ -255,6 +260,37 @@ class RedshiftOfflineStore(OfflineStore):
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
+        )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: pyarrow.Table,
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        destination = logging_config.destination
+        assert isinstance(destination, RedshiftLoggingDestination)
+
+        redshift_client = aws_utils.get_redshift_data_client(
+            config.offline_store.region
+        )
+        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
+        s3_path = f"{config.offline_store.s3_staging_location}/logged_features/{uuid.uuid4()}.parquet"
+
+        aws_utils.upload_arrow_table_to_redshift(
+            table=data,
+            redshift_data_client=redshift_client,
+            cluster_id=config.offline_store.cluster_id,
+            database=config.offline_store.database,
+            user=config.offline_store.user,
+            s3_resource=s3_resource,
+            s3_path=s3_path,
+            iam_role=config.offline_store.iam_role,
+            table_name=destination.table_name,
+            schema=source.get_schema(registry),
+            fail_if_exists=False,
         )
 
 
@@ -546,9 +582,9 @@ WITH entity_dataframe AS (
 
  1. We first join the current feature_view to the entity dataframe that has been passed.
  This JOIN has the following logic:
-    - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
+    - For each row of the entity dataframe, only keep the rows where the `timestamp_field`
     is less than the one provided in the entity dataframe
-    - If there a TTL for the current feature_view, also keep the rows where the `event_timestamp_column`
+    - If there a TTL for the current feature_view, also keep the rows where the `timestamp_field`
     is higher the the one provided minus the TTL
     - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
     computed previously
@@ -559,16 +595,16 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__subquery AS (
     SELECT
-        {{ featureview.event_timestamp_column }} as event_timestamp,
+        {{ featureview.timestamp_field }} as event_timestamp,
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
         {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= '{{ featureview.max_event_timestamp }}'
+    WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= '{{ featureview.min_event_timestamp }}'
+    AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
     {% endif %}
 ),
 

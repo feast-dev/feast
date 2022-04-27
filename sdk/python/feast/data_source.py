@@ -409,7 +409,7 @@ class KafkaSource(DataSource):
 
         if _message_format is None:
             raise ValueError("Message format must be specified for Kafka source")
-        print("Asdfasdf")
+
         super().__init__(
             event_timestamp_column=_event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
@@ -467,7 +467,9 @@ class KafkaSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source),
+            batch_source=DataSource.from_proto(data_source.batch_source)
+            if data_source.batch_source
+            else None,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -500,17 +502,20 @@ class RequestSource(DataSource):
     """
     RequestSource that can be used to provide input features for on demand transforms
 
-    Args:
+    Attributes:
         name: Name of the request data source
-        schema Union[Dict[str, ValueType], List[Field]]: Schema mapping from the input feature name to a ValueType
-        description (optional): A human-readable description.
-        tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
-        owner (optional): The owner of the request data source, typically the email of the primary
+        schema: Schema mapping from the input feature name to a ValueType
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        owner: The owner of the request data source, typically the email of the primary
             maintainer.
     """
 
     name: str
     schema: List[Field]
+    description: str
+    tags: Dict[str, str]
+    owner: str
 
     def __init__(
         self,
@@ -697,7 +702,9 @@ class KinesisSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source),
+            batch_source=DataSource.from_proto(data_source.batch_source)
+            if data_source.batch_source
+            else None,
         )
 
     @staticmethod

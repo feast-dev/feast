@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from feast import (
+    BatchFeatureView,
     Feature,
     FeatureView,
     Field,
@@ -150,8 +151,45 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
     return item_embeddings_feature_view
 
 
+def create_item_embeddings_batch_feature_view(
+    source, infer_features: bool = False
+) -> BatchFeatureView:
+    item_embeddings_feature_view = BatchFeatureView(
+        name="item_embeddings",
+        entities=["item"],
+        schema=None
+        if infer_features
+        else [
+            Field(name="embedding_double", dtype=Array(Float64)),
+            Field(name="embedding_float", dtype=Array(Float32)),
+        ],
+        source=source,
+        ttl=timedelta(hours=2),
+    )
+    return item_embeddings_feature_view
+
+
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
     driver_stats_feature_view = FeatureView(
+        name="driver_stats",
+        entities=["driver"],
+        schema=None
+        if infer_features
+        else [
+            Field(name="conv_rate", dtype=Float32),
+            Field(name="acc_rate", dtype=Float32),
+            Field(name="avg_daily_trips", dtype=Int32),
+        ],
+        source=source,
+        ttl=timedelta(hours=2),
+    )
+    return driver_stats_feature_view
+
+
+def create_driver_hourly_stats_batch_feature_view(
+    source, infer_features: bool = False
+) -> BatchFeatureView:
+    driver_stats_feature_view = BatchFeatureView(
         name="driver_stats",
         entities=["driver"],
         schema=None

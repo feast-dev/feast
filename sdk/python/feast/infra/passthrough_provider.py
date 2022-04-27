@@ -2,10 +2,13 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
+import pyarrow
 import pyarrow as pa
 from tqdm import tqdm
 
+from feast import FeatureService
 from feast.entity import Entity
+from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
@@ -136,7 +139,7 @@ class PassthroughProvider(Provider):
         (
             join_key_columns,
             feature_name_columns,
-            event_timestamp_column,
+            timestamp_field,
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
@@ -145,7 +148,7 @@ class PassthroughProvider(Provider):
             data_source=feature_view.batch_source,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
@@ -210,7 +213,54 @@ class PassthroughProvider(Provider):
             data_source=dataset.storage.to_data_source(),
             join_key_columns=dataset.join_keys,
             feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_ts_column,
+            timestamp_field=event_ts_column,
             start_date=make_tzaware(dataset.min_event_timestamp),  # type: ignore
             end_date=make_tzaware(dataset.max_event_timestamp + timedelta(seconds=1)),  # type: ignore
+        )
+
+    def write_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        logs: pyarrow.Table,
+        config: RepoConfig,
+        registry: Registry,
+    ):
+        assert (
+            feature_service.logging_config is not None
+        ), "Logging should be configured for the feature service before calling this function"
+
+        self.offline_store.write_logged_features(
+            config=config,
+            data=logs,
+            source=FeatureServiceLoggingSource(feature_service, config.project),
+            logging_config=feature_service.logging_config,
+            registry=registry,
+        )
+
+    def retrieve_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        start_date: datetime,
+        end_date: datetime,
+        config: RepoConfig,
+        registry: Registry,
+    ) -> RetrievalJob:
+        assert (
+            feature_service.logging_config is not None
+        ), "Logging should be configured for the feature service before calling this function"
+
+        logging_source = FeatureServiceLoggingSource(feature_service, config.project)
+        schema = logging_source.get_schema(registry)
+        logging_config = feature_service.logging_config
+        ts_column = logging_source.get_log_timestamp_column()
+        columns = list(set(schema.names) - {ts_column})
+
+        return self.offline_store.pull_all_from_table_or_query(
+            config=config,
+            data_source=logging_config.destination.to_data_source(),
+            join_key_columns=[],
+            feature_name_columns=columns,
+            timestamp_field=ts_column,
+            start_date=start_date,
+            end_date=end_date,
         )

@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
@@ -8,7 +8,11 @@ from pyarrow.parquet import ParquetFile
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -116,16 +120,11 @@ class FileSource(DataSource):
             raise TypeError("Comparisons should only involve FileSource class objects.")
 
         return (
-            self.name == other.name
+            super().__eq__(other)
+            and self.path == other.path
             and self.file_options.file_format == other.file_options.file_format
-            and self.timestamp_field == other.timestamp_field
-            and self.created_timestamp_column == other.created_timestamp_column
-            and self.field_mapping == other.field_mapping
             and self.file_options.s3_endpoint_override
             == other.file_options.s3_endpoint_override
-            and self.description == other.description
-            and self.tags == other.tags
-            and self.owner == other.owner
         )
 
     @property
@@ -203,7 +202,7 @@ class FileSource(DataSource):
 
 class FileOptions:
     """
-    DataSource File options used to source features from a file
+    Configuration options for a file data source.
     """
 
     def __init__(
@@ -213,66 +212,23 @@ class FileOptions:
         uri: Optional[str],
     ):
         """
-        FileOptions initialization method
+        Initializes a FileOptions object.
 
         Args:
-            file_format (FileFormat, optional): file source format eg. parquet
-            s3_endpoint_override (str, optional): custom s3 endpoint (used only with s3 uri)
-            uri (str, optional): file source url eg. s3:// or local file
-
+            file_format (optional): File source format, e.g. parquet.
+            s3_endpoint_override (optional): Custom s3 endpoint (used only with s3 uri).
+            uri (optional): File source url, e.g. s3:// or local file.
         """
-        self._file_format = file_format
-        self._uri = uri
-        self._s3_endpoint_override = s3_endpoint_override
-
-    @property
-    def file_format(self):
-        """
-        Returns the file format of this file
-        """
-        return self._file_format
-
-    @file_format.setter
-    def file_format(self, file_format):
-        """
-        Sets the file format of this file
-        """
-        self._file_format = file_format
-
-    @property
-    def uri(self):
-        """
-        Returns the file url of this file
-        """
-        return self._uri
-
-    @uri.setter
-    def uri(self, uri):
-        """
-        Sets the file url of this file
-        """
-        self._uri = uri
-
-    @property
-    def s3_endpoint_override(self):
-        """
-        Returns the s3 endpoint override
-        """
-        return None if self._s3_endpoint_override == "" else self._s3_endpoint_override
-
-    @s3_endpoint_override.setter
-    def s3_endpoint_override(self, s3_endpoint_override):
-        """
-        Sets the s3 endpoint override
-        """
-        self._s3_endpoint_override = s3_endpoint_override
+        self.file_format = file_format
+        self.uri = uri or ""
+        self.s3_endpoint_override = s3_endpoint_override or ""
 
     @classmethod
     def from_proto(cls, file_options_proto: DataSourceProto.FileOptions):
         """
         Creates a FileOptions from a protobuf representation of a file option
 
-        args:
+        Args:
             file_options_proto: a protobuf representation of a datasource
 
         Returns:
@@ -337,4 +293,49 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
             path=self.file_options.uri,
             file_format=self.file_options.file_format,
             s3_endpoint_override=self.file_options.s3_endpoint_override,
+        )
+
+
+class FileLoggingDestination(LoggingDestination):
+    _proto_kind = "file_destination"
+
+    path: str
+    s3_endpoint_override: str
+    partition_by: Optional[List[str]]
+
+    def __init__(
+        self,
+        *,
+        path: str,
+        s3_endpoint_override="",
+        partition_by: Optional[List[str]] = None,
+    ):
+        self.path = path
+        self.s3_endpoint_override = s3_endpoint_override
+        self.partition_by = partition_by
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return FileLoggingDestination(
+            path=config_proto.file_destination.path,
+            s3_endpoint_override=config_proto.file_destination.s3_endpoint_override,
+            partition_by=list(config_proto.file_destination.partition_by)
+            if config_proto.file_destination.partition_by
+            else None,
+        )
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            file_destination=LoggingConfigProto.FileDestination(
+                path=self.path,
+                s3_endpoint_override=self.s3_endpoint_override,
+                partition_by=self.partition_by,
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return FileSource(
+            path=self.path,
+            file_format=ParquetFormat(),
+            s3_endpoint_override=self.s3_endpoint_override,
         )

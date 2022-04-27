@@ -107,7 +107,7 @@ pyarrow.parquet.write_table(entities_2019_table, "entities.parquet")
 import pyarrow.parquet
 import pandas as pd
 
-from feast import FeatureView, Entity, FeatureStore, Field
+from feast import FeatureView, Entity, FeatureStore, Field, BatchFeatureView
 from feast.types import Float64, Int64
 from feast.value_type import ValueType
 from feast.data_format import ParquetFormat
@@ -134,7 +134,7 @@ taxi_entity = Entity(name='taxi', join_keys=['taxi_id'])
 
 
 ```python
-trips_stats_fv = FeatureView(
+trips_stats_fv = BatchFeatureView(
     name='trip_stats',
     entities=['taxi'],
     features=[
@@ -160,9 +160,9 @@ trips_stats_fv = FeatureView(
         Field("avg_trip_seconds", Float64),
         Field("earned_per_hour", Float64),
     ],
-    sources={
-        "stats": trips_stats_fv
-    }
+    sources=[
+      trips_stats_fv,
+    ]
 )
 def on_demand_stats(inp):
     out = pd.DataFrame()

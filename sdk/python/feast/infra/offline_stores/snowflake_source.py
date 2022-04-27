@@ -3,7 +3,11 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -55,6 +59,7 @@ class SnowflakeSource(DataSource):
         """
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
+
         # The default Snowflake schema is named "PUBLIC".
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
@@ -112,6 +117,7 @@ class SnowflakeSource(DataSource):
             A SnowflakeSource object based on the data_source protobuf.
         """
         return SnowflakeSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             database=data_source.snowflake_options.database,
             schema=data_source.snowflake_options.schema,
@@ -136,18 +142,12 @@ class SnowflakeSource(DataSource):
             )
 
         return (
-            self.name == other.name
-            and self.snowflake_options.database == other.snowflake_options.database
-            and self.snowflake_options.schema == other.snowflake_options.schema
-            and self.snowflake_options.table == other.snowflake_options.table
-            and self.snowflake_options.query == other.snowflake_options.query
-            and self.snowflake_options.warehouse == other.snowflake_options.warehouse
-            and self.timestamp_field == other.timestamp_field
-            and self.created_timestamp_column == other.created_timestamp_column
-            and self.field_mapping == other.field_mapping
-            and self.description == other.description
-            and self.tags == other.tags
-            and self.owner == other.owner
+            super().__eq__(other)
+            and self.database == other.database
+            and self.schema == other.schema
+            and self.table == other.table
+            and self.query == other.query
+            and self.warehouse == other.warehouse
         )
 
     @property
@@ -183,6 +183,7 @@ class SnowflakeSource(DataSource):
             A DataSourceProto object.
         """
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.BATCH_SNOWFLAKE,
             field_mapping=self.field_mapping,
             snowflake_options=self.snowflake_options.to_proto(),
@@ -252,7 +253,7 @@ class SnowflakeSource(DataSource):
 
 class SnowflakeOptions:
     """
-    DataSource snowflake options used to source features from snowflake query.
+    Configuration options for a Snowflake data source.
     """
 
     def __init__(
@@ -263,61 +264,11 @@ class SnowflakeOptions:
         query: Optional[str],
         warehouse: Optional[str],
     ):
-        self._database = database
-        self._schema = schema
-        self._table = table
-        self._query = query
-        self._warehouse = warehouse
-
-    @property
-    def query(self):
-        """Returns the snowflake SQL query referenced by this source."""
-        return self._query
-
-    @query.setter
-    def query(self, query):
-        """Sets the snowflake SQL query referenced by this source."""
-        self._query = query
-
-    @property
-    def database(self):
-        """Returns the database name of this snowflake table."""
-        return self._database
-
-    @database.setter
-    def database(self, database):
-        """Sets the database ref of this snowflake table."""
-        self._database = database
-
-    @property
-    def schema(self):
-        """Returns the schema name of this snowflake table."""
-        return self._schema
-
-    @schema.setter
-    def schema(self, schema):
-        """Sets the schema of this snowflake table."""
-        self._schema = schema
-
-    @property
-    def table(self):
-        """Returns the table name of this snowflake table."""
-        return self._table
-
-    @table.setter
-    def table(self, table):
-        """Sets the table ref of this snowflake table."""
-        self._table = table
-
-    @property
-    def warehouse(self):
-        """Returns the warehouse name of this snowflake table."""
-        return self._warehouse
-
-    @warehouse.setter
-    def warehouse(self, warehouse):
-        """Sets the warehouse name of this snowflake table."""
-        self._warehouse = warehouse
+        self.database = database or ""
+        self.schema = schema or ""
+        self.table = table or ""
+        self.query = query or ""
+        self.warehouse = warehouse or ""
 
     @classmethod
     def from_proto(cls, snowflake_options_proto: DataSourceProto.SnowflakeOptions):
@@ -382,3 +333,28 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     def to_data_source(self) -> DataSource:
         return SnowflakeSource(table=self.snowflake_options.table)
+
+
+class SnowflakeLoggingDestination(LoggingDestination):
+    table_name: str
+
+    _proto_kind = "snowflake_destination"
+
+    def __init__(self, *, table_name: str):
+        self.table_name = table_name
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return SnowflakeLoggingDestination(
+            table_name=config_proto.snowflake_destination.table_name,
+        )
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            snowflake_destination=LoggingConfigProto.SnowflakeDestination(
+                table_name=self.table_name,
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return SnowflakeSource(table=self.table_name,)

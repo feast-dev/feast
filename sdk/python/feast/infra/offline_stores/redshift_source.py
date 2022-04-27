@@ -4,7 +4,11 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -106,6 +110,7 @@ class RedshiftSource(DataSource):
             A RedshiftSource object based on the data_source protobuf.
         """
         return RedshiftSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table=data_source.redshift_options.table,
             schema=data_source.redshift_options.schema,
@@ -129,17 +134,11 @@ class RedshiftSource(DataSource):
             )
 
         return (
-            self.name == other.name
+            super().__eq__(other)
             and self.redshift_options.table == other.redshift_options.table
             and self.redshift_options.schema == other.redshift_options.schema
             and self.redshift_options.query == other.redshift_options.query
             and self.redshift_options.database == other.redshift_options.database
-            and self.timestamp_field == other.timestamp_field
-            and self.created_timestamp_column == other.created_timestamp_column
-            and self.field_mapping == other.field_mapping
-            and self.description == other.description
-            and self.tags == other.tags
-            and self.owner == other.owner
         )
 
     @property
@@ -170,16 +169,16 @@ class RedshiftSource(DataSource):
             A DataSourceProto object.
         """
         data_source_proto = DataSourceProto(
+            name=self.name,
             type=DataSourceProto.BATCH_REDSHIFT,
             field_mapping=self.field_mapping,
             redshift_options=self.redshift_options.to_proto(),
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            timestamp_field=self.timestamp_field,
+            created_timestamp_column=self.created_timestamp_column,
         )
-
-        data_source_proto.timestamp_field = self.timestamp_field
-        data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto
 
@@ -216,7 +215,7 @@ class RedshiftSource(DataSource):
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
 
         client = aws_utils.get_redshift_data_client(config.offline_store.region)
-        if self.table is not None:
+        if self.table:
             try:
                 table = client.describe_table(
                     ClusterIdentifier=config.offline_store.cluster_id,
@@ -256,7 +255,7 @@ class RedshiftSource(DataSource):
 
 class RedshiftOptions:
     """
-    DataSource Redshift options used to source features from Redshift query.
+    Configuration options for a Redshift data source.
     """
 
     def __init__(
@@ -266,50 +265,10 @@ class RedshiftOptions:
         query: Optional[str],
         database: Optional[str],
     ):
-        self._table = table
-        self._schema = schema
-        self._query = query
-        self._database = database
-
-    @property
-    def query(self):
-        """Returns the Redshift SQL query referenced by this source."""
-        return self._query
-
-    @query.setter
-    def query(self, query):
-        """Sets the Redshift SQL query referenced by this source."""
-        self._query = query
-
-    @property
-    def table(self):
-        """Returns the table name of this Redshift table."""
-        return self._table
-
-    @table.setter
-    def table(self, table_name):
-        """Sets the table ref of this Redshift table."""
-        self._table = table_name
-
-    @property
-    def schema(self):
-        """Returns the schema name of this Redshift table."""
-        return self._schema
-
-    @schema.setter
-    def schema(self, schema):
-        """Sets the schema of this Redshift table."""
-        self._schema = schema
-
-    @property
-    def database(self):
-        """Returns the schema name of this Redshift table."""
-        return self._database
-
-    @database.setter
-    def database(self, database):
-        """Sets the database name of this Redshift table."""
-        self._database = database
+        self.table = table or ""
+        self.schema = schema or ""
+        self.query = query or ""
+        self.database = database or ""
 
     @classmethod
     def from_proto(cls, redshift_options_proto: DataSourceProto.RedshiftOptions):
@@ -372,3 +331,28 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 
     def to_data_source(self) -> DataSource:
         return RedshiftSource(table=self.redshift_options.table)
+
+
+class RedshiftLoggingDestination(LoggingDestination):
+    _proto_kind = "redshift_destination"
+
+    table_name: str
+
+    def __init__(self, *, table_name: str):
+        self.table_name = table_name
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return RedshiftLoggingDestination(
+            table_name=config_proto.redshift_destination.table_name,
+        )
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            redshift_destination=LoggingConfigProto.RedshiftDestination(
+                table_name=self.table_name
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return RedshiftSource(table=self.table_name)

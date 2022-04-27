@@ -9,7 +9,7 @@ import pandas
 import pyarrow
 from tqdm import tqdm
 
-from feast import errors
+from feast import FeatureService, errors
 from feast.entity import Entity
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.importer import import_class
@@ -186,6 +186,41 @@ class Provider(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
+    def write_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        logs: pyarrow.Table,
+        config: RepoConfig,
+        registry: Registry,
+    ):
+        """
+        Write features and entities logged by a feature server to an offline store.
+
+        Schema of logs table is being inferred from the provided feature service.
+        Only feature services with configured logging are accepted.
+        """
+        ...
+
+    @abc.abstractmethod
+    def retrieve_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        from_: datetime,
+        to: datetime,
+        config: RepoConfig,
+        registry: Registry,
+    ) -> RetrievalJob:
+        """
+        Read logged features from an offline store for a given time window [from, to).
+        Target table is determined based on logging configuration from the feature service.
+
+        Returns:
+             RetrievalJob object, which wraps the query to the offline store.
+
+        """
+        ...
+
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return None
@@ -258,7 +293,7 @@ def _get_column_names(
         the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.batch_source.timestamp_field
+    timestamp_field = feature_view.batch_source.timestamp_field
     feature_names = [feature.name for feature in feature_view.features]
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
     join_keys = [
@@ -268,10 +303,10 @@ def _get_column_names(
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
-        event_timestamp_column = (
-            reverse_field_mapping[event_timestamp_column]
-            if event_timestamp_column in reverse_field_mapping.keys()
-            else event_timestamp_column
+        timestamp_field = (
+            reverse_field_mapping[timestamp_field]
+            if timestamp_field in reverse_field_mapping.keys()
+            else timestamp_field
         )
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
@@ -294,13 +329,13 @@ def _get_column_names(
         name
         for name in feature_names
         if name not in join_keys
-        and name != event_timestamp_column
+        and name != timestamp_field
         and name != created_timestamp_column
     ]
     return (
         join_keys,
         feature_names,
-        event_timestamp_column,
+        timestamp_field,
         created_timestamp_column,
     )
 

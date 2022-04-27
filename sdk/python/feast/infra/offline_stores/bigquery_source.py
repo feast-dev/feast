@@ -4,7 +4,11 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -99,15 +103,9 @@ class BigQuerySource(DataSource):
             )
 
         return (
-            self.name == other.name
-            and self.bigquery_options.table == other.bigquery_options.table
-            and self.bigquery_options.query == other.bigquery_options.query
-            and self.timestamp_field == other.timestamp_field
-            and self.created_timestamp_column == other.created_timestamp_column
-            and self.field_mapping == other.field_mapping
-            and self.description == other.description
-            and self.tags == other.tags
-            and self.owner == other.owner
+            super().__eq__(other)
+            and self.table == other.table
+            and self.query == other.query
         )
 
     @property
@@ -120,7 +118,6 @@ class BigQuerySource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-
         assert data_source.HasField("bigquery_options")
 
         return BigQuerySource(
@@ -144,10 +141,9 @@ class BigQuerySource(DataSource):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            timestamp_field=self.timestamp_field,
+            created_timestamp_column=self.created_timestamp_column,
         )
-
-        data_source_proto.timestamp_field = self.timestamp_field
-        data_source_proto.created_timestamp_column = self.created_timestamp_column
 
         return data_source_proto
 
@@ -179,7 +175,7 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-        if self.table is not None:
+        if self.table:
             schema = client.get_table(self.table).schema
             if not isinstance(schema[0], bigquery.schema.SchemaField):
                 raise TypeError("Could not parse BigQuery table schema.")
@@ -200,42 +196,14 @@ class BigQuerySource(DataSource):
 
 class BigQueryOptions:
     """
-    DataSource BigQuery options used to source features from BigQuery query
+    Configuration options for a BigQuery data source.
     """
 
     def __init__(
         self, table: Optional[str], query: Optional[str],
     ):
-        self._table = table
-        self._query = query
-
-    @property
-    def query(self):
-        """
-        Returns the BigQuery SQL query referenced by this source
-        """
-        return self._query
-
-    @query.setter
-    def query(self, query):
-        """
-        Sets the BigQuery SQL query referenced by this source
-        """
-        self._query = query
-
-    @property
-    def table(self):
-        """
-        Returns the table ref of this BQ table
-        """
-        return self._table
-
-    @table.setter
-    def table(self, table):
-        """
-        Sets the table ref of this BQ table
-        """
-        self._table = table
+        self.table = table or ""
+        self.query = query or ""
 
     @classmethod
     def from_proto(cls, bigquery_options_proto: DataSourceProto.BigQueryOptions):
@@ -248,7 +216,6 @@ class BigQueryOptions:
         Returns:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
-
         bigquery_options = cls(
             table=bigquery_options_proto.table, query=bigquery_options_proto.query,
         )
@@ -262,7 +229,6 @@ class BigQueryOptions:
         Returns:
             BigQueryOptionsProto protobuf
         """
-
         bigquery_options_proto = DataSourceProto.BigQueryOptions(
             table=self.table, query=self.query,
         )
@@ -291,3 +257,28 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
 
     def to_data_source(self) -> DataSource:
         return BigQuerySource(table=self.bigquery_options.table)
+
+
+class BigQueryLoggingDestination(LoggingDestination):
+    _proto_kind = "bigquery_destination"
+
+    table: str
+
+    def __init__(self, *, table_ref):
+        self.table = table_ref
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return BigQueryLoggingDestination(
+            table_ref=config_proto.bigquery_destination.table_ref,
+        )
+
+    def to_data_source(self) -> DataSource:
+        return BigQuerySource(table=self.table)
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            bigquery_destination=LoggingConfigProto.BigQueryDestination(
+                table_ref=self.table
+            )
+        )
