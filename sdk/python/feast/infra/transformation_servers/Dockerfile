@@ -8,8 +8,10 @@ COPY sdk/python sdk/python
 COPY protos protos
 COPY README.md README.md
 
+RUN pip3 install pip-tools
+RUN pip-compile sdk/python/setup.py
 # Install dependencies
-RUN pip3 install -e 'sdk/python[ci]'
+RUN pip3 install -e 'sdk/python'
 
 # Start feature transformation server
 CMD [ "python", "app.py" ]
