@@ -1,5 +1,4 @@
 import contextlib
-import os
 import tempfile
 import uuid
 from datetime import date, datetime, timedelta

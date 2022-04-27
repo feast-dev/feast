@@ -32,6 +32,7 @@ class EmbeddedOnlineFeatureServer:
     ):
         # keep callback in self to prevent it from GC
         self._transformation_callback = partial(transformation_callback, feature_store)
+        self._logging_callback = partial(logging_callback, feature_store)
 
         self._service = NewOnlineFeatureService(
             OnlineFeatureServiceConfig(
@@ -134,7 +135,10 @@ class EmbeddedOnlineFeatureServer:
         return OnlineResponse(resp)
 
     def start_grpc_server(self, host: str, port: int, enable_logging=True):
-        self._service.StartGprcServer(host, port)
+        if enable_logging:
+            self._service.StartGprcServerWithLogging(host, port, self._logging_callback)
+        else:
+            self._service.StartGprcServer(host, port)
 
     def stop_grpc_server(self):
         self._service.Stop()
