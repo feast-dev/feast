@@ -57,6 +57,7 @@ REQUIRED = [
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
+    "numpy<1.22",  # 1.22 drops support for python 3.7.
     "pandas>=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",

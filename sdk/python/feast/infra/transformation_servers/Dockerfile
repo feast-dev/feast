@@ -9,7 +9,7 @@ COPY protos protos
 COPY README.md README.md
 
 # Install dependencies
-RUN pip3 install -e 'sdk/python[ci]'
+RUN pip3 install -e 'sdk/python'
 
 # Start feature transformation server
 CMD [ "python", "app.py" ]
