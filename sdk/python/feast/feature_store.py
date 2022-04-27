@@ -1306,6 +1306,18 @@ class FeatureStore:
             native_entity_values=True,
         )
 
+    def _lazy_init_go_server(self):
+        """Lazily initialize self._go_server if it hasn't been initialized before."""
+        from feast.embedded_go.online_features_service import (
+            EmbeddedOnlineFeatureServer,
+        )
+
+        # Lazily start the go server on the first request
+        if self._go_server is None:
+            self._go_server = EmbeddedOnlineFeatureServer(
+                str(self.repo_path.absolute()), self.config, self
+            )
+
     def _get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1323,15 +1335,7 @@ class FeatureStore:
 
         # If Go feature server is enabled, send request to it instead of going through regular Python logic
         if self.config.go_feature_retrieval:
-            from feast.embedded_go.online_features_service import (
-                EmbeddedOnlineFeatureServer,
-            )
-
-            # Lazily start the go server on the first request
-            if self._go_server is None:
-                self._go_server = EmbeddedOnlineFeatureServer(
-                    str(self.repo_path.absolute()), self.config, self
-                )
+            self._lazy_init_go_server()
 
             entity_native_values: Dict[str, List[Any]]
             if not native_entity_values:
@@ -1957,7 +1961,14 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
-        feature_server.start_server(self, host, port, no_access_log)
+        if self.config.go_feature_retrieval:
+            # Start go server instead of python if the flag is enabled
+            self._lazy_init_go_server()
+            # TODO(tsotne) add http/grpc flag in CLI and replace the hardcoded variable
+            self._go_server.start_server(host, port, "grpc")
+        else:
+            # Start the python server if go server isn't enabled
+            feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:

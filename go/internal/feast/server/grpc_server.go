@@ -1,27 +1,29 @@
-package main
+package server
 
 import (
 	"context"
 
-	"github.com/feast-dev/feast/go/cmd/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast"
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"github.com/google/uuid"
 )
 
-type servingServiceServer struct {
+const feastServerVersion = "0.0.1"
+
+type grpcServingServiceServer struct {
 	fs             *feast.FeatureStore
 	loggingService *logging.LoggingService
 	serving.UnimplementedServingServiceServer
 }
 
-func newServingServiceServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *servingServiceServer {
-	return &servingServiceServer{fs: fs, loggingService: loggingService}
+func NewGrpcServingServiceServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *grpcServingServiceServer {
+	return &grpcServingServiceServer{fs: fs, loggingService: loggingService}
 }
 
-func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error) {
+func (s *grpcServingServiceServer) GetFeastServingInfo(ctx context.Context, request *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error) {
 	return &serving.GetFeastServingInfoResponse{
 		Version: feastServerVersion,
 	}, nil
@@ -30,7 +32,7 @@ func (s *servingServiceServer) GetFeastServingInfo(ctx context.Context, request 
 // Returns an object containing the response to GetOnlineFeatures.
 // Metadata contains featurenames that corresponds to the number of rows in response.Results.
 // Results contains values including the value of the feature, the event timestamp, and feature status in a columnar format.
-func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
+func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, request *serving.GetOnlineFeaturesRequest) (*serving.GetOnlineFeaturesResponse, error) {
 	requestId := GenerateRequestId()
 	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
 	if err != nil {
@@ -74,7 +76,7 @@ func (s *servingServiceServer) GetOnlineFeatures(ctx context.Context, request *s
 			EventTimestamps: vector.Timestamps,
 		})
 	}
-	if featuresOrService.FeatureService != nil {
+	if featuresOrService.FeatureService != nil && s.loggingService != nil {
 		go s.loggingService.GenerateLogs(featuresOrService.FeatureService, entityValuesMap, resp.Results[len(request.Entities):], request.RequestContext, requestId)
 	}
 	return resp, nil

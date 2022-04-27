@@ -43,7 +43,8 @@ type OnlineStore interface {
 
 func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool) {
 	if onlineStoreType, ok := onlineStoreConfig["type"]; !ok {
-		return "", false
+		// If online store type isn't specified, default to sqlite
+		return "sqlite", true
 	} else {
 		result, ok := onlineStoreType.(string)
 		return result, ok
@@ -53,10 +54,11 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
+		return nil, fmt.Errorf("could not get online store type from online store config: %+v", config.OnlineStore)
+	} else if onlineStoreType == "sqlite" {
 		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
-	}
-	if onlineStoreType == "redis" {
+	} else if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
 		return onlineStore, err
 	} else {

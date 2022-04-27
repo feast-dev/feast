@@ -3,7 +3,15 @@ package embedded
 import (
 	"context"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/server"
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"google.golang.org/grpc"
 	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
@@ -195,6 +203,36 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		cdata.ArrayFromPtr(output.DataPtr),
 		cdata.SchemaFromPtr(output.SchemaPtr))
 
+	return nil
+}
+
+func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
+	// TODO(oleksii): enable logging
+	// Disable logging for now
+	var loggingService *logging.LoggingService = nil
+	ser := server.NewGrpcServingServiceServer(s.fs, loggingService)
+	log.Printf("Starting a gRPC server on host %s port %d\n", host, port)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+	if err != nil {
+		return err
+	}
+	grpcServer := grpc.NewServer()
+	serving.RegisterServingServiceServer(grpcServer, ser)
+
+	// Notify this channel when receiving interrupt or termination signals from OS
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
+		<-c
+		fmt.Println("Stopping the gRPC server...")
+		grpcServer.GracefulStop()
+	}()
+
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
