@@ -12,7 +12,10 @@ from feast.infra.offline_stores.snowflake_source import (
     SavedDatasetSnowflakeStorage,
     SnowflakeLoggingDestination,
 )
-from feast.infra.utils.snowflake_utils import get_snowflake_conn, write_pandas
+from feast.infra.utils.snowflake_utils import (
+    copy_uploaded_data_to_table,
+    get_snowflake_conn,
+)
 from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -50,7 +53,9 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
 
         destination_name = self.get_prefixed_table_name(destination_name)
 
-        write_pandas(snowflake_conn, df, destination_name, auto_create_table=True)
+        copy_uploaded_data_to_table(
+            snowflake_conn, df, destination_name, auto_create_table=True
+        )
 
         self.tables.append(destination_name)
 

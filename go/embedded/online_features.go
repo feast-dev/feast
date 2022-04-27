@@ -215,9 +215,23 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 }
 
 func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
-	// TODO(oleksii): enable logging
-	// Disable logging for now
+	return s.StartGprcServerWithLogging(host, port, nil)
+}
+
+func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback) error {
 	var loggingService *logging.LoggingService = nil
+	var err error
+	if writeLoggedFeaturesCallback != nil {
+		sink, err := logging.NewOfflineStoreSink(writeLoggedFeaturesCallback)
+		if err != nil {
+			return err
+		}
+
+		loggingService, err = logging.NewLoggingService(s.fs, sink)
+		if err != nil {
+			return err
+		}
+	}
 	ser := server.NewGrpcServingServiceServer(s.fs, loggingService)
 	log.Printf("Starting a gRPC server on host %s port %d\n", host, port)
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))

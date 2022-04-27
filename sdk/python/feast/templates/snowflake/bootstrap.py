@@ -1,7 +1,7 @@
 import click
 import snowflake.connector
 
-from feast.infra.utils.snowflake_utils import write_pandas
+from feast.infra.utils.snowflake_utils import copy_uploaded_data_to_table
 
 
 def bootstrap():
@@ -58,7 +58,7 @@ def bootstrap():
         cur.execute('CREATE SCHEMA IF NOT EXISTS "PUBLIC"')
         cur.execute('USE SCHEMA "PUBLIC"')
         cur.execute(f'DROP TABLE IF EXISTS "{project_name}_feast_driver_hourly_stats"')
-        write_pandas(
+        copy_uploaded_data_to_table(
             conn,
             driver_df,
             f"{project_name}_feast_driver_hourly_stats",

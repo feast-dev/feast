@@ -49,7 +49,7 @@ func (s *FileLogSink) Write(record arrow.Record) error {
 	return pqarrow.WriteTable(table, writer, 100, props, arrProps)
 }
 
-func (s *FileLogSink) Flush() error {
+func (s *FileLogSink) Flush(featureServiceName string) error {
 	// files are already flushed during Write
 	return nil
 }

@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
 import dask.dataframe as dd
@@ -375,13 +376,16 @@ class FileOfflineStore(OfflineStore):
     @staticmethod
     def write_logged_features(
         config: RepoConfig,
-        data: pyarrow.Table,
+        data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
         registry: Registry,
     ):
         destination = logging_config.destination
         assert isinstance(destination, FileLoggingDestination)
+
+        if isinstance(data, Path):
+            data = pyarrow.parquet.read_table(data)
 
         filesystem, path = FileSource.create_filesystem_and_path(
             destination.path, destination.s3_endpoint_override,

@@ -1,6 +1,7 @@
 import contextlib
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import (
     Callable,
     ContextManager,
@@ -265,7 +266,7 @@ class RedshiftOfflineStore(OfflineStore):
     @staticmethod
     def write_logged_features(
         config: RepoConfig,
-        data: pyarrow.Table,
+        data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
         registry: Registry,
@@ -277,7 +278,10 @@ class RedshiftOfflineStore(OfflineStore):
             config.offline_store.region
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
-        s3_path = f"{config.offline_store.s3_staging_location}/logged_features/{uuid.uuid4()}.parquet"
+        if isinstance(data, Path):
+            s3_path = f"{config.offline_store.s3_staging_location}/logged_features/{uuid.uuid4()}"
+        else:
+            s3_path = f"{config.offline_store.s3_staging_location}/logged_features/{uuid.uuid4()}.parquet"
 
         aws_utils.upload_arrow_table_to_redshift(
             table=data,

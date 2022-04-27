@@ -1,4 +1,5 @@
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import pyarrow as pa
@@ -132,7 +133,7 @@ class EmbeddedOnlineFeatureServer:
         resp = record_batch_to_online_response(record_batch)
         return OnlineResponse(resp)
 
-    def start_grpc_server(self, host: str, port: int):
+    def start_grpc_server(self, host: str, port: int, enable_logging=True):
         self._service.StartGprcServer(host, port)
 
     def stop_grpc_server(self):
@@ -180,6 +181,18 @@ def transformation_callback(
     output_record._export_to_c(output_arr_ptr)
 
     return output_record.num_rows
+
+
+def logging_callback(
+    fs: "FeatureStore", feature_service_name: str, dataset_dir: str,
+) -> str:
+    feature_service = fs.get_feature_service(feature_service_name, allow_cache=True)
+    try:
+        fs.write_logged_features(logs=Path(dataset_dir), source=feature_service)
+    except Exception as exc:
+        return repr(exc)
+
+    return ""  # no error
 
 
 def allocate_schema_and_array():

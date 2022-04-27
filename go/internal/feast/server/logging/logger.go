@@ -37,7 +37,7 @@ type LogSink interface {
 	// Flush actually send data to a sink.
 	// We want to control amount to interaction with sink, since it could be a costly operation.
 	// Also, some sinks like BigQuery might have quotes and physically limit amount of write requests per day.
-	Flush() error
+	Flush(featureSeviceName string) error
 }
 
 type Logger interface {
@@ -144,7 +144,7 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 			if err != nil {
 				log.Printf("Log write failed: %+v", err)
 			}
-			err = l.sink.Flush()
+			err = l.sink.Flush(l.featureServiceName)
 			if err != nil {
 				log.Printf("Log flush failed: %+v", err)
 			}
@@ -155,7 +155,7 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 				log.Printf("Log write failed: %+v", err)
 			}
 		case <-time.After(l.config.FlushInterval):
-			err := l.sink.Flush()
+			err := l.sink.Flush(l.featureServiceName)
 			if err != nil {
 				log.Printf("Log flush failed: %+v", err)
 			}

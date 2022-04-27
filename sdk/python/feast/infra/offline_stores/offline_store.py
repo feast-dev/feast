@@ -14,6 +14,7 @@
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import pandas as pd
@@ -246,7 +247,7 @@ class OfflineStore(ABC):
     @staticmethod
     def write_logged_features(
         config: RepoConfig,
-        data: pyarrow.Table,
+        data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
         registry: Registry,
@@ -259,7 +260,7 @@ class OfflineStore(ABC):
 
         Args:
             config: Repo configuration object
-            data: Arrow table produced by logging source.
+            data: Arrow table or path to parquet directory that contains logs dataset.
             source: Logging source that provides schema and some additional metadata.
             logging_config: used to determine destination
             registry: Feast registry

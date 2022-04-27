@@ -2,7 +2,8 @@ import contextlib
 import os
 import tempfile
 import uuid
-from typing import Any, Dict, Iterator, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -235,7 +236,7 @@ def upload_df_to_redshift(
 
 
 def upload_arrow_table_to_redshift(
-    table: pyarrow.Table,
+    table: Union[pyarrow.Table, Path],
     redshift_data_client,
     cluster_id: str,
     database: str,
@@ -265,7 +266,7 @@ def upload_arrow_table_to_redshift(
         iam_role: IAM Role for Redshift to assume during the COPY command.
                   The role must grant permission to read the S3 location.
         table_name: The name of the new Redshift table where we copy the dataframe
-        table: The Arrow Table to upload
+        table: The Arrow Table or Path to parquet dataset to upload
         schema: (Optionally) client may provide arrow Schema which will be converted into redshift table schema
         fail_if_exists: fail if table with such name exists or append data to existing table
 
@@ -275,18 +276,35 @@ def upload_arrow_table_to_redshift(
     if len(table_name) > REDSHIFT_TABLE_NAME_MAX_LENGTH:
         raise RedshiftTableNameTooLong(table_name)
 
+    if isinstance(table, pyarrow.Table) and not schema:
+        schema = table.schema
+
+    if not schema:
+        raise ValueError("Schema must be specified when data is passed as a Path")
+
     bucket, key = get_bucket_and_key(s3_path)
 
-    schema = schema or table.schema
     column_query_list = ", ".join(
         [f"{field.name} {pa_to_redshift_value_type(field.type)}" for field in schema]
     )
 
-    # Write the PyArrow Table on disk in Parquet format and upload it to S3
-    with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
-        pq.write_table(table, parquet_temp_file)
-        parquet_temp_file.seek(0)
-        s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
+    uploaded_files = []
+
+    if isinstance(table, Path):
+        for file in table.iterdir():
+            file_key = os.path.join(key, file.name)
+            with file.open("rb") as f:
+                s3_resource.Object(bucket, file_key).put(Body=f)
+
+            uploaded_files.append(file_key)
+    else:
+        # Write the PyArrow Table on disk in Parquet format and upload it to S3
+        with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
+            pq.write_table(table, parquet_temp_file)
+            parquet_temp_file.seek(0)
+            s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
+
+        uploaded_files.append(key)
 
     copy_query = (
         f"COPY {table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
@@ -306,7 +324,8 @@ def upload_arrow_table_to_redshift(
         )
     finally:
         # Clean up S3 temporary data
-        s3_resource.Object(bucket, key).delete()
+        for file_pah in uploaded_files:
+            s3_resource.Object(bucket, file_pah).delete()
 
 
 @contextlib.contextmanager
