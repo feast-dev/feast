@@ -141,7 +141,10 @@ def write_pandas(
         create_temp_table: Will make the auto-created table as a temporary table
     """
 
-    upload_df(df, conn, chunk_size, parallel, compression)
+    cursor: SnowflakeCursor = conn.cursor()
+    stage_name = create_temporary_sfc_stage(cursor)
+
+    upload_df(df, cursor, stage_name, chunk_size, parallel, compression)
     copy_uploaded_data_to_table(
         conn,
         list(df.columns),
@@ -170,8 +173,11 @@ def write_parquet(
     auto_create_table: bool = False,
     create_temp_table: bool = False,
 ):
+    cursor: SnowflakeCursor = conn.cursor()
+    stage_name = create_temporary_sfc_stage(cursor)
+
     columns = [field.name for field in dataset_schema]
-    upload_local_pq(path, conn, parallel)
+    upload_local_pq(path, cursor, stage_name, parallel)
     copy_uploaded_data_to_table(
         conn,
         columns,
@@ -289,7 +295,8 @@ def copy_uploaded_data_to_table(
 
 def upload_df(
     df: pd.DataFrame,
-    conn: SnowflakeConnection,
+    cursor: SnowflakeCursor,
+    stage_name: str,
     chunk_size: Optional[int] = None,
     parallel: int = 4,
     compression: str = "gzip",
@@ -297,7 +304,8 @@ def upload_df(
     """
     Args:
         df: Dataframe we'd like to write back.
-        conn: Connection to be used to communicate with Snowflake.
+        cursor: cursor to be used to communicate with Snowflake.
+        stage_name: stage name in Snowflake connection.
         chunk_size: Number of elements to be inserted once, if not provided all elements will be dumped once
             (Default value = None).
         parallel: Number of threads to be used when uploading chunks, default follows documentation at:
@@ -306,9 +314,6 @@ def upload_df(
             better compression, while snappy is faster. Use whichever is more appropriate (Default value = 'gzip').
 
     """
-    cursor: SnowflakeCursor = conn.cursor()
-    stage_name = create_temporary_sfc_stage(cursor)
-
     if chunk_size is None:
         chunk_size = len(df)
 
@@ -337,18 +342,16 @@ def upload_df(
 
 
 def upload_local_pq(
-    path: Path, conn: SnowflakeConnection, parallel: int = 4,
+    path: Path, cursor: SnowflakeCursor, stage_name: str, parallel: int = 4,
 ):
     """
     Args:
         path: Path to parquet dataset on disk
-        conn: Connection to be used to communicate with Snowflake.
+        cursor: cursor to be used to communicate with Snowflake.
+        stage_name: stage name in Snowflake connection.
         parallel: Number of threads to be used when uploading chunks, default follows documentation at:
             https://docs.snowflake.com/en/sql-reference/sql/put.html#optional-parameters (Default value = 4).
     """
-    cursor: SnowflakeCursor = conn.cursor()
-    stage_name = create_temporary_sfc_stage(cursor)
-
     for file in path.iterdir():
         upload_sql = (
             "PUT /* Python:feast.infra.utils.snowflake_utils.upload_local_pq() */ "
