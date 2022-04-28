@@ -4,7 +4,7 @@ import pathlib
 import sys
 
 USAGE = f"Usage: python {sys.argv[0]} [--help] | current_semver_version new_semver_version]"
-VERSIONS_TO_BUMP = 28
+VERSIONS_TO_BUMP = 29
 
 
 def main() -> None:
