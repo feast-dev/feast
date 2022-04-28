@@ -39,9 +39,9 @@ def main() -> None:
     if current_version[-2:] != ".0":
         print(current_version[-2:])
         versions_in_files = count_version(current_version, files_to_bump, repo_root)
-        if versions_in_files != VERSIONS_TO_BUMP:
-            raise SystemExit(f"Found {versions_in_files} occurrences of {current_version} in files to bump, but "
-                             f"expected {VERSIONS_TO_BUMP}")
+        # if versions_in_files != VERSIONS_TO_BUMP:
+        #     raise SystemExit(f"Found {versions_in_files} occurrences of {current_version} in files to bump, but "
+        #                      f"expected {VERSIONS_TO_BUMP}")
     else:
         found = False
 
