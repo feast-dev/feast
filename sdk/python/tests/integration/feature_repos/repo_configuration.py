@@ -83,7 +83,11 @@ AVAILABLE_ONLINE_STORES: List[Any] = [
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_OFFLINE_STORES.extend(
-        [BigQueryDataSourceCreator, RedshiftDataSourceCreator]
+        [
+            BigQueryDataSourceCreator,
+            RedshiftDataSourceCreator,
+            SnowflakeDataSourceCreator,
+        ]
     )
 
     AVAILABLE_ONLINE_STORES.extend([REDIS_CONFIG, DYNAMO_CONFIG])
