@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.2](https://github.com/feast-dev/feast/compare/v0.20.1...v0.20.2) (2022-04-28)
+
+
+### Bug Fixes
+
+* Feature with timestamp type is incorrectly interpreted by Go FS ([#2588](https://github.com/feast-dev/feast/issues/2588)) ([3ec943a](https://github.com/feast-dev/feast/commit/3ec943a9964cd2a2c58700dd946472788ac39ccb))
+* Fix AWS bootstrap template ([#2604](https://github.com/feast-dev/feast/issues/2604)) ([6df5a49](https://github.com/feast-dev/feast/commit/6df5a4968258337f7480b4e80d831b5e8960f1ad))
+* Fix broken proto conversion methods for data sources ([#2603](https://github.com/feast-dev/feast/issues/2603)) ([c391216](https://github.com/feast-dev/feast/commit/c3912169451757aa60768b302f8dad129fa796a5))
+* Remove ci extra from the feature transformation server dockerfile ([#2618](https://github.com/feast-dev/feast/issues/2618)) ([a7437fa](https://github.com/feast-dev/feast/commit/a7437fa6c49c717b148746455e2de2d6f98002f3))
+* Update field api to add tag parameter corresponding to labels in Feature. ([#2610](https://github.com/feast-dev/feast/issues/2610)) ([40962fc](https://github.com/feast-dev/feast/commit/40962fcc6afc26601eb0440595c99d568463eb42))
+* Use timestamp type when converting unixtimestamp feature type to arrow ([#2593](https://github.com/feast-dev/feast/issues/2593)) ([a1c3ee3](https://github.com/feast-dev/feast/commit/a1c3ee38e2f2a8e4528c8a3f58144568e4337718))
+
 ## [0.20.1](https://github.com/feast-dev/feast/compare/v0.20.0...v0.20.1) (2022-04-20)
 
 
