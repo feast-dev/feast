@@ -28,6 +28,9 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,
+)
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
@@ -70,6 +73,21 @@ REDIS_CLUSTER_CONFIG = {
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
+AVAILABLE_OFFLINE_STORES: List[Any] = [
+    FileDataSourceCreator,
+]
+
+AVAILABLE_ONLINE_STORES: List[Any] = [
+    "sqlite",
+]
+
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    AVAILABLE_OFFLINE_STORES.extend(
+        [BigQueryDataSourceCreator, RedshiftDataSourceCreator]
+    )
+
+    AVAILABLE_ONLINE_STORES.extend([REDIS_CONFIG, DYNAMO_CONFIG])
+
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
 # online store, test data, and more parameters) that most integration tests will test
 # against. By default, FULL_REPO_CONFIGS uses the three providers (local, GCP, and AWS)
@@ -81,52 +99,53 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
     IntegrationTestRepoConfig(),
     IntegrationTestRepoConfig(python_feature_server=True),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+    # GCP configurations
+    IntegrationTestRepoConfig(
+        provider="gcp",
+        offline_store_creator=BigQueryDataSourceCreator,
+        online_store="datastore",
+    ),
+    IntegrationTestRepoConfig(
+        provider="gcp",
+        offline_store_creator=BigQueryDataSourceCreator,
+        online_store=REDIS_CONFIG,
+    ),
+    # AWS configurations
+    IntegrationTestRepoConfig(
+        provider="aws",
+        offline_store_creator=RedshiftDataSourceCreator,
+        online_store=DYNAMO_CONFIG,
+        python_feature_server=True,
+    ),
+    IntegrationTestRepoConfig(
+        provider="aws",
+        offline_store_creator=RedshiftDataSourceCreator,
+        online_store=REDIS_CONFIG,
+    ),
+    # Snowflake configurations
+    IntegrationTestRepoConfig(
+        provider="aws",  # no list features, no feature server
+        offline_store_creator=SnowflakeDataSourceCreator,
+        online_store=REDIS_CONFIG,
+    ),
+    # Go implementation for online retrieval
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_retrieval=True,),
+    # TODO(felixwang9817): Enable this test once https://github.com/feast-dev/feast/issues/2544 is resolved.
+    # IntegrationTestRepoConfig(
+    #     online_store=REDIS_CONFIG,
+    #     python_feature_server=True,
+    #     go_feature_retrieval=True,
+    # ),
 ]
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    DEFAULT_FULL_REPO_CONFIGS.extend(
-        [
-            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-            # GCP configurations
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store="datastore",
-            ),
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # AWS configurations
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=DYNAMO_CONFIG,
-                python_feature_server=True,
-            ),
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # Snowflake configurations
-            IntegrationTestRepoConfig(
-                provider="aws",  # no list features, no feature server
-                offline_store_creator=SnowflakeDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # Go implementation for online retrieval
-            IntegrationTestRepoConfig(
-                online_store=REDIS_CONFIG, go_feature_retrieval=True,
-            ),
-            # TODO(felixwang9817): Enable this test once https://github.com/feast-dev/feast/issues/2544 is resolved.
-            # IntegrationTestRepoConfig(
-            #     online_store=REDIS_CONFIG,
-            #     python_feature_server=True,
-            #     go_feature_retrieval=True,
-            # ),
-        ]
-    )
+
+DEFAULT_FULL_REPO_CONFIGS = [
+    c
+    for c in DEFAULT_FULL_REPO_CONFIGS
+    if c.online_store in AVAILABLE_ONLINE_STORES
+    and c.offline_store_creator in AVAILABLE_OFFLINE_STORES
+]
+
 if os.getenv("FEAST_GO_FEATURE_RETRIEVAL", "False") == "True":
     DEFAULT_FULL_REPO_CONFIGS = [
         IntegrationTestRepoConfig(
