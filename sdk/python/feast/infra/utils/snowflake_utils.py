@@ -146,7 +146,8 @@ def write_pandas(
 
     upload_df(df, cursor, stage_name, chunk_size, parallel, compression)
     copy_uploaded_data_to_table(
-        conn,
+        cursor,
+        stage_name,
         list(df.columns),
         table_name,
         database,
@@ -179,7 +180,8 @@ def write_parquet(
     columns = [field.name for field in dataset_schema]
     upload_local_pq(path, cursor, stage_name, parallel)
     copy_uploaded_data_to_table(
-        conn,
+        cursor,
+        stage_name,
         columns,
         table_name,
         database,
@@ -193,7 +195,8 @@ def write_parquet(
 
 
 def copy_uploaded_data_to_table(
-    conn: SnowflakeConnection,
+    cursor: SnowflakeCursor,
+    stage_name: str,
     columns: List[str],
     table_name: str,
     database: Optional[str] = None,
@@ -229,9 +232,6 @@ def copy_uploaded_data_to_table(
             + (schema + "." if schema else "")
             + (table_name)
         )
-
-    cursor: SnowflakeCursor = conn.cursor()
-    stage_name = create_temporary_sfc_stage(cursor)
 
     if quote_identifiers:
         quoted_columns = '"' + '","'.join(columns) + '"'
