@@ -56,7 +56,7 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 	}
 
 	// Notify this channel when receiving interrupt or termination signals from OS
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 
 	return &OnlineFeatureService{fs: fs, grpcStopCh: c}
