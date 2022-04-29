@@ -30,7 +30,8 @@ import (
 )
 
 type OnlineFeatureService struct {
-	fs *feast.FeatureStore
+	fs         *feast.FeatureStore
+	grpcStopCh chan os.Signal
 }
 
 type OnlineFeatureServiceConfig struct {
@@ -54,7 +55,11 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 		log.Fatalln(err)
 	}
 
-	return &OnlineFeatureService{fs: fs}
+	// Notify this channel when receiving interrupt or termination signals from OS
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	return &OnlineFeatureService{fs: fs, grpcStopCh: c}
 }
 
 func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[string]int32, error) {
@@ -219,15 +224,14 @@ func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Listening a gRPC server on host %s port %d\n", host, port)
+
 	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, ser)
 
-	// Notify this channel when receiving interrupt or termination signals from OS
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-c
+		<-s.grpcStopCh
 		fmt.Println("Stopping the gRPC server...")
 		grpcServer.GracefulStop()
 	}()
@@ -237,6 +241,10 @@ func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
 		return err
 	}
 	return nil
+}
+
+func (s *OnlineFeatureService) Stop() {
+	s.grpcStopCh <- syscall.SIGINT
 }
 
 /*
