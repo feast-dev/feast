@@ -135,6 +135,9 @@ class EmbeddedOnlineFeatureServer:
     def start_grpc_server(self, host: str, port: int):
         self._service.StartGprcServer(host, port)
 
+    def stop_grpc_server(self):
+        self._service.Stop()
+
 
 def _to_arrow(value, type_hint: Optional[ValueType]) -> pa.Array:
     if isinstance(value, Value_pb2.RepeatedValue):

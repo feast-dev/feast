@@ -79,8 +79,9 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 		})
 	}
 
-	if featuresOrService.FeatureService != nil && s.loggingService != nil {
-		logger, err := s.loggingService.GetOrCreateLogger(featuresOrService.FeatureService)
+	featureService := featuresOrService.FeatureService
+	if featureService != nil && featureService.LoggingConfig != nil && s.loggingService != nil {
+		logger, err := s.loggingService.GetOrCreateLogger(featureService)
 		if err != nil {
 			fmt.Printf("Couldn't instantiate logger for feature service %s: %+v", featuresOrService.FeatureService.Name, err)
 		}
