@@ -208,8 +208,8 @@ class Provider(abc.ABC):
     def retrieve_feature_service_logs(
         self,
         feature_service: FeatureService,
-        from_: datetime,
-        to: datetime,
+        start_date: datetime,
+        end_date: datetime,
         config: RepoConfig,
         registry: Registry,
     ) -> RetrievalJob:

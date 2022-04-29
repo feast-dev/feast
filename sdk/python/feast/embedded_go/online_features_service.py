@@ -18,7 +18,12 @@ from feast.repo_config import RepoConfig
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
-from .lib.embedded import DataTable, NewOnlineFeatureService, OnlineFeatureServiceConfig
+from .lib.embedded import (
+    DataTable,
+    LoggingOptions,
+    NewOnlineFeatureService,
+    OnlineFeatureServiceConfig,
+)
 from .lib.go import Slice_string
 from .type_map import FEAST_TYPE_TO_ARROW_TYPE, arrow_array_to_array_of_proto
 
@@ -134,9 +139,22 @@ class EmbeddedOnlineFeatureServer:
         resp = record_batch_to_online_response(record_batch)
         return OnlineResponse(resp)
 
-    def start_grpc_server(self, host: str, port: int, enable_logging=True):
+    def start_grpc_server(
+        self,
+        host: str,
+        port: int,
+        enable_logging: bool = True,
+        logging_options: Optional[LoggingOptions] = None,
+    ):
         if enable_logging:
-            self._service.StartGprcServerWithLogging(host, port, self._logging_callback)
+            if logging_options:
+                self._service.StartGprcServerWithLogging(
+                    host, port, self._logging_callback, logging_options
+                )
+            else:
+                self._service.StartGprcServerWithLoggingDefaultOpts(
+                    host, port, self._logging_callback
+                )
         else:
             self._service.StartGprcServer(host, port)
 
@@ -189,14 +207,14 @@ def transformation_callback(
 
 def logging_callback(
     fs: "FeatureStore", feature_service_name: str, dataset_dir: str,
-) -> str:
+) -> bytes:
     feature_service = fs.get_feature_service(feature_service_name, allow_cache=True)
     try:
         fs.write_logged_features(logs=Path(dataset_dir), source=feature_service)
     except Exception as exc:
-        return repr(exc)
+        return repr(exc).encode()
 
-    return ""  # no error
+    return "".encode()  # no error
 
 
 def allocate_schema_and_array():

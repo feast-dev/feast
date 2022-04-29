@@ -8,23 +8,22 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"google.golang.org/grpc"
-
-	"github.com/feast-dev/feast/go/internal/feast/server"
-	"github.com/feast-dev/feast/go/internal/feast/server/logging"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"time"
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/cdata"
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"google.golang.org/grpc"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/internal/feast/server"
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 )
@@ -42,6 +41,15 @@ type OnlineFeatureServiceConfig struct {
 type DataTable struct {
 	DataPtr   uintptr
 	SchemaPtr uintptr
+}
+
+// LoggingOptions is a public (embedded) copy of logging.LoggingOptions struct.
+// See logging.LoggingOptions for properties description
+type LoggingOptions struct {
+	ChannelCapacity int
+	EmitTimeout     time.Duration
+	WriteInterval   time.Duration
+	FlushInterval   time.Duration
 }
 
 func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback transformation.TransformationCallback) *OnlineFeatureService {
@@ -215,10 +223,20 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 }
 
 func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
-	return s.StartGprcServerWithLogging(host, port, nil)
+	return s.StartGprcServerWithLogging(host, port, nil, LoggingOptions{})
 }
 
-func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback) error {
+func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback) error {
+	defaultOpts := LoggingOptions{
+		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
+		EmitTimeout:     logging.DefaultOptions.EmitTimeout,
+		WriteInterval:   logging.DefaultOptions.WriteInterval,
+		FlushInterval:   logging.DefaultOptions.FlushInterval,
+	}
+	return s.StartGprcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
+}
+
+func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
 	var loggingService *logging.LoggingService = nil
 	var err error
 	if writeLoggedFeaturesCallback != nil {
@@ -227,7 +245,12 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 			return err
 		}
 
-		loggingService, err = logging.NewLoggingService(s.fs, sink)
+		loggingService, err = logging.NewLoggingService(s.fs, sink, logging.LoggingOptions{
+			ChannelCapacity: loggingOpts.ChannelCapacity,
+			EmitTimeout:     loggingOpts.EmitTimeout,
+			WriteInterval:   loggingOpts.WriteInterval,
+			FlushInterval:   loggingOpts.FlushInterval,
+		})
 		if err != nil {
 			return err
 		}
@@ -238,7 +261,6 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 	if err != nil {
 		return err
 	}
-	log.Printf("Listening a gRPC server on host %s port %d\n", host, port)
 
 	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, ser)

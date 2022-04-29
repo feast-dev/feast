@@ -3,15 +3,16 @@ package logging
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/parquet"
 	"github.com/apache/arrow/go/v8/parquet/pqarrow"
 	"github.com/google/uuid"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 type OfflineStoreWriteCallback func(featureServiceName, datasetDir string) string
@@ -41,7 +42,7 @@ func (s *OfflineStoreSink) getOrCreateDatasetDir() (string, error) {
 }
 
 func (s *OfflineStoreSink) cleanCurrentDatasetDir() error {
-	if s.datasetDir != "" {
+	if s.datasetDir == "" {
 		return nil
 	}
 	datasetDir := s.datasetDir

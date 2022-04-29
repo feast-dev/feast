@@ -37,7 +37,7 @@ type LogSink interface {
 	// Flush actually send data to a sink.
 	// We want to control amount to interaction with sink, since it could be a costly operation.
 	// Also, some sinks like BigQuery might have quotes and physically limit amount of write requests per day.
-	Flush(featureSeviceName string) error
+	Flush(featureServiceName string) error
 }
 
 type Logger interface {
@@ -135,6 +135,10 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 			lErr = errors.WithStack(rErr)
 		}
 	}()
+
+	writeTicker := time.NewTicker(l.config.WriteInterval)
+	flushTicker := time.NewTicker(l.config.FlushInterval)
+
 	for {
 		shouldStop := false
 
@@ -149,12 +153,12 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 				log.Printf("Log flush failed: %+v", err)
 			}
 			shouldStop = true
-		case <-time.After(l.config.WriteInterval):
+		case <-writeTicker.C:
 			err := l.buffer.writeBatch(l.sink)
 			if err != nil {
 				log.Printf("Log write failed: %+v", err)
 			}
-		case <-time.After(l.config.FlushInterval):
+		case <-flushTicker.C:
 			err := l.sink.Flush(l.featureServiceName)
 			if err != nil {
 				log.Printf("Log flush failed: %+v", err)
@@ -170,6 +174,9 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 			break
 		}
 	}
+
+	writeTicker.Stop()
+	flushTicker.Stop()
 
 	// Notify all waiters for graceful stop
 	l.cond.L.Lock()
@@ -259,7 +266,7 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featur
 			EventTimestamps: eventTimestamps,
 
 			RequestId:    requestId,
-			LogTimestamp: time.Now(),
+			LogTimestamp: time.Now().UTC(),
 		}
 		err := l.EmitLog(&newLog)
 		if err != nil {

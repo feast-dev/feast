@@ -108,12 +108,12 @@ class _DestinationRegistry(type):
 
     def __new__(cls, name, bases, dct):
         kls = type.__new__(cls, name, bases, dct)
-        if dct.get("_proto_attr_name"):
-            cls.classes_by_proto_attr_name[dct["_proto_attr_name"]] = kls
+        if dct.get("_proto_kind"):
+            cls.classes_by_proto_attr_name[dct["_proto_kind"]] = kls
         return kls
 
 
-class LoggingDestination:
+class LoggingDestination(metaclass=_DestinationRegistry):
     """
     Logging destination contains details about where exactly logs should be written inside an offline store.
     It is implementation specific - each offline store must implement LoggingDestination subclass.
