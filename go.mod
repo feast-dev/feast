@@ -26,6 +26,8 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/goccy/go-json v0.9.6 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/gonuts/commander v0.1.0 // indirect
+	github.com/gonuts/flag v0.1.0 // indirect
 	github.com/google/flatbuffers v2.0.6+incompatible // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
@@ -48,4 +50,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
-replace github.com/go-python/gopy v0.4.0 => github.com/feast-dev/gopy v0.4.1-0.20220429022837-bee8455184a0
+replace github.com/go-python/gopy v0.4.0 => github.com/feast-dev/gopy v0.4.1-0.20220429180328-4257ac71a4d0
