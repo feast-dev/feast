@@ -17,7 +17,7 @@ COPY README.md ./README.md
 
 # Install production dependencies.
 RUN pip install --no-cache-dir \
-    -e 'sdk/python[gcp,redis]' \
+    -e '.[gcp,redis]' \
     -r ./sdk/python/feast/infra/feature_servers/gcp_cloudrun/requirements.txt
 
 # Run the web service on container startup. Here we use the gunicorn
