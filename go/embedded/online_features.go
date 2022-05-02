@@ -270,6 +270,10 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 		<-s.grpcStopCh
 		fmt.Println("Stopping the gRPC server...")
 		grpcServer.GracefulStop()
+		if loggingService != nil {
+			loggingService.Stop()
+		}
+		fmt.Println("gRPC server terminated")
 	}()
 
 	err = grpcServer.Serve(lis)

@@ -99,11 +99,8 @@ def initialized_registry(local_environment, test_data):
     fs.materialize(local_environment.start_date, local_environment.end_date)
 
 
-@pytest.fixture(
-    params=[True, False], ids=["with_logging", "wo_logging"],
-)
-def grpc_server_port(local_environment, initialized_registry, request):
-    enable_logging = request.param
+@pytest.fixture
+def grpc_server_port(local_environment, initialized_registry):
     fs = local_environment.feature_store
 
     embedded = EmbeddedOnlineFeatureServer(
@@ -115,7 +112,7 @@ def grpc_server_port(local_environment, initialized_registry, request):
         target=embedded.start_grpc_server,
         args=("127.0.0.1", port),
         kwargs=dict(
-            enable_logging=enable_logging,
+            enable_logging=True,
             logging_options=LoggingOptions(
                 ChannelCapacity=100,
                 WriteInterval=100 * MILLISECOND,
@@ -132,6 +129,8 @@ def grpc_server_port(local_environment, initialized_registry, request):
 
     yield port
     embedded.stop_grpc_server()
+    # wait for graceful stop
+    time.sleep(2)
 
 
 @pytest.fixture
@@ -168,7 +167,8 @@ def test_go_grpc_server(grpc_client):
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_feature_logging(grpc_client, local_environment, test_data):
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_feature_logging(grpc_client, local_environment, test_data, full_feature_names):
     fs = local_environment.feature_store
     feature_service = fs.get_feature_service("driver_features")
     log_start_date = datetime.now().astimezone(pytz.UTC)
@@ -186,7 +186,7 @@ def test_feature_logging(grpc_client, local_environment, test_data):
                         )
                     )
                 },
-                full_feature_names=True,
+                full_feature_names=full_feature_names,
             )
         )
         # with some pause

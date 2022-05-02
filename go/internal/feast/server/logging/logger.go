@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -232,7 +233,11 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featur
 		for idx, featureName := range l.schema.Features {
 			featureIdx, ok := featureNameToVectorIdx[featureName]
 			if !ok {
-				return errors.Errorf("Missing feature %s in log data", featureName)
+				featureNameParts := strings.Split(featureName, "__")
+				featureIdx, ok = featureNameToVectorIdx[featureNameParts[1]]
+				if !ok {
+					return errors.Errorf("Missing feature %s in log data", featureName)
+				}
 			}
 			featureValues[idx] = featureVectors[featureIdx].Values[rowIdx]
 			featureStatuses[idx] = featureVectors[featureIdx].Statuses[rowIdx]
