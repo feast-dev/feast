@@ -171,7 +171,7 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 
 # Needs feast package to setup the feature store
 test-go: compile-protos-go
-	pip install -e "sdk/python[ci]"
+	pip install -e ".[ci]"
 	go test ./...
 
 format-go:
