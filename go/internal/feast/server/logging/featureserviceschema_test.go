@@ -145,8 +145,12 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 		[]*model.Feature{f1, f2},
 		projection1,
 	)
-	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, []string{"driver_id"})
-	entity1 := test.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
+	entity1 := test.CreateNewEntity("driver_id", "driver_id")
+	entitycolumn1 := test.CreateNewFeature(
+		"driver_id",
+		types.ValueType_INT64,
+	)
+	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, []string{"driver_id"}, []*model.Feature{entitycolumn1})
 	f3 := test.CreateNewFeature(
 		"int32",
 		types.ValueType_INT32,
@@ -166,7 +170,7 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 		[]*model.Feature{f3, f4},
 		projection2,
 	)
-	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, []string{"driver_id"})
+	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, []string{"driver_id"}, []*model.Feature{entitycolumn1})
 
 	f5 := test.CreateNewFeature(
 		"odfv_f1",

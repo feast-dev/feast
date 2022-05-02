@@ -201,11 +201,10 @@ func CreateBaseFeatureView(name string, features []*model.Feature, projection *m
 	}
 }
 
-func CreateNewEntity(name string, valueType types.ValueType_Enum, joinKey string) *model.Entity {
+func CreateNewEntity(name string, joinKey string) *model.Entity {
 	return &model.Entity{
-		Name:      name,
-		ValueType: valueType,
-		JoinKey:   joinKey,
+		Name:    name,
+		JoinKey: joinKey,
 	}
 }
 
@@ -233,10 +232,11 @@ func CreateNewFeatureViewProjection(name string, nameAlias string, features []*m
 	}
 }
 
-func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string) *model.FeatureView {
+func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string, entityColumns []*model.Feature) *model.FeatureView {
 	return &model.FeatureView{
-		Base:     base,
-		Ttl:      ttl,
-		Entities: entities,
+		Base:          base,
+		Ttl:           ttl,
+		Entities:      entities,
+		EntityColumns: entityColumns,
 	}
 }

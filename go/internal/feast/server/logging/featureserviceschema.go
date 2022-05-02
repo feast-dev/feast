@@ -66,7 +66,7 @@ func generateSchema(featureService *model.FeatureService, entityMap map[string]*
 				}
 
 				joinKeysSet[joinKey] = nil
-				entityJoinKeyToType[joinKey] = entity.ValueType
+				entityJoinKeyToType[joinKey] = fv.GetEntityType(entity.JoinKey)
 			}
 		} else if odFv, ok := odFvMap[featureViewName]; ok {
 			for _, f := range featureProjection.Features {
