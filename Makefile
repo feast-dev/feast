@@ -37,24 +37,24 @@ build: protos build-java build-docker
 # Python SDK
 
 install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
-	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
-	cd sdk/python && COMPILE_GO=true python setup.py develop
+	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	COMPILE_GO=true python setup.py develop
 
 lock-python-ci-dependencies:
-	cd sdk/python && python -m piptools compile -U --extra ci --output-file requirements/py$(PYTHON)-ci-requirements.txt
+	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
 compile-protos-python:
-	cd sdk/python && python setup.py build_python_protos
+	python setup.py build_python_protos
 
 install-python:
-	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
-	cd sdk/python && python setup.py develop
+	python -m piptools sync sdk/python/requirements/py$(PYTHON)-requirements.txt
+	python setup.py develop
 
 lock-python-dependencies:
-	cd sdk/python && python -m piptools compile -U --output-file requirements/py$(PYTHON)-requirements.txt
+	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
 
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
@@ -164,10 +164,10 @@ install-protoc-dependencies:
 	pip install grpcio-tools==1.44.0 mypy-protobuf==3.1.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
-	cd sdk/python && python setup.py build_go_protos
+	python setup.py build_go_protos
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
-	cd sdk/python && COMPILE_GO=True python setup.py build_ext --inplace
+	COMPILE_GO=True python setup.py build_ext --inplace
 
 # Needs feast package to setup the feature store
 test-go: compile-protos-go
