@@ -200,6 +200,7 @@ else:
     use_scm_version = None
 
 PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+PYTHON_CODE_PREFIX = "sdk/python"
 
 
 class BuildPythonProtosCommand(Command):
@@ -426,9 +427,13 @@ class build_ext(_build_ext):
             modpath = fullname.split('.')
             package = '.'.join(modpath[:-1])
             package_dir = build_py.get_package_dir(package)
-            src = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
 
-            # src = os.path.join(self.build_lib, package_dir)
+            if package_dir.startswith(PYTHON_CODE_PREFIX):
+                package_dir = package_dir[len(PYTHON_CODE_PREFIX):]
+            package_dir = package_dir.lstrip("/")
+
+            src = os.path.join(self.build_lib, package_dir)
+
             # copy whole directory
             copy_tree(src, package_dir)
 
@@ -441,8 +446,8 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(where="sdk/python", exclude=("java", "infra", "sdk/python/tests", "ui")),
-    package_dir={"": "sdk/python"},
+    packages=find_packages(where=PYTHON_CODE_PREFIX, exclude=("java", "infra", "sdk/python/tests", "ui")),
+    package_dir={"": PYTHON_CODE_PREFIX},
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
