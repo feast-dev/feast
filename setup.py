@@ -426,8 +426,9 @@ class build_ext(_build_ext):
             modpath = fullname.split('.')
             package = '.'.join(modpath[:-1])
             package_dir = build_py.get_package_dir(package)
-            src = os.path.join(self.build_lib, package_dir)
+            src = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
 
+            # src = os.path.join(self.build_lib, package_dir)
             # copy whole directory
             copy_tree(src, package_dir)
 
