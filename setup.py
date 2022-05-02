@@ -259,8 +259,6 @@ class BuildPythonProtosCommand(Command):
         with open(f"{self.python_folder}/feast/__init__.py", 'w'):
             pass
 
-        gend_files = list(Path(self.python_folder).rglob("*.py"))
-
         for path in Path(self.python_folder).rglob("*.py"):
             for folder in self.sub_folders:
                 # Read in the file
@@ -275,7 +273,6 @@ class BuildPythonProtosCommand(Command):
                 # Write the file out again
                 with open(path, "w") as file:
                     file.write(filedata)
-        print(f"Generated files: {gend_files}")
 
 
 def _generate_path_with_gopath():
@@ -361,6 +358,7 @@ class BuildCommand(build_py):
 
     def run(self):
         self.run_command("build_python_protos")
+        self.run_command("build_ext")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
