@@ -426,14 +426,16 @@ class build_ext(_build_ext):
             package = '.'.join(modpath[:-1])
             package_dir = build_py.get_package_dir(package)
 
-            if package_dir.startswith(PYTHON_CODE_PREFIX):
-                package_dir = package_dir[len(PYTHON_CODE_PREFIX):]
-            package_dir = package_dir.lstrip("/")
+            src_dir = dest_dir = package_dir
 
-            src = os.path.join(self.build_lib, package_dir)
+            if src_dir.startswith(PYTHON_CODE_PREFIX):
+                src_dir = package_dir[len(PYTHON_CODE_PREFIX):]
+            src_dir = src_dir.lstrip("/")
+
+            src_dir = os.path.join(self.build_lib, src_dir)
 
             # copy whole directory
-            copy_tree(src, package_dir)
+            copy_tree(src_dir, dest_dir)
 
 
 setup(
