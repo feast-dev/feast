@@ -10,8 +10,17 @@ import pytest
 
 from feast.entity import Entity
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.types import Array, Bool, Float32, Int32, Int64, UnixTimestamp
-from feast.value_type import ValueType
+from feast.types import (
+    Array,
+    Bool,
+    FeastType,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    String,
+    UnixTimestamp,
+)
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
@@ -89,7 +98,7 @@ def get_fixtures(request, environment):
     ).lower()
     config = request.param
     df = create_dataset(
-        ValueType.INT64,
+        Int64,
         config.feature_dtype,
         config.feature_is_list,
         config.has_empty_list,
@@ -103,6 +112,7 @@ def get_fixtures(request, environment):
         config.feature_is_list,
         config.has_empty_list,
         data_source,
+        config.entity_type,
     )
 
     return config, data_source, fv
@@ -111,7 +121,7 @@ def get_fixtures(request, environment):
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize(
-    "entity_type", [ValueType.INT32, ValueType.INT64, ValueType.STRING]
+    "entity_type", [Int32, Int64, String]
 )
 def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
@@ -129,20 +139,34 @@ def test_entity_inference_types_match(environment, entity_type):
         feature_is_list=False,
         has_empty_list=False,
         data_source=data_source,
+        entity_type=entity_type,
     )
+
+    # TODO(felixwang9817): Refactor this by finding a better way to force type inference.
+    # Override the schema and entity_columns to force entity inference.
+    entity = driver()
+    fv.schema = list(filter(lambda x: x.name != entity.join_key, fv.schema))
+    fv.entity_columns = []
     fs.apply([fv, entity])
 
     inferred_entity = fs.get_entity(entity.name)
     entity_type_to_expected_inferred_entity_type = {
-        ValueType.INT32: {ValueType.INT32, ValueType.INT64},
-        ValueType.INT64: {ValueType.INT32, ValueType.INT64},
-        ValueType.FLOAT: {ValueType.DOUBLE},
-        ValueType.STRING: {ValueType.STRING},
+        Int32: {Int32, Int64},
+        Int64: {Int32, Int64},
+        Float32: {Float64},
+        String: {String},
     }
-    assert (
-        inferred_entity.value_type
-        in entity_type_to_expected_inferred_entity_type[entity_type]
-    )
+
+    for entity in entities:
+        entity_columns = list(
+            filter(lambda x: x.name == entity.join_key, fv.entity_columns)
+        )
+        assert len(entity_columns) == 1
+        entity_column = entity_columns[0]
+        assert (
+            entity_column.dtype
+            in entity_type_to_expected_inferred_entity_type[config.entity_type]
+        )
 
 
 @pytest.mark.integration
@@ -164,6 +188,7 @@ def test_feature_get_historical_features_types_match(
         config.feature_is_list,
         config.has_empty_list,
         data_source,
+        config.entity_type,
     )
     fs.apply([fv, entity])
 
@@ -214,6 +239,7 @@ def test_feature_get_online_features_types_match(
         config.feature_is_list,
         config.has_empty_list,
         data_source,
+        config.entity_type,
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
@@ -257,7 +283,7 @@ def test_feature_get_online_features_types_match(
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source,
+    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity_type
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
@@ -282,7 +308,9 @@ def create_feature_view(
         elif feature_dtype == "datetime":
             dtype = UnixTimestamp
 
-    return driver_feature_view(data_source, name=name, dtype=dtype)
+    return driver_feature_view(
+        data_source, name=name, dtype=dtype, entity_type=entity_type
+    )
 
 
 def assert_expected_historical_feature_types(

@@ -4,11 +4,11 @@ from typing import Dict, List, Optional
 import pandas as pd
 from pytz import timezone, utc
 
-from feast.value_type import ValueType
+from feast.types import FeastType, Float32, Int32, Int64, String
 
 
 def create_dataset(
-    entity_type: ValueType = ValueType.INT32,
+    entity_type: FeastType = Int32,
     feature_dtype: str = None,
     feature_is_list: bool = False,
     list_has_empty_list: bool = False,
@@ -16,7 +16,7 @@ def create_dataset(
     now = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
     ts = pd.Timestamp(now).round("ms")
     data = {
-        "driver_id": get_entities_for_value_type(entity_type),
+        "driver_id": get_entities_for_feast_type(entity_type),
         "value": get_feature_values_for_dtype(
             feature_dtype, feature_is_list, list_has_empty_list
         ),
@@ -37,14 +37,14 @@ def create_dataset(
     return pd.DataFrame.from_dict(data)
 
 
-def get_entities_for_value_type(value_type: ValueType) -> List:
-    value_type_map: Dict[ValueType, List] = {
-        ValueType.INT32: [1, 2, 1, 3, 3],
-        ValueType.INT64: [1, 2, 1, 3, 3],
-        ValueType.FLOAT: [1.0, 2.0, 1.0, 3.0, 3.0],
-        ValueType.STRING: ["1", "2", "1", "3", "3"],
+def get_entities_for_feast_type(feast_type: FeastType) -> List:
+    feast_type_map: Dict[FeastType, List] = {
+        Int32: [1, 2, 1, 3, 3],
+        Int64: [1, 2, 1, 3, 3],
+        Float32: [1.0, 2.0, 1.0, 3.0, 3.0],
+        String: ["1", "2", "1", "3", "3"],
     }
-    return value_type_map[value_type]
+    return feast_type_map[feast_type]
 
 
 def get_feature_values_for_dtype(

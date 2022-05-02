@@ -52,7 +52,7 @@ class FeatureView(BaseFeatureView):
 
     Attributes:
         name: The unique name of the feature view.
-        entities: The list of entities with which this group of features is associated.
+        entities: The list of names of entities that this feature view is associated with.
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
@@ -62,9 +62,11 @@ class FeatureView(BaseFeatureView):
         stream_source (optional): The stream source of data where this group of features
             is stored. This is deprecated in favor of `source`.
         schema: The schema of the feature view, including feature, timestamp, and entity
-            columns.
-        features: The list of features defined as part of this feature view. Each
-            feature should also be included in the schema.
+            columns. If not specified, can be inferred from the underlying data source.
+        entity_columns: The list of entity columns contained in the schema. If not specified,
+            can be inferred from the underlying data source.
+        features: The list of feature columns contained in the schema. If not specified,
+            can be inferred from the underlying data source.
         online: A boolean indicating whether online retrieval is enabled for this feature
             view.
         description: A human-readable description.
@@ -81,6 +83,7 @@ class FeatureView(BaseFeatureView):
     batch_source: DataSource
     stream_source: Optional[DataSource]
     schema: List[Field]
+    entity_columns: List[Field]
     features: List[Field]
     online: bool
     description: str
@@ -126,14 +129,15 @@ class FeatureView(BaseFeatureView):
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
             schema (optional): The schema of the feature view, including feature, timestamp,
-                and entity columns.
+                and entity columns. If entity columns are included in the schema, a List[Entity]
+                must be passed to `entities` instead of a List[str]; otherwise, the entity columns
+                will be mistakenly interpreted as feature columns.
             source (optional): The source of data for this group of features. May be a stream source, or a batch source.
                 If a stream source, the source should contain a batch_source for backfills & batch materialization.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-
         positional_attributes = ["name", "entities", "ttl"]
 
         _name = name
@@ -164,11 +168,21 @@ class FeatureView(BaseFeatureView):
             raise ValueError("feature view name needs to be specified")
 
         self.name = _name
+
         self.entities = (
             [e.name if isinstance(e, Entity) else e for e in _entities]
             if _entities
             else [DUMMY_ENTITY_NAME]
         )
+        if _entities and isinstance(_entities[0], str):
+            warnings.warn(
+                (
+                    "The `entities` parameter should be a list of `Entity` objects. "
+                    "Feast 0.22 and onwards will not support passing in a list of "
+                    "strings to define entities."
+                ),
+                DeprecationWarning,
+            )
 
         self._initialize_sources(_name, batch_source, stream_source, source)
 
@@ -203,14 +217,31 @@ class FeatureView(BaseFeatureView):
             _schema = [Field.from_feature(feature) for feature in features]
         self.schema = _schema
 
-        # TODO(felixwang9817): Infer which fields in the schema are features, timestamps,
-        # and entities. For right now we assume that all fields are features, since the
-        # current `features` parameter only accepts feature columns.
-        _features = _schema
+        # If a user has added entity fields to schema, then they should also have switched
+        # to using a List[Entity], in which case entity and feature columns can be separated
+        # here. Conversely, if the user is still using a List[str], they must not have added
+        # added entity fields, in which case we can set the `features` attribute directly
+        # equal to the schema.
+        # TODO(felixwang9817): Use old value_type if it exists.
+        _features: List[Field] = []
+        self.entity_columns = []
+        if _entities and len(_entities) > 0 and isinstance(_entities[0], str):
+            _features = _schema
+        else:
+            join_keys = []
+            if _entities:
+                for entity in _entities:
+                    if isinstance(entity, Entity):
+                        join_keys += entity.join_keys
 
-        cols = [entity for entity in self.entities] + [
-            field.name for field in _features
-        ]
+            for field in _schema:
+                if field.name in join_keys:
+                    self.entity_columns.append(field)
+                else:
+                    _features.append(field)
+
+        # TODO(felixwang9817): Add more robust validation of features.
+        cols = [field.name for field in _schema]
         for col in cols:
             if (
                 self.batch_source.field_mapping is not None
@@ -273,7 +304,6 @@ class FeatureView(BaseFeatureView):
     def __copy__(self):
         fv = FeatureView(
             name=self.name,
-            entities=self.entities,
             ttl=self.ttl,
             source=self.batch_source,
             stream_source=self.stream_source,
@@ -281,6 +311,13 @@ class FeatureView(BaseFeatureView):
             tags=self.tags,
             online=self.online,
         )
+
+        # This is deliberately set outside of the FV initialization to avoid the deprecation warning.
+        # TODO(felixwang9817): Move this into the FV initialization when the deprecation warning
+        # is removed.
+        fv.entities = self.entities
+        fv.features = copy.copy(self.features)
+        fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
         fv.entities = self.entities
         return fv
@@ -300,11 +337,15 @@ class FeatureView(BaseFeatureView):
             or self.online != other.online
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
-            or self.schema != other.schema
         ):
             return False
 
         return True
+
+    @property
+    def join_keys(self) -> List[str]:
+        """Returns a list of all the join keys."""
+        return [entity.name for entity in self.entity_columns]
 
     def ensure_valid(self):
         """
@@ -391,7 +432,8 @@ class FeatureView(BaseFeatureView):
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
-            features=[field.to_proto() for field in self.schema],
+            entity_columns=[field.to_proto() for field in self.entity_columns],
+            features=[field.to_proto() for field in self.features],
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -422,11 +464,7 @@ class FeatureView(BaseFeatureView):
         )
         feature_view = cls(
             name=feature_view_proto.spec.name,
-            entities=[entity for entity in feature_view_proto.spec.entities],
-            schema=[
-                Field.from_proto(field_proto)
-                for field_proto in feature_view_proto.spec.features
-            ],
+            entities=feature_view_proto.spec.entities,
             description=feature_view_proto.spec.description,
             tags=dict(feature_view_proto.spec.tags),
             owner=feature_view_proto.spec.owner,
@@ -440,6 +478,16 @@ class FeatureView(BaseFeatureView):
         )
         if stream_source:
             feature_view.stream_source = stream_source
+
+        # Instead of passing in a schema, we set the features and entity columns.
+        feature_view.features = [
+            Field.from_proto(field_proto)
+            for field_proto in feature_view_proto.spec.features
+        ]
+        feature_view.entity_columns = [
+            Field.from_proto(field_proto)
+            for field_proto in feature_view_proto.spec.entity_columns
+        ]
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

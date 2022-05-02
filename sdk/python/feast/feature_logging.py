@@ -15,7 +15,6 @@ from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.protos.feast.core.FeatureService_pb2 import (
     LoggingConfig as LoggingConfigProto,
 )
-from feast.types import from_value_type
 
 if TYPE_CHECKING:
     from feast import FeatureService
@@ -86,9 +85,14 @@ class FeatureServiceLoggingSource(LoggingSource):
                     join_key = projection.join_key_map.get(
                         entity.join_key, entity.join_key
                     )
-                    fields[join_key] = FEAST_TYPE_TO_ARROW_TYPE[
-                        from_value_type(entity.value_type)
-                    ]
+                    entity_columns = list(
+                        filter(
+                            lambda x: x.name == join_key, feature_view.entity_columns
+                        )
+                    )
+                    assert len(entity_columns) == 1
+                    entity_column = entity_columns[0]
+                    fields[join_key] = FEAST_TYPE_TO_ARROW_TYPE[entity_column.dtype]
 
             for feature in projection.features:
                 fields[
