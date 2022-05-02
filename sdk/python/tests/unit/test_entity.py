@@ -55,11 +55,11 @@ def test_multiple_args():
 
 def test_name_keyword(recwarn):
     Entity(name="my-entity")
-    assert len(recwarn) == 1
+    assert len(recwarn) == 0
     Entity(name="my-entity", join_key="test")
-    assert len(recwarn) == 2
+    assert len(recwarn) == 1
     Entity(name="my-entity", join_keys=["test"])
-    assert len(recwarn) == 2
+    assert len(recwarn) == 1
 
 
 def test_hash():

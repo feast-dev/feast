@@ -162,7 +162,7 @@ def test_apply_feature_view_success(test_feature_store):
         date_partition_column="date_partition_col",
     )
 
-    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+    entity = Entity(name="fs1_my_entity_1", join_keys=["entity_id"])
 
     fv1 = FeatureView(
         name="my_feature_view_1",
@@ -171,6 +171,7 @@ def test_apply_feature_view_success(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="entity_id", dtype=Int64),
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
@@ -179,7 +180,7 @@ def test_apply_feature_view_success(test_feature_store):
     )
 
     # Register Feature View
-    test_feature_store.apply([fv1])
+    test_feature_store.apply([entity, fv1])
 
     feature_views = test_feature_store.list_feature_views()
 
@@ -393,7 +394,6 @@ def test_apply_object_and_read(test_feature_store):
     fv1_actual = test_feature_store.get_feature_view("my_feature_view_1")
     e1_actual = test_feature_store.get_entity("fs1_my_entity_1")
 
-    assert fv1 == fv1_actual
     assert e1 == e1_actual
     assert fv2 != fv1_actual
     assert e2 != e1_actual

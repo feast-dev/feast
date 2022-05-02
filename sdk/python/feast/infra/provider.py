@@ -388,7 +388,7 @@ def _convert_arrow_to_proto(
         table = table.to_batches()[0]
 
     columns = [
-        (field.name, field.dtype.to_value_type()) for field in feature_view.schema
+        (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
 
     proto_values_by_column = {

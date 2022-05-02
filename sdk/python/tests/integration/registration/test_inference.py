@@ -23,8 +23,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
-    update_entities_with_inferred_types_from_feature_views,
-    update_feature_views_with_inferred_features,
+    update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
@@ -36,47 +35,6 @@ from tests.utils.data_source_utils import (
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_arg,
 )
-
-
-def test_update_entities_with_inferred_types_from_feature_views(
-    simple_dataset_1, simple_dataset_2
-):
-    with prep_file_source(
-        df=simple_dataset_1, timestamp_field="ts_1"
-    ) as file_source, prep_file_source(
-        df=simple_dataset_2, timestamp_field="ts_1"
-    ) as file_source_2:
-
-        fv1 = FeatureView(
-            name="fv1", entities=["id"], batch_source=file_source, ttl=None,
-        )
-        fv2 = FeatureView(
-            name="fv2", entities=["id"], batch_source=file_source_2, ttl=None,
-        )
-
-        actual_1 = Entity(name="id", join_keys=["id_join_key"])
-        actual_2 = Entity(name="id", join_keys=["id_join_key"])
-
-        update_entities_with_inferred_types_from_feature_views(
-            [actual_1], [fv1], RepoConfig(provider="local", project="test")
-        )
-        update_entities_with_inferred_types_from_feature_views(
-            [actual_2], [fv2], RepoConfig(provider="local", project="test")
-        )
-        assert actual_1 == Entity(
-            name="id", join_keys=["id_join_key"], value_type=ValueType.INT64
-        )
-        assert actual_2 == Entity(
-            name="id", join_keys=["id_join_key"], value_type=ValueType.STRING
-        )
-
-        with pytest.raises(RegistryInferenceFailure):
-            # two viable data types
-            update_entities_with_inferred_types_from_feature_views(
-                [Entity(name="id", join_keys=["id_join_key"])],
-                [fv1, fv2],
-                RepoConfig(provider="local", project="test"),
-            )
 
 
 def test_infer_datasource_names_file():
@@ -287,7 +245,7 @@ def test_datasource_inference(request_source_schema):
         test_view_with_missing_feature.infer_features()
 
 
-def test_update_feature_views_with_inferred_features():
+def test_update_feature_views_with_inferred_features_and_entities():
     file_source = FileSource(name="test", path="test path")
     entity1 = Entity(name="test1", join_keys=["test_column_1"])
     entity2 = Entity(name="test2", join_keys=["test_column_2"])
@@ -312,23 +270,26 @@ def test_update_feature_views_with_inferred_features():
     )
 
     assert len(feature_view_1.schema) == 2
-    assert len(feature_view_1.features) == 2
+    assert len(feature_view_1.features) == 1
 
     # The entity field should be deleted from the schema and features of the feature view.
-    update_feature_views_with_inferred_features(
+    update_feature_views_with_inferred_features_and_entities(
         [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
     )
-    assert len(feature_view_1.schema) == 1
+    assert len(feature_view_1.schema) == 2
     assert len(feature_view_1.features) == 1
 
     assert len(feature_view_2.schema) == 3
-    assert len(feature_view_2.features) == 3
+    assert len(feature_view_2.features) == 1
 
     # The entity fields should be deleted from the schema and features of the feature view.
-    update_feature_views_with_inferred_features(
+    update_feature_views_with_inferred_features_and_entities(
         [feature_view_2],
         [entity1, entity2],
         RepoConfig(provider="local", project="test"),
     )
-    assert len(feature_view_2.schema) == 1
+    assert len(feature_view_2.schema) == 3
     assert len(feature_view_2.features) == 1
+
+
+# TODO(felixwang9817): Add tests that interact with field mapping.

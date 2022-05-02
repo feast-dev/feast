@@ -60,8 +60,7 @@ def get_expected_join_keys(
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
-        entities = feature_view.entities
-        for entity_name in entities:
+        for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
             join_key = feature_view.projection.join_key_map.get(
                 entity.join_key, entity.join_key

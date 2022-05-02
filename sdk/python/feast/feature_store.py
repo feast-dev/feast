@@ -64,8 +64,7 @@ from feast.feature_view import (
 )
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
-    update_entities_with_inferred_types_from_feature_views,
-    update_feature_views_with_inferred_features,
+    update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
@@ -476,11 +475,7 @@ class FeatureStore:
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
     ):
-        """Makes inferences for entities, feature views, and odfvs."""
-        update_entities_with_inferred_types_from_feature_views(
-            entities_to_update, views_to_update, self.config
-        )
-
+        """Makes inferences for data sources, feature views, and odfvs."""
         update_data_sources_with_inferred_event_timestamp_col(
             data_sources_to_update, self.config
         )
@@ -491,7 +486,7 @@ class FeatureStore:
 
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
-        update_feature_views_with_inferred_features(
+        update_feature_views_with_inferred_features_and_entities(
             views_to_update, entities + entities_to_update, self.config
         )
 
@@ -687,6 +682,9 @@ class FeatureStore:
 
         data_sources_to_update = list(data_sources_set_to_update)
 
+        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
+        entities_to_update.append(DUMMY_ENTITY)
+
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
             views_to_update, odfvs_to_update, request_views_to_update
@@ -694,9 +692,6 @@ class FeatureStore:
         self._make_inferences(
             data_sources_to_update, entities_to_update, views_to_update, odfvs_to_update
         )
-
-        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
-        entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
         for ds in data_sources_to_update:
@@ -1546,7 +1541,6 @@ class FeatureStore:
         entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
-            entity_type_map[entity.name] = entity.value_type
         for feature_view in feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
@@ -1561,7 +1555,9 @@ class FeatureStore:
                     entity.join_key, entity.join_key
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
-                entity_type_map[join_key] = entity.value_type
+            for entity_field in feature_view.entity_columns:
+                entity_type_map[entity_field.name] = entity_field.dtype.to_value_type()
+
         return (
             entity_name_to_join_key_map,
             entity_type_map,

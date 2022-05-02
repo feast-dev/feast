@@ -28,11 +28,14 @@ def driver_feature_view(
     name="test_correctness",
     infer_features: bool = False,
     dtype: FeastType = Float32,
+    entity_type: FeastType = Int32,
 ) -> FeatureView:
+    d = driver()
     return FeatureView(
         name=name,
-        entities=[driver()],
-        schema=None if infer_features else [Field(name="value", dtype=dtype)],
+        entities=[d],
+        schema=[Field(name=d.join_key, dtype=entity_type)]
+        + ([] if infer_features else [Field(name="value", dtype=dtype)]),
         ttl=timedelta(days=5),
         source=data_source,
     )

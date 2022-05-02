@@ -31,7 +31,7 @@ class Entity:
 
     Attributes:
         name: The unique name of the entity.
-        value_type: The type of the entity, such as string or float.
+        value_type (deprecated): The type of the entity, such as string or float.
         join_key: A property that uniquely identifies different entities within the
             collection. The join_key property is typically used for joining entities
             with their associated features. If not specified, defaults to the name.
@@ -60,7 +60,7 @@ class Entity:
         self,
         *args,
         name: Optional[str] = None,
-        value_type: ValueType = ValueType.UNKNOWN,
+        value_type: Optional[ValueType] = None,
         description: str = "",
         join_key: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -72,7 +72,7 @@ class Entity:
 
         Args:
             name: The unique name of the entity.
-            value_type: The type of the entity, such as string or float.
+            value_type (deprecated): The type of the entity, such as string or float.
             description: A human-readable description.
             join_key (deprecated): A property that uniquely identifies different entities within the
                 collection. The join_key property is typically used for joining entities
@@ -104,8 +104,23 @@ class Entity:
         if not self.name:
             raise ValueError("Name needs to be specified")
 
-        self.value_type = value_type
+        if value_type:
+            warnings.warn(
+                (
+                    "The `value_type` parameter is being deprecated. Instead, the type of an entity "
+                    "should be specified as a Field in the schema of a feature view. Feast 0.22 and "
+                    "onwards will not support the `value_type` parameter. The `entities` parameter of "
+                    "feature views should also be changed to a List[Entity] instead of a List[str]; if "
+                    "this is not done, entity columns will be mistakenly interpreted as feature columns."
+                ),
+                DeprecationWarning,
+            )
+        self.value_type = value_type or ValueType.UNKNOWN
 
+        # For now, both the `join_key` and `join_keys` attributes are set correctly,
+        # so both are usable.
+        # TODO(felixwang9817): Remove the usage of `join_key` throughout the codebase
+        # when the usage of `join_key` as a parameter is removed.
         if join_key:
             warnings.warn(
                 (
@@ -125,6 +140,8 @@ class Entity:
             self.join_key = join_keys[0]
         else:
             self.join_key = join_key if join_key else self.name
+        if not self.join_keys:
+            self.join_keys = [self.join_key]
         self.description = description
         self.tags = tags if tags is not None else {}
         self.owner = owner
@@ -153,6 +170,9 @@ class Entity:
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
 
+    def __lt__(self, other):
+        return self.name < other.name
+
     def is_valid(self):
         """
         Validates the state of this entity locally.
@@ -179,7 +199,6 @@ class Entity:
         """
         entity = cls(
             name=entity_proto.spec.name,
-            value_type=ValueType(entity_proto.spec.value_type),
             join_key=entity_proto.spec.join_key,
             description=entity_proto.spec.description,
             tags=entity_proto.spec.tags,
@@ -210,7 +229,6 @@ class Entity:
 
         spec = EntitySpecProto(
             name=self.name,
-            value_type=self.value_type.value,
             join_key=self.join_key,
             description=self.description,
             tags=self.tags,
