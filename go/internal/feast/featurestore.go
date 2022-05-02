@@ -132,7 +132,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	if entitylessCase {
 		dummyEntityColumn := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, numRows)}
 		for index := 0; index < numRows; index++ {
-			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY
+			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY_VALUE
 		}
 		joinKeyToEntityValues[model.DUMMY_ENTITY_ID] = dummyEntityColumn
 	}
