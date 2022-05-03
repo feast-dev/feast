@@ -8,6 +8,7 @@ from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
 from feast.field import Field, from_value_type
 from feast.repo_config import RepoConfig
 from feast.types import String
+from feast.value_type import ValueType
 
 
 def update_data_sources_with_inferred_event_timestamp_col(
@@ -96,6 +97,7 @@ def update_feature_views_with_inferred_features_and_entities(
         entities: A list containing entities associated with the feature views.
         config: The config for the current feature store.
     """
+    entity_name_to_entity_map = {e.name: e for e in entities}
     entity_name_to_join_keys_map = {e.name: e.join_keys for e in entities}
     all_join_keys = [
         join_key
@@ -117,10 +119,25 @@ def update_feature_views_with_inferred_features_and_entities(
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
 
+        # Since the `value_type` parameter has not yet been fully deprecated for
+        # entities, we respect the `value_type` attribute if it still exists.
+        for entity_name in fv.entities:
+            entity = entity_name_to_entity_map[entity_name]
+            if (
+                entity_name
+                not in [entity_column.name for entity_column in fv.entity_columns]
+                and entity.value_type != ValueType.UNKNOWN
+            ):
+                entity_column.append(
+                    Field(
+                        name=entity.join_key, dtype=from_value_type(entity.value_type),
+                    )
+                )
+
         # Handle EFV separately here. Specifically, that means if we have an EFV,
         # we need to add a field to entity_columns.
         if len(fv.entities) == 1 and fv.entities[0] == DUMMY_ENTITY_NAME:
-            fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String,))
+            fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
 
         # Run inference if either (a) there are fewer entity fields than expected or
         # (b) there are no feature fields.

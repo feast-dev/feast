@@ -230,6 +230,7 @@ class Entity:
 
         spec = EntitySpecProto(
             name=self.name,
+            value_type=self.value_type.value,
             join_key=self.join_key,
             description=self.description,
             tags=self.tags,
