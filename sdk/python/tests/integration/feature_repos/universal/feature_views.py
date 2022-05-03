@@ -270,7 +270,12 @@ def create_location_stats_feature_view(source, infer_features: bool = False):
     location_stats_feature_view = FeatureView(
         name="location_stats",
         entities=[location()],
-        schema=None if infer_features else [Field(name="temperature", dtype=Int32)],
+        schema=None
+        if infer_features
+        else [
+            Field(name="temperature", dtype=Int32),
+            Field(name="location_id", dtype=Int64),
+        ],
         source=source,
         ttl=timedelta(days=2),
     )
