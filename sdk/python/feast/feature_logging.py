@@ -81,18 +81,10 @@ class FeatureServiceLoggingSource(LoggingSource):
                         fields[field.name] = FEAST_TYPE_TO_ARROW_TYPE[field.dtype]
 
             else:
-                for entity_name in feature_view.entities:
-                    entity = registry.get_entity(entity_name, self._project)
+                for entity_column in feature_view.entity_columns:
                     join_key = projection.join_key_map.get(
-                        entity.join_key, entity.join_key
+                        entity_column.name, entity_column.name
                     )
-                    entity_columns = list(
-                        filter(
-                            lambda x: x.name == join_key, feature_view.entity_columns
-                        )
-                    )
-                    assert len(entity_columns) == 1
-                    entity_column = entity_columns[0]
                     fields[join_key] = FEAST_TYPE_TO_ARROW_TYPE[entity_column.dtype]
 
         # system columns
