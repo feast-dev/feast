@@ -19,7 +19,7 @@ type FeatureView struct {
 	Base          *BaseFeatureView
 	Ttl           *durationpb.Duration
 	EntityNames   []string
-	EntityColumns []*Feature
+	EntityColumns []*Field
 }
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
@@ -31,9 +31,9 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 	} else {
 		featureView.EntityNames = proto.Spec.Entities
 	}
-	entityColumns := make([]*Feature, len(proto.Spec.EntityColumns))
+	entityColumns := make([]*Field, len(proto.Spec.EntityColumns))
 	for i, entityColumn := range proto.Spec.EntityColumns {
-		entityColumns[i] = NewFeatureFromProto(entityColumn)
+		entityColumns[i] = NewFieldFromProto(entityColumn)
 	}
 	featureView.EntityColumns = entityColumns
 	return featureView
