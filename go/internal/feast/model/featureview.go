@@ -48,18 +48,18 @@ func (fv *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureVie
 	return featureView
 }
 
-func (fv *FeatureView) HasEntity(lookup string) bool {
+func (fv *FeatureView) HasEntity(name string) bool {
 	for _, entityName := range fv.EntityNames {
-		if entityName == lookup {
+		if entityName == name {
 			return true
 		}
 	}
 	return false
 }
 
-func (fv *FeatureView) GetEntityType(lookup string) types.ValueType_Enum {
+func (fv *FeatureView) GetEntityType(joinKey string) types.ValueType_Enum {
 	for _, entityColumn := range fv.EntityColumns {
-		if entityColumn.Name == lookup {
+		if entityColumn.Name == joinKey {
 			return entityColumn.Dtype
 		}
 	}
