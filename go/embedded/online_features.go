@@ -222,10 +222,13 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	return nil
 }
 
+// StartGprcServer starts gRPC server with disabled feature logging and blocks the thread
 func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
 	return s.StartGprcServerWithLogging(host, port, nil, LoggingOptions{})
 }
 
+// StartGprcServerWithLoggingDefaultOpts starts gRPC server with enabled feature logging but default configuration for logging
+// Caller of this function must provide Python callback to flush buffered logs
 func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback) error {
 	defaultOpts := LoggingOptions{
 		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
@@ -236,6 +239,8 @@ func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string
 	return s.StartGprcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
 }
 
+// StartGprcServerWithLogging starts gRPC server with enabled feature logging
+// Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
 func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
 	var loggingService *logging.LoggingService = nil
 	var err error
