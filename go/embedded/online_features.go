@@ -86,7 +86,7 @@ func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[stri
 			// skip on demand feature views
 			continue
 		}
-		for _, entityName := range view.Entities {
+		for _, entityName := range view.EntityNames {
 			entity := entitiesByName[entityName]
 			joinKeyTypes[entity.JoinKey] = int32(view.GetEntityType(entity.JoinKey).Number())
 		}
@@ -115,7 +115,7 @@ func (s *OnlineFeatureService) GetEntityTypesMapByFeatureService(featureServiceN
 			// skip on demand feature views
 			continue
 		}
-		for _, entityName := range view.Entities {
+		for _, entityName := range view.EntityNames {
 			entity := entitiesByName[entityName]
 			joinKeyTypes[entity.JoinKey] = int32(view.GetEntityType(entity.JoinKey).Number())
 		}

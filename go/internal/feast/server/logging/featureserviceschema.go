@@ -52,7 +52,7 @@ func generateSchema(featureService *model.FeatureService, entityMap map[string]*
 				features = append(features, fullFeatureName)
 				allFeatureTypes[fullFeatureName] = f.Dtype
 			}
-			for _, entityName := range fv.Entities {
+			for _, entityName := range fv.EntityNames {
 				entity := entityMap[entityName]
 				var joinKey string
 				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entity.JoinKey]; ok {

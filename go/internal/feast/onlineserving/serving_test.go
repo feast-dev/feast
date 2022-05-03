@@ -20,19 +20,19 @@ func TestGroupingFeatureRefs(t *testing.T) {
 				NameAlias: "aliasViewA",
 			},
 		},
-		Entities: []string{"driver", "customer"},
+		EntityNames: []string{"driver", "customer"},
 	}
 	viewB := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewB"},
-		Entities: []string{"driver", "customer"},
+		Base:        &model.BaseFeatureView{Name: "viewB"},
+		EntityNames: []string{"driver", "customer"},
 	}
 	viewC := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewC"},
-		Entities: []string{"driver"},
+		Base:        &model.BaseFeatureView{Name: "viewC"},
+		EntityNames: []string{"driver"},
 	}
 	viewD := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewD"},
-		Entities: []string{"customer"},
+		Base:        &model.BaseFeatureView{Name: "viewD"},
+		EntityNames: []string{"customer"},
 	}
 	refGroups, _ := GroupFeatureRefs(
 		[]*FeatureViewAndRefs{
@@ -105,11 +105,11 @@ func TestGroupingFeatureRefsWithJoinKeyAliases(t *testing.T) {
 				JoinKeyMap: map[string]string{"location_id": "destination_id"},
 			},
 		},
-		Entities: []string{"location"},
+		EntityNames: []string{"location"},
 	}
 	viewB := &model.FeatureView{
-		Base:     &model.BaseFeatureView{Name: "viewB"},
-		Entities: []string{"location"},
+		Base:        &model.BaseFeatureView{Name: "viewB"},
+		EntityNames: []string{"location"},
 	}
 
 	refGroups, _ := GroupFeatureRefs(
@@ -164,7 +164,7 @@ func TestGroupingFeatureRefsWithMissingKey(t *testing.T) {
 				JoinKeyMap: map[string]string{"location_id": "destination_id"},
 			},
 		},
-		Entities: []string{"location"},
+		EntityNames: []string{"location"},
 	}
 
 	_, err := GroupFeatureRefs(

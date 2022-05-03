@@ -18,7 +18,7 @@ var DUMMY_ENTITY_VALUE types.Value = types.Value{Val: &types.Value_StringVal{Str
 type FeatureView struct {
 	Base          *BaseFeatureView
 	Ttl           *durationpb.Duration
-	Entities      []string
+	EntityNames   []string
 	EntityColumns []*Feature
 }
 
@@ -27,9 +27,9 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 		Ttl: &(*proto.Spec.Ttl),
 	}
 	if len(proto.Spec.Entities) == 0 {
-		featureView.Entities = []string{DUMMY_ENTITY_NAME}
+		featureView.EntityNames = []string{DUMMY_ENTITY_NAME}
 	} else {
-		featureView.Entities = proto.Spec.Entities
+		featureView.EntityNames = proto.Spec.Entities
 	}
 	entityColumns := make([]*Feature, len(proto.Spec.EntityColumns))
 	for i, entityColumn := range proto.Spec.EntityColumns {
@@ -42,14 +42,14 @@ func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 func (fv *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureView {
 	ttl := durationpb.Duration{Seconds: fv.Ttl.Seconds, Nanos: fv.Ttl.Nanos}
 	featureView := &FeatureView{Base: base,
-		Ttl:      &ttl,
-		Entities: fv.Entities,
+		Ttl:         &ttl,
+		EntityNames: fv.EntityNames,
 	}
 	return featureView
 }
 
 func (fv *FeatureView) HasEntity(lookup string) bool {
-	for _, entityName := range fv.Entities {
+	for _, entityName := range fv.EntityNames {
 		if entityName == lookup {
 			return true
 		}
