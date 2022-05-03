@@ -300,8 +300,10 @@ def create_pushable_feature_view(batch_source: DataSource):
     return FeatureView(
         name="pushable_location_stats",
         entities=[location()],
-        # Test that Features still work for FeatureViews.
-        features=[Feature(name="temperature", dtype=ValueType.INT32)],
+        schema=[
+            Field(name="temperature", dtype=Int32),
+            Field(name="location_id", dtype=Int64),
+        ],
         ttl=timedelta(days=2),
         source=push_source,
     )
