@@ -257,7 +257,10 @@ def create_order_feature_view(source, infer_features: bool = False):
         entities=[customer(), driver()],
         schema=None
         if infer_features
-        else [Field(name="order_is_success", dtype=Int32)],
+        else [
+            Field(name="order_is_success", dtype=Int32),
+            Field(name="driver_id", dtype=Int64),
+        ],
         source=source,
         ttl=timedelta(days=2),
     )
