@@ -74,9 +74,10 @@ func TestSchemaRetrievalIgnoresEntitiesNotInFeatureService(t *testing.T) {
 	featureService, entities, fvs, odfvs := InitializeFeatureRepoVariablesForTest()
 	entityMap, fvMap, odFvMap := buildFCOMaps(entities, fvs, odfvs)
 
-	//Remove entities in featureservice
+	// Remove entities in featureservice
 	for _, featureView := range fvs {
 		featureView.EntityNames = []string{}
+		featureView.EntityColumns = []*model.Field{}
 	}
 
 	schema, err := generateSchema(featureService, entityMap, fvMap, odFvMap)
