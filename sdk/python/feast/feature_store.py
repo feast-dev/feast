@@ -1988,10 +1988,16 @@ class FeatureStore:
     def _teardown_go_server(self):
         self._go_server = None
 
-    def write_logged_features(self, logs: pa.Table, source: Union[FeatureService]):
+    def write_logged_features(
+        self, logs: Union[pa.Table, Path], source: Union[FeatureService]
+    ):
         """
         Write logs produced by a source (currently only feature service is supported as a source)
         to an offline store.
+
+        Args:
+            logs: Arrow Table or path to parquet dataset directory on disk
+            source: Object that produces logs
         """
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")
@@ -1999,6 +2005,8 @@ class FeatureStore:
         assert (
             source.logging_config is not None
         ), "Feature service must be configured with logging config in order to use this functionality"
+
+        assert isinstance(logs, (pa.Table, Path))
 
         self._get_provider().write_feature_service_logs(
             feature_service=source,

@@ -221,7 +221,7 @@ class PassthroughProvider(Provider):
     def write_feature_service_logs(
         self,
         feature_service: FeatureService,
-        logs: pyarrow.Table,
+        logs: Union[pyarrow.Table, str],
         config: RepoConfig,
         registry: Registry,
     ):

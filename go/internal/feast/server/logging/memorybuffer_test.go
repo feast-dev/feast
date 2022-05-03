@@ -158,7 +158,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 	// log date
 	today := time.Now().Truncate(24 * time.Hour)
 	builder.Field(8).(*array.Date32Builder).AppendValues(
-		[]arrow.Date32{arrow.Date32(today.Unix()), arrow.Date32(today.Unix())}, []bool{true, true})
+		[]arrow.Date32{arrow.Date32FromTime(today), arrow.Date32FromTime(today)}, []bool{true, true})
 
 	// request id
 	builder.Field(9).(*array.StringBuilder).AppendValues(

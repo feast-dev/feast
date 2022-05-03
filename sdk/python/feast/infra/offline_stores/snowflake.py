@@ -42,6 +42,7 @@ from feast.infra.utils.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_conn,
     write_pandas,
+    write_parquet,
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -280,7 +281,7 @@ class SnowflakeOfflineStore(OfflineStore):
     @staticmethod
     def write_logged_features(
         config: RepoConfig,
-        data: pyarrow.Table,
+        data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
         registry: Registry,
@@ -289,12 +290,21 @@ class SnowflakeOfflineStore(OfflineStore):
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
-        write_pandas(
-            snowflake_conn,
-            data.to_pandas(),
-            table_name=logging_config.destination.table_name,
-            auto_create_table=True,
-        )
+        if isinstance(data, Path):
+            write_parquet(
+                snowflake_conn,
+                data,
+                source.get_schema(registry),
+                table_name=logging_config.destination.table_name,
+                auto_create_table=True,
+            )
+        else:
+            write_pandas(
+                snowflake_conn,
+                data.to_pandas(),
+                table_name=logging_config.destination.table_name,
+                auto_create_table=True,
+            )
 
 
 class SnowflakeRetrievalJob(RetrievalJob):

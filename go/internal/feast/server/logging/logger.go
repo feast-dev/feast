@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,7 +38,7 @@ type LogSink interface {
 	// Flush actually send data to a sink.
 	// We want to control amount to interaction with sink, since it could be a costly operation.
 	// Also, some sinks like BigQuery might have quotes and physically limit amount of write requests per day.
-	Flush() error
+	Flush(featureServiceName string) error
 }
 
 type Logger interface {
@@ -135,6 +136,10 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 			lErr = errors.WithStack(rErr)
 		}
 	}()
+
+	writeTicker := time.NewTicker(l.config.WriteInterval)
+	flushTicker := time.NewTicker(l.config.FlushInterval)
+
 	for {
 		shouldStop := false
 
@@ -144,18 +149,18 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 			if err != nil {
 				log.Printf("Log write failed: %+v", err)
 			}
-			err = l.sink.Flush()
+			err = l.sink.Flush(l.featureServiceName)
 			if err != nil {
 				log.Printf("Log flush failed: %+v", err)
 			}
 			shouldStop = true
-		case <-time.After(l.config.WriteInterval):
+		case <-writeTicker.C:
 			err := l.buffer.writeBatch(l.sink)
 			if err != nil {
 				log.Printf("Log write failed: %+v", err)
 			}
-		case <-time.After(l.config.FlushInterval):
-			err := l.sink.Flush()
+		case <-flushTicker.C:
+			err := l.sink.Flush(l.featureServiceName)
 			if err != nil {
 				log.Printf("Log flush failed: %+v", err)
 			}
@@ -170,6 +175,9 @@ func (l *LoggerImpl) loggerLoop() (lErr error) {
 			break
 		}
 	}
+
+	writeTicker.Stop()
+	flushTicker.Stop()
 
 	// Notify all waiters for graceful stop
 	l.cond.L.Lock()
@@ -225,7 +233,11 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featur
 		for idx, featureName := range l.schema.Features {
 			featureIdx, ok := featureNameToVectorIdx[featureName]
 			if !ok {
-				return errors.Errorf("Missing feature %s in log data", featureName)
+				featureNameParts := strings.Split(featureName, "__")
+				featureIdx, ok = featureNameToVectorIdx[featureNameParts[1]]
+				if !ok {
+					return errors.Errorf("Missing feature %s in log data", featureName)
+				}
 			}
 			featureValues[idx] = featureVectors[featureIdx].Values[rowIdx]
 			featureStatuses[idx] = featureVectors[featureIdx].Statuses[rowIdx]
@@ -259,7 +271,7 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featur
 			EventTimestamps: eventTimestamps,
 
 			RequestId:    requestId,
-			LogTimestamp: time.Now(),
+			LogTimestamp: time.Now().UTC(),
 		}
 		err := l.EmitLog(&newLog)
 		if err != nil {

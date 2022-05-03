@@ -2,6 +2,7 @@ import contextlib
 import tempfile
 import uuid
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import (
     Callable,
     ContextManager,
@@ -258,7 +259,7 @@ class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def write_logged_features(
         config: RepoConfig,
-        data: pyarrow.Table,
+        data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
         registry: Registry,
@@ -279,6 +280,17 @@ class BigQueryOfflineStore(OfflineStore):
                 field=source.get_log_timestamp_column(),
             ),
         )
+
+        if isinstance(data, Path):
+            for file in data.iterdir():
+                with file.open("rb") as f:
+                    client.load_table_from_file(
+                        file_obj=f,
+                        destination=destination.table,
+                        job_config=job_config,
+                    )
+
+            return
 
         with tempfile.TemporaryFile() as parquet_temp_file:
             pyarrow.parquet.write_table(table=data, where=parquet_temp_file)

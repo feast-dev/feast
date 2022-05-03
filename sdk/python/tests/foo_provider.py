@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
@@ -84,7 +85,7 @@ class FooProvider(Provider):
     def write_feature_service_logs(
         self,
         feature_service: FeatureService,
-        logs: pyarrow.Table,
+        logs: Union[pyarrow.Table, Path],
         config: RepoConfig,
         registry: Registry,
     ):
@@ -93,8 +94,8 @@ class FooProvider(Provider):
     def retrieve_feature_service_logs(
         self,
         feature_service: FeatureService,
-        from_: datetime,
-        to: datetime,
+        start_date: datetime,
+        end_date: datetime,
         config: RepoConfig,
         registry: Registry,
     ) -> RetrievalJob:

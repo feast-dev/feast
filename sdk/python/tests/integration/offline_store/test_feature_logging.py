@@ -1,8 +1,13 @@
+import contextlib
 import datetime
+import tempfile
 import uuid
+from pathlib import Path
+from typing import Iterator, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow
 import pyarrow as pa
 import pytest
 from google.api_core.exceptions import NotFound
@@ -27,7 +32,8 @@ from tests.integration.feature_repos.universal.feature_views import conv_rate_pl
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_feature_service_logging(environment, universal_data_sources):
+@pytest.mark.parametrize("pass_as_path", [True, False], ids=lambda v: str(v))
+def test_feature_service_logging(environment, universal_data_sources, pass_as_path):
     store = environment.feature_store
 
     (_, datasets, data_sources) = universal_data_sources
@@ -50,21 +56,23 @@ def test_feature_service_logging(environment, universal_data_sources):
         ),
     )
 
-    num_rows = logs_df.shape[0]
-    first_batch = logs_df.iloc[: num_rows // 2, :]
-    second_batch = logs_df.iloc[num_rows // 2 :, :]
-
     schema = FeatureServiceLoggingSource(
         feature_service=feature_service, project=store.project
     ).get_schema(store._registry)
 
-    store.write_logged_features(
-        source=feature_service, logs=pa.Table.from_pandas(first_batch, schema=schema),
-    )
+    num_rows = logs_df.shape[0]
+    first_batch = pa.Table.from_pandas(logs_df.iloc[: num_rows // 2, :], schema=schema)
+    second_batch = pa.Table.from_pandas(logs_df.iloc[num_rows // 2 :, :], schema=schema)
 
-    store.write_logged_features(
-        source=feature_service, logs=pa.Table.from_pandas(second_batch, schema=schema),
-    )
+    with to_logs_dataset(first_batch, pass_as_path) as logs:
+        store.write_logged_features(
+            source=feature_service, logs=logs,
+        )
+
+    with to_logs_dataset(second_batch, pass_as_path) as logs:
+        store.write_logged_features(
+            source=feature_service, logs=logs,
+        )
     expected_columns = list(set(logs_df.columns) - {LOG_DATE_FIELD})
 
     def retrieve():
@@ -122,3 +130,16 @@ def prepare_logs(datasets: UniversalDatasets) -> pd.DataFrame:
             logs_df[f"{view}__{feature}__status"] = FieldStatus.PRESENT
 
     return logs_df
+
+
+@contextlib.contextmanager
+def to_logs_dataset(
+    table: pyarrow.Table, pass_as_path: bool
+) -> Iterator[Union[pyarrow.Table, Path]]:
+    if not pass_as_path:
+        yield table
+        return
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pyarrow.parquet.write_to_dataset(table, root_path=temp_dir)
+        yield Path(temp_dir)

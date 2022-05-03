@@ -2,7 +2,6 @@ package logging
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
@@ -143,7 +142,7 @@ func (b *MemoryBuffer) convertToArrowRecord() (arrow.Record, error) {
 		}
 
 		logTimestamp := arrow.Timestamp(logRow.LogTimestamp.UnixMicro())
-		logDate := arrow.Date32(logRow.LogTimestamp.Truncate(24 * time.Hour).Unix())
+		logDate := arrow.Date32FromTime(logRow.LogTimestamp)
 
 		builder.Field(fieldNameToIdx[LOG_TIMESTAMP_FIELD]).(*array.TimestampBuilder).UnsafeAppend(logTimestamp)
 		builder.Field(fieldNameToIdx[LOG_DATE_FIELD]).(*array.Date32Builder).UnsafeAppend(logDate)

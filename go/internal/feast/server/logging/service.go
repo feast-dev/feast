@@ -98,3 +98,10 @@ func (s *LoggingService) GetOrCreateLogger(featureService *model.FeatureService)
 
 	return logger, nil
 }
+
+func (s *LoggingService) Stop() {
+	for _, logger := range s.loggers {
+		logger.Stop()
+		logger.WaitUntilStopped()
+	}
+}

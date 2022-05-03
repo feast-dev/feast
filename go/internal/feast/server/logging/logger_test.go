@@ -28,7 +28,7 @@ func (s *DummySink) Write(rec arrow.Record) error {
 	return nil
 }
 
-func (s *DummySink) Flush() error {
+func (s *DummySink) Flush(featureServiceName string) error {
 	return nil
 }
 

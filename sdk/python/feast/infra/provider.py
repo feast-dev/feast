@@ -190,7 +190,7 @@ class Provider(abc.ABC):
     def write_feature_service_logs(
         self,
         feature_service: FeatureService,
-        logs: pyarrow.Table,
+        logs: Union[pyarrow.Table, Path],
         config: RepoConfig,
         registry: Registry,
     ):
@@ -199,6 +199,8 @@ class Provider(abc.ABC):
 
         Schema of logs table is being inferred from the provided feature service.
         Only feature services with configured logging are accepted.
+
+        Logs dataset can be passed as Arrow Table or path to parquet directory.
         """
         ...
 
@@ -206,8 +208,8 @@ class Provider(abc.ABC):
     def retrieve_feature_service_logs(
         self,
         feature_service: FeatureService,
-        from_: datetime,
-        to: datetime,
+        start_date: datetime,
+        end_date: datetime,
         config: RepoConfig,
         registry: Registry,
     ) -> RetrievalJob:
