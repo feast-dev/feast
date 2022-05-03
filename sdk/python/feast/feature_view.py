@@ -222,7 +222,6 @@ class FeatureView(BaseFeatureView):
         # here. Conversely, if the user is still using a List[str], they must not have added
         # added entity fields, in which case we can set the `features` attribute directly
         # equal to the schema.
-        # TODO(felixwang9817): Use old value_type if it exists.
         _features: List[Field] = []
         self.entity_columns = []
         if _entities and len(_entities) > 0 and isinstance(_entities[0], str):
