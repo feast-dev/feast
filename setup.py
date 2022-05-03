@@ -57,7 +57,7 @@ REQUIRED = [
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
-    "numpy<1.22",  # 1.22 drops support for python 3.7.
+    "numpy<1.22",
     "pandas>=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",
@@ -124,6 +124,7 @@ GO_REQUIRED = [
 
 CI_REQUIRED = (
     [
+        "build",
         "cryptography==3.4.8",
         "flake8",
         "black==19.10b0",
@@ -179,7 +180,7 @@ CI_REQUIRED = (
 DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing==1.*"] + CI_REQUIRED
 
 # Get git repo root directory
-repo_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
+repo_root = str(pathlib.Path(__file__).resolve().parent)
 
 # README file from Feast repo root directory
 README_FILE = os.path.join(repo_root, "README.md")
@@ -195,11 +196,12 @@ TAG_REGEX = re.compile(
 
 # Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
 if shutil.which("git"):
-    use_scm_version = {"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX}
+    use_scm_version = {"root": ".", "relative_to": __file__, "tag_regex": TAG_REGEX}
 else:
     use_scm_version = None
 
 PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+PYTHON_CODE_PREFIX = "sdk/python"
 
 
 class BuildPythonProtosCommand(Command):
@@ -214,7 +216,7 @@ class BuildPythonProtosCommand(Command):
         ]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
         self.python_folder = os.path.join(
-            os.path.dirname(__file__) or os.getcwd(), "feast/protos"
+            os.path.dirname(__file__) or os.getcwd(), "sdk/python/feast/protos"
         )
         self.sub_folders = PROTO_SUBDIRS
 
@@ -223,7 +225,7 @@ class BuildPythonProtosCommand(Command):
 
     def _generate_python_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
-        Path(self.python_folder).mkdir(exist_ok=True)
+        Path(self.python_folder).mkdir(parents=True, exist_ok=True)
         subprocess.check_call(
             self.python_protoc
             + [
@@ -244,19 +246,17 @@ class BuildPythonProtosCommand(Command):
             self._generate_python_protos(f"feast/{sub_folder}/*.proto")
             # We need the __init__ files for each of the generated subdirs
             # so that they are regular packages, and don't need the `--namespace-packages` flags
-            # when being typechecked using mypy. BUT, we need to exclude `types` because that clashes
-            # with an existing module in the python standard library.
-            if sub_folder == "types":
-                continue
+            # when being typechecked using mypy.
             with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", 'w'):
                 pass
+
 
         with open(f"{self.python_folder}/__init__.py", 'w'):
             pass
         with open(f"{self.python_folder}/feast/__init__.py", 'w'):
             pass
 
-        for path in Path("feast/protos").rglob("*.py"):
+        for path in Path(self.python_folder).rglob("*.py"):
             for folder in self.sub_folders:
                 # Read in the file
                 with open(path, "r") as file:
@@ -355,6 +355,7 @@ class BuildCommand(build_py):
 
     def run(self):
         self.run_command("build_python_protos")
+        self.run_command("build_ext")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
@@ -421,10 +422,17 @@ class build_ext(_build_ext):
             modpath = fullname.split('.')
             package = '.'.join(modpath[:-1])
             package_dir = build_py.get_package_dir(package)
-            src = os.path.join(self.build_lib, package_dir)
+
+            src_dir = dest_dir = package_dir
+
+            if src_dir.startswith(PYTHON_CODE_PREFIX):
+                src_dir = package_dir[len(PYTHON_CODE_PREFIX):]
+            src_dir = src_dir.lstrip("/")
+
+            src_dir = os.path.join(self.build_lib, src_dir)
 
             # copy whole directory
-            copy_tree(src, package_dir)
+            copy_tree(src_dir, dest_dir)
 
 
 setup(
@@ -435,7 +443,8 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=("tests",)),
+    packages=find_packages(where=PYTHON_CODE_PREFIX, exclude=("java", "infra", "sdk/python/tests", "ui")),
+    package_dir={"": PYTHON_CODE_PREFIX},
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
@@ -474,9 +483,9 @@ setup(
     ],
     package_data={
         "": [
-            "protos/feast/**/*.proto",
-            "protos/feast/third_party/grpc/health/v1/*.proto",
-            "feast/protos/feast/**/*.py",
+            "sdk/python/**/*.proto",
+            "sdk/python/**/*.py",
+            "protos/**/*.proto",
         ],
     },
     cmdclass={
