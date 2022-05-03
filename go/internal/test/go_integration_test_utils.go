@@ -236,7 +236,7 @@ func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, en
 	return &model.FeatureView{
 		Base:          base,
 		Ttl:           ttl,
-		Entities:      entities,
+		EntityNames:   entities,
 		EntityColumns: entityColumns,
 	}
 }

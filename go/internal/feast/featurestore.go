@@ -272,7 +272,7 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 		return nil, err
 	}
 	if fv.HasEntity(model.DUMMY_ENTITY_NAME) && hideDummyEntity {
-		fv.Entities = []string{}
+		fv.EntityNames = []string{}
 	}
 	return fv, nil
 }
