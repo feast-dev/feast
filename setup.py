@@ -57,6 +57,7 @@ REQUIRED = [
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
+    "numpy<1.22",
     "pandas>=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",
@@ -245,11 +246,7 @@ class BuildPythonProtosCommand(Command):
             self._generate_python_protos(f"feast/{sub_folder}/*.proto")
             # We need the __init__ files for each of the generated subdirs
             # so that they are regular packages, and don't need the `--namespace-packages` flags
-            # when being typechecked using mypy. BUT, we need to exclude `types` because that clashes
-            # with an existing module in the python standard library.
-
-            # if sub_folder == "types":
-            #     continue
+            # when being typechecked using mypy.
             with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", 'w'):
                 pass
 
