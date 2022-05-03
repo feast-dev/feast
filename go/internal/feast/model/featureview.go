@@ -56,12 +56,3 @@ func (fv *FeatureView) HasEntity(name string) bool {
 	}
 	return false
 }
-
-func (fv *FeatureView) GetEntityType(joinKey string) types.ValueType_Enum {
-	for _, entityColumn := range fv.EntityColumns {
-		if entityColumn.Name == joinKey {
-			return entityColumn.Dtype
-		}
-	}
-	return types.ValueType_INVALID
-}
