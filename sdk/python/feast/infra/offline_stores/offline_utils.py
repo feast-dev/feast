@@ -60,10 +60,9 @@ def get_expected_join_keys(
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
-        for entity_name in feature_view.entities:
-            entity = registry.get_entity(entity_name, project)
+        for entity_column in feature_view.entity_columns:
             join_key = feature_view.projection.join_key_map.get(
-                entity.join_key, entity.join_key
+                entity_column.name, entity_column.name
             )
             join_keys.add(join_key)
     return join_keys
@@ -113,14 +112,14 @@ def get_feature_view_query_context(
 
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
-        join_keys, entity_selections = [], []
-        for entity_name in feature_view.entities:
-            entity = registry.get_entity(entity_name, project)
+        join_keys: List[str] = []
+        entity_selections: List[str] = []
+        for entity_column in feature_view.entity_columns:
             join_key = feature_view.projection.join_key_map.get(
-                entity.join_key, entity.join_key
+                entity_column.name, entity_column.name
             )
             join_keys.append(join_key)
-            entity_selections.append(f"{entity.join_key} AS {join_key}")
+            entity_selections.append(f"{entity_column.name} AS {join_key}")
 
         if isinstance(feature_view.ttl, timedelta):
             ttl_seconds = int(feature_view.ttl.total_seconds())

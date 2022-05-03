@@ -128,7 +128,7 @@ def update_feature_views_with_inferred_features_and_entities(
                 not in [entity_column.name for entity_column in fv.entity_columns]
                 and entity.value_type != ValueType.UNKNOWN
             ):
-                entity_column.append(
+                fv.entity_columns.append(
                     Field(
                         name=entity.join_key, dtype=from_value_type(entity.value_type),
                     )

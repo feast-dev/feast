@@ -253,6 +253,7 @@ class FeatureStore:
         ):
             if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
+                fv.entity_columns = []
             feature_views.append(fv)
         return feature_views
 
@@ -1555,8 +1556,10 @@ class FeatureStore:
                     entity.join_key, entity.join_key
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
-            for entity_field in feature_view.entity_columns:
-                entity_type_map[entity_field.name] = entity_field.dtype.to_value_type()
+            for entity_column in feature_view.entity_columns:
+                entity_type_map[
+                    entity_column.name
+                ] = entity_column.dtype.to_value_type()
 
         return (
             entity_name_to_join_key_map,
