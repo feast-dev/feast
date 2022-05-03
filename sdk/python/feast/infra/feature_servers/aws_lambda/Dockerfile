@@ -7,6 +7,8 @@ COPY sdk/python/feast/infra/feature_servers/aws_lambda/app.py ${LAMBDA_TASK_ROOT
 COPY sdk/python sdk/python
 COPY protos protos
 COPY go go
+COPY setup.py setup.py
+COPY pyproject.toml pyproject.toml
 COPY README.md README.md
 
 # Install Feast for AWS with Lambda dependencies
