@@ -17,6 +17,10 @@ def _get_conn(config: PostgreSQLConfig):
         port=int(config.port),
         user=config.user,
         password=config.password,
+        sslmode=config.sslmode,
+        sslkey=config.sslkey_path,
+        sslcert=config.sslcert_path,
+        sslrootcert=config.sslrootcert_path,
         options="-c search_path={}".format(config.db_schema or config.user),
     )
     return conn

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import psycopg2
 from psycopg2 import sql
 
@@ -15,6 +17,10 @@ class PostgresRegistryConfig(RegistryConfig):
     db_schema: str
     user: str
     password: str
+    sslmode: Optional[str]
+    sslkey_path: Optional[str]
+    sslcert_path: Optional[str]
+    sslrootcert_path: Optional[str]
 
 
 class PostgreSQLRegistryStore(RegistryStore):
@@ -26,6 +32,10 @@ class PostgreSQLRegistryStore(RegistryStore):
             db_schema=config.db_schema,
             user=config.user,
             password=config.password,
+            sslmode=getattr(config, "sslmode", None),
+            sslkey_path=getattr(config, "sslkey_path", None),
+            sslcert_path=getattr(config, "sslcert_path", None),
+            sslrootcert_path=getattr(config, "sslrootcert_path", None),
         )
         self.table_name = config.path
         self.cache_ttl_seconds = config.cache_ttl_seconds
