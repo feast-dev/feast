@@ -17,13 +17,13 @@ from feast.field import Field
 from feast.infra.provider import _convert_arrow_to_proto
 from feast.repo_config import RepoConfig
 from feast.types import Float32, Int32
-from feast.value_type import ValueType
 
 
 def create_driver_hourly_stats_feature_view(source):
+    driver = Entity(name="driver", join_keys=["driver_id"])
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=["driver_id"],
+        entities=[driver],
         schema=[
             Field(name="conv_rate", dtype=Float32),
             Field(name="acc_rate", dtype=Float32),
@@ -61,7 +61,7 @@ def benchmark_writes():
         # This is just to set data source to something, we're not reading from parquet source here.
         parquet_path = os.path.join(temp_dir, "data.parquet")
 
-        driver = Entity(name="driver_id", value_type=ValueType.INT64)
+        driver = Entity(name="driver_id")
         table = create_driver_hourly_stats_feature_view(
             create_driver_hourly_stats_source(parquet_path=parquet_path)
         )

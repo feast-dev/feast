@@ -22,7 +22,6 @@ from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
 from feast.types import Int32
-from feast.value_type import ValueType
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
@@ -689,10 +688,10 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         created_timestamp_column="created",
     )
 
-    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    driver = Entity(name="driver", join_keys=["driver_id"])
     driver_fv = FeatureView(
         name="driver_stats",
-        entities=["driver"],
+        entities=[driver],
         schema=[Field(name="avg_daily_trips", dtype=Int32)],
         batch_source=driver_stats_data_source,
         ttl=None,

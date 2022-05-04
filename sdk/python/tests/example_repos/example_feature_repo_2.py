@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureView, Field, FileSource
 from feast.types import Float32, Int32, Int64
 
 driver_hourly_stats = FileSource(
@@ -9,17 +9,18 @@ driver_hourly_stats = FileSource(
     created_timestamp_column="created",
 )
 
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(name="driver_id", description="driver id",)
 
 
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=[driver],
     ttl=timedelta(days=1),
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="driver_id", dtype=Int32),
     ],
     online=True,
     batch_source=driver_hourly_stats,

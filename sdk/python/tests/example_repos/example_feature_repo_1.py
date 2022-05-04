@@ -1,14 +1,6 @@
 from datetime import timedelta
 
-from feast import (
-    BigQuerySource,
-    Entity,
-    FeatureService,
-    FeatureView,
-    Field,
-    PushSource,
-    ValueType,
-)
+from feast import BigQuerySource, Entity, FeatureService, FeatureView, Field, PushSource
 from feast.types import Float32, Int64, String
 
 driver_locations_source = BigQuerySource(
@@ -46,22 +38,24 @@ driver_locations_push_source = PushSource(
 driver = Entity(
     name="driver",  # The name is derived from this argument, not object name.
     join_keys=["driver_id"],
-    value_type=ValueType.INT64,
     description="driver id",
 )
 
 customer = Entity(
     name="customer",  # The name is derived from this argument, not object name.
     join_keys=["customer_id"],
-    value_type=ValueType.STRING,
 )
 
 
 driver_locations = FeatureView(
     name="driver_locations",
-    entities=["driver"],
+    entities=[driver],
     ttl=timedelta(days=1),
-    schema=[Field(name="lat", dtype=Float32), Field(name="lon", dtype=String)],
+    schema=[
+        Field(name="lat", dtype=Float32),
+        Field(name="lon", dtype=String),
+        Field(name="driver_id", dtype=Int64),
+    ],
     online=True,
     batch_source=driver_locations_source,
     tags={},
@@ -69,11 +63,12 @@ driver_locations = FeatureView(
 
 pushed_driver_locations = FeatureView(
     name="pushed_driver_locations",
-    entities=["driver"],
+    entities=[driver],
     ttl=timedelta(days=1),
     schema=[
         Field(name="driver_lat", dtype=Float32),
         Field(name="driver_long", dtype=String),
+        Field(name="driver_id", dtype=Int64),
     ],
     online=True,
     stream_source=driver_locations_push_source,
@@ -82,12 +77,13 @@ pushed_driver_locations = FeatureView(
 
 customer_profile = FeatureView(
     name="customer_profile",
-    entities=["customer"],
+    entities=[customer],
     ttl=timedelta(days=1),
     schema=[
         Field(name="avg_orders_day", dtype=Float32),
         Field(name="name", dtype=String),
         Field(name="age", dtype=Int64),
+        Field(name="customer_id", dtype=String),
     ],
     online=True,
     batch_source=customer_profile_source,
@@ -96,9 +92,13 @@ customer_profile = FeatureView(
 
 customer_driver_combined = FeatureView(
     name="customer_driver_combined",
-    entities=["customer", "driver"],
+    entities=[customer, driver],
     ttl=timedelta(days=1),
-    schema=[Field(name="trips", dtype=Int64)],
+    schema=[
+        Field(name="trips", dtype=Int64),
+        Field(name="driver_id", dtype=Int64),
+        Field(name="customer_id", dtype=String),
+    ],
     online=True,
     batch_source=customer_driver_combined_source,
     tags={},

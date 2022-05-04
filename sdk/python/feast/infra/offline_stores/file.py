@@ -200,10 +200,9 @@ class FileOfflineStore(OfflineStore):
                 # Build a list of entity columns to join on (from the right table)
                 join_keys = []
 
-                for entity_name in feature_view.entities:
-                    entity = registry.get_entity(entity_name, project)
+                for entity_column in feature_view.entity_columns:
                     join_key = feature_view.projection.join_key_map.get(
-                        entity.join_key, entity.join_key
+                        entity_column.name, entity_column.name
                     )
                     join_keys.append(join_key)
 

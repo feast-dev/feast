@@ -5,13 +5,14 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
-type Feature struct {
+type Field struct {
 	Name  string
 	Dtype types.ValueType_Enum
 }
 
-func NewFeatureFromProto(proto *core.FeatureSpecV2) *Feature {
-	return &Feature{Name: proto.Name,
+func NewFieldFromProto(proto *core.FeatureSpecV2) *Field {
+	return &Field{
+		Name:  proto.Name,
 		Dtype: proto.ValueType,
 	}
 }

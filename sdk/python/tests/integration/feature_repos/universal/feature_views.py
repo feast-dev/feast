@@ -14,8 +14,13 @@ from feast import (
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.types import Array, FeastType, Float32, Float64, Int32
-from tests.integration.feature_repos.universal.entities import location
+from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
+from tests.integration.feature_repos.universal.entities import (
+    customer,
+    driver,
+    item,
+    location,
+)
 
 
 def driver_feature_view(
@@ -23,11 +28,14 @@ def driver_feature_view(
     name="test_correctness",
     infer_features: bool = False,
     dtype: FeastType = Float32,
+    entity_type: FeastType = Int64,
 ) -> FeatureView:
+    d = driver()
     return FeatureView(
         name=name,
-        entities=["driver"],
-        schema=None if infer_features else [Field(name="value", dtype=dtype)],
+        entities=[d],
+        schema=[Field(name=d.join_key, dtype=entity_type)]
+        + ([] if infer_features else [Field(name="value", dtype=dtype)]),
         ttl=timedelta(days=5),
         source=data_source,
     )
@@ -138,7 +146,7 @@ def create_similarity_request_source():
 def create_item_embeddings_feature_view(source, infer_features: bool = False):
     item_embeddings_feature_view = FeatureView(
         name="item_embeddings",
-        entities=["item"],
+        entities=[item()],
         schema=None
         if infer_features
         else [
@@ -156,7 +164,7 @@ def create_item_embeddings_batch_feature_view(
 ) -> BatchFeatureView:
     item_embeddings_feature_view = BatchFeatureView(
         name="item_embeddings",
-        entities=["item"],
+        entities=[item()],
         schema=None
         if infer_features
         else [
@@ -170,15 +178,19 @@ def create_item_embeddings_batch_feature_view(
 
 
 def create_driver_hourly_stats_feature_view(source, infer_features: bool = False):
+    # TODO(felixwang9817): Figure out why not adding an entity field here
+    # breaks type tests.
+    d = driver()
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=["driver"],
+        entities=[d],
         schema=None
         if infer_features
         else [
             Field(name="conv_rate", dtype=Float32),
             Field(name="acc_rate", dtype=Float32),
             Field(name="avg_daily_trips", dtype=Int32),
+            Field(name=d.join_key, dtype=Int64),
         ],
         source=source,
         ttl=timedelta(hours=2),
@@ -191,7 +203,7 @@ def create_driver_hourly_stats_batch_feature_view(
 ) -> BatchFeatureView:
     driver_stats_feature_view = BatchFeatureView(
         name="driver_stats",
-        entities=["driver"],
+        entities=[driver()],
         schema=None
         if infer_features
         else [
@@ -208,7 +220,7 @@ def create_driver_hourly_stats_batch_feature_view(
 def create_customer_daily_profile_feature_view(source, infer_features: bool = False):
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
-        entities=["customer_id"],
+        entities=[customer()],
         schema=None
         if infer_features
         else [
@@ -242,10 +254,13 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
 def create_order_feature_view(source, infer_features: bool = False):
     return FeatureView(
         name="order",
-        entities=["driver", "customer_id"],
+        entities=[customer(), driver()],
         schema=None
         if infer_features
-        else [Field(name="order_is_success", dtype=Int32)],
+        else [
+            Field(name="order_is_success", dtype=Int32),
+            Field(name="driver_id", dtype=Int64),
+        ],
         source=source,
         ttl=timedelta(days=2),
     )
@@ -255,7 +270,12 @@ def create_location_stats_feature_view(source, infer_features: bool = False):
     location_stats_feature_view = FeatureView(
         name="location_stats",
         entities=[location()],
-        schema=None if infer_features else [Field(name="temperature", dtype=Int32)],
+        schema=None
+        if infer_features
+        else [
+            Field(name="temperature", dtype=Int32),
+            Field(name="location_id", dtype=Int64),
+        ],
         source=source,
         ttl=timedelta(days=2),
     )
@@ -279,9 +299,11 @@ def create_pushable_feature_view(batch_source: DataSource):
     )
     return FeatureView(
         name="pushable_location_stats",
-        entities=["location_id"],
-        # Test that Features still work for FeatureViews.
-        features=[Feature(name="temperature", dtype=ValueType.INT32)],
+        entities=[location()],
+        schema=[
+            Field(name="temperature", dtype=Int32),
+            Field(name="location_id", dtype=Int64),
+        ],
         ttl=timedelta(days=2),
         source=push_source,
     )

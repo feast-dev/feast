@@ -64,8 +64,7 @@ from feast.feature_view import (
 )
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
-    update_entities_with_inferred_types_from_feature_views,
-    update_feature_views_with_inferred_features,
+    update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
@@ -254,6 +253,7 @@ class FeatureStore:
         ):
             if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
+                fv.entity_columns = []
             feature_views.append(fv)
         return feature_views
 
@@ -476,11 +476,7 @@ class FeatureStore:
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
     ):
-        """Makes inferences for entities, feature views, and odfvs."""
-        update_entities_with_inferred_types_from_feature_views(
-            entities_to_update, views_to_update, self.config
-        )
-
+        """Makes inferences for data sources, feature views, and odfvs."""
         update_data_sources_with_inferred_event_timestamp_col(
             data_sources_to_update, self.config
         )
@@ -491,7 +487,7 @@ class FeatureStore:
 
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
-        update_feature_views_with_inferred_features(
+        update_feature_views_with_inferred_features_and_entities(
             views_to_update, entities + entities_to_update, self.config
         )
 
@@ -517,11 +513,11 @@ class FeatureStore:
         Examples:
             Generate a plan adding an Entity and a FeatureView.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from feast.feature_store import RepoContents
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
+            >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
@@ -529,7 +525,7 @@ class FeatureStore:
             ... )
             >>> driver_hourly_stats_view = FeatureView(
             ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
+            ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
@@ -629,10 +625,10 @@ class FeatureStore:
         Examples:
             Register an Entity and a FeatureView.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
-            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
+            >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
@@ -640,7 +636,7 @@ class FeatureStore:
             ... )
             >>> driver_hourly_stats_view = FeatureView(
             ...     name="driver_hourly_stats",
-            ...     entities=["driver_id"],
+            ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
@@ -687,6 +683,9 @@ class FeatureStore:
 
         data_sources_to_update = list(data_sources_set_to_update)
 
+        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
+        entities_to_update.append(DUMMY_ENTITY)
+
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
             views_to_update, odfvs_to_update, request_views_to_update
@@ -694,9 +693,6 @@ class FeatureStore:
         self._make_inferences(
             data_sources_to_update, entities_to_update, views_to_update, odfvs_to_update
         )
-
-        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
-        entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
         for ds in data_sources_to_update:
@@ -1541,12 +1537,12 @@ class FeatureStore:
     def _get_entity_maps(
         self, feature_views
     ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
+        # TODO(felixwang9817): Support entities that have different types for different feature views.
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
         entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
-            entity_type_map[entity.name] = entity.value_type
         for feature_view in feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
@@ -1561,7 +1557,11 @@ class FeatureStore:
                     entity.join_key, entity.join_key
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
-                entity_type_map[join_key] = entity.value_type
+            for entity_column in feature_view.entity_columns:
+                entity_type_map[
+                    entity_column.name
+                ] = entity_column.dtype.to_value_type()
+
         return (
             entity_name_to_join_key_map,
             entity_type_map,
