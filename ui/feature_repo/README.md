@@ -18,7 +18,7 @@ git clone https://github.com/feast-dev/feast.git
 Install a dev build of feast
 ```bash
 cd feast
-pip install -e "sdk/python[dev]"
+pip install -e ".[dev]"
 ```
 
 Then for this demo, you'll actually need to fix a bug by adding this to `type_map.py#L144`:
