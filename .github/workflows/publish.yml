@@ -151,8 +151,6 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
-        with:
-          package-dir: sdk/python
         env:
           CIBW_BUILD: "cp3*_x86_64"
           CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
@@ -195,13 +193,12 @@ jobs:
           make install-go-ci-dependencies
       - name: Build
         run: |
-          cd sdk/python
           python3 setup.py sdist bdist_wheel
 
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
-          path: sdk/python/dist/*
+          path: dist/*
 
 
   publish-java-sdk:
