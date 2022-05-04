@@ -18,6 +18,7 @@ from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
@@ -33,6 +34,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             self._conn = _get_conn(config.online_store)
         return self._conn
 
+    @log_exceptions_and_usage(online_store="postgres")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -86,6 +88,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 if progress:
                     progress(len(cur_batch))
 
+    @log_exceptions_and_usage(online_store="postgres")
     def online_read(
         self,
         config: RepoConfig,
@@ -136,6 +139,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         return result
 
+    @log_exceptions_and_usage(online_store="postgres")
     def update(
         self,
         config: RepoConfig,
