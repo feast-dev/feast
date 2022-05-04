@@ -6,7 +6,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN git clone https://github.com/feast-dev/feast.git /root/feast
-RUN cd /root/feast/sdk/python && pip install -e '.[redis]'
+RUN cd /root/feast/ && pip install -e '.[redis]'
 
 WORKDIR /app
 COPY . .

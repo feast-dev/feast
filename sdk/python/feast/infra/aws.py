@@ -347,7 +347,7 @@ def _get_docker_image_version() -> str:
                 f"version {get_version()}. If you want to update the Feast SDK version, make "
                 "sure to first fetch all new release tags from Github and then reinstall the library:\n"
                 "> git fetch --all --tags\n"
-                "> pip install -e sdk/python"
+                "> pip install -e '.'"
             )
         return version
 
