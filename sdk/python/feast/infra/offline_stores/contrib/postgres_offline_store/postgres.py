@@ -40,6 +40,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
+from feast.usage import log_exceptions_and_usage
 
 from .postgres_source import PostgreSQLSource
 
@@ -50,6 +51,7 @@ class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
 
 class PostgreSQLOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage(offline_store="postgres")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -100,6 +102,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="postgres")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -186,6 +189,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="postgres")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
