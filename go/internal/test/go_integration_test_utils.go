@@ -193,7 +193,7 @@ func GetProtoFromRecord(rec arrow.Record) (map[string]*types.RepeatedValue, erro
 	return r, nil
 }
 
-func CreateBaseFeatureView(name string, features []*model.Field, projection *model.FeatureViewProjection) *model.BaseFeatureView {
+func CreateBaseFeatureView(name string, features []*model.Feature, projection *model.FeatureViewProjection) *model.BaseFeatureView {
 	return &model.BaseFeatureView{
 		Name:       name,
 		Features:   features,
@@ -201,15 +201,16 @@ func CreateBaseFeatureView(name string, features []*model.Field, projection *mod
 	}
 }
 
-func CreateNewEntity(name string, joinKey string) *model.Entity {
+func CreateNewEntity(name string, valueType types.ValueType_Enum, joinKey string) *model.Entity {
 	return &model.Entity{
-		Name:    name,
-		JoinKey: joinKey,
+		Name:      name,
+		ValueType: valueType,
+		JoinKey:   joinKey,
 	}
 }
 
-func CreateNewField(name string, dtype types.ValueType_Enum) *model.Field {
-	return &model.Field{Name: name,
+func CreateNewFeature(name string, dtype types.ValueType_Enum) *model.Feature {
+	return &model.Feature{Name: name,
 		Dtype: dtype,
 	}
 }
@@ -224,7 +225,7 @@ func CreateNewFeatureService(name string, project string, createdTimestamp *time
 	}
 }
 
-func CreateNewFeatureViewProjection(name string, nameAlias string, features []*model.Field, joinKeyMap map[string]string) *model.FeatureViewProjection {
+func CreateNewFeatureViewProjection(name string, nameAlias string, features []*model.Feature, joinKeyMap map[string]string) *model.FeatureViewProjection {
 	return &model.FeatureViewProjection{Name: name,
 		NameAlias:  nameAlias,
 		Features:   features,
@@ -232,11 +233,10 @@ func CreateNewFeatureViewProjection(name string, nameAlias string, features []*m
 	}
 }
 
-func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string, entityColumns []*model.Field) *model.FeatureView {
+func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string) *model.FeatureView {
 	return &model.FeatureView{
-		Base:          base,
-		Ttl:           ttl,
-		EntityNames:   entities,
-		EntityColumns: entityColumns,
+		Base:     base,
+		Ttl:      ttl,
+		Entities: entities,
 	}
 }

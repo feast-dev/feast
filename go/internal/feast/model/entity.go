@@ -2,16 +2,18 @@ package model
 
 import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
 type Entity struct {
-	Name    string
-	JoinKey string
+	Name      string
+	ValueType types.ValueType_Enum
+	JoinKey   string
 }
 
 func NewEntityFromProto(proto *core.Entity) *Entity {
-	return &Entity{
-		Name:    proto.Spec.Name,
-		JoinKey: proto.Spec.JoinKey,
+	return &Entity{Name: proto.Spec.Name,
+		ValueType: proto.Spec.ValueType,
+		JoinKey:   proto.Spec.JoinKey,
 	}
 }

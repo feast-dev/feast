@@ -9,17 +9,8 @@ import pyarrow as pa
 import pytest
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.types import (
-    Array,
-    Bool,
-    FeastType,
-    Float32,
-    Float64,
-    Int32,
-    Int64,
-    String,
-    UnixTimestamp,
-)
+from feast.types import Array, Bool, Float32, Int32, Int64, UnixTimestamp
+from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.repo_configuration import (
     FULL_REPO_CONFIGS,
@@ -35,11 +26,11 @@ logger = logging.getLogger(__name__)
 
 def populate_test_configs(offline: bool):
     entity_type_feature_dtypes = [
-        (Int32, "int32"),
-        (Int64, "int64"),
-        (String, "float"),
-        (String, "bool"),
-        (Int32, "datetime"),
+        (ValueType.INT32, "int32"),
+        (ValueType.INT64, "int64"),
+        (ValueType.STRING, "float"),
+        (ValueType.STRING, "bool"),
+        (ValueType.INT32, "datetime"),
     ]
     configs: List[TypeTestConfig] = []
     for test_repo_config in FULL_REPO_CONFIGS:
@@ -69,7 +60,7 @@ def populate_test_configs(offline: bool):
 
 @dataclass(frozen=True, repr=True)
 class TypeTestConfig:
-    entity_type: FeastType
+    entity_type: ValueType
     feature_dtype: str
     feature_is_list: bool
     has_empty_list: bool
@@ -126,7 +117,6 @@ def get_fixtures(request):
         config.feature_is_list,
         config.has_empty_list,
         data_source,
-        config.entity_type,
     )
 
     def cleanup():
@@ -148,29 +138,20 @@ def test_entity_inference_types_match(offline_types_test_fixtures):
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
 
-    # TODO(felixwang9817): Refactor this by finding a better way to force type inference.
-    # Override the schema and entity_columns to force entity inference.
-    entity = driver()
-    fv.schema = list(filter(lambda x: x.name != entity.join_key, fv.schema))
-    fv.entity_columns = []
+    # Don't specify value type in entity to force inference
+    entity = driver(value_type=ValueType.UNKNOWN)
     fs.apply([fv, entity])
 
     entities = fs.list_entities()
     entity_type_to_expected_inferred_entity_type = {
-        Int32: Int64,
-        Int64: Int64,
-        Float32: Float64,
-        String: String,
+        ValueType.INT32: ValueType.INT64,
+        ValueType.INT64: ValueType.INT64,
+        ValueType.FLOAT: ValueType.DOUBLE,
+        ValueType.STRING: ValueType.STRING,
     }
-
     for entity in entities:
-        entity_columns = list(
-            filter(lambda x: x.name == entity.join_key, fv.entity_columns)
-        )
-        assert len(entity_columns) == 1
-        entity_column = entity_columns[0]
         assert (
-            entity_column.dtype
+            entity.value_type
             == entity_type_to_expected_inferred_entity_type[config.entity_type]
         )
 
@@ -192,12 +173,13 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
         config.feature_is_list,
         config.has_empty_list,
         data_source,
-        config.entity_type,
     )
     fs.apply([fv, entity])
 
     entity_df = pd.DataFrame()
-    entity_df["driver_id"] = ["1", "3"] if config.entity_type == String else [1, 3]
+    entity_df["driver_id"] = (
+        ["1", "3"] if config.entity_type == ValueType.STRING else [1, 3]
+    )
     ts = pd.Timestamp(datetime.utcnow()).round("ms")
     entity_df["ts"] = [
         ts - timedelta(hours=4),
@@ -240,11 +222,10 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
         config.feature_is_list,
         config.has_empty_list,
         data_source,
-        config.entity_type,
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
-    entity = driver()
+    entity = driver(value_type=config.entity_type)
     fs.apply([fv, entity])
     fs.materialize(
         environment.start_date,
@@ -253,7 +234,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
         # we can successfully infer type even from all empty values
     )
 
-    driver_id_value = "1" if config.entity_type == String else 1
+    driver_id_value = "1" if config.entity_type == ValueType.STRING else 1
     online_features = fs.get_online_features(
         features=features, entity_rows=[{"driver_id": driver_id_value}],
     ).to_dict()
@@ -286,7 +267,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity_type
+    name, feature_dtype, feature_is_list, has_empty_list, data_source
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
@@ -311,9 +292,7 @@ def create_feature_view(
         elif feature_dtype == "datetime":
             dtype = UnixTimestamp
 
-    return driver_feature_view(
-        data_source, name=name, dtype=dtype, entity_type=entity_type
-    )
+    return driver_feature_view(data_source, name=name, dtype=dtype,)
 
 
 def assert_expected_historical_feature_types(

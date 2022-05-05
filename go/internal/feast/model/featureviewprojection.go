@@ -7,7 +7,7 @@ import (
 type FeatureViewProjection struct {
 	Name       string
 	NameAlias  string
-	Features   []*Field
+	Features   []*Feature
 	JoinKeyMap map[string]string
 }
 
@@ -24,9 +24,9 @@ func NewFeatureViewProjectionFromProto(proto *core.FeatureViewProjection) *Featu
 		JoinKeyMap: proto.JoinKeyMap,
 	}
 
-	features := make([]*Field, len(proto.FeatureColumns))
+	features := make([]*Feature, len(proto.FeatureColumns))
 	for index, featureSpecV2 := range proto.FeatureColumns {
-		features[index] = NewFieldFromProto(featureSpecV2)
+		features[index] = NewFeatureFromProto(featureSpecV2)
 	}
 	featureProjection.Features = features
 	return featureProjection

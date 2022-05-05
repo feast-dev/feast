@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource
+from feast import Entity, FeatureView, Field, FileSource, ValueType
 from feast.types import Float32, Int64
 
 driver_hourly_stats = FileSource(
@@ -11,12 +11,17 @@ driver_hourly_stats = FileSource(
 
 
 # The join key here is deliberately different from the parquet file to test the failure path.
-driver = Entity(name="driver_id", description="driver id", join_keys=["driver"],)
+driver = Entity(
+    name="driver_id",
+    value_type=ValueType.INT64,
+    description="driver id",
+    join_keys=["driver"],
+)
 
 
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=[driver],
+    entities=["driver_id"],
     ttl=timedelta(days=1),
     schema=[
         Field(name="conv_rate", dtype=Float32),

@@ -8,15 +8,15 @@ import (
 
 type BaseFeatureView struct {
 	Name       string
-	Features   []*Field
+	Features   []*Feature
 	Projection *FeatureViewProjection
 }
 
 func NewBaseFeatureView(name string, featureProtos []*core.FeatureSpecV2) *BaseFeatureView {
 	base := &BaseFeatureView{Name: name}
-	features := make([]*Field, len(featureProtos))
+	features := make([]*Feature, len(featureProtos))
 	for index, featureSpecV2 := range featureProtos {
-		features[index] = NewFieldFromProto(featureSpecV2)
+		features[index] = NewFeatureFromProto(featureSpecV2)
 	}
 	base.Features = features
 	base.Projection = NewFeatureViewProjectionFromDefinition(base)
@@ -43,7 +43,7 @@ func (fv *BaseFeatureView) WithProjection(projection *FeatureViewProjection) (*B
 }
 
 func (fv *BaseFeatureView) ProjectWithFeatures(featureNames []string) *FeatureViewProjection {
-	features := make([]*Field, 0)
+	features := make([]*Feature, 0)
 	for _, feature := range fv.Features {
 		for _, allowedFeatureName := range featureNames {
 			if feature.Name == allowedFeatureName {

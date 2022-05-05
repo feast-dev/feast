@@ -80,6 +80,12 @@ func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[stri
 		viewNames[viewName] = nil
 	}
 
+	entities, _ := s.fs.ListEntities(true)
+	entitiesByName := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entitiesByName[entity.Name] = entity
+	}
+
 	joinKeyTypes := make(map[string]int32)
 
 	for viewName := range viewNames {
@@ -88,8 +94,9 @@ func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[stri
 			// skip on demand feature views
 			continue
 		}
-		for _, entityColumn := range view.EntityColumns {
-			joinKeyTypes[entityColumn.Name] = int32(entityColumn.Dtype.Number())
+		for _, entityName := range view.Entities {
+			entity := entitiesByName[entityName]
+			joinKeyTypes[entity.JoinKey] = int32(entity.ValueType.Number())
 		}
 	}
 
@@ -104,14 +111,21 @@ func (s *OnlineFeatureService) GetEntityTypesMapByFeatureService(featureServiceN
 
 	joinKeyTypes := make(map[string]int32)
 
+	entities, _ := s.fs.ListEntities(true)
+	entitiesByName := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entitiesByName[entity.Name] = entity
+	}
+
 	for _, projection := range featureService.Projections {
 		view, err := s.fs.GetFeatureView(projection.Name, true)
 		if err != nil {
 			// skip on demand feature views
 			continue
 		}
-		for _, entityColumn := range view.EntityColumns {
-			joinKeyTypes[entityColumn.Name] = int32(entityColumn.Dtype.Number())
+		for _, entityName := range view.Entities {
+			entity := entitiesByName[entityName]
+			joinKeyTypes[entity.JoinKey] = int32(entity.ValueType.Number())
 		}
 	}
 

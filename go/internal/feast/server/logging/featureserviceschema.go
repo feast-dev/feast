@@ -52,12 +52,13 @@ func generateSchema(featureService *model.FeatureService, entityMap map[string]*
 				features = append(features, fullFeatureName)
 				allFeatureTypes[fullFeatureName] = f.Dtype
 			}
-			for _, entityColumn := range fv.EntityColumns {
+			for _, entityName := range fv.Entities {
+				entity := entityMap[entityName]
 				var joinKey string
-				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entityColumn.Name]; ok {
+				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entity.JoinKey]; ok {
 					joinKey = joinKeyAlias
 				} else {
-					joinKey = entityColumn.Name
+					joinKey = entity.JoinKey
 				}
 
 				if _, ok := joinKeysSet[joinKey]; !ok {
@@ -65,7 +66,7 @@ func generateSchema(featureService *model.FeatureService, entityMap map[string]*
 				}
 
 				joinKeysSet[joinKey] = nil
-				entityJoinKeyToType[joinKey] = entityColumn.Dtype
+				entityJoinKeyToType[joinKey] = entity.ValueType
 			}
 		} else if odFv, ok := odFvMap[featureViewName]; ok {
 			for _, f := range featureProjection.Features {

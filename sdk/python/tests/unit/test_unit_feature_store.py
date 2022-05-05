@@ -17,7 +17,7 @@ class MockFeatureView:
     projection: MockFeatureViewProjection
 
 
-def test_get_unique_entities():
+def test__get_unique_entities():
     entity_values = {
         "entity_1": [Value(int64_val=1), Value(int64_val=2), Value(int64_val=1)],
         "entity_2": [
