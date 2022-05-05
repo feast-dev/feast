@@ -33,6 +33,7 @@ import io.grpc.util.MutableHandlerRegistry;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -60,9 +61,9 @@ abstract class ServingEnvironment {
         new DockerComposeContainer(
                 new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
             .withExposedService("redis", 6379)
-            .withExposedService("feast", 8080)
-            .waitingFor("feast", Wait.forListeningPort())
-            .withLogConsumer("feast", f -> System.out.print(((OutputFrame) f).getUtf8String()));
+            .withExposedService(
+                "feast", 8080, Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(180)))
+            .withTailChildContainers(true);
     environment.start();
   }
 
