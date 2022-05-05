@@ -2053,8 +2053,23 @@ class FeatureStore:
         reference: ValidationReference,
         throw_exception: bool = True,
     ) -> Optional[ValidationFailed]:
+        """
+        Load logged features from an offline store and validate them against provided validation reference.
+
+        Args:
+            source: Logs source object (currently only feature services are supported)
+            start: lower bound for loading logged features
+            end:  upper bound for loading logged features
+            reference: validation reference
+            throw_exception: throw exception or return it as a result
+
+        Returns:
+            Throw or return (depends on parameter) ValidationFailed if validation was not successful
+            or None if successful.
+
+        """
         warnings.warn(
-            "Dataset validation is an experimental feature. "
+            "Logged features validation is an experimental feature. "
             "This API is unstable and it could and most probably will be changed in the future. "
             "We do not guarantee that future changes will maintain backward compatibility.",
             RuntimeWarning,

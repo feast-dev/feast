@@ -21,6 +21,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     GEValidationProfiler as GEValidationProfilerProto,
 )
+from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 
 
 def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
@@ -39,6 +40,23 @@ def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
             dataset_copy[column] = dataset[column].astype(np.float64)
 
     return dataset_copy
+
+
+def _add_feature_metadata(dataset: PandasDataset) -> PandasDataset:
+    for column in dataset.columns:
+        if "__" not in column:
+            # not a feature column
+            continue
+
+        if "event_timestamp" in dataset.columns:
+            dataset[f"{column}__timestamp"] = dataset["event_timestamp"]
+
+        dataset[f"{column}__status"] = FieldStatus.PRESENT
+        dataset[f"{column}__status"] = dataset[f"{column}__status"].mask(
+            dataset[column].isna(), FieldStatus.NOT_FOUND
+        )
+
+    return dataset
 
 
 class GEProfile(Profile):
@@ -96,9 +114,12 @@ class GEProfiler(Profiler):
     """
 
     def __init__(
-        self, user_defined_profiler: Callable[[pd.DataFrame], ExpectationSuite]
+        self,
+        user_defined_profiler: Callable[[pd.DataFrame], ExpectationSuite],
+        with_feature_metadata: bool = False,
     ):
         self.user_defined_profiler = user_defined_profiler
+        self.with_feature_metadata = with_feature_metadata
 
     def analyze_dataset(self, df: pd.DataFrame) -> Profile:
         """
@@ -112,6 +133,9 @@ class GEProfiler(Profiler):
         dataset = PandasDataset(df)
 
         dataset = _prepare_dataset(dataset)
+
+        if self.with_feature_metadata:
+            dataset = _add_feature_metadata(dataset)
 
         return GEProfile(expectation_suite=self.user_defined_profiler(dataset))
 
@@ -158,5 +182,13 @@ class GEValidationReport(ValidationReport):
         return json.dumps(failed_expectations, indent=2)
 
 
-def ge_profiler(func):
-    return GEProfiler(user_defined_profiler=func)
+def ge_profiler(*args, with_feature_metadata=False):
+    def wrapper(fun):
+        return GEProfiler(
+            user_defined_profiler=fun, with_feature_metadata=with_feature_metadata
+        )
+
+    if args:
+        return wrapper(args[0])
+
+    return wrapper

@@ -557,11 +557,18 @@ def _filter_ttl(
     # Filter rows by defined timestamp tolerance
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
         df_to_join = df_to_join[
-            (
-                df_to_join[timestamp_field]
-                >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+            # do not drop entity rows if one of the sources returns NaNsq
+            df_to_join[timestamp_field].isna()
+            | (
+                (
+                    df_to_join[timestamp_field]
+                    >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+                )
+                & (
+                    df_to_join[timestamp_field]
+                    <= df_to_join[entity_df_event_timestamp_col]
+                )
             )
-            & (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
         ]
 
         df_to_join = df_to_join.persist()
