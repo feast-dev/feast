@@ -1,16 +1,8 @@
-import contextlib
 import datetime
-import tempfile
-import uuid
-from pathlib import Path
-from typing import Iterator, Union
 
-import numpy as np
 import pandas as pd
-import pyarrow
 import pyarrow as pa
 import pytest
-from google.api_core.exceptions import NotFound
 
 from feast.feature_logging import (
     LOG_DATE_FIELD,
@@ -20,14 +12,13 @@ from feast.feature_logging import (
     LoggingConfig,
 )
 from feast.feature_service import FeatureService
-from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
-    UniversalDatasets,
     construct_universal_feature_views,
 )
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import conv_rate_plus_100
+from tests.utils.logged_features import prepare_logs, to_logs_dataset
 
 
 @pytest.mark.integration
@@ -41,8 +32,6 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
     feature_views = construct_universal_feature_views(data_sources)
     store.apply([driver(), *feature_views.values()])
 
-    logs_df = prepare_logs(datasets)
-
     feature_service = FeatureService(
         name="test_service",
         features=[
@@ -55,6 +44,12 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
             destination=environment.data_source_creator.create_logged_features_destination()
         ),
     )
+
+    driver_df = datasets.driver_df
+    driver_df["val_to_add"] = 50
+    driver_df = driver_df.join(conv_rate_plus_100(driver_df))
+
+    logs_df = prepare_logs(driver_df, feature_service, store)
 
     schema = FeatureServiceLoggingSource(
         feature_service=feature_service, project=store.project
@@ -85,7 +80,7 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
         )
         try:
             df = retrieval_job.to_df()
-        except NotFound:
+        except Exception:
             # Table was not created yet
             return None, False
 
@@ -102,44 +97,3 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
         persisted_logs.sort_values(REQUEST_ID_FIELD).reset_index(drop=True),
         check_dtype=False,
     )
-
-
-def prepare_logs(datasets: UniversalDatasets) -> pd.DataFrame:
-    driver_df = datasets.driver_df
-    driver_df["val_to_add"] = 50
-    driver_df = driver_df.join(conv_rate_plus_100(driver_df))
-    num_rows = driver_df.shape[0]
-
-    logs_df = driver_df[["driver_id", "val_to_add"]]
-    logs_df[REQUEST_ID_FIELD] = [str(uuid.uuid4()) for _ in range(num_rows)]
-    logs_df[LOG_TIMESTAMP_FIELD] = pd.Series(
-        np.random.randint(0, 7 * 24 * 3600, num_rows)
-    ).map(lambda secs: pd.Timestamp.utcnow() - datetime.timedelta(seconds=secs))
-    logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
-
-    for view, features in (
-        ("driver_stats", ("conv_rate", "avg_daily_trips")),
-        (
-            "conv_rate_plus_100",
-            ("conv_rate_plus_val_to_add", "conv_rate_plus_100_rounded"),
-        ),
-    ):
-        for feature in features:
-            logs_df[f"{view}__{feature}"] = driver_df[feature]
-            logs_df[f"{view}__{feature}__timestamp"] = driver_df["event_timestamp"]
-            logs_df[f"{view}__{feature}__status"] = FieldStatus.PRESENT
-
-    return logs_df
-
-
-@contextlib.contextmanager
-def to_logs_dataset(
-    table: pyarrow.Table, pass_as_path: bool
-) -> Iterator[Union[pyarrow.Table, Path]]:
-    if not pass_as_path:
-        yield table
-        return
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        pyarrow.parquet.write_to_dataset(table, root_path=temp_dir)
-        yield Path(temp_dir)
