@@ -557,7 +557,7 @@ def _filter_ttl(
     # Filter rows by defined timestamp tolerance
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
         df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNsq
+            # do not drop entity rows if one of the sources returns NaNs
             df_to_join[timestamp_field].isna()
             | (
                 (

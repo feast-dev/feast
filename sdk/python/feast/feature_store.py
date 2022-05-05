@@ -2064,7 +2064,7 @@ class FeatureStore:
             throw_exception: throw exception or return it as a result
 
         Returns:
-            Throw or return (depends on parameter) ValidationFailed if validation was not successful
+            Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
             or None if successful.
 
         """
