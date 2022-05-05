@@ -4,11 +4,68 @@ from typing import List
 from feast import BigQuerySource, Entity, FileSource, RedshiftSource, SnowflakeSource
 from feast.data_source import DataSource, PushSource, RequestSource
 from feast.errors import RegistryInferenceFailure
-from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import FeatureView
 from feast.field import Field, from_value_type
 from feast.repo_config import RepoConfig
-from feast.types import String
 from feast.value_type import ValueType
+
+
+def update_entities_with_inferred_types_from_feature_views(
+    entities: List[Entity], feature_views: List[FeatureView], config: RepoConfig
+) -> None:
+    """
+    Infers the types of the entities by examining the schemas of feature view batch sources.
+
+    Args:
+        entities: The entities to be updated.
+        feature_views: A list containing feature views associated with the entities.
+        config: The config for the current feature store.
+    """
+    incomplete_entities = {
+        entity.name: entity
+        for entity in entities
+        if entity.value_type == ValueType.UNKNOWN
+    }
+    incomplete_entities_keys = incomplete_entities.keys()
+
+    for view in feature_views:
+        if not (incomplete_entities_keys & set(view.entities)):
+            continue  # skip if view doesn't contain any entities that need inference
+
+        col_names_and_types = list(
+            view.batch_source.get_table_column_names_and_types(config)
+        )
+        for entity_name in view.entities:
+            if entity_name in incomplete_entities:
+                entity = incomplete_entities[entity_name]
+
+                # get entity information from information extracted from the view batch source
+                extracted_entity_name_type_pairs = list(
+                    filter(lambda tup: tup[0] == entity.join_key, col_names_and_types,)
+                )
+                if len(extracted_entity_name_type_pairs) == 0:
+                    # Doesn't mention inference error because would also be an error without inferencing
+                    raise ValueError(
+                        f"""No column in the batch source for the {view.name} feature view matches
+                        its entity's name."""
+                    )
+
+                inferred_value_type = view.batch_source.source_datatype_to_feast_value_type()(
+                    extracted_entity_name_type_pairs[0][1]
+                )
+
+                if (
+                    entity.value_type != ValueType.UNKNOWN
+                    and entity.value_type != inferred_value_type
+                ) or (len(extracted_entity_name_type_pairs) > 1):
+                    raise RegistryInferenceFailure(
+                        "Entity",
+                        f"""Entity value_type inference failed for {entity_name} entity.
+                        Multiple viable matches.
+                        """,
+                    )
+
+                entity.value_type = inferred_value_type
 
 
 def update_data_sources_with_inferred_event_timestamp_col(
@@ -83,115 +140,57 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 )
 
 
-def update_feature_views_with_inferred_features_and_entities(
+def update_feature_views_with_inferred_features(
     fvs: List[FeatureView], entities: List[Entity], config: RepoConfig
 ) -> None:
     """
-    Infers the set of features and entities associated with each feature view and updates
-    the feature view with those features and entities. Columns whose names match a join key
-    of an entity are considered to be entity columns; all other columns except designated
-    timestamp columns, are considered to be feature columns.
+    Infers the set of features associated to each FeatureView and updates the FeatureView with those features.
+    Inference occurs through considering each column of the underlying data source as a feature except columns that are
+    associated with the data source's timestamp columns and the FeatureView's entity columns.
 
     Args:
         fvs: The feature views to be updated.
         entities: A list containing entities associated with the feature views.
         config: The config for the current feature store.
     """
-    entity_name_to_entity_map = {e.name: e for e in entities}
-    entity_name_to_join_keys_map = {e.name: e.join_keys for e in entities}
-    all_join_keys = [
-        join_key
-        for join_key_list in entity_name_to_join_keys_map.values()
-        for join_key in join_key_list
-    ]
+    entity_name_to_join_key_map = {entity.name: entity.join_key for entity in entities}
+    join_keys = entity_name_to_join_key_map.values()
 
     for fv in fvs:
-        # Fields whose names match a join key are considered to be entity columns; all
-        # other fields are considered to be feature columns.
-        for field in fv.schema:
-            if field.name in all_join_keys:
-                # Do not override a preexisting field with the same name.
-                if field.name not in [
-                    entity_column.name for entity_column in fv.entity_columns
-                ]:
-                    fv.entity_columns.append(field)
-            else:
-                if field.name not in [feature.name for feature in fv.features]:
-                    fv.features.append(field)
+        # First drop all Entity fields. Then infer features if necessary.
+        fv.schema = [field for field in fv.schema if field.name not in join_keys]
+        fv.features = [field for field in fv.features if field.name not in join_keys]
 
-        # Since the `value_type` parameter has not yet been fully deprecated for
-        # entities, we respect the `value_type` attribute if it still exists.
-        for entity_name in fv.entities:
-            entity = entity_name_to_entity_map[entity_name]
-            if (
-                entity_name
-                not in [entity_column.name for entity_column in fv.entity_columns]
-                and entity.value_type != ValueType.UNKNOWN
-            ):
-                fv.entity_columns.append(
-                    Field(
-                        name=entity.join_key, dtype=from_value_type(entity.value_type),
-                    )
-                )
-
-        # Handle EFV separately here. Specifically, that means if we have an EFV,
-        # we need to add a field to entity_columns.
-        if len(fv.entities) == 1 and fv.entities[0] == DUMMY_ENTITY_NAME:
-            fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
-
-        # Run inference if either (a) there are fewer entity fields than expected or
-        # (b) there are no feature fields.
-        run_inference = len(fv.features) == 0
-        num_expected_join_keys = sum(
-            [
-                len(entity_name_to_join_keys_map[entity_name])
-                for entity_name in fv.entities
-            ]
-        )
-        if len(fv.entity_columns) < num_expected_join_keys:
-            run_inference = True
-
-        if run_inference:
-            join_keys = set(
-                [
-                    join_key
-                    for entity_name in fv.entities
-                    for join_key in entity_name_to_join_keys_map[entity_name]
-                ]
-            )
-
+        if not fv.features:
             columns_to_exclude = {
                 fv.batch_source.timestamp_field,
                 fv.batch_source.created_timestamp_column,
+            } | {
+                entity_name_to_join_key_map[entity_name] for entity_name in fv.entities
             }
-            for column in columns_to_exclude:
-                if column in fv.batch_source.field_mapping:
-                    columns_to_exclude.remove(column)
-                    columns_to_exclude.add(fv.batch_source.field_mapping[column])
 
-            table_column_names_and_types = fv.batch_source.get_table_column_names_and_types(
-                config
-            )
+            if fv.batch_source.timestamp_field in fv.batch_source.field_mapping:
+                columns_to_exclude.add(
+                    fv.batch_source.field_mapping[fv.batch_source.timestamp_field]
+                )
+            if (
+                fv.batch_source.created_timestamp_column
+                in fv.batch_source.field_mapping
+            ):
+                columns_to_exclude.add(
+                    fv.batch_source.field_mapping[
+                        fv.batch_source.created_timestamp_column
+                    ]
+                )
 
-            for col_name, col_datatype in table_column_names_and_types:
-                if col_name in columns_to_exclude:
-                    continue
-                elif col_name in join_keys:
-                    field = Field(
-                        name=col_name,
-                        dtype=from_value_type(
-                            fv.batch_source.source_datatype_to_feast_value_type()(
-                                col_datatype
-                            )
-                        ),
-                    )
-                    if field.name not in [
-                        entity_column.name for entity_column in fv.entity_columns
-                    ]:
-                        fv.entity_columns.append(field)
-                elif not re.match(
-                    "^__|__$", col_name
-                ):  # double underscores often signal an internal-use column
+            for (
+                col_name,
+                col_datatype,
+            ) in fv.batch_source.get_table_column_names_and_types(config):
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$",
+                    col_name,  # double underscores often signal an internal-use column
+                ):
                     feature_name = (
                         fv.batch_source.field_mapping[col_name]
                         if col_name in fv.batch_source.field_mapping
@@ -205,8 +204,10 @@ def update_feature_views_with_inferred_features_and_entities(
                             )
                         ),
                     )
-                    if field.name not in [feature.name for feature in fv.features]:
-                        fv.features.append(field)
+                    # Note that schema and features are two different attributes of a
+                    # FeatureView, and that features should be present in both.
+                    fv.schema.append(field)
+                    fv.features.append(field)
 
             if not fv.features:
                 raise RegistryInferenceFailure(

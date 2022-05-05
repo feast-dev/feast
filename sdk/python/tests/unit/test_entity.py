@@ -20,14 +20,19 @@ from feast.value_type import ValueType
 
 def test_join_key_default():
     with pytest.deprecated_call():
-        entity = Entity("my-entity", description="My entity")
+        entity = Entity(
+            "my-entity", description="My entity", value_type=ValueType.STRING
+        )
     assert entity.join_key == "my-entity"
 
 
 def test_entity_class_contains_tags():
     with pytest.deprecated_call():
         entity = Entity(
-            "my-entity", description="My entity", tags={"key1": "val1", "key2": "val2"},
+            "my-entity",
+            description="My entity",
+            value_type=ValueType.STRING,
+            tags={"key1": "val1", "key2": "val2"},
         )
     assert "key1" in entity.tags.keys() and entity.tags["key1"] == "val1"
     assert "key2" in entity.tags.keys() and entity.tags["key2"] == "val2"
@@ -35,18 +40,20 @@ def test_entity_class_contains_tags():
 
 def test_entity_without_tags_empty_dict():
     with pytest.deprecated_call():
-        entity = Entity("my-entity", description="My entity")
+        entity = Entity(
+            "my-entity", description="My entity", value_type=ValueType.STRING
+        )
     assert entity.tags == dict()
     assert len(entity.tags) == 0
 
 
 def test_entity_without_description():
     with pytest.deprecated_call():
-        Entity("my-entity")
+        Entity("my-entity", value_type=ValueType.STRING)
 
 
 def test_name_not_specified():
-    assertpy.assert_that(lambda: Entity()).raises(ValueError)
+    assertpy.assert_that(lambda: Entity(value_type=ValueType.STRING)).raises(ValueError)
 
 
 def test_multiple_args():
@@ -54,19 +61,15 @@ def test_multiple_args():
 
 
 def test_name_keyword(recwarn):
-    Entity(name="my-entity")
+    Entity(name="my-entity", value_type=ValueType.STRING)
     assert len(recwarn) == 0
-    Entity(name="my-entity", join_key="test")
-    assert len(recwarn) == 1
-    Entity(name="my-entity", join_keys=["test"])
-    assert len(recwarn) == 1
 
 
 def test_hash():
-    entity1 = Entity(name="my-entity")
-    entity2 = Entity(name="my-entity")
-    entity3 = Entity(name="my-entity", join_keys=["not-my-entity"])
-    entity4 = Entity(name="my-entity", join_keys=["not-my-entity"], description="test")
+    entity1 = Entity(name="my-entity", value_type=ValueType.STRING)
+    entity2 = Entity(name="my-entity", value_type=ValueType.STRING)
+    entity3 = Entity(name="my-entity", value_type=ValueType.FLOAT)
+    entity4 = Entity(name="my-entity", value_type=ValueType.FLOAT, description="test")
 
     s1 = {entity1, entity2}
     assert len(s1) == 1

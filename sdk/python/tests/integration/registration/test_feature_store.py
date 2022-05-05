@@ -27,8 +27,10 @@ from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float64, Int64, String
+from feast.value_type import ValueType
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -91,7 +93,10 @@ def feature_store_with_s3_registry():
 )
 def test_apply_entity_success(test_feature_store):
     entity = Entity(
-        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
+        name="driver_car_id",
+        description="Car driver id",
+        value_type=ValueType.STRING,
+        tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -103,6 +108,7 @@ def test_apply_entity_success(test_feature_store):
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
+        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -121,7 +127,10 @@ def test_apply_entity_success(test_feature_store):
 )
 def test_apply_entity_integration(test_feature_store):
     entity = Entity(
-        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
+        name="driver_car_id",
+        description="Car driver id",
+        value_type=ValueType.STRING,
+        tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -133,6 +142,7 @@ def test_apply_entity_integration(test_feature_store):
     assert (
         len(entities) == 1
         and entity.name == "driver_car_id"
+        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -141,6 +151,7 @@ def test_apply_entity_integration(test_feature_store):
     entity = test_feature_store.get_entity("driver_car_id")
     assert (
         entity.name == "driver_car_id"
+        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
         and entity.description == "Car driver id"
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
@@ -162,8 +173,6 @@ def test_apply_feature_view_success(test_feature_store):
         date_partition_column="date_partition_col",
     )
 
-    entity = Entity(name="fs1_my_entity_1", join_keys=["entity_id"])
-
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
@@ -171,16 +180,15 @@ def test_apply_feature_view_success(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-            Field(name="entity_id", dtype=Int64),
         ],
-        entities=[entity],
+        entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
     # Register Feature View
-    test_feature_store.apply([entity, fv1])
+    test_feature_store.apply([fv1])
 
     feature_views = test_feature_store.list_feature_views()
 
@@ -209,11 +217,13 @@ def test_apply_feature_view_success(test_feature_store):
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_feature_view_inference_success(test_feature_store, dataframe_source):
     with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
-        entity = Entity(name="id", join_keys=["id_join_key"])
+        entity = Entity(
+            name="id", join_keys=["id_join_key"], value_type=ValueType.INT64
+        )
 
         fv1 = FeatureView(
             name="fv1",
-            entities=[entity],
+            entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
             batch_source=file_source,
@@ -222,7 +232,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
 
         fv2 = FeatureView(
             name="fv2",
-            entities=[entity],
+            entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
             batch_source=simple_bq_source_using_table_arg(dataframe_source, "ts_1"),
@@ -231,7 +241,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
 
         fv3 = FeatureView(
             name="fv3",
-            entities=[entity],
+            entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
             batch_source=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
@@ -286,8 +296,6 @@ def test_apply_feature_view_integration(test_feature_store):
         date_partition_column="date_partition_col",
     )
 
-    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
-
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
@@ -295,16 +303,15 @@ def test_apply_feature_view_integration(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-            Field(name="test", dtype=Int64),
         ],
-        entities=[entity],
+        entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
     # Register Feature View
-    test_feature_store.apply([fv1, entity])
+    test_feature_store.apply([fv1])
 
     feature_views = test_feature_store.list_feature_views()
 
@@ -357,9 +364,13 @@ def test_apply_object_and_read(test_feature_store):
         created_timestamp_column="timestamp",
     )
 
-    e1 = Entity(name="fs1_my_entity_1", description="something")
+    e1 = Entity(
+        name="fs1_my_entity_1", value_type=ValueType.STRING, description="something"
+    )
 
-    e2 = Entity(name="fs1_my_entity_2", description="something")
+    e2 = Entity(
+        name="fs1_my_entity_2", value_type=ValueType.STRING, description="something"
+    )
 
     fv1 = FeatureView(
         name="my_feature_view_1",
@@ -368,9 +379,8 @@ def test_apply_object_and_read(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-            Field(name="fs1_my_entity_1", dtype=Int64),
         ],
-        entities=[e1],
+        entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
@@ -383,9 +393,8 @@ def test_apply_object_and_read(test_feature_store):
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-            Field(name="fs1_my_entity_2", dtype=Int64),
         ],
-        entities=[e2],
+        entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
         ttl=timedelta(minutes=5),
@@ -397,6 +406,7 @@ def test_apply_object_and_read(test_feature_store):
     fv1_actual = test_feature_store.get_feature_view("my_feature_view_1")
     e1_actual = test_feature_store.get_entity("fs1_my_entity_1")
 
+    assert fv1 == fv1_actual
     assert e1 == e1_actual
     assert fv2 != fv1_actual
     assert e2 != e1_actual
@@ -424,13 +434,13 @@ def test_apply_remote_repo():
 def test_reapply_feature_view_success(test_feature_store, dataframe_source):
     with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
 
-        e = Entity(name="id", join_keys=["id_join_key"])
+        e = Entity(name="id", join_keys=["id_join_key"], value_type=ValueType.STRING)
 
         # Create Feature View
         fv1 = FeatureView(
             name="my_feature_view_1",
             schema=[Field(name="string_col", dtype=String)],
-            entities=[e],
+            entities=["id"],
             batch_source=file_source,
             ttl=timedelta(minutes=5),
         )
@@ -460,7 +470,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         fv1 = FeatureView(
             name="my_feature_view_1",
             schema=[Field(name="int64_col", dtype=Int64)],
-            entities=[e],
+            entities=["id"],
             batch_source=file_source,
             ttl=timedelta(minutes=5),
         )
@@ -475,12 +485,10 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
 
 def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
     """Test applying feature views with non-case-insensitively unique names"""
-    driver = Entity(name="driver", join_keys=["driver_id"])
-    customer = Entity(name="customer", join_keys=["customer_id"])
 
     driver_stats = FeatureView(
         name="driver_hourly_stats",
-        entities=[driver],
+        entities=["driver_id"],
         ttl=timedelta(seconds=10),
         online=False,
         batch_source=FileSource(path="driver_stats.parquet"),
@@ -489,7 +497,7 @@ def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
 
     customer_stats = FeatureView(
         name="DRIVER_HOURLY_STATS",
-        entities=[customer],
+        entities=["id"],
         ttl=timedelta(seconds=10),
         online=False,
         batch_source=FileSource(path="customer_stats.parquet"),

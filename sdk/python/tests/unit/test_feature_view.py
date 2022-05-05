@@ -62,7 +62,3 @@ def test_hash():
 
     s4 = {feature_view_1, feature_view_2, feature_view_3, feature_view_4}
     assert len(s4) == 3
-
-
-# TODO(felixwang9817): Add tests for proto conversion.
-# TODO(felixwang9817): Add tests for field mapping logic.

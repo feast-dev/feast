@@ -106,9 +106,9 @@ class RedisOnlineStore(OnlineStore):
         (usually this happens when the last feature view that was using specific compound key is deleted)
         and remove all features attached to this "join_keys".
         """
-        join_keys_to_keep = set(tuple(table.join_keys) for table in tables_to_keep)
+        join_keys_to_keep = set(tuple(table.entities) for table in tables_to_keep)
 
-        join_keys_to_delete = set(tuple(table.join_keys) for table in tables_to_delete)
+        join_keys_to_delete = set(tuple(table.entities) for table in tables_to_delete)
 
         for join_keys in join_keys_to_delete - join_keys_to_keep:
             self.delete_entity_values(config, list(join_keys))
@@ -122,7 +122,7 @@ class RedisOnlineStore(OnlineStore):
         """
         We delete the keys in redis for tables/views being removed.
         """
-        join_keys_to_delete = set(tuple(table.join_keys) for table in tables)
+        join_keys_to_delete = set(tuple(table.entities) for table in tables)
 
         for join_keys in join_keys_to_delete:
             self.delete_entity_values(config, list(join_keys))

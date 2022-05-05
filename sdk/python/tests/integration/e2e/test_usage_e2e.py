@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from feast import Entity, RepoConfig
+from feast import Entity, RepoConfig, ValueType
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 
 
@@ -60,6 +60,7 @@ def test_usage_on(dummy_exporter, enabling_toggle):
         entity = Entity(
             name="driver_car_id",
             description="Car driver id",
+            value_type=ValueType.STRING,
             tags={"team": "matchmaking"},
         )
 
@@ -98,6 +99,7 @@ def test_usage_off(dummy_exporter, enabling_toggle):
         entity = Entity(
             name="driver_car_id",
             description="Car driver id",
+            value_type=ValueType.STRING,
             tags={"team": "matchmaking"},
         )
         test_feature_store.apply([entity])

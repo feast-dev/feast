@@ -74,10 +74,9 @@ func TestSchemaRetrievalIgnoresEntitiesNotInFeatureService(t *testing.T) {
 	featureService, entities, fvs, odfvs := InitializeFeatureRepoVariablesForTest()
 	entityMap, fvMap, odFvMap := buildFCOMaps(entities, fvs, odfvs)
 
-	// Remove entities in featureservice
+	//Remove entities in featureservice
 	for _, featureView := range fvs {
-		featureView.EntityNames = []string{}
-		featureView.EntityColumns = []*model.Field{}
+		featureView.Entities = []string{}
 	}
 
 	schema, err := generateSchema(featureService, entityMap, fvMap, odFvMap)
@@ -127,69 +126,65 @@ func TestSchemaUsesOrderInFeatureService(t *testing.T) {
 
 // Initialize all dummy featureservice, entities and featureviews/on demand featureviews for testing.
 func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView) {
-	f1 := test.CreateNewField(
+	f1 := test.CreateNewFeature(
 		"int64",
 		types.ValueType_INT64,
 	)
-	f2 := test.CreateNewField(
+	f2 := test.CreateNewFeature(
 		"float32",
 		types.ValueType_FLOAT,
 	)
 	projection1 := test.CreateNewFeatureViewProjection(
 		"featureView1",
 		"",
-		[]*model.Field{f1, f2},
+		[]*model.Feature{f1, f2},
 		map[string]string{},
 	)
 	baseFeatureView1 := test.CreateBaseFeatureView(
 		"featureView1",
-		[]*model.Field{f1, f2},
+		[]*model.Feature{f1, f2},
 		projection1,
 	)
-	entity1 := test.CreateNewEntity("driver_id", "driver_id")
-	entitycolumn1 := test.CreateNewField(
-		"driver_id",
-		types.ValueType_INT64,
-	)
-	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, []string{"driver_id"}, []*model.Field{entitycolumn1})
-	f3 := test.CreateNewField(
+	featureView1 := test.CreateFeatureView(baseFeatureView1, nil, []string{"driver_id"})
+	entity1 := test.CreateNewEntity("driver_id", types.ValueType_INT64, "driver_id")
+	f3 := test.CreateNewFeature(
 		"int32",
 		types.ValueType_INT32,
 	)
-	f4 := test.CreateNewField(
+	f4 := test.CreateNewFeature(
 		"double",
 		types.ValueType_DOUBLE,
 	)
 	projection2 := test.CreateNewFeatureViewProjection(
 		"featureView2",
 		"",
-		[]*model.Field{f3, f4},
+		[]*model.Feature{f3, f4},
 		map[string]string{},
 	)
 	baseFeatureView2 := test.CreateBaseFeatureView(
 		"featureView2",
-		[]*model.Field{f3, f4},
+		[]*model.Feature{f3, f4},
 		projection2,
 	)
-	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, []string{"driver_id"}, []*model.Field{entitycolumn1})
+	featureView2 := test.CreateFeatureView(baseFeatureView2, nil, []string{"driver_id"})
 
-	f5 := test.CreateNewField(
+	f5 := test.CreateNewFeature(
 		"odfv_f1",
 		types.ValueType_INT32,
 	)
-	f6 := test.CreateNewField(
+	f6 := test.CreateNewFeature(
 		"odfv_f2",
 		types.ValueType_DOUBLE,
 	)
 	projection3 := test.CreateNewFeatureViewProjection(
 		"od_bf1",
 		"",
-		[]*model.Field{f5, f6},
+		[]*model.Feature{f5, f6},
 		map[string]string{},
 	)
 	od_bf1 := test.CreateBaseFeatureView(
 		"od_bf1",
-		[]*model.Field{f5, f6},
+		[]*model.Feature{f5, f6},
 		projection3,
 	)
 	odfv := model.NewOnDemandFeatureViewFromBase(od_bf1)
