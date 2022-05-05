@@ -39,21 +39,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 abstract class ServingEnvironment {
   static DockerComposeContainer environment;
-
+  static int serverPort = getFreePort();
   ServingServiceGrpc.ServingServiceBlockingStub servingStub;
   Injector injector;
   String serverName;
   ManagedChannel channel;
   Server server;
   MutableHandlerRegistry serviceRegistry;
-
-  static int serverPort = getFreePort();
 
   @BeforeAll
   static void globalSetup() {
@@ -62,13 +61,28 @@ abstract class ServingEnvironment {
                 new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
             .withExposedService("redis", 6379)
             .withExposedService("feast", 8080)
-            .waitingFor("feast", Wait.forListeningPort());
+            .waitingFor("feast", Wait.forListeningPort())
+            .withLogConsumer("feast", f -> System.out.print(((OutputFrame) f).getUtf8String()));
     environment.start();
   }
 
   @AfterAll
   static void globalTeardown() {
     environment.stop();
+  }
+
+  private static int getFreePort() {
+    ServerSocket serverSocket;
+    try {
+      serverSocket = new ServerSocket(0);
+    } catch (IOException e) {
+      throw new RuntimeException("Couldn't allocate port");
+    }
+
+    assertThat(serverSocket, is(notNullValue()));
+    assertThat(serverSocket.getLocalPort(), greaterThan(0));
+
+    return serverSocket.getLocalPort();
   }
 
   @BeforeEach
@@ -154,19 +168,5 @@ abstract class ServingEnvironment {
 
   AbstractModule registryConfig() {
     return null;
-  }
-
-  private static int getFreePort() {
-    ServerSocket serverSocket;
-    try {
-      serverSocket = new ServerSocket(0);
-    } catch (IOException e) {
-      throw new RuntimeException("Couldn't allocate port");
-    }
-
-    assertThat(serverSocket, is(notNullValue()));
-    assertThat(serverSocket.getLocalPort(), greaterThan(0));
-
-    return serverSocket.getLocalPort();
   }
 }
