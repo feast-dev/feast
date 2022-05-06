@@ -19,7 +19,7 @@ class IntegrationTestRepoConfig:
     """
 
     provider: str = "local"
-    online_store: Union[str, Dict] = "sqlite"
+    online_store: Optional[Union[str, Dict]] = "sqlite"
 
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
     online_store_creator: Optional[Type[OnlineStoreCreator]] = None
@@ -38,8 +38,10 @@ class IntegrationTestRepoConfig:
                     online_store_type = self.online_store.get("redis_type", "redis")
                 else:
                     online_store_type = self.online_store["type"]
-            else:
+            elif self.online_store:
                 online_store_type = self.online_store.__name__
+            else:
+                online_store_type = "none"
         else:
             online_store_type = self.online_store_creator.__name__
 

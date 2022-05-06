@@ -44,7 +44,7 @@ class PassthroughProvider(Provider):
 
     @property
     def online_store(self):
-        if not self._online_store:
+        if not self._online_store and self.repo_config.online_store:
             self._online_store = get_online_store_from_config(
                 self.repo_config.online_store
             )
