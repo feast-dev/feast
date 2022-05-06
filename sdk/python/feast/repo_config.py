@@ -141,6 +141,13 @@ class RepoConfig(FeastBaseModel):
         self._online_store = None
         if "online_store" in data:
             self._online_config = data["online_store"]
+        else:
+            if data["provider"] == "local":
+                self._online_config = "sqlite"
+            elif data["provider"] == "gcp":
+                self._online_config = "datastore"
+            elif data["provider"] == "aws":
+                self._online_config = "dynamodb"
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(
