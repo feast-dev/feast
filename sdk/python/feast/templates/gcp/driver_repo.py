@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
+from feast import BigQuerySource, Entity, FeatureView, Field, ValueType, FeatureService
 from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
@@ -62,4 +62,9 @@ driver_stats_fv = FeatureView(
     # Tags are user defined key/value pairs that are attached to each
     # feature view
     tags={"team": "driver_performance"},
+)
+
+driver_stats_fs = FeatureService(
+    name="driver_activity",
+    features=[driver_stats_fv]
 )
