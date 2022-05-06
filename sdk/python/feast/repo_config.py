@@ -6,6 +6,7 @@ from typing import Any
 import yaml
 from pydantic import (
     BaseModel,
+    Field,
     StrictInt,
     StrictStr,
     ValidationError,
@@ -107,10 +108,10 @@ class RepoConfig(FeastBaseModel):
     provider: StrictStr
     """ str: local or gcp or aws """
 
-    online_store: Any
+    _online_config: Any = Field(alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
-    offline_store: Any
+    _offline_config: Any = Field(alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
     feature_server: Optional[Any]
@@ -125,20 +126,13 @@ class RepoConfig(FeastBaseModel):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
+        self._offline_store = None
+        if "offline_store" in data:
+            self._offline_config = data["offline_store"]
 
-        if isinstance(self.online_store, Dict):
-            self.online_store = get_online_config_from_type(self.online_store["type"])(
-                **self.online_store
-            )
-        elif isinstance(self.online_store, str):
-            self.online_store = get_online_config_from_type(self.online_store)()
-
-        if isinstance(self.offline_store, Dict):
-            self.offline_store = get_offline_config_from_type(
-                self.offline_store["type"]
-            )(**self.offline_store)
-        elif isinstance(self.offline_store, str):
-            self.offline_store = get_offline_config_from_type(self.offline_store)()
+        self._online_store = None
+        if "online_store" in data:
+            self._online_config = data["online_store"]
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(
@@ -150,6 +144,34 @@ class RepoConfig(FeastBaseModel):
             return RegistryConfig(path=self.registry)
         else:
             return self.registry
+
+    @property
+    def offline_store(self):
+        if not self._offline_store:
+            if isinstance(self._offline_config, Dict):
+                self._offline_store = get_offline_config_from_type(
+                    self._offline_config["type"]
+                )(**self._offline_config)
+            elif isinstance(self._offline_config, str):
+                self._offline_store = get_offline_config_from_type(
+                    self._offline_config
+                )()
+            else:
+                self._offline_store = self._offline_config
+        return self._offline_store
+
+    @property
+    def online_store(self):
+        if not self._online_store:
+            if isinstance(self._online_config, Dict):
+                self._online_store = get_online_config_from_type(
+                    self._online_config["type"]
+                )(**self._online_config)
+            elif isinstance(self._online_config, str):
+                self._online_store = get_online_config_from_type(self._online_config)()
+            else:
+                self._online_store = self._online_config
+        return self._online_store
 
     @root_validator(pre=True)
     @log_exceptions
@@ -303,6 +325,9 @@ class RepoConfig(FeastBaseModel):
                 f,
                 sort_keys=False,
             )
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class FeastConfigError(Exception):

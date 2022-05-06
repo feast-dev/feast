@@ -39,6 +39,7 @@ def repo_config():
         project=PROJECT,
         provider=PROVIDER,
         online_store=DynamoDBOnlineStoreConfig(region=REGION),
+        # online_store={"type": "dynamodb", "region": REGION},
         offline_store=FileOfflineStoreConfig(),
     )
 
