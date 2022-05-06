@@ -126,9 +126,17 @@ class RepoConfig(FeastBaseModel):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
+
         self._offline_store = None
         if "offline_store" in data:
             self._offline_config = data["offline_store"]
+        else:
+            if data["provider"] == "local":
+                self._offline_config = "file"
+            elif data["provider"] == "gcp":
+                self._offline_config = "bigquery"
+            elif data["provider"] == "aws":
+                self._offline_config = "redshift"
 
         self._online_store = None
         if "online_store" in data:
@@ -156,7 +164,7 @@ class RepoConfig(FeastBaseModel):
                 self._offline_store = get_offline_config_from_type(
                     self._offline_config
                 )()
-            else:
+            elif self._offline_config:
                 self._offline_store = self._offline_config
         return self._offline_store
 
@@ -169,8 +177,9 @@ class RepoConfig(FeastBaseModel):
                 )(**self._online_config)
             elif isinstance(self._online_config, str):
                 self._online_store = get_online_config_from_type(self._online_config)()
-            else:
+            elif self._online_config:
                 self._online_store = self._online_config
+
         return self._online_store
 
     @root_validator(pre=True)
