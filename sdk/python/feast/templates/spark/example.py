@@ -5,7 +5,7 @@
 from datetime import timedelta
 from pathlib import Path
 
-from feast import Entity, FeatureView, Field, ValueType, FeatureService
+from feast import Entity, FeatureService, FeatureView, Field, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
@@ -67,5 +67,5 @@ customer_daily_profile_view = FeatureView(
 
 driver_stats_fs = FeatureService(
     name="driver_activity",
-    features=[driver_hourly_stats_view, customer_daily_profile_view]
+    features=[driver_hourly_stats_view, customer_daily_profile_view],
 )

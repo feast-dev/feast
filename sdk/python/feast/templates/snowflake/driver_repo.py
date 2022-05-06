@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import yaml
 
-from feast import Entity, FeatureView, Field, SnowflakeSource, FeatureService
+from feast import Entity, FeatureService, FeatureView, Field, SnowflakeSource
 from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
@@ -65,7 +65,4 @@ driver_stats_fv = FeatureView(
     batch_source=driver_stats_source,
 )
 
-driver_stats_fs = FeatureService(
-    name="driver_activity",
-    features=[driver_stats_fv]
-)
+driver_stats_fs = FeatureService(name="driver_activity", features=[driver_stats_fv])
