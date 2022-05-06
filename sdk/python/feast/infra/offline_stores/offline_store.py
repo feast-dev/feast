@@ -32,6 +32,8 @@ from feast.saved_dataset import SavedDatasetStorage
 if TYPE_CHECKING:
     from feast.saved_dataset import ValidationReference
 
+warnings.simplefilter("once", RuntimeWarning)
+
 
 class RetrievalMetadata:
     min_event_timestamp: Optional[datetime]
