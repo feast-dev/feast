@@ -62,7 +62,7 @@ REQUIRED = [
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",
     "proto-plus<1.19.7",
-    "pyarrow>=4,<5",
+    "pyarrow>=4,<7",
     "pydantic>=1,<2",
     "PyYAML>=5.4.*,<6",
     "tabulate==0.8.*",
