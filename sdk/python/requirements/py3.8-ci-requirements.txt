@@ -295,7 +295,7 @@ isort==5.10.1
     # via feast (setup.py)
 jedi==0.18.1
     # via ipython
-jinja2==2.11.3
+jinja2==3.0.3
     # via
     #   altair
     #   feast (setup.py)
@@ -508,7 +508,7 @@ pyrsistent==0.18.1
     # via jsonschema
 pyspark==3.2.1
     # via feast (setup.py)
-pytest==6.2.5
+pytest==7.1.2
     # via
     #   feast (setup.py)
     #   pytest-benchmark
@@ -556,7 +556,7 @@ pytz==2022.1
     #   trino
 pytz-deprecation-shim==0.1.0.post0
     # via tzlocal
-pyyaml==5.4.1
+pyyaml==6.0
     # via
     #   dask
     #   feast (setup.py)
@@ -620,7 +620,6 @@ six==1.16.0
     #   pandavro
     #   pyopenssl
     #   python-dateutil
-    #   tenacity
     #   virtualenv
 sniffio==1.2.0
     # via anyio
@@ -652,7 +651,7 @@ starlette==0.18.0
     # via fastapi
 tabulate==0.8.9
     # via feast (setup.py)
-tenacity==7.0.0
+tenacity==8.0.1
     # via feast (setup.py)
 tensorflow-metadata==1.7.0
     # via feast (setup.py)
@@ -667,13 +666,13 @@ toml==0.10.2
     #   black
     #   feast (setup.py)
     #   pre-commit
-    #   pytest
 tomli==2.0.1
     # via
     #   build
     #   coverage
     #   mypy
     #   pep517
+    #   pytest
 toolz==0.11.2
     # via
     #   altair
