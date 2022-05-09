@@ -25,7 +25,7 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 )
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def trino_container():
     current_file = pathlib.Path(__file__).parent.resolve()
     catalog_dir = current_file.parent.joinpath("catalog")
