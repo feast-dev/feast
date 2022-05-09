@@ -84,7 +84,10 @@ test-python-universal-postgres:
 				not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
 				not test_historical_retrieval_fails_on_validation and \
-				not test_universal_cli" \
+				not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
+				not test_universal_types" \
 			sdk/python/tests
 
 test-python-universal-local:
