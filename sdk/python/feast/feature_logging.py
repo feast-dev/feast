@@ -52,17 +52,6 @@ class FeatureServiceLoggingSource(LoggingSource):
         fields: Dict[str, pa.DataType] = {}
 
         for projection in self._feature_service.feature_view_projections:
-            for feature in projection.features:
-                fields[
-                    f"{projection.name_to_use()}__{feature.name}"
-                ] = FEAST_TYPE_TO_ARROW_TYPE[feature.dtype]
-                fields[
-                    f"{projection.name_to_use()}__{feature.name}__timestamp"
-                ] = PA_TIMESTAMP_TYPE
-                fields[
-                    f"{projection.name_to_use()}__{feature.name}__status"
-                ] = pa.int32()
-
             try:
                 feature_view = registry.get_feature_view(projection.name, self._project)
             except FeatureViewNotFoundException:
@@ -91,9 +80,21 @@ class FeatureServiceLoggingSource(LoggingSource):
                         from_value_type(entity.value_type)
                     ]
 
+            for feature in projection.features:
+                fields[
+                    f"{projection.name_to_use()}__{feature.name}"
+                ] = FEAST_TYPE_TO_ARROW_TYPE[feature.dtype]
+                fields[
+                    f"{projection.name_to_use()}__{feature.name}__timestamp"
+                ] = PA_TIMESTAMP_TYPE
+                fields[
+                    f"{projection.name_to_use()}__{feature.name}__status"
+                ] = pa.int32()
+
         # system columns
-        fields[REQUEST_ID_FIELD] = pa.string()
         fields[LOG_TIMESTAMP_FIELD] = pa.timestamp("us", tz=UTC)
+        fields[LOG_DATE_FIELD] = pa.date32()
+        fields[REQUEST_ID_FIELD] = pa.string()
 
         return pa.schema(
             [pa.field(name, data_type) for name, data_type in fields.items()]
