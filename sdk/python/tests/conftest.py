@@ -204,15 +204,67 @@ def trino_fixture(request):
     return TrinoContainerSingleton
 
 
+class PostgresContainerSingleton:
+    container = None
+    is_running = False
+
+    postgres_user = "test"
+    postgres_password = "test"
+    postgres_db = "test"
+
+    @classmethod
+    def get_singleton(cls):
+        if not cls.is_running:
+            cls.container = (
+                DockerContainer("postgres:latest")
+                .with_exposed_ports(5432)
+                .with_env("POSTGRES_USER", cls.postgres_user)
+                .with_env("POSTGRES_PASSWORD", cls.postgres_password)
+                .with_env("POSTGRES_DB", cls.postgres_db)
+            )
+
+            cls.container.start()
+            log_string_to_wait_for = "database system is ready to accept connections"
+            waited = wait_for_logs(
+                container=cls.container,
+                predicate=log_string_to_wait_for,
+                timeout=30,
+                interval=10,
+            )
+            logger.info("Waited for %s seconds until postgres container was up", waited)
+            cls.is_running = True
+        return cls.container
+
+    @classmethod
+    def teardown(cls):
+        if cls.container:
+            cls.container.stop()
+
+
+@pytest.fixture(scope="session")
+def postgres_fixture(request):
+    def teardown():
+        PostgresContainerSingleton.teardown()
+
+    request.addfinalizer(teardown)
+    return PostgresContainerSingleton
+
+
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request, worker_id: str, trino_fixture):
+def environment(request, worker_id: str, trino_fixture, postgres_fixture):
     if "TrinoSourceCreator" in request.param.offline_store_creator.__name__:
         e = construct_test_environment(
             request.param,
             worker_id=worker_id,
             offline_container=trino_fixture.get_singleton(),
+        )
+    elif "PostgresSourceCreator" in request.param.offline_store_creator.__name__:
+        e = construct_test_environment(
+            request.param,
+            worker_id=worker_id,
+            offline_container=postgres_fixture.get_singleton(),
         )
     else:
         e = construct_test_environment(request.param, worker_id=worker_id)
