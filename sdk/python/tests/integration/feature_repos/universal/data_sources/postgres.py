@@ -15,7 +15,9 @@ from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.online_store_creator import OnlineStoreCreator
+from tests.integration.feature_repos.universal.online_store_creator import (
+    OnlineStoreCreator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,24 +40,27 @@ class PostgresSourceCreatorSingleton:
         cls.project_name = project_name
 
         if "offline_container" not in kwargs or not kwargs.get(
-                "offline_container", None
+            "offline_container", None
         ):
             # If we don't get an offline container provided, we try to create it on the fly.
             # the problem here is that each test creates its own container, which basically
             # browns out developer laptops.
             cls.container = (
                 DockerContainer("postgres:latest")
-                    .with_exposed_ports(5432)
-                    .with_env("POSTGRES_USER", cls.postgres_user)
-                    .with_env("POSTGRES_PASSWORD", cls.postgres_password)
-                    .with_env("POSTGRES_DB", cls.postgres_db)
+                .with_exposed_ports(5432)
+                .with_env("POSTGRES_USER", cls.postgres_user)
+                .with_env("POSTGRES_PASSWORD", cls.postgres_password)
+                .with_env("POSTGRES_DB", cls.postgres_db)
             )
 
             cls.container.start()
             cls.provided_container = False
             log_string_to_wait_for = "database system is ready to accept connections"
             waited = wait_for_logs(
-                container=cls.container, predicate=log_string_to_wait_for, timeout=30, interval=10
+                container=cls.container,
+                predicate=log_string_to_wait_for,
+                timeout=30,
+                interval=10,
             )
             logger.info("Waited for %s seconds until postgres container was up", waited)
             cls.running = True
@@ -75,18 +80,19 @@ class PostgresSourceCreatorSingleton:
 
     @classmethod
     def create_data_source(
-            cls,
-            df: pd.DataFrame,
-            destination_name: str,
-            suffix: Optional[str] = None,
-            timestamp_field="ts",
-            created_timestamp_column="created_ts",
-            field_mapping: Dict[str, str] = None,
+        cls,
+        df: pd.DataFrame,
+        destination_name: str,
+        suffix: Optional[str] = None,
+        timestamp_field="ts",
+        created_timestamp_column="created_ts",
+        field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
         destination_name = cls.get_prefixed_table_name(destination_name)
 
-        df_to_postgres_table(cls.offline_store_config, df, destination_name)
+        if cls.offline_store_config:
+            df_to_postgres_table(cls.offline_store_config, df, destination_name)
 
         return PostgreSQLSource(
             name=destination_name,
@@ -97,7 +103,8 @@ class PostgresSourceCreatorSingleton:
         )
 
     @classmethod
-    def create_offline_store_config(cls) -> FeastConfigBaseModel:
+    def create_offline_store_config(cls) -> PostgreSQLOfflineStoreConfig:
+        assert cls.offline_store_config
         return cls.offline_store_config
 
     @classmethod
@@ -106,6 +113,7 @@ class PostgresSourceCreatorSingleton:
 
     @classmethod
     def create_online_store(cls) -> Dict[str, str]:
+        assert cls.container
         return {
             "type": "postgres",
             "host": "localhost",
@@ -152,7 +160,14 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        return PostgresSourceCreatorSingleton.create_data_source(df, destination_name, suffix, timestamp_field, created_timestamp_column, field_mapping)
+        return PostgresSourceCreatorSingleton.create_data_source(
+            df,
+            destination_name,
+            suffix,
+            timestamp_field,
+            created_timestamp_column,
+            field_mapping,
+        )
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return PostgresSourceCreatorSingleton.create_offline_store_config()

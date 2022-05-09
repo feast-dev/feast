@@ -5,7 +5,6 @@ from tests.integration.feature_repos.universal.data_sources.postgres import (
     PostgreSQLDataSourceCreator,
 )
 
-
 FULL_REPO_CONFIGS = [
     IntegrationTestRepoConfig(
         provider="local",

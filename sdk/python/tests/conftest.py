@@ -217,16 +217,19 @@ class PostgresContainerSingleton:
         if not cls.is_running:
             cls.container = (
                 DockerContainer("postgres:latest")
-                    .with_exposed_ports(5432)
-                    .with_env("POSTGRES_USER", cls.postgres_user)
-                    .with_env("POSTGRES_PASSWORD", cls.postgres_password)
-                    .with_env("POSTGRES_DB", cls.postgres_db)
+                .with_exposed_ports(5432)
+                .with_env("POSTGRES_USER", cls.postgres_user)
+                .with_env("POSTGRES_PASSWORD", cls.postgres_password)
+                .with_env("POSTGRES_DB", cls.postgres_db)
             )
 
             cls.container.start()
             log_string_to_wait_for = "database system is ready to accept connections"
             waited = wait_for_logs(
-                container=cls.container, predicate=log_string_to_wait_for, timeout=30, interval=10
+                container=cls.container,
+                predicate=log_string_to_wait_for,
+                timeout=30,
+                interval=10,
             )
             logger.info("Waited for %s seconds until postgres container was up", waited)
             cls.is_running = True
@@ -245,7 +248,6 @@ def postgres_fixture(request):
 
     request.addfinalizer(teardown)
     return PostgresContainerSingleton
-
 
 
 @pytest.fixture(
