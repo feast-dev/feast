@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import pandas as pd
+import pytest
 import yaml
-from testcontainers.core.container import DockerContainer
 
 from feast import FeatureStore, FeatureView, OnDemandFeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
@@ -393,9 +393,9 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
 
 def construct_test_environment(
     test_repo_config: IntegrationTestRepoConfig,
+    fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
-    offline_container: Optional[DockerContainer] = None,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -406,12 +406,14 @@ def construct_test_environment(
     project = f"{test_suite_name}_{run_id}_{run_num}"
 
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(
-        project, offline_container=offline_container
+        project, fixture_request=fixture_request
     )
     offline_store_config = offline_creator.create_offline_store_config()
 
     if test_repo_config.online_store_creator:
-        online_creator = test_repo_config.online_store_creator(project)
+        online_creator = test_repo_config.online_store_creator(
+            project, fixture_request=fixture_request
+        )
         online_store = (
             test_repo_config.online_store
         ) = online_creator.create_online_store()

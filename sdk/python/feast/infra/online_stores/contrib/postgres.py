@@ -131,7 +131,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                     res = {}
                     for feature_name, value_bin, event_ts in value:
                         val = ValueProto()
-                        val.ParseFromString(value_bin)
+                        val.ParseFromString(bytes(value_bin))
                         res[feature_name] = val
                     result.append((event_ts, res))
                 else:

@@ -11,7 +11,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 
 
 class DatastoreOnlineStoreCreator(OnlineStoreCreator):
-    def __init__(self, project_name: str):
+    def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.container = (
             DockerContainer(
