@@ -475,8 +475,9 @@ class FeatureStore:
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
+        feature_services_to_update: List[FeatureService],
     ):
-        """Makes inferences for entities, feature views, and odfvs."""
+        """Makes inferences for entities, feature views, odfvs, and feature services."""
         update_entities_with_inferred_types_from_feature_views(
             entities_to_update, views_to_update, self.config
         )
@@ -497,6 +498,9 @@ class FeatureStore:
 
         for odfv in odfvs_to_update:
             odfv.infer_features()
+
+        for feature_service in feature_services_to_update:
+            feature_service.infer_features(fvs_to_update=views_to_update)
 
     @log_exceptions_and_usage
     def _plan(
@@ -553,6 +557,7 @@ class FeatureStore:
             desired_repo_contents.entities,
             desired_repo_contents.feature_views,
             desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.feature_services,
         )
 
         # Compute the desired difference between the current objects in the registry and
@@ -692,7 +697,11 @@ class FeatureStore:
             views_to_update, odfvs_to_update, request_views_to_update
         )
         self._make_inferences(
-            data_sources_to_update, entities_to_update, views_to_update, odfvs_to_update
+            data_sources_to_update,
+            entities_to_update,
+            views_to_update,
+            odfvs_to_update,
+            services_to_update,
         )
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
