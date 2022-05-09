@@ -348,7 +348,9 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         update_feature_views_with_inferred_features(
             [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
         )
-        feature_service.infer_features(fvs_to_update=[feature_view_1])
+        feature_service.infer_features(
+            fvs_to_update={feature_view_1.name: feature_view_1}
+        )
 
         assert len(feature_view_1.schema) == 3
         assert len(feature_view_1.features) == 3

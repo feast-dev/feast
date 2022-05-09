@@ -104,17 +104,17 @@ class FeatureService:
         self.logging_config = logging_config
         self.infer_features()
 
-    def infer_features(self, fvs_to_update: Optional[List[FeatureView]] = None):
+    def infer_features(self, fvs_to_update: Optional[Dict[str, FeatureView]] = None):
         self.feature_view_projections = []
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
                 # For feature services that depend on an unspecified feature view, apply inferred schema
                 if len(feature_grouping.projection.features) == 0:
                     if fvs_to_update is not None:
-                        for fv in fvs_to_update:
-                            if fv.name == feature_grouping.name:
-                                feature_grouping.projection.features = fv.features
-                                break
+                        if feature_grouping.name in fvs_to_update:
+                            feature_grouping.projection.features = fvs_to_update[
+                                feature_grouping.name
+                            ].features
                 self.feature_view_projections.append(feature_grouping.projection)
             else:
                 raise ValueError(

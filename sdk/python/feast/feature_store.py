@@ -499,8 +499,9 @@ class FeatureStore:
         for odfv in odfvs_to_update:
             odfv.infer_features()
 
+        fvs_to_update_map = {view.name: view for view in views_to_update}
         for feature_service in feature_services_to_update:
-            feature_service.infer_features(fvs_to_update=views_to_update)
+            feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
     @log_exceptions_and_usage
     def _plan(
