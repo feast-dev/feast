@@ -38,13 +38,14 @@ from tests.utils.data_source_utils import prep_file_source
 
 
 @pytest.mark.integration
-def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_sources):
+@pytest.mark.universal_online_stores(only=["redis"])
+def test_entity_ttl_online_store(environment, universal_data_sources):
     if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         return
-    fs = local_redis_environment.feature_store
+    fs = environment.feature_store
     # setting ttl setting in online store to 1 second
     fs.config.online_store.key_ttl_seconds = 1
-    entities, datasets, data_sources = redis_universal_data_sources
+    entities, datasets, data_sources = universal_data_sources
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_entity = driver()
 
@@ -98,10 +99,11 @@ def test_entity_ttl_online_store(local_redis_environment, redis_universal_data_s
 
 # TODO: make this work with all universal (all online store types)
 @pytest.mark.integration
-def test_write_to_online_store_event_check(local_redis_environment):
+@pytest.mark.universal_online_stores(only=["redis"])
+def test_write_to_online_store_event_check(environment):
     if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         return
-    fs = local_redis_environment.feature_store
+    fs = environment.feature_store
 
     # write same data points 3 with different timestamps
     now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
@@ -199,6 +201,7 @@ def test_write_to_online_store_event_check(local_redis_environment):
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.universal_online_stores
 def test_write_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
@@ -324,6 +327,7 @@ def get_online_features_dict(
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.universal_online_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval_with_event_timestamps(
     environment, universal_data_sources, full_feature_names
@@ -388,9 +392,12 @@ def test_online_retrieval_with_event_timestamps(
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.universal_online_stores
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval(environment, universal_data_sources, full_feature_names):
+def test_online_retrieval(
+    environment, universal_data_sources, python_server, full_feature_names
+):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -611,6 +618,7 @@ def test_online_retrieval(environment, universal_data_sources, full_feature_name
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.universal_online_stores(only=["redis"])
 def test_online_store_cleanup(environment, universal_data_sources):
     """
     Some online store implementations (like Redis) keep features from different features views

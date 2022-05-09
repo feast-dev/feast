@@ -17,6 +17,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.benchmark
 @pytest.mark.integration
+@pytest.mark.universal_online_stores
 def test_online_retrieval(environment, universal_data_sources, benchmark):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources

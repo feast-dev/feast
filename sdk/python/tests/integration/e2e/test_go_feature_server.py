@@ -24,16 +24,8 @@ from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStu
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.type_map import python_values_to_proto_values
 from feast.wait import wait_retry_backoff
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,
-)
 from tests.integration.feature_repos.repo_configuration import (
-    AVAILABLE_OFFLINE_STORES,
-    AVAILABLE_ONLINE_STORES,
-    REDIS_CONFIG,
-    construct_test_environment,
     construct_universal_feature_views,
-    construct_universal_test_data,
 )
 from tests.integration.feature_repos.universal.entities import (
     customer,
@@ -41,53 +33,23 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 
-LOCAL_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_retrieval=True),
-]
-LOCAL_REPO_CONFIGS = [
-    c
-    for c in LOCAL_REPO_CONFIGS
-    if c.offline_store_creator in AVAILABLE_OFFLINE_STORES
-    and c.online_store in AVAILABLE_ONLINE_STORES
-]
-
 NANOSECOND = 1
 MILLISECOND = 1000_000 * NANOSECOND
 SECOND = 1000 * MILLISECOND
 
 
-@pytest.fixture(
-    params=LOCAL_REPO_CONFIGS,
-    ids=[str(c) for c in LOCAL_REPO_CONFIGS],
-    scope="session",
-)
-def local_environment(request):
-    e = construct_test_environment(request.param, fixture_request=request)
-
-    def cleanup():
-        e.feature_store.teardown()
-
-    request.addfinalizer(cleanup)
-    return e
-
-
 @pytest.fixture(scope="session")
-def test_data(local_environment):
-    return construct_universal_test_data(local_environment)
+def initialized_registry(environment, universal_data_sources):
+    fs = environment.feature_store
 
-
-@pytest.fixture(scope="session")
-def initialized_registry(local_environment, test_data):
-    fs = local_environment.feature_store
-
-    _, _, data_sources = test_data
+    _, _, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
     feature_service = FeatureService(
         name="driver_features",
         features=[feature_views.driver],
         logging_config=LoggingConfig(
-            destination=local_environment.data_source_creator.create_logged_features_destination(),
+            destination=environment.data_source_creator.create_logged_features_destination(),
             sample_rate=1.0,
         ),
     )
@@ -96,12 +58,15 @@ def initialized_registry(local_environment, test_data):
     feast_objects.extend([driver(), customer(), location()])
 
     fs.apply(feast_objects)
-    fs.materialize(local_environment.start_date, local_environment.end_date)
+    fs.materialize(environment.start_date, environment.end_date)
 
 
 @pytest.fixture
-def grpc_server_port(local_environment, initialized_registry):
-    fs = local_environment.feature_store
+def grpc_server_port(environment, initialized_registry):
+    if not environment.test_repo_config.go_feature_retrieval:
+        pytest.skip("Only for Go path")
+
+    fs = environment.feature_store
 
     embedded = EmbeddedOnlineFeatureServer(
         repo_path=str(fs.repo_path.absolute()), repo_config=fs.config, feature_store=fs,
@@ -141,6 +106,7 @@ def grpc_client(grpc_server_port):
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.goserver
 def test_go_grpc_server(grpc_client):
     resp: GetOnlineFeaturesResponse = grpc_client.GetOnlineFeatures(
         GetOnlineFeaturesRequest(
@@ -167,9 +133,13 @@ def test_go_grpc_server(grpc_client):
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.goserver
+@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_feature_logging(grpc_client, local_environment, test_data, full_feature_names):
-    fs = local_environment.feature_store
+def test_feature_logging(
+    grpc_client, environment, universal_data_sources, full_feature_names
+):
+    fs = environment.feature_store
     feature_service = fs.get_feature_service("driver_features")
     log_start_date = datetime.now().astimezone(pytz.UTC)
     driver_ids = list(range(5001, 5011))
@@ -192,7 +162,7 @@ def test_feature_logging(grpc_client, local_environment, test_data, full_feature
         # with some pause
         time.sleep(0.1)
 
-    _, datasets, _ = test_data
+    _, datasets, _ = universal_data_sources
     latest_rows = get_latest_rows(datasets.driver_df, "driver_id", driver_ids)
     features = [
         feature.name

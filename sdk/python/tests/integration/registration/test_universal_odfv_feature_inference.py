@@ -20,6 +20,7 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 @pytest.mark.integration
 @pytest.mark.universal
+@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("infer_features", [True, False], ids=lambda v: str(v))
 def test_infer_odfv_features(environment, universal_data_sources, infer_features):
     store = environment.feature_store

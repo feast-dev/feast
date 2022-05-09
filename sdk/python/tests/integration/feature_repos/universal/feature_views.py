@@ -23,10 +23,11 @@ def driver_feature_view(
     name="test_correctness",
     infer_features: bool = False,
     dtype: FeastType = Float32,
+    entities: Optional[List[str]] = None,
 ) -> FeatureView:
     return FeatureView(
         name=name,
-        entities=["driver"],
+        entities=entities or ["driver"],
         schema=None if infer_features else [Field(name="value", dtype=dtype)],
         ttl=timedelta(days=5),
         source=data_source,

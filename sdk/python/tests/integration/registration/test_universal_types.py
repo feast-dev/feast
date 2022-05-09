@@ -8,16 +8,11 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
+from feast.entity import Entity
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.types import Array, Bool, Float32, Int32, Int64, UnixTimestamp
 from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
-from tests.integration.feature_repos.repo_configuration import (
-    FULL_REPO_CONFIGS,
-    REDIS_CONFIG,
-    IntegrationTestRepoConfig,
-    construct_test_environment,
-)
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
@@ -25,46 +20,36 @@ logger = logging.getLogger(__name__)
 
 
 def populate_test_configs(offline: bool):
-    entity_type_feature_dtypes = [
-        (ValueType.INT32, "int32"),
-        (ValueType.INT64, "int64"),
-        (ValueType.STRING, "float"),
-        (ValueType.STRING, "bool"),
-        (ValueType.INT32, "datetime"),
+    feature_dtypes = [
+        "int32",
+        "int64",
+        "float",
+        "bool",
+        "datetime",
     ]
     configs: List[TypeTestConfig] = []
-    for test_repo_config in FULL_REPO_CONFIGS:
-        for entity_type, feature_dtype in entity_type_feature_dtypes:
-            for feature_is_list in [True, False]:
-                # Redshift doesn't support list features
-                if test_repo_config.provider == "aws" and feature_is_list is True:
+    for feature_dtype in feature_dtypes:
+        for feature_is_list in [True, False]:
+            for has_empty_list in [True, False]:
+                # For non list features `has_empty_list` does nothing
+                if feature_is_list is False and has_empty_list is True:
                     continue
-                # For offline tests, don't need to vary for online store
-                if offline and test_repo_config.online_store == REDIS_CONFIG:
-                    continue
-                for has_empty_list in [True, False]:
-                    # For non list features `has_empty_list` does nothing
-                    if feature_is_list is False and has_empty_list is True:
-                        continue
-                    configs.append(
-                        TypeTestConfig(
-                            entity_type=entity_type,
-                            feature_dtype=feature_dtype,
-                            feature_is_list=feature_is_list,
-                            has_empty_list=has_empty_list,
-                            test_repo_config=test_repo_config,
-                        )
+
+                configs.append(
+                    TypeTestConfig(
+                        feature_dtype=feature_dtype,
+                        feature_is_list=feature_is_list,
+                        has_empty_list=has_empty_list,
                     )
+                )
     return configs
 
 
 @dataclass(frozen=True, repr=True)
 class TypeTestConfig:
-    entity_type: ValueType
     feature_dtype: str
     feature_is_list: bool
     has_empty_list: bool
-    test_repo_config: IntegrationTestRepoConfig
 
 
 OFFLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=True)
@@ -76,8 +61,15 @@ ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=F
     scope="session",
     ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
 )
-def offline_types_test_fixtures(request):
-    return get_fixtures(request)
+def offline_types_test_fixtures(request, environment):
+    config: TypeTestConfig = request.param
+    if (
+        environment.test_repo_config.provider == "aws"
+        and config.feature_is_list is True
+    ):
+        pytest.skip("Redshift doesn't support list features")
+
+    return get_fixtures(request, environment)
 
 
 @pytest.fixture(
@@ -85,87 +77,93 @@ def offline_types_test_fixtures(request):
     scope="session",
     ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
 )
-def online_types_test_fixtures(request):
-    return get_fixtures(request)
+def online_types_test_fixtures(request, environment):
+    return get_fixtures(request, environment)
 
 
-def get_fixtures(request):
+def get_fixtures(request, environment):
     config: TypeTestConfig = request.param
     # Lower case needed because Redshift lower-cases all table names
-    test_project_id = f"{config.entity_type}{config.feature_dtype}{config.feature_is_list}".replace(
+    destination_name = f"feature_type_{config.feature_dtype}{config.feature_is_list}".replace(
         ".", ""
     ).lower()
-    type_test_environment = construct_test_environment(
-        test_repo_config=config.test_repo_config,
-        test_suite_name=f"test_{test_project_id}",
-        fixture_request=request,
-    )
     config = request.param
     df = create_dataset(
-        config.entity_type,
+        ValueType.INT64,
         config.feature_dtype,
         config.feature_is_list,
         config.has_empty_list,
     )
-    data_source = type_test_environment.data_source_creator.create_data_source(
-        df,
-        destination_name=type_test_environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+    data_source = environment.data_source_creator.create_data_source(
+        df, destination_name=destination_name, field_mapping={"ts_1": "ts"},
     )
     fv = create_feature_view(
-        request.fixturename,
+        destination_name,
         config.feature_dtype,
         config.feature_is_list,
         config.has_empty_list,
         data_source,
     )
 
-    def cleanup():
-        try:
-            type_test_environment.data_source_creator.teardown()
-        except Exception:  # noqa
-            logger.exception("DataSourceCreator teardown has failed")
-
-        type_test_environment.feature_store.teardown()
-
-    request.addfinalizer(cleanup)
-
-    return type_test_environment, config, data_source, fv
+    return config, data_source, fv
 
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_entity_inference_types_match(offline_types_test_fixtures):
-    environment, config, data_source, fv = offline_types_test_fixtures
+@pytest.mark.universal_offline_stores
+@pytest.mark.parametrize(
+    "entity_type", [ValueType.INT32, ValueType.INT64, ValueType.STRING]
+)
+def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
 
     # Don't specify value type in entity to force inference
-    entity = driver(value_type=ValueType.UNKNOWN)
+    entity = Entity(
+        name=f"driver_{entity_type.name.lower()}",
+        value_type=ValueType.UNKNOWN,
+        join_key="driver_id",
+    )
+    df = create_dataset(entity_type, feature_dtype="int32",)
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        destination_name=f"entity_type_{entity_type.name.lower()}",
+        field_mapping={"ts_1": "ts"},
+    )
+    fv = create_feature_view(
+        f"fv_entity_type_{entity_type.name.lower()}",
+        feature_dtype="int32",
+        feature_is_list=False,
+        has_empty_list=False,
+        data_source=data_source,
+        entity=entity.name,
+    )
     fs.apply([fv, entity])
 
-    entities = fs.list_entities()
+    inferred_entity = fs.get_entity(entity.name)
     entity_type_to_expected_inferred_entity_type = {
-        ValueType.INT32: ValueType.INT64,
-        ValueType.INT64: ValueType.INT64,
-        ValueType.FLOAT: ValueType.DOUBLE,
-        ValueType.STRING: ValueType.STRING,
+        ValueType.INT32: {ValueType.INT32, ValueType.INT64},
+        ValueType.INT64: {ValueType.INT32, ValueType.INT64},
+        ValueType.FLOAT: {ValueType.DOUBLE},
+        ValueType.STRING: {ValueType.STRING},
     }
-    for entity in entities:
-        assert (
-            entity.value_type
-            == entity_type_to_expected_inferred_entity_type[config.entity_type]
-        )
+    assert (
+        inferred_entity.value_type
+        in entity_type_to_expected_inferred_entity_type[entity_type]
+    )
 
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_feature_get_historical_features_types_match(offline_types_test_fixtures):
+@pytest.mark.universal_offline_stores
+def test_feature_get_historical_features_types_match(
+    offline_types_test_fixtures, environment
+):
     """
     Note: to make sure this test works, we need to ensure that get_historical_features
     returns at least one non-null row to make sure type inferral works. This can only
     be achieved by carefully matching entity_df to the data fixtures.
     """
-    environment, config, data_source, fv = offline_types_test_fixtures
+    config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
     entity = driver()
     fv = create_feature_view(
@@ -178,9 +176,7 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
     fs.apply([fv, entity])
 
     entity_df = pd.DataFrame()
-    entity_df["driver_id"] = (
-        ["1", "3"] if config.entity_type == ValueType.STRING else [1, 3]
-    )
+    entity_df["driver_id"] = [1, 3]
     ts = pd.Timestamp(datetime.utcnow()).round("ms")
     entity_df["ts"] = [
         ts - timedelta(hours=4),
@@ -215,8 +211,12 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_feature_get_online_features_types_match(online_types_test_fixtures):
-    environment, config, data_source, fv = online_types_test_fixtures
+@pytest.mark.universal_online_stores(only=["sqlite"])
+def test_feature_get_online_features_types_match(
+    online_types_test_fixtures, environment
+):
+    config, data_source, fv = online_types_test_fixtures
+    entity = driver()
     fv = create_feature_view(
         "get_online_features_types_match",
         config.feature_dtype,
@@ -226,7 +226,6 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
-    entity = driver(value_type=config.entity_type)
     fs.apply([fv, entity])
     fs.materialize(
         environment.start_date,
@@ -235,9 +234,8 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
         # we can successfully infer type even from all empty values
     )
 
-    driver_id_value = "1" if config.entity_type == ValueType.STRING else 1
     online_features = fs.get_online_features(
-        features=features, entity_rows=[{"driver_id": driver_id_value}],
+        features=features, entity_rows=[{"driver_id": 1}],
     ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
@@ -268,7 +266,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source
+    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity="driver"
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
@@ -293,7 +291,7 @@ def create_feature_view(
         elif feature_dtype == "datetime":
             dtype = UnixTimestamp
 
-    return driver_feature_view(data_source, name=name, dtype=dtype,)
+    return driver_feature_view(data_source, name=name, dtype=dtype, entities=[entity])
 
 
 def assert_expected_historical_feature_types(
@@ -302,7 +300,7 @@ def assert_expected_historical_feature_types(
     print("Asserting historical feature types")
     feature_dtype_to_expected_historical_feature_dtype = {
         "int32": (pd.api.types.is_integer_dtype,),
-        "int64": (pd.api.types.is_int64_dtype,),
+        "int64": (pd.api.types.is_integer_dtype,),
         "float": (pd.api.types.is_float_dtype,),
         "string": (pd.api.types.is_string_dtype,),
         "bool": (pd.api.types.is_bool_dtype, pd.api.types.is_object_dtype),
@@ -311,7 +309,7 @@ def assert_expected_historical_feature_types(
     dtype_checkers = feature_dtype_to_expected_historical_feature_dtype[feature_dtype]
     assert any(
         check(historical_features_df.dtypes["value"]) for check in dtype_checkers
-    )
+    ), f"Failed to match feature type {historical_features_df.dtypes['value']} with checkers {dtype_checkers}"
 
 
 def assert_feature_list_types(
@@ -357,8 +355,8 @@ def assert_expected_arrow_types(
     historical_features_arrow = historical_features.to_arrow()
     print(historical_features_arrow)
     feature_list_dtype_to_expected_historical_feature_arrow_type = {
-        "int32": pa.types.is_int64,
-        "int64": pa.types.is_int64,
+        "int32": pa.types.is_signed_integer,  # different offline stores could interpret integers differently
+        "int64": pa.types.is_signed_integer,  # eg, Snowflake chooses the smallest possible (like int8)
         "float": pa.types.is_float64,
         "string": pa.types.is_string,
         "bool": pa.types.is_boolean,
