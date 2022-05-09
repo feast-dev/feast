@@ -50,7 +50,7 @@ REQUIRED = [
     "colorama>=0.3.9,<1",
     "dill==0.3.*",
     "fastavro>=1.1.0,<2",
-    "google-api-core>=1.23.0,<2",
+    "google-api-core>=1.23.0,<3",
     "googleapis-common-protos==1.52.*,<2",
     "grpcio>=1.34.0,<2",
     "grpcio-reflection>=1.34.0,<2",
