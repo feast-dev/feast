@@ -68,6 +68,37 @@ def _assert_online_features(
     assert "global_daily_stats__avg_ride_length" in result
 
 
+def _test_materialize_and_online_retrieval(
+    runner: CliRunner,
+    store: FeatureStore,
+    start_date: datetime,
+    end_date: datetime,
+    driver_df: pd.DataFrame,
+):
+    assert store.repo_path is not None
+
+    # Test `feast materialize` and online retrieval.
+    r = runner.run(
+        [
+            "materialize",
+            start_date.isoformat(),
+            (end_date - timedelta(days=7)).isoformat(),
+        ],
+        cwd=Path(store.repo_path),
+    )
+
+    assert r.returncode == 0
+    _assert_online_features(store, driver_df, end_date - timedelta(days=7))
+
+    # Test `feast materialize-incremental` and online retrieval.
+    r = runner.run(
+        ["materialize-incremental", end_date.isoformat()], cwd=Path(store.repo_path),
+    )
+
+    assert r.returncode == 0
+    _assert_online_features(store, driver_df, end_date)
+
+
 def test_e2e_local() -> None:
     """
     A more comprehensive than "basic" test, using local provider.
@@ -98,29 +129,19 @@ def test_e2e_local() -> None:
             .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
             "file",
         ) as store:
-            assert store.repo_path is not None
-
-            # Test `feast materialize` and online retrieval.
-            r = runner.run(
-                [
-                    "materialize",
-                    start_date.isoformat(),
-                    (end_date - timedelta(days=7)).isoformat(),
-                ],
-                cwd=Path(store.repo_path),
+            _test_materialize_and_online_retrieval(
+                runner, store, start_date, end_date, driver_df
             )
 
-            assert r.returncode == 0
-            _assert_online_features(store, driver_df, end_date - timedelta(days=7))
-
-            # Test `feast materialize-incremental` and online retrieval.
-            r = runner.run(
-                ["materialize-incremental", end_date.isoformat()],
-                cwd=Path(store.repo_path),
+        with runner.local_repo(
+            get_example_repo("example_feature_repo_version_0_19.py")
+            .replace("%PARQUET_PATH%", driver_stats_path)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            "file",
+        ) as store:
+            _test_materialize_and_online_retrieval(
+                runner, store, start_date, end_date, driver_df
             )
-
-            assert r.returncode == 0
-            _assert_online_features(store, driver_df, end_date)
 
         # Test a failure case when the parquet file doesn't include a join key
         with runner.local_repo(
