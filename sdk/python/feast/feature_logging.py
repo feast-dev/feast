@@ -52,6 +52,11 @@ class FeatureServiceLoggingSource(LoggingSource):
         fields: Dict[str, pa.DataType] = {}
 
         for projection in self._feature_service.feature_view_projections:
+            # The order of fields in the generated schema should match
+            # the order created on the other side (inside Go logger).
+            # Otherwise, some offline stores might not accept parquet files (produced by Go).
+            # Go code can be found here:
+            # https://github.com/feast-dev/feast/blob/master/go/internal/feast/server/logging/memorybuffer.go#L51
             try:
                 feature_view = registry.get_feature_view(projection.name, self._project)
             except FeatureViewNotFoundException:
