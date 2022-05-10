@@ -62,7 +62,7 @@ SECOND = 1000 * MILLISECOND
     scope="session",
 )
 def local_environment(request):
-    e = construct_test_environment(request.param)
+    e = construct_test_environment(request.param, fixture_request=request)
 
     def cleanup():
         e.feature_store.teardown()

@@ -1,4 +1,3 @@
-import contextlib
 import json
 from datetime import datetime
 from typing import List
@@ -25,64 +24,62 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_get_online_features():
-    with setup_python_fs_client() as client:
-        request_data_dict = {
-            "features": [
-                "driver_stats:conv_rate",
-                "driver_stats:acc_rate",
-                "driver_stats:avg_daily_trips",
-            ],
-            "entities": {"driver_id": [5001, 5002]},
-        }
-        response = client.post(
-            "/get-online-features", data=json.dumps(request_data_dict)
-        )
+def test_get_online_features(python_fs_client):
+    request_data_dict = {
+        "features": [
+            "driver_stats:conv_rate",
+            "driver_stats:acc_rate",
+            "driver_stats:avg_daily_trips",
+        ],
+        "entities": {"driver_id": [5001, 5002]},
+    }
+    response = python_fs_client.post(
+        "/get-online-features", data=json.dumps(request_data_dict)
+    )
 
-        # Check entities and features are present
-        parsed_response = json.loads(response.text)
-        assert "metadata" in parsed_response
-        metadata = parsed_response["metadata"]
-        expected_features = ["driver_id", "conv_rate", "acc_rate", "avg_daily_trips"]
-        response_feature_names = metadata["feature_names"]
-        assert len(response_feature_names) == len(expected_features)
-        for expected_feature in expected_features:
-            assert expected_feature in response_feature_names
-        assert "results" in parsed_response
-        results = parsed_response["results"]
-        for result in results:
-            # Same order as in metadata
-            assert len(result["statuses"]) == 2  # Requested two entities
-            for status in result["statuses"]:
-                assert status == "PRESENT"
-        results_driver_id_index = response_feature_names.index("driver_id")
-        assert (
-            results[results_driver_id_index]["values"]
-            == request_data_dict["entities"]["driver_id"]
-        )
+    # Check entities and features are present
+    parsed_response = json.loads(response.text)
+    assert "metadata" in parsed_response
+    metadata = parsed_response["metadata"]
+    expected_features = ["driver_id", "conv_rate", "acc_rate", "avg_daily_trips"]
+    response_feature_names = metadata["feature_names"]
+    assert len(response_feature_names) == len(expected_features)
+    for expected_feature in expected_features:
+        assert expected_feature in response_feature_names
+    assert "results" in parsed_response
+    results = parsed_response["results"]
+    for result in results:
+        # Same order as in metadata
+        assert len(result["statuses"]) == 2  # Requested two entities
+        for status in result["statuses"]:
+            assert status == "PRESENT"
+    results_driver_id_index = response_feature_names.index("driver_id")
+    assert (
+        results[results_driver_id_index]["values"]
+        == request_data_dict["entities"]["driver_id"]
+    )
 
 
 @pytest.mark.integration
 @pytest.mark.universal
-def test_push():
-    with setup_python_fs_client() as client:
-        initial_temp = get_temperatures(client, location_ids=[1])[0]
-        json_data = json.dumps(
-            {
-                "push_source_name": "location_stats_push_source",
-                "df": {
-                    "location_id": [1],
-                    "temperature": [initial_temp * 100],
-                    "event_timestamp": [str(datetime.utcnow())],
-                    "created": [str(datetime.utcnow())],
-                },
-            }
-        )
-        response = client.post("/push", data=json_data,)
+def test_push(python_fs_client):
+    initial_temp = get_temperatures(python_fs_client, location_ids=[1])[0]
+    json_data = json.dumps(
+        {
+            "push_source_name": "location_stats_push_source",
+            "df": {
+                "location_id": [1],
+                "temperature": [initial_temp * 100],
+                "event_timestamp": [str(datetime.utcnow())],
+                "created": [str(datetime.utcnow())],
+            },
+        }
+    )
+    response = python_fs_client.post("/push", data=json_data,)
 
-        # Check new pushed temperature is fetched
-        assert response.status_code == 200
-        assert get_temperatures(client, location_ids=[1]) == [initial_temp * 100]
+    # Check new pushed temperature is fetched
+    assert response.status_code == 200
+    assert get_temperatures(python_fs_client, location_ids=[1]) == [initial_temp * 100]
 
 
 def get_temperatures(client, location_ids: List[int]):
@@ -101,10 +98,10 @@ def get_temperatures(client, location_ids: List[int]):
     return results[results_temperature_index]["values"]
 
 
-@contextlib.contextmanager
-def setup_python_fs_client():
+@pytest.fixture
+def python_fs_client(request):
     config = IntegrationTestRepoConfig()
-    environment = construct_test_environment(config)
+    environment = construct_test_environment(config, fixture_request=request)
     fs = environment.feature_store
     try:
         entities, datasets, data_sources = construct_universal_test_data(environment)

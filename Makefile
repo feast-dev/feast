@@ -72,11 +72,25 @@ test-python-integration-container:
 	FEAST_USAGE=False IS_TEST=True FEAST_LOCAL_ONLINE_CONTAINER=True python -m pytest -n 8 --integration sdk/python/tests
 
 test-python-universal-contrib:
-	PYTHONPATH='.' FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+ 	python -m pytest -n 8 --integration --universal \
+ 	 	-k "not test_historical_retrieval_fails_on_validation and \
+			not test_historical_retrieval_with_validation and \
+			not test_historical_features_persisting and \
+			not test_historical_retrieval_fails_on_validation and \
+			not test_universal_cli and \
+			not test_go_feature_server and \
+			not test_feature_logging and \
+			not test_universal_types" \
+ 	 sdk/python/tests
 
 test-python-universal-postgres:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest -x --integration --universal \
