@@ -6,6 +6,8 @@ The PostgreSQL online store provides support for materializing feature values in
 
 * Only the latest feature values are persisted
 
+* sslmode, sslkey_path, sslcert_path, and sslrootcert_path are optional
+
 ## Example
 
 {% code title="feature_store.yaml" %}
@@ -21,6 +23,10 @@ online_store:
     db_schema: DB_SCHEMA
     user: DB_USERNAME
     password: DB_PASSWORD
+    sslmode: verify-ca
+    sslkey_path: /path/to/client-key.pem
+    sslcert_path: /path/to/client-cert.pem
+    sslrootcert_path: /path/to/server-ca.pem
 ```
 {% endcode %}
 
