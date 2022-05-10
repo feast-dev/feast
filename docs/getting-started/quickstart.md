@@ -367,7 +367,7 @@ pprint(feature_vector)
 
 ## Step 7: Using a featureservice to fetch online features instead.
 
-You can also use the feature service to manage multiple features and be a central source of truth for a series of feature views. The feature store can also be used to fetch either online or historical features using the same api below. More information can be found [here](https://docs.feast.dev/getting-started/concepts/feature-service).
+You can also use feature services to manage multiple features, and decouple feature view definitions and the features needed by end applications. The feature store can also be used to fetch either online or historical features using the same api below. More information can be found [here](https://docs.feast.dev/getting-started/concepts/feature-service).
 
 {% tabs %}
 {% tab title="Python" %}
