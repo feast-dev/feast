@@ -180,7 +180,7 @@ class Entity:
         entity = cls(
             name=entity_proto.spec.name,
             value_type=ValueType(entity_proto.spec.value_type),
-            join_key=entity_proto.spec.join_key,
+            join_keys=[entity_proto.spec.join_key],
             description=entity_proto.spec.description,
             tags=entity_proto.spec.tags,
             owner=entity_proto.spec.owner,
