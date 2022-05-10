@@ -875,7 +875,7 @@ class FeatureStore:
                 DeprecationWarning,
             )
 
-        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's no passed into the provider.
+        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
         fvs, odfvs, request_fvs, request_fv_refs = _group_feature_refs(
@@ -2125,8 +2125,12 @@ def _group_feature_refs(
     for ref in features:
         view_name, feat_name = ref.split(":")
         if view_name in view_index:
+            view_index[view_name].projection.get_feature(feat_name)  # For validation
             views_features[view_name].add(feat_name)
         elif view_name in on_demand_view_index:
+            on_demand_view_index[view_name].projection.get_feature(
+                feat_name
+            )  # For validation
             on_demand_view_features[view_name].add(feat_name)
             # Let's also add in any FV Feature dependencies here.
             for input_fv_projection in on_demand_view_index[
@@ -2135,6 +2139,9 @@ def _group_feature_refs(
                 for input_feat in input_fv_projection.features:
                     views_features[input_fv_projection.name].add(input_feat.name)
         elif view_name in request_view_index:
+            request_view_index[view_name].projection.get_feature(
+                feat_name
+            )  # For validation
             request_views_features[view_name].add(feat_name)
             request_view_refs.add(ref)
         else:

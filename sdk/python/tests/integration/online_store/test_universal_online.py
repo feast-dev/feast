@@ -19,7 +19,7 @@ from feast.errors import (
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.online_response import TIMESTAMP_POSTFIX
-from feast.types import String
+from feast.types import Float32, Int32, String
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     Environment,
@@ -322,6 +322,60 @@ def get_online_features_dict(
             "feature_store.get_feature_server_endpoint() is None while python feature server is enabled"
         )
     return dict1
+
+
+@pytest.mark.integration
+@pytest.mark.universal
+def test_online_retrieval_with_shared_batch_source(environment, universal_data_sources):
+    # Addresses https://github.com/feast-dev/feast/issues/2576
+
+    fs = environment.feature_store
+
+    entities, datasets, data_sources = universal_data_sources
+    driver_stats_v1 = FeatureView(
+        name="driver_stats_v1",
+        entities=["driver"],
+        schema=[Field(name="avg_daily_trips", dtype=Int32)],
+        source=data_sources.driver,
+    )
+    driver_stats_v2 = FeatureView(
+        name="driver_stats_v2",
+        entities=["driver"],
+        schema=[
+            Field(name="avg_daily_trips", dtype=Int32),
+            Field(name="conv_rate", dtype=Float32),
+        ],
+        source=data_sources.driver,
+    )
+
+    fs.apply([driver(), driver_stats_v1, driver_stats_v2])
+
+    data = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "avg_daily_trips": [4, 5],
+            "conv_rate": [0.5, 0.3],
+            "event_timestamp": [
+                pd.to_datetime(1646263500, utc=True, unit="s"),
+                pd.to_datetime(1646263600, utc=True, unit="s"),
+            ],
+            "created": [
+                pd.to_datetime(1646263500, unit="s"),
+                pd.to_datetime(1646263600, unit="s"),
+            ],
+        }
+    )
+    fs.write_to_online_store("driver_stats_v1", data.drop("conv_rate", axis=1))
+    fs.write_to_online_store("driver_stats_v2", data)
+
+    with pytest.raises(KeyError):
+        fs.get_online_features(
+            features=[
+                # `driver_stats_v1` does not have `conv_rate`
+                "driver_stats_v1:conv_rate",
+            ],
+            entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
+        )
 
 
 @pytest.mark.integration

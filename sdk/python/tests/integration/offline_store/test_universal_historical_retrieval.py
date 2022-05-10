@@ -21,7 +21,7 @@ from feast.field import Field
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from feast.types import Int32
+from feast.types import Float32, Int32
 from feast.value_type import ValueType
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -408,6 +408,46 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         table_from_df_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
     )
+
+
+@pytest.mark.integration
+@pytest.mark.universal
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_historical_features_with_shared_batch_source(
+    environment, universal_data_sources, full_feature_names
+):
+    # Addresses https://github.com/feast-dev/feast/issues/2576
+
+    store = environment.feature_store
+
+    entities, datasets, data_sources = universal_data_sources
+    driver_stats_v1 = FeatureView(
+        name="driver_stats_v1",
+        entities=["driver"],
+        schema=[Field(name="avg_daily_trips", dtype=Int32)],
+        source=data_sources.driver,
+    )
+    driver_stats_v2 = FeatureView(
+        name="driver_stats_v2",
+        entities=["driver"],
+        schema=[
+            Field(name="avg_daily_trips", dtype=Int32),
+            Field(name="conv_rate", dtype=Float32),
+        ],
+        source=data_sources.driver,
+    )
+
+    store.apply([driver(), driver_stats_v1, driver_stats_v2])
+
+    with pytest.raises(KeyError):
+        store.get_historical_features(
+            entity_df=datasets.entity_df,
+            features=[
+                # `driver_stats_v1` does not have `conv_rate`
+                "driver_stats_v1:conv_rate",
+            ],
+            full_feature_names=full_feature_names,
+        ).to_df()
 
 
 @pytest.mark.integration
