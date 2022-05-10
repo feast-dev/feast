@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, RedshiftSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, RedshiftSource, ValueType
 from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
@@ -65,3 +65,5 @@ driver_stats_fv = FeatureView(
     # feature view
     tags={"team": "driver_performance"},
 )
+
+driver_stats_fs = FeatureService(name="driver_activity", features=[driver_stats_fv])
