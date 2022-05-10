@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, FileSource, ValueType
 from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
@@ -33,4 +33,8 @@ driver_hourly_stats_view = FeatureView(
     online=True,
     source=driver_hourly_stats,
     tags={},
+)
+
+driver_stats_fs = FeatureService(
+    name="driver_activity", features=[driver_hourly_stats_view]
 )
