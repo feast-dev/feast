@@ -54,11 +54,11 @@ class TrinoSourceCreator(DataSourceCreator):
     ):
         super().__init__(project_name)
         self.tables_created: List[str] = []
-        self.container = fixture_request.getfixturevalue("postgres_container")
+        self.container = fixture_request.getfixturevalue("trino_container")
         if self.container is None:
             raise RuntimeError(
                 "In order to use this data source "
-                "'feast.infra.offline_stores.contrib.postgres_offline_store.tests' "
+                "'feast.infra.offline_stores.contrib.trino_offline_store.tests' "
                 "must be include into pytest plugins"
             )
         self.exposed_port = self.container.get_exposed_port("8080")
