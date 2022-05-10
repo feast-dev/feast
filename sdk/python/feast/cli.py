@@ -611,16 +611,26 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Specify a port for the server [default: 6566]",
 )
 @click.option(
+    "--type",
+    "-t",
+    "type_",
+    type=click.STRING,
+    default="http",
+    help="Specify a server type: 'http' or 'grpc' [default: http]",
+)
+@click.option(
     "--no-access-log", is_flag=True, help="Disable the Uvicorn access log.",
 )
 @click.pass_context
-def serve_command(ctx: click.Context, host: str, port: int, no_access_log: bool):
+def serve_command(
+    ctx: click.Context, host: str, port: int, type_: str, no_access_log: bool
+):
     """Start a feature server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
 
-    store.serve(host, port, no_access_log)
+    store.serve(host, port, type_, no_access_log)
 
 
 @cli.command("serve_transformations")

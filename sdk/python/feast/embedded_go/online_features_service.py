@@ -158,6 +158,28 @@ class EmbeddedOnlineFeatureServer:
         else:
             self._service.StartGprcServer(host, port)
 
+    def start_http_server(
+        self,
+        host: str,
+        port: int,
+        enable_logging: bool = True,
+        logging_options: Optional[LoggingOptions] = None,
+    ):
+        if enable_logging:
+            if logging_options:
+                self._service.StartHttpServerWithLogging(
+                    host, port, self._logging_callback, logging_options
+                )
+            else:
+                self._service.StartHttpServerWithLoggingDefaultOpts(
+                    host, port, self._logging_callback
+                )
+        else:
+            self._service.StartHttpServer(host, port)
+
+    def stop_http_server(self):
+        self._service.Stop()
+
     def stop_grpc_server(self):
         self._service.Stop()
 
