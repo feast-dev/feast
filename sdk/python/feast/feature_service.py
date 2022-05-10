@@ -39,6 +39,7 @@ class FeatureService:
     """
 
     name: str
+    _features: List[Union[FeatureView, OnDemandFeatureView]]
     feature_view_projections: List[FeatureViewProjection]
     description: str
     tags: Dict[str, str]
@@ -93,23 +94,35 @@ class FeatureService:
             _features = []
 
         self.name = _name
+        self._features = _features
         self.feature_view_projections = []
-
-        for feature_grouping in _features:
-            if isinstance(feature_grouping, BaseFeatureView):
-                self.feature_view_projections.append(feature_grouping.projection)
-            else:
-                raise ValueError(
-                    f"The feature service {name} has been provided with an invalid type "
-                    f'{type(feature_grouping)} as part of the "features" argument.)'
-                )
-
         self.description = description
         self.tags = tags or {}
         self.owner = owner
         self.created_timestamp = None
         self.last_updated_timestamp = None
         self.logging_config = logging_config
+        self.infer_features()
+
+    def infer_features(self, fvs_to_update: Optional[Dict[str, FeatureView]] = None):
+        self.feature_view_projections = []
+        for feature_grouping in self._features:
+            if isinstance(feature_grouping, BaseFeatureView):
+                # For feature services that depend on an unspecified feature view, apply inferred schema
+                if (
+                    fvs_to_update is not None
+                    and len(feature_grouping.projection.features) == 0
+                    and feature_grouping.name in fvs_to_update
+                ):
+                    feature_grouping.projection.features = fvs_to_update[
+                        feature_grouping.name
+                    ].features
+                self.feature_view_projections.append(feature_grouping.projection)
+            else:
+                raise ValueError(
+                    f"The feature service {self.name} has been provided with an invalid type "
+                    f'{type(feature_grouping)} as part of the "features" argument.)'
+                )
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -119,7 +132,7 @@ class FeatureService:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((self.name))
+        return hash(self.name)
 
     def __eq__(self, other):
         if not isinstance(other, FeatureService):
