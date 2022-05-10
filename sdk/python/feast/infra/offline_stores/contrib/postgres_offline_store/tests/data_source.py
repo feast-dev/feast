@@ -56,7 +56,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
 
         self.project_name = project_name
         self.container = fixture_request.getfixturevalue("postgres_container")
-        if self.container is None:
+        if not self.container:
             raise RuntimeError(
                 "In order to use this data source "
                 "'feast.infra.offline_stores.contrib.postgres_offline_store.tests' "

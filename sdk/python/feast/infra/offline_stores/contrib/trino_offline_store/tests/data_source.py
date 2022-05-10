@@ -55,7 +55,7 @@ class TrinoSourceCreator(DataSourceCreator):
         super().__init__(project_name)
         self.tables_created: List[str] = []
         self.container = fixture_request.getfixturevalue("trino_container")
-        if self.container is None:
+        if not self.container:
             raise RuntimeError(
                 "In order to use this data source "
                 "'feast.infra.offline_stores.contrib.trino_offline_store.tests' "
