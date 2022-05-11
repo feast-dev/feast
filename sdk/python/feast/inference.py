@@ -124,7 +124,7 @@ def update_feature_views_with_inferred_features_and_entities(
         for entity_name in fv.entities:
             entity = entity_name_to_entity_map[entity_name]
             if (
-                entity_name
+                entity.join_key
                 not in [entity_column.name for entity_column in fv.entity_columns]
                 and entity.value_type != ValueType.UNKNOWN
             ):
