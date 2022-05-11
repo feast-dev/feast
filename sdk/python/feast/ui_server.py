@@ -1,4 +1,7 @@
 import json
+import signal
+import threading
+from typing import Callable, Optional
 
 import pkg_resources
 import uvicorn
@@ -9,7 +12,12 @@ from fastapi.staticfiles import StaticFiles
 import feast
 
 
-def get_app(store: "feast.FeatureStore", registry_dump: str, project_id: str):
+def get_app(
+    store: "feast.FeatureStore",
+    get_registry_dump: Callable,
+    project_id: str,
+    registry_ttl_secs: int,
+):
     ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
 
     app = FastAPI()
@@ -22,9 +30,33 @@ def get_app(store: "feast.FeatureStore", registry_dump: str, project_id: str):
         allow_headers=["*"],
     )
 
+    # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
+    registry_json = ""
+    shutting_down = False
+    active_timer: Optional[threading.Timer] = None
+
+    def async_refresh():
+        store.refresh_registry()
+        nonlocal registry_json
+        registry_json = get_registry_dump(store.config, store.repo_path)
+        if shutting_down:
+            return
+        nonlocal active_timer
+        active_timer = threading.Timer(registry_ttl_secs, async_refresh)
+        active_timer.start()
+
+    @app.on_event("shutdown")
+    def shutdown_event():
+        nonlocal shutting_down
+        shutting_down = True
+        if active_timer:
+            active_timer.cancel()
+
+    async_refresh()
+
     @app.get("/registry")
     def read_registry():
-        return json.loads(registry_dump)
+        return json.loads(registry_json)
 
     # Generate projects-list json that points to the current repo's project
     # TODO(adchia): Enable users to also add project name + description fields in feature_store.yaml
@@ -59,6 +91,13 @@ def get_app(store: "feast.FeatureStore", registry_dump: str, project_id: str):
     return app
 
 
-def start_server(store: "feast.FeatureStore", registry_dump: str, project_id: str):
-    app = get_app(store, registry_dump, project_id)
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+def start_server(
+    store: "feast.FeatureStore",
+    host: str,
+    port: int,
+    get_registry_dump: Callable,
+    project_id: str,
+    registry_ttl_sec: int,
+):
+    app = get_app(store, get_registry_dump, project_id, registry_ttl_sec)
+    uvicorn.run(app, host=host, port=port)

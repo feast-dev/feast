@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     Iterable,
     List,
@@ -1995,14 +1996,23 @@ class FeatureStore:
         return self._provider.get_feature_server_endpoint()
 
     @log_exceptions_and_usage
-    def serve_ui(self, registry_dump: str) -> None:
+    def serve_ui(
+        self, host: str, port: int, get_registry_dump: Callable, registry_ttl_sec: int
+    ) -> None:
         """Start the UI server locally"""
         warnings.warn(
             "The Feast UI is an experimental feature. "
             "We do not guarantee that future changes will maintain backward compatibility.",
             RuntimeWarning,
         )
-        ui_server.start_server(self, registry_dump, self.config.project)
+        ui_server.start_server(
+            self,
+            host=host,
+            port=port,
+            get_registry_dump=get_registry_dump,
+            project_id=self.config.project,
+            registry_ttl_sec=registry_ttl_sec,
+        )
 
     @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:

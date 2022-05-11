@@ -110,16 +110,42 @@ def version():
 
 
 @cli.command()
+@click.option(
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="0.0.0.0",
+    help="Specify a host for the server [default: 0.0.0.0]",
+)
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=8888,
+    help="Specify a port for the server [default: 8888]",
+)
+@click.option(
+    "--registry_ttl_sec",
+    "-r",
+    help="Number of seconds after which the registry is refreshed. Default is 5 seconds.",
+    type=int,
+    default=5,
+)
 @click.pass_context
-def ui(ctx: click.Context):
+def ui(ctx: click.Context, host: str, port: int, registry_ttl_sec: int):
     """
     Shows the Feast UI over the current directory
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
-    repo_config = load_repo_config(repo)
-    store.serve_ui(registry_dump(repo_config, repo_path=repo))
+    # Pass in the registry_dump method to get around a circular dependency
+    store.serve_ui(
+        host=host,
+        port=port,
+        get_registry_dump=registry_dump,
+        registry_ttl_sec=registry_ttl_sec,
+    )
 
 
 @cli.command()
