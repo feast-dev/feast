@@ -7,8 +7,12 @@ from google.cloud.bigquery import Dataset
 
 from feast import BigQuerySource
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.bigquery import BigQueryOfflineStoreConfig
-from feast.infra.offline_stores.bigquery_source import SavedDatasetBigQueryStorage
+from feast.infra.offline_stores.bigquery_source import (
+    BigQueryLoggingDestination,
+    SavedDatasetBigQueryStorage,
+)
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -85,6 +89,12 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
         )
         return SavedDatasetBigQueryStorage(table=table)
+
+    def create_logged_features_destination(self) -> LoggingDestination:
+        table = self.get_prefixed_table_name(
+            f"logged_features_{str(uuid.uuid4()).replace('-', '_')}"
+        )
+        return BigQueryLoggingDestination(table_ref=table)
 
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.client.project}.{self.project_name}.{suffix}"

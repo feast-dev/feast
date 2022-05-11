@@ -98,6 +98,7 @@ def get_fixtures(request):
     type_test_environment = construct_test_environment(
         test_repo_config=config.test_repo_config,
         test_suite_name=f"test_{test_project_id}",
+        fixture_request=request,
     )
     config = request.param
     df = create_dataset(

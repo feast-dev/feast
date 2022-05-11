@@ -37,24 +37,24 @@ build: protos build-java build-docker
 # Python SDK
 
 install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
-	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-ci-requirements.txt
-	cd sdk/python && COMPILE_GO=true python setup.py develop
+	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	COMPILE_GO=true python setup.py develop
 
 lock-python-ci-dependencies:
-	cd sdk/python && python -m piptools compile -U --extra ci --output-file requirements/py$(PYTHON)-ci-requirements.txt
+	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
 compile-protos-python:
-	cd sdk/python && python setup.py build_python_protos
+	python setup.py build_python_protos
 
 install-python:
-	cd sdk/python && python -m piptools sync requirements/py$(PYTHON)-requirements.txt
-	cd sdk/python && python setup.py develop
+	python -m piptools sync sdk/python/requirements/py$(PYTHON)-requirements.txt
+	python setup.py develop
 
 lock-python-dependencies:
-	cd sdk/python && python -m piptools compile -U --output-file requirements/py$(PYTHON)-requirements.txt
+	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
 
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
@@ -72,7 +72,37 @@ test-python-integration-container:
 	FEAST_USAGE=False IS_TEST=True FEAST_LOCAL_ONLINE_CONTAINER=True python -m pytest -n 8 --integration sdk/python/tests
 
 test-python-universal-contrib:
-	PYTHONPATH='.' FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+ 	python -m pytest -n 8 --integration --universal \
+ 	 	-k "not test_historical_retrieval_fails_on_validation and \
+			not test_historical_retrieval_with_validation and \
+			not test_historical_features_persisting and \
+			not test_historical_retrieval_fails_on_validation and \
+			not test_universal_cli and \
+			not test_go_feature_server and \
+			not test_feature_logging and \
+			not test_universal_types" \
+ 	 sdk/python/tests
+
+test-python-universal-postgres:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		python -m pytest -x --integration --universal \
+			-k "not test_historical_retrieval_fails_on_validation and \
+				not test_historical_retrieval_with_validation and \
+				not test_historical_features_persisting and \
+				not test_historical_retrieval_fails_on_validation and \
+				not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
+				not test_universal_types" \
+			sdk/python/tests
 
 test-python-universal-local:
 	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
@@ -151,21 +181,21 @@ install-protoc-dependencies:
 	pip install grpcio-tools==1.44.0 mypy-protobuf==3.1.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
-	cd sdk/python && python setup.py build_go_protos
+	python setup.py build_go_protos
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
-	cd sdk/python && python setup.py build_go_lib
+	COMPILE_GO=True python setup.py build_ext --inplace
 
 # Needs feast package to setup the feature store
 test-go: compile-protos-go
-	pip install -e "sdk/python[ci]"
+	pip install -e ".[ci]"
 	go test ./...
 
 format-go:
 	gofmt -s -w go/
 
 lint-go: compile-protos-go
-	go vet ./go/internal/feast ./go/cmd/server
+	go vet ./go/internal/feast ./go/embedded
 
 # Docker
 

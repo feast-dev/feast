@@ -25,7 +25,7 @@ def test_create_batch_feature_view():
 
     stream_source = KafkaSource(
         name="kafka",
-        event_timestamp_column="",
+        timestamp_field="",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
@@ -43,7 +43,7 @@ def test_create_batch_feature_view():
 def test_create_stream_feature_view():
     stream_source = KafkaSource(
         name="kafka",
-        event_timestamp_column="",
+        timestamp_field="",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",

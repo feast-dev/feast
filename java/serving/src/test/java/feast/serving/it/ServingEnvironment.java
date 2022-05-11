@@ -33,6 +33,7 @@ import io.grpc.util.MutableHandlerRegistry;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -45,7 +46,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 abstract class ServingEnvironment {
   static DockerComposeContainer environment;
-
+  static int serverPort = getFreePort();
   ServingServiceGrpc.ServingServiceBlockingStub servingStub;
   Injector injector;
   String serverName;
@@ -53,22 +54,35 @@ abstract class ServingEnvironment {
   Server server;
   MutableHandlerRegistry serviceRegistry;
 
-  static int serverPort = getFreePort();
-
   @BeforeAll
   static void globalSetup() {
     environment =
         new DockerComposeContainer(
                 new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
             .withExposedService("redis", 6379)
-            .withExposedService("feast", 8080)
-            .waitingFor("feast", Wait.forListeningPort());
+            .withExposedService(
+                "feast", 8080, Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(180)))
+            .withTailChildContainers(true);
     environment.start();
   }
 
   @AfterAll
   static void globalTeardown() {
     environment.stop();
+  }
+
+  private static int getFreePort() {
+    ServerSocket serverSocket;
+    try {
+      serverSocket = new ServerSocket(0);
+    } catch (IOException e) {
+      throw new RuntimeException("Couldn't allocate port");
+    }
+
+    assertThat(serverSocket, is(notNullValue()));
+    assertThat(serverSocket.getLocalPort(), greaterThan(0));
+
+    return serverSocket.getLocalPort();
   }
 
   @BeforeEach
@@ -154,19 +168,5 @@ abstract class ServingEnvironment {
 
   AbstractModule registryConfig() {
     return null;
-  }
-
-  private static int getFreePort() {
-    ServerSocket serverSocket;
-    try {
-      serverSocket = new ServerSocket(0);
-    } catch (IOException e) {
-      throw new RuntimeException("Couldn't allocate port");
-    }
-
-    assertThat(serverSocket, is(notNullValue()));
-    assertThat(serverSocket.getLocalPort(), greaterThan(0));
-
-    return serverSocket.getLocalPort();
   }
 }

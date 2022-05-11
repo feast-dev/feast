@@ -1,8 +1,9 @@
 package model
 
 import (
-	"github.com/feast-dev/feast/go/protos/feast/core"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/feast-dev/feast/go/protos/feast/core"
 )
 
 type FeatureService struct {
@@ -11,6 +12,11 @@ type FeatureService struct {
 	CreatedTimestamp     *timestamppb.Timestamp
 	LastUpdatedTimestamp *timestamppb.Timestamp
 	Projections          []*FeatureViewProjection
+	LoggingConfig        *FeatureServiceLoggingConfig
+}
+
+type FeatureServiceLoggingConfig struct {
+	SampleRate float32
 }
 
 func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
@@ -18,10 +24,17 @@ func NewFeatureServiceFromProto(proto *core.FeatureService) *FeatureService {
 	for index, projectionProto := range proto.Spec.Features {
 		projections[index] = NewFeatureViewProjectionFromProto(projectionProto)
 	}
+	var loggingConfig *FeatureServiceLoggingConfig
+	if proto.GetSpec().GetLoggingConfig() != nil {
+		loggingConfig = &FeatureServiceLoggingConfig{
+			SampleRate: proto.GetSpec().GetLoggingConfig().SampleRate,
+		}
+	}
 	return &FeatureService{Name: proto.Spec.Name,
 		Project:              proto.Spec.Project,
 		CreatedTimestamp:     proto.Meta.CreatedTimestamp,
 		LastUpdatedTimestamp: proto.Meta.LastUpdatedTimestamp,
 		Projections:          projections,
+		LoggingConfig:        loggingConfig,
 	}
 }

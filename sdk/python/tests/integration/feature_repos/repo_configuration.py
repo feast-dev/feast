@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import pandas as pd
+import pytest
 import yaml
-from testcontainers.core.container import DockerContainer
 
 from feast import FeatureStore, FeatureView, OnDemandFeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
@@ -28,6 +28,9 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,
+)
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
@@ -38,6 +41,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_source,
     create_customer_daily_profile_feature_view,
+    create_driver_hourly_stats_batch_feature_view,
     create_driver_hourly_stats_feature_view,
     create_field_mapping_feature_view,
     create_global_stats_feature_view,
@@ -69,6 +73,25 @@ REDIS_CLUSTER_CONFIG = {
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
+AVAILABLE_OFFLINE_STORES: List[Any] = [
+    FileDataSourceCreator,
+]
+
+AVAILABLE_ONLINE_STORES: List[Any] = [
+    "sqlite",
+]
+
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    AVAILABLE_OFFLINE_STORES.extend(
+        [
+            BigQueryDataSourceCreator,
+            RedshiftDataSourceCreator,
+            SnowflakeDataSourceCreator,
+        ]
+    )
+
+    AVAILABLE_ONLINE_STORES.extend([REDIS_CONFIG, DYNAMO_CONFIG])
+
 # FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
 # online store, test data, and more parameters) that most integration tests will test
 # against. By default, FULL_REPO_CONFIGS uses the three providers (local, GCP, and AWS)
@@ -80,52 +103,53 @@ DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
     # Local configurations
     IntegrationTestRepoConfig(),
     IntegrationTestRepoConfig(python_feature_server=True),
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
+    # GCP configurations
+    IntegrationTestRepoConfig(
+        provider="gcp",
+        offline_store_creator=BigQueryDataSourceCreator,
+        online_store="datastore",
+    ),
+    IntegrationTestRepoConfig(
+        provider="gcp",
+        offline_store_creator=BigQueryDataSourceCreator,
+        online_store=REDIS_CONFIG,
+    ),
+    # AWS configurations
+    IntegrationTestRepoConfig(
+        provider="aws",
+        offline_store_creator=RedshiftDataSourceCreator,
+        online_store=DYNAMO_CONFIG,
+        python_feature_server=True,
+    ),
+    IntegrationTestRepoConfig(
+        provider="aws",
+        offline_store_creator=RedshiftDataSourceCreator,
+        online_store=REDIS_CONFIG,
+    ),
+    # Snowflake configurations
+    IntegrationTestRepoConfig(
+        provider="aws",  # no list features, no feature server
+        offline_store_creator=SnowflakeDataSourceCreator,
+        online_store=REDIS_CONFIG,
+    ),
+    # Go implementation for online retrieval
+    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_retrieval=True,),
+    # TODO(felixwang9817): Enable this test once https://github.com/feast-dev/feast/issues/2544 is resolved.
+    # IntegrationTestRepoConfig(
+    #     online_store=REDIS_CONFIG,
+    #     python_feature_server=True,
+    #     go_feature_retrieval=True,
+    # ),
 ]
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    DEFAULT_FULL_REPO_CONFIGS.extend(
-        [
-            IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-            # GCP configurations
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store="datastore",
-            ),
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # AWS configurations
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=DYNAMO_CONFIG,
-                python_feature_server=True,
-            ),
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # Snowflake configurations
-            IntegrationTestRepoConfig(
-                provider="aws",  # no list features, no feature server
-                offline_store_creator=SnowflakeDataSourceCreator,
-                online_store=REDIS_CONFIG,
-            ),
-            # Go implementation for online retrieval
-            IntegrationTestRepoConfig(
-                online_store=REDIS_CONFIG, go_feature_retrieval=True,
-            ),
-            # TODO(felixwang9817): Enable this test once https://github.com/feast-dev/feast/issues/2544 is resolved.
-            # IntegrationTestRepoConfig(
-            #     online_store=REDIS_CONFIG,
-            #     python_feature_server=True,
-            #     go_feature_retrieval=True,
-            # ),
-        ]
-    )
+
+DEFAULT_FULL_REPO_CONFIGS = [
+    c
+    for c in DEFAULT_FULL_REPO_CONFIGS
+    if c.online_store in AVAILABLE_ONLINE_STORES
+    and c.offline_store_creator in AVAILABLE_OFFLINE_STORES
+]
+
 if os.getenv("FEAST_GO_FEATURE_RETRIEVAL", "False") == "True":
     DEFAULT_FULL_REPO_CONFIGS = [
         IntegrationTestRepoConfig(
@@ -311,15 +335,15 @@ def construct_universal_feature_views(
     data_sources: UniversalDataSources, with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
+    driver_hourly_stats_base_feature_view = create_driver_hourly_stats_batch_feature_view(
+        data_sources.driver
+    )
     return UniversalFeatureViews(
         customer=create_customer_daily_profile_feature_view(data_sources.customer),
         global_fv=create_global_stats_feature_view(data_sources.global_ds),
         driver=driver_hourly_stats,
         driver_odfv=conv_rate_plus_100_feature_view(
-            {
-                "driver": driver_hourly_stats,
-                "input_request": create_conv_rate_request_source(),
-            }
+            [driver_hourly_stats_base_feature_view, create_conv_rate_request_source()]
         )
         if with_odfv
         else None,
@@ -369,9 +393,9 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
 
 def construct_test_environment(
     test_repo_config: IntegrationTestRepoConfig,
+    fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
-    offline_container: Optional[DockerContainer] = None,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -382,12 +406,14 @@ def construct_test_environment(
     project = f"{test_suite_name}_{run_id}_{run_num}"
 
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(
-        project, offline_container=offline_container
+        project, fixture_request=fixture_request
     )
     offline_store_config = offline_creator.create_offline_store_config()
 
     if test_repo_config.online_store_creator:
-        online_creator = test_repo_config.online_store_creator(project)
+        online_creator = test_repo_config.online_store_creator(
+            project, fixture_request=fixture_request
+        )
         online_store = (
             test_repo_config.online_store
         ) = online_creator.create_online_store()

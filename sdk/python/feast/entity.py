@@ -132,7 +132,7 @@ class Entity:
         self.last_updated_timestamp = None
 
     def __hash__(self) -> int:
-        return hash((id(self), self.name))
+        return hash((self.name, self.join_key))
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
@@ -180,7 +180,7 @@ class Entity:
         entity = cls(
             name=entity_proto.spec.name,
             value_type=ValueType(entity_proto.spec.value_type),
-            join_key=entity_proto.spec.join_key,
+            join_keys=[entity_proto.spec.join_key],
             description=entity_proto.spec.description,
             tags=entity_proto.spec.tags,
             owner=entity_proto.spec.owner,

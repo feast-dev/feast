@@ -13,11 +13,13 @@ COPY sdk/python/feast/infra/feature_servers/gcp_cloudrun/app.py ./app.py
 # Copy necessary parts of the Feast codebase
 COPY sdk/python ./sdk/python
 COPY protos ./protos
+COPY setup.py setup.py
+COPY pyproject.toml pyproject.toml
 COPY README.md ./README.md
 
 # Install production dependencies.
 RUN pip install --no-cache-dir \
-    -e 'sdk/python[gcp,redis]' \
+    -e '.[gcp,redis]' \
     -r ./sdk/python/feast/infra/feature_servers/gcp_cloudrun/requirements.txt
 
 # Run the web service on container startup. Here we use the gunicorn

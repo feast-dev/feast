@@ -91,7 +91,7 @@ pip install --upgrade pip
 
 4. Install development dependencies for Feast Python SDK / CLI
 ```sh
-pip install -e "sdk/python[dev]"
+pip install -e ".[dev]"
 ```
 
 ### Code Style & Linting
@@ -177,6 +177,8 @@ The services with containerized replacements currently implemented are:
 - DynamoDB
 - Redis
 - Trino
+- HBase
+- Postgres
 
 You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.
 

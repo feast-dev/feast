@@ -29,7 +29,7 @@ from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
-from feast.types import Array, Bytes, Float32, Int32, Int64, PrimitiveFeastType, String
+from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 
 
@@ -240,10 +240,7 @@ def test_apply_feature_view_success(test_registry):
 # TODO(kevjumba): remove this in feast 0.23 when deprecating
 @pytest.mark.parametrize(
     "request_source_schema",
-    [
-        [Field(name="my_input_1", dtype=PrimitiveFeastType.INT32)],
-        {"my_input_1": ValueType.INT32},
-    ],
+    [[Field(name="my_input_1", dtype=Int32)], {"my_input_1": ValueType.INT32}],
 )
 def test_modify_feature_views_success(test_registry, request_source_schema):
     # Create Feature Views
@@ -270,7 +267,7 @@ def test_modify_feature_views_success(test_registry, request_source_schema):
             Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
             Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
         ],
-        sources={"request_source": request_source},
+        sources=[request_source],
     )
     def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -290,7 +287,7 @@ def test_modify_feature_views_success(test_registry, request_source_schema):
             Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
             Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
         ],
-        sources={"request_source": request_source},
+        sources=[request_source],
     )
     def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()

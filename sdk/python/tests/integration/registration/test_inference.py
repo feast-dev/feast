@@ -7,6 +7,7 @@ from feast import (
     BigQuerySource,
     Entity,
     Feature,
+    FeatureService,
     FileSource,
     RedshiftSource,
     RepoConfig,
@@ -30,7 +31,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, PrimitiveFeastType, String, UnixTimestamp
+from feast.types import Float32, String, UnixTimestamp
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -42,9 +43,9 @@ def test_update_entities_with_inferred_types_from_feature_views(
     simple_dataset_1, simple_dataset_2
 ):
     with prep_file_source(
-        df=simple_dataset_1, event_timestamp_column="ts_1"
+        df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source, prep_file_source(
-        df=simple_dataset_2, event_timestamp_column="ts_1"
+        df=simple_dataset_2, timestamp_field="ts_1"
     ) as file_source_2:
 
         fv1 = FeatureView(
@@ -54,8 +55,8 @@ def test_update_entities_with_inferred_types_from_feature_views(
             name="fv2", entities=["id"], batch_source=file_source_2, ttl=None,
         )
 
-        actual_1 = Entity(name="id", join_key="id_join_key")
-        actual_2 = Entity(name="id", join_key="id_join_key")
+        actual_1 = Entity(name="id", join_keys=["id_join_key"])
+        actual_2 = Entity(name="id", join_keys=["id_join_key"])
 
         update_entities_with_inferred_types_from_feature_views(
             [actual_1], [fv1], RepoConfig(provider="local", project="test")
@@ -64,16 +65,16 @@ def test_update_entities_with_inferred_types_from_feature_views(
             [actual_2], [fv2], RepoConfig(provider="local", project="test")
         )
         assert actual_1 == Entity(
-            name="id", join_key="id_join_key", value_type=ValueType.INT64
+            name="id", join_keys=["id_join_key"], value_type=ValueType.INT64
         )
         assert actual_2 == Entity(
-            name="id", join_key="id_join_key", value_type=ValueType.STRING
+            name="id", join_keys=["id_join_key"], value_type=ValueType.STRING
         )
 
         with pytest.raises(RegistryInferenceFailure):
             # two viable data types
             update_entities_with_inferred_types_from_feature_views(
-                [Entity(name="id", join_key="id_join_key")],
+                [Entity(name="id", join_keys=["id_join_key"])],
                 [fv1, fv2],
                 RepoConfig(provider="local", project="test"),
             )
@@ -173,7 +174,7 @@ def test_on_demand_features_type_inference():
     )
 
     @on_demand_feature_view(
-        sources={"date_request": date_request},
+        sources=[date_request],
         schema=[
             Field(name="output", dtype=UnixTimestamp),
             Field(name="string_output", dtype=String),
@@ -229,7 +230,7 @@ def test_on_demand_features_type_inference():
 @pytest.mark.parametrize(
     "request_source_schema",
     [
-        [Field(name="some_date", dtype=PrimitiveFeastType.UNIX_TIMESTAMP)],
+        [Field(name="some_date", dtype=UnixTimestamp)],
         {"some_date": ValueType.UNIX_TIMESTAMP},
     ],
 )
@@ -245,7 +246,7 @@ def test_datasource_inference(request_source_schema):
             Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
             Feature(name="string_output", dtype=ValueType.STRING),
         ],
-        sources={"date_request": date_request},
+        sources=[date_request],
     )
     def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -256,7 +257,7 @@ def test_datasource_inference(request_source_schema):
     test_view.infer_features()
 
     @on_demand_feature_view(
-        sources={"date_request": date_request},
+        sources=[date_request],
         schema=[
             Field(name="output", dtype=UnixTimestamp),
             Field(name="object_output", dtype=String),
@@ -272,7 +273,7 @@ def test_datasource_inference(request_source_schema):
         invalid_test_view.infer_features()
 
     @on_demand_feature_view(
-        sources={"date_request": date_request},
+        sources=[date_request],
         features=[
             Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
             Feature(name="missing", dtype=ValueType.STRING),
@@ -289,8 +290,8 @@ def test_datasource_inference(request_source_schema):
 
 def test_update_feature_views_with_inferred_features():
     file_source = FileSource(name="test", path="test path")
-    entity1 = Entity(name="test1", join_key="test_column_1")
-    entity2 = Entity(name="test2", join_key="test_column_2")
+    entity1 = Entity(name="test1", join_keys=["test_column_1"])
+    entity2 = Entity(name="test2", join_keys=["test_column_2"])
     feature_view_1 = FeatureView(
         name="test1",
         entities=[entity1],
@@ -332,3 +333,25 @@ def test_update_feature_views_with_inferred_features():
     )
     assert len(feature_view_2.schema) == 1
     assert len(feature_view_2.features) == 1
+
+
+def test_update_feature_services_with_inferred_features(simple_dataset_1):
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity1 = Entity(name="test1", join_keys=["id_join_key"])
+        feature_view_1 = FeatureView(
+            name="test1", entities=[entity1], source=file_source,
+        )
+        feature_service = FeatureService(name="fs_1", features=[feature_view_1])
+        assert len(feature_service.feature_view_projections) == 1
+        assert len(feature_service.feature_view_projections[0].features) == 0
+
+        update_feature_views_with_inferred_features(
+            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+        )
+        feature_service.infer_features(
+            fvs_to_update={feature_view_1.name: feature_view_1}
+        )
+
+        assert len(feature_view_1.schema) == 3
+        assert len(feature_view_1.features) == 3
+        assert len(feature_service.feature_view_projections[0].features) == 3

@@ -6,7 +6,7 @@ def driver(value_type: ValueType = ValueType.INT64):
         name="driver",  # The name is derived from this argument, not object name.
         value_type=value_type,
         description="driver id",
-        join_key="driver_id",
+        join_keys=["driver_id"],
     )
 
 

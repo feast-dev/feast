@@ -4,22 +4,33 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/cdata"
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"google.golang.org/grpc"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/internal/feast/server"
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 )
 
 type OnlineFeatureService struct {
-	fs *feast.FeatureStore
+	fs         *feast.FeatureStore
+	grpcStopCh chan os.Signal
 }
 
 type OnlineFeatureServiceConfig struct {
@@ -30,6 +41,15 @@ type OnlineFeatureServiceConfig struct {
 type DataTable struct {
 	DataPtr   uintptr
 	SchemaPtr uintptr
+}
+
+// LoggingOptions is a public (embedded) copy of logging.LoggingOptions struct.
+// See logging.LoggingOptions for properties description
+type LoggingOptions struct {
+	ChannelCapacity int
+	EmitTimeout     time.Duration
+	WriteInterval   time.Duration
+	FlushInterval   time.Duration
 }
 
 func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback transformation.TransformationCallback) *OnlineFeatureService {
@@ -43,7 +63,11 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 		log.Fatalln(err)
 	}
 
-	return &OnlineFeatureService{fs: fs}
+	// Notify this channel when receiving interrupt or termination signals from OS
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	return &OnlineFeatureService{fs: fs, grpcStopCh: c}
 }
 
 func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[string]int32, error) {
@@ -196,6 +220,76 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		cdata.SchemaFromPtr(output.SchemaPtr))
 
 	return nil
+}
+
+// StartGprcServer starts gRPC server with disabled feature logging and blocks the thread
+func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
+	return s.StartGprcServerWithLogging(host, port, nil, LoggingOptions{})
+}
+
+// StartGprcServerWithLoggingDefaultOpts starts gRPC server with enabled feature logging but default configuration for logging
+// Caller of this function must provide Python callback to flush buffered logs
+func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback) error {
+	defaultOpts := LoggingOptions{
+		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
+		EmitTimeout:     logging.DefaultOptions.EmitTimeout,
+		WriteInterval:   logging.DefaultOptions.WriteInterval,
+		FlushInterval:   logging.DefaultOptions.FlushInterval,
+	}
+	return s.StartGprcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
+}
+
+// StartGprcServerWithLogging starts gRPC server with enabled feature logging
+// Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
+func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+	var loggingService *logging.LoggingService = nil
+	var err error
+	if writeLoggedFeaturesCallback != nil {
+		sink, err := logging.NewOfflineStoreSink(writeLoggedFeaturesCallback)
+		if err != nil {
+			return err
+		}
+
+		loggingService, err = logging.NewLoggingService(s.fs, sink, logging.LoggingOptions{
+			ChannelCapacity: loggingOpts.ChannelCapacity,
+			EmitTimeout:     loggingOpts.EmitTimeout,
+			WriteInterval:   loggingOpts.WriteInterval,
+			FlushInterval:   loggingOpts.FlushInterval,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	ser := server.NewGrpcServingServiceServer(s.fs, loggingService)
+	log.Printf("Starting a gRPC server on host %s port %d\n", host, port)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+	if err != nil {
+		return err
+	}
+
+	grpcServer := grpc.NewServer()
+	serving.RegisterServingServiceServer(grpcServer, ser)
+
+	go func() {
+		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
+		<-s.grpcStopCh
+		fmt.Println("Stopping the gRPC server...")
+		grpcServer.GracefulStop()
+		if loggingService != nil {
+			loggingService.Stop()
+		}
+		fmt.Println("gRPC server terminated")
+	}()
+
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *OnlineFeatureService) Stop() {
+	s.grpcStopCh <- syscall.SIGINT
 }
 
 /*

@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, RedshiftSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, RedshiftSource, ValueType
 from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
@@ -9,10 +9,10 @@ from feast.types import Float32, Int64
 driver = Entity(
     # Name of the entity. Must be unique within a project
     name="driver",
-    # The join key of an entity describes the storage level field/column on which
-    # features can be looked up. The join key is also used to join feature
+    # The join keys of an entity describe the storage level field/column on which
+    # features can be looked up. The join keys are also used to join feature
     # tables/views when building feature vectors
-    join_key="driver_id",
+    join_keys=["driver_id"],
     # The storage level type for an entity
     value_type=ValueType.INT64,
 )
@@ -65,3 +65,5 @@ driver_stats_fv = FeatureView(
     # feature view
     tags={"team": "driver_performance"},
 )
+
+driver_stats_fs = FeatureService(name="driver_activity", features=[driver_stats_fv])

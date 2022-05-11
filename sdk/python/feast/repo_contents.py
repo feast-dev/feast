@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import NamedTuple, Set
+from typing import List, NamedTuple
 
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -27,12 +27,12 @@ class RepoContents(NamedTuple):
     Represents the objects in a Feast feature repo.
     """
 
-    data_sources: Set[DataSource]
-    feature_views: Set[FeatureView]
-    on_demand_feature_views: Set[OnDemandFeatureView]
-    request_feature_views: Set[RequestFeatureView]
-    entities: Set[Entity]
-    feature_services: Set[FeatureService]
+    data_sources: List[DataSource]
+    feature_views: List[FeatureView]
+    on_demand_feature_views: List[OnDemandFeatureView]
+    request_feature_views: List[RequestFeatureView]
+    entities: List[Entity]
+    feature_services: List[FeatureService]
 
     def to_registry_proto(self) -> RegistryProto:
         registry_proto = RegistryProto()

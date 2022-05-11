@@ -8,7 +8,7 @@ To enable this feature, run **`feast alpha enable aws_lambda_feature_server`**
 
 ## Overview
 
-The AWS Lambda feature server is an HTTP endpoint that serves features with JSON I/O, deployed as a Docker image through AWS Lambda and AWS API Gateway. This enables users to get features from Feast using any programming language that can make HTTP requests. A [local feature server](feature-server.md) is also available. A remote feature server on GCP Cloud Run is currently being developed.
+The AWS Lambda feature server is an HTTP endpoint that serves features with JSON I/O, deployed as a Docker image through AWS Lambda and AWS API Gateway. This enables users to get features from Feast using any programming language that can make HTTP requests. A [local feature server](feature-servers/python-feature-server.md) is also available. A remote feature server on GCP Cloud Run is currently being developed.
 
 ## Deployment
 

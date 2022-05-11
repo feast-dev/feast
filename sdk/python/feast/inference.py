@@ -32,7 +32,9 @@ def update_entities_with_inferred_types_from_feature_views(
         if not (incomplete_entities_keys & set(view.entities)):
             continue  # skip if view doesn't contain any entities that need inference
 
-        col_names_and_types = view.batch_source.get_table_column_names_and_types(config)
+        col_names_and_types = list(
+            view.batch_source.get_table_column_names_and_types(config)
+        )
         for entity_name in view.entities:
             if entity_name in incomplete_entities:
                 entity = incomplete_entities[entity_name]
@@ -69,7 +71,7 @@ def update_entities_with_inferred_types_from_feature_views(
 def update_data_sources_with_inferred_event_timestamp_col(
     data_sources: List[DataSource], config: RepoConfig
 ) -> None:
-    ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
+    ERROR_MSG_PREFIX = "Unable to infer DataSource timestamp_field"
 
     for data_source in data_sources:
         if isinstance(data_source, RequestSource):
@@ -110,30 +112,30 @@ def update_data_sources_with_inferred_event_timestamp_col(
             )
 
             # loop through table columns to find singular match
-            timestamp_field, matched_flag = None, False
+            timestamp_fields = []
             for (
                 col_name,
                 col_datatype,
             ) in data_source.get_table_column_names_and_types(config):
                 if re.match(ts_column_type_regex_pattern, col_datatype):
-                    if matched_flag:
-                        raise RegistryInferenceFailure(
-                            "DataSource",
-                            f"""
-                            {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
-                            the criteria. {ts_column_type_regex_pattern} {col_name}
-                            """,
-                        )
-                    matched_flag = True
-                    timestamp_field = col_name
-            if matched_flag:
-                assert timestamp_field
-                data_source.timestamp_field = timestamp_field
+                    timestamp_fields.append(col_name)
+
+            if len(timestamp_fields) > 1:
+                raise RegistryInferenceFailure(
+                    "DataSource",
+                    f"""{ERROR_MSG_PREFIX}; found multiple possible columns of timestamp type.
+                    Data source type: {data_source.__class__.__name__},
+                    Timestamp regex: `{ts_column_type_regex_pattern}`, columns: {timestamp_fields}""",
+                )
+            elif len(timestamp_fields) == 1:
+                data_source.timestamp_field = timestamp_fields[0]
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
                     f"""
-                    {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
+                    {ERROR_MSG_PREFIX}; Found no columns of timestamp type.
+                    Data source type: {data_source.__class__.__name__},
+                    Timestamp regex: `{ts_column_type_regex_pattern}`.
                     """,
                 )
 

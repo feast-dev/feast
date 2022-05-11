@@ -34,6 +34,7 @@ from typing import (
 )
 
 import pandas as pd
+import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -110,7 +111,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
     _provider: Provider
-    _go_server: Optional["EmbeddedOnlineFeatureServer"]
+    _go_server: "EmbeddedOnlineFeatureServer"
 
     @log_exceptions
     def __init__(
@@ -474,8 +475,9 @@ class FeatureStore:
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
+        feature_services_to_update: List[FeatureService],
     ):
-        """Makes inferences for entities, feature views, and odfvs."""
+        """Makes inferences for entities, feature views, odfvs, and feature services."""
         update_entities_with_inferred_types_from_feature_views(
             entities_to_update, views_to_update, self.config
         )
@@ -496,6 +498,10 @@ class FeatureStore:
 
         for odfv in odfvs_to_update:
             odfv.infer_features()
+
+        fvs_to_update_map = {view.name: view for view in views_to_update}
+        for feature_service in feature_services_to_update:
+            feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
     @log_exceptions_and_usage
     def _plan(
@@ -533,25 +539,26 @@ class FeatureStore:
             ...     batch_source=driver_hourly_stats,
             ... )
             >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents(
-            ...     data_sources={driver_hourly_stats},
-            ...     feature_views={driver_hourly_stats_view},
-            ...     on_demand_feature_views=set(),
-            ...     request_feature_views=set(),
-            ...     entities={driver},
-            ...     feature_services=set())) # register entity and feature view
+            ...     data_sources=[driver_hourly_stats],
+            ...     feature_views=[driver_hourly_stats_view],
+            ...     on_demand_feature_views=list(),
+            ...     request_feature_views=list(),
+            ...     entities=[driver],
+            ...     feature_services=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
-            list(desired_repo_contents.feature_views),
-            list(desired_repo_contents.on_demand_feature_views),
-            list(desired_repo_contents.request_feature_views),
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.request_feature_views,
         )
-        _validate_data_sources(list(desired_repo_contents.data_sources))
+        _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
-            list(desired_repo_contents.data_sources),
-            list(desired_repo_contents.entities),
-            list(desired_repo_contents.feature_views),
-            list(desired_repo_contents.on_demand_feature_views),
+            desired_repo_contents.data_sources,
+            desired_repo_contents.entities,
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.feature_services,
         )
 
         # Compute the desired difference between the current objects in the registry and
@@ -691,7 +698,11 @@ class FeatureStore:
             views_to_update, odfvs_to_update, request_views_to_update
         )
         self._make_inferences(
-            data_sources_to_update, entities_to_update, views_to_update, odfvs_to_update
+            data_sources_to_update,
+            entities_to_update,
+            views_to_update,
+            odfvs_to_update,
+            services_to_update,
         )
 
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
@@ -1305,6 +1316,18 @@ class FeatureStore:
             native_entity_values=True,
         )
 
+    def _lazy_init_go_server(self):
+        """Lazily initialize self._go_server if it hasn't been initialized before."""
+        from feast.embedded_go.online_features_service import (
+            EmbeddedOnlineFeatureServer,
+        )
+
+        # Lazily start the go server on the first request
+        if self._go_server is None:
+            self._go_server = EmbeddedOnlineFeatureServer(
+                str(self.repo_path.absolute()), self.config, self
+            )
+
     def _get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1322,15 +1345,7 @@ class FeatureStore:
 
         # If Go feature server is enabled, send request to it instead of going through regular Python logic
         if self.config.go_feature_retrieval:
-            from feast.embedded_go.online_features_service import (
-                EmbeddedOnlineFeatureServer,
-            )
-
-            # Lazily start the go server on the first request
-            if self._go_server is None:
-                self._go_server = EmbeddedOnlineFeatureServer(
-                    str(self.repo_path.absolute()), self.config, self
-                )
+            self._lazy_init_go_server()
 
             entity_native_values: Dict[str, List[Any]]
             if not native_entity_values:
@@ -1956,7 +1971,14 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
-        feature_server.start_server(self, host, port, no_access_log)
+        if self.config.go_feature_retrieval:
+            # Start go server instead of python if the flag is enabled
+            self._lazy_init_go_server()
+            # TODO(tsotne) add http/grpc flag in CLI and call appropriate method here depending on that
+            self._go_server.start_grpc_server(host, port)
+        else:
+            # Start the python server if go server isn't enabled
+            feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -1975,6 +1997,33 @@ class FeatureStore:
 
     def _teardown_go_server(self):
         self._go_server = None
+
+    def write_logged_features(
+        self, logs: Union[pa.Table, Path], source: Union[FeatureService]
+    ):
+        """
+        Write logs produced by a source (currently only feature service is supported as a source)
+        to an offline store.
+
+        Args:
+            logs: Arrow Table or path to parquet dataset directory on disk
+            source: Object that produces logs
+        """
+        if not isinstance(source, FeatureService):
+            raise ValueError("Only feature service is currently supported as a source")
+
+        assert (
+            source.logging_config is not None
+        ), "Feature service must be configured with logging config in order to use this functionality"
+
+        assert isinstance(logs, (pa.Table, Path))
+
+        self._get_provider().write_feature_service_logs(
+            feature_service=source,
+            logs=logs,
+            config=self.config,
+            registry=self._registry,
+        )
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

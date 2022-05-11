@@ -1,0 +1,6 @@
+prune sdk/python/tests
+prune ui
+prune java/
+prune docs
+prune infra
+prune examples

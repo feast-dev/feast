@@ -5,19 +5,21 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+
 	"context"
 	"fmt"
 
-	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/feast-dev/feast/go/protos/feast/types"
 	_ "github.com/mattn/go-sqlite3"
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
 type SqliteOnlineStore struct {

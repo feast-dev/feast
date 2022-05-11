@@ -2,9 +2,10 @@ package registry
 
 import (
 	"encoding/json"
-	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"path/filepath"
+
+	"github.com/ghodss/yaml"
 )
 
 const (

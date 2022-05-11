@@ -3,18 +3,20 @@ package transformation
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"unsafe"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/cdata"
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"google.golang.org/protobuf/types/known/timestamppb"
-	"strings"
-	"unsafe"
 )
 
 /*

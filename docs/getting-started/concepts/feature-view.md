@@ -79,7 +79,7 @@ It is suggested that you dynamically specify the new FeatureView name using `.wi
 from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
 from feast.types import Int32
 
-location = Entity(name="location", join_key="location_id", value_type=ValueType.INT64)
+location = Entity(name="location", join_keys=["location_id"], value_type=ValueType.INT64)
 
 location_stats_fv= FeatureView(
     name="location_stats",
@@ -157,10 +157,10 @@ input_request = RequestSource(
 
 # Use the input data and feature view features to create new features
 @on_demand_feature_view(
-   sources={
-       'driver_hourly_stats': driver_hourly_stats_view,
-       'vals_to_add': input_request
-   },
+   sources=[
+       driver_hourly_stats_view,
+       input_request
+   ],
    schema=[
      Field(name='conv_rate_plus_val1', dtype=Float64),
      Field(name='conv_rate_plus_val2', dtype=Float64)

@@ -45,7 +45,7 @@ DUMMY_ENTITY_ID = "__dummy_id"
 DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
 DUMMY_ENTITY = Entity(
-    name=DUMMY_ENTITY_NAME, join_key=DUMMY_ENTITY_ID, value_type=ValueType.STRING,
+    name=DUMMY_ENTITY_NAME, join_keys=[DUMMY_ENTITY_ID], value_type=ValueType.STRING,
 )
 
 
@@ -137,7 +137,7 @@ class FeatureView(BaseFeatureView):
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
 
-        positional_attributes = ["name, entities, ttl"]
+        positional_attributes = ["name", "entities", "ttl"]
 
         _name = name
         _entities = entities
@@ -270,7 +270,6 @@ class FeatureView(BaseFeatureView):
                 self.batch_source = batch_source
         self.source = source
 
-    # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
         return super().__hash__()
 
@@ -298,17 +297,13 @@ class FeatureView(BaseFeatureView):
             return False
 
         if (
-            self.tags != other.tags
+            sorted(self.entities) != sorted(other.entities)
             or self.ttl != other.ttl
             or self.online != other.online
+            or self.batch_source != other.batch_source
+            or self.stream_source != other.stream_source
+            or self.schema != other.schema
         ):
-            return False
-
-        if sorted(self.entities) != sorted(other.entities):
-            return False
-        if self.batch_source != other.batch_source:
-            return False
-        if self.stream_source != other.stream_source:
             return False
 
         return True
@@ -444,8 +439,9 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
-            stream_source=stream_source,
         )
+        if stream_source:
+            feature_view.stream_source = stream_source
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

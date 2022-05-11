@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/apache/arrow/go/v8/arrow/array"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	gotypes "github.com/feast-dev/feast/go/types"
@@ -137,10 +138,10 @@ func SetupInitializedRepo(basePath string) error {
 	// var stderr bytes.Buffer
 	// var stdout bytes.Buffer
 	applyCommand.Dir = featureRepoPath
-	err = applyCommand.Run()
+	out, err := applyCommand.CombinedOutput()
 	if err != nil {
+		log.Println(string(out))
 		return err
-
 	}
 	t := time.Now()
 
@@ -151,7 +152,7 @@ func SetupInitializedRepo(basePath string) error {
 	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = featureRepoPath
-	out, err := materializeCommand.Output()
+	out, err = materializeCommand.CombinedOutput()
 	if err != nil {
 		log.Println(string(out))
 		return err
@@ -175,22 +176,14 @@ func CleanUpInitializedRepo(basePath string) {
 	}
 }
 
-func CleanUpRepo(basePath string) {
-	featureRepoPath, err := filepath.Abs(filepath.Join(basePath, "feature_repo"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = os.RemoveAll(featureRepoPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, error) {
+func GetProtoFromRecord(rec arrow.Record) (map[string]*types.RepeatedValue, error) {
 	r := make(map[string]*types.RepeatedValue)
 	schema := rec.Schema()
 	for idx, column := range rec.Columns() {
 		field := schema.Field(idx)
+		if field.Type.ID() == arrow.FixedWidthTypes.Timestamp_ms.ID() || field.Type.ID() == arrow.FixedWidthTypes.Date32.ID() {
+			continue
+		}
 		values, err := gotypes.ArrowValuesToProtoValues(column)
 		if err != nil {
 			return nil, err
@@ -198,10 +191,6 @@ func GetProtoFromRecord(rec array.Record) (map[string]*types.RepeatedValue, erro
 		r[field.Name] = &types.RepeatedValue{Val: values}
 	}
 	return r, nil
-}
-
-func CleanUpFile(absPath string) error {
-	return os.Remove(absPath)
 }
 
 func CreateBaseFeatureView(name string, features []*model.Feature, projection *model.FeatureViewProjection) *model.BaseFeatureView {

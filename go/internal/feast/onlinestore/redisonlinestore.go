@@ -9,12 +9,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/feast-dev/feast/go/protos/feast/serving"
-	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/proto"
 	"github.com/spaolacci/murmur3"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
 type redisType int

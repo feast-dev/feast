@@ -1,9 +1,11 @@
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 
 from feast.base_feature_view import BaseFeatureView
+from feast.feature_logging import LoggingConfig
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -37,21 +39,25 @@ class FeatureService:
     """
 
     name: str
+    _features: List[Union[FeatureView, OnDemandFeatureView]]
     feature_view_projections: List[FeatureViewProjection]
     description: str
     tags: Dict[str, str]
     owner: str
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
+    logging_config: Optional[LoggingConfig] = None
 
     @log_exceptions
     def __init__(
         self,
-        name: str,
-        features: List[Union[FeatureView, OnDemandFeatureView]],
+        *args,
+        name: Optional[str] = None,
+        features: Optional[List[Union[FeatureView, OnDemandFeatureView]]] = None,
         tags: Dict[str, str] = None,
         description: str = "",
         owner: str = "",
+        logging_config: Optional[LoggingConfig] = None,
     ):
         """
         Creates a FeatureService object.
@@ -59,23 +65,64 @@ class FeatureService:
         Raises:
             ValueError: If one of the specified features is not a valid type.
         """
-        self.name = name
-        self.feature_view_projections = []
-
-        for feature_grouping in features:
-            if isinstance(feature_grouping, BaseFeatureView):
-                self.feature_view_projections.append(feature_grouping.projection)
-            else:
+        positional_attributes = ["name", "features"]
+        _name = name
+        _features = features
+        if args:
+            warnings.warn(
+                (
+                    "Feature service parameters should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct feature service"
+                ),
+                DeprecationWarning,
+            )
+            if len(args) > len(positional_attributes):
                 raise ValueError(
-                    f"The feature service {name} has been provided with an invalid type "
-                    f'{type(feature_grouping)} as part of the "features" argument.)'
+                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
+                    f"feature service, for backwards compatibility."
                 )
+            if len(args) >= 1:
+                _name = args[0]
+            if len(args) >= 2:
+                _features = args[1]
 
+        if not _name:
+            raise ValueError("Feature service name needs to be specified")
+
+        if not _features:
+            # Technically, legal to create feature service with no feature views before.
+            _features = []
+
+        self.name = _name
+        self._features = _features
+        self.feature_view_projections = []
         self.description = description
         self.tags = tags or {}
         self.owner = owner
         self.created_timestamp = None
         self.last_updated_timestamp = None
+        self.logging_config = logging_config
+        self.infer_features()
+
+    def infer_features(self, fvs_to_update: Optional[Dict[str, FeatureView]] = None):
+        self.feature_view_projections = []
+        for feature_grouping in self._features:
+            if isinstance(feature_grouping, BaseFeatureView):
+                # For feature services that depend on an unspecified feature view, apply inferred schema
+                if (
+                    fvs_to_update is not None
+                    and len(feature_grouping.projection.features) == 0
+                    and feature_grouping.name in fvs_to_update
+                ):
+                    feature_grouping.projection.features = fvs_to_update[
+                        feature_grouping.name
+                    ].features
+                self.feature_view_projections.append(feature_grouping.projection)
+            else:
+                raise ValueError(
+                    f"The feature service {self.name} has been provided with an invalid type "
+                    f'{type(feature_grouping)} as part of the "features" argument.)'
+                )
 
     def __repr__(self):
         items = (f"{k} = {v}" for k, v in self.__dict__.items())
@@ -85,7 +132,7 @@ class FeatureService:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash(self.name)
 
     def __eq__(self, other):
         if not isinstance(other, FeatureService):
@@ -122,6 +169,9 @@ class FeatureService:
             tags=dict(feature_service_proto.spec.tags),
             description=feature_service_proto.spec.description,
             owner=feature_service_proto.spec.owner,
+            logging_config=LoggingConfig.from_proto(
+                feature_service_proto.spec.logging_config
+            ),
         )
         fs.feature_view_projections.extend(
             [
@@ -162,6 +212,9 @@ class FeatureService:
             tags=self.tags,
             description=self.description,
             owner=self.owner,
+            logging_config=self.logging_config.to_proto()
+            if self.logging_config
+            else None,
         )
 
         return FeatureServiceProto(spec=spec, meta=meta)

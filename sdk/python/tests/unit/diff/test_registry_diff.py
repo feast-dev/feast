@@ -7,9 +7,7 @@ from tests.utils.data_source_utils import prep_file_source
 
 
 def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
-    with prep_file_source(
-        df=simple_dataset_1, event_timestamp_column="ts_1"
-    ) as file_source:
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         to_delete = FeatureView(
             name="to_delete", entities=["id"], batch_source=file_source, ttl=None,
         )
@@ -53,9 +51,7 @@ def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
 
 
 def test_diff_registry_objects_feature_views(simple_dataset_1):
-    with prep_file_source(
-        df=simple_dataset_1, event_timestamp_column="ts_1"
-    ) as file_source:
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         pre_changed = FeatureView(
             name="fv2",
             entities=["id"],

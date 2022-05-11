@@ -30,5 +30,8 @@ nodeSelector: {}
 # envOverrides -- Extra environment variables to set
 envOverrides: {}
 
+# secrets -- List of Kubernetes secrets to be mounted. These secrets will be mounted on /etc/secrets/<secret name>.
+secrets: []
+
 # podLabels -- Labels to be added to Feast Serving pods
 podLabels: {}

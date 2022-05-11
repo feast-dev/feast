@@ -13,7 +13,6 @@
 # limitations under the License.
 import logging
 import multiprocessing
-import pathlib
 import time
 from datetime import datetime, timedelta
 from multiprocessing import Process
@@ -23,8 +22,6 @@ from typing import List
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast import FeatureStore
 from tests.data.data_creator import create_dataset
@@ -164,58 +161,13 @@ def start_test_local_server(repo_path: str, port: int):
     fs.serve("localhost", port, no_access_log=True)
 
 
-class TrinoContainerSingleton:
-    current_file = pathlib.Path(__file__).resolve()
-    catalog_dir = current_file.parent.joinpath(
-        "integration/feature_repos/universal/data_sources/catalog"
-    )
-    container = None
-    is_running = False
-
-    @classmethod
-    def get_singleton(cls):
-        if not cls.is_running:
-            cls.container = (
-                DockerContainer("trinodb/trino:376")
-                .with_volume_mapping(cls.catalog_dir, "/etc/catalog/")
-                .with_exposed_ports("8080")
-            )
-
-            cls.container.start()
-            log_string_to_wait_for = "SERVER STARTED"
-            wait_for_logs(
-                container=cls.container, predicate=log_string_to_wait_for, timeout=30
-            )
-            cls.is_running = True
-        return cls.container
-
-    @classmethod
-    def teardown(cls):
-        if cls.container:
-            cls.container.stop()
-
-
-@pytest.fixture(scope="session")
-def trino_fixture(request):
-    def teardown():
-        TrinoContainerSingleton.teardown()
-
-    request.addfinalizer(teardown)
-    return TrinoContainerSingleton
-
-
 @pytest.fixture(
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
-def environment(request, worker_id: str, trino_fixture):
-    if "TrinoSourceCreator" in request.param.offline_store_creator.__name__:
-        e = construct_test_environment(
-            request.param,
-            worker_id=worker_id,
-            offline_container=trino_fixture.get_singleton(),
-        )
-    else:
-        e = construct_test_environment(request.param, worker_id=worker_id)
+def environment(request, worker_id: str):
+    e = construct_test_environment(
+        request.param, worker_id=worker_id, fixture_request=request
+    )
     proc = Process(
         target=start_test_local_server,
         args=(e.feature_store.repo_path, e.get_local_server_port()),
@@ -245,7 +197,9 @@ def environment(request, worker_id: str, trino_fixture):
 )
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
-        IntegrationTestRepoConfig(online_store=request.param), worker_id=worker_id
+        IntegrationTestRepoConfig(online_store=request.param),
+        worker_id=worker_id,
+        fixture_request=request,
     )
 
     def cleanup():

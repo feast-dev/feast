@@ -1,9 +1,10 @@
 package model
 
 import (
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
+
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
