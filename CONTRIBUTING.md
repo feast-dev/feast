@@ -89,7 +89,12 @@ source venv/bin/activate
 pip install --upgrade pip
 ```
 
-4. Install development dependencies for Feast Python SDK / CLI
+4. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
+```
+make build-ui
+```
+
+5Install development dependencies for Feast Python SDK / CLI
 ```sh
 pip install -e ".[dev]"
 ```

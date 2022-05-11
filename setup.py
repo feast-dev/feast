@@ -486,6 +486,8 @@ setup(
             "sdk/python/**/*.proto",
             "sdk/python/**/*.py",
             "protos/**/*.proto",
+            "sdk/python/ui/build/*",
+            "sdk/python/ui/build/**/*",
         ],
     },
     cmdclass={

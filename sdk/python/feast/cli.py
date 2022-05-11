@@ -111,6 +111,19 @@ def version():
 
 @cli.command()
 @click.pass_context
+def ui(ctx: click.Context):
+    """
+    Shows the Feast UI over the current directory
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+    repo_config = load_repo_config(repo)
+    store.serve_ui(registry_dump(repo_config, repo_path=repo))
+
+
+@cli.command()
+@click.pass_context
 def endpoint(ctx: click.Context):
     """
     Display feature server endpoints
@@ -475,7 +488,7 @@ def registry_dump_command(ctx: click.Context):
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
 
-    registry_dump(repo_config, repo_path=repo)
+    click.echo(registry_dump(repo_config, repo_path=repo))
 
 
 @cli.command("materialize")

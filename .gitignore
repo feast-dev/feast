@@ -200,6 +200,8 @@ go/protos/
 
 
 # Feast UI dependencies
+sdk/python/feast/ui/node_modules
+sdk/python/feast/ui/build
 ui/node_modules
 ui/.pnp
 ui/.pnp.js

@@ -39,7 +39,7 @@ from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
-from feast import feature_server, flags, flags_helper, utils
+from feast import feature_server, flags, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
@@ -1984,6 +1984,16 @@ class FeatureStore:
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return self._provider.get_feature_server_endpoint()
+
+    @log_exceptions_and_usage
+    def serve_ui(self, registry_dump: str) -> None:
+        """Start the UI server locally"""
+        warnings.warn(
+            "The Feast UI is an experimental feature. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
+        ui_server.start_server(self, registry_dump, self.config.project)
 
     @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:

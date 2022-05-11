@@ -9,7 +9,6 @@ import {
   EuiText,
   EuiFlexItem,
   EuiSpacer,
-  EuiStat,
   EuiDescriptionList,
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,

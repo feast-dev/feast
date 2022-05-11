@@ -281,14 +281,13 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 
 @log_exceptions_and_usage
-def registry_dump(repo_config: RepoConfig, repo_path: Path):
+def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)
     registry_dict = registry.to_dict(project=project)
-
-    click.echo(json.dumps(registry_dict, indent=2, sort_keys=True))
+    return json.dumps(registry_dict, indent=2, sort_keys=True)
 
 
 def cli_check_repo(repo_path: Path):
