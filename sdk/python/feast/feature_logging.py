@@ -11,7 +11,7 @@ from feast.errors import (
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
 )
-from feast.feature_view import DUMMY_ENTITY_ID
+from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.protos.feast.core.FeatureService_pb2 import (
     LoggingConfig as LoggingConfigProto,
 )
@@ -77,9 +77,11 @@ class FeatureServiceLoggingSource(LoggingSource):
                         fields[field.name] = FEAST_TYPE_TO_ARROW_TYPE[field.dtype]
 
             else:
-                for entity_column in feature_view.entity_columns:
-                    if entity_column.name == DUMMY_ENTITY_ID:
+                for entity_name in feature_view.entities:
+                    if entity_name == DUMMY_ENTITY_NAME:
                         continue
+
+                    entity = registry.get_entity(entity_name, self._project)
 
                     join_key = projection.join_key_map.get(
                         entity.join_key, entity.join_key

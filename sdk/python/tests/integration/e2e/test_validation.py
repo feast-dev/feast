@@ -16,7 +16,6 @@ from feast.feature_logging import (
 )
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 from feast.wait import wait_retry_backoff
-
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -26,7 +25,6 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 from tests.utils.logged_features import prepare_logs
-
 
 _features = [
     "customer_profile:current_balance",
