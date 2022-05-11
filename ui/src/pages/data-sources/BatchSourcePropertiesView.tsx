@@ -6,7 +6,6 @@ import {
     EuiDescriptionListTitle,
     EuiFlexGroup,
     EuiFlexItem,
-    EuiHorizontalRule,
     EuiSpacer,
     EuiTitle,
   } from "@elastic/eui";

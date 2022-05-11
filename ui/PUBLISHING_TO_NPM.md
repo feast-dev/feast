@@ -6,7 +6,7 @@ To publish a new version of the module, you will need to be part of the @feast-d
 
 ## Steps for Publishing
 
-1. Make sure tests are passing. Run tests with `yarn tests` in the ui directory.
+1. Make sure tests are passing. Run tests with `yarn test` in the ui directory.
 2. Bump the version number in `package.json` as appropriate.
 3. Package the modules for distributions. Run the library build script with `yarn build:lib`. We use [Rollup](https://rollupjs.org/) for building the module, and the configs are in the `rollup.config.js` file.
 4. Publish the package to NPM. Run `npm publish`

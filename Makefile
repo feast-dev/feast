@@ -261,3 +261,9 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
+
+# Web UI
+
+# Note: requires node and yarn to be installed
+build-ui:
+	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn install && npm run build --omit=dev

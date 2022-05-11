@@ -1,6 +1,6 @@
-# [WIP] Feast Web UI
+# [Experimental] Feast Web UI
 
-![Sample UI](sample.png)
+![Sample UI](https://github.com/feast-dev/feast/blob/master/ui/sample.png)
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
