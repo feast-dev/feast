@@ -14,7 +14,7 @@ const RequestDataSourceSchema = z.object({
     type: z.string(),
     name: z.string(),
     requestDataOptions: z.object({
-      schema: z.record(z.nativeEnum(FEAST_FEATURE_VALUE_TYPES)),
+      schema: z.array(FeastFeatureColumnSchema),
     }),
   }),
 });
@@ -28,7 +28,7 @@ const FeastODFVSchema = z.object({
   spec: z.object({
     name: z.string(),
     features: z.array(FeastFeatureColumnSchema),
-    inputs: z.record(ODFVInputsSchema),
+    sources: z.record(ODFVInputsSchema),
     userDefinedFunction: z.object({
       name: z.string(),
       body: z.string(),

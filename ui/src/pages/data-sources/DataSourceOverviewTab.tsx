@@ -62,7 +62,7 @@ const DataSourceOverviewTab = () => {
                           </EuiDescriptionListDescription>
                         </EuiDescriptionList>
                       </React.Fragment>
-                    ): (
+                    ) : (
                       ""
                     )}
                   </EuiPanel>
@@ -78,12 +78,10 @@ const DataSourceOverviewTab = () => {
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
-                        fields={Object.entries(
-                          data.requestDataOptions.schema
-                        ).map(([field, type]) => {
+                        fields={data.requestDataOptions.schema.map((obj) => {
                           return {
-                            fieldName: field,
-                            valueType: type,
+                            fieldName: obj.name,
+                            valueType: obj.valueType,
                           };
                         })}
                       />

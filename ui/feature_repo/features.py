@@ -1,27 +1,24 @@
 from datetime import timedelta
 
 from feast import (
-    Bool,
     Entity,
     FeatureService,
     FeatureView,
     Field,
     FileSource,
-    Int64,
-    String,
     ValueType,
 )
 from feast.data_source import RequestSource
 from feast.request_feature_view import RequestFeatureView
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.field import Field
+from feast.types import Bool, Int64, String
 import pandas as pd
 
 zipcode = Entity(
     name="zipcode",
     value_type=ValueType.INT64,
     description="A zipcode",
-    labels={"owner": "danny@tecton.ai", "team": "hack week",},
+    tags={"owner": "danny@tecton.ai", "team": "hack week",},
 )
 
 zipcode_source = FileSource(
@@ -43,7 +40,7 @@ zipcode_features = FeatureView(
         Field(name="population", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
     ],
-    batch_source=zipcode_source,
+    source=zipcode_source,
     tags={
         "date_added": "2022-02-7",
         "experiments": "experiment-A,experiment-B,experiment-C",
@@ -64,7 +61,7 @@ zipcode_features = FeatureView(
         Field(name="population", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
     ],
-    batch_source=zipcode_source,
+    source=zipcode_source,
     tags={
         "date_added": "2022-02-7",
         "experiments": "experiment-A,experiment-B,experiment-C",
@@ -81,7 +78,7 @@ zipcode_money_features = FeatureView(
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
     ],
-    batch_source=zipcode_source,
+    source=zipcode_source,
     tags={
         "date_added": "2022-02-7",
         "experiments": "experiment-A,experiment-B,experiment-C",
@@ -94,7 +91,7 @@ dob_ssn = Entity(
     name="dob_ssn",
     value_type=ValueType.STRING,
     description="Date of birth and last four digits of social security number",
-    labels={"owner": "tony@tecton.ai", "team": "hack week",},
+    tags={"owner": "tony@tecton.ai", "team": "hack week",},
 )
 
 credit_history_source = FileSource(
@@ -119,7 +116,7 @@ credit_history = FeatureView(
         Field(name="missed_payments_6m", dtype=Int64),
         Field(name="bankruptcies", dtype=Int64),
     ],
-    batch_source=credit_history_source,
+    source=credit_history_source,
     tags={
         "date_added": "2022-02-6",
         "experiments": "experiment-A",
@@ -152,16 +149,10 @@ def transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-
-# Define request feature view
-transaction_request_fv = RequestFeatureView(
-    name="transaction_request_fv", request_data_source=input_request,
-)
-
 model_v1 = FeatureService(
     name="credit_score_v1",
     features=[
-        credit_history[["mortgage_due", "credit_card_due", "missed_payments_1y"]],
+        credit_history[["credit_card_due", "missed_payments_1y"]],
         zipcode_features,
     ],
     tags={"owner": "tony@tecton.ai", "stage": "staging"},
@@ -173,7 +164,6 @@ model_v2 = FeatureService(
     features=[
         credit_history[["mortgage_due", "credit_card_due", "missed_payments_1y"]],
         zipcode_features,
-        transaction_request_fv,
     ],
     tags={"owner": "tony@tecton.ai", "stage": "prod"},
     description="Credit scoring model",

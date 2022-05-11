@@ -38,7 +38,7 @@ const whereFSconsumesThisFv = (fvName: string) => {
 const OnDemandFeatureViewOverviewTab = ({
   data,
 }: OnDemandFeatureViewOverviewTabProps) => {
-  const inputs = Object.entries(data.spec.inputs);
+  const inputs = Object.entries(data.spec.sources);
 
   const relationshipQuery = useLoadRelationshipData();
   const fsNames = relationshipQuery.data

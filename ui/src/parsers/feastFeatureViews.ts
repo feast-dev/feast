@@ -4,6 +4,7 @@ import { FEAST_FEATURE_VALUE_TYPES } from "./types";
 const FeastFeatureColumnSchema = z.object({
   name: z.string(),
   valueType: z.nativeEnum(FEAST_FEATURE_VALUE_TYPES),
+  tags: z.record(z.string()).optional(),
 });
 
 const FeastBatchSourceSchema = z.object({
@@ -11,7 +12,7 @@ const FeastBatchSourceSchema = z.object({
   eventTimestampColumn: z.string().optional(),
   createdTimestampColumn: z.string().optional(),
   fileOptions: z.object({
-    fileUrl: z.string().optional(),
+    uri: z.string().optional(),
   }).optional(),
   name: z.string().optional(),
   meta: z.object({
