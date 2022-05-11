@@ -35,6 +35,7 @@ from feast.usage import log_exceptions_and_usage
 # Make sure spark warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
 
+
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
     type: StrictStr = "spark"
     """ Offline store type selector"""
