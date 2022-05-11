@@ -13,6 +13,8 @@ import {
 interface BatchSourcePropertiesViewProps {
   batchSource: {
     type?: string | undefined;
+    owner?: string | undefined;
+    description?: string | undefined;
     dataSourceClassType?: string | undefined;
     fileOptions?:
       | {
@@ -57,6 +59,22 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
               </React.Fragment>
             )}
 
+            {batchSource.owner && (
+              <React.Fragment>
+                <EuiDescriptionListTitle>Owner</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  {batchSource.owner}
+                </EuiDescriptionListDescription>
+              </React.Fragment>
+            )}
+            {batchSource.description && (
+              <React.Fragment>
+                <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  {batchSource.description}
+                </EuiDescriptionListDescription>
+              </React.Fragment>
+            )}
             {batchSource.fileOptions && (
               <React.Fragment>
                 <EuiDescriptionListTitle>File URL</EuiDescriptionListTitle>

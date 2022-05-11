@@ -75,7 +75,7 @@ const RegularFeatureViewOverviewTab = ({
                 features={data.spec.features}
               />
             ) : (
-              <EuiText>No Tags specified on this feature view.</EuiText>
+              <EuiText>No features specified on this feature view.</EuiText>
             )}
           </EuiPanel>
         </EuiFlexItem>
@@ -135,6 +135,8 @@ const RegularFeatureViewOverviewTab = ({
                     encodeSearchQueryString(`${key}:${value}`)
                   );
                 }}
+                owner={data.spec.owner}
+                description={data.spec.description}
               />
             ) : (
               <EuiText>No Tags specified on this feature view.</EuiText>

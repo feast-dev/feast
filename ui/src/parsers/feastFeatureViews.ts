@@ -15,6 +15,8 @@ const FeastBatchSourceSchema = z.object({
     uri: z.string().optional(),
   }).optional(),
   name: z.string().optional(),
+  description: z.string().optional(),
+  owner: z.string().optional(),
   meta: z.object({
     earliestEventTimestamp: z.string().transform((val) => new Date(val)),
     latestEventTimestamp: z.string().transform((val) => new Date(val)),
@@ -31,12 +33,14 @@ const FeastBatchSourceSchema = z.object({
 
 const FeastFeatureViewSchema = z.object({
   spec: z.object({
+    description: z.string().optional(),
     name: z.string(),
     entities: z.array(z.string()),
     features: z.array(FeastFeatureColumnSchema),
     ttl: z.string().transform((val) => parseInt(val)),
     batchSource: FeastBatchSourceSchema,
     online: z.boolean(),
+    owner: z.string().optional(),
     tags: z.record(z.string()).optional(),
   }),
   meta: z.object({

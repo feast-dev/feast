@@ -27,7 +27,6 @@ const DataSourceOverviewTab = () => {
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =
     useLoadDataSource(dsName);
   const isEmpty = data === undefined;
-  console.log(consumingFeatureViews);
 
   return (
     <React.Fragment>
@@ -51,7 +50,7 @@ const DataSourceOverviewTab = () => {
                     <EuiHorizontalRule margin="xs" />
                     {data.fileOptions || data.bigqueryOptions ? (
                       <BatchSourcePropertiesView batchSource={data} />
-                    ) : data.requestDataOptions ? (
+                    ) : data.type ? (
                       <React.Fragment>
                         <EuiDescriptionList>
                           <EuiDescriptionListTitle>

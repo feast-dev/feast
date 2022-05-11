@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { FEAST_FEATURE_VALUE_TYPES } from "./types";
 import { FeastFeatureColumnSchema } from "./feastFeatureViews";
 
 const FeastDatasourceSchema = z.object({
@@ -10,6 +9,8 @@ const FeastDatasourceSchema = z.object({
     uri: z.string().optional(),
   }).optional(),
   name: z.string(),
+  description: z.string().optional(),
+  owner: z.string().optional(),
   meta: z.object({
     latestEventTimestamp: z.string().transform((val) => new Date(val)),
     earliestEventTimestamp: z.string().transform((val) => new Date(val)),
