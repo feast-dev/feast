@@ -167,7 +167,7 @@ def data_source_describe(ctx: click.Context, name: str):
 
     warnings.warn(
         "Describing data sources will only work properly if all data sources have names or table names specified. "
-        "Starting Feast 0.21, data source unique names will be required to encourage data source discovery.",
+        "Starting Feast 0.23, data source unique names will be required to encourage data source discovery.",
         RuntimeWarning,
     )
     print(
@@ -194,7 +194,7 @@ def data_source_list(ctx: click.Context):
 
     warnings.warn(
         "Listing data sources will only work properly if all data sources have names or table names specified. "
-        "Starting Feast 0.21, data source unique names will be required to encourage data source discovery",
+        "Starting Feast 0.23, data source unique names will be required to encourage data source discovery",
         RuntimeWarning,
     )
     print(tabulate(table, headers=["NAME", "CLASS"], tablefmt="plain"))
