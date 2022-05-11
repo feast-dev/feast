@@ -47,30 +47,30 @@ REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
     "click>=7.0.0,<8.0.2",
-    "colorama>=0.3.9",
+    "colorama>=0.3.9,<1",
     "dill==0.3.*",
-    "fastavro>=1.1.0",
-    "google-api-core>=1.23.0",
-    "googleapis-common-protos==1.52.*",
-    "grpcio>=1.34.0",
-    "grpcio-reflection>=1.34.0",
-    "Jinja2>=2.0.0",
+    "fastavro>=1.1.0,<2",
+    "google-api-core>=1.23.0,<3",
+    "googleapis-common-protos==1.52.*,<2",
+    "grpcio>=1.34.0,<2",
+    "grpcio-reflection>=1.34.0,<2",
+    "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy<1.22",
-    "pandas>=1.0.0",
+    "numpy<1.22,<2",
+    "pandas>=1,<2",
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",
     "proto-plus<1.19.7",
-    "pyarrow>=4.0.0",
-    "pydantic>=1.0.0",
-    "PyYAML>=5.4.*",
+    "pyarrow>=4,<7",
+    "pydantic>=1,<2",
+    "PyYAML>=5.4.*,<7",
     "tabulate==0.8.*",
-    "tenacity>=7.*",
+    "tenacity>=7,<9",
     "toml==0.10.*",
     "tqdm==4.*",
-    "fastapi>=0.68.0",
-    "uvicorn[standard]>=0.14.0",
+    "fastapi>=0.68.0,<1",
+    "uvicorn[standard]>=0.14.0,<1",
     "proto-plus<1.19.7",
     "tensorflow-metadata>=1.0.0,<2.0.0",
     "dask>=2021.*,<2022.02.0",
@@ -78,15 +78,15 @@ REQUIRED = [
 
 GCP_REQUIRED = [
     "google-cloud-bigquery>=2,<3",
-    "google-cloud-bigquery-storage >= 2.0.0",
-    "google-cloud-datastore>=2.1.*",
+    "google-cloud-bigquery-storage >= 2.0.0,<3",
+    "google-cloud-datastore>=2.1.*,<3",
     "google-cloud-storage>=1.34.*,<1.41",
     "google-cloud-core>=1.4.0,<2.0.0",
 ]
 
 REDIS_REQUIRED = [
     "redis==4.2.2",
-    "hiredis>=2.0.0",
+    "hiredis>=2.0.0,<3",
 ]
 
 AWS_REQUIRED = [
@@ -95,11 +95,11 @@ AWS_REQUIRED = [
 ]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=2.7.3",
+    "snowflake-connector-python[pandas]>=2.7.3,<3",
 ]
 
 SPARK_REQUIRED = [
-    "pyspark>=3.0.0",
+    "pyspark>=3.0.0,<4",
 ]
 
 TRINO_REQUIRED = [
@@ -107,11 +107,11 @@ TRINO_REQUIRED = [
 ]
 
 POSTGRES_REQUIRED = [
-    "psycopg2-binary>=2.8.3",
+    "psycopg2-binary>=2.8.3,<3",
 ]
 
 HBASE_REQUIRED = [
-    "happybase>=1.2.0",
+    "happybase>=1.2.0,<3",
 ]
 
 GE_REQUIRED = [
@@ -119,7 +119,7 @@ GE_REQUIRED = [
 ]
 
 GO_REQUIRED = [
-    "cffi==1.15.*",
+    "cffi==1.15.*,<2",
 ]
 
 CI_REQUIRED = (
@@ -128,7 +128,7 @@ CI_REQUIRED = (
         "cryptography==3.4.8",
         "flake8",
         "black==19.10b0",
-        "isort>=5",
+        "isort>=5,<6",
         "grpcio-tools==1.44.0",
         "grpcio-testing==1.44.0",
         "minio==7.1.0",
@@ -138,19 +138,19 @@ CI_REQUIRED = (
         "mypy-protobuf==3.1",
         "avro==1.10.0",
         "gcsfs",
-        "urllib3>=1.25.4",
+        "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
-        "pytest>=6.0.0",
+        "pytest>=6.0.0,<8",
         "pytest-cov",
         "pytest-xdist",
-        "pytest-benchmark>=3.4.1",
+        "pytest-benchmark>=3.4.1,<4",
         "pytest-lazy-fixture==0.6.3",
         "pytest-timeout==1.4.2",
         "pytest-ordering==0.6.*",
         "pytest-mock==1.10.4",
         "Sphinx!=4.0.0,<4.4.0",
         "sphinx-rtd-theme",
-        "testcontainers[postgresql]>=3.5",
+        "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin==4.5.2",
         "pre-commit",
