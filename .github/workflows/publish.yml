@@ -167,10 +167,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
-          uses: actions/setup-node@v2
-          with:
-            node-version: '17.x'
-            registry-url: 'https://registry.npmjs.org'
+        uses: actions/setup-node@v2
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
         env:

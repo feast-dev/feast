@@ -27,7 +27,6 @@ const DataSourceOverviewTab = () => {
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =
     useLoadDataSource(dsName);
   const isEmpty = data === undefined;
-  console.log(consumingFeatureViews);
 
   return (
     <React.Fragment>
@@ -51,7 +50,7 @@ const DataSourceOverviewTab = () => {
                     <EuiHorizontalRule margin="xs" />
                     {data.fileOptions || data.bigqueryOptions ? (
                       <BatchSourcePropertiesView batchSource={data} />
-                    ) : data.requestDataOptions ? (
+                    ) : data.type ? (
                       <React.Fragment>
                         <EuiDescriptionList>
                           <EuiDescriptionListTitle>
@@ -62,7 +61,7 @@ const DataSourceOverviewTab = () => {
                           </EuiDescriptionListDescription>
                         </EuiDescriptionList>
                       </React.Fragment>
-                    ): (
+                    ) : (
                       ""
                     )}
                   </EuiPanel>
@@ -78,12 +77,10 @@ const DataSourceOverviewTab = () => {
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
-                        fields={Object.entries(
-                          data.requestDataOptions.schema
-                        ).map(([field, type]) => {
+                        fields={data.requestDataOptions.schema.map((obj) => {
                           return {
-                            fieldName: field,
-                            valueType: type,
+                            fieldName: obj.name,
+                            valueType: obj.valueType,
                           };
                         })}
                       />

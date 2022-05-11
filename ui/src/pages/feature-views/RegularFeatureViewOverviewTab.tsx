@@ -60,27 +60,6 @@ const RegularFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />
         </EuiFlexItem>
-        {data.spec.batchSource.meta ? (
-          <EuiFlexItem>
-            <EuiStat
-              title={data.spec.batchSource.meta.latestEventTimestamp.toLocaleDateString(
-                "en-CA"
-              )}
-              description="Latest Event Time"
-              titleColor="subdued"
-            />
-          </EuiFlexItem>
-        ) : (
-          <EuiText>No batchSource specified on this feature view.</EuiText>
-        )}
-        {data.meta.lastUpdatedTimestamp && (
-          <EuiFlexItem>
-            <EuiStat
-              title={data.meta.lastUpdatedTimestamp.toLocaleDateString("en-CA")}
-              description="Last Updated"
-            />
-          </EuiFlexItem>
-        )}
       </EuiFlexGroup>
       <EuiSpacer size="l" />
       <EuiFlexGroup>
@@ -96,7 +75,7 @@ const RegularFeatureViewOverviewTab = ({
                 features={data.spec.features}
               />
             ) : (
-              <EuiText>No Tags specified on this feature view.</EuiText>
+              <EuiText>No features specified on this feature view.</EuiText>
             )}
           </EuiPanel>
         </EuiFlexItem>
@@ -156,6 +135,8 @@ const RegularFeatureViewOverviewTab = ({
                     encodeSearchQueryString(`${key}:${value}`)
                   );
                 }}
+                owner={data.spec.owner}
+                description={data.spec.description}
               />
             ) : (
               <EuiText>No Tags specified on this feature view.</EuiText>

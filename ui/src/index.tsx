@@ -75,6 +75,13 @@ ReactDOM.render(
       reactQueryClient={queryClient}
       feastUIConfigs={{
         tabsRegistry: tabsRegistry,
+        projectListPromise: fetch("http://0.0.0.0:8888/projects-list", {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }).then((res) => {
+          return res.json();
+        })
       }}
     />
   </React.StrictMode>,

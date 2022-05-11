@@ -57,7 +57,7 @@ const parseEntityRelationships = (objects: FeastRegistryType) => {
   });
 
   objects.onDemandFeatureViews?.forEach((fv) => {
-   Object.values(fv.spec.inputs).forEach((input: { [key: string]: any }) => {
+   Object.values(fv.spec.sources).forEach((input: { [key: string]: any }) => {
      if (input.requestDataSource) {
        links.push({
          source: {
