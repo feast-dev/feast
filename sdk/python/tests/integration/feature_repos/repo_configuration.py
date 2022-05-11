@@ -101,12 +101,32 @@ full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
         module = importlib.import_module(full_repo_configs_module)
-        AVAILABLE_ONLINE_STORES = getattr(module, "AVAILABLE_ONLINE_STORES")
-        AVAILABLE_OFFLINE_STORES = getattr(module, "AVAILABLE_OFFLINE_STORES")
-    except Exception as e:
+    except ImportError as e:
         raise FeastModuleImportError(
             "FULL_REPO_CONFIGS", full_repo_configs_module
         ) from e
+
+    try:
+        AVAILABLE_ONLINE_STORES = getattr(module, "AVAILABLE_ONLINE_STORES")
+        AVAILABLE_OFFLINE_STORES = getattr(module, "AVAILABLE_OFFLINE_STORES")
+    except AttributeError:
+        try:
+            FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = getattr(module, "FULL_REPO_CONFIGS")
+        except AttributeError as e:
+            raise FeastModuleImportError(
+                "FULL_REPO_CONFIGS", full_repo_configs_module
+            ) from e
+
+        AVAILABLE_OFFLINE_STORES = [
+            (config.provider, config.offline_store_creator) for config in FULL_REPO_CONFIGS
+        ]
+        AVAILABLE_OFFLINE_STORES = list(set(AVAILABLE_OFFLINE_STORES))  # unique only
+
+        AVAILABLE_ONLINE_STORES = {
+            c.online_store["type"] if isinstance(c.online_store, dict) else c.online_store:
+                (c.online_store, c.online_store_creator)
+            for c in FULL_REPO_CONFIGS
+        }
 
 
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
