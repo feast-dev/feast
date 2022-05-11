@@ -6,8 +6,11 @@ from pathlib import Path
 import pandas as pd
 from pytz import utc
 
-import feast.driver_test_data as driver_data
-from feast import FeatureStore
+from feast.driver_test_data import (
+    create_driver_hourly_stats_df,
+    create_global_daily_stats_df,
+)
+from feast.feature_store import FeatureStore
 from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
@@ -65,6 +68,37 @@ def _assert_online_features(
     assert "global_daily_stats__avg_ride_length" in result
 
 
+def _test_materialize_and_online_retrieval(
+    runner: CliRunner,
+    store: FeatureStore,
+    start_date: datetime,
+    end_date: datetime,
+    driver_df: pd.DataFrame,
+):
+    assert store.repo_path is not None
+
+    # Test `feast materialize` and online retrieval.
+    r = runner.run(
+        [
+            "materialize",
+            start_date.isoformat(),
+            (end_date - timedelta(days=7)).isoformat(),
+        ],
+        cwd=Path(store.repo_path),
+    )
+
+    assert r.returncode == 0
+    _assert_online_features(store, driver_df, end_date - timedelta(days=7))
+
+    # Test `feast materialize-incremental` and online retrieval.
+    r = runner.run(
+        ["materialize-incremental", end_date.isoformat()], cwd=Path(store.repo_path),
+    )
+
+    assert r.returncode == 0
+    _assert_online_features(store, driver_df, end_date)
+
+
 def test_e2e_local() -> None:
     """
     A more comprehensive than "basic" test, using local provider.
@@ -74,59 +108,40 @@ def test_e2e_local() -> None:
     3. Ingest some data to online store from parquet
     4. Read from the online store to make sure it made it there.
     """
-
     runner = CliRunner()
     with tempfile.TemporaryDirectory() as data_dir:
-
-        # Generate some test data in parquet format.
+        # Generate test data.
         end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = driver_data.create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
         driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
-        global_df = driver_data.create_global_daily_stats_df(start_date, end_date)
+        global_df = create_global_daily_stats_df(start_date, end_date)
         global_stats_path = os.path.join(data_dir, "global_stats.parquet")
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
-        # Note that runner takes care of running apply/teardown for us here.
-        # We patch python code in example_feature_repo_2.py to set the path to Parquet files.
         with runner.local_repo(
             get_example_repo("example_feature_repo_2.py")
             .replace("%PARQUET_PATH%", driver_stats_path)
             .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
             "file",
         ) as store:
-
-            assert store.repo_path is not None
-
-            # feast materialize
-            r = runner.run(
-                [
-                    "materialize",
-                    start_date.isoformat(),
-                    (end_date - timedelta(days=7)).isoformat(),
-                ],
-                cwd=Path(store.repo_path),
+            _test_materialize_and_online_retrieval(
+                runner, store, start_date, end_date, driver_df
             )
 
-            assert r.returncode == 0
-
-            _assert_online_features(store, driver_df, end_date - timedelta(days=7))
-
-            # feast materialize-incremental
-            r = runner.run(
-                ["materialize-incremental", end_date.isoformat()],
-                cwd=Path(store.repo_path),
+        with runner.local_repo(
+            get_example_repo("example_feature_repo_version_0_19.py")
+            .replace("%PARQUET_PATH%", driver_stats_path)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            "file",
+        ) as store:
+            _test_materialize_and_online_retrieval(
+                runner, store, start_date, end_date, driver_df
             )
-
-            assert r.returncode == 0
-
-            _assert_online_features(store, driver_df, end_date)
 
         # Test a failure case when the parquet file doesn't include a join key
         with runner.local_repo(
@@ -135,10 +150,8 @@ def test_e2e_local() -> None:
             ),
             "file",
         ) as store:
-
             assert store.repo_path is not None
 
-            # feast materialize
             returncode, output = runner.run_with_output(
                 [
                     "materialize",

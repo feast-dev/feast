@@ -29,6 +29,6 @@ driver_hourly_stats_view = FeatureView(
         Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )

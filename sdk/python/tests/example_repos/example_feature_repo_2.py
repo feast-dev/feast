@@ -9,7 +9,7 @@ driver_hourly_stats = FileSource(
     created_timestamp_column="created",
 )
 
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
 
 
 driver_hourly_stats_view = FeatureView(
@@ -22,7 +22,7 @@ driver_hourly_stats_view = FeatureView(
         Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )
 
@@ -43,6 +43,6 @@ global_stats_feature_view = FeatureView(
         Field(name="avg_ride_length", dtype=Float32),
     ],
     online=True,
-    batch_source=global_daily_stats,
+    source=global_daily_stats,
     tags={},
 )
