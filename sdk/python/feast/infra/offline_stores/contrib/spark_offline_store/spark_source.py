@@ -57,7 +57,7 @@ class SparkSource(DataSource):
             warnings.warn(
                 (
                     "The argument 'date_partition_column' is not supported for Spark sources."
-                    "It will be removed in Feast 0.21+"
+                    "It will be removed in Feast 0.23+"
                 ),
                 DeprecationWarning,
             )

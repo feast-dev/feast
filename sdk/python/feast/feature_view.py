@@ -180,7 +180,7 @@ class FeatureView(BaseFeatureView):
             warnings.warn(
                 (
                     "The option to pass a Duration object to the ttl parameter is being deprecated. "
-                    "Please pass a timedelta object instead. Feast 0.21 and onwards will not support "
+                    "Please pass a timedelta object instead. Feast 0.23 and onwards will not support "
                     "Duration objects."
                 ),
                 DeprecationWarning,
@@ -195,7 +195,7 @@ class FeatureView(BaseFeatureView):
                 (
                     "The `features` parameter is being deprecated in favor of the `schema` parameter. "
                     "Please switch from using `features` to `schema`. This will also requiring switching "
-                    "feature definitions from using `Feature` to `Field`. Feast 0.21 and onwards will not "
+                    "feature definitions from using `Feature` to `Field`. Feast 0.23 and onwards will not "
                     "support the `features` parameter."
                 ),
                 DeprecationWarning,

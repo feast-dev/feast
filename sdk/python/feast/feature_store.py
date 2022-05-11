@@ -2197,7 +2197,7 @@ def _validate_data_sources(data_sources: List[DataSource]):
                     f"More than one data source with name {case_insensitive_ds_name} found. "
                     f"Please ensure that all data source names are case-insensitively unique. "
                     f"It may be necessary to ignore certain files in your feature repository by using a .feastignore "
-                    f"file. Starting in Feast 0.21, unique names (perhaps inferred from the table name) will be "
+                    f"file. Starting in Feast 0.23, unique names (perhaps inferred from the table name) will be "
                     f"required in data sources to encourage data source discovery"
                 )
         else:
