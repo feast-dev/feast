@@ -16,7 +16,7 @@ import itertools
 import os
 import warnings
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -1080,7 +1080,14 @@ class FeatureStore:
                         f"No start time found for feature view {feature_view.name}. materialize_incremental() requires"
                         f" either a ttl to be set or for materialize() to have been run at least once."
                     )
-                start_date = datetime.utcnow() - feature_view.ttl
+                elif feature_view.ttl.total_seconds() > 0:
+                    start_date = datetime.utcnow() - feature_view.ttl
+                else:
+                    print(
+                        f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
+                        "the start date will be set to 1 year before the current time."
+                    )
+                    start_date = datetime.utcnow() - timedelta(weeks=52)
             provider = self._get_provider()
             print(
                 f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"

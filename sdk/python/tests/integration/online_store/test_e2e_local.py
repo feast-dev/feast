@@ -101,12 +101,12 @@ def _test_materialize_and_online_retrieval(
 
 def test_e2e_local() -> None:
     """
-    A more comprehensive than "basic" test, using local provider.
+    Tests the end-to-end workflow of apply, materialize, and online retrieval.
 
-    1. Create a repo.
-    2. Apply
-    3. Ingest some data to online store from parquet
-    4. Read from the online store to make sure it made it there.
+    This test runs against several different types of repos:
+    1. A repo with a normal FV and an entity-less FV.
+    2. A repo using the SDK from version 0.19.0.
+    3. A repo with a FV with a ttl of 0.
     """
     runner = CliRunner()
     with tempfile.TemporaryDirectory() as data_dir:
@@ -135,6 +135,16 @@ def test_e2e_local() -> None:
 
         with runner.local_repo(
             get_example_repo("example_feature_repo_version_0_19.py")
+            .replace("%PARQUET_PATH%", driver_stats_path)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            "file",
+        ) as store:
+            _test_materialize_and_online_retrieval(
+                runner, store, start_date, end_date, driver_df
+            )
+
+        with runner.local_repo(
+            get_example_repo("example_feature_repo_with_ttl_0.py")
             .replace("%PARQUET_PATH%", driver_stats_path)
             .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
             "file",
