@@ -58,7 +58,7 @@ def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> Expectatio
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 def test_historical_retrieval_with_validation(environment, universal_data_sources):
     store = environment.feature_store
     (entities, datasets, data_sources) = universal_data_sources
@@ -88,7 +88,6 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 def test_historical_retrieval_fails_on_validation(environment, universal_data_sources):
     store = environment.feature_store
 

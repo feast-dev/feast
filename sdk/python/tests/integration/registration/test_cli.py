@@ -32,7 +32,7 @@ from tests.utils.online_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 def test_universal_cli(environment: Environment):
     project = f"test_universal_cli_{str(uuid.uuid4()).replace('-', '')[:8]}"
     runner = CliRunner()

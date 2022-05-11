@@ -280,7 +280,7 @@ def get_expected_training_df(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
@@ -411,10 +411,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
 
 @pytest.mark.integration
-@pytest.mark.universal
-@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+@pytest.mark.universal_offline_stores
 def test_historical_features_with_missing_request_data(
-    environment, universal_data_sources, full_feature_names
+    environment, universal_data_sources
 ):
     store = environment.feature_store
 
@@ -437,12 +436,12 @@ def test_historical_features_with_missing_request_data(
                 "global_stats:avg_ride_length",
                 "field_mapping:feature_name",
             ],
-            full_feature_names=full_feature_names,
+            full_feature_names=True,
         )
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features_with_entities_from_query(
     environment, universal_data_sources, full_feature_names
@@ -542,7 +541,7 @@ def test_historical_features_with_entities_from_query(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features_persisting(
     environment, universal_data_sources, full_feature_names
@@ -621,7 +620,7 @@ def test_historical_features_persisting(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 def test_historical_features_from_bigquery_sources_containing_backfills(environment):
     store = environment.feature_store
 

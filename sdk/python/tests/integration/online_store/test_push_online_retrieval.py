@@ -14,7 +14,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_online_stores
 def test_push_features_and_read(environment, universal_data_sources):
     store = environment.feature_store
 

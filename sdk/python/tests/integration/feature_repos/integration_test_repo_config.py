@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import dataclass
 from typing import Dict, Optional, Type, Union
 
@@ -50,5 +51,23 @@ class IntegrationTestRepoConfig:
                 f"{self.provider.upper()}",
                 f"{self.offline_store_creator.__name__.split('.')[-1].replace('DataSourceCreator', '')}",
                 online_store_type,
+                f"python_fs={self.python_feature_server}",
+                f"go_fs={self.go_feature_retrieval}",
             ]
+        )
+
+    def __hash__(self):
+        return int(hashlib.sha1(repr(self).encode()).hexdigest(), 16)
+
+    def __eq__(self, other):
+        if not isinstance(other, IntegrationTestRepoConfig):
+            return False
+
+        return (
+            self.provider == other.provider
+            and self.online_store == other.online_store
+            and self.offline_store_creator == other.offline_store_creator
+            and self.online_store_creator == other.online_store_creator
+            and self.go_feature_retrieval == other.go_feature_retrieval
+            and self.python_feature_server == other.python_feature_server
         )

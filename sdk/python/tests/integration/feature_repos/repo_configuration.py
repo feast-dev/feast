@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pandas as pd
 import pytest
@@ -73,114 +73,54 @@ REDIS_CLUSTER_CONFIG = {
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
-AVAILABLE_OFFLINE_STORES: List[Any] = [
-    FileDataSourceCreator,
+AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
+    ("local", FileDataSourceCreator),
 ]
 
-AVAILABLE_ONLINE_STORES: List[Any] = [
-    "sqlite",
-]
+AVAILABLE_ONLINE_STORES: Dict[
+    str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
+] = {
+    "sqlite": ({"type": "sqlite"}, None),
+}
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_OFFLINE_STORES.extend(
         [
-            BigQueryDataSourceCreator,
-            RedshiftDataSourceCreator,
-            SnowflakeDataSourceCreator,
+            ("gcp", BigQueryDataSourceCreator),
+            ("aws", RedshiftDataSourceCreator),
+            ("aws", SnowflakeDataSourceCreator),
         ]
     )
 
-    AVAILABLE_ONLINE_STORES.extend([REDIS_CONFIG, DYNAMO_CONFIG])
+    AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
+    AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
+    AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
 
-# FULL_REPO_CONFIGS contains the repo configurations (e.g. provider, offline store,
-# online store, test data, and more parameters) that most integration tests will test
-# against. By default, FULL_REPO_CONFIGS uses the three providers (local, GCP, and AWS)
-# with their default offline and online stores; it also tests the providers with the
-# Redis online store. It can be overwritten by specifying a Python module through the
-# FULL_REPO_CONFIGS_MODULE_ENV_NAME environment variable. In this case, that Python
-# module will be imported and FULL_REPO_CONFIGS will be extracted from the file.
-DEFAULT_FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = [
-    # Local configurations
-    IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(python_feature_server=True),
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG),
-    # GCP configurations
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store="datastore",
-    ),
-    IntegrationTestRepoConfig(
-        provider="gcp",
-        offline_store_creator=BigQueryDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
-    # AWS configurations
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=DYNAMO_CONFIG,
-        python_feature_server=True,
-    ),
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=RedshiftDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
-    # Snowflake configurations
-    IntegrationTestRepoConfig(
-        provider="aws",  # no list features, no feature server
-        offline_store_creator=SnowflakeDataSourceCreator,
-        online_store=REDIS_CONFIG,
-    ),
-    # Go implementation for online retrieval
-    IntegrationTestRepoConfig(online_store=REDIS_CONFIG, go_feature_retrieval=True,),
-    # TODO(felixwang9817): Enable this test once https://github.com/feast-dev/feast/issues/2544 is resolved.
-    # IntegrationTestRepoConfig(
-    #     online_store=REDIS_CONFIG,
-    #     python_feature_server=True,
-    #     go_feature_retrieval=True,
-    # ),
-]
 
-DEFAULT_FULL_REPO_CONFIGS = [
-    c
-    for c in DEFAULT_FULL_REPO_CONFIGS
-    if c.online_store in AVAILABLE_ONLINE_STORES
-    and c.offline_store_creator in AVAILABLE_OFFLINE_STORES
-]
-
-if os.getenv("FEAST_GO_FEATURE_RETRIEVAL", "False") == "True":
-    DEFAULT_FULL_REPO_CONFIGS = [
-        IntegrationTestRepoConfig(
-            online_store=REDIS_CONFIG, go_feature_retrieval=True,
-        ),
-    ]
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
     try:
         module = importlib.import_module(full_repo_configs_module)
-        FULL_REPO_CONFIGS = getattr(module, "FULL_REPO_CONFIGS")
+        AVAILABLE_ONLINE_STORES = getattr(module, "AVAILABLE_ONLINE_STORES")
+        AVAILABLE_OFFLINE_STORES = getattr(module, "AVAILABLE_OFFLINE_STORES")
     except Exception as e:
         raise FeastModuleImportError(
             "FULL_REPO_CONFIGS", full_repo_configs_module
         ) from e
-else:
-    FULL_REPO_CONFIGS = DEFAULT_FULL_REPO_CONFIGS
+
 
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
-    replacements = {"datastore": DatastoreOnlineStoreCreator}
-    replacement_dicts = [
-        (REDIS_CONFIG, RedisOnlineStoreCreator),
-        (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
-    ]
-    for c in FULL_REPO_CONFIGS:
-        if isinstance(c.online_store, dict):
-            for _replacement in replacement_dicts:
-                if c.online_store == _replacement[0]:
-                    c.online_store_creator = _replacement[1]
-        elif c.online_store in replacements:
-            c.online_store_creator = replacements[c.online_store]
+    replacements: Dict[
+        str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
+    ] = {
+        "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
+        "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
+        "datastore": ("datastore", DatastoreOnlineStoreCreator),
+    }
+
+    for key, replacement in replacements.items():
+        if key in AVAILABLE_ONLINE_STORES:
+            AVAILABLE_ONLINE_STORES[key] = replacement
 
 
 @dataclass
@@ -364,9 +304,14 @@ class Environment:
     worker_id: str
     online_store_creator: Optional[OnlineStoreCreator] = None
 
+    next_id = 0
+
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
         self.start_date: datetime = self.end_date - timedelta(days=3)
+
+        Environment.next_id += 1
+        self.id = Environment.next_id
 
     def get_feature_server_endpoint(self) -> str:
         if self.python_feature_server and self.test_repo_config.provider == "local":
@@ -380,7 +325,7 @@ class Environment:
             worker_id_num = int(parsed_worker_id[0])
         else:
             worker_id_num = 0
-        return 6566 + worker_id_num
+        return 6000 + 100 * worker_id_num + self.id
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:

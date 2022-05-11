@@ -15,7 +15,7 @@ import itertools
 import logging
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
-from queue import Queue
+from queue import Empty, Queue
 from threading import Lock, Thread
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
@@ -292,22 +292,24 @@ def _delete_all_values(client, key):
 
     def worker(shared_counter):
         while True:
-            client.delete_multi(deletion_queue.get())
+            try:
+                job = deletion_queue.get(block=False)
+            except Empty:
+                return
+
+            client.delete_multi(job)
             shared_counter.increment()
             LOGGER.debug(
                 f"batch deletions completed: {shared_counter.value} ({shared_counter.value * BATCH_SIZE} total entries) & outstanding queue size: {deletion_queue.qsize()}"
             )
             deletion_queue.task_done()
 
-    for _ in range(NUM_THREADS):
-        Thread(target=worker, args=(status_info_counter,), daemon=True).start()
-
     query = client.query(kind="Row", ancestor=key)
-    while True:
-        entities = list(query.fetch(limit=BATCH_SIZE))
-        if not entities:
-            break
-        deletion_queue.put([entity.key for entity in entities])
+    for page in query.fetch().pages:
+        deletion_queue.put([entity.key for entity in page])
+
+    for _ in range(NUM_THREADS):
+        Thread(target=worker, args=(status_info_counter,)).start()
 
     deletion_queue.join()
 
