@@ -72,6 +72,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
-  * [x] Feast Web UI (alpha)
+  * [x] Feast Web UI (Alpha release. See [documentation](https://docs.feast.dev/reference/alpha-web-ui.md))
   * [ ] REST API for browsing feature registry
   * [ ] Feature versioning

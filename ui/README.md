@@ -18,7 +18,10 @@ data to the UI.
 
 ## Usage
 
-There are two modes of usage: importing the UI as a module, or running the entire build as a React app.
+There are three modes of usage: 
+- via the 'feast ui' CLI to view the current feature repository
+- importing the UI as a module
+- running the entire build as a React app.
 
 ### Importing the UI as a module
 
