@@ -111,20 +111,24 @@ if full_repo_configs_module is not None:
         AVAILABLE_OFFLINE_STORES = getattr(module, "AVAILABLE_OFFLINE_STORES")
     except AttributeError:
         try:
-            FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = getattr(module, "FULL_REPO_CONFIGS")
+            FULL_REPO_CONFIGS: List[IntegrationTestRepoConfig] = getattr(
+                module, "FULL_REPO_CONFIGS"
+            )
         except AttributeError as e:
             raise FeastModuleImportError(
                 "FULL_REPO_CONFIGS", full_repo_configs_module
             ) from e
 
         AVAILABLE_OFFLINE_STORES = [
-            (config.provider, config.offline_store_creator) for config in FULL_REPO_CONFIGS
+            (config.provider, config.offline_store_creator)
+            for config in FULL_REPO_CONFIGS
         ]
         AVAILABLE_OFFLINE_STORES = list(set(AVAILABLE_OFFLINE_STORES))  # unique only
 
         AVAILABLE_ONLINE_STORES = {
-            c.online_store["type"] if isinstance(c.online_store, dict) else c.online_store:
-                (c.online_store, c.online_store_creator)
+            c.online_store["type"]
+            if isinstance(c.online_store, dict)
+            else c.online_store: (c.online_store, c.online_store_creator)
             for c in FULL_REPO_CONFIGS
         }
 
