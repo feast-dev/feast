@@ -14,6 +14,8 @@ The Feast Web UI allows users to explore their feature repository through a Web 
 
 There are several ways to use the Feast Web UI.
 
+### Feast CLI
+
 The easiest way to get started is to run the `feast ui` command within a feature repository:
 
 Output of `feast ui --help`:
