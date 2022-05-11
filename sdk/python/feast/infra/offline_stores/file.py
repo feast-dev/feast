@@ -187,7 +187,6 @@ class FileOfflineStore(OfflineStore):
                 entity_df_event_timestamp_col
             )
 
-            join_keys = []
             all_join_keys = []
 
             # Load feature view data from sources and join them incrementally

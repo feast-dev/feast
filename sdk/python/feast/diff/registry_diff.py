@@ -295,6 +295,11 @@ def apply_diff_to_registry(
                 registry.delete_feature_view(
                     feature_view_obj.name, project, commit=False,
                 )
+            elif feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
+                ds_obj = cast(DataSource, feast_object_diff.current_feast_object)
+                registry.delete_data_source(
+                    ds_obj.name, project, commit=False,
+                )
 
         if feast_object_diff.transition_type in [
             TransitionType.CREATE,
