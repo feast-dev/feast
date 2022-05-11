@@ -6,7 +6,7 @@ import {
   EuiPageContentBody,
 } from "@elastic/eui";
 
-import DataSourceIcon from "../../data-source-icon.svg";
+import { DataSourceIcon32 } from "../../graphics/DataSourceIcon";
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import DataSourceRawData from "./DataSourceRawData";
@@ -16,8 +16,8 @@ import useLoadDataSource from "./useLoadDataSource";
 
 import {
   useDataSourceCustomTabs,
-  dataSourceCustomTabRoutes,
-} from "../CustomTabUtils";
+  useDataSourceCustomTabRoutes,
+} from "../../custom-tabs/TabsRegistryContext";
 
 const DataSourceInstance = () => {
   const navigate = useNavigate();
@@ -51,11 +51,13 @@ const DataSourceInstance = () => {
   const { customNavigationTabs } = useDataSourceCustomTabs(navigate);
   tabs = tabs.concat(customNavigationTabs);
 
+  const CustomTabRoutes = useDataSourceCustomTabRoutes();
+
   return (
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={DataSourceIcon}
+        iconType={DataSourceIcon32}
         pageTitle={`Data Source: ${dataSourceName}`}
         tabs={tabs}
       />
@@ -71,7 +73,7 @@ const DataSourceInstance = () => {
             <Route path="/" element={<DataSourceOverviewTab />} />
             <Route path="/raw-data" element={<DataSourceRawData />} />
             <Route path="/dbt" element={<DataSourceDbt />} />
-            {dataSourceCustomTabRoutes()}
+            {CustomTabRoutes}
           </Routes>
         </EuiPageContentBody>
       </EuiPageContent>

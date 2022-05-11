@@ -7,7 +7,7 @@ import {
   EuiLoadingSpinner,
 } from "@elastic/eui";
 
-import DatasetIcon from "../../dataset-icon.svg";
+import { DatasetIcon32 } from "../../graphics/DatasetIcon";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -39,7 +39,7 @@ const Index = () => {
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={DatasetIcon}
+        iconType={DatasetIcon32}
         pageTitle="Datasets"
       />
       <EuiPageContent

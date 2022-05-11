@@ -80,38 +80,46 @@ online_store:
 ```python
 # This is an example feature definition file
 
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, FileSource, ValueType
+from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
     path="/content/feature_repo/data/driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+# Entity has a name used for later reference (in a feature view, eg)
+# and join_key to identify physical field name used in storages
+driver = Entity(name="driver", value_type=ValueType.INT64, join_keys=["driver_id"], description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
-    ttl=Duration(seconds=86400 * 1),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    entities=["driver"],  # reference entity by name
+    ttl=timedelta(seconds=86400 * 1),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
+)
+
+driver_stats_fs = FeatureService(
+    name="driver_activity",
+    features=[driver_hourly_stats_view]
 )
 ```
 {% endtab %}
@@ -147,38 +155,46 @@ feast apply
 ```python
 # This is an example feature definition file
 
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, FileSource, ValueType
+from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
     path="/content/feature_repo/data/driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+# Entity has a name used for later reference (in a feature view, eg)
+# and join_key to identify physical field name used in storages
+driver = Entity(name="driver", value_type=ValueType.INT64, join_keys=["driver_id"], description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
-    ttl=Duration(seconds=86400 * 1),
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    entities=["driver"],  # reference entity by name
+    ttl=timedelta(seconds=86400 * 1),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
+)
+
+driver_stats_fs = FeatureService(
+    name="driver_activity",
+    features=[driver_hourly_stats_view]
 )
 ```
 {% endtab %}
@@ -213,8 +229,13 @@ from feast import FeatureStore
 # The entity dataframe is the dataframe we want to enrich with feature values
 entity_df = pd.DataFrame.from_dict(
     {
+        # entity's join key -> entity values
         "driver_id": [1001, 1002, 1003],
-        "label_driver_reported_satisfaction": [1, 5, 3], 
+
+        # label name -> label values
+        "label_driver_reported_satisfaction": [1, 5, 3],
+
+        # "event_timestamp" (reserved key) -> timestamps
         "event_timestamp": [
             datetime.now() - timedelta(minutes=11),
             datetime.now() - timedelta(minutes=36),
@@ -252,14 +273,14 @@ print(training_df.head())
 <class 'pandas.core.frame.DataFrame'>
 Int64Index: 3 entries, 0 to 2
 Data columns (total 6 columns):
- #   Column                              Non-Null Count  Dtype              
----  ------                              --------------  -----              
+ #   Column                              Non-Null Count  Dtype
+---  ------                              --------------  -----
  0   event_timestamp                     3 non-null      datetime64[ns, UTC]
- 1   driver_id                           3 non-null      int64              
- 2   label_driver_reported_satisfaction  3 non-null      int64              
- 3   conv_rate                           3 non-null      float32            
- 4   acc_rate                            3 non-null      float32            
- 5   avg_daily_trips                     3 non-null      int32              
+ 1   driver_id                           3 non-null      int64
+ 2   label_driver_reported_satisfaction  3 non-null      int64
+ 3   conv_rate                           3 non-null      float32
+ 4   acc_rate                            3 non-null      float32
+ 5   avg_daily_trips                     3 non-null      int32
 dtypes: datetime64[ns, UTC](1), float32(2), int32(1), int64(2)
 memory usage: 132.0 bytes
 None
@@ -292,7 +313,7 @@ feast materialize-incremental $CURRENT_TIME
 {% tabs %}
 {% tab title="Output" %}
 ```bash
-Materializing 1 feature views to 2021-08-23 16:25:46+00:00 into the sqlite online 
+Materializing 1 feature views to 2021-08-23 16:25:46+00:00 into the sqlite online
 store.
 
 driver_hourly_stats from 2021-08-22 16:25:47+00:00 to 2021-08-23 16:25:46+00:00:
@@ -320,6 +341,7 @@ feature_vector = store.get_online_features(
         "driver_hourly_stats:avg_daily_trips",
     ],
     entity_rows=[
+        # {join_key: entity_value}
         {"driver_id": 1004},
         {"driver_id": 1005},
     ],
@@ -342,6 +364,41 @@ pprint(feature_vector)
 ```
 {% endtab %}
 {% endtabs %}
+
+## Step 7: Using a featureservice to fetch online features instead.
+
+You can also use feature services to manage multiple features, and decouple feature view definitions and the features needed by end applications. The feature store can also be used to fetch either online or historical features using the same api below. More information can be found [here](https://docs.feast.dev/getting-started/concepts/feature-service).
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+from feast import FeatureStore
+feature_store = FeatureStore('.')  # Initialize the feature store
+
+feature_service = feature_store.get_feature_service("driver_activity")
+features = feature_store.get_online_features(
+    features=feature_service,
+    entity_rows=[
+        # {join_key: entity_value}
+        {"driver_id": 1004},
+        {"driver_id": 1005},
+    ],
+).to_dict()
+```
+
+{% tabs %}
+{% tab title="Output" %}
+```bash
+{
+ 'acc_rate': [0.5732735991477966, 0.7828438878059387],
+ 'avg_daily_trips': [33, 984],
+ 'conv_rate': [0.15498852729797363, 0.6263588070869446],
+ 'driver_id': [1004, 1005]
+}
+```
+{% endtab %}
+{% endtabs %}
+
 
 ## Next steps
 

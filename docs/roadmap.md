@@ -14,9 +14,9 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Parquet file source](https://docs.feast.dev/reference/data-sources/file)
   * [x] [Synapse source (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
-  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
-  * [x] Kafka source (with [push support into the online store](https://docs.feast.dev/reference/alpha-stream-ingestion))
+  * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/data-sources/postgres)
+  * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/data-sources/spark)
+  * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
   * [ ] HTTP source
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
@@ -24,9 +24,9 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
   * [x] [Synapse (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
-  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
-  * [x] [Trino (community plugin)](https://github.com/Shopify/feast-trino)
-  * [x] [Spark (community plugin)](https://github.com/Adyen/feast-spark-offline-store)
+  * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/offline-stores/postgres)
+  * [x] [Trino (contrib plugin)](https://github.com/Shopify/feast-trino)
+  * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/offline-stores/spark)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
 * **Online Stores**
@@ -35,18 +35,18 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
-  * [x] [Postgres (community plugin)](https://github.com/nossrannug/feast-postgres)
+  * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
   * [ ] Bigtable (in progress)
   * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
-  * [x] [Push based streaming data ingestion](reference/alpha-stream-ingestion.md)
+  * [x] [Push based streaming data ingestion](https://docs.feast.dev/reference/data-sources/push.md)
   * [ ] Streaming ingestion on AWS
   * [ ] Streaming ingestion on GCP
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
-  * [ ] Batch transformation (SQL. In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
+  * [ ] Batch transformation (In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
   * [ ] Streaming transformation
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
@@ -72,6 +72,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
-  * [ ] Feast Web UI (in progress)
+  * [x] Feast Web UI (alpha)
   * [ ] REST API for browsing feature registry
   * [ ] Feature versioning

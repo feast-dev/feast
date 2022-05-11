@@ -1,7 +1,7 @@
 import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 import { FeastSavedDatasetType } from "../../parsers/feastSavedDataset";
 
 interface DatasetsListingTableProps {

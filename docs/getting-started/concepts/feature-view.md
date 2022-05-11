@@ -7,15 +7,18 @@ A feature view is an object that represents a logical group of time-series featu
 {% tabs %}
 {% tab title="driver_trips_feature_view.py" %}
 ```python
+from feast import BigQuerySource, FeatureView, Field
+from feast.types import Float32, Int64
+
 driver_stats_fv = FeatureView(
     name="driver_activity",
     entities=["driver"],
-    features=[
-        Feature(name="trips_today", dtype=ValueType.INT64),
-        Feature(name="rating", dtype=ValueType.FLOAT),
+    schema=[
+        Field(name="trips_today", dtype=Int64),
+        Field(name="rating", dtype=Float32),
     ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.driver_activity"
+    source=BigQuerySource(
+        table="feast-oss.demo_data.driver_activity"
     )
 )
 ```
@@ -25,7 +28,7 @@ driver_stats_fv = FeatureView(
 Feature views are used during
 
 * The generation of training datasets by querying the data source of feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
-* Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/alpha-stream-ingestion.md).
+* Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/data-sources/push.md).
 * Retrieval of features from the online store. Feature views provide the schema definition to Feast in order to look up features from the online store.
 
 {% hint style="info" %}
@@ -34,19 +37,22 @@ Feast does not generate feature values. It acts as the ingestion and serving sys
 
 ## Feature views without entities
 
-If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities.
+If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities (only event timestamps are needed for this feature view).
 
 {% tabs %}
 {% tab title="global_stats.py" %}
 ```python
+from feast import BigQuerySource, FeatureView, Field
+from feast.types import Int64
+
 global_stats_fv = FeatureView(
     name="global_stats",
     entities=[],
-    features=[
-        Feature(name="total_trips_today_by_all_drivers", dtype=ValueType.INT64),
+    schema=[
+        Field(name="total_trips_today_by_all_drivers", dtype=Int64),
     ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.global_stats"
+    source=BigQuerySource(
+        table="feast-oss.demo_data.global_stats"
     )
 )
 ```
@@ -70,16 +76,19 @@ It is suggested that you dynamically specify the new FeatureView name using `.wi
 {% tabs %}
 {% tab title="location_stats_feature_view.py" %}
 ```python
-location = Entity(name="location", join_key="location_id", value_type=ValueType.INT64)
+from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
+from feast.types import Int32
+
+location = Entity(name="location", join_keys=["location_id"], value_type=ValueType.INT64)
 
 location_stats_fv= FeatureView(
     name="location_stats",
     entities=["location"],
-    features=[
-        Feature(name="temperature", dtype=ValueType.INT32)
+    schema=[
+        Field(name="temperature", dtype=Int32)
     ],
-    batch_source=BigQuerySource(
-        table_ref="feast-oss.demo_data.location_stats"
+    source=BigQuerySource(
+        table="feast-oss.demo_data.location_stats"
     ),
 )
 ```
@@ -115,9 +124,12 @@ A feature is an individual measurable property. It is typically a property obser
 Features are defined as part of feature views. Since Feast does not transform data, a feature is essentially a schema that only contains a name and a type:
 
 ```python
-trips_today = Feature(
+from feast import Field
+from feast.types import Float32
+
+trips_today = Field(
     name="trips_today",
-    dtype=ValueType.FLOAT
+    dtype=Float32
 )
 ```
 
@@ -130,25 +142,28 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 On demand feature views allows users to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths:
 
 ```python
-# Define a request data source which encodes features / information only 
+from feast import Field, RequestSource
+from feast.types import Float64
+
+# Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
-input_request = RequestDataSource(
+input_request = RequestSource(
     name="vals_to_add",
-    schema={
-        "val_to_add": ValueType.INT64,
-        "val_to_add_2": ValueType.INT64
-    }
+    schema=[
+        Field(name="val_to_add", dtype=PrimitiveFeastType.INT64),
+        Field(name="val_to_add_2": dtype=PrimitiveFeastType.INT64),
+    ]
 )
 
 # Use the input data and feature view features to create new features
 @on_demand_feature_view(
-   inputs={
-       'driver_hourly_stats': driver_hourly_stats_view,
-       'vals_to_add': input_request
-   },
-   features=[
-     Feature(name='conv_rate_plus_val1', dtype=ValueType.DOUBLE),
-     Feature(name='conv_rate_plus_val2', dtype=ValueType.DOUBLE)
+   sources=[
+       driver_hourly_stats_view,
+       input_request
+   ],
+   schema=[
+     Field(name='conv_rate_plus_val1', dtype=Float64),
+     Field(name='conv_rate_plus_val2', dtype=Float64)
    ]
 )
 def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:

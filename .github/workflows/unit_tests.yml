@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest]
     env:
       OS: ${{ matrix.os }}
@@ -20,6 +20,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.7
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1"
@@ -61,11 +66,23 @@ jobs:
 
   unit-test-go:
     runs-on: ubuntu-latest
-    container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7"
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1"
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.7
       - name: Install dependencies
-        run: make install-go-ci-dependencies
+        run: make install-go-proto-dependencies
       - name: Compile protos
         run: make compile-protos-go
       - name: Test

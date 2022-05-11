@@ -22,6 +22,7 @@ import click
 import pkg_resources
 import yaml
 from colorama import Fore, Style
+from dateutil import parser
 
 from feast import flags, flags_helper, utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
@@ -41,7 +42,6 @@ from feast.repo_operations import (
 )
 
 _logger = logging.getLogger(__name__)
-DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
 
 
 class NoOptionDefaultFormat(click.Command):
@@ -113,7 +113,7 @@ def version():
 @click.pass_context
 def endpoint(ctx: click.Context):
     """
-    Display feature server endpoints.
+    Display feature server endpoints
     """
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
@@ -345,7 +345,7 @@ def feature_view_list(ctx: click.Context):
         if isinstance(feature_view, FeatureView):
             entities.update(feature_view.entities)
         elif isinstance(feature_view, OnDemandFeatureView):
-            for backing_fv in feature_view.input_feature_view_projections.values():
+            for backing_fv in feature_view.source_feature_view_projections.values():
                 entities.update(store.get_feature_view(backing_fv.name).entities)
         table.append(
             [
@@ -501,8 +501,8 @@ def materialize_command(
     store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
-        start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
-        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
+        start_date=utils.make_tzaware(parser.parse(start_ts)),
+        end_date=utils.make_tzaware(parser.parse(end_ts)),
     )
 
 
@@ -539,7 +539,8 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     "--template",
     "-t",
     type=click.Choice(
-        ["local", "gcp", "aws", "snowflake", "spark"], case_sensitive=False
+        ["local", "gcp", "aws", "snowflake", "spark", "postgres", "hbase"],
+        case_sensitive=False,
     ),
     help="Specify a template for the created project",
     default="local",
@@ -593,7 +594,7 @@ def serve_command(ctx: click.Context, host: str, port: int, no_access_log: bool)
 )
 @click.pass_context
 def serve_transformations_command(ctx: click.Context, port: int):
-    """[Experimental] Start a the feature consumption server locally on a given port."""
+    """[Experimental] Start a feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))

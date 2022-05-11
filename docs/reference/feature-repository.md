@@ -89,11 +89,12 @@ A feature repository can also contain one or more Python files that contain feat
 ```python
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
+from feast import BigQuerySource, Entity, Feature, FeatureView, Field, ValueType
+from feast.types import Float32, String
 
 driver_locations_source = BigQuerySource(
-    table_ref="rh_prod.ride_hailing_co.drivers",
-    event_timestamp_column="event_timestamp",
+    table="rh_prod.ride_hailing_co.drivers",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
@@ -107,19 +108,19 @@ driver_locations = FeatureView(
     name="driver_locations",
     entities=["driver"],
     ttl=timedelta(days=1),
-    features=[
-        Feature(name="lat", dtype=ValueType.FLOAT),
-        Feature(name="lon", dtype=ValueType.STRING),
+    schema=[
+        Field(name="lat", dtype=Float32),
+        Field(name="lon", dtype=String),
     ],
-    batch_source=driver_locations_source,
+    source=driver_locations_source,
 )
 ```
 {% endcode %}
 
-To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](../concepts/data-model-and-concepts.md#feature-view).
+To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](../getting-started/concepts/feature-view.md).
 
 ### Next steps
 
-* See [Create a feature repository](../getting-started/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature\_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md) or [Feature Views](../concepts/data-model-and-concepts.md#feature-view) for more information on the configuration files that live in a feature registry.
+* See [Create a feature repository](../how-to-guides/feast-snowflake-gcp-aws/README.md) to get started with an example feature repository.
+* See [feature\_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md) or [Feature Views](../getting-started/concepts/feature-view.md) for more information on the configuration files that live in a feature registry.
 

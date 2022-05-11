@@ -18,11 +18,11 @@ def basic_rw_test(
     provider = store._get_provider()
 
     entity_key = EntityKeyProto(
-        join_keys=["driver"], entity_values=[ValueProto(int64_val=1)]
+        join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
     )
 
     def _driver_rw_test(event_ts, created_ts, write, expect_read):
-        """ A helper function to write values and read them back """
+        """A helper function to write values and read them back"""
         write_lat, write_lon = write
         expect_lat, expect_lon = expect_read
         provider.online_write_batch(
@@ -43,12 +43,12 @@ def basic_rw_test(
         )
 
         if feature_service_name:
-            entity_dict = {"driver": 1}
+            entity_dict = {"driver_id": 1}
             feature_service = store.get_feature_service(feature_service_name)
             features = store.get_online_features(
                 features=feature_service, entity_rows=[entity_dict]
             ).to_dict()
-            assert len(features["driver"]) == 1
+            assert len(features["driver_id"]) == 1
             assert features["lon"][0] == expect_lon
             assert abs(features["lat"][0] - expect_lat) < 1e-6
         else:

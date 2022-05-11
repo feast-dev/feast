@@ -53,10 +53,12 @@ def bootstrap():
 
     repo_path = pathlib.Path(__file__).parent.absolute()
     config_file = repo_path / "feature_store.yaml"
+    driver_file = repo_path / "driver_repo.py"
 
     replace_str_in_file(config_file, "%AWS_REGION%", aws_region)
     replace_str_in_file(config_file, "%REDSHIFT_CLUSTER_ID%", cluster_id)
     replace_str_in_file(config_file, "%REDSHIFT_DATABASE%", database)
+    replace_str_in_file(driver_file, "%REDSHIFT_DATABASE%", database)
     replace_str_in_file(config_file, "%REDSHIFT_USER%", user)
     replace_str_in_file(
         config_file, "%REDSHIFT_S3_STAGING_LOCATION%", s3_staging_location

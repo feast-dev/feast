@@ -16,6 +16,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import pyarrow
 import pyarrow as pa
 from pydantic import Field
 from pydantic.typing import Literal
@@ -24,6 +25,7 @@ from pytz import utc
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -33,12 +35,14 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.snowflake_source import (
     SavedDatasetSnowflakeStorage,
+    SnowflakeLoggingDestination,
     SnowflakeSource,
 )
 from feast.infra.utils.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_conn,
     write_pandas,
+    write_parquet,
 )
 from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -54,7 +58,7 @@ except ImportError as e:
 
 
 class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
-    """ Offline store config for Snowflake """
+    """Offline store config for Snowflake"""
 
     type: Literal["snowflake.offline"] = "snowflake.offline"
     """ Offline store type selector"""
@@ -82,7 +86,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     database: Optional[str] = None
     """ Snowflake database name """
 
-    schema_: Optional[str] = Field("PUBLIC", alias="schema")
+    schema_: Optional[str] = Field(None, alias="schema")
     """ Snowflake schema name """
 
     class Config:
@@ -97,7 +101,7 @@ class SnowflakeOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -117,7 +121,7 @@ class SnowflakeOfflineStore(OfflineStore):
         else:
             partition_by_join_key_string = ""
 
-        timestamp_columns = [event_timestamp_column]
+        timestamp_columns = [timestamp_field]
         if created_timestamp_column:
             timestamp_columns.append(created_timestamp_column)
 
@@ -127,6 +131,9 @@ class SnowflakeOfflineStore(OfflineStore):
             + '", "'.join(join_key_columns + feature_name_columns + timestamp_columns)
             + '"'
         )
+
+        if data_source.snowflake_options.warehouse:
+            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
@@ -138,7 +145,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS "_feast_row"
                 FROM {from_expression}
-                WHERE "{event_timestamp_column}" BETWEEN TO_TIMESTAMP_NTZ({start_date.timestamp()}) AND TO_TIMESTAMP_NTZ({end_date.timestamp()})
+                WHERE "{timestamp_field}" BETWEEN TO_TIMESTAMP_NTZ({start_date.timestamp()}) AND TO_TIMESTAMP_NTZ({end_date.timestamp()})
             )
             WHERE "_feast_row" = 1
             """
@@ -158,7 +165,7 @@ class SnowflakeOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
@@ -167,11 +174,12 @@ class SnowflakeOfflineStore(OfflineStore):
 
         field_string = (
             '"'
-            + '", "'.join(
-                join_key_columns + feature_name_columns + [event_timestamp_column]
-            )
+            + '", "'.join(join_key_columns + feature_name_columns + [timestamp_field])
             + '"'
         )
+
+        if data_source.snowflake_options.warehouse:
+            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
@@ -181,7 +189,7 @@ class SnowflakeOfflineStore(OfflineStore):
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE "{event_timestamp_column}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE "{timestamp_field}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
         """
 
         return SnowflakeRetrievalJob(
@@ -270,6 +278,34 @@ class SnowflakeOfflineStore(OfflineStore):
             ),
         )
 
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: Union[pyarrow.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        assert isinstance(logging_config.destination, SnowflakeLoggingDestination)
+
+        snowflake_conn = get_snowflake_conn(config.offline_store)
+
+        if isinstance(data, Path):
+            write_parquet(
+                snowflake_conn,
+                data,
+                source.get_schema(registry),
+                table_name=logging_config.destination.table_name,
+                auto_create_table=True,
+            )
+        else:
+            write_pandas(
+                snowflake_conn,
+                data.to_pandas(),
+                table_name=logging_config.destination.table_name,
+                auto_create_table=True,
+            )
+
 
 class SnowflakeRetrievalJob(RetrievalJob):
     def __init__(
@@ -336,7 +372,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
                 )
 
     def to_snowflake(self, table_name: str) -> None:
-        """ Save dataset as a new Snowflake table """
+        """Save dataset as a new Snowflake table"""
         if self.on_demand_feature_views is not None:
             transformed_df = self.to_df()
 
@@ -506,9 +542,9 @@ WITH "entity_dataframe" AS (
 
  1. We first join the current feature_view to the entity dataframe that has been passed.
  This JOIN has the following logic:
-    - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
+    - For each row of the entity dataframe, only keep the rows where the `timestamp_field`
     is less than the one provided in the entity dataframe
-    - If there a TTL for the current feature_view, also keep the rows where the `event_timestamp_column`
+    - If there a TTL for the current feature_view, also keep the rows where the `timestamp_field`
     is higher the the one provided minus the TTL
     - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
     computed previously
@@ -519,16 +555,16 @@ WITH "entity_dataframe" AS (
 
 "{{ featureview.name }}__subquery" AS (
     SELECT
-        "{{ featureview.event_timestamp_column }}" as "event_timestamp",
+        "{{ featureview.timestamp_field }}" as "event_timestamp",
         {{'"' ~ featureview.created_timestamp_column ~ '" as "created_timestamp",' if featureview.created_timestamp_column else '' }}
         {{featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             "{{ feature }}" as {% if full_feature_names %}"{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE "{{ featureview.event_timestamp_column }}" <= '{{ featureview.max_event_timestamp }}'
+    WHERE "{{ featureview.timestamp_field }}" <= '{{ featureview.max_event_timestamp }}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND "{{ featureview.event_timestamp_column }}" >= '{{ featureview.min_event_timestamp }}'
+    AND "{{ featureview.timestamp_field }}" >= '{{ featureview.min_event_timestamp }}'
     {% endif %}
 ),
 

@@ -1,13 +1,17 @@
 import { EuiEmptyPrompt, EuiLoadingContent } from "@elastic/eui";
-import React from "react";
+import React, { useContext } from "react";
 import { Outlet, useParams } from "react-router-dom";
-import useLoadProjectsList from "../queries/useLoadProjectsList";
+import {
+  ProjectListContext,
+  useLoadProjectsList,
+} from "../contexts/ProjectListContext";
 import ProjectSelector from "./ProjectSelector";
 
 const NoProjectGuard = () => {
   const { projectName } = useParams();
 
   const { isLoading, isError, data } = useLoadProjectsList();
+  const projectListContext = useContext(ProjectListContext);
 
   if (isLoading && !data) {
     return <EuiLoadingContent lines={3} />;
@@ -20,11 +24,18 @@ const NoProjectGuard = () => {
         color="danger"
         title={<h2>Error Loading Project List</h2>}
         body={
-          <p>
-            Unable to find
-            <code>projects-list.json</code>. Check that you have a project list
-            file defined.
-          </p>
+          projectListContext?.isCustom ? (
+            <p>
+              Unable to fetch project list. Check the promise provided to Feast
+              UI in <code>projectListPromise</code>.
+            </p>
+          ) : (
+            <p>
+              Unable to find
+              <code>projects-list.json</code>. Check that you have a project
+              list file defined.
+            </p>
+          )
         }
       />
     );

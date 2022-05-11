@@ -88,16 +88,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .collect(Collectors.toList());
 
     // ToDo (pyalex): refactor transformation service to delete unused left part of the returned
-    // Pair from extractRequestDataFeatureNamesAndOnDemandFeatureInputs.
+    // Pair from extractRequestDataFeatureNamesAndOnDemandFeatureSources.
     // Currently, we can retrieve context variables directly from GetOnlineFeaturesRequest.
-    List<FeatureReferenceV2> onDemandFeatureInputs =
+    List<FeatureReferenceV2> onDemandFeatureSources =
         this.onlineTransformationService.extractOnDemandFeaturesDependencies(
             onDemandFeatureReferences);
 
-    // Add on demand feature inputs to list of feature references to retrieve.
-    for (FeatureReferenceV2 onDemandFeatureInput : onDemandFeatureInputs) {
-      if (!retrievedFeatureReferences.contains(onDemandFeatureInput)) {
-        retrievedFeatureReferences.add(onDemandFeatureInput);
+    // Add on demand feature sources to list of feature references to retrieve.
+    for (FeatureReferenceV2 onDemandFeatureSource : onDemandFeatureSources) {
+      if (!retrievedFeatureReferences.contains(onDemandFeatureSource)) {
+        retrievedFeatureReferences.add(onDemandFeatureSource);
       }
     }
 
@@ -194,7 +194,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       // data.
       this.populateOnDemandFeatures(
           onDemandFeatureReferences,
-          onDemandFeatureInputs,
+          onDemandFeatureSources,
           retrievedFeatureReferences,
           request,
           features,
@@ -257,7 +257,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
   private void populateOnDemandFeatures(
       List<FeatureReferenceV2> onDemandFeatureReferences,
-      List<FeatureReferenceV2> onDemandFeatureInputs,
+      List<FeatureReferenceV2> onDemandFeatureSources,
       List<FeatureReferenceV2> retrievedFeatureReferences,
       ServingAPIProto.GetOnlineFeaturesRequest request,
       List<List<feast.storage.api.retriever.Feature>> features,
@@ -271,7 +271,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     for (int featureIdx = 0; featureIdx < retrievedFeatureReferences.size(); featureIdx++) {
       FeatureReferenceV2 featureReference = retrievedFeatureReferences.get(featureIdx);
 
-      if (!onDemandFeatureInputs.contains(featureReference)) {
+      if (!onDemandFeatureSources.contains(featureReference)) {
         continue;
       }
 

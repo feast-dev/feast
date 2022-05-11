@@ -12,7 +12,7 @@ from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
 def _get_last_feature_row(df: pd.DataFrame, driver_id, max_date: datetime):
-    """ Manually extract last feature value from a dataframe for a given driver_id with up to `max_date` date """
+    """Manually extract last feature value from a dataframe for a given driver_id with up to `max_date` date"""
     filtered = df[
         (df["driver_id"] == driver_id)
         & (df["event_timestamp"] < max_date.replace(tzinfo=utc))
@@ -40,12 +40,12 @@ def _assert_online_features(
 
     # Float features should still be floats from the online store...
     assert (
-        response.proto.results[0]
-        .values[
+        response.proto.results[
             list(response.proto.metadata.feature_names.val).index(
                 "driver_hourly_stats__conv_rate"
             )
         ]
+        .values[0]
         .float_val
         > 0
     )

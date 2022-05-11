@@ -13,7 +13,7 @@
 # limitations under the License.
 import warnings
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
 
@@ -22,8 +22,6 @@ from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
-
-warnings.simplefilter("once", DeprecationWarning)
 
 
 class Entity:
@@ -39,10 +37,12 @@ class Entity:
             with their associated features. If not specified, defaults to the name.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
-        owner: The owner of the feature service, typically the email of the primary
-            maintainer.
+        owner: The owner of the entity, typically the email of the primary maintainer.
         created_timestamp: The time when the entity was created.
         last_updated_timestamp: The time when the entity was last updated.
+        join_keys: A list of properties that uniquely identifies different entities within the
+            collection. This is meant to replace the `join_key` parameter, but currently only
+            supports a list of size one.
     """
 
     name: str
@@ -53,42 +53,86 @@ class Entity:
     owner: str
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
+    join_keys: List[str]
 
     @log_exceptions
     def __init__(
         self,
-        name: str,
+        *args,
+        name: Optional[str] = None,
         value_type: ValueType = ValueType.UNKNOWN,
         description: str = "",
         join_key: Optional[str] = None,
-        tags: Dict[str, str] = None,
-        labels: Optional[Dict[str, str]] = None,
+        tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        join_keys: Optional[List[str]] = None,
     ):
-        """Creates an Entity object."""
-        self.name = name
-        self.value_type = value_type
-        self.join_key = join_key if join_key else name
-        self.description = description
+        """
+        Creates an Entity object.
 
-        if labels is not None:
-            self.tags = labels
+        Args:
+            name: The unique name of the entity.
+            value_type: The type of the entity, such as string or float.
+            description: A human-readable description.
+            join_key (deprecated): A property that uniquely identifies different entities within the
+                collection. The join_key property is typically used for joining entities
+                with their associated features. If not specified, defaults to the name.
+            tags: A dictionary of key-value pairs to store arbitrary metadata.
+            owner: The owner of the entity, typically the email of the primary maintainer.
+            join_keys: A list of properties that uniquely identifies different entities within the
+                collection. This is meant to replace the `join_key` parameter, but currently only
+                supports a list of size one.
+
+        Raises:
+            ValueError: Parameters are specified incorrectly.
+        """
+        if len(args) == 1:
             warnings.warn(
                 (
-                    "The parameter 'labels' is being deprecated. Please use 'tags' instead. "
-                    "Feast 0.20 and onwards will not support the parameter 'labels'."
+                    "Entity name should be specified as a keyword argument instead of a positional arg."
+                    "Feast 0.23+ will not support positional arguments to construct Entities"
                 ),
                 DeprecationWarning,
             )
-        else:
-            self.tags = labels or tags or {}
+        if len(args) > 1:
+            raise ValueError(
+                "All arguments to construct an entity should be specified as keyword arguments only"
+            )
 
+        self.name = args[0] if len(args) > 0 else name
+
+        if not self.name:
+            raise ValueError("Name needs to be specified")
+
+        self.value_type = value_type
+
+        if join_key:
+            warnings.warn(
+                (
+                    "The `join_key` parameter is being deprecated in favor of the `join_keys` parameter. "
+                    "Please switch from using `join_key` to `join_keys`. Feast 0.22 and onwards will not "
+                    "support the `join_key` parameter."
+                ),
+                DeprecationWarning,
+            )
+        self.join_keys = join_keys or []
+        if join_keys and len(join_keys) > 1:
+            raise ValueError(
+                "An entity may only have single join key. "
+                "Multiple join keys will be supported in the future."
+            )
+        if join_keys and len(join_keys) == 1:
+            self.join_key = join_keys[0]
+        else:
+            self.join_key = join_key if join_key else self.name
+        self.description = description
+        self.tags = tags if tags is not None else {}
         self.owner = owner
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
     def __hash__(self) -> int:
-        return hash((id(self), self.name))
+        return hash((self.name, self.join_key))
 
     def __eq__(self, other):
         if not isinstance(other, Entity):

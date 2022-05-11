@@ -1,5 +1,5 @@
 Feast Python API Documentation
-=============================
+==============================
 
 
 Feature Store
@@ -38,6 +38,34 @@ Redshift Source
     :members:
     :exclude-members: RedshiftOptions
 
+Snowflake Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.snowflake_source
+    :members:
+    :exclude-members: SnowflakeOptions
+
+Spark Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark_source
+    :members:
+    :exclude-members: SparkOptions
+
+Trino Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino_source
+    :members:
+    :exclude-members: TrinoOptions
+
+PostgreSQL Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source
+    :members:
+    :exclude-members: PostgreSQLOptions
+
 File Source
 ------------------
 
@@ -59,7 +87,7 @@ Feature View
     :members:
 
 On Demand Feature View
-==================
+======================
 
 .. automodule:: feast.on_demand_feature_view
     :members:
@@ -85,6 +113,15 @@ Registry
     :inherited-members:
     :members:
 
+Registry Store
+==================
+
+.. automodule:: feast.registry_store
+    :inherited-members:
+    :members:
+    :exclude-members: NoopRegistryStore
+
+
 Provider
 ==================
 
@@ -93,7 +130,7 @@ Provider
     :members:
 
 Passthrough Provider
-------------------
+--------------------
 
 .. automodule:: feast.infra.passthrough_provider
     :members:
@@ -132,16 +169,41 @@ File Offline Store
     :members:
 
 BigQuery Offline Store
-------------------
+----------------------
 
 .. automodule:: feast.infra.offline_stores.bigquery
     :members:
 
 Redshift Offline Store
-------------------
+----------------------
 
 .. automodule:: feast.infra.offline_stores.redshift
     :members:
+
+Snowflake Offline Store
+-----------------------
+
+.. automodule:: feast.infra.offline_stores.snowflake
+    :members:
+
+Spark Offline Store
+-------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark
+    :members:
+
+Trino Offline Store
+-------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino
+    :members:
+
+PostgreSQL Offline Store
+------------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres
+    :members:
+
 
 Online Store
 ==================
@@ -151,19 +213,19 @@ Online Store
     :members:
 
 Sqlite Online Store
-------------------
+-------------------
 
 .. automodule:: feast.infra.online_stores.sqlite
     :members:
 
 Datastore Online Store
-------------------
+----------------------
 
 .. automodule:: feast.infra.online_stores.datastore
     :members:
 
 DynamoDB Online Store
-------------------
+---------------------
 
 .. automodule:: feast.infra.online_stores.dynamodb
     :members:
@@ -173,3 +235,11 @@ Redis Online Store
 
 .. automodule:: feast.infra.online_stores.redis
     :members:
+    :noindex:
+
+PostgreSQL Online Store
+-----------------------
+
+.. automodule:: feast.infra.online_stores.contrib.postgres
+    :members:
+    :noindex:

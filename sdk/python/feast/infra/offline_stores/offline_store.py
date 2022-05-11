@@ -14,6 +14,7 @@
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import pandas as pd
@@ -21,6 +22,7 @@ import pyarrow
 
 from feast.data_source import DataSource
 from feast.dqm.errors import ValidationFailed
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import Registry
@@ -173,15 +175,30 @@ class OfflineStore(ABC):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
+        This method pulls data from the offline store, and the FeatureStore class is used to write
+        this data into the online store. This method is invoked when running materialization (using
+        the `feast materialize` or `feast materialize-incremental` commands, or the corresponding
+        FeatureStore.materialize() method. This method pulls data from the offline store, and the FeatureStore
+        class is used to write this data into the online store.
+
+        Note that join_key_columns, feature_name_columns, timestamp_field, and created_timestamp_column
         have all already been mapped to column names of the source table and those column names are the values passed
         into this function.
+
+        Args:
+            config: Repo configuration object
+            data_source: Data source to pull all of the columns from
+            join_key_columns: Columns of the join keys
+            feature_name_columns: Columns of the feature names needed
+            timestamp_field: Timestamp column
+            start_date: Starting date of query
+            end_date: Ending date of query
         """
         pass
 
@@ -205,13 +222,49 @@ class OfflineStore(ABC):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
+        Returns a Retrieval Job for all join key columns, feature name columns, and the event timestamp columns that occur between the start_date and end_date.
+
+        Note that join_key_columns, feature_name_columns, timestamp_field, and created_timestamp_column
         have all already been mapped to column names of the source table and those column names are the values passed
         into this function.
+
+        Args:
+            config: Repo configuration object
+            data_source: Data source to pull all of the columns from
+            join_key_columns: Columns of the join keys
+            feature_name_columns: Columns of the feature names needed
+            timestamp_field: Timestamp column
+            start_date: Starting date of query
+            end_date: Ending date of query
         """
         pass
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: Union[pyarrow.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        """
+        Write logged features to a specified destination (taken from logging_config) in the offline store.
+        Data can be appended to an existing table (destination) or a new one will be created automatically
+         (if it doesn't exist).
+        Hence, this function can be called repeatedly with the same destination to flush logs in chunks.
+
+        Args:
+            config: Repo configuration object
+            data: Arrow table or path to parquet directory that contains logs dataset.
+            source: Logging source that provides schema and some additional metadata.
+            logging_config: used to determine destination
+            registry: Feast registry
+
+        This is an optional method that could be supported only be some stores.
+        """
+        raise NotImplementedError()

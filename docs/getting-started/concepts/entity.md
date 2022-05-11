@@ -3,10 +3,10 @@
 An entity is a collection of semantically related features. Users define entities to map to the domain of their use case. For example, a ride-hailing service could have customers and drivers as their entities, which group related features that correspond to these customers and drivers.
 
 ```python
-driver = Entity(name='driver', value_type=ValueType.STRING, join_key='driver_id')
+driver = Entity(name='driver', value_type=ValueType.STRING, join_keys=['driver_id'])
 ```
 
-Entities are typically defined as part of feature views. Entities are used to identify the primary key on which feature values should be stored and retrieved. These keys are used during the lookup of feature values from the online store and the join process in point-in-time joins. It is possible to define composite entities \(more than one entity object\) in a feature view. It is also possible for feature views to have zero entities. See [feature view](feature-view.md) for more details.
+Entities are typically defined as part of feature views. Entity name is used to reference the entity from a feature view definition and join key is used to identify the physical primary key on which feature values should be stored and retrieved. These keys are used during the lookup of feature values from the online store and the join process in point-in-time joins. It is possible to define composite entities \(more than one entity object\) in a feature view. It is also possible for feature views to have zero entities. See [feature view](feature-view.md) for more details.
 
 Entities should be reused across feature views.
 

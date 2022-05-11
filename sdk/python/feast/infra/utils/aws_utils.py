@@ -2,9 +2,11 @@ import contextlib
 import os
 import tempfile
 import uuid
-from typing import Any, Dict, Iterator, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
 import pandas as pd
+import pyarrow
 import pyarrow as pa
 import pyarrow.parquet as pq
 from tenacity import (
@@ -151,7 +153,7 @@ def execute_redshift_statement(
 
 
 def get_redshift_statement_result(redshift_data_client, statement_id: str) -> dict:
-    """ Get the Redshift statement result """
+    """Get the Redshift statement result"""
     return redshift_data_client.get_statement_result(Id=statement_id)
 
 
@@ -194,13 +196,6 @@ def upload_df_to_redshift(
 
     The caller is responsible for deleting the table when no longer necessary.
 
-    Here's how the upload process works:
-        1. Pandas DataFrame is converted to PyArrow Table
-        2. PyArrow Table is serialized into a Parquet format on local disk
-        3. The Parquet file is uploaded to S3
-        4. The S3 file is uploaded to Redshift as a new table through COPY command
-        5. The local disk & s3 paths are cleaned up
-
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
@@ -216,10 +211,6 @@ def upload_df_to_redshift(
     Raises:
         RedshiftTableNameTooLong: The specified table name is too long.
     """
-    if len(table_name) > REDSHIFT_TABLE_NAME_MAX_LENGTH:
-        raise RedshiftTableNameTooLong(table_name)
-
-    bucket, key = get_bucket_and_key(s3_path)
 
     # Drop the index so that we dont have unnecessary columns
     df.reset_index(drop=True, inplace=True)
@@ -231,35 +222,110 @@ def upload_df_to_redshift(
     # More details at:
     # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#values-considered-missing
     table = pa.Table.from_pandas(df)
-    column_names, column_types = [], []
-    for field in table.schema:
-        column_names.append(field.name)
-        column_types.append(pa_to_redshift_value_type(field.type))
+    upload_arrow_table_to_redshift(
+        table,
+        redshift_data_client,
+        cluster_id=cluster_id,
+        database=database,
+        user=user,
+        s3_resource=s3_resource,
+        iam_role=iam_role,
+        s3_path=s3_path,
+        table_name=table_name,
+    )
+
+
+def upload_arrow_table_to_redshift(
+    table: Union[pyarrow.Table, Path],
+    redshift_data_client,
+    cluster_id: str,
+    database: str,
+    user: str,
+    s3_resource,
+    iam_role: str,
+    s3_path: str,
+    table_name: str,
+    schema: Optional[pyarrow.Schema] = None,
+    fail_if_exists: bool = True,
+):
+    """Uploads an Arrow Table to Redshift to a new or existing table.
+
+    Here's how the upload process works:
+        1. PyArrow Table is serialized into a Parquet format on local disk
+        2. The Parquet file is uploaded to S3
+        3. The S3 file is uploaded to Redshift as a new table through COPY command
+        4. The local disk & s3 paths are cleaned up
+
+    Args:
+        redshift_data_client: Redshift Data API Service client
+        cluster_id: Redshift Cluster Identifier
+        database: Redshift Database Name
+        user: Redshift username
+        s3_resource: S3 Resource object
+        s3_path: S3 path where the Parquet file is temporarily uploaded
+        iam_role: IAM Role for Redshift to assume during the COPY command.
+                  The role must grant permission to read the S3 location.
+        table_name: The name of the new Redshift table where we copy the dataframe
+        table: The Arrow Table or Path to parquet dataset to upload
+        schema: (Optionally) client may provide arrow Schema which will be converted into redshift table schema
+        fail_if_exists: fail if table with such name exists or append data to existing table
+
+    Raises:
+        RedshiftTableNameTooLong: The specified table name is too long.
+    """
+    if len(table_name) > REDSHIFT_TABLE_NAME_MAX_LENGTH:
+        raise RedshiftTableNameTooLong(table_name)
+
+    if isinstance(table, pyarrow.Table) and not schema:
+        schema = table.schema
+
+    if not schema:
+        raise ValueError("Schema must be specified when data is passed as a Path")
+
+    bucket, key = get_bucket_and_key(s3_path)
+
     column_query_list = ", ".join(
-        [
-            f"{column_name} {column_type}"
-            for column_name, column_type in zip(column_names, column_types)
-        ]
+        [f"{field.name} {pa_to_redshift_value_type(field.type)}" for field in schema]
     )
 
-    # Write the PyArrow Table on disk in Parquet format and upload it to S3
-    with tempfile.TemporaryDirectory() as temp_dir:
-        file_path = f"{temp_dir}/{uuid.uuid4()}.parquet"
-        pq.write_table(table, file_path)
-        s3_resource.Object(bucket, key).put(Body=open(file_path, "rb"))
+    uploaded_files = []
 
-    # Create the table with the desired schema and
-    # copy the Parquet file contents to the Redshift table
-    create_and_copy_query = (
-        f"CREATE TABLE {table_name}({column_query_list}); "
-        + f"COPY {table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
+    if isinstance(table, Path):
+        for file in table.iterdir():
+            file_key = os.path.join(key, file.name)
+            with file.open("rb") as f:
+                s3_resource.Object(bucket, file_key).put(Body=f)
+
+            uploaded_files.append(file_key)
+    else:
+        # Write the PyArrow Table on disk in Parquet format and upload it to S3
+        with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
+            pq.write_table(table, parquet_temp_file)
+            parquet_temp_file.seek(0)
+            s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
+
+        uploaded_files.append(key)
+
+    copy_query = (
+        f"COPY {table_name} FROM '{s3_path}' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
     )
-    execute_redshift_statement(
-        redshift_data_client, cluster_id, database, user, create_and_copy_query
+    create_query = (
+        f"CREATE TABLE {'IF NOT EXISTS' if not fail_if_exists else ''}"
+        f" {table_name}({column_query_list})"
     )
 
-    # Clean up S3 temporary data
-    s3_resource.Object(bucket, key).delete()
+    try:
+        execute_redshift_statement(
+            redshift_data_client,
+            cluster_id,
+            database,
+            user,
+            f"{create_query}; {copy_query}",
+        )
+    finally:
+        # Clean up S3 temporary data
+        for file_pah in uploaded_files:
+            s3_resource.Object(bucket, file_pah).delete()
 
 
 @contextlib.contextmanager
@@ -306,7 +372,7 @@ def temporarily_upload_df_to_redshift(
 
 
 def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
-    """ Download the S3 directory to a local disk """
+    """Download the S3 directory to a local disk"""
     bucket_obj = s3_resource.Bucket(bucket)
     if key != "" and not key.endswith("/"):
         key = key + "/"
@@ -318,7 +384,7 @@ def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
 
 
 def delete_s3_directory(s3_resource, bucket: str, key: str):
-    """ Delete S3 directory recursively """
+    """Delete S3 directory recursively"""
     bucket_obj = s3_resource.Bucket(bucket)
     if key != "" and not key.endswith("/"):
         key = key + "/"
@@ -365,7 +431,7 @@ def unload_redshift_query_to_pa(
     iam_role: str,
     query: str,
 ) -> pa.Table:
-    """ Unload Redshift Query results to S3 and get the results in PyArrow Table format """
+    """Unload Redshift Query results to S3 and get the results in PyArrow Table format"""
     bucket, key = get_bucket_and_key(s3_path)
 
     execute_redshift_query_and_unload_to_s3(
@@ -388,7 +454,7 @@ def unload_redshift_query_to_df(
     iam_role: str,
     query: str,
 ) -> pd.DataFrame:
-    """ Unload Redshift Query results to S3 and get the results in Pandas DataFrame format """
+    """Unload Redshift Query results to S3 and get the results in Pandas DataFrame format"""
     table = unload_redshift_query_to_pa(
         redshift_data_client,
         cluster_id,

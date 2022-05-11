@@ -86,7 +86,7 @@ class FeatureViewQueryContext:
     entities: List[str]
     features: List[str]  # feature reference format
     field_mapping: Dict[str, str]
-    event_timestamp_column: str
+    timestamp_field: str
     created_timestamp_column: Optional[str]
     table_subquery: str
     entity_selections: List[str]
@@ -101,8 +101,10 @@ def get_feature_view_query_context(
     project: str,
     entity_df_timestamp_range: Tuple[datetime, datetime],
 ) -> List[FeatureViewQueryContext]:
-    """Build a query context containing all information required to template a BigQuery and Redshift point-in-time SQL query"""
-
+    """
+    Build a query context containing all information required to template a BigQuery and
+    Redshift point-in-time SQL query
+    """
     (
         feature_views_to_feature_map,
         on_demand_feature_views_to_features,
@@ -112,11 +114,7 @@ def get_feature_view_query_context(
 
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
-        join_keys = []
-        entity_selections = []
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.input.field_mapping.items()
-        }
+        join_keys, entity_selections = [], []
         for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
             join_key = feature_view.projection.join_key_map.get(
@@ -130,38 +128,42 @@ def get_feature_view_query_context(
         else:
             ttl_seconds = 0
 
-        event_timestamp_column = feature_view.input.event_timestamp_column
-        created_timestamp_column = feature_view.input.created_timestamp_column
+        reverse_field_mapping = {
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
+        }
+        features = [reverse_field_mapping.get(feature, feature) for feature in features]
+        timestamp_field = reverse_field_mapping.get(
+            feature_view.batch_source.timestamp_field,
+            feature_view.batch_source.timestamp_field,
+        )
+        created_timestamp_column = reverse_field_mapping.get(
+            feature_view.batch_source.created_timestamp_column,
+            feature_view.batch_source.created_timestamp_column,
+        )
 
+        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
         min_event_timestamp = None
         if feature_view.ttl:
             min_event_timestamp = to_naive_utc(
                 entity_df_timestamp_range[0] - feature_view.ttl
             ).isoformat()
 
-        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
-
         context = FeatureViewQueryContext(
             name=feature_view.projection.name_to_use(),
             ttl=ttl_seconds,
             entities=join_keys,
-            features=[
-                reverse_field_mapping.get(feature, feature) for feature in features
-            ],
-            field_mapping=feature_view.input.field_mapping,
-            event_timestamp_column=reverse_field_mapping.get(
-                event_timestamp_column, event_timestamp_column
-            ),
-            created_timestamp_column=reverse_field_mapping.get(
-                created_timestamp_column, created_timestamp_column
-            ),
+            features=features,
+            field_mapping=feature_view.batch_source.field_mapping,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
             # TODO: Make created column optional and not hardcoded
-            table_subquery=feature_view.input.get_table_query_string(),
+            table_subquery=feature_view.batch_source.get_table_query_string(),
             entity_selections=entity_selections,
             min_event_timestamp=min_event_timestamp,
             max_event_timestamp=max_event_timestamp,
         )
         query_context.append(context)
+
     return query_context
 
 

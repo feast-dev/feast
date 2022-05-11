@@ -4,7 +4,11 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException
+from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    LoggingConfig as LoggingConfigProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -16,51 +20,59 @@ from feast.value_type import ValueType
 class BigQuerySource(DataSource):
     def __init__(
         self,
+        *,
         event_timestamp_column: Optional[str] = "",
         table: Optional[str] = None,
-        table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
         query: Optional[str] = None,
         name: Optional[str] = None,
+        description: Optional[str] = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: Optional[str] = "",
+        timestamp_field: Optional[str] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
-         Args:
-             table (optional): The BigQuery table where features can be found.
-             table_ref (optional): (Deprecated) The BigQuery table where features can be found.
-             event_timestamp_column: Event timestamp column used for point in time joins of feature values.
-             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
-             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
-                 or view. Only used for feature columns, not entities or timestamp columns.
-             date_partition_column (optional): Timestamp column used for partitioning.
-             query (optional): SQL query to execute to generate data for this data source.
-             name (optional): Name for the source. Defaults to the table_ref if not specified.
-         Example:
-             >>> from feast import BigQuerySource
-             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
-         """
-        if table is None and table_ref is None and query is None:
+        Args:
+            table (optional): The BigQuery table where features can be found.
+            event_timestamp_column: (Deprecated) Event timestamp column used for point in time joins of feature values.
+            created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
+            field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
+                or view. Only used for feature columns, not entities or timestamp columns.
+            date_partition_column (deprecated): Timestamp column used for partitioning.
+            query (optional): SQL query to execute to generate data for this data source.
+            name (optional): Name for the source. Defaults to the table if not specified.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the bigquery source, typically the email of the primary
+                maintainer.
+            timestamp_field (optional): Event timestamp field used for point in time
+                joins of feature values.
+        Example:
+            >>> from feast import BigQuerySource
+            >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
+        """
+        if table is None and query is None:
             raise ValueError('No "table" or "query" argument provided.')
-        if not table and table_ref:
+
+        self.bigquery_options = BigQueryOptions(table=table, query=query)
+
+        if date_partition_column:
             warnings.warn(
                 (
-                    "The argument 'table_ref' is being deprecated. Please use 'table' "
-                    "instead. Feast 0.20 and onwards will not support the argument 'table_ref'."
+                    "The argument 'date_partition_column' is not supported for BigQuery sources. "
+                    "It will be removed in Feast 0.21+"
                 ),
                 DeprecationWarning,
             )
-            table = table_ref
-        self.bigquery_options = BigQueryOptions(table_ref=table, query=query)
 
-        # If no name, use the table_ref as the default name
+        # If no name, use the table as the default name
         _name = name
         if not _name:
             if table:
                 _name = table
-            elif table_ref:
-                _name = table_ref
             else:
                 warnings.warn(
                     (
@@ -74,7 +86,10 @@ class BigQuerySource(DataSource):
             event_timestamp_column=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
-            date_partition_column=date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
+            timestamp_field=timestamp_field,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -88,17 +103,14 @@ class BigQuerySource(DataSource):
             )
 
         return (
-            self.name == other.name
-            and self.bigquery_options.table_ref == other.bigquery_options.table_ref
-            and self.bigquery_options.query == other.bigquery_options.query
-            and self.event_timestamp_column == other.event_timestamp_column
-            and self.created_timestamp_column == other.created_timestamp_column
-            and self.field_mapping == other.field_mapping
+            super().__eq__(other)
+            and self.table == other.table
+            and self.query == other.query
         )
 
     @property
-    def table_ref(self):
-        return self.bigquery_options.table_ref
+    def table(self):
+        return self.bigquery_options.table
 
     @property
     def query(self):
@@ -106,17 +118,18 @@ class BigQuerySource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-
         assert data_source.HasField("bigquery_options")
 
         return BigQuerySource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
-            table_ref=data_source.bigquery_options.table_ref,
-            event_timestamp_column=data_source.event_timestamp_column,
+            table=data_source.bigquery_options.table,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -125,11 +138,12 @@ class BigQuerySource(DataSource):
             type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+            timestamp_field=self.timestamp_field,
+            created_timestamp_column=self.created_timestamp_column,
         )
-
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
-        data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
@@ -140,14 +154,14 @@ class BigQuerySource(DataSource):
 
             client = bigquery.Client()
             try:
-                client.get_table(self.table_ref)
+                client.get_table(self.table)
             except NotFound:
-                raise DataSourceNotFoundException(self.table_ref)
+                raise DataSourceNotFoundException(self.table)
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
-        if self.table_ref:
-            return f"`{self.table_ref}`"
+        if self.table:
+            return f"`{self.table}`"
         else:
             return f"({self.query})"
 
@@ -161,8 +175,8 @@ class BigQuerySource(DataSource):
         from google.cloud import bigquery
 
         client = bigquery.Client()
-        if self.table_ref is not None:
-            schema = client.get_table(self.table_ref).schema
+        if self.table:
+            schema = client.get_table(self.table).schema
             if not isinstance(schema[0], bigquery.schema.SchemaField):
                 raise TypeError("Could not parse BigQuery table schema.")
         else:
@@ -182,42 +196,14 @@ class BigQuerySource(DataSource):
 
 class BigQueryOptions:
     """
-    DataSource BigQuery options used to source features from BigQuery query
+    Configuration options for a BigQuery data source.
     """
 
     def __init__(
-        self, table_ref: Optional[str], query: Optional[str],
+        self, table: Optional[str], query: Optional[str],
     ):
-        self._table_ref = table_ref
-        self._query = query
-
-    @property
-    def query(self):
-        """
-        Returns the BigQuery SQL query referenced by this source
-        """
-        return self._query
-
-    @query.setter
-    def query(self, query):
-        """
-        Sets the BigQuery SQL query referenced by this source
-        """
-        self._query = query
-
-    @property
-    def table_ref(self):
-        """
-        Returns the table ref of this BQ table
-        """
-        return self._table_ref
-
-    @table_ref.setter
-    def table_ref(self, table_ref):
-        """
-        Sets the table ref of this BQ table
-        """
-        self._table_ref = table_ref
+        self.table = table or ""
+        self.query = query or ""
 
     @classmethod
     def from_proto(cls, bigquery_options_proto: DataSourceProto.BigQueryOptions):
@@ -230,10 +216,8 @@ class BigQueryOptions:
         Returns:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
-
         bigquery_options = cls(
-            table_ref=bigquery_options_proto.table_ref,
-            query=bigquery_options_proto.query,
+            table=bigquery_options_proto.table, query=bigquery_options_proto.query,
         )
 
         return bigquery_options
@@ -245,9 +229,8 @@ class BigQueryOptions:
         Returns:
             BigQueryOptionsProto protobuf
         """
-
         bigquery_options_proto = DataSourceProto.BigQueryOptions(
-            table_ref=self.table_ref, query=self.query,
+            table=self.table, query=self.query,
         )
 
         return bigquery_options_proto
@@ -258,15 +241,13 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
 
     bigquery_options: BigQueryOptions
 
-    def __init__(self, table_ref: str):
-        self.bigquery_options = BigQueryOptions(table_ref=table_ref, query=None)
+    def __init__(self, table: str):
+        self.bigquery_options = BigQueryOptions(table=table, query=None)
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
         return SavedDatasetBigQueryStorage(
-            table_ref=BigQueryOptions.from_proto(
-                storage_proto.bigquery_storage
-            ).table_ref
+            table=BigQueryOptions.from_proto(storage_proto.bigquery_storage).table
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
@@ -275,4 +256,29 @@ class SavedDatasetBigQueryStorage(SavedDatasetStorage):
         )
 
     def to_data_source(self) -> DataSource:
-        return BigQuerySource(table_ref=self.bigquery_options.table_ref)
+        return BigQuerySource(table=self.bigquery_options.table)
+
+
+class BigQueryLoggingDestination(LoggingDestination):
+    _proto_kind = "bigquery_destination"
+
+    table: str
+
+    def __init__(self, *, table_ref):
+        self.table = table_ref
+
+    @classmethod
+    def from_proto(cls, config_proto: LoggingConfigProto) -> "LoggingDestination":
+        return BigQueryLoggingDestination(
+            table_ref=config_proto.bigquery_destination.table_ref,
+        )
+
+    def to_data_source(self) -> DataSource:
+        return BigQuerySource(table=self.table)
+
+    def to_proto(self) -> LoggingConfigProto:
+        return LoggingConfigProto(
+            bigquery_destination=LoggingConfigProto.BigQueryDestination(
+                table_ref=self.table
+            )
+        )

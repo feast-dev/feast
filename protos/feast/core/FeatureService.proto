@@ -1,10 +1,11 @@
 syntax = "proto3";
 package feast.core;
 
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureServiceProto";
 option java_package = "feast.proto.core";
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureViewProjection.proto";
 
@@ -35,6 +36,9 @@ message FeatureServiceSpec {
 
   // Owner of the feature service.
   string owner = 6;
+
+  // (optional) if provided logging will be enabled for this feature service.
+  LoggingConfig logging_config = 7;
 }
 
 
@@ -45,4 +49,46 @@ message FeatureServiceMeta {
   // Time where this Feature Service is last updated
   google.protobuf.Timestamp last_updated_timestamp = 2;
 
+}
+
+
+message LoggingConfig {
+  float sample_rate = 1;
+  google.protobuf.Duration partition_interval = 2;
+
+  oneof destination {
+    FileDestination file_destination = 3;
+    BigQueryDestination bigquery_destination = 4;
+    RedshiftDestination redshift_destination = 5;
+    SnowflakeDestination snowflake_destination = 6;
+    CustomDestination custom_destination = 7;
+  }
+
+  message FileDestination {
+    string path = 1;
+    string s3_endpoint_override = 2;
+
+    // column names to use for partitioning
+    repeated string partition_by = 3;
+  }
+
+  message BigQueryDestination {
+    // Full table reference in the form of [project:dataset.table]
+    string table_ref = 1;
+  }
+
+  message RedshiftDestination {
+    // Destination table name. ClusterId and database will be taken from an offline store config
+    string table_name = 1;
+  }
+
+  message SnowflakeDestination {
+    // Destination table name. Schema and database will be taken from an offline store config
+    string table_name = 1;
+  }
+
+  message CustomDestination {
+    string kind = 1;
+    map<string, string> config = 2;
+  }
 }

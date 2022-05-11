@@ -3,10 +3,14 @@ import os
 import random
 import string
 from logging import getLogger
+from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterator, List, Optional, Tuple, cast
+from typing import Any, Dict, Iterator, List, Optional, Tuple, cast
 
 import pandas as pd
+import pyarrow
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -40,26 +44,38 @@ def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCu
 
 
 def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
-    if config.type == "snowflake.offline":
-        config_header = "connections.feast_offline_store"
+    assert config.type == "snowflake.offline"
+    config_header = "connections.feast_offline_store"
 
     config_dict = dict(config)
 
     # read config file
     config_reader = configparser.ConfigParser()
     config_reader.read([config_dict["config_path"]])
+    kwargs: Dict[str, Any] = {}
     if config_reader.has_section(config_header):
         kwargs = dict(config_reader[config_header])
-    else:
-        kwargs = {}
+
+    if "schema" in kwargs:
+        kwargs["schema_"] = kwargs.pop("schema")
 
     kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
-    [
-        kwargs.update({k: '"' + v + '"'})
-        for k, v in kwargs.items()
-        if k in ["role", "warehouse", "database", "schema_"]
-    ]
-    kwargs["schema"] = kwargs.pop("schema_")
+
+    for k, v in kwargs.items():
+        if k in ["role", "warehouse", "database", "schema_"]:
+            kwargs[k] = f'"{v}"'
+
+    if "schema_" in kwargs:
+        kwargs["schema"] = kwargs.pop("schema_")
+    else:
+        kwargs["schema"] = '"PUBLIC"'
+
+    # https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
+    # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
+    if "private_key" in kwargs:
+        kwargs["private_key"] = parse_private_key_path(
+            kwargs["private_key"], kwargs["private_key_passphrase"]
+        )
 
     try:
         conn = snowflake.connector.connect(
@@ -124,6 +140,73 @@ def write_pandas(
             the passed in DataFrame. The table will not be created if it already exists
         create_temp_table: Will make the auto-created table as a temporary table
     """
+
+    cursor: SnowflakeCursor = conn.cursor()
+    stage_name = create_temporary_sfc_stage(cursor)
+
+    upload_df(df, cursor, stage_name, chunk_size, parallel, compression)
+    copy_uploaded_data_to_table(
+        cursor,
+        stage_name,
+        list(df.columns),
+        table_name,
+        database,
+        schema,
+        compression,
+        on_error,
+        quote_identifiers,
+        auto_create_table,
+        create_temp_table,
+    )
+
+
+def write_parquet(
+    conn: SnowflakeConnection,
+    path: Path,
+    dataset_schema: pyarrow.Schema,
+    table_name: str,
+    database: Optional[str] = None,
+    schema: Optional[str] = None,
+    compression: str = "gzip",
+    on_error: str = "abort_statement",
+    parallel: int = 4,
+    quote_identifiers: bool = True,
+    auto_create_table: bool = False,
+    create_temp_table: bool = False,
+):
+    cursor: SnowflakeCursor = conn.cursor()
+    stage_name = create_temporary_sfc_stage(cursor)
+
+    columns = [field.name for field in dataset_schema]
+    upload_local_pq(path, cursor, stage_name, parallel)
+    copy_uploaded_data_to_table(
+        cursor,
+        stage_name,
+        columns,
+        table_name,
+        database,
+        schema,
+        compression,
+        on_error,
+        quote_identifiers,
+        auto_create_table,
+        create_temp_table,
+    )
+
+
+def copy_uploaded_data_to_table(
+    cursor: SnowflakeCursor,
+    stage_name: str,
+    columns: List[str],
+    table_name: str,
+    database: Optional[str] = None,
+    schema: Optional[str] = None,
+    compression: str = "gzip",
+    on_error: str = "abort_statement",
+    quote_identifiers: bool = True,
+    auto_create_table: bool = False,
+    create_temp_table: bool = False,
+):
     if database is not None and schema is None:
         raise ProgrammingError(
             "Schema has to be provided to write_pandas when a database is provided"
@@ -149,37 +232,11 @@ def write_pandas(
             + (schema + "." if schema else "")
             + (table_name)
         )
-    if chunk_size is None:
-        chunk_size = len(df)
-    cursor: SnowflakeCursor = conn.cursor()
-    stage_name = create_temporary_sfc_stage(cursor)
 
-    with TemporaryDirectory() as tmp_folder:
-        for i, chunk in chunk_helper(df, chunk_size):
-            chunk_path = os.path.join(tmp_folder, "file{}.txt".format(i))
-            # Dump chunk into parquet file
-            chunk.to_parquet(
-                chunk_path,
-                compression=compression,
-                use_deprecated_int96_timestamps=True,
-            )
-            # Upload parquet file
-            upload_sql = (
-                "PUT /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
-                "'file://{path}' @\"{stage_name}\" PARALLEL={parallel}"
-            ).format(
-                path=chunk_path.replace("\\", "\\\\").replace("'", "\\'"),
-                stage_name=stage_name,
-                parallel=parallel,
-            )
-            logger.debug(f"uploading files with '{upload_sql}'")
-            cursor.execute(upload_sql, _is_internal=True)
-            # Remove chunk file
-            os.remove(chunk_path)
     if quote_identifiers:
-        columns = '"' + '","'.join(list(df.columns)) + '"'
+        quoted_columns = '"' + '","'.join(columns) + '"'
     else:
-        columns = ",".join(list(df.columns))
+        quoted_columns = ",".join(columns)
 
     if auto_create_table:
         file_format_name = create_file_format(compression, compression_map, cursor)
@@ -195,7 +252,7 @@ def write_pandas(
         # columns in order
         quote = '"' if quote_identifiers else ""
         create_table_columns = ", ".join(
-            [f"{quote}{c}{quote} {column_type_mapping[c]}" for c in df.columns]
+            [f"{quote}{c}{quote} {column_type_mapping[c]}" for c in columns]
         )
         create_table_sql = (
             f"CREATE {'TEMP ' if create_temp_table else ''}TABLE IF NOT EXISTS {location} "
@@ -211,9 +268,9 @@ def write_pandas(
     # in Snowflake, all parquet data is stored in a single column, $1, so we must select columns explicitly
     # see (https://docs.snowflake.com/en/user-guide/script-data-load-transform-parquet.html)
     if quote_identifiers:
-        parquet_columns = "$1:" + ",$1:".join(f'"{c}"' for c in df.columns)
+        parquet_columns = "$1:" + ",$1:".join(f'"{c}"' for c in columns)
     else:
-        parquet_columns = "$1:" + ",$1:".join(df.columns)
+        parquet_columns = "$1:" + ",$1:".join(columns)
     copy_into_sql = (
         "COPY INTO {location} /* Python:snowflake.connector.pandas_tools.write_pandas() */ "
         "({columns}) "
@@ -222,7 +279,7 @@ def write_pandas(
         "PURGE=TRUE ON_ERROR={on_error}"
     ).format(
         location=location,
-        columns=columns,
+        columns=quoted_columns,
         parquet_columns=parquet_columns,
         stage_name=stage_name,
         compression=compression_map[compression],
@@ -234,6 +291,78 @@ def write_pandas(
     if result_cursor is None:
         raise SnowflakeQueryUnknownError(copy_into_sql)
     result_cursor.close()
+
+
+def upload_df(
+    df: pd.DataFrame,
+    cursor: SnowflakeCursor,
+    stage_name: str,
+    chunk_size: Optional[int] = None,
+    parallel: int = 4,
+    compression: str = "gzip",
+):
+    """
+    Args:
+        df: Dataframe we'd like to write back.
+        cursor: cursor to be used to communicate with Snowflake.
+        stage_name: stage name in Snowflake connection.
+        chunk_size: Number of elements to be inserted once, if not provided all elements will be dumped once
+            (Default value = None).
+        parallel: Number of threads to be used when uploading chunks, default follows documentation at:
+            https://docs.snowflake.com/en/sql-reference/sql/put.html#optional-parameters (Default value = 4).
+        compression: The compression used on the Parquet files, can only be gzip, or snappy. Gzip gives supposedly a
+            better compression, while snappy is faster. Use whichever is more appropriate (Default value = 'gzip').
+
+    """
+    if chunk_size is None:
+        chunk_size = len(df)
+
+    with TemporaryDirectory() as tmp_folder:
+        for i, chunk in chunk_helper(df, chunk_size):
+            chunk_path = os.path.join(tmp_folder, "file{}.txt".format(i))
+            # Dump chunk into parquet file
+            chunk.to_parquet(
+                chunk_path,
+                compression=compression,
+                use_deprecated_int96_timestamps=True,
+            )
+            # Upload parquet file
+            upload_sql = (
+                "PUT /* Python:feast.infra.utils.snowflake_utils.upload_df() */ "
+                "'file://{path}' @\"{stage_name}\" PARALLEL={parallel}"
+            ).format(
+                path=chunk_path.replace("\\", "\\\\").replace("'", "\\'"),
+                stage_name=stage_name,
+                parallel=parallel,
+            )
+            logger.debug(f"uploading files with '{upload_sql}'")
+            cursor.execute(upload_sql, _is_internal=True)
+            # Remove chunk file
+            os.remove(chunk_path)
+
+
+def upload_local_pq(
+    path: Path, cursor: SnowflakeCursor, stage_name: str, parallel: int = 4,
+):
+    """
+    Args:
+        path: Path to parquet dataset on disk
+        cursor: cursor to be used to communicate with Snowflake.
+        stage_name: stage name in Snowflake connection.
+        parallel: Number of threads to be used when uploading chunks, default follows documentation at:
+            https://docs.snowflake.com/en/sql-reference/sql/put.html#optional-parameters (Default value = 4).
+    """
+    for file in path.iterdir():
+        upload_sql = (
+            "PUT /* Python:feast.infra.utils.snowflake_utils.upload_local_pq() */ "
+            "'file://{path}' @\"{stage_name}\" PARALLEL={parallel}"
+        ).format(
+            path=str(file).replace("\\", "\\\\").replace("'", "\\'"),
+            stage_name=stage_name,
+            parallel=parallel,
+        )
+        logger.debug(f"uploading files with '{upload_sql}'")
+        cursor.execute(upload_sql, _is_internal=True)
 
 
 @retry(
@@ -282,3 +411,21 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
     """Helper generator to chunk a sequence efficiently with current index like if enumerate was called on sequence."""
     for i in range(0, len(lst), n):
         yield int(i / n), lst[i : i + n]
+
+
+def parse_private_key_path(key_path: str, private_key_passphrase: str) -> bytes:
+
+    with open(key_path, "rb") as key:
+        p_key = serialization.load_pem_private_key(
+            key.read(),
+            password=private_key_passphrase.encode(),
+            backend=default_backend(),
+        )
+
+    pkb = p_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    return pkb

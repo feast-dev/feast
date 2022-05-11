@@ -6,8 +6,12 @@ import pandas as pd
 
 from feast import SnowflakeSource
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.snowflake import SnowflakeOfflineStoreConfig
-from feast.infra.offline_stores.snowflake_source import SavedDatasetSnowflakeStorage
+from feast.infra.offline_stores.snowflake_source import (
+    SavedDatasetSnowflakeStorage,
+    SnowflakeLoggingDestination,
+)
 from feast.infra.utils.snowflake_utils import get_snowflake_conn, write_pandas
 from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
@@ -19,9 +23,8 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
 
     tables: List[str] = []
 
-    def __init__(self, project_name: str):
-        super().__init__()
-        self.project_name = project_name
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
         self.offline_store_config = SnowflakeOfflineStoreConfig(
             type="snowflake.offline",
             account=os.environ["SNOWFLAKE_CI_DEPLOYMENT"],
@@ -38,7 +41,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         df: pd.DataFrame,
         destination_name: str,
         suffix: Optional[str] = None,
-        event_timestamp_column="ts",
+        timestamp_field="ts",
         created_timestamp_column="created_ts",
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
@@ -53,10 +56,10 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
 
         return SnowflakeSource(
             table=destination_name,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
-            date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
+            warehouse=self.offline_store_config.warehouse,
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetSnowflakeStorage:
@@ -66,6 +69,14 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         self.tables.append(table)
 
         return SavedDatasetSnowflakeStorage(table_ref=table)
+
+    def create_logged_features_destination(self) -> LoggingDestination:
+        table = self.get_prefixed_table_name(
+            f"logged_features_{str(uuid.uuid4()).replace('-', '_')}"
+        )
+        self.tables.append(table)
+
+        return SnowflakeLoggingDestination(table_name=table)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config

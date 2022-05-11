@@ -124,7 +124,12 @@ fs.materialize_incremental(end_date=datetime.now())
 {% code title="test.py" %}
 ```python
 online_features = fs.get_online_features(
-    features=features, entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
+    features=features,
+    entity_rows=[
+      # {join_key: entity_value}
+      {"driver_id": 1001},
+      {"driver_id": 1002}
+    ],
 ).to_dict()
 ```
 {% endcode %}

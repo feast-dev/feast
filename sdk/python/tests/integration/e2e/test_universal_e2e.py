@@ -45,12 +45,14 @@ def check_offline_and_online_features(
     # Check online store
     response_dict = fs.get_online_features(
         [f"{fv.name}:value"],
-        [{"driver": driver_id}],
+        [{"driver_id": driver_id}],
         full_feature_names=full_feature_names,
     ).to_dict()
 
     if full_feature_names:
+
         if expected_value:
+            assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
             assert (
                 abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
             ), f"Response: {response_dict}, Expected: {expected_value}"
@@ -58,6 +60,7 @@ def check_offline_and_online_features(
             assert response_dict[f"{fv.name}__value"][0] is None
     else:
         if expected_value:
+            assert response_dict["value"][0], f"Response: {response_dict}"
             assert (
                 abs(response_dict["value"][0] - expected_value) < 1e-6
             ), f"Response: {response_dict}, Expected: {expected_value}"

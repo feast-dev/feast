@@ -18,7 +18,7 @@
 syntax = "proto3";
 package feast.core;
 
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "RequestFeatureViewProto";
 option java_package = "feast.proto.core";
 
@@ -29,6 +29,7 @@ message RequestFeatureView {
     RequestFeatureViewSpec spec = 1;
 }
 
+// Next available id: 7
 message RequestFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -38,4 +39,13 @@ message RequestFeatureViewSpec {
 
     // Request data which contains the underlying data schema and list of associated features
     DataSource request_data_source = 3;
+
+    // Description of the request feature view.
+    string description = 4;
+
+    // User defined metadata.
+    map<string,string> tags = 5;
+
+    // Owner of the request feature view.
+    string owner = 6;
 }

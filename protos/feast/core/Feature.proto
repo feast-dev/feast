@@ -18,7 +18,7 @@ syntax = "proto3";
 package feast.core;
 
 
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureProto";
 option java_package = "feast.proto.core";
 
@@ -31,6 +31,6 @@ message FeatureSpecV2 {
     // Value type of the feature. Not updatable.
     feast.types.ValueType.Enum value_type = 2;
 
-    // Labels for user defined metadata on a feature
-    map<string,string> labels = 3;
+    // Tags for user defined metadata on a feature
+    map<string,string> tags = 3;
 }

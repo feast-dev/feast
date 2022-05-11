@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import dill
@@ -58,6 +58,7 @@ REGISTRY_STORE_CLASS_FOR_TYPE = {
     "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
     "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
     "LocalRegistryStore": "feast.infra.local.LocalRegistryStore",
+    "PostgreSQLRegistryStore": "feast.infra.registry_stores.contrib.postgres.registry_store.PostgreSQLRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
@@ -98,7 +99,7 @@ class FeastObjectType(Enum):
     @staticmethod
     def get_objects_from_repo_contents(
         repo_contents: RepoContents,
-    ) -> Dict["FeastObjectType", Set[Any]]:
+    ) -> Dict["FeastObjectType", List[Any]]:
         return {
             FeastObjectType.DATA_SOURCE: repo_contents.data_sources,
             FeastObjectType.ENTITY: repo_contents.entities,
@@ -322,6 +323,9 @@ class Registry:
             f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
         )
         data_source_proto.project = project
+        data_source_proto.data_source_class_type = (
+            f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
+        )
         registry.data_sources.append(data_source_proto)
         if commit:
             self.commit()

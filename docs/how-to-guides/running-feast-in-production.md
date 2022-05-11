@@ -274,7 +274,7 @@ For seamless integration with Kubernetes (including services created by Feast He
 
 ## 5. Ingesting features from a stream source
 
-Recently Feast added functionality for [stream ingestion](../reference/alpha-stream-ingestion.md).
+Recently Feast added functionality for [stream ingestion](../reference/data-sources/push.md).
 Please note that this is still in an early phase and new incompatible changes may be introduced.
 
 ### 5.1. Using Python SDK in your Apache Spark / Beam pipeline
@@ -287,7 +287,7 @@ store = FeatureStore(...)
 
 def feast_writer(spark_df):
     pandas_df = spark_df.to_pandas()
-    store.write_to_online_store("driver_hourly_stats", pandas_df)
+    store.push("driver_hourly_stats", pandas_df)
 
 streamingDF.writeStream.foreachBatch(feast_writer).start()
 ```

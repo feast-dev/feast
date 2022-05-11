@@ -7,15 +7,19 @@ Feature values in Feast are modeled as time-series records. Below is an example 
 The above table can be registered with Feast through the following feature view:
 
 ```python
+from feast import FeatureView, Field, FileSource
+from feast.types import Float32, Int64
+from datetime import timedelta
+
 driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
     entities=["driver"],
-    features=[
-        Feature(name="trips_today", dtype=ValueType.INT64),
-        Feature(name="earnings_today", dtype=ValueType.FLOAT),
+    schema=[
+        Field(name="trips_today", dtype=Int64),
+        Field(name="earnings_today", dtype=Float32),
     ],
     ttl=timedelta(hours=2),
-    batch_source=FileSource(
+    source=FileSource(
         path="driver_hourly_stats.parquet"
     )
 )

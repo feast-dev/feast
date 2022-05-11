@@ -1,12 +1,12 @@
 # Validating historical features with Great Expectations
 
-In this tutorial, we will use the public dataset of Chicago taxi trips to present data validation capabilities of Feast. 
-- The original dataset is stored in BigQuery and consists of raw data for each taxi trip (one row per trip) since 2013. 
+In this tutorial, we will use the public dataset of Chicago taxi trips to present data validation capabilities of Feast.
+- The original dataset is stored in BigQuery and consists of raw data for each taxi trip (one row per trip) since 2013.
 - We will generate several training datasets (aka historical features in Feast) for different periods and evaluate expectations made on one dataset against another.
 
 Types of features we're ingesting and generating:
-- Features that aggregate raw data with daily intervals (eg, trips per day, average fare or speed for a specific day, etc.). 
-- Features using SQL while pulling data from BigQuery (like total trips time or total miles travelled). 
+- Features that aggregate raw data with daily intervals (eg, trips per day, average fare or speed for a specific day, etc.).
+- Features using SQL while pulling data from BigQuery (like total trips time or total miles travelled).
 - Features calculated on the fly when requested using Feast's on-demand transformations
 
 Our plan:
@@ -31,7 +31,7 @@ Install Feast Python SDK and great expectations:
 ```
 
 
-### 1. Dataset preparation (Optional) 
+### 1. Dataset preparation (Optional)
 
 **You can skip this step if you don't have GCP account. Please use parquet files that are coming with this tutorial instead**
 
@@ -56,15 +56,15 @@ Running some basic aggregations while pulling data from BigQuery. Grouping by ta
 
 
 ```python
-data_query = """SELECT 
+data_query = """SELECT
     taxi_id,
     TIMESTAMP_TRUNC(trip_start_timestamp, DAY) as day,
     SUM(trip_miles) as total_miles_travelled,
     SUM(trip_seconds) as total_trip_seconds,
     SUM(fare) as total_earned,
     COUNT(*) as trip_count
-FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` 
-WHERE 
+FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips`
+WHERE
     trip_miles > 0 AND trip_seconds > 60 AND
     trip_start_timestamp BETWEEN '2019-01-01' and '2020-12-31' AND
     trip_total < 1000
@@ -84,7 +84,7 @@ pyarrow.parquet.write_table(driver_stats_table, "trips_stats.parquet")
 def entities_query(year):
     return f"""SELECT
     distinct taxi_id
-FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` 
+FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips`
 WHERE
     trip_miles > 0 AND trip_seconds > 0 AND
     trip_start_timestamp BETWEEN '{year}-01-01' and '{year}-12-31'
@@ -107,20 +107,21 @@ pyarrow.parquet.write_table(entities_2019_table, "entities.parquet")
 import pyarrow.parquet
 import pandas as pd
 
-from feast import Feature, FeatureView, Entity, FeatureStore
+from feast import FeatureView, Entity, FeatureStore, Field, BatchFeatureView
+from feast.types import Float64, Int64
 from feast.value_type import ValueType
 from feast.data_format import ParquetFormat
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.file import SavedDatasetFileStorage
+from datetime import timedelta
 
-from google.protobuf.duration_pb2 import Duration
 ```
 
 
 ```python
 batch_source = FileSource(
-    event_timestamp_column="day",
+    timestamp_field="day",
     path="trips_stats.parquet",  # using parquet file that we created on previous step
     file_format=ParquetFormat()
 )
@@ -128,23 +129,23 @@ batch_source = FileSource(
 
 
 ```python
-taxi_entity = Entity(name='taxi', join_key='taxi_id')
+taxi_entity = Entity(name='taxi', join_keys=['taxi_id'])
 ```
 
 
 ```python
-trips_stats_fv = FeatureView(
+trips_stats_fv = BatchFeatureView(
     name='trip_stats',
     entities=['taxi'],
     features=[
-        Feature("total_miles_travelled", ValueType.DOUBLE),
-        Feature("total_trip_seconds", ValueType.DOUBLE),
-        Feature("total_earned", ValueType.DOUBLE),
-        Feature("trip_count", ValueType.INT64),
-        
+        Field(name="total_miles_travelled", dtype=Float64),
+        Field(name="total_trip_seconds", dtype=Float64),
+        Field(name="total_earned", dtype=Float64),
+        Field(name="trip_count", dtype=Int64),
+
     ],
-    ttl=Duration(seconds=86400),
-    batch_source=batch_source,
+    ttl=timedelta(seconds=86400),
+    source=batch_source,
 )
 ```
 
@@ -153,15 +154,15 @@ trips_stats_fv = FeatureView(
 
 ```python
 @on_demand_feature_view(
-    features=[
-        Feature("avg_fare", ValueType.DOUBLE),
-        Feature("avg_speed", ValueType.DOUBLE),
-        Feature("avg_trip_seconds", ValueType.DOUBLE),
-        Feature("earned_per_hour", ValueType.DOUBLE),
+    schema=[
+        Field("avg_fare", Float64),
+        Field("avg_speed", Float64),
+        Field("avg_trip_seconds", Float64),
+        Field("earned_per_hour", Float64),
     ],
-    inputs={
-        "stats": trips_stats_fv
-    }
+    sources=[
+      trips_stats_fv,
+    ]
 )
 def on_demand_stats(inp):
     out = pd.DataFrame()
@@ -317,8 +318,8 @@ store.create_saved_dataset(
 
 Dataset profiler is a function that accepts dataset and generates set of its characteristics. This charasteristics will be then used to evaluate (validate) next datasets.
 
-**Important: datasets are not compared to each other! 
-Feast use a reference dataset and a profiler function to generate a reference profile. 
+**Important: datasets are not compared to each other!
+Feast use a reference dataset and a profiler function to generate a reference profile.
 This profile will be then used during validation of the tested dataset.**
 
 
@@ -523,37 +524,37 @@ def stats_profiler(ds: PandasDataset) -> ExpectationSuite:
         max_value=60,
         mostly=0.99  # allow some outliers
     )
-    
+
     ds.expect_column_values_to_be_between(
         "total_miles_travelled",
         min_value=0,
         max_value=500,
         mostly=0.99  # allow some outliers
     )
-    
+
     # expectation of means based on observed values
     observed_mean = ds.trip_count.mean()
     ds.expect_column_mean_to_be_between("trip_count",
                                         min_value=observed_mean * (1 - DELTA),
                                         max_value=observed_mean * (1 + DELTA))
-    
+
     observed_mean = ds.earned_per_hour.mean()
     ds.expect_column_mean_to_be_between("earned_per_hour",
                                         min_value=observed_mean * (1 - DELTA),
                                         max_value=observed_mean * (1 + DELTA))
-    
-    
+
+
     # expectation of quantiles
     qs = [0.5, 0.75, 0.9, 0.95]
     observed_quantiles = ds.avg_fare.quantile(qs)
-    
+
     ds.expect_column_quantile_values_to_be_between(
         "avg_fare",
         quantile_ranges={
             "quantiles": qs,
             "value_ranges": [[None, max_value] for max_value in observed_quantiles]
-        })                                     
-    
+        })
+
     return ds.get_expectation_suite()
 ```
 
@@ -663,7 +664,7 @@ _ = job.to_df(validation_reference=validation_reference)
 Validation successfully passed as no exception were raised.
 
 
-### 5. Validating new historical retrieval 
+### 5. Validating new historical retrieval
 
 Creating new timestamps for Dec 2020:
 

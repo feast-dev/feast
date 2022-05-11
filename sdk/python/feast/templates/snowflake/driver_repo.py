@@ -2,18 +2,19 @@ from datetime import timedelta
 
 import yaml
 
-from feast import Entity, Feature, FeatureView, SnowflakeSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, SnowflakeSource
+from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
 # retrieve features. Entities are also used to join multiple tables/views during the
 # construction of feature vectors
 driver = Entity(
     # Name of the entity. Must be unique within a project
-    name="driver_id",
-    # The join key of an entity describes the storage level field/column on which
-    # features can be looked up. The join key is also used to join feature
+    name="driver",
+    # The join keys of an entity describe the storage level field/column on which
+    # features can be looked up. The join keys are also used to join feature
     # tables/views when building feature vectors
-    join_key="driver_id",
+    join_keys=["driver_id"],
 )
 
 # Indicates a data source from which feature values can be retrieved. Sources are queried when building training
@@ -24,9 +25,10 @@ driver_stats_source = SnowflakeSource(
     # The Snowflake table where features can be found
     database=yaml.safe_load(open("feature_store.yaml"))["offline_store"]["database"],
     table=f"{project_name}_feast_driver_hourly_stats",
+    warehouse="SNOWFLAKE_WAREHOUSE",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     # The (optional) created timestamp is used to ensure there are no duplicate
     # feature rows in the offline store or when building training datasets
     created_timestamp_column="created",
@@ -41,7 +43,7 @@ driver_stats_fv = FeatureView(
     # The list of entities specifies the keys required for joining or looking
     # up features from this feature view. The reference provided in this field
     # correspond to the name of a defined entity (or entities)
-    entities=["driver_id"],
+    entities=["driver"],
     # The timedelta is the maximum age that each feature value may have
     # relative to its lookup time. For historical features (used in training),
     # TTL is relative to each timestamp provided in the entity dataframe.
@@ -52,13 +54,15 @@ driver_stats_fv = FeatureView(
     # The list of features defined below act as a schema to both define features
     # for both materialization of features into a store, and are used as references
     # during retrieval for building a training dataset or serving features
-    features=[
-        Feature(name="conv_rate", dtype=ValueType.FLOAT),
-        Feature(name="acc_rate", dtype=ValueType.FLOAT),
-        Feature(name="avg_daily_trips", dtype=ValueType.INT64),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on Redshift for driver statistics
     # features
     batch_source=driver_stats_source,
 )
+
+driver_stats_fs = FeatureService(name="driver_activity", features=[driver_stats_fv])

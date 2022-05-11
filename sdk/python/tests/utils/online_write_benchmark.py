@@ -11,11 +11,12 @@ from tqdm import tqdm
 from feast import FileSource
 from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.infra.provider import _convert_arrow_to_proto
 from feast.repo_config import RepoConfig
+from feast.types import Float32, Int32
 from feast.value_type import ValueType
 
 
@@ -23,12 +24,12 @@ def create_driver_hourly_stats_feature_view(source):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
         entities=["driver_id"],
-        features=[
-            Feature(name="conv_rate", dtype=ValueType.FLOAT),
-            Feature(name="acc_rate", dtype=ValueType.FLOAT),
-            Feature(name="avg_daily_trips", dtype=ValueType.INT32),
+        schema=[
+            Field(name="conv_rate", dtype=Float32),
+            Field(name="acc_rate", dtype=Float32),
+            Field(name="avg_daily_trips", dtype=Int32),
         ],
-        batch_source=source,
+        source=source,
         ttl=timedelta(hours=2),
     )
     return driver_stats_feature_view
@@ -37,7 +38,7 @@ def create_driver_hourly_stats_feature_view(source):
 def create_driver_hourly_stats_source(parquet_path):
     return FileSource(
         path=parquet_path,
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
 

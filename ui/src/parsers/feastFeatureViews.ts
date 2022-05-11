@@ -13,7 +13,7 @@ const FeastBatchSourceSchema = z.object({
   fileOptions: z.object({
     fileUrl: z.string().optional(),
   }).optional(),
-  name: z.string(),
+  name: z.string().optional(),
   meta: z.object({
     earliestEventTimestamp: z.string().transform((val) => new Date(val)),
     latestEventTimestamp: z.string().transform((val) => new Date(val)),
@@ -39,8 +39,8 @@ const FeastFeatureViewSchema = z.object({
     tags: z.record(z.string()).optional(),
   }),
   meta: z.object({
-    createdTimestamp: z.string().transform((val) => new Date(val)),
-    lastUpdatedTimestamp: z.string().transform((val) => new Date(val)),
+    createdTimestamp: z.string().transform((val) => new Date(val)).optional(),
+    lastUpdatedTimestamp: z.string().transform((val) => new Date(val)).optional(),
     materializationIntervals: z
       .array(
         z.object({

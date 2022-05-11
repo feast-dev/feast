@@ -28,7 +28,8 @@ The OfflineStore class contains a couple of methods to read features from the of
 There are two methods that deal with reading data from the offline stores`get_historical_features`and `pull_latest_from_table_or_query`.
 
 * `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
-* `get_historical_features `is invoked when reading values from the offline store using the `FeatureStore.get_historica_features()` method. Typically, this method is used to retrieve features when training ML models.
+* `get_historical_features` is invoked when reading values from the offline store using the `FeatureStore.get_historical_features()` method. Typically, this method is used to retrieve features when training ML models.
+* `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date.
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
@@ -53,7 +54,7 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                         data_source: DataSource,
                                         join_key_columns: List[str],
                                         feature_name_columns: List[str],
-                                        event_timestamp_column: str,
+                                        timestamp_field: str,
                                         created_timestamp_column: Optional[str],
                                         start_date: datetime,
                                         end_date: datetime) -> RetrievalJob:
@@ -62,7 +63,7 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                                        data_source,
                                                        join_key_columns,
                                                        feature_name_columns,
-                                                       event_timestamp_column,
+                                                       timestamp_field=timestamp_field,
                                                        created_timestamp_column,
                                                        start_date,
                                                        end_date)
@@ -164,14 +165,14 @@ class CustomFileDataSource(FileSource):
     """Custom data source class for local files"""
     def __init__(
         self,
-        event_timestamp_column: Optional[str] = "",
+        timestamp_field: Optional[str] = "",
         path: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         created_timestamp_column: Optional[str] = "",
         date_partition_column: Optional[str] = "",
     ):
         super(CustomFileDataSource, self).__init__(
-            event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -188,7 +189,7 @@ class CustomFileDataSource(FileSource):
         return CustomFileDataSource(
             field_mapping=dict(data_source.field_mapping),
             path=path,
-            event_timestamp_column=data_source.event_timestamp_column,
+            timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
         )
@@ -202,7 +203,7 @@ class CustomFileDataSource(FileSource):
             ),
         )
 
-        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
@@ -223,7 +224,7 @@ To use our custom file offline store, we can use the following `feature_store.ya
 project: test_custom
 registry: data/registry.db
 provider: local
-offline_store: 
+offline_store:
     type: feast_custom_offline_store.file.CustomFileOfflineStore
 ```
 {% endcode %}
@@ -245,13 +246,13 @@ Finally, the custom data source class can be use in the feature repo to define a
 ```python
 pdriver_hourly_stats = CustomFileDataSource(
     path="feature_repo/data/driver_stats.parquet",
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
 
 
 driver_hourly_stats_view = FeatureView(
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     ...
 )
 ```

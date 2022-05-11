@@ -12,7 +12,7 @@ import {
   EuiFlexItem,
 } from "@elastic/eui";
 
-import FeatureViewIcon from "../../feature-view.svg";
+import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import FeatureViewListingTable from "./FeatureViewListingTable";
@@ -117,7 +117,7 @@ const Index = () => {
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={FeatureViewIcon}
+        iconType={FeatureViewIcon32}
         pageTitle="Feature Views"
       />
       <EuiPageContent

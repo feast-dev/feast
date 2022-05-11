@@ -54,17 +54,28 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
-  integration-test-python:
+  integration-test-python-and-go:
     needs: build-lambda-docker-image
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        go-version: [ 1.17.0 ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -73,6 +84,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -110,16 +126,11 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: ${{ matrix.redis-version }}
-          redis-port: 12345
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
           docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
-      - name: Test python
+      - name: Test python and go
         env:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-lambda-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"

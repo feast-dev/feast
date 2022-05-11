@@ -18,22 +18,23 @@
 syntax = "proto3";
 package feast.core;
 
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
+import "feast/core/Feature.proto";
 
 // Defines a Data Source that can be used source Feature data
-// Next available id: 22
+// Next available id: 28
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 9
+  // Next available id: 12
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -44,7 +45,9 @@ message DataSource {
     STREAM_KINESIS = 4;
     CUSTOM_SOURCE = 6;
     REQUEST_SOURCE = 7;
-
+    PUSH_SOURCE = 9;
+    BATCH_TRINO = 10;
+    BATCH_SPARK = 11;
   }
 
   // Unique name of data source within the project
@@ -53,6 +56,12 @@ message DataSource {
   // Name of Feast project that this data source belongs to.
   string project = 21;
 
+  string description = 23;
+
+  map<string, string> tags = 24;
+
+  string owner = 25;
+
   SourceType type = 1;
 
   // Defines mapping between fields in the sourced data
@@ -60,7 +69,7 @@ message DataSource {
   map<string, string> field_mapping = 2;
 
   // Must specify event timestamp column name
-  string event_timestamp_column = 3;
+  string timestamp_field = 3;
 
   // (Optional) Specify partition column
   // useful for file sources
@@ -71,7 +80,13 @@ message DataSource {
 
   // This is an internal field that is represents the python class for the data source object a proto object represents.
   // This should be set by feast, and not by users.
+  // The field is used primarily by custom data sources and is mandatory for them to set. Feast may set it for
+  // first party sources as well.
   string data_source_class_type = 17;
+
+  // Optional batch source for streaming sources for historical features and materialization.
+  DataSource batch_source = 26;
+
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {
@@ -81,7 +96,7 @@ message DataSource {
     // s3://path/to/file for AWS S3 storage
     // gs://path/to/file for GCP GCS storage
     // file:///path/to/file for local storage
-    string file_url  = 2;
+    string uri  = 2;
 
     // override AWS S3 storage endpoint with custom S3 endpoint
     string s3_endpoint_override  = 3;
@@ -90,7 +105,17 @@ message DataSource {
   // Defines options for DataSource that sources features from a BigQuery Query
   message BigQueryOptions {
     // Full table reference in the form of [project:dataset.table]
-    string table_ref = 1;
+    string table = 1;
+
+    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
+    // entity columns
+    string query = 2;
+  }
+
+  // Defines options for DataSource that sources features from a Trino Query
+  message TrinoOptions {
+    // Full table reference in the form of [project:dataset.table]
+    string table = 1;
 
     // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
     // entity columns
@@ -109,6 +134,7 @@ message DataSource {
 
     // Defines the stream data format encoding feature/entity data in Kafka messages.
     StreamFormat message_format = 3;
+
   }
 
   // Defines options for DataSource that sources features from Kinesis records.
@@ -137,6 +163,9 @@ message DataSource {
 
     // Redshift schema name
     string schema = 3;
+
+    // Redshift database name
+    string database = 4;
   }
 
   // Defines options for DataSource that sources features from a Snowflake Query
@@ -153,6 +182,24 @@ message DataSource {
 
     // Snowflake schema name
     string database = 4;
+
+    // Snowflake warehouse name
+    string warehouse = 5;
+  }
+
+  // Defines options for DataSource that sources features from a spark table/query
+  message SparkOptions {
+    // Table name
+    string table = 1;
+
+    // Spark SQl query that returns the table, this is an alternative to `table`
+    string query = 2;
+
+    // Path from which spark can read the table, this is an alternative to `table`
+    string path = 3;
+
+    // Format of files at `path` (e.g. parquet, avro, etc)
+    string file_format = 4;
   }
 
   // Defines configuration for custom third-party data sources.
@@ -166,8 +213,18 @@ message DataSource {
   message RequestDataOptions {
     reserved 1;
     // Mapping of feature name to type
-    map<string, feast.types.ValueType.Enum> schema = 2;
+    map<string, feast.types.ValueType.Enum> deprecated_schema = 2;
+
+    repeated FeatureSpecV2 schema = 3;
+
   }
+
+  // Defines options for DataSource that supports pushing data to it. This allows data to be pushed to
+  // the online store on-demand, such as by stream consumers.
+  message PushOptions {
+    reserved 1;
+  }
+
 
   // DataSource options.
   oneof options {
@@ -179,5 +236,8 @@ message DataSource {
     RequestDataOptions request_data_options = 18;
     CustomSourceOptions custom_options = 16;
     SnowflakeOptions snowflake_options = 19;
+    PushOptions push_options = 22;
+    SparkOptions spark_options = 27;
+    TrinoOptions trino_options = 30;
   }
 }

@@ -9,7 +9,7 @@ import pandas
 import pyarrow
 from tqdm import tqdm
 
-from feast import errors
+from feast import FeatureService, errors
 from feast.entity import Entity
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.importer import import_class
@@ -183,7 +183,44 @@ class Provider(abc.ABC):
         Returns:
              RetrievalJob object, which is lazy wrapper for actual query performed under the hood.
 
-         """
+        """
+        ...
+
+    @abc.abstractmethod
+    def write_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        logs: Union[pyarrow.Table, Path],
+        config: RepoConfig,
+        registry: Registry,
+    ):
+        """
+        Write features and entities logged by a feature server to an offline store.
+
+        Schema of logs table is being inferred from the provided feature service.
+        Only feature services with configured logging are accepted.
+
+        Logs dataset can be passed as Arrow Table or path to parquet directory.
+        """
+        ...
+
+    @abc.abstractmethod
+    def retrieve_feature_service_logs(
+        self,
+        feature_service: FeatureService,
+        start_date: datetime,
+        end_date: datetime,
+        config: RepoConfig,
+        registry: Registry,
+    ) -> RetrievalJob:
+        """
+        Read logged features from an offline store for a given time window [from, to).
+        Target table is determined based on logging configuration from the feature service.
+
+        Returns:
+             RetrievalJob object, which wraps the query to the offline store.
+
+        """
         ...
 
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -258,7 +295,7 @@ def _get_column_names(
         the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.batch_source.event_timestamp_column
+    timestamp_field = feature_view.batch_source.timestamp_field
     feature_names = [feature.name for feature in feature_view.features]
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
     join_keys = [
@@ -268,10 +305,10 @@ def _get_column_names(
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
-        event_timestamp_column = (
-            reverse_field_mapping[event_timestamp_column]
-            if event_timestamp_column in reverse_field_mapping.keys()
-            else event_timestamp_column
+        timestamp_field = (
+            reverse_field_mapping[timestamp_field]
+            if timestamp_field in reverse_field_mapping.keys()
+            else timestamp_field
         )
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
@@ -290,13 +327,17 @@ def _get_column_names(
 
     # We need to exclude join keys and timestamp columns from the list of features, after they are mapped to
     # their final column names via the `field_mapping` field of the source.
-    _feature_names = set(feature_names) - set(join_keys)
-    _feature_names = _feature_names - {event_timestamp_column, created_timestamp_column}
-    feature_names = list(_feature_names)
+    feature_names = [
+        name
+        for name in feature_names
+        if name not in join_keys
+        and name != timestamp_field
+        and name != created_timestamp_column
+    ]
     return (
         join_keys,
         feature_names,
-        event_timestamp_column,
+        timestamp_field,
         created_timestamp_column,
     )
 
@@ -348,9 +389,9 @@ def _convert_arrow_to_proto(
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
-    columns = [(f.name, f.dtype) for f in feature_view.features] + list(
-        join_keys.items()
-    )
+    columns = [
+        (field.name, field.dtype.to_value_type()) for field in feature_view.schema
+    ] + list(join_keys.items())
 
     proto_values_by_column = {
         column: python_values_to_proto_values(
@@ -378,7 +419,7 @@ def _convert_arrow_to_proto(
     event_timestamps = [
         _coerce_datetime(val)
         for val in pandas.to_datetime(
-            table.column(feature_view.batch_source.event_timestamp_column).to_numpy(
+            table.column(feature_view.batch_source.timestamp_field).to_numpy(
                 zero_copy_only=False
             )
         )

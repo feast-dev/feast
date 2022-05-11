@@ -105,6 +105,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 infra/scripts/*.conf
+go/internal/test/feature_repo/data/
 
 # Translations
 *.mo
@@ -186,6 +187,7 @@ dmypy.json
 sdk/python/docs/html
 sdk/python/feast/protos/
 sdk/go/protos/
+go/protos/
 
 #benchmarks
 .benchmarks
@@ -203,7 +205,7 @@ ui/.pnp
 ui/.pnp.js
 ui/coverage
 ui/build
-ui/feature_repo/data/online.db 
+ui/feature_repo/data/online.db
 ui/feature_repo/registry.db
 ui/.vercel
 
@@ -218,3 +220,5 @@ ui/.vercel
 **/yarn-debug.log*
 **/yarn-error.log*
 
+# Go subprocess binaries (built during feast pip package building)
+sdk/python/feast/binaries/

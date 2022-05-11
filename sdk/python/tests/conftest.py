@@ -53,6 +53,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "universal: mark tests that use the universal feature repo"
     )
+    config.addinivalue_line(
+        "markers", "goserver: mark tests that use the go feature server"
+    )
 
 
 def pytest_addoption(parser):
@@ -68,12 +71,19 @@ def pytest_addoption(parser):
     parser.addoption(
         "--universal", action="store_true", default=False, help="Run universal tests",
     )
+    parser.addoption(
+        "--goserver",
+        action="store_true",
+        default=False,
+        help="Run tests that use the go feature server",
+    )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
     should_run_universal = config.getoption("--universal") is True
+    should_run_goserver = config.getoption("--goserver") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -97,6 +107,12 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     if should_run_universal:
         items.clear()
         for t in universal_tests:
+            items.append(t)
+
+    goserver_tests = [t for t in items if "goserver" in t.keywords]
+    if should_run_goserver:
+        items.clear()
+        for t in goserver_tests:
             items.append(t)
 
 
@@ -149,7 +165,9 @@ def start_test_local_server(repo_path: str, port: int):
     params=FULL_REPO_CONFIGS, scope="session", ids=[str(c) for c in FULL_REPO_CONFIGS]
 )
 def environment(request, worker_id: str):
-    e = construct_test_environment(request.param, worker_id=worker_id)
+    e = construct_test_environment(
+        request.param, worker_id=worker_id, fixture_request=request
+    )
     proc = Process(
         target=start_test_local_server,
         args=(e.feature_store.repo_path, e.get_local_server_port()),
@@ -164,6 +182,8 @@ def environment(request, worker_id: str):
         e.feature_store.teardown()
         if proc.is_alive():
             proc.kill()
+        if e.online_store_creator:
+            e.online_store_creator.teardown()
 
     request.addfinalizer(cleanup)
 
@@ -177,7 +197,9 @@ def environment(request, worker_id: str):
 )
 def local_redis_environment(request, worker_id):
     e = construct_test_environment(
-        IntegrationTestRepoConfig(online_store=request.param), worker_id=worker_id
+        IntegrationTestRepoConfig(online_store=request.param),
+        worker_id=worker_id,
+        fixture_request=request,
     )
 
     def cleanup():
@@ -216,6 +238,8 @@ def e2e_data_sources(environment: Environment, request):
 
     def cleanup():
         environment.data_source_creator.teardown()
+        if environment.online_store_creator:
+            environment.online_store_creator.teardown()
 
     request.addfinalizer(cleanup)
 

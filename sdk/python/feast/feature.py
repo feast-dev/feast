@@ -15,7 +15,7 @@
 from typing import Dict, Optional
 
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
-from feast.protos.feast.types import Value_pb2 as ValueTypeProto
+from feast.protos.feast.types.Value_pb2 import ValueType as ValueTypeProto
 from feast.value_type import ValueType
 
 
@@ -88,10 +88,10 @@ class Feature:
         Returns:
             A FeatureSpecProto protobuf.
         """
-        value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
+        value_type = ValueTypeProto.Enum.Value(self.dtype.name)
 
         return FeatureSpecProto(
-            name=self.name, value_type=value_type, labels=self.labels,
+            name=self.name, value_type=value_type, tags=self.labels,
         )
 
     @classmethod
@@ -106,7 +106,7 @@ class Feature:
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
-            labels=dict(feature_proto.labels),
+            labels=dict(feature_proto.tags),
         )
 
         return feature

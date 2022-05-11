@@ -15,12 +15,13 @@ from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityDfException,
 )
-from feast.feature import Feature
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
+from feast.types import Int32
 from feast.value_type import ValueType
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -93,23 +94,23 @@ def get_expected_training_df(
 ):
     # Convert all pandas dataframes into records with UTC timestamps
     customer_records = convert_timestamp_records_to_utc(
-        customer_df.to_dict("records"), customer_fv.batch_source.event_timestamp_column
+        customer_df.to_dict("records"), customer_fv.batch_source.timestamp_field
     )
     driver_records = convert_timestamp_records_to_utc(
-        driver_df.to_dict("records"), driver_fv.batch_source.event_timestamp_column
+        driver_df.to_dict("records"), driver_fv.batch_source.timestamp_field
     )
     order_records = convert_timestamp_records_to_utc(
         orders_df.to_dict("records"), event_timestamp
     )
     location_records = convert_timestamp_records_to_utc(
-        location_df.to_dict("records"), location_fv.batch_source.event_timestamp_column
+        location_df.to_dict("records"), location_fv.batch_source.timestamp_field
     )
     global_records = convert_timestamp_records_to_utc(
-        global_df.to_dict("records"), global_fv.batch_source.event_timestamp_column
+        global_df.to_dict("records"), global_fv.batch_source.timestamp_field
     )
     field_mapping_records = convert_timestamp_records_to_utc(
         field_mapping_df.to_dict("records"),
-        field_mapping_fv.batch_source.event_timestamp_column,
+        field_mapping_fv.batch_source.timestamp_field,
     )
     entity_rows = convert_timestamp_records_to_utc(
         entity_df.to_dict("records"), event_timestamp
@@ -120,7 +121,7 @@ def get_expected_training_df(
     for entity_row in entity_rows:
         customer_record = find_asof_record(
             customer_records,
-            ts_key=customer_fv.batch_source.event_timestamp_column,
+            ts_key=customer_fv.batch_source.timestamp_field,
             ts_start=entity_row[event_timestamp] - customer_fv.ttl,
             ts_end=entity_row[event_timestamp],
             filter_keys=["customer_id"],
@@ -128,7 +129,7 @@ def get_expected_training_df(
         )
         driver_record = find_asof_record(
             driver_records,
-            ts_key=driver_fv.batch_source.event_timestamp_column,
+            ts_key=driver_fv.batch_source.timestamp_field,
             ts_start=entity_row[event_timestamp] - driver_fv.ttl,
             ts_end=entity_row[event_timestamp],
             filter_keys=["driver_id"],
@@ -136,7 +137,7 @@ def get_expected_training_df(
         )
         order_record = find_asof_record(
             order_records,
-            ts_key=customer_fv.batch_source.event_timestamp_column,
+            ts_key=customer_fv.batch_source.timestamp_field,
             ts_start=entity_row[event_timestamp] - order_fv.ttl,
             ts_end=entity_row[event_timestamp],
             filter_keys=["customer_id", "driver_id"],
@@ -144,7 +145,7 @@ def get_expected_training_df(
         )
         origin_record = find_asof_record(
             location_records,
-            ts_key=location_fv.batch_source.event_timestamp_column,
+            ts_key=location_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - location_fv.ttl,
             ts_end=order_record[event_timestamp],
             filter_keys=["location_id"],
@@ -152,7 +153,7 @@ def get_expected_training_df(
         )
         destination_record = find_asof_record(
             location_records,
-            ts_key=location_fv.batch_source.event_timestamp_column,
+            ts_key=location_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - location_fv.ttl,
             ts_end=order_record[event_timestamp],
             filter_keys=["location_id"],
@@ -160,14 +161,14 @@ def get_expected_training_df(
         )
         global_record = find_asof_record(
             global_records,
-            ts_key=global_fv.batch_source.event_timestamp_column,
+            ts_key=global_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - global_fv.ttl,
             ts_end=order_record[event_timestamp],
         )
 
         field_mapping_record = find_asof_record(
             field_mapping_records,
-            ts_key=field_mapping_fv.batch_source.event_timestamp_column,
+            ts_key=field_mapping_fv.batch_source.timestamp_field,
             ts_start=order_record[event_timestamp] - field_mapping_fv.ttl,
             ts_end=order_record[event_timestamp],
         )
@@ -219,7 +220,10 @@ def get_expected_training_df(
                 (
                     f"field_mapping__{feature}" if full_feature_names else feature
                 ): field_mapping_record.get(column, None)
-                for (column, feature) in field_mapping_fv.input.field_mapping.items()
+                for (
+                    column,
+                    feature,
+                ) in field_mapping_fv.batch_source.field_mapping.items()
             }
         )
 
@@ -295,11 +299,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
     feature_service = FeatureService(
         name="convrate_plus100",
-        features=[
-            feature_views.driver[["conv_rate"]],
-            feature_views.driver_odfv,
-            feature_views.driver_age_request_fv,
-        ],
+        features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
     )
     feature_service_entity_mapping = FeatureService(
         name="entity_mapping",
@@ -366,7 +366,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "order:order_is_success",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
-            "driver_age:driver_age",
             "field_mapping:feature_name",
         ],
         full_feature_names=full_feature_names,
@@ -441,22 +440,6 @@ def test_historical_features_with_missing_request_data(
             full_feature_names=full_feature_names,
         )
 
-    # If request data is missing that's needed for a request feature view, throw an error
-    with pytest.raises(RequestDataNotFoundInEntityDfException):
-        store.get_historical_features(
-            entity_df=datasets.entity_df,
-            features=[
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-                "driver_age:driver_age",
-                "global_stats:num_rides",
-                "global_stats:avg_ride_length",
-                "field_mapping:feature_name",
-            ],
-            full_feature_names=full_feature_names,
-        )
-
 
 @pytest.mark.integration
 @pytest.mark.universal
@@ -465,7 +448,6 @@ def test_historical_features_with_entities_from_query(
     environment, universal_data_sources, full_feature_names
 ):
     store = environment.feature_store
-
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
@@ -473,13 +455,17 @@ def test_historical_features_with_entities_from_query(
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
-    if (
-        environment.test_repo_config.offline_store_creator.__name__
-        == SnowflakeDataSourceCreator.__name__
-    ):
-        entity_df_query = f'''SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp" FROM "{orders_table}"'''
+    data_source_creator = environment.test_repo_config.offline_store_creator
+    if data_source_creator.__name__ == SnowflakeDataSourceCreator.__name__:
+        entity_df_query = f"""
+        SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
+        FROM "{orders_table}"
+        """
     else:
-        entity_df_query = f"SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp FROM {orders_table}"
+        entity_df_query = f"""
+        SELECT customer_id, driver_id, order_id, origin_id, destination_id, event_timestamp
+        FROM {orders_table}
+        """
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
 
@@ -641,11 +627,12 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)
     tomorrow = now + timedelta(days=1)
+    day_after_tomorrow = now + timedelta(days=2)
 
     entity_df = pd.DataFrame(
         data=[
-            {"driver_id": 1001, "event_timestamp": now + timedelta(days=2)},
-            {"driver_id": 1002, "event_timestamp": now + timedelta(days=2)},
+            {"driver_id": 1001, "event_timestamp": day_after_tomorrow},
+            {"driver_id": 1002, "event_timestamp": day_after_tomorrow},
         ]
     )
 
@@ -684,12 +671,12 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         data=[
             {
                 "driver_id": 1001,
-                "event_timestamp": now + timedelta(days=2),
+                "event_timestamp": day_after_tomorrow,
                 "avg_daily_trips": 20,
             },
             {
                 "driver_id": 1002,
-                "event_timestamp": now + timedelta(days=2),
+                "event_timestamp": day_after_tomorrow,
                 "avg_daily_trips": 40,
             },
         ]
@@ -698,15 +685,15 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
     driver_stats_data_source = environment.data_source_creator.create_data_source(
         df=driver_stats_df,
         destination_name=f"test_driver_stats_{int(time.time_ns())}_{random.randint(1000, 9999)}",
-        event_timestamp_column="event_timestamp",
+        timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
 
-    driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
     driver_fv = FeatureView(
         name="driver_stats",
         entities=["driver"],
-        features=[Feature(name="avg_daily_trips", dtype=ValueType.INT32)],
+        schema=[Field(name="avg_daily_trips", dtype=Int32)],
         batch_source=driver_stats_data_source,
         ttl=None,
     )

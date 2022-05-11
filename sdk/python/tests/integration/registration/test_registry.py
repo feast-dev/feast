@@ -24,10 +24,12 @@ from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import RequestDataSource, on_demand_feature_view
+from feast.field import Field
+from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
+from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 
 
@@ -167,18 +169,17 @@ def test_apply_feature_view_success(test_registry):
     batch_source = FileSource(
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[
-            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
@@ -198,13 +199,13 @@ def test_apply_feature_view_success(test_registry):
         len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[0].dtype == Int64
         and feature_views[0].features[1].name == "fs1_my_feature_2"
-        and feature_views[0].features[1].dtype == ValueType.STRING
+        and feature_views[0].features[1].dtype == String
         and feature_views[0].features[2].name == "fs1_my_feature_3"
-        and feature_views[0].features[2].dtype == ValueType.STRING_LIST
+        and feature_views[0].features[2].dtype == Array(String)
         and feature_views[0].features[3].name == "fs1_my_feature_4"
-        and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
+        and feature_views[0].features[3].dtype == Array(Bytes)
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
@@ -212,13 +213,13 @@ def test_apply_feature_view_success(test_registry):
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[0].dtype == Int64
         and feature_view.features[1].name == "fs1_my_feature_2"
-        and feature_view.features[1].dtype == ValueType.STRING
+        and feature_view.features[1].dtype == String
         and feature_view.features[2].name == "fs1_my_feature_3"
-        and feature_view.features[2].dtype == ValueType.STRING_LIST
+        and feature_view.features[2].dtype == Array(String)
         and feature_view.features[3].name == "fs1_my_feature_4"
-        and feature_view.features[3].dtype == ValueType.BYTES_LIST
+        and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
@@ -236,23 +237,25 @@ def test_apply_feature_view_success(test_registry):
 @pytest.mark.parametrize(
     "test_registry", [lazy_fixture("local_registry")],
 )
-def test_modify_feature_views_success(test_registry):
+# TODO(kevjumba): remove this in feast 0.23 when deprecating
+@pytest.mark.parametrize(
+    "request_source_schema",
+    [[Field(name="my_input_1", dtype=Int32)], {"my_input_1": ValueType.INT32}],
+)
+def test_modify_feature_views_success(test_registry, request_source_schema):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
-    request_source = RequestDataSource(
-        name="request_source", schema={"my_input_1": ValueType.INT32}
-    )
+    request_source = RequestSource(name="request_source", schema=request_source_schema,)
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[Feature(name="fs1_my_feature_1", dtype=ValueType.INT64)],
+        schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
         batch_source=batch_source,
@@ -264,7 +267,7 @@ def test_modify_feature_views_success(test_registry):
             Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
             Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
         ],
-        inputs={"request_source": request_source},
+        sources=[request_source],
     )
     def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -284,7 +287,7 @@ def test_modify_feature_views_success(test_registry):
             Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
             Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
         ],
-        inputs={"request_source": request_source},
+        sources=[request_source],
     )
     def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -302,9 +305,9 @@ def test_modify_feature_views_success(test_registry):
         len(on_demand_feature_views) == 1
         and on_demand_feature_views[0].name == "odfv1"
         and on_demand_feature_views[0].features[0].name == "odfv1_my_feature_1"
-        and on_demand_feature_views[0].features[0].dtype == ValueType.FLOAT
+        and on_demand_feature_views[0].features[0].dtype == Float32
         and on_demand_feature_views[0].features[1].name == "odfv1_my_feature_2"
-        and on_demand_feature_views[0].features[1].dtype == ValueType.INT32
+        and on_demand_feature_views[0].features[1].dtype == Int32
     )
     request_schema = on_demand_feature_views[0].get_request_data_schema()
     assert (
@@ -316,9 +319,9 @@ def test_modify_feature_views_success(test_registry):
     assert (
         feature_view.name == "odfv1"
         and feature_view.features[0].name == "odfv1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.FLOAT
+        and feature_view.features[0].dtype == Float32
         and feature_view.features[1].name == "odfv1_my_feature_2"
-        and feature_view.features[1].dtype == ValueType.INT32
+        and feature_view.features[1].dtype == Int32
     )
     request_schema = feature_view.get_request_data_schema()
     assert (
@@ -334,7 +337,7 @@ def test_modify_feature_views_success(test_registry):
         len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[0].dtype == Int64
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
@@ -342,7 +345,7 @@ def test_modify_feature_views_success(test_registry):
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[0].dtype == Int64
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
@@ -362,18 +365,17 @@ def test_apply_feature_view_integration(test_registry):
     batch_source = FileSource(
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[
-            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
@@ -393,13 +395,13 @@ def test_apply_feature_view_integration(test_registry):
         len(feature_views) == 1
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[0].dtype == Int64
         and feature_views[0].features[1].name == "fs1_my_feature_2"
-        and feature_views[0].features[1].dtype == ValueType.STRING
+        and feature_views[0].features[1].dtype == String
         and feature_views[0].features[2].name == "fs1_my_feature_3"
-        and feature_views[0].features[2].dtype == ValueType.STRING_LIST
+        and feature_views[0].features[2].dtype == Array(String)
         and feature_views[0].features[3].name == "fs1_my_feature_4"
-        and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
+        and feature_views[0].features[3].dtype == Array(Bytes)
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
@@ -407,13 +409,13 @@ def test_apply_feature_view_integration(test_registry):
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[0].dtype == Int64
         and feature_view.features[1].name == "fs1_my_feature_2"
-        and feature_view.features[1].dtype == ValueType.STRING
+        and feature_view.features[1].dtype == String
         and feature_view.features[2].name == "fs1_my_feature_3"
-        and feature_view.features[2].dtype == ValueType.STRING_LIST
+        and feature_view.features[2].dtype == Array(String)
         and feature_view.features[3].name == "fs1_my_feature_4"
-        and feature_view.features[3].dtype == ValueType.BYTES_LIST
+        and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
@@ -438,18 +440,17 @@ def test_apply_data_source(test_registry: Registry):
         name="test_source",
         file_format=ParquetFormat(),
         path="file://feast/*",
-        event_timestamp_column="ts_col",
+        timestamp_field="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        features=[
-            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
         ],
         entities=["fs1_my_entity_1"],
         tags={"team": "matchmaking"},
@@ -473,7 +474,7 @@ def test_apply_data_source(test_registry: Registry):
     assert registry_data_source == batch_source
 
     # Check that change to batch source propagates
-    batch_source.event_timestamp_column = "new_ts_col"
+    batch_source.timestamp_field = "new_ts_col"
     test_registry.apply_data_source(batch_source, project, commit=False)
     test_registry.apply_feature_view(fv1, project, commit=True)
     registry_feature_views = test_registry.list_feature_views(project)

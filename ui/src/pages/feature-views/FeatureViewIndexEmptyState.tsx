@@ -1,12 +1,11 @@
 import React from "react";
 import { EuiEmptyPrompt, EuiTitle, EuiLink, EuiButton } from "@elastic/eui";
-
-import feastIconBlue from "../../feast-icon-blue.svg";
+import FeastIconBlue from "../../graphics/FeastIconBlue";
 
 const FeatureViewIndexEmptyState = () => {
   return (
     <EuiEmptyPrompt
-      iconType={feastIconBlue}
+      iconType={FeastIconBlue}
       title={<h2>There are no feature views</h2>}
       body={
         <p>

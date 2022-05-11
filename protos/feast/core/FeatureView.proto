@@ -18,7 +18,7 @@
 syntax = "proto3";
 package feast.core;
 
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureViewProto";
 option java_package = "feast.proto.core";
 
@@ -35,6 +35,7 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
+// Next available id: 12
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -47,11 +48,17 @@ message FeatureViewSpec {
     // Feature View. Not updatable.
     repeated string entities = 3;
 
-    // List of features specifications for each feature defined with this feature view.
+    // List of specifications for each field defined as part of this feature view.
     repeated FeatureSpecV2 features = 4;
+
+    // Description of the feature view.
+    string description = 10;
 
     // User defined metadata
     map<string,string> tags = 5;
+
+    // Owner of the feature view.
+    string owner = 11;
 
     // Features in this feature view can only be retrieved from online serving
     // younger than ttl. Ttl is measured as the duration of time between

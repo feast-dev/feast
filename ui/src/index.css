@@ -5,7 +5,7 @@
 }
 
 html {
-  background: url("feast-icon-grey.svg") no-repeat -6vh 56vh;
+  background: url("assets/feast-icon-grey.svg") no-repeat -6vh 56vh;
   background-size: 50vh;
   background-attachment: fixed;
 }

@@ -63,4 +63,5 @@ class LocalRegistryStore(RegistryStore):
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
         file_dir = self._filepath.parent
         file_dir.mkdir(exist_ok=True)
-        self._filepath.write_bytes(registry_proto.SerializeToString())
+        with open(self._filepath, mode="wb", buffering=0) as f:
+            f.write(registry_proto.SerializeToString())

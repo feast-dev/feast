@@ -1,12 +1,17 @@
-import pandas as pd
-import numpy as np
-
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+from definitions import (
+    benchmark_feature_service,
+    benchmark_feature_views,
+    driver,
+    driver_hourly_stats_view,
+    entity,
+    transformed_conv_rate,
+)
+
 from feast import FeatureStore
-
-from definitions import driver_hourly_stats_view, driver, entity,\
-    benchmark_feature_service, benchmark_feature_views, transformed_conv_rate
-
 
 print("Running materialize.py")
 
@@ -21,7 +26,9 @@ df["acc_rate"] = np.arange(0.5, 1, 0.05)
 df["avg_daily_trips"] = np.arange(0, 1000, 100)
 
 # some of rows are beyond 7 days to test OUTSIDE_MAX_AGE status
-df["event_timestamp"] = start + pd.Series(np.arange(0, 10)).map(lambda days: timedelta(days=days))
+df["event_timestamp"] = start + pd.Series(np.arange(0, 10)).map(
+    lambda days: timedelta(days=days)
+)
 
 # Store data in parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
@@ -41,21 +48,27 @@ def generate_data(num_rows: int, num_features: int, destination: str) -> pd.Data
     for column in features:
         df[column] = np.random.randint(1, num_rows, num_rows)
 
-    df["entity"] = "key-" + \
-                   pd.Series(np.arange(1, num_rows + 1)).astype(pd.StringDtype())
+    df["entity"] = "key-" + pd.Series(np.arange(1, num_rows + 1)).astype(
+        pd.StringDtype()
+    )
 
     df.to_parquet(destination)
 
 
-generate_data(10**3, 250, "benchmark_data.parquet")
+generate_data(10 ** 3, 250, "benchmark_data.parquet")
 
 
 fs = FeatureStore(".")
-fs.apply([driver_hourly_stats_view,
-          transformed_conv_rate,
-          driver,
-          entity, benchmark_feature_service,
-          *benchmark_feature_views])
+fs.apply(
+    [
+        driver_hourly_stats_view,
+        transformed_conv_rate,
+        driver,
+        entity,
+        benchmark_feature_service,
+        *benchmark_feature_views,
+    ]
+)
 
 now = datetime.now()
 fs.materialize(start, now)

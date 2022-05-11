@@ -7,13 +7,12 @@ import {
   EuiLoadingSpinner,
 } from "@elastic/eui";
 
-import DataSourceIcon from "../../data-source-icon.svg";
-
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import DatasourcesListingTable from "./DataSourcesListingTable";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
+import { DataSourceIcon32 } from "../../graphics/DataSourceIcon";
 
 const useLoadDatasources = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -39,7 +38,7 @@ const Index = () => {
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={DataSourceIcon}
+        iconType={DataSourceIcon32}
         pageTitle="Data Sources"
       />
       <EuiPageContent

@@ -1,4 +1,4 @@
-import { encodeSearchQueryString } from "./useSearchInputWithTags";
+import { encodeSearchQueryString } from "./encodeSearchQueryString";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 
 import { FeastFeatureViewType } from "../parsers/feastFeatureViews";

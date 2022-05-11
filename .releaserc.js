@@ -22,12 +22,26 @@ possible_branches = [{name: "master"}, {name: current_branch}]
 module.exports = {
     branches: possible_branches,
     plugins: [
-        "@semantic-release/commit-analyzer",
-        ["@semantic-release/exec", {
-            "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
-            "prepareCmd": "python ./infra/scripts/version_bump/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
+        // Try to guess the type of release we should be doing (minor, patch)
+        ["@semantic-release/commit-analyzer", {
+            // Ensure that breaking changes trigger minor instead of major releases
+            "releaseRules": [
+                {breaking: true, release: 'minor'},
+                {tag: 'Breaking', release: 'minor'},
+            ]
         }],
+
+        ["@semantic-release/exec", {
+            // Validate the type of release we are doing
+            "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
+
+            // Bump all version files
+            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
+        }],
+
         "@semantic-release/release-notes-generator",
+
+        // Update the changelog
         [
             "@semantic-release/changelog",
             {
@@ -35,18 +49,35 @@ module.exports = {
                 changelogTitle: "# Changelog",
             }
         ],
+
+        // Make a git commit, tag, and push the changes
         [
             "@semantic-release/git",
             {
                 assets: [
                     "CHANGELOG.md",
                     "java/pom.xml",
-                    "infra/charts/**/*.*"
+                    "infra/charts/**/*.*",
+                    "ui/package.json"
                 ],
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"
             }
         ],
-        "@semantic-release/github"
+
+        // Publish a GitHub release (but don't spam issues/PRs with comments)
+        [
+            "@semantic-release/github",
+            {
+                successComment: false,
+                failComment: false,
+                failTitle: false,
+                labels: false,
+            }
+        ],
+
+        // For some reason all patches are tagged as pre-release. This step undoes that.
+        ["@semantic-release/exec", {
+            "publishCmd": "python ./infra/scripts/release/unset_prerelease.py ${nextRelease.version}"
+        }],
     ]
 }
-

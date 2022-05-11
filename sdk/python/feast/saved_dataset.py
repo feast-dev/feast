@@ -92,17 +92,23 @@ class SavedDataset:
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((id(self), self.name))
+        return hash((self.name))
 
     def __eq__(self, other):
         if not isinstance(other, SavedDataset):
             raise TypeError(
-                "Comparisons should only involve FeatureService class objects."
+                "Comparisons should only involve SavedDataset class objects."
             )
-        if self.name != other.name:
-            return False
 
-        if sorted(self.features) != sorted(other.features):
+        if (
+            self.name != other.name
+            or sorted(self.features) != sorted(other.features)
+            or sorted(self.join_keys) != sorted(other.join_keys)
+            or self.storage != other.storage
+            or self.full_feature_names != other.full_feature_names
+            or self.tags != other.tags
+            or self.feature_service_name != other.feature_service_name
+        ):
             return False
 
         return True

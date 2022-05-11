@@ -11,10 +11,10 @@ import {
 } from "@elastic/eui";
 import React from "react";
 
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
-import { encodeSearchQueryString } from "../../hooks/useSearchInputWithTags";
+import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
@@ -60,7 +60,7 @@ const RegularFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />
         </EuiFlexItem>
-        {data.spec.batchSource.meta && (
+        {data.spec.batchSource.meta ? (
           <EuiFlexItem>
             <EuiStat
               title={data.spec.batchSource.meta.latestEventTimestamp.toLocaleDateString(
@@ -70,8 +70,9 @@ const RegularFeatureViewOverviewTab = ({
               titleColor="subdued"
             />
           </EuiFlexItem>
+        ) : (
+          <EuiText>No batchSource specified on this feature view.</EuiText>
         )}
-
         {data.meta.lastUpdatedTimestamp && (
           <EuiFlexItem>
             <EuiStat

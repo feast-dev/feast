@@ -161,6 +161,13 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 * In `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
 * Run the full test suite with `make test-python-integration.`
 
+### Including a new offline / online store in the main Feast repo from external plugins with community maintainers.
+
+* This folder is for plugins that are officially maintained with community owners. Place the APIs in feast/infra/offline_stores/contrib/.
+* Extend `data_source_creator.py` for your offline store and implement the required APIs.
+* In `contrib_repo_configuration.py` add a new `IntegrationTestRepoConfig` (depending on how many online stores you want to test).
+* Run the test suite on the contrib test suite with `make test-python-contrib-universal`.
+
 ### To include a new online store
 
 * In `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
@@ -202,4 +209,3 @@ Starting 6006
 * You should be able to run the integration tests and have the redis cluster tests pass.
 * If you would like to run your own redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
 * To stop the cluster, run `./create-cluster stop` and then `./create-cluster clean`.
-

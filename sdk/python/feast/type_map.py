@@ -529,7 +529,8 @@ def snowflake_python_type_to_feast_value_type(
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "object": ValueType.UNKNOWN,
+        "object": ValueType.STRING,
+        "bool": ValueType.BOOL,
     }
 
     return type_map[snowflake_python_type_as_str.lower()]
@@ -580,10 +581,10 @@ def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
 
 def _non_empty_value(value: Any) -> bool:
     """
-        Check that there's enough data we can use for type inference.
-        If primitive type - just checking that it's not None
-        If iterable - checking that there's some elements (len > 0)
-        String is special case: "" - empty string is considered non empty
+    Check that there's enough data we can use for type inference.
+    If primitive type - just checking that it's not None
+    If iterable - checking that there's some elements (len > 0)
+    String is special case: "" - empty string is considered non empty
     """
     return value is not None and (
         not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
@@ -638,3 +639,143 @@ def spark_schema_to_np_dtypes(dtypes: List[Tuple[str, str]]) -> Iterator[np.dtyp
     )
 
     return (type_map[t] for _, t in dtypes)
+
+
+def arrow_to_pg_type(t_str: str) -> str:
+    try:
+        if t_str.startswith("timestamp") or t_str.startswith("datetime"):
+            return "timestamptz" if "tz=" in t_str else "timestamp"
+        return {
+            "null": "null",
+            "bool": "boolean",
+            "int8": "tinyint",
+            "int16": "smallint",
+            "int32": "int",
+            "int64": "bigint",
+            "list<item: int32>": "int[]",
+            "list<item: int64>": "bigint[]",
+            "list<item: bool>": "boolean[]",
+            "list<item: double>": "double precision[]",
+            "list<item: timestamp[us]>": "timestamp[]",
+            "uint8": "smallint",
+            "uint16": "int",
+            "uint32": "bigint",
+            "uint64": "bigint",
+            "float": "float",
+            "double": "double precision",
+            "binary": "binary",
+            "string": "text",
+        }[t_str]
+    except KeyError:
+        raise ValueError(f"Unsupported type: {t_str}")
+
+
+def pg_type_to_feast_value_type(type_str: str) -> ValueType:
+    type_map: Dict[str, ValueType] = {
+        "boolean": ValueType.BOOL,
+        "bytea": ValueType.BYTES,
+        "char": ValueType.STRING,
+        "bigint": ValueType.INT64,
+        "smallint": ValueType.INT32,
+        "integer": ValueType.INT32,
+        "real": ValueType.DOUBLE,
+        "double precision": ValueType.DOUBLE,
+        "boolean[]": ValueType.BOOL_LIST,
+        "bytea[]": ValueType.BYTES_LIST,
+        "char[]": ValueType.STRING_LIST,
+        "smallint[]": ValueType.INT32_LIST,
+        "integer[]": ValueType.INT32_LIST,
+        "text": ValueType.STRING,
+        "text[]": ValueType.STRING_LIST,
+        "character[]": ValueType.STRING_LIST,
+        "bigint[]": ValueType.INT64_LIST,
+        "real[]": ValueType.DOUBLE_LIST,
+        "double precision[]": ValueType.DOUBLE_LIST,
+        "character": ValueType.STRING,
+        "character varying": ValueType.STRING,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "time without time zone": ValueType.UNIX_TIMESTAMP,
+        "timestamp without time zone": ValueType.UNIX_TIMESTAMP,
+        "timestamp without time zone[]": ValueType.UNIX_TIMESTAMP_LIST,
+        "date[]": ValueType.UNIX_TIMESTAMP_LIST,
+        "time without time zone[]": ValueType.UNIX_TIMESTAMP_LIST,
+        "timestamp with time zone": ValueType.UNIX_TIMESTAMP,
+        "timestamp with time zone[]": ValueType.UNIX_TIMESTAMP_LIST,
+        "numeric[]": ValueType.DOUBLE_LIST,
+        "numeric": ValueType.DOUBLE,
+        "uuid": ValueType.STRING,
+        "uuid[]": ValueType.STRING_LIST,
+    }
+    value = (
+        type_map[type_str.lower()]
+        if type_str.lower() in type_map
+        else ValueType.UNKNOWN
+    )
+    if value == ValueType.UNKNOWN:
+        print("unknown type:", type_str)
+    return value
+
+
+def feast_value_type_to_pa(feast_type: ValueType) -> pyarrow.DataType:
+    type_map = {
+        ValueType.INT32: pyarrow.int32(),
+        ValueType.INT64: pyarrow.int64(),
+        ValueType.DOUBLE: pyarrow.float64(),
+        ValueType.FLOAT: pyarrow.float32(),
+        ValueType.STRING: pyarrow.string(),
+        ValueType.BYTES: pyarrow.binary(),
+        ValueType.BOOL: pyarrow.bool_(),
+        ValueType.UNIX_TIMESTAMP: pyarrow.timestamp("us"),
+        ValueType.INT32_LIST: pyarrow.list_(pyarrow.int32()),
+        ValueType.INT64_LIST: pyarrow.list_(pyarrow.int64()),
+        ValueType.DOUBLE_LIST: pyarrow.list_(pyarrow.float64()),
+        ValueType.FLOAT_LIST: pyarrow.list_(pyarrow.float32()),
+        ValueType.STRING_LIST: pyarrow.list_(pyarrow.string()),
+        ValueType.BYTES_LIST: pyarrow.list_(pyarrow.binary()),
+        ValueType.BOOL_LIST: pyarrow.list_(pyarrow.bool_()),
+        ValueType.UNIX_TIMESTAMP_LIST: pyarrow.list_(pyarrow.timestamp("us")),
+        ValueType.NULL: pyarrow.null(),
+    }
+    return type_map[feast_type]
+
+
+def pg_type_code_to_pg_type(code: int) -> str:
+    return {
+        16: "boolean",
+        17: "bytea",
+        20: "bigint",
+        21: "smallint",
+        23: "integer",
+        25: "text",
+        700: "real",
+        701: "double precision",
+        1000: "boolean[]",
+        1001: "bytea[]",
+        1005: "smallint[]",
+        1007: "integer[]",
+        1009: "text[]",
+        1014: "character[]",
+        1016: "bigint[]",
+        1021: "real[]",
+        1022: "double precision[]",
+        1042: "character",
+        1043: "character varying",
+        1082: "date",
+        1083: "time without time zone",
+        1114: "timestamp without time zone",
+        1115: "timestamp without time zone[]",
+        1182: "date[]",
+        1183: "time without time zone[]",
+        1184: "timestamp with time zone",
+        1185: "timestamp with time zone[]",
+        1231: "numeric[]",
+        1700: "numeric",
+        2950: "uuid",
+        2951: "uuid[]",
+    }[code]
+
+
+def pg_type_code_to_arrow(code: int) -> str:
+    return feast_value_type_to_pa(
+        pg_type_to_feast_value_type(pg_type_code_to_pg_type(code))
+    )

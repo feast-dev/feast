@@ -1,17 +1,23 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow
+import pyarrow.parquet
 import pytz
 from pydantic.typing import Literal
 
 from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import FeastJoinKeysDuringMaterialization
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
-from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.infra.offline_stores.file_source import (
+    FileLoggingDestination,
+    SavedDatasetFileStorage,
+)
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
@@ -31,7 +37,7 @@ from feast.usage import log_exceptions_and_usage
 
 
 class FileOfflineStoreConfig(FeastConfigBaseModel):
-    """ Offline store config for local (file-based) store """
+    """Offline store config for local (file-based) store"""
 
     type: Literal["file"] = "file"
     """ Offline store type selector"""
@@ -77,9 +83,8 @@ class FileRetrievalJob(RetrievalJob):
 
     def persist(self, storage: SavedDatasetStorage):
         assert isinstance(storage, SavedDatasetFileStorage)
-
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.file_url, storage.file_options.s3_endpoint_override,
+            storage.file_options.uri, storage.file_options.s3_endpoint_override,
         )
 
         if path.endswith(".parquet"):
@@ -187,9 +192,7 @@ class FileOfflineStore(OfflineStore):
 
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
-                event_timestamp_column = (
-                    feature_view.batch_source.event_timestamp_column
-                )
+                timestamp_field = feature_view.batch_source.timestamp_field
                 created_timestamp_column = (
                     feature_view.batch_source.created_timestamp_column
                 )
@@ -205,7 +208,7 @@ class FileOfflineStore(OfflineStore):
                     join_keys.append(join_key)
 
                 right_entity_key_columns = [
-                    event_timestamp_column,
+                    timestamp_field,
                     created_timestamp_column,
                 ] + join_keys
                 right_entity_key_columns = [c for c in right_entity_key_columns if c]
@@ -214,39 +217,39 @@ class FileOfflineStore(OfflineStore):
 
                 df_to_join = _read_datasource(feature_view.batch_source)
 
-                df_to_join, event_timestamp_column = _field_mapping(
+                df_to_join, timestamp_field = _field_mapping(
                     df_to_join,
                     feature_view,
                     features,
                     right_entity_key_columns,
                     entity_df_event_timestamp_col,
-                    event_timestamp_column,
+                    timestamp_field,
                     full_feature_names,
                 )
 
                 df_to_join = _merge(entity_df_with_features, df_to_join, join_keys)
 
                 df_to_join = _normalize_timestamp(
-                    df_to_join, event_timestamp_column, created_timestamp_column
+                    df_to_join, timestamp_field, created_timestamp_column
                 )
 
                 df_to_join = _filter_ttl(
                     df_to_join,
                     feature_view,
                     entity_df_event_timestamp_col,
-                    event_timestamp_column,
+                    timestamp_field,
                 )
 
                 df_to_join = _drop_duplicates(
                     df_to_join,
                     all_join_keys,
-                    event_timestamp_column,
+                    timestamp_field,
                     created_timestamp_column,
                     entity_df_event_timestamp_col,
                 )
 
                 entity_df_with_features = _drop_columns(
-                    df_to_join, event_timestamp_column, created_timestamp_column
+                    df_to_join, timestamp_field, created_timestamp_column
                 )
 
                 # Ensure that we delete dataframes to free up memory
@@ -276,7 +279,7 @@ class FileOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -288,7 +291,7 @@ class FileOfflineStore(OfflineStore):
             source_df = _read_datasource(data_source)
 
             source_df = _normalize_timestamp(
-                source_df, event_timestamp_column, created_timestamp_column
+                source_df, timestamp_field, created_timestamp_column
             )
 
             source_columns = set(source_df.columns)
@@ -298,19 +301,31 @@ class FileOfflineStore(OfflineStore):
                 )
 
             ts_columns = (
-                [event_timestamp_column, created_timestamp_column]
+                [timestamp_field, created_timestamp_column]
                 if created_timestamp_column
-                else [event_timestamp_column]
+                else [timestamp_field]
             )
+            # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
+            # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
+            try:
+                if created_timestamp_column:
+                    source_df = source_df.sort_values(by=created_timestamp_column,)
 
-            if created_timestamp_column:
-                source_df = source_df.sort_values(by=created_timestamp_column)
+                source_df = source_df.sort_values(by=timestamp_field)
 
-            source_df = source_df.sort_values(by=event_timestamp_column)
+            except ZeroDivisionError:
+                # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
+                # try to divide by zero.
+                if created_timestamp_column:
+                    source_df = source_df.sort_values(
+                        by=created_timestamp_column, npartitions=1
+                    )
+
+                source_df = source_df.sort_values(by=timestamp_field, npartitions=1)
 
             source_df = source_df[
-                (source_df[event_timestamp_column] >= start_date)
-                & (source_df[event_timestamp_column] < end_date)
+                (source_df[timestamp_field] >= start_date)
+                & (source_df[timestamp_field] < end_date)
             ]
 
             source_df = source_df.persist()
@@ -342,7 +357,7 @@ class FileOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
@@ -350,12 +365,37 @@ class FileOfflineStore(OfflineStore):
             config=config,
             data_source=data_source,
             join_key_columns=join_key_columns
-            + [event_timestamp_column],  # avoid deduplication
+            + [timestamp_field],  # avoid deduplication
             feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=None,
             start_date=start_date,
             end_date=end_date,
+        )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: Union[pyarrow.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        destination = logging_config.destination
+        assert isinstance(destination, FileLoggingDestination)
+
+        if isinstance(data, Path):
+            data = pyarrow.parquet.read_table(data)
+
+        filesystem, path = FileSource.create_filesystem_and_path(
+            destination.path, destination.s3_endpoint_override,
+        )
+
+        pyarrow.parquet.write_to_dataset(
+            data,
+            root_path=path,
+            partition_cols=destination.partition_by,
+            filesystem=filesystem,
         )
 
 
@@ -399,7 +439,7 @@ def _field_mapping(
     features: List[str],
     right_entity_key_columns: List[str],
     entity_df_event_timestamp_col: str,
-    event_timestamp_column: str,
+    timestamp_field: str,
     full_feature_names: bool,
 ) -> dd.DataFrame:
     # Rename columns by the field mapping dictionary if it exists
@@ -438,13 +478,13 @@ def _field_mapping(
     df_to_join = df_to_join.persist()
 
     # Make sure to not have duplicated columns
-    if entity_df_event_timestamp_col == event_timestamp_column:
+    if entity_df_event_timestamp_col == timestamp_field:
         df_to_join = _run_dask_field_mapping(
-            df_to_join, {event_timestamp_column: f"__{event_timestamp_column}"},
+            df_to_join, {timestamp_field: f"__{timestamp_field}"},
         )
-        event_timestamp_column = f"__{event_timestamp_column}"
+        timestamp_field = f"__{timestamp_field}"
 
-    return df_to_join.persist(), event_timestamp_column
+    return df_to_join.persist(), timestamp_field
 
 
 def _merge(
@@ -478,24 +518,19 @@ def _merge(
 
 
 def _normalize_timestamp(
-    df_to_join: dd.DataFrame,
-    event_timestamp_column: str,
-    created_timestamp_column: str,
+    df_to_join: dd.DataFrame, timestamp_field: str, created_timestamp_column: str,
 ) -> dd.DataFrame:
     df_to_join_types = df_to_join.dtypes
-    event_timestamp_column_type = df_to_join_types[event_timestamp_column]
+    timestamp_field_type = df_to_join_types[timestamp_field]
 
     if created_timestamp_column:
         created_timestamp_column_type = df_to_join_types[created_timestamp_column]
 
-    if (
-        not hasattr(event_timestamp_column_type, "tz")
-        or event_timestamp_column_type.tz != pytz.UTC
-    ):
+    if not hasattr(timestamp_field_type, "tz") or timestamp_field_type.tz != pytz.UTC:
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-        df_to_join[event_timestamp_column] = df_to_join[event_timestamp_column].apply(
+        df_to_join[timestamp_field] = df_to_join[timestamp_field].apply(
             lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
-            meta=(event_timestamp_column, "datetime64[ns, UTC]"),
+            meta=(timestamp_field, "datetime64[ns, UTC]"),
         )
 
     if created_timestamp_column and (
@@ -506,7 +541,7 @@ def _normalize_timestamp(
             created_timestamp_column
         ].apply(
             lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
-            meta=(event_timestamp_column, "datetime64[ns, UTC]"),
+            meta=(timestamp_field, "datetime64[ns, UTC]"),
         )
 
     return df_to_join.persist()
@@ -516,19 +551,16 @@ def _filter_ttl(
     df_to_join: dd.DataFrame,
     feature_view: FeatureView,
     entity_df_event_timestamp_col: str,
-    event_timestamp_column: str,
+    timestamp_field: str,
 ) -> dd.DataFrame:
     # Filter rows by defined timestamp tolerance
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
         df_to_join = df_to_join[
             (
-                df_to_join[event_timestamp_column]
+                df_to_join[timestamp_field]
                 >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
             )
-            & (
-                df_to_join[event_timestamp_column]
-                <= df_to_join[entity_df_event_timestamp_col]
-            )
+            & (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
         ]
 
         df_to_join = df_to_join.persist()
@@ -539,7 +571,7 @@ def _filter_ttl(
 def _drop_duplicates(
     df_to_join: dd.DataFrame,
     all_join_keys: List[str],
-    event_timestamp_column: str,
+    timestamp_field: str,
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
 ) -> dd.DataFrame:
@@ -549,7 +581,7 @@ def _drop_duplicates(
         )
         df_to_join = df_to_join.persist()
 
-    df_to_join = df_to_join.sort_values(by=event_timestamp_column, na_position="first")
+    df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
     df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
@@ -560,13 +592,9 @@ def _drop_duplicates(
 
 
 def _drop_columns(
-    df_to_join: dd.DataFrame,
-    event_timestamp_column: str,
-    created_timestamp_column: str,
+    df_to_join: dd.DataFrame, timestamp_field: str, created_timestamp_column: str,
 ) -> dd.DataFrame:
-    entity_df_with_features = df_to_join.drop(
-        [event_timestamp_column], axis=1
-    ).persist()
+    entity_df_with_features = df_to_join.drop([timestamp_field], axis=1).persist()
 
     if created_timestamp_column:
         entity_df_with_features = entity_df_with_features.drop(

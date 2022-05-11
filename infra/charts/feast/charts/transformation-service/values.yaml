@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image for Transformation Server repository
   repository: feastdev/feature-transformation-server
   # image.tag -- Image tag
-  tag: 0.19.4
+  tag: 0.20.0
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -29,6 +29,9 @@ nodeSelector: {}
 
 # envOverrides -- Extra environment variables to set
 envOverrides: {}
+
+# secrets -- List of Kubernetes secrets to be mounted. These secrets will be mounted on /etc/secrets/<secret name>.
+secrets: []
 
 # podLabels -- Labels to be added to Feast Serving pods
 podLabels: {}

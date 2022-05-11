@@ -35,10 +35,10 @@ public interface TransformationService {
   TransformFeaturesResponse transformFeatures(TransformFeaturesRequest transformFeaturesRequest);
 
   /**
-   * Extract the list of on demand feature inputs from a list of ODFV references.
+   * Extract the list of on demand feature sources from a list of ODFV references.
    *
    * @param onDemandFeatureReferences list of ODFV references to be parsed
-   * @return list of on demand feature inputs
+   * @return list of on demand feature sources
    */
   List<ServingAPIProto.FeatureReferenceV2> extractOnDemandFeaturesDependencies(
       List<ServingAPIProto.FeatureReferenceV2> onDemandFeatureReferences);

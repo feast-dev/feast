@@ -7,7 +7,7 @@ import {
   EuiLoadingSpinner,
 } from "@elastic/eui";
 
-import EntityIcon from "../../entity-icon.svg";
+import { EntityIcon32 } from "../../graphics/EntityIcon";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import EntitiesListingTable from "./EntitiesListingTable";
@@ -37,7 +37,11 @@ const Index = () => {
 
   return (
     <React.Fragment>
-      <EuiPageHeader restrictWidth iconType={EntityIcon} pageTitle="Entities" />
+      <EuiPageHeader
+        restrictWidth
+        iconType={EntityIcon32}
+        pageTitle="Entities"
+      />
       <EuiPageContent
         hasBorder={false}
         hasShadow={false}

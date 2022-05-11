@@ -9,7 +9,7 @@ import {
   FeastFeatureInServiceType,
   FeastFeatureServiceType,
 } from "../../parsers/feastFeatureServices";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 
 interface FeatureServiceListingTableProps {
   tagKeysSet: Set<string>;

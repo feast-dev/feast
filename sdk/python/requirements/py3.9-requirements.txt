@@ -7,76 +7,91 @@
 absl-py==1.0.0
     # via tensorflow-metadata
 anyio==3.5.0
-    # via starlette
-asgiref==3.4.1
+    # via
+    #   starlette
+    #   watchgod
+asgiref==3.5.0
     # via uvicorn
 attrs==21.4.0
     # via jsonschema
-cachetools==4.2.4
+cachetools==5.0.0
     # via google-auth
 certifi==2021.10.8
     # via requests
-charset-normalizer==2.0.10
+charset-normalizer==2.0.12
     # via requests
-click==8.0.3
+click==8.0.1
     # via
     #   feast (setup.py)
     #   uvicorn
+cloudpickle==2.0.0
+    # via dask
 colorama==0.4.4
+    # via feast (setup.py)
+dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.4
     # via feast (setup.py)
-fastapi==0.72.0
+fastapi==0.75.2
     # via feast (setup.py)
-fastavro==1.4.9
+fastavro==1.4.10
     # via
     #   feast (setup.py)
     #   pandavro
-google-api-core==2.4.0
+fsspec==2022.3.0
+    # via dask
+google-api-core==2.7.2
     # via feast (setup.py)
-google-auth==2.3.3
+google-auth==2.6.5
     # via google-api-core
 googleapis-common-protos==1.52.0
     # via
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-grpcio==1.43.0
+grpcio==1.44.0
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.43.0
+grpcio-reflection==1.44.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
-httptools==0.3.0
+httptools==0.4.0
     # via uvicorn
 idna==3.3
     # via
     #   anyio
     #   requests
-jinja2==3.0.3
+jinja2==3.1.1
     # via feast (setup.py)
 jsonschema==4.4.0
     # via feast (setup.py)
-markupsafe==2.0.1
+locket==0.2.1
+    # via partd
+markupsafe==2.1.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
-numpy==1.21.5
+numpy==1.21.6
     # via
+    #   feast (setup.py)
     #   pandas
     #   pandavro
     #   pyarrow
-pandas==1.3.5
+packaging==21.3
+    # via dask
+pandas==1.4.2
     # via
     #   feast (setup.py)
     #   pandavro
 pandavro==1.5.2
     # via feast (setup.py)
+partd==1.2.0
+    # via dask
 proto-plus==1.19.6
     # via feast (setup.py)
-protobuf==3.19.3
+protobuf==3.19.4
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -84,7 +99,7 @@ protobuf==3.19.3
     #   grpcio-reflection
     #   proto-plus
     #   tensorflow-metadata
-pyarrow==6.0.1
+pyarrow==7.0.0
     # via feast (setup.py)
 pyasn1==0.4.8
     # via
@@ -96,16 +111,19 @@ pydantic==1.9.0
     # via
     #   fastapi
     #   feast (setup.py)
+pyparsing==3.0.8
+    # via packaging
 pyrsistent==0.18.1
     # via jsonschema
 python-dateutil==2.8.2
     # via pandas
-python-dotenv==0.19.2
+python-dotenv==0.20.0
     # via uvicorn
-pytz==2021.3
+pytz==2022.1
     # via pandas
 pyyaml==6.0
     # via
+    #   dask
     #   feast (setup.py)
     #   uvicorn
 requests==2.27.1
@@ -127,24 +145,25 @@ tabulate==0.8.9
     # via feast (setup.py)
 tenacity==8.0.1
     # via feast (setup.py)
-tensorflow-metadata==1.6.0
+tensorflow-metadata==1.7.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
-tqdm==4.62.3
+toolz==0.11.2
+    # via
+    #   dask
+    #   partd
+tqdm==4.64.0
     # via feast (setup.py)
-typing-extensions==4.0.1
+typing-extensions==4.2.0
     # via pydantic
-urllib3==1.26.8
+urllib3==1.26.9
     # via requests
-uvicorn[standard]==0.17.0
+uvicorn[standard]==0.17.6
     # via feast (setup.py)
 uvloop==0.16.0
     # via uvicorn
-watchgod==0.7
+watchgod==0.8.2
     # via uvicorn
-websockets==10.1
+websockets==10.3
     # via uvicorn
-
-# The following packages are considered to be unsafe in a requirements file:
-# setuptools

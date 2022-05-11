@@ -7,7 +7,9 @@
 absl-py==1.0.0
     # via tensorflow-metadata
 anyio==3.5.0
-    # via starlette
+    # via
+    #   starlette
+    #   watchgod
 asgiref==3.5.0
     # via uvicorn
 attrs==21.4.0
@@ -18,7 +20,7 @@ certifi==2021.10.8
     # via requests
 charset-normalizer==2.0.12
     # via requests
-click==8.0.4
+click==8.0.1
     # via
     #   feast (setup.py)
     #   uvicorn
@@ -30,17 +32,17 @@ dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.4
     # via feast (setup.py)
-fastapi==0.74.1
+fastapi==0.75.2
     # via feast (setup.py)
-fastavro==1.4.9
+fastavro==1.4.10
     # via
     #   feast (setup.py)
     #   pandavro
-fsspec==2022.2.0
+fsspec==2022.3.0
     # via dask
-google-api-core==2.5.0
+google-api-core==2.7.2
     # via feast (setup.py)
-google-auth==2.6.0
+google-auth==2.6.5
     # via google-api-core
 googleapis-common-protos==1.52.0
     # via
@@ -55,30 +57,31 @@ grpcio-reflection==1.44.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
-httptools==0.3.0
+httptools==0.4.0
     # via uvicorn
 idna==3.3
     # via
     #   anyio
     #   requests
-importlib-metadata==4.11.1
+importlib-metadata==4.11.3
     # via
     #   click
     #   jsonschema
-importlib-resources==5.4.0
+importlib-resources==5.7.1
     # via jsonschema
-jinja2==3.0.3
+jinja2==3.1.1
     # via feast (setup.py)
 jsonschema==4.4.0
     # via feast (setup.py)
 locket==0.2.1
     # via partd
-markupsafe==2.1.0
+markupsafe==2.1.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
-numpy==1.21.5
+numpy==1.21.6
     # via
+    #   feast (setup.py)
     #   pandas
     #   pandavro
     #   pyarrow
@@ -114,15 +117,15 @@ pydantic==1.9.0
     # via
     #   fastapi
     #   feast (setup.py)
-pyparsing==3.0.7
+pyparsing==3.0.8
     # via packaging
 pyrsistent==0.18.1
     # via jsonschema
 python-dateutil==2.8.2
     # via pandas
-python-dotenv==0.19.2
+python-dotenv==0.20.0
     # via uvicorn
-pytz==2021.3
+pytz==2022.1
     # via pandas
 pyyaml==6.0
     # via
@@ -148,7 +151,7 @@ tabulate==0.8.9
     # via feast (setup.py)
 tenacity==8.0.1
     # via feast (setup.py)
-tensorflow-metadata==1.6.0
+tensorflow-metadata==1.7.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
@@ -156,9 +159,9 @@ toolz==0.11.2
     # via
     #   dask
     #   partd
-tqdm==4.62.3
+tqdm==4.64.0
     # via feast (setup.py)
-typing-extensions==4.1.1
+typing-extensions==4.2.0
     # via
     #   anyio
     #   asgiref
@@ -168,17 +171,17 @@ typing-extensions==4.1.1
     #   pydantic
     #   starlette
     #   uvicorn
-urllib3==1.26.8
+urllib3==1.26.9
     # via requests
-uvicorn[standard]==0.17.5
+uvicorn[standard]==0.17.6
     # via feast (setup.py)
 uvloop==0.16.0
     # via uvicorn
-watchgod==0.7
+watchgod==0.8.2
     # via uvicorn
-websockets==10.2
+websockets==10.3
     # via uvicorn
-zipp==3.7.0
+zipp==3.8.0
     # via
     #   importlib-metadata
     #   importlib-resources

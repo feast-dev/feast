@@ -9,6 +9,7 @@ import pyarrow as pa
 import pytest
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.types import Array, Bool, Float32, Int32, Int64, UnixTimestamp
 from feast.value_type import ValueType
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.repo_configuration import (
@@ -97,6 +98,7 @@ def get_fixtures(request):
     type_test_environment = construct_test_environment(
         test_repo_config=config.test_repo_config,
         test_suite_name=f"test_{test_project_id}",
+        fixture_request=request,
     )
     config = request.param
     df = create_dataset(
@@ -158,8 +160,14 @@ def test_entity_inference_types_match(offline_types_test_fixtures):
 @pytest.mark.integration
 @pytest.mark.universal
 def test_feature_get_historical_features_types_match(offline_types_test_fixtures):
+    """
+    Note: to make sure this test works, we need to ensure that get_historical_features
+    returns at least one non-null row to make sure type inferral works. This can only
+    be achieved by carefully matching entity_df to the data fixtures.
+    """
     environment, config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
+    entity = driver()
     fv = create_feature_view(
         "get_historical_features_types_match",
         config.feature_dtype,
@@ -167,20 +175,19 @@ def test_feature_get_historical_features_types_match(offline_types_test_fixtures
         config.has_empty_list,
         data_source,
     )
-    entity = driver()
     fs.apply([fv, entity])
 
-    features = [f"{fv.name}:value"]
     entity_df = pd.DataFrame()
     entity_df["driver_id"] = (
         ["1", "3"] if config.entity_type == ValueType.STRING else [1, 3]
     )
-    now = datetime.utcnow()
-    ts = pd.Timestamp(now).round("ms")
+    ts = pd.Timestamp(datetime.utcnow()).round("ms")
     entity_df["ts"] = [
         ts - timedelta(hours=4),
         ts - timedelta(hours=2),
     ]
+    features = [f"{fv.name}:value"]
+
     historical_features = fs.get_historical_features(
         entity_df=entity_df, features=features,
     )
@@ -230,7 +237,7 @@ def test_feature_get_online_features_types_match(online_types_test_fixtures):
 
     driver_id_value = "1" if config.entity_type == ValueType.STRING else 1
     online_features = fs.get_online_features(
-        features=features, entity_rows=[{"driver": driver_id_value}],
+        features=features, entity_rows=[{"driver_id": driver_id_value}],
     ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
@@ -265,28 +272,28 @@ def create_feature_view(
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
-            value_type = ValueType.INT32_LIST
+            dtype = Array(Int32)
         elif feature_dtype == "int64":
-            value_type = ValueType.INT64_LIST
+            dtype = Array(Int64)
         elif feature_dtype == "float":
-            value_type = ValueType.FLOAT_LIST
+            dtype = Array(Float32)
         elif feature_dtype == "bool":
-            value_type = ValueType.BOOL_LIST
+            dtype = Array(Bool)
         elif feature_dtype == "datetime":
-            value_type = ValueType.UNIX_TIMESTAMP_LIST
+            dtype = Array(UnixTimestamp)
     else:
         if feature_dtype == "int32":
-            value_type = ValueType.INT32
+            dtype = Int32
         elif feature_dtype == "int64":
-            value_type = ValueType.INT64
+            dtype = Int64
         elif feature_dtype == "float":
-            value_type = ValueType.FLOAT
+            dtype = Float32
         elif feature_dtype == "bool":
-            value_type = ValueType.BOOL
+            dtype = Bool
         elif feature_dtype == "datetime":
-            value_type = ValueType.UNIX_TIMESTAMP
+            dtype = UnixTimestamp
 
-    return driver_feature_view(data_source, name=name, value_type=value_type,)
+    return driver_feature_view(data_source, name=name, dtype=dtype,)
 
 
 def assert_expected_historical_feature_types(
@@ -328,7 +335,7 @@ def assert_feature_list_types(
             bool,
             np.bool_,
         ),  # Can be `np.bool_` if from `np.array` rather that `list`
-        "datetime": np.datetime64,
+        "datetime": (np.datetime64, datetime,),  # datetime.datetime
     }
     expected_dtype = feature_list_dtype_to_expected_historical_feature_list_dtype[
         feature_dtype

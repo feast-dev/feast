@@ -15,6 +15,11 @@ jobs:
         with:
           python-version: "3.7"
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.7
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1"
@@ -35,16 +40,30 @@ jobs:
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies
+        run: |
+          make compile-protos-go
+          make install-python-ci-dependencies
       - name: Lint python
         run: make lint-python
 
   lint-go:
-    container: gcr.io/kf-feast/feast-ci:latest
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.7
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7"
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1"
       - name: Install dependencies
-        run: make install-go-ci-dependencies
+        run:  make install-go-proto-dependencies
       - name: Lint go
         run: make lint-go

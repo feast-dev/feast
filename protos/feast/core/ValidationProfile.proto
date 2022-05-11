@@ -20,7 +20,7 @@ syntax = "proto3";
 package feast.core;
 option java_package = "feast.proto.core";
 option java_outer_classname = "ValidationProfile";
-option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 
 import "feast/core/SavedDataset.proto";
 

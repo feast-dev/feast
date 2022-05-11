@@ -12,6 +12,7 @@ from typing import List, Set, Union
 import click
 from click.exceptions import BadParameter
 
+from feast import PushSource
 from feast.data_source import DataSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
@@ -27,9 +28,9 @@ from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
 
 
-def py_path_to_module(path: Path, repo_root: Path) -> str:
+def py_path_to_module(path: Path) -> str:
     return (
-        str(path.relative_to(repo_root))[: -len(".py")]
+        str(path.relative_to(os.getcwd()))[: -len(".py")]
         .replace("./", "")
         .replace("/", ".")
     )
@@ -93,34 +94,56 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 
 
 def parse_repo(repo_root: Path) -> RepoContents:
-    """ Collect feature table definitions from feature repo """
+    """
+    Collects unique Feast object definitions from the given feature repo.
+
+    Specifically, if an object foo has already been added, bar will still be added if
+    (bar == foo), but not if (bar is foo). This ensures that import statements will
+    not result in duplicates, but defining two equal objects will.
+    """
     res = RepoContents(
-        data_sources=set(),
-        entities=set(),
-        feature_views=set(),
-        feature_services=set(),
-        on_demand_feature_views=set(),
-        request_feature_views=set(),
+        data_sources=[],
+        entities=[],
+        feature_views=[],
+        feature_services=[],
+        on_demand_feature_views=[],
+        request_feature_views=[],
     )
 
     for repo_file in get_repo_files(repo_root):
-        module_path = py_path_to_module(repo_file, repo_root)
+        module_path = py_path_to_module(repo_file)
         module = importlib.import_module(module_path)
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
-            if isinstance(obj, DataSource):
-                res.data_sources.add(obj)
-            if isinstance(obj, FeatureView):
-                res.feature_views.add(obj)
-            elif isinstance(obj, Entity):
-                res.entities.add(obj)
-            elif isinstance(obj, FeatureService):
-                res.feature_services.add(obj)
-            elif isinstance(obj, OnDemandFeatureView):
-                res.on_demand_feature_views.add(obj)
-            elif isinstance(obj, RequestFeatureView):
-                res.request_feature_views.add(obj)
-    res.entities.add(DUMMY_ENTITY)
+            if isinstance(obj, DataSource) and not any(
+                (obj is ds) for ds in res.data_sources
+            ):
+                res.data_sources.append(obj)
+            if isinstance(obj, FeatureView) and not any(
+                (obj is fv) for fv in res.feature_views
+            ):
+                res.feature_views.append(obj)
+                if isinstance(obj.stream_source, PushSource) and not any(
+                    (obj is ds) for ds in res.data_sources
+                ):
+                    res.data_sources.append(obj.stream_source.batch_source)
+            elif isinstance(obj, Entity) and not any(
+                (obj is entity) for entity in res.entities
+            ):
+                res.entities.append(obj)
+            elif isinstance(obj, FeatureService) and not any(
+                (obj is fs) for fs in res.feature_services
+            ):
+                res.feature_services.append(obj)
+            elif isinstance(obj, OnDemandFeatureView) and not any(
+                (obj is odfv) for odfv in res.on_demand_feature_views
+            ):
+                res.on_demand_feature_views.append(obj)
+            elif isinstance(obj, RequestFeatureView) and not any(
+                (obj is rfv) for rfv in res.request_feature_views
+            ):
+                res.request_feature_views.append(obj)
+    res.entities.append(DUMMY_ENTITY)
     return res
 
 
@@ -259,7 +282,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
-    """ For debugging only: output contents of the metadata registry """
+    """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(registry_config=registry_config, repo_path=repo_path)

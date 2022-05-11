@@ -127,46 +127,96 @@ jobs:
 
   publish-python-sdk:
     runs-on: ubuntu-latest
-    env:
-      TWINE_USERNAME: __token__
-      TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-    container: python:3.7
+    needs: [verify-python-wheel]
     steps:
-      - uses: actions/checkout@v2
-      - name: Install pip-tools
-        run: pip install pip-tools
-      - name: Install dependencies
-        run: make install-python-ci-dependencies PYTHON=3.7
-      - name: Publish Python Package
-        run: |
-          cd sdk/python
-          python3 -m pip install --user --upgrade setuptools wheel twine
-          python3 setup.py sdist bdist_wheel
-          python3 -m twine upload --verbose dist/*
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_PASSWORD }}
 
-  publish-python-sdk-no-telemetry:
+
+  verify-python-wheel:
     runs-on: ubuntu-latest
-    needs: get-version
-    env:
-      TWINE_USERNAME: __token__
-      TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-    container: python:3.7
+    needs: [build-python-sdk, build-python-sdk-macos-py310]
+    steps:
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+          architecture: x64
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels
+          path: dist
+      - name: Install wheel
+        run: pip install dist/*38*linux*.whl
+      - name: Install sdist
+        run: pip install dist/*tar.gz
+
+  build-python-sdk:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-10.15 ]
     steps:
       - uses: actions/checkout@v2
-      - name: Install pip-tools
-        run: pip install pip-tools
-      - name: Install dependencies
-        run: make install-python-ci-dependencies PYTHON=3.7
-      - name: Publish Python Package
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.4.0
         env:
-          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.get-version.outputs.version_without_prefix }}
+          CIBW_BUILD: "cp3*_x86_64"
+          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
+          CIBW_ARCHS: "native"
+          CIBW_ENVIRONMENT: >
+            COMPILE_GO=True
+          CIBW_BEFORE_ALL_LINUX: |
+            yum install -y golang
+          CIBW_BEFORE_ALL_MACOS: |
+            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
+            sudo installer -pkg python.pkg -target /
+          CIBW_BEFORE_BUILD: |
+            make install-protoc-dependencies
+            make install-go-proto-dependencies
+            make install-go-ci-dependencies
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: ./wheelhouse/*.whl
+
+
+  build-python-sdk-macos-py310:
+    runs-on: macos-10.15
+    env:
+      COMPILE_GO: True
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+          architecture: x64
+      - name: Install dependencies
         run: |
-          cd sdk/python
-          sed -i 's/DEFAULT_FEAST_USAGE_VALUE = "True"/DEFAULT_FEAST_USAGE_VALUE = "False"/g' feast/constants.py
-          sed -i 's/NAME = "feast"/NAME = "feast-no-telemetry"/g' setup.py
-          python3 -m pip install --user --upgrade setuptools wheel twine
+          pip install -U pip setuptools wheel twine
+          make install-protoc-dependencies
+          make install-go-proto-dependencies
+          make install-go-ci-dependencies
+      - name: Build
+        run: |
           python3 setup.py sdist bdist_wheel
-          python3 -m twine upload --verbose dist/*
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist/*
+
 
   publish-java-sdk:
     container: maven:3.6-jdk-11
@@ -204,3 +254,23 @@ jobs:
           mkdir -p /root/.m2/
           echo -n "$MAVEN_SETTINGS" > /root/.m2/settings.xml
           infra/scripts/publish-java-sdk.sh --revision ${VERSION_WITHOUT_PREFIX} --gpg-key-import-dir /root
+
+  publish-web-ui-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Publish UI package
+        working-directory: ./ui
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

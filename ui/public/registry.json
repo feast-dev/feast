@@ -627,7 +627,7 @@
         },
         "userDefinedFunction": {
           "name": "transaction_gt_last_credit_card_due",
-          "body": "@on_demand_feature_view(\n    inputs={\"credit_history\": credit_history, \"transaction\": input_request,},\n    features=[\n        Feature(name=\"transaction_gt_last_credit_card_due\", dtype=ValueType.BOOL),\n    ],\n)\ndef transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:\n    df = pd.DataFrame()\n    df[\"transaction_gt_last_credit_card_due\"] = (\n        inputs[\"transaction_amt\"] > inputs[\"credit_card_due\"]\n    )\n    return df\n"
+          "body": "@on_demand_feature_view(\n    sources={\"credit_history\": credit_history, \"transaction\": input_request,},\n    schema=[\n        Field(name=\"transaction_gt_last_credit_card_due\", dtype=Bool),\n    ],\n)\ndef transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:\n    df = pd.DataFrame()\n    df[\"transaction_gt_last_credit_card_due\"] = (\n        inputs[\"transaction_amt\"] > inputs[\"credit_card_due\"]\n    )\n    return df\n"
         }
       },
       "meta": {

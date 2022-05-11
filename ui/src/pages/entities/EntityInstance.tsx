@@ -6,18 +6,21 @@ import {
   EuiPageContentBody,
 } from "@elastic/eui";
 
-import EntityIcon from "../../entity-icon.svg";
-import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
-import EntityRawData from "./EntityRawData";
+import { EntityIcon32 } from "../../graphics/EntityIcon";
+import { useMatchExact } from "../../hooks/useMatchSubpath";
 import EntityOverviewTab from "./EntityOverviewTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { useEntityCustomTabs, entityCustomTabRoutes } from "../CustomTabUtils";
+import {
+  useEntityCustomTabs,
+  useEntityCustomTabRoutes,
+} from "../../custom-tabs/TabsRegistryContext";
 
 const EntityInstance = () => {
   const navigate = useNavigate();
   let { entityName } = useParams();
 
   const { customNavigationTabs } = useEntityCustomTabs(navigate);
+  const CustomTabRoutes = useEntityCustomTabRoutes();
 
   useDocumentTitle(`${entityName} | Entity | Feast`);
 
@@ -25,7 +28,7 @@ const EntityInstance = () => {
     <React.Fragment>
       <EuiPageHeader
         restrictWidth
-        iconType={EntityIcon}
+        iconType={EntityIcon32}
         pageTitle={`Entity: ${entityName}`}
         tabs={[
           {
@@ -48,7 +51,7 @@ const EntityInstance = () => {
         <EuiPageContentBody>
           <Routes>
             <Route path="/" element={<EntityOverviewTab />} />
-            {entityCustomTabRoutes()}
+            {CustomTabRoutes}
           </Routes>
         </EuiPageContentBody>
       </EuiPageContent>

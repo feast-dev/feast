@@ -1,6 +1,8 @@
 import contextlib
+import tempfile
 import uuid
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import (
     Callable,
     ContextManager,
@@ -28,6 +30,7 @@ from feast.errors import (
     FeastProviderLoginError,
     InvalidEntityType,
 )
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -41,13 +44,18 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 from ...saved_dataset import SavedDatasetStorage
 from ...usage import log_exceptions_and_usage
-from .bigquery_source import BigQuerySource, SavedDatasetBigQueryStorage
+from .bigquery_source import (
+    BigQueryLoggingDestination,
+    BigQuerySource,
+    SavedDatasetBigQueryStorage,
+)
 
 try:
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
-    from google.cloud.bigquery import Client, Table
+    from google.cloud.bigquery import Client, SchemaField, Table
+    from google.cloud.bigquery._pandas_helpers import ARROW_SCALAR_IDS_TO_BQ
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -56,7 +64,7 @@ except ImportError as e:
 
 
 class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
-    """ Offline store config for GCP BigQuery """
+    """Offline store config for GCP BigQuery"""
 
     type: Literal["bigquery"] = "bigquery"
     """ Offline store type selector"""
@@ -83,7 +91,7 @@ class BigQueryOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -96,7 +104,7 @@ class BigQueryOfflineStore(OfflineStore):
             partition_by_join_key_string = (
                 "PARTITION BY " + partition_by_join_key_string
             )
-        timestamps = [event_timestamp_column]
+        timestamps = [timestamp_field]
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
@@ -114,7 +122,7 @@ class BigQueryOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
-                WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+                WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
             )
             WHERE _feast_row = 1
             """
@@ -131,7 +139,7 @@ class BigQueryOfflineStore(OfflineStore):
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
@@ -143,12 +151,12 @@ class BigQueryOfflineStore(OfflineStore):
             location=config.offline_store.location,
         )
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [event_timestamp_column]
+            join_key_columns + feature_name_columns + [timestamp_field]
         )
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+            WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         """
         return BigQueryRetrievalJob(
             query=query, client=client, config=config, full_feature_names=False,
@@ -247,6 +255,53 @@ class BigQueryOfflineStore(OfflineStore):
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
         )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: Union[pyarrow.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: Registry,
+    ):
+        destination = logging_config.destination
+        assert isinstance(destination, BigQueryLoggingDestination)
+
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
+
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.PARQUET,
+            schema=arrow_schema_to_bq_schema(source.get_schema(registry)),
+            time_partitioning=bigquery.TimePartitioning(
+                type_=bigquery.TimePartitioningType.DAY,
+                field=source.get_log_timestamp_column(),
+            ),
+        )
+
+        if isinstance(data, Path):
+            for file in data.iterdir():
+                with file.open("rb") as f:
+                    client.load_table_from_file(
+                        file_obj=f,
+                        destination=destination.table,
+                        job_config=job_config,
+                    )
+
+            return
+
+        with tempfile.TemporaryFile() as parquet_temp_file:
+            pyarrow.parquet.write_table(table=data, where=parquet_temp_file)
+
+            parquet_temp_file.seek(0)
+
+            client.load_table_from_file(
+                file_obj=parquet_temp_file,
+                destination=destination.table,
+                job_config=job_config,
+            )
 
 
 class BigQueryRetrievalJob(RetrievalJob):
@@ -361,7 +416,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         assert isinstance(storage, SavedDatasetBigQueryStorage)
 
         self.to_bigquery(
-            bigquery.QueryJobConfig(destination=storage.bigquery_options.table_ref)
+            bigquery.QueryJobConfig(destination=storage.bigquery_options.table)
         )
 
     @property
@@ -513,7 +568,9 @@ def _get_entity_df_event_timestamp_range(
     return entity_df_event_timestamp_range
 
 
-def _get_bigquery_client(project: Optional[str] = None, location: Optional[str] = None):
+def _get_bigquery_client(
+    project: Optional[str] = None, location: Optional[str] = None
+) -> bigquery.Client:
     try:
         client = bigquery.Client(project=project, location=location)
     except DefaultCredentialsError as e:
@@ -531,6 +588,24 @@ def _get_bigquery_client(project: Optional[str] = None, location: Optional[str] 
         )
 
     return client
+
+
+def arrow_schema_to_bq_schema(arrow_schema: pyarrow.Schema) -> List[SchemaField]:
+    bq_schema = []
+
+    for field in arrow_schema:
+        if pyarrow.types.is_list(field.type):
+            detected_mode = "REPEATED"
+            detected_type = ARROW_SCALAR_IDS_TO_BQ[field.type.value_type.id]
+        else:
+            detected_mode = "NULLABLE"
+            detected_type = ARROW_SCALAR_IDS_TO_BQ[field.type.id]
+
+        bq_schema.append(
+            SchemaField(name=field.name, field_type=detected_type, mode=detected_mode)
+        )
+
+    return bq_schema
 
 
 # TODO: Optimizations
@@ -583,9 +658,9 @@ WITH entity_dataframe AS (
 
  1. We first join the current feature_view to the entity dataframe that has been passed.
  This JOIN has the following logic:
-    - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
+    - For each row of the entity dataframe, only keep the rows where the `timestamp_field`
     is less than the one provided in the entity dataframe
-    - If there a TTL for the current feature_view, also keep the rows where the `event_timestamp_column`
+    - If there a TTL for the current feature_view, also keep the rows where the `timestamp_field`
     is higher the the one provided minus the TTL
     - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
     computed previously
@@ -596,16 +671,16 @@ WITH entity_dataframe AS (
 
 {{ featureview.name }}__subquery AS (
     SELECT
-        {{ featureview.event_timestamp_column }} as event_timestamp,
+        {{ featureview.timestamp_field }} as event_timestamp,
         {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
         {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
-    WHERE {{ featureview.event_timestamp_column }} <= '{{ featureview.max_event_timestamp }}'
+    WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.event_timestamp_column }} >= '{{ featureview.min_event_timestamp }}'
+    AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
     {% endif %}
 ),
 

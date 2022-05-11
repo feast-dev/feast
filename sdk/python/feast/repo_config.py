@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -5,6 +6,7 @@ from typing import Any
 import yaml
 from pydantic import (
     BaseModel,
+    Field,
     StrictInt,
     StrictStr,
     ValidationError,
@@ -23,6 +25,8 @@ from feast.errors import (
 from feast.importer import import_class
 from feast.usage import log_exceptions
 
+_logger = logging.getLogger(__name__)
+
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
@@ -32,6 +36,8 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
     "snowflake.online": "feast.infra.online_stores.snowflake.SnowflakeOnlineStore",
+    "postgres": "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore",
+    "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -40,6 +46,8 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
     "snowflake.offline": "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
     "spark": "feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStore",
+    "trino": "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
+    "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -54,7 +62,7 @@ FEATURE_SERVER_TYPE_FOR_PROVIDER = {
 
 
 class FeastBaseModel(BaseModel):
-    """ Feast Pydantic Configuration Class """
+    """Feast Pydantic Configuration Class"""
 
     class Config:
         arbitrary_types_allowed = True
@@ -62,7 +70,7 @@ class FeastBaseModel(BaseModel):
 
 
 class FeastConfigBaseModel(BaseModel):
-    """ Feast Pydantic Configuration Class """
+    """Feast Pydantic Configuration Class"""
 
     class Config:
         arbitrary_types_allowed = True
@@ -70,7 +78,7 @@ class FeastConfigBaseModel(BaseModel):
 
 
 class RegistryConfig(FeastBaseModel):
-    """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
+    """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
@@ -86,7 +94,7 @@ class RegistryConfig(FeastBaseModel):
 
 
 class RepoConfig(FeastBaseModel):
-    """ Repo config. Typically loaded from `feature_store.yaml` """
+    """Repo config. Typically loaded from `feature_store.yaml`"""
 
     registry: Union[StrictStr, RegistryConfig] = "data/registry.db"
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
@@ -100,10 +108,10 @@ class RepoConfig(FeastBaseModel):
     provider: StrictStr
     """ str: local or gcp or aws """
 
-    online_store: Any
+    _online_config: Any = Field(alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
-    offline_store: Any
+    _offline_config: Any = Field(alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
     feature_server: Optional[Any]
@@ -114,22 +122,32 @@ class RepoConfig(FeastBaseModel):
 
     repo_path: Optional[Path] = None
 
+    go_feature_retrieval: Optional[bool] = False
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
-        if isinstance(self.online_store, Dict):
-            self.online_store = get_online_config_from_type(self.online_store["type"])(
-                **self.online_store
-            )
-        elif isinstance(self.online_store, str):
-            self.online_store = get_online_config_from_type(self.online_store)()
+        self._offline_store = None
+        if "offline_store" in data:
+            self._offline_config = data["offline_store"]
+        else:
+            if data["provider"] == "local":
+                self._offline_config = "file"
+            elif data["provider"] == "gcp":
+                self._offline_config = "bigquery"
+            elif data["provider"] == "aws":
+                self._offline_config = "redshift"
 
-        if isinstance(self.offline_store, Dict):
-            self.offline_store = get_offline_config_from_type(
-                self.offline_store["type"]
-            )(**self.offline_store)
-        elif isinstance(self.offline_store, str):
-            self.offline_store = get_offline_config_from_type(self.offline_store)()
+        self._online_store = None
+        if "online_store" in data:
+            self._online_config = data["online_store"]
+        else:
+            if data["provider"] == "local":
+                self._online_config = "sqlite"
+            elif data["provider"] == "gcp":
+                self._online_config = "datastore"
+            elif data["provider"] == "aws":
+                self._online_config = "dynamodb"
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(
@@ -141,6 +159,35 @@ class RepoConfig(FeastBaseModel):
             return RegistryConfig(path=self.registry)
         else:
             return self.registry
+
+    @property
+    def offline_store(self):
+        if not self._offline_store:
+            if isinstance(self._offline_config, Dict):
+                self._offline_store = get_offline_config_from_type(
+                    self._offline_config["type"]
+                )(**self._offline_config)
+            elif isinstance(self._offline_config, str):
+                self._offline_store = get_offline_config_from_type(
+                    self._offline_config
+                )()
+            elif self._offline_config:
+                self._offline_store = self._offline_config
+        return self._offline_store
+
+    @property
+    def online_store(self):
+        if not self._online_store:
+            if isinstance(self._online_config, Dict):
+                self._online_store = get_online_config_from_type(
+                    self._online_config["type"]
+                )(**self._online_config)
+            elif isinstance(self._online_config, str):
+                self._online_store = get_online_config_from_type(self._online_config)()
+            elif self._online_config:
+                self._online_store = self._online_config
+
+        return self._online_store
 
     @root_validator(pre=True)
     @log_exceptions
@@ -276,7 +323,11 @@ class RepoConfig(FeastBaseModel):
 
         for flag_name, val in v.items():
             if flag_name not in flags.FLAG_NAMES:
-                raise ValueError(f"Flag name, {flag_name}, not valid.")
+                _logger.warn(
+                    "Unrecognized flag: %s. This feature may be invalid, or may refer "
+                    "to a previously experimental feature which has graduated to production.",
+                    flag_name,
+                )
             if type(val) is not bool:
                 raise ValueError(f"Flag value, {val}, not valid.")
 
@@ -290,6 +341,9 @@ class RepoConfig(FeastBaseModel):
                 f,
                 sort_keys=False,
             )
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class FeastConfigError(Exception):
