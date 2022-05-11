@@ -105,7 +105,6 @@ def grpc_client(grpc_server_port):
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.goserver
 def test_go_grpc_server(grpc_client):
     resp: GetOnlineFeaturesResponse = grpc_client.GetOnlineFeatures(
@@ -132,7 +131,6 @@ def test_go_grpc_server(grpc_client):
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.goserver
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))

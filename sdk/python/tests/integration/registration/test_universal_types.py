@@ -109,7 +109,6 @@ def get_fixtures(request, environment):
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize(
     "entity_type", [ValueType.INT32, ValueType.INT64, ValueType.STRING]
@@ -153,7 +152,6 @@ def test_entity_inference_types_match(environment, entity_type):
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 def test_feature_get_historical_features_types_match(
     offline_types_test_fixtures, environment
@@ -210,7 +208,6 @@ def test_feature_get_historical_features_types_match(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores(only=["sqlite"])
 def test_feature_get_online_features_types_match(
     online_types_test_fixtures, environment

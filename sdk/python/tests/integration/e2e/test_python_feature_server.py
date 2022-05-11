@@ -23,7 +23,6 @@ from tests.integration.feature_repos.universal.entities import (
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores
 def test_get_online_features(python_fs_client):
     request_data_dict = {
@@ -62,7 +61,6 @@ def test_get_online_features(python_fs_client):
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores
 def test_push(python_fs_client):
     initial_temp = get_temperatures(python_fs_client, location_ids=[1])[0]

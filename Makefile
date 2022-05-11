@@ -76,7 +76,7 @@ test-python-universal-contrib:
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
  	FEAST_USAGE=False IS_TEST=True \
- 	python -m pytest -n 8 --integration --universal \
+ 	python -m pytest -n 8 --integration \
  	 	-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
 			not test_historical_features_persisting and \
@@ -93,7 +93,7 @@ test-python-universal-postgres:
 		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
 		FEAST_USAGE=False \
 		IS_TEST=True \
-		python -m pytest -x --integration --universal \
+		python -m pytest -x --integration \
 			-k "not test_historical_retrieval_fails_on_validation and \
 				not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
@@ -105,10 +105,10 @@ test-python-universal-postgres:
 			sdk/python/tests
 
 test-python-universal-local:
-	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
 test-python-universal:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration --universal sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
 test-python-go-server: compile-go-lib
 	FEAST_USAGE=False IS_TEST=True FEAST_GO_FEATURE_RETRIEVAL=True pytest --integration --goserver sdk/python/tests
@@ -158,7 +158,7 @@ start-trino-locally:
 	sleep 15
 
 test-trino-plugin-locally:
-	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests FEAST_USAGE=False IS_TEST=True python -m pytest --integration --universal tests/
+	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests FEAST_USAGE=False IS_TEST=True python -m pytest --integration tests/
 
 kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino

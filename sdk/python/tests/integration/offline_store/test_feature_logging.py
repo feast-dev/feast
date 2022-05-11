@@ -31,7 +31,6 @@ from tests.integration.feature_repos.universal.feature_views import conv_rate_pl
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("pass_as_path", [True, False], ids=lambda v: str(v))
 def test_feature_service_logging(environment, universal_data_sources, pass_as_path):

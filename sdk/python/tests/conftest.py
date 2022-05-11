@@ -18,7 +18,7 @@ from contextlib import closing
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
-from typing import List
+from typing import Any, Dict, List
 
 import pandas as pd
 import pytest
@@ -55,9 +55,6 @@ def pytest_configure(config):
     )
     config.addinivalue_line("markers", "benchmark: mark benchmarking tests")
     config.addinivalue_line(
-        "markers", "universal: mark tests that use the universal feature repo"
-    )
-    config.addinivalue_line(
         "markers", "goserver: mark tests that use the go feature server"
     )
 
@@ -73,9 +70,6 @@ def pytest_addoption(parser):
         "--benchmark", action="store_true", default=False, help="Run benchmark tests",
     )
     parser.addoption(
-        "--universal", action="store_true", default=False, help="Run universal tests",
-    )
-    parser.addoption(
         "--goserver",
         action="store_true",
         default=False,
@@ -86,7 +80,6 @@ def pytest_addoption(parser):
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
-    should_run_universal = config.getoption("--universal") is True
     should_run_goserver = config.getoption("--goserver") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
@@ -105,12 +98,6 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     else:
         items.clear()
         for t in benchmark_tests:
-            items.append(t)
-
-    universal_tests = [t for t in items if "universal" in t.keywords]
-    if should_run_universal:
-        items.clear()
-        for t in universal_tests:
             items.append(t)
 
     goserver_tests = [t for t in items if "goserver" in t.keywords]
@@ -182,7 +169,23 @@ def environment(request, worker_id):
 _config_cache = {}
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: pytest.Metafunc):
+    """
+    This function receives each test function (wrapped in Metafunc)
+    at the collection stage (before tests started).
+    Here we can access all fixture requests made by the test as well as its markers.
+    That allows us to dynamically parametrize the test based on markers and fixtures
+    by calling metafunc.parametrize(...).
+
+    See more examples at https://docs.pytest.org/en/6.2.x/example/parametrize.html#paramexamples
+
+    We also utilize indirect parametrization here. Since `environment` is a fixture,
+    when we call metafunc.parametrize("environment", ..., indirect=True) we actually
+    parametrizing this "environment" fixture and not the test itself.
+    Moreover, by utilizing `_config_cache` we are able to share `environment` fixture between different tests.
+    In order for pytest to group tests together (and share environment fixture)
+    parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
+    """
     if "environment" in metafunc.fixturenames:
         markers = {m.name: m for m in metafunc.definition.own_markers}
 
@@ -215,13 +218,13 @@ def pytest_generate_tests(metafunc):
                 )
             ]
 
-        extra_dimensions = [{}]
+        extra_dimensions: List[Dict[str, Any]] = [{}]
 
         if "python_server" in metafunc.fixturenames:
             extra_dimensions.extend(
                 [
                     {"python_feature_server": True},
-                    # {"python_feature_server": True, "provider": "aws"},
+                    {"python_feature_server": True, "provider": "aws"},
                 ]
             )
 

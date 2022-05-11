@@ -200,7 +200,6 @@ def test_write_to_online_store_event_check(environment):
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores
 def test_write_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
@@ -326,7 +325,6 @@ def get_online_features_dict(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval_with_event_timestamps(
@@ -391,7 +389,6 @@ def test_online_retrieval_with_event_timestamps(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
@@ -617,7 +614,6 @@ def test_online_retrieval(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_online_stores(only=["redis"])
 def test_online_store_cleanup(environment, universal_data_sources):
     """

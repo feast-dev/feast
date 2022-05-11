@@ -280,7 +280,6 @@ def get_expected_training_df(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features(environment, universal_data_sources, full_feature_names):
@@ -412,7 +411,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 def test_historical_features_with_missing_request_data(
     environment, universal_data_sources
@@ -443,7 +441,6 @@ def test_historical_features_with_missing_request_data(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features_with_entities_from_query(
@@ -544,7 +541,6 @@ def test_historical_features_with_entities_from_query(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features_persisting(
@@ -624,7 +620,6 @@ def test_historical_features_persisting(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 @pytest.mark.universal_offline_stores
 def test_historical_features_from_bigquery_sources_containing_backfills(environment):
     store = environment.feature_store
