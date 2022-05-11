@@ -1083,6 +1083,8 @@ class FeatureStore:
                 elif feature_view.ttl.total_seconds() > 0:
                     start_date = datetime.utcnow() - feature_view.ttl
                 else:
+                    # TODO(felixwang9817): Find the earliest timestamp for this specific feature
+                    # view from the offline store, and set the start date to that timestamp.
                     print(
                         f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
                         "the start date will be set to 1 year before the current time."
