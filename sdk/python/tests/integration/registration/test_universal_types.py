@@ -112,7 +112,6 @@ def get_fixtures(request, environment):
         config.feature_is_list,
         config.has_empty_list,
         data_source,
-        config.entity_type,
     )
 
     return config, data_source, fv
@@ -149,7 +148,7 @@ def test_entity_inference_types_match(environment, entity_type):
     fv.entity_columns = []
     fs.apply([fv, entity])
 
-    inferred_entity = fs.get_entity(entity.name)
+    entities = fs.list_entities()
     entity_type_to_expected_inferred_entity_type = {
         Int32: {Int32, Int64},
         Int64: {Int32, Int64},
@@ -165,7 +164,7 @@ def test_entity_inference_types_match(environment, entity_type):
         entity_column = entity_columns[0]
         assert (
             entity_column.dtype
-            in entity_type_to_expected_inferred_entity_type[config.entity_type]
+            in entity_type_to_expected_inferred_entity_type[entity_type]
         )
 
 
@@ -188,7 +187,6 @@ def test_feature_get_historical_features_types_match(
         config.feature_is_list,
         config.has_empty_list,
         data_source,
-        config.entity_type,
     )
     fs.apply([fv, entity])
 
@@ -239,7 +237,6 @@ def test_feature_get_online_features_types_match(
         config.feature_is_list,
         config.has_empty_list,
         data_source,
-        config.entity_type,
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
@@ -283,7 +280,7 @@ def test_feature_get_online_features_types_match(
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity_type
+    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity_type = Int64,
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
