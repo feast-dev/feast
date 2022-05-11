@@ -103,7 +103,7 @@ if full_repo_configs_module is not None:
         module = importlib.import_module(full_repo_configs_module)
     except ImportError as e:
         raise FeastModuleImportError(
-            "FULL_REPO_CONFIGS", full_repo_configs_module
+            full_repo_configs_module, "FULL_REPO_CONFIGS"
         ) from e
 
     try:
@@ -116,7 +116,7 @@ if full_repo_configs_module is not None:
             )
         except AttributeError as e:
             raise FeastModuleImportError(
-                "FULL_REPO_CONFIGS", full_repo_configs_module
+                full_repo_configs_module, "FULL_REPO_CONFIGS"
             ) from e
 
         AVAILABLE_OFFLINE_STORES = [
