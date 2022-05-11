@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
   get-version:
@@ -140,23 +141,71 @@ jobs:
 
 
   verify-python-wheel:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: [build-python-sdk, build-python-sdk-macos-py310]
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-10.15 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10"]
+        from-source: [ True, False ]
+    env:
+      # this script is for testing servers
+      # it starts server with timeout and checks whether process killed by timeout (started healthy) or died by itself
+      TEST_SCRIPT: |
+        timeout 10s $@ & pid=$!
+        wait $pid
+        ret=$?
+        if [[ $ret -ne 124 ]]
+        then
+           exit $ret
+        else
+           echo "Succeeded!"
+        fi
     steps:
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.8"
+          python-version: ${{ matrix.python-version }}
           architecture: x64
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.17.0'
       - uses: actions/download-artifact@v2
         with:
           name: wheels
           path: dist
       - name: Install wheel
-        run: pip install dist/*38*linux*.whl
+        if: ${{ !matrix.from-source }}
+        # try to install all wheels; only the current platform wheel should be actually installed
+        run: |
+          cd dist/
+          pip install wheel
+          for f in *.whl; do pip install $f || true; done
       - name: Install sdist
-        run: pip install dist/*tar.gz
+        if: ${{ matrix.from-source }}
+        env:
+          COMPILE_GO: "True"
+        run: |
+          pip install 'grpcio-tools==1.44.0' 'pybindgen==0.22.0'
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
+          pip install dist/*tar.gz
+      - name: Install OS X dependencies
+        if: matrix.os == 'macos-10.15'
+        run: brew install coreutils
+      - name: Smoke test
+        run: |
+          feast init test_repo
+          cd test_repo/
+          feast apply
+          echo "$TEST_SCRIPT" > run-and-wait.sh
+          bash run-and-wait.sh feast serve
+          bash run-and-wait.sh feast ui
+          
+          pip install cffi
+          printf "\ngo_feature_retrieval: True" >> feature_store.yaml
+          bash run-and-wait.sh feast serve
 
   build-python-sdk:
     name: Build wheels on ${{ matrix.os }}
@@ -171,6 +220,8 @@ jobs:
         with:
           node-version: '17.x'
           registry-url: 'https://registry.npmjs.org'
+      - name: Build UI
+        run: make build-ui
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
         env:
@@ -178,9 +229,11 @@ jobs:
           CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
-            COMPILE_GO=True
+            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
           CIBW_BEFORE_ALL_LINUX: |
-            yum install -y golang
+            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+            go version
           CIBW_BEFORE_ALL_MACOS: |
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
             sudo installer -pkg python.pkg -target /
@@ -188,7 +241,6 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-            make build-ui
 
       - uses: actions/upload-artifact@v2
         with:

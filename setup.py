@@ -114,9 +114,7 @@ HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
 ]
 
-GE_REQUIRED = [
-    "great_expectations>=0.14.0,<0.15.0"
-]
+GE_REQUIRED = ["great_expectations>=0.14.0,<0.15.0"]
 
 GO_REQUIRED = [
     "cffi==1.15.*,<2",
@@ -166,15 +164,15 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
     ]
-        + GCP_REQUIRED
-        + REDIS_REQUIRED
-        + AWS_REQUIRED
-        + SNOWFLAKE_REQUIRED
-        + SPARK_REQUIRED
-        + POSTGRES_REQUIRED
-        + TRINO_REQUIRED
-        + GE_REQUIRED
-        + HBASE_REQUIRED
+    + GCP_REQUIRED
+    + REDIS_REQUIRED
+    + AWS_REQUIRED
+    + SNOWFLAKE_REQUIRED
+    + SPARK_REQUIRED
+    + POSTGRES_REQUIRED
+    + TRINO_REQUIRED
+    + GE_REQUIRED
+    + HBASE_REQUIRED
 )
 
 DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing==1.*"] + CI_REQUIRED
@@ -206,7 +204,9 @@ PYTHON_CODE_PREFIX = "sdk/python"
 
 class BuildPythonProtosCommand(Command):
     description = "Builds the proto files into Python files."
-    user_options = []
+    user_options = [
+        ("inplace", "i", "Write generated proto files to source directory."),
+    ]
 
     def initialize_options(self):
         self.python_protoc = [
@@ -215,13 +215,21 @@ class BuildPythonProtosCommand(Command):
             "grpc_tools.protoc",
         ]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
-        self.python_folder = os.path.join(
-            os.path.dirname(__file__) or os.getcwd(), "sdk/python/feast/protos"
-        )
         self.sub_folders = PROTO_SUBDIRS
+        self.build_lib = None
+        self.inplace = 0
 
     def finalize_options(self):
-        pass
+        self.set_undefined_options("build", ("build_lib", "build_lib"))
+
+    @property
+    def python_folder(self):
+        if self.inplace:
+            return os.path.join(
+                os.path.dirname(__file__) or os.getcwd(), "sdk/python/feast/protos"
+            )
+
+        return os.path.join(self.build_lib, "feast/protos")
 
     def _generate_python_protos(self, path: str):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
@@ -247,13 +255,12 @@ class BuildPythonProtosCommand(Command):
             # We need the __init__ files for each of the generated subdirs
             # so that they are regular packages, and don't need the `--namespace-packages` flags
             # when being typechecked using mypy.
-            with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", 'w'):
+            with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", "w"):
                 pass
 
-
-        with open(f"{self.python_folder}/__init__.py", 'w'):
+        with open(f"{self.python_folder}/__init__.py", "w"):
             pass
-        with open(f"{self.python_folder}/feast/__init__.py", 'w'):
+        with open(f"{self.python_folder}/feast/__init__.py", "w"):
             pass
 
         for path in Path(self.python_folder).rglob("*.py"):
@@ -295,12 +302,10 @@ def _ensure_go_and_proto_toolchain():
     path_val = _generate_path_with_gopath()
 
     try:
-        subprocess.check_call(["protoc-gen-go", "--version"], env={
-            "PATH": path_val
-        })
-        subprocess.check_call(["protoc-gen-go-grpc", "--version"], env={
-            "PATH": path_val
-        })
+        subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
+        subprocess.check_call(
+            ["protoc-gen-go-grpc", "--version"], env={"PATH": path_val}
+        )
     except Exception as e:
         raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
 
@@ -329,15 +334,18 @@ class BuildGoProtosCommand(Command):
         try:
             subprocess.check_call(
                 self.go_protoc
-                + ["-I", self.proto_folder,
-                   "--go_out", self.go_folder,
-                   "--go_opt=module=github.com/feast-dev/feast/go/protos",
-                   "--go-grpc_out", self.go_folder,
-                   "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos"]
+                + [
+                    "-I",
+                    self.proto_folder,
+                    "--go_out",
+                    self.go_folder,
+                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
+                    "--go-grpc_out",
+                    self.go_folder,
+                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
+                ]
                 + proto_files,
-                env={
-                    "PATH": self.path_val
-                }
+                env={"PATH": self.path_val},
             )
         except CalledProcessError as e:
             print(f"Stderr: {e.stderr}")
@@ -355,11 +363,11 @@ class BuildCommand(build_py):
 
     def run(self):
         self.run_command("build_python_protos")
-        self.run_command("build_ext")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
 
+        self.run_command("build_ext")
         build_py.run(self)
 
 
@@ -367,6 +375,7 @@ class DevelopCommand(develop):
     """Custom develop command."""
 
     def run(self):
+        self.reinitialize_command("build_python_protos", inplace=1)
         self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
@@ -382,7 +391,10 @@ class build_ext(_build_ext):
             self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
 
     def _is_go_ext(self, ext: Extension):
-        return any(source.endswith('.go') or source.startswith('github') for source in ext.sources)
+        return any(
+            source.endswith(".go") or source.startswith("github")
+            for source in ext.sources
+        )
 
     def build_extension(self, ext: Extension):
         if not self._is_go_ext(ext):
@@ -400,33 +412,34 @@ class build_ext(_build_ext):
         )
 
         destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call([
-            "gopy",
-            "build",
-            "-output",
-            destination,
-            "-vm",
-            sys.executable,
-            "-no-make",
-            *ext.sources
-        ], env={
-            "PATH": bin_path,
-            "CGO_LDFLAGS_ALLOW": ".*",
-            **go_env,
-        })
+        subprocess.check_call(["go", "install", "golang.org/x/tools/cmd/goimports"])
+        subprocess.check_call(["go", "install", "github.com/go-python/gopy"])
+        subprocess.check_call(
+            [
+                "gopy",
+                "build",
+                "-output",
+                destination,
+                "-vm",
+                sys.executable,
+                "-no-make",
+                *ext.sources,
+            ],
+            env={"PATH": bin_path, "CGO_LDFLAGS_ALLOW": ".*", **go_env,},
+        )
 
     def copy_extensions_to_source(self):
-        build_py = self.get_finalized_command('build_py')
+        build_py = self.get_finalized_command("build_py")
         for ext in self.extensions:
             fullname = self.get_ext_fullname(ext.name)
-            modpath = fullname.split('.')
-            package = '.'.join(modpath[:-1])
+            modpath = fullname.split(".")
+            package = ".".join(modpath[:-1])
             package_dir = build_py.get_package_dir(package)
 
             src_dir = dest_dir = package_dir
 
             if src_dir.startswith(PYTHON_CODE_PREFIX):
-                src_dir = package_dir[len(PYTHON_CODE_PREFIX):]
+                src_dir = package_dir[len(PYTHON_CODE_PREFIX) :]
             src_dir = src_dir.lstrip("/")
 
             src_dir = os.path.join(self.build_lib, src_dir)
@@ -443,7 +456,9 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(where=PYTHON_CODE_PREFIX, exclude=("java", "infra", "sdk/python/tests", "ui")),
+    packages=find_packages(
+        where=PYTHON_CODE_PREFIX, exclude=("java", "infra", "sdk/python/tests", "ui")
+    ),
     package_dir={"": PYTHON_CODE_PREFIX},
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
@@ -488,6 +503,10 @@ setup(
         "develop": DevelopCommand,
         "build_ext": build_ext,
     },
-    ext_modules=[Extension('feast.embedded_go.lib._embedded',
-                           ["github.com/feast-dev/feast/go/embedded"])],
+    ext_modules=[
+        Extension(
+            "feast.embedded_go.lib._embedded",
+            ["github.com/feast-dev/feast/go/embedded"],
+        )
+    ],
 )
