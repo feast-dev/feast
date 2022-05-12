@@ -404,6 +404,7 @@ features = feature_store.get_online_features(
 View all registered features, data sources, entities, and feature services with the Web UI.
 
 One of the ways to view this is with the `feast ui` command.
+
 ![](../reference/ui.png)
 
 ## Next steps
