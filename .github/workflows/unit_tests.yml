@@ -10,7 +10,7 @@ jobs:
     env:
       OS: "ubuntu-latest"
       PYTHON: ${{ matrix.python-version }}
-    runs-on: ${{ env.OS }}
+    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -65,7 +65,7 @@ jobs:
 
   # the github actions runner pool for macOS is always congested, so lets run fewer tests on it.
   unit-test-python-mac:
-    runs-on: ${{ env.OS }}
+    runs-on: "macOS-latest"
     env:
       OS: "macOS-latest"
       PYTHON: "3.8"
