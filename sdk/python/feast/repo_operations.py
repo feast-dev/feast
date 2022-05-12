@@ -110,6 +110,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         request_feature_views=[],
     )
 
+    data_sources_set = set()
     for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file)
         module = importlib.import_module(module_path)
@@ -118,7 +119,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
             if isinstance(obj, DataSource) and not any(
                 (obj is ds) for ds in res.data_sources
             ):
-                res.data_sources.append(obj)
+                data_sources_set.add(obj)
             if isinstance(obj, FeatureView) and not any(
                 (obj is fv) for fv in res.feature_views
             ):
@@ -126,7 +127,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 if isinstance(obj.stream_source, PushSource) and not any(
                     (obj is ds) for ds in res.data_sources
                 ):
-                    res.data_sources.append(obj.stream_source.batch_source)
+                    data_sources_set.add(obj.stream_source.batch_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
@@ -144,6 +145,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
             ):
                 res.request_feature_views.append(obj)
     res.entities.append(DUMMY_ENTITY)
+    res.data_sources.extend(data_sources_set)
     return res
 
 
