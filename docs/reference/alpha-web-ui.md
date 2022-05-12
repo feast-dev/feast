@@ -31,6 +31,8 @@ Options:
 --help                          Show this message and exit.
 ```
 
+This will spin up a Web UI on localhost which automatically refreshes its view of the registry every `registry_ttl_sec`
+
 ### Importing as a module to integrate with an existing React App
 
 This is the recommended way to use Feast UI for teams maintaining their own internal UI for their deployment of Feast.
