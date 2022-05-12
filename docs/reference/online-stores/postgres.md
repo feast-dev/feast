@@ -30,4 +30,4 @@ online_store:
 ```
 {% endcode %}
 
-Configuration options are available [here](https://rtd.feast.dev/en/latest/#feast.repo_config.SqliteOnlineStoreConfig).
+Configuration options are available [here](https://rtd.feast.dev/en/latest/feast.infra.utils.postgres.html#module-feast.infra.utils.postgres.postgres_config).

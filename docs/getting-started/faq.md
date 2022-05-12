@@ -96,7 +96,7 @@ Please follow the instructions [here](../how-to-guides/adding-support-for-a-new-
 
 ### Can the same storage engine be used for both the offline and online store?
 
-Yes. For example, the Postgres connector can be used as both an offline and online store.
+Yes. For example, the Postgres connector can be used as both an offline and online store (as well as the registry).
 
 ### Does Feast support S3 as a data source?
 

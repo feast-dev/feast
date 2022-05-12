@@ -8,10 +8,11 @@ The PostgreSQL offline store is an offline store that provides support for readi
 **DISCLAIMER**: This PostgreSQL offline store still does not achieve full test coverage.
 
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. Pandas dataframes will be converted to a Spark dataframe and processed as a temporary view.
-* A `SparkRetrievalJob` is returned when calling `get_historical_features()`.
+* A `PostgreSQLRetrievalJob` is returned when calling `get_historical_features()`.
   * This allows you to call
      * `to_df` to retrieve the pandas dataframe.
      * `to_arrow` to retrieve the dataframe as a PyArrow table.
+     * `to_sql` to get the SQL query used to pull the features.
 
 * sslmode, sslkey_path, sslcert_path, and sslrootcert_path are optional
 
