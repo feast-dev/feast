@@ -48,9 +48,6 @@ feast apply
 ### 4. Explore your data in the web UI (experimental)
 
 ![Web UI](ui/sample.png)
-```commandline
-feast ui
-```
 
 ### 5. Build a training dataset
 ```python
