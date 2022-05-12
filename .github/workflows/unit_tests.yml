@@ -3,7 +3,6 @@ name: unit-tests
 on: [push, pull_request]
 jobs:
   unit-test-python-linux:
-    runs-on: ${{ env.OS }}
     strategy:
       fail-fast: false
       matrix:
@@ -11,6 +10,7 @@ jobs:
     env:
       OS: "ubuntu-latest"
       PYTHON: ${{ matrix.python-version }}
+    runs-on: ${{ env.OS }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
