@@ -119,6 +119,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
             if isinstance(obj, DataSource) and not any(
                 (obj is ds) for ds in res.data_sources
             ):
+                res.data_sources.append(obj)
                 data_sources_set.add(obj)
             if isinstance(obj, FeatureView) and not any(
                 (obj is fv) for fv in res.feature_views
@@ -127,7 +128,10 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 if isinstance(obj.stream_source, PushSource) and not any(
                     (obj is ds) for ds in res.data_sources
                 ):
-                    data_sources_set.add(obj.stream_source.batch_source)
+                    push_source_dep = obj.stream_source.batch_source
+                    # Don't add if the push source is a duplicate of an existing batch source
+                    if push_source_dep not in data_sources_set:
+                        res.data_sources.append(push_source_dep)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
@@ -145,7 +149,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
             ):
                 res.request_feature_views.append(obj)
     res.entities.append(DUMMY_ENTITY)
-    res.data_sources.extend(data_sources_set)
     return res
 
 
