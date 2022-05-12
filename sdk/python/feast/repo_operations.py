@@ -129,7 +129,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     (obj is ds) for ds in res.data_sources
                 ):
                     push_source_dep = obj.stream_source.batch_source
-                    # Don't add if the push source is a duplicate of an existing batch source
+                    # Don't add if the push source's batch source is a duplicate of an existing batch source
                     if push_source_dep not in data_sources_set:
                         res.data_sources.append(push_source_dep)
             elif isinstance(obj, Entity) and not any(
