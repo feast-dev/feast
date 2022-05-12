@@ -1345,10 +1345,10 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@feast-dev/feast-ui@^0.20.2":
-  version "0.20.2"
-  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.20.2.tgz#7af94f99f995bf6c0625ca504307fa2630f509e9"
-  integrity sha512-K5O5uTEkTtW3uuoI49YsZAutdv38T/psWygNcNpQ9UWMrlQCfHjMU0gTSPJpakVVIFoWRvn8C3Q4HN8tLB6ZAg==
+"@feast-dev/feast-ui@^0.20.3":
+  version "0.20.3"
+  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.20.3.tgz#809e77c516e0c2278cd972ee65b9ff86ac148440"
+  integrity sha512-9r5wxiH0lKAiE8WjgYk9hybpsIhAkqEdoXOOoEP2t/6wK6yMz5F92EKtWPID5rOnuobeWHEVjy19DU/cuwLWvQ==
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^55.0.1"

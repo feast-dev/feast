@@ -14,13 +14,14 @@ The [quickstart](quickstart.md) is the easiest way to learn about Feast. For mor
 
 ## Concepts
 
-### What is the difference between feature tables and feature views?
-
-Feature tables from Feast 0.9 have been renamed to feature views in Feast 0.10+. For more details, please see the discussion [here](https://github.com/feast-dev/feast/issues/1583).
-
 ### Do feature views have to include entities?
 
 No, there are [feature views without entities](concepts/feature-view.md#feature-views-without-entities).
+
+### How does Feast handle model or feature versioning?
+Feast expects that each version of a model corresponds to a different feature service. 
+
+Feature views once they are used by a feature service are intended to be immutable and not deleted (until a feature service is removed). In the future, `feast plan` and `feast apply will throw errors if it sees this kind of behavior.
 
 ### What is the difference between data sources and the offline store?
 
@@ -32,13 +33,31 @@ Yes, this is possible. For example, you can use BigQuery as an offline store and
 
 ## Functionality
 
+### How do I run `get_historical_features` without providing an entity dataframe?
+Feast does not provide a way to do this right now. This is an area we're actively interested in contributions for. See [GitHub issue](https://github.com/feast-dev/feast/issues/1611)
+
 ### Does Feast provide security or access control?
 
 Feast currently does not support any access control other than the access control required for the Provider's environment (for example, GCP and AWS permissions).
 
+It is a good idea though to lock down the registry file so only the CI/CD pipeline can modify it. That way data scientists and other users cannot accidentally modify the registry and lose other team's data.
+
 ### Does Feast support streaming sources?
 
-Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/data-sources/push.md).
+Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/data-sources/push.md). Streaming transformations are actively being worked on.
+
+### Does Feast support feature transformation?
+
+There are several kinds of transformations:
+- On demand transformations (See [docs](../reference/alpha-on-demand-feature-view.md))
+  - These transformations are Pandas transformations run on batch data when you call `get_historical_features` and at online serving time when you call `get_online_features.
+  - Note that if you use push sources to ingest streaming features, these transformations will execute on the fly as well
+- Batch transformations (WIP, see [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit#))
+  - These will include SQL + PySpark based transformations on batch data sources.
+- Streaming transformations (RFC in progress)
+
+### Does Feast have a Web UI?
+Yes. See [documentation](../reference/alpha-web-ui.md).
 
 ### Does Feast support composite keys?
 
@@ -50,7 +69,7 @@ Please see a detailed comparison of Feast vs. Tecton [here](https://www.tecton.a
 
 ### What are the performance/latency characteristics of Feast?
 
-Feast is designed to work at scale and support low latency online serving. Benchmarks ([RFC](https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)) will be released soon, and active work is underway to support very latency sensitive use cases.
+Feast is designed to work at scale and support low latency online serving. See our [benchmark blog post](https://feast.dev/blog/feast-benchmarks/) for details.
 
 ### Does Feast support embeddings and list features?
 
@@ -77,7 +96,7 @@ Please follow the instructions [here](../how-to-guides/adding-support-for-a-new-
 
 ### Can the same storage engine be used for both the offline and online store?
 
-Yes. For example, the Postgres [connector](https://github.com/nossrannug/feast-postgres) can be used as both an offline and online store.
+Yes. For example, the Postgres connector can be used as both an offline and online store (as well as the registry).
 
 ### Does Feast support S3 as a data source?
 
@@ -88,13 +107,20 @@ Yes. There are two ways to use S3 in Feast:
 
 ### How can I use Spark with Feast?
 
-Feast does not support Spark natively. However, you can create a [custom provider](../how-to-guides/creating-a-custom-provider.md) that will support Spark, which can help with more scalable materialization and ingestion.
+Feast supports ingestion via Spark (See ) does not support Spark natively. However, you can create a [custom provider](../how-to-guides/creating-a-custom-provider.md) that will support Spark, which can help with more scalable materialization and ingestion.
 
 ### Is Feast planning on supporting X functionality?
 
 Please see the [roadmap](../roadmap.md).
 
 ## Project
+
+### How do I contribute to Feast?
+
+For more details on contributing to the Feast community, see [here](../community.md) and this [here](../project/contributing.md).
+
+
+## Feast 0.9 (legacy)
 
 ### What is the difference between Feast 0.9 and Feast 0.10+?
 
@@ -104,9 +130,6 @@ Feast 0.10+ is much lighter weight and more extensible than Feast 0.9. It is des
 
 Please see this [document](https://docs.google.com/document/d/1AOsr\_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0). If you have any questions or suggestions, feel free to leave a comment on the document!
 
-### How do I contribute to Feast?
-
-For more details on contributing to the Feast community, see [here](../community.md) and this [here](../project/contributing.md).
 
 ### What are the plans for Feast Core, Feast Serving, and Feast Spark?
 

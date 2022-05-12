@@ -365,7 +365,7 @@ pprint(feature_vector)
 {% endtab %}
 {% endtabs %}
 
-## Step 7: Using a featureservice to fetch online features instead.
+## Step 7: Using a feature service to fetch online features instead.
 
 You can also use feature services to manage multiple features, and decouple feature view definitions and the features needed by end applications. The feature store can also be used to fetch either online or historical features using the same api below. More information can be found [here](https://docs.feast.dev/getting-started/concepts/feature-service).
 
@@ -399,6 +399,13 @@ features = feature_store.get_online_features(
 {% endtab %}
 {% endtabs %}
 
+## Step 8: Browse your features with the Web UI (experimental)
+
+View all registered features, data sources, entities, and feature services with the Web UI.
+
+One of the ways to view this is with the `feast ui` command.
+
+![](../reference/ui.png)
 
 ## Next steps
 
