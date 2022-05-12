@@ -399,7 +399,7 @@ features = feature_store.get_online_features(
 {% endtab %}
 {% endtabs %}
 
-## Step 8: Browse your features with the Web UI
+## Step 8: Browse your features with the Web UI (experimental)
 
 View all registered features, data sources, entities, and feature services with the Web UI.
 
