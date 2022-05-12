@@ -1,5 +1,3 @@
-import logging
-
 from pkg_resources import DistributionNotFound, get_distribution
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
@@ -26,12 +24,6 @@ from .repo_config import RepoConfig
 from .request_feature_view import RequestFeatureView
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
-
-logging.basicConfig(
-    format="%(asctime)s %(levelname)s:%(message)s",
-    datefmt="%m/%d/%Y %I:%M:%S %p",
-    level=logging.INFO,
-)
 
 try:
     __version__ = get_distribution(__name__).version
