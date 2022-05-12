@@ -401,11 +401,10 @@ features = feature_store.get_online_features(
 
 ## Step 8: Browse your features with the Web UI
 
-```bash
-feast ui
-```
+View all registered features, data sources, entities, and feature services with the Web UI.
 
-[](../reference/ui.png)
+One of the ways to view this is with the `feast ui` command.
+![](../reference/ui.png)
 
 ## Next steps
 
