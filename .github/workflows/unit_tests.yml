@@ -2,15 +2,23 @@ name: unit-tests
 
 on: [push, pull_request]
 jobs:
-  unit-test-python-linux:
+  unit-test-python:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        os: [ ubuntu-latest, macOS-latest]
+        exclude:
+          - os: macOS-latest
+            python-version: "3.8"
+          - os: macOS-latest
+            python-version: "3.9"
+          - os: macOS-latest
+            python-version: "3.10"
     env:
-      OS: "ubuntu-latest"
+      OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -18,64 +26,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.7
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
-      - name: Get pip cache dir
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-            /opt/hostedtoolcache/Python
-            /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
-      - name: Install pip-tools
-        run: pip install pip-tools
-      - name: Install dependencies
-        run: make install-python-ci-dependencies
-      - name: Test Python
-        env:
-          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
-          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
-          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
-          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
-          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
-        run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: unittests
-          env_vars: OS,PYTHON
-          fail_ci_if_error: true
-          verbose: true
-
-  # the github actions runner pool for macOS is always congested, so lets run fewer tests on it.
-  unit-test-python-mac:
-    runs-on: "macOS-latest"
-    env:
-      OS: "macOS-latest"
-      PYTHON: "3.8"
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.PYTHON }}
           architecture: x64
       - name: Setup Go
         id: setup-go
