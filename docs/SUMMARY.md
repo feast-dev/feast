@@ -13,7 +13,6 @@
   * [Data source](getting-started/concepts/data-source.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
-  * [Feature service](getting-started/concepts/feature-service.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
   * [Dataset](getting-started/concepts/dataset.md)
