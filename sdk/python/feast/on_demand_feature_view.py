@@ -628,7 +628,14 @@ def on_demand_feature_view(
     if not _sources:
         raise ValueError("The `sources` parameter must be specified.")
 
+    def mainify(obj):
+        # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
+        # name as the original file defining the ODFV.
+        if obj.__module__ != "__main__":
+            obj.__module__ = "__main__"
+
     def decorator(user_function):
+        mainify(user_function)
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,
             sources=_sources,
