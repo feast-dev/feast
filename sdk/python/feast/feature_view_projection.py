@@ -64,3 +64,11 @@ class FeatureViewProjection:
             name_alias=None,
             features=base_feature_view.features,
         )
+
+    def get_feature(self, feature_name: str) -> Field:
+        try:
+            return next(field for field in self.features if field.name == feature_name)
+        except StopIteration:
+            raise KeyError(
+                f"Feature {feature_name} not found in projection {self.name_to_use()}"
+            )
