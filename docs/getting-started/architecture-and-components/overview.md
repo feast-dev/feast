@@ -23,7 +23,7 @@ A complete Feast deployment contains the following components:
   * Materialize (load) feature values into the online store.
   * Build and retrieve training datasets from the offline store.
   * Retrieve online features.
-* **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store is populated by materialization jobs and from [stream ingestion](../../reference/alpha-stream-ingestion.md).
+* **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store is populated by materialization jobs and from [stream ingestion](../../reference/data-sources/push.md).
 * **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets. Feast does not manage the offline store directly, but runs queries against it.
 
 {% hint style="info" %}
