@@ -34,7 +34,7 @@ import {
 } from "./contexts/ProjectListContext";
 
 interface FeastUIConfigs {
-  tabsRegistry: FeastTabsRegistryInterface;
+  tabsRegistry?: FeastTabsRegistryInterface;
   featureFlags?: FeatureFlags;
   projectListPromise?: Promise<any>;
 }
