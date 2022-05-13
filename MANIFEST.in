@@ -4,3 +4,5 @@ prune java/
 prune docs
 prune infra
 prune examples
+
+graft sdk/python/feast/ui/build
