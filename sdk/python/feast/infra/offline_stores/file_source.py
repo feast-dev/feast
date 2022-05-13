@@ -3,7 +3,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
-from pyarrow.parquet import ParquetFile
+from pyarrow.parquet import ParquetDataset
 
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
@@ -179,9 +179,9 @@ class FileSource(DataSource):
         filesystem, path = FileSource.create_filesystem_and_path(
             self.path, self.file_options.s3_endpoint_override
         )
-        schema = ParquetFile(
+        schema = ParquetDataset(
             path if filesystem is None else filesystem.open_input_file(path)
-        ).schema_arrow
+        ).schema.to_arrow_schema()
         return zip(schema.names, map(str, schema.types))
 
     @staticmethod
