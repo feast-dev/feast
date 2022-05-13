@@ -12,9 +12,12 @@ COPY pyproject.toml pyproject.toml
 COPY README.md README.md
 
 # Install Feast for AWS with Lambda dependencies
-# TODO(felixwang9817): Remove Snowflake dependencies once lazy loading of offline stores is supported.
-# See https://github.com/feast-dev/feast/issues/2566 for more details.
-RUN pip3 install -e '.[aws,redis,snowflake]'
+# We need this mount thingy because setuptools_scm needs access to the
+# git dir to infer the version of feast we're installing.
+# https://github.com/pypa/setuptools_scm#usage-from-docker
+# I think it also assumes that this dockerfile is being built from the root of the directory.
+RUN --mount=source=.git,target=.git,type=bind \
+    pip3 install --no-cache-dir -e '.[aws,redis,]'
 RUN pip3 install -r sdk/python/feast/infra/feature_servers/aws_lambda/requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
 # Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
