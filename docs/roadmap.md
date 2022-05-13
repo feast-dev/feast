@@ -41,7 +41,7 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
-  * [x] [Push based streaming data ingestion](https://docs.feast.dev/reference/data-sources/push.md)
+  * [x] [Push based streaming data ingestion](https://docs.feast.dev/reference/data-sources/push)
   * [ ] Streaming ingestion on AWS
   * [ ] Streaming ingestion on GCP
 * **Feature Engineering**
@@ -72,6 +72,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
-  * [x] Feast Web UI (Alpha release. See [documentation](https://docs.feast.dev/reference/alpha-web-ui.md))
+  * [x] Feast Web UI (Alpha release. See [documentation](https://docs.feast.dev/reference/alpha-web-ui))
   * [ ] REST API for browsing feature registry
   * [ ] Feature versioning
