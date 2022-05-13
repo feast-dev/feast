@@ -1,4 +1,8 @@
-from pkg_resources import DistributionNotFound, get_distribution
+try:
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _version
+except ModuleNotFoundError:
+    from importlib_metadata import PackageNotFoundError, version as _version  # type: ignore
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
@@ -26,8 +30,8 @@ from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
 
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:
+    __version__ = _version("feast")
+except PackageNotFoundError:
     # package is not installed
     pass
 
