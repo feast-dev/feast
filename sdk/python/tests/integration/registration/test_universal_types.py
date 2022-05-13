@@ -8,12 +8,10 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
-from feast.entity import Entity
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.types import (
     Array,
     Bool,
-    FeastType,
     Float32,
     Float64,
     Int32,
@@ -143,7 +141,6 @@ def test_entity_inference_types_match(environment, entity_type):
     fv.entity_columns = []
     fs.apply([fv, entity])
 
-    entities = fs.list_entities()
     entity_type_to_expected_inferred_entity_type = {
         Int32: {Int32, Int64},
         Int64: {Int32, Int64},
