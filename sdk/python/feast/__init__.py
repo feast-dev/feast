@@ -1,5 +1,7 @@
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _version
+try:
+    from importlib.metadata import PackageNotFoundError, version as _version
+except ModuleNotFoundError:
+    from importlib_metadata import PackageNotFoundError, version as _version
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
