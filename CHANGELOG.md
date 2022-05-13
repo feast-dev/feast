@@ -1,5 +1,70 @@
 # Changelog
 
+# [0.21.0](https://github.com/feast-dev/feast/compare/v0.20.0...v0.21.0) (2022-05-13)
+
+
+### Bug Fixes
+
+* Addresses ZeroDivisionError when materializing file source with same timestamps ([#2551](https://github.com/feast-dev/feast/issues/2551)) ([1e398d9](https://github.com/feast-dev/feast/commit/1e398d9089dc4674be73ea0869efb0aede50cd93))
+* Asynchronously refresh registry for the feast ui command ([#2672](https://github.com/feast-dev/feast/issues/2672)) ([1b09ca2](https://github.com/feast-dev/feast/commit/1b09ca26e0ab7ba5593278e039bc64d293634e67))
+* Build platform specific python packages with ci-build-wheel ([#2555](https://github.com/feast-dev/feast/issues/2555)) ([b10a4cf](https://github.com/feast-dev/feast/commit/b10a4cfec40514d5c36cefdb4be24d39fdb1e74a))
+* Delete data sources from registry when using the diffing logic ([#2669](https://github.com/feast-dev/feast/issues/2669)) ([fc00ca8](https://github.com/feast-dev/feast/commit/fc00ca8fc091ab2642121de69d4624783f11445c))
+* Enforce kw args featureservice ([#2575](https://github.com/feast-dev/feast/issues/2575)) ([160d7b7](https://github.com/feast-dev/feast/commit/160d7b71a74531909fab575cb263d02b3996fac2))
+* Enforce kw args in datasources ([#2567](https://github.com/feast-dev/feast/issues/2567)) ([0b7ec53](https://github.com/feast-dev/feast/commit/0b7ec5386e66d21ac9e6d728e14e3663f27cf146))
+* Feature logging to Redshift is broken ([#2655](https://github.com/feast-dev/feast/issues/2655)) ([479cd51](https://github.com/feast-dev/feast/commit/479cd512213635551e70ae599564a898046461b2))
+* Feature service to templates ([#2649](https://github.com/feast-dev/feast/issues/2649)) ([1e02066](https://github.com/feast-dev/feast/commit/1e0206627fef891aa3a3f0b0f46507449e3663e7))
+* Feature with timestamp type is incorrectly interpreted by Go FS ([#2588](https://github.com/feast-dev/feast/issues/2588)) ([e3d9588](https://github.com/feast-dev/feast/commit/e3d958863b32df0158b278fb97d392397cdff672))
+* Fix `__hash__` methods ([#2556](https://github.com/feast-dev/feast/issues/2556)) ([ebb7dfe](https://github.com/feast-dev/feast/commit/ebb7dfeaee9dc337a90f5d6b984ad07365018d42))
+* Fix AWS bootstrap template ([#2604](https://github.com/feast-dev/feast/issues/2604)) ([c94a69c](https://github.com/feast-dev/feast/commit/c94a69cff541feb1557770bdaf77cd7cc4f2f919))
+* Fix broken proto conversion methods for data sources ([#2603](https://github.com/feast-dev/feast/issues/2603)) ([00ed65a](https://github.com/feast-dev/feast/commit/00ed65a77177cfe04877e9550d1c8c1e903dadf8))
+* Fix case where on demand feature view tab is broken if no custom tabs are passed.  ([#2682](https://github.com/feast-dev/feast/issues/2682)) ([01d3568](https://github.com/feast-dev/feast/commit/01d3568168bb9febb9fbda4988283b3886c32a31))
+* Fix DynamoDB fetches when there are entities that are not found ([#2573](https://github.com/feast-dev/feast/issues/2573)) ([7076fe0](https://github.com/feast-dev/feast/commit/7076fe0483de50af21fe7d7e7da192823f66c3da))
+* Fix Feast UI parser to work with new APIs ([#2668](https://github.com/feast-dev/feast/issues/2668)) ([8d76751](https://github.com/feast-dev/feast/commit/8d76751d1e702ee7059def7721b97cfcdf9f6300))
+* Fix java server after odfv update ([#2602](https://github.com/feast-dev/feast/issues/2602)) ([0ca6297](https://github.com/feast-dev/feast/commit/0ca62970dd6bc33c00bd5d8b828752814d480588))
+* Fix materialization with ttl=0 bug ([#2666](https://github.com/feast-dev/feast/issues/2666)) ([ab78702](https://github.com/feast-dev/feast/commit/ab78702e20b4aaff13497dc8d29495f58ae5ee36))
+* Fix push sources and add docs / tests pushing via the python feature server ([#2561](https://github.com/feast-dev/feast/issues/2561)) ([e8e418e](https://github.com/feast-dev/feast/commit/e8e418ed87481638e098d52ee2ca2d0327b63cc9))
+* Fixed data mapping errors for Snowflake ([#2558](https://github.com/feast-dev/feast/issues/2558)) ([53c2ce2](https://github.com/feast-dev/feast/commit/53c2ce2c2255791fdd85aa80d69ab6214106e169))
+* Forcing ODFV udfs to be __main__ module and fixing false positive duplicate data source warning ([#2677](https://github.com/feast-dev/feast/issues/2677)) ([2ce33cd](https://github.com/feast-dev/feast/commit/2ce33cdd5e0a6a855e60c067aadafddf10ea2359))
+* Include the ui/build directory, and remove package data ([#2681](https://github.com/feast-dev/feast/issues/2681)) ([0384f5f](https://github.com/feast-dev/feast/commit/0384f5f78765a3d43534919428c4cc4744a101f2))
+* Infer features for feature services when they depend on feature views without schemas ([#2653](https://github.com/feast-dev/feast/issues/2653)) ([87c194c](https://github.com/feast-dev/feast/commit/87c194c22b2732c7060a130bb8861eff0d168c0b))
+* Pin dependencies to nearest major version ([#2647](https://github.com/feast-dev/feast/issues/2647)) ([bb72b7c](https://github.com/feast-dev/feast/commit/bb72b7c9f13442d6350867359ab764fe67c74c4c))
+* Pin pip<22.1 to get around breaking change in pip==22.1 ([#2678](https://github.com/feast-dev/feast/issues/2678)) ([d3e01bc](https://github.com/feast-dev/feast/commit/d3e01bc74da9f4678d3cf384afd4616a299f32fd))
+* Punt deprecation warnings and clean up some warnings. ([#2670](https://github.com/feast-dev/feast/issues/2670)) ([f775d2e](https://github.com/feast-dev/feast/commit/f775d2e8a4a185e59031504e6e8eda8b330d066c))
+* Reject undefined features when using `get_historical_features` or `get_online_features` ([#2665](https://github.com/feast-dev/feast/issues/2665)) ([36849fb](https://github.com/feast-dev/feast/commit/36849fb76716ba663d347369dfec3f3bbfcac3f8))
+* Remove ci extra from the feature transformation server dockerfile ([#2618](https://github.com/feast-dev/feast/issues/2618)) ([25613b4](https://github.com/feast-dev/feast/commit/25613b414470e8559b9d7b1f9bb74e269fea08c8))
+* Remove incorrect call to logging.basicConfig ([#2676](https://github.com/feast-dev/feast/issues/2676)) ([8cbf51c](https://github.com/feast-dev/feast/commit/8cbf51ca2ba3f672b6dc0e820ac18d4608220abf))
+* Small typo in CLI ([#2578](https://github.com/feast-dev/feast/issues/2578)) ([f372981](https://github.com/feast-dev/feast/commit/f3729812d0666a10290d3a5614729845058f835d))
+* Switch from `join_key` to `join_keys` in tests and docs ([#2580](https://github.com/feast-dev/feast/issues/2580)) ([d66c931](https://github.com/feast-dev/feast/commit/d66c931026823f77cbfd40bbe82035eb337e417d))
+* Teardown trino container correctly after tests ([#2562](https://github.com/feast-dev/feast/issues/2562)) ([72f1558](https://github.com/feast-dev/feast/commit/72f155882c95f21573b31a613edf066bdb55f630))
+* Update build_go_protos to use a consistent python path ([#2550](https://github.com/feast-dev/feast/issues/2550)) ([f136f8c](https://github.com/feast-dev/feast/commit/f136f8cc6c7feade73466aeb6267500377089485))
+* Update data source timestamp inference error message to make sense ([#2636](https://github.com/feast-dev/feast/issues/2636)) ([3eaf6b7](https://github.com/feast-dev/feast/commit/3eaf6b79a420ced39f46ca25dddd14b2c69c8ae4))
+* Update field api to add tag parameter corresponding to labels in Feature. ([#2610](https://github.com/feast-dev/feast/issues/2610)) ([689d20b](https://github.com/feast-dev/feast/commit/689d20bd0e4da91b9d24878d86787dede0c68f6d))
+* Update java integration tests and add more logging ([#2637](https://github.com/feast-dev/feast/issues/2637)) ([10e23b4](https://github.com/feast-dev/feast/commit/10e23b437cd83fe62c8e10c0f577781322970947))
+* Update on demand feature view api ([#2587](https://github.com/feast-dev/feast/issues/2587)) ([38cd7f9](https://github.com/feast-dev/feast/commit/38cd7f9ec3d4bf8d81f7f5d65110529b646ba09f))
+* Update RedisCluster to use redis-py official implementation ([#2554](https://github.com/feast-dev/feast/issues/2554)) ([ce5606f](https://github.com/feast-dev/feast/commit/ce5606f335e11f6efa13d638072c71062e63420d))
+* Use cwd when getting module path ([#2577](https://github.com/feast-dev/feast/issues/2577)) ([b550e59](https://github.com/feast-dev/feast/commit/b550e591f815aff53accdd064589ef06b6607d97))
+* Use ParquetDataset for Schema Inference ([#2686](https://github.com/feast-dev/feast/issues/2686)) ([4f85e3e](https://github.com/feast-dev/feast/commit/4f85e3e6b3bb5ca92595aed28db68ada58abbb75))
+* Use timestamp type when converting unixtimestamp feature type to arrow ([#2593](https://github.com/feast-dev/feast/issues/2593)) ([c439611](https://github.com/feast-dev/feast/commit/c4396118a99392a7b284b635b80486c94e0c86c8))
+
+
+### Features
+
+* Add hbase online store support in feast ([#2590](https://github.com/feast-dev/feast/issues/2590)) ([c9eda79](https://github.com/feast-dev/feast/commit/c9eda79c7b1169ef05a481a96f07960c014e88b9))
+* Adding SSL options for Postgres ([#2644](https://github.com/feast-dev/feast/issues/2644)) ([0e809c2](https://github.com/feast-dev/feast/commit/0e809c2c86a8687397b54a9e073d6d2abcafd35f))
+* Allow Feast UI to be spun up with CLI command: feast ui ([#2667](https://github.com/feast-dev/feast/issues/2667)) ([44ca9f5](https://github.com/feast-dev/feast/commit/44ca9f5f7eb495e23dd9a603b92ca6fd348e9ddb))
+* Allow to pass secrets and environment variables to transformation service ([#2632](https://github.com/feast-dev/feast/issues/2632)) ([ffa33ad](https://github.com/feast-dev/feast/commit/ffa33ad9860e3220f8c2bb5374c1fb86f716a0c7))
+* CLI command 'feast serve' should start go-based server if flag is enabled ([#2617](https://github.com/feast-dev/feast/issues/2617)) ([f3ff812](https://github.com/feast-dev/feast/commit/f3ff812a15d46287ed12918396167b6ad295cdc9))
+* Create stream and batch feature view abstractions ([#2559](https://github.com/feast-dev/feast/issues/2559)) ([d1f76e5](https://github.com/feast-dev/feast/commit/d1f76e5aa5d2e2006296b3ca2cd9b08816ea0d9b))
+* Postgres supported as Registry, Online store, and Offline store ([#2401](https://github.com/feast-dev/feast/issues/2401)) ([ed2f979](https://github.com/feast-dev/feast/commit/ed2f979fab0bb9ca4ea6f8e56cc55b0b9ad107a6))
+* Support entity fields in feature view `schema` parameter by dropping them ([#2568](https://github.com/feast-dev/feast/issues/2568)) ([c8fcc35](https://github.com/feast-dev/feast/commit/c8fcc3504c7438961d0dc05869e3a2fca5b11f20))
+* Write logged features to an offline store (Python API) ([#2574](https://github.com/feast-dev/feast/issues/2574)) ([134dc5f](https://github.com/feast-dev/feast/commit/134dc5f7e86e7c88df2b3b313c41eb8f89def6e2))
+* Write logged features to Offline Store (Go - Python integration) ([#2621](https://github.com/feast-dev/feast/issues/2621)) ([ccad832](https://github.com/feast-dev/feast/commit/ccad832a4457f5e6cbc001cbadd91b43d98d282d))
+
+
+### Reverts
+
+* Revert "chore: Deprecate value type (#2611)" (#2643) ([4fbdfb1](https://github.com/feast-dev/feast/commit/4fbdfb1da90b83978c431ce140ce113bf8284b9a)), closes [#2611](https://github.com/feast-dev/feast/issues/2611) [#2643](https://github.com/feast-dev/feast/issues/2643)
+
 # [0.20.0](https://github.com/feast-dev/feast/compare/v0.19.0...v0.20.0) (2022-04-14)
 
 
