@@ -30,7 +30,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, String, UnixTimestamp
+from feast.types import Float32, Float64, Int64, String, UnixTimestamp
 from tests.utils.data_source_utils import (
     prep_file_source,
     simple_bq_source_using_query_arg,
@@ -245,7 +245,10 @@ def test_datasource_inference(request_source_schema):
         test_view_with_missing_feature.infer_features()
 
 
-def test_update_feature_views_with_inferred_features_and_entities():
+def test_feature_view_inference_respects_basic_inference():
+    """
+    Tests that feature view inference respects the basic inference that occurs during creation.
+    """
     file_source = FileSource(name="test", path="test path")
     entity1 = Entity(name="test1", join_keys=["test_column_1"])
     entity2 = Entity(name="test2", join_keys=["test_column_2"])
@@ -271,18 +274,19 @@ def test_update_feature_views_with_inferred_features_and_entities():
 
     assert len(feature_view_1.schema) == 2
     assert len(feature_view_1.features) == 1
+    assert len(feature_view_1.entity_columns) == 1
 
-    # The entity field should be deleted from the schema and features of the feature view.
     update_feature_views_with_inferred_features_and_entities(
         [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
     )
     assert len(feature_view_1.schema) == 2
     assert len(feature_view_1.features) == 1
+    assert len(feature_view_1.entity_columns) == 1
 
     assert len(feature_view_2.schema) == 3
     assert len(feature_view_2.features) == 1
+    assert len(feature_view_2.entity_columns) == 2
 
-    # The entity fields should be deleted from the schema and features of the feature view.
     update_feature_views_with_inferred_features_and_entities(
         [feature_view_2],
         [entity1, entity2],
@@ -290,6 +294,76 @@ def test_update_feature_views_with_inferred_features_and_entities():
     )
     assert len(feature_view_2.schema) == 3
     assert len(feature_view_2.features) == 1
+    assert len(feature_view_2.entity_columns) == 2
+
+
+def test_feature_view_inference_on_entity_columns(simple_dataset_1):
+    """
+    Tests that feature view inference correctly infers entity columns.
+    """
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity1 = Entity(name="test1", join_keys=["id_join_key"])
+        feature_view_1 = FeatureView(
+            name="test1",
+            entities=[entity1],
+            schema=[Field(name="int64_col", dtype=Int64)],
+            source=file_source,
+        )
+
+        assert len(feature_view_1.schema) == 1
+        assert len(feature_view_1.features) == 1
+        assert len(feature_view_1.entity_columns) == 0
+
+        update_feature_views_with_inferred_features_and_entities(
+            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+        )
+
+        # The schema is only used as a parameter, as is therefore not updated during inference.
+        assert len(feature_view_1.schema) == 1
+
+        # Since there is already a feature specified, additional features are not inferred.
+        assert len(feature_view_1.features) == 1
+
+        # The single entity column is inferred correctly.
+        assert len(feature_view_1.entity_columns) == 1
+
+
+def test_feature_view_inference_on_feature_columns(simple_dataset_1):
+    """
+    Tests that feature view inference correctly infers feature columns.
+    """
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity1 = Entity(name="test1", join_keys=["id_join_key"])
+        feature_view_1 = FeatureView(
+            name="test1",
+            entities=[entity1],
+            schema=[Field(name="id_join_key", dtype=Int64)],
+            source=file_source,
+        )
+
+        assert len(feature_view_1.schema) == 1
+        assert len(feature_view_1.features) == 0
+        assert len(feature_view_1.entity_columns) == 1
+
+        update_feature_views_with_inferred_features_and_entities(
+            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+        )
+
+        # The schema is only used as a parameter, as is therefore not updated during inference.
+        assert len(feature_view_1.schema) == 1
+
+        # All three feature columns are inferred correctly.
+        assert len(feature_view_1.features) == 3
+        print(feature_view_1.features)
+        feature_column_1 = Field(name="float_col", dtype=Float64)
+        feature_column_2 = Field(name="int64_col", dtype=Int64)
+        feature_column_3 = Field(name="string_col", dtype=String)
+        assert feature_column_1 in feature_view_1.features
+        assert feature_column_2 in feature_view_1.features
+        assert feature_column_3 in feature_view_1.features
+
+        # The single entity column remains.
+        assert len(feature_view_1.entity_columns) == 1
 
 
 def test_update_feature_services_with_inferred_features(simple_dataset_1):
@@ -312,5 +386,6 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         assert len(feature_view_1.schema) == 0
         assert len(feature_view_1.features) == 3
         assert len(feature_service.feature_view_projections[0].features) == 3
+
 
 # TODO(felixwang9817): Add tests that interact with field mapping.

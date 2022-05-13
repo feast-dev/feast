@@ -98,10 +98,7 @@ def get_fixtures(request, environment):
     ).lower()
     config = request.param
     df = create_dataset(
-        Int64,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
+        Int64, config.feature_dtype, config.feature_is_list, config.has_empty_list,
     )
     data_source = environment.data_source_creator.create_data_source(
         df, destination_name=destination_name, field_mapping={"ts_1": "ts"},
@@ -119,9 +116,7 @@ def get_fixtures(request, environment):
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.parametrize(
-    "entity_type", [Int32, Int64, String]
-)
+@pytest.mark.parametrize("entity_type", [Int32, Int64, String])
 def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
 
@@ -162,8 +157,7 @@ def test_entity_inference_types_match(environment, entity_type):
     assert len(entity_columns) == 1
     entity_column = entity_columns[0]
     assert (
-        entity_column.dtype
-        in entity_type_to_expected_inferred_entity_type[entity_type]
+        entity_column.dtype in entity_type_to_expected_inferred_entity_type[entity_type]
     )
 
 
@@ -279,7 +273,12 @@ def test_feature_get_online_features_types_match(
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity_type = Int64,
+    name,
+    feature_dtype,
+    feature_is_list,
+    has_empty_list,
+    data_source,
+    entity_type=Int64,
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":

@@ -139,19 +139,19 @@ def update_feature_views_with_inferred_features_and_entities(
         if len(fv.entities) == 1 and fv.entities[0] == DUMMY_ENTITY_NAME:
             fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
 
-        # Run inference if either (a) there are fewer entity fields than expected or
-        # (b) there are no feature fields.
-        run_inference = len(fv.features) == 0
+        # Run inference for entity columns if there are fewer entity fields than expected.
         num_expected_join_keys = sum(
             [
                 len(entity_name_to_join_keys_map[entity_name])
                 for entity_name in fv.entities
             ]
         )
-        if len(fv.entity_columns) < num_expected_join_keys:
-            run_inference = True
+        run_inference_for_entities = len(fv.entity_columns) < num_expected_join_keys
 
-        if run_inference:
+        # Run inference for feature columns if there are no feature fields.
+        run_inference_for_features = len(fv.features) == 0
+
+        if run_inference_for_entities or run_inference_for_features:
             join_keys = set(
                 [
                     join_key
@@ -177,36 +177,38 @@ def update_feature_views_with_inferred_features_and_entities(
                 if col_name in columns_to_exclude:
                     continue
                 elif col_name in join_keys:
-                    field = Field(
-                        name=col_name,
-                        dtype=from_value_type(
-                            fv.batch_source.source_datatype_to_feast_value_type()(
-                                col_datatype
-                            )
-                        ),
-                    )
-                    if field.name not in [
-                        entity_column.name for entity_column in fv.entity_columns
-                    ]:
-                        fv.entity_columns.append(field)
+                    if run_inference_for_entities:
+                        field = Field(
+                            name=col_name,
+                            dtype=from_value_type(
+                                fv.batch_source.source_datatype_to_feast_value_type()(
+                                    col_datatype
+                                )
+                            ),
+                        )
+                        if field.name not in [
+                            entity_column.name for entity_column in fv.entity_columns
+                        ]:
+                            fv.entity_columns.append(field)
                 elif not re.match(
                     "^__|__$", col_name
                 ):  # double underscores often signal an internal-use column
-                    feature_name = (
-                        fv.batch_source.field_mapping[col_name]
-                        if col_name in fv.batch_source.field_mapping
-                        else col_name
-                    )
-                    field = Field(
-                        name=feature_name,
-                        dtype=from_value_type(
-                            fv.batch_source.source_datatype_to_feast_value_type()(
-                                col_datatype
-                            )
-                        ),
-                    )
-                    if field.name not in [feature.name for feature in fv.features]:
-                        fv.features.append(field)
+                    if run_inference_for_features:
+                        feature_name = (
+                            fv.batch_source.field_mapping[col_name]
+                            if col_name in fv.batch_source.field_mapping
+                            else col_name
+                        )
+                        field = Field(
+                            name=feature_name,
+                            dtype=from_value_type(
+                                fv.batch_source.source_datatype_to_feast_value_type()(
+                                    col_datatype
+                                )
+                            ),
+                        )
+                        if field.name not in [feature.name for feature in fv.features]:
+                            fv.features.append(field)
 
             if not fv.features:
                 raise RegistryInferenceFailure(
