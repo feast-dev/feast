@@ -72,10 +72,12 @@ const useGenericCustomTabsNavigation = <
   const { pathname } = useLocation(); // Current Location
 
   useEffect(() => {
+    if (entries.length === 0) {
+      return;
+    }
     setTabs(
       entries.map(({ label, path }) => {
         const resolvedTabPath = resolvePath(path, featureViewRoot.pathname);
-
         return {
           label,
           // Can't use the match hooks here b/c we're in a loop due
