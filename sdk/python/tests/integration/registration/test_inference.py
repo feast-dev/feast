@@ -328,6 +328,41 @@ def test_feature_view_inference_on_entity_columns(simple_dataset_1):
         assert len(feature_view_1.entity_columns) == 1
 
 
+def test_feature_view_inference_respects_entity_value_type(simple_dataset_1):
+    """
+    Tests that feature view inference still respects an entity's value type.
+    """
+    # TODO(felixwang9817): Remove this test once entity value_type is removed.
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity1 = Entity(
+            name="test1", join_keys=["id_join_key"], value_type=ValueType.STRING
+        )
+        feature_view_1 = FeatureView(
+            name="test1",
+            entities=[entity1],
+            schema=[Field(name="int64_col", dtype=Int64)],
+            source=file_source,
+        )
+
+        assert len(feature_view_1.schema) == 1
+        assert len(feature_view_1.features) == 1
+        assert len(feature_view_1.entity_columns) == 0
+
+        update_feature_views_with_inferred_features_and_entities(
+            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+        )
+
+        # The schema is only used as a parameter, as is therefore not updated during inference.
+        assert len(feature_view_1.schema) == 1
+
+        # Since there is already a feature specified, additional features are not inferred.
+        assert len(feature_view_1.features) == 1
+
+        # The single entity column is inferred correctly and has type String.
+        assert len(feature_view_1.entity_columns) == 1
+        assert feature_view_1.entity_columns[0].dtype == String
+
+
 def test_feature_view_inference_on_feature_columns(simple_dataset_1):
     """
     Tests that feature view inference correctly infers feature columns.
