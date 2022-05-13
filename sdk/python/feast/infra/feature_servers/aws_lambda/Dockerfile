@@ -16,7 +16,7 @@ COPY README.md README.md
 # git dir to infer the version of feast we're installing.
 # https://github.com/pypa/setuptools_scm#usage-from-docker
 # I think it also assumes that this dockerfile is being built from the root of the directory.
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=1 pip3 install --no-cache-dir -e '.[aws,redis,]'
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=1 pip3 install --no-cache-dir -e '.[aws,redis]'
 RUN pip3 install -r sdk/python/feast/infra/feature_servers/aws_lambda/requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
 # Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
