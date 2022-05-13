@@ -33,46 +33,22 @@ def main() -> None:
     with open(path_to_file_list, "r") as f:
         files_to_bump = f.read().splitlines()
 
-    # The current version should be 0.18.0 or 0.19.0 or 0.20.0 etc, but we should also make sure to support the
-    # occasional patch release on the master branch like 0.18.1 or 0.18.2
-    versions_in_files = 0
-    if current_version[-2:] != ".0":
-        print(current_version[-2:])
-        versions_in_files = count_version(current_version, files_to_bump, repo_root)
-        if versions_in_files != VERSIONS_TO_BUMP:
-            raise SystemExit(f"Found {versions_in_files} occurrences of {current_version} in files to bump, but "
-                             f"expected {VERSIONS_TO_BUMP}")
-    else:
-        found = False
-
-        # Lets make sure the files don't contain a patch version (e.g, 0.x.0 -> 0.x.20)
-        for patch_version in range(0, 20):
-            current_version_patch = current_version[:-1] + str(patch_version)
-            versions_in_files = count_version(current_version_patch, files_to_bump, repo_root)
-
-            # We are using a patch version, let's change our version number
-            if versions_in_files == VERSIONS_TO_BUMP:
-                print(f"Found {versions_in_files} occurrences of {current_version_patch}, changing current version to "
-                      f"{current_version_patch}")
-                current_version = current_version_patch
-                found = True
-                break
-            else:
-                print(f"Found {versions_in_files} occurrences of {current_version_patch}, instead of {VERSIONS_TO_BUMP}")
-        if not found:
-            raise SystemExit(f"Could not find {VERSIONS_TO_BUMP} versions of {current_version} in {path_to_file_list}")
-
-    print(f"Found {versions_in_files} occurrences of {current_version} in files to bump {path_to_file_list}")
+    # The current version should be 0.18.0 or 0.19.0 or 0.20.0 etc
+    validate_files_to_bump(current_version, files_to_bump, repo_root)
 
     # Bump the version in the files
     updated_count = 0
     for file in files_to_bump:
-        with open(repo_root.joinpath(file), "r") as f:
-            file_contents = f.read()
-            file_contents = file_contents.replace(current_version, new_version)
+        components = file.split(" ")
+        file_path = components[0]
+        lines = components[1:]
+        with open(repo_root.joinpath(file_path), "r") as f:
+            file_contents = f.readlines()
+            for line in lines:
+                file_contents[int(line) - 1] = file_contents[int(line) - 1].replace(current_version, new_version)
 
-        with open(repo_root.joinpath(file), "w") as f:
-            f.write(file_contents)
+        with open(repo_root.joinpath(file_path), "w") as f:
+            f.write(''.join(file_contents))
             updated_count += 1
 
     print(f"Updated {updated_count} files with new version {new_version}")
@@ -88,14 +64,18 @@ def is_semantic_version(version: str) -> bool:
     return True
 
 
-def count_version(current_version, files_to_bump, repo_root):
-    # Count how many of the existing versions we find
-    total = 0
+def validate_files_to_bump(current_version, files_to_bump, repo_root):
     for file in files_to_bump:
-        with open(repo_root.joinpath(file), "r") as f:
-            file_contents = f.read()
-            total += file_contents.count(current_version)
-    return total
+        components = file.split(" ")
+        assert len(components) > 1, f"Entry {file} should have a file name, and a list of line numbers with versions"
+        file_path = components[0]
+        lines = components[1:]
+        with open(repo_root.joinpath(file_path), "r") as f:
+            file_contents = f.readlines()
+            for line in lines:
+                assert current_version in file_contents[int(line) - 1], f"File {file_path} line {line} didn't containe " \
+                                                                    f"version {current_version}. " \
+                                                                    f"Contents: {file_contents[int(line) - 1]}"
 
 
 if __name__ == "__main__":
