@@ -481,15 +481,6 @@ setup(
         "mypy-protobuf==3.1",
         "sphinx!=4.0.0",
     ],
-    package_data={
-        "": [
-            "sdk/python/**/*.proto",
-            "sdk/python/**/*.py",
-            "protos/**/*.proto",
-            "sdk/python/ui/build/*",
-            "sdk/python/ui/build/**/*",
-        ],
-    },
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
