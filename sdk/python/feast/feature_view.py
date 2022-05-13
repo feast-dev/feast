@@ -336,6 +336,7 @@ class FeatureView(BaseFeatureView):
             or self.online != other.online
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
+            or sorted(self.entity_columns) != sorted(other.entity_columns)
         ):
             return False
 
@@ -463,7 +464,6 @@ class FeatureView(BaseFeatureView):
         )
         feature_view = cls(
             name=feature_view_proto.spec.name,
-            entities=feature_view_proto.spec.entities,
             description=feature_view_proto.spec.description,
             tags=dict(feature_view_proto.spec.tags),
             owner=feature_view_proto.spec.owner,
@@ -477,6 +477,9 @@ class FeatureView(BaseFeatureView):
         )
         if stream_source:
             feature_view.stream_source = stream_source
+
+        # This avoids the deprecation warning.
+        feature_view.entities = feature_view_proto.spec.entities
 
         # Instead of passing in a schema, we set the features and entity columns.
         feature_view.features = [
