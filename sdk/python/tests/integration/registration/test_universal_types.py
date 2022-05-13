@@ -156,16 +156,15 @@ def test_entity_inference_types_match(environment, entity_type):
         String: {String},
     }
 
-    for entity in entities:
-        entity_columns = list(
-            filter(lambda x: x.name == entity.join_key, fv.entity_columns)
-        )
-        assert len(entity_columns) == 1
-        entity_column = entity_columns[0]
-        assert (
-            entity_column.dtype
-            in entity_type_to_expected_inferred_entity_type[entity_type]
-        )
+    entity_columns = list(
+        filter(lambda x: x.name == entity.join_key, fv.entity_columns)
+    )
+    assert len(entity_columns) == 1
+    entity_column = entity_columns[0]
+    assert (
+        entity_column.dtype
+        in entity_type_to_expected_inferred_entity_type[entity_type]
+    )
 
 
 @pytest.mark.integration
