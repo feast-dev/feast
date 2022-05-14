@@ -2,7 +2,7 @@ import json
 import threading
 from typing import Callable, Optional
 
-import pkg_resources
+from importlib_resources import files, as_file
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,8 +16,10 @@ def get_app(
     get_registry_dump: Callable,
     project_id: str,
     registry_ttl_secs: int,
+    host: str,
+    port: int,
 ):
-    ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
+    ui_dir = files(__package__).joinpath("ui/build/")
 
     app = FastAPI()
 
@@ -53,25 +55,30 @@ def get_app(
 
     async_refresh()
 
-    @app.get("/registry")
-    def read_registry():
-        return json.loads(registry_json)
-
-    # Generate projects-list json that points to the current repo's project
-    # TODO(adchia): Enable users to also add project name + description fields in feature_store.yaml
-    @app.get("/projects-list")
-    def projects_list():
-        projects = {
+    # Initialize with the projects-list.json file
+    try:
+        f = ui_dir.joinpath("projects-list.json").open(mode="w")
+        projects_dict = {
             "projects": [
                 {
                     "name": "Project",
                     "description": "Test project",
                     "id": project_id,
-                    "registryPath": "http://0.0.0.0:8888/registry",
+                    "registryPath": f"http://{host}:{port}/registry",
                 }
             ]
         }
-        return projects
+        f.write(json.dumps(projects_dict))
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to initialize projects-list.json with registry path"
+        ) from e
+    finally:
+        f.close()
+
+    @app.get("/registry")
+    def read_registry():
+        return json.loads(registry_json)
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])
@@ -83,9 +90,10 @@ def get_app(
 
         return Response(content, media_type="text/html")
 
-    app.mount(
-        "/", StaticFiles(directory=ui_dir, html=True), name="site",
-    )
+    with as_file(ui_dir) as react_app_dir:
+        app.mount(
+            "/", StaticFiles(directory=react_app_dir, html=True), name="site",
+        )
 
     return app
 
@@ -98,5 +106,5 @@ def start_server(
     project_id: str,
     registry_ttl_sec: int,
 ):
-    app = get_app(store, get_registry_dump, project_id, registry_ttl_sec)
+    app = get_app(store, get_registry_dump, project_id, registry_ttl_sec, host, port)
     uvicorn.run(app, host=host, port=port)
