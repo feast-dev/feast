@@ -1,6 +1,8 @@
+import pandas as pd
 from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, FileSource, ValueType
+from feast import Entity, Feature, FeatureView, FileSource, RequestSource, ValueType
+from feast.on_demand_feature_view import on_demand_feature_view
 
 driver_hourly_stats = FileSource(
     path="%PARQUET_PATH%",  # placeholder to be replaced by the test
@@ -50,3 +52,25 @@ global_stats_feature_view = FeatureView(
     batch_source=global_daily_stats,  # Changed to `source` in 0.20
     tags={},
 )
+
+
+request_source = RequestSource(
+    name="conv_rate_input",
+    schema={"val_to_add": ValueType.INT64},
+)
+
+
+@on_demand_feature_view(
+    inputs={"conv_rate_input": request_source, "driver_hourly_stats": driver_hourly_stats_view},
+    features=[
+        Feature(name="conv_rate_plus_100", dtype=ValueType.DOUBLE),
+        Feature(name="conv_rate_plus_val_to_add", dtype=ValueType.DOUBLE),
+    ],
+)
+def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df["conv_rate_plus_100"] = features_df["conv_rate"] + 100
+    df["conv_rate_plus_val_to_add"] = (
+        features_df["conv_rate"] + features_df["val_to_add"]
+    )
+    return df

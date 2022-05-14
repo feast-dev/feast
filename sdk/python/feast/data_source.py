@@ -24,7 +24,7 @@ from feast.data_format import StreamFormat
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
-from feast.types import VALUE_TYPES_TO_FEAST_TYPES
+from feast.types import from_value_type
 from feast.value_type import ValueType
 
 
@@ -557,12 +557,12 @@ class RequestSource(DataSource):
                 "Please use List[Field] instead for the schema",
                 DeprecationWarning,
             )
-            schemaList = []
-            for key, valueType in _schema.items():
-                schemaList.append(
-                    Field(name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[valueType])
+            schema_list = []
+            for key, value_type in _schema.items():
+                schema_list.append(
+                    Field(name=key, dtype=from_value_type(value_type))
                 )
-            self.schema = schemaList
+            self.schema = schema_list
         elif isinstance(_schema, List):
             self.schema = _schema
         else:
@@ -642,7 +642,7 @@ class RequestSource(DataSource):
             for key, value in self.schema.items():
                 schema_pb.append(
                     Field(
-                        name=key, dtype=VALUE_TYPES_TO_FEAST_TYPES[value.value]
+                        name=key, dtype=from_value_type(value.value)
                     ).to_proto()
                 )
         else:

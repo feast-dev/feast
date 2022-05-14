@@ -41,7 +41,7 @@ def _assert_online_features(
         full_feature_names=True,
     )
 
-    # Float features should still be floats from the online store...
+    # Float features should still be floats.
     assert (
         response.proto.results[
             list(response.proto.metadata.feature_names.val).index(
@@ -66,6 +66,50 @@ def _assert_online_features(
     )
     assert "global_daily_stats__num_rides" in result
     assert "global_daily_stats__avg_ride_length" in result
+
+    # Test the ODFV if it exists.
+    odfvs = store.list_on_demand_feature_views()
+    if odfvs and odfvs[0].name == "conv_rate_plus_100":
+        response = store.get_online_features(
+            features=[
+                "conv_rate_plus_100:conv_rate_plus_100",
+                "conv_rate_plus_100:conv_rate_plus_val_to_add",
+            ],
+            entity_rows=[{"driver_id": 1001, "val_to_add": 100}],
+            full_feature_names=True,
+        )
+
+        # Check that float64 feature is stored correctly in proto format.
+        assert (
+            response.proto.results[
+                list(response.proto.metadata.feature_names.val).index(
+                    "conv_rate_plus_100__conv_rate_plus_100"
+                )
+            ]
+            .values[0]
+            .double_val
+            > 0
+        )
+
+        result = response.to_dict()
+        assert len(result) == 3
+        assert "conv_rate_plus_100__conv_rate_plus_100" in result
+        assert "conv_rate_plus_100__conv_rate_plus_val_to_add" in result
+        assert (
+            abs(
+                result["conv_rate_plus_100__conv_rate_plus_100"][0]
+                - (_get_last_feature_row(driver_df, 1001, max_date)["conv_rate"] + 100)
+            )
+            < 0.01
+        )
+        assert (
+            abs(
+                result["conv_rate_plus_100__conv_rate_plus_val_to_add"][0]
+                - (_get_last_feature_row(driver_df, 1001, max_date)["conv_rate"] + 100)
+            )
+            < 0.01
+        )
+
 
 
 def _test_materialize_and_online_retrieval(

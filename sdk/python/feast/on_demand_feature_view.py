@@ -674,5 +674,5 @@ def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
         online=fv.online,
         owner=fv.owner,
         schema=fv.schema,
-        source=fv.source,
+        source=fv.batch_source,
     )
