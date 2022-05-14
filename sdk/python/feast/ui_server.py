@@ -2,11 +2,11 @@ import json
 import threading
 from typing import Callable, Optional
 
-from importlib_resources import files, as_file
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from importlib_resources import as_file, files
 
 import feast
 
@@ -19,8 +19,6 @@ def get_app(
     host: str,
     port: int,
 ):
-    ui_dir = files(__package__).joinpath("ui/build/")
-
     app = FastAPI()
 
     app.add_middleware(
@@ -55,9 +53,9 @@ def get_app(
 
     async_refresh()
 
+    ui_dir = files(__package__).joinpath("ui/build/")
     # Initialize with the projects-list.json file
-    try:
-        f = ui_dir.joinpath("projects-list.json").open(mode="w")
+    with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
         projects_dict = {
             "projects": [
                 {
@@ -69,12 +67,6 @@ def get_app(
             ]
         }
         f.write(json.dumps(projects_dict))
-    except Exception as e:
-        raise RuntimeError(
-            "Failed to initialize projects-list.json with registry path"
-        ) from e
-    finally:
-        f.close()
 
     @app.get("/registry")
     def read_registry():
