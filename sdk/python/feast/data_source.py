@@ -559,9 +559,7 @@ class RequestSource(DataSource):
             )
             schema_list = []
             for key, value_type in _schema.items():
-                schema_list.append(
-                    Field(name=key, dtype=from_value_type(value_type))
-                )
+                schema_list.append(Field(name=key, dtype=from_value_type(value_type)))
             self.schema = schema_list
         elif isinstance(_schema, List):
             self.schema = _schema
@@ -641,9 +639,7 @@ class RequestSource(DataSource):
         if isinstance(self.schema, Dict):
             for key, value in self.schema.items():
                 schema_pb.append(
-                    Field(
-                        name=key, dtype=from_value_type(value.value)
-                    ).to_proto()
+                    Field(name=key, dtype=from_value_type(value.value)).to_proto()
                 )
         else:
             for field in self.schema:

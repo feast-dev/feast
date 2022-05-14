@@ -1,5 +1,6 @@
-import pandas as pd
 from datetime import timedelta
+
+import pandas as pd
 
 from feast import Entity, Feature, FeatureView, FileSource, RequestSource, ValueType
 from feast.on_demand_feature_view import on_demand_feature_view
@@ -55,13 +56,15 @@ global_stats_feature_view = FeatureView(
 
 
 request_source = RequestSource(
-    name="conv_rate_input",
-    schema={"val_to_add": ValueType.INT64},
+    name="conv_rate_input", schema={"val_to_add": ValueType.INT64},
 )
 
 
 @on_demand_feature_view(
-    inputs={"conv_rate_input": request_source, "driver_hourly_stats": driver_hourly_stats_view},
+    inputs={
+        "conv_rate_input": request_source,
+        "driver_hourly_stats": driver_hourly_stats_view,
+    },
     features=[
         Feature(name="conv_rate_plus_100", dtype=ValueType.DOUBLE),
         Feature(name="conv_rate_plus_val_to_add", dtype=ValueType.DOUBLE),

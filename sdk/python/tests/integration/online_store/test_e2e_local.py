@@ -111,7 +111,6 @@ def _assert_online_features(
         )
 
 
-
 def _test_materialize_and_online_retrieval(
     runner: CliRunner,
     store: FeatureStore,
