@@ -1,8 +1,8 @@
 import json
 import threading
-from importlib import resources
 from typing import Callable, Optional
 
+import pkg_resources
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,9 +53,9 @@ def get_app(
 
     async_refresh()
 
-    ui_dir = resources.files(__package__).joinpath("ui/build/")
+    ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
     # Initialize with the projects-list.json file
-    with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
+    with open(ui_dir + "projects-list.json", mode="w") as f:
         projects_dict = {
             "projects": [
                 {
@@ -82,10 +82,9 @@ def get_app(
 
         return Response(content, media_type="text/html")
 
-    with resources.as_file(ui_dir) as react_app_dir:
-        app.mount(
-            "/", StaticFiles(directory=react_app_dir, html=True), name="site",
-        )
+    app.mount(
+        "/", StaticFiles(directory=ui_dir, html=True), name="site",
+    )
 
     return app
 
