@@ -125,8 +125,6 @@ driver_stats_fs = FeatureService(
 {% endtab %}
 {% endtabs %}
 
-![Demo parquet data: data/driver\_stats.parquet](../.gitbook/assets/screen-shot-2021-08-23-at-2.35.18-pm.png)
-
 The key line defining the overall architecture of the feature store is the **provider**. This defines where the raw data exists (for generating training data & feature values for serving), and where to materialize feature values to in the online store (for serving).
 
 Valid values for `provider` in `feature_store.yaml` are:
@@ -139,6 +137,17 @@ Note that there are many other sources Feast works with, including Azure, Hive, 
 
 A custom setup can also be made by following [adding a custom provider](../how-to-guides/creating-a-custom-provider.md).
 
+### Inspecting the raw data
+
+The raw feature data we have in this demo is stored in a local parquet file. The dataset captures hourly stats of a driver in a ride-sharing app.
+
+```python
+import pandas as pd
+
+pd.read_parquet("data/driver_stats.parquet")
+```
+
+![Demo parquet data: data/driver\_stats.parquet](../.gitbook/assets/screen-shot-2021-08-23-at-2.35.18-pm.png)
 
 ## Step 3: Register feature definitions and deploy your feature store
 
