@@ -1,12 +1,12 @@
 import json
 import threading
+from importlib import resources
 from typing import Callable, Optional
 
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from importlib_resources import as_file, files
 
 import feast
 
@@ -53,7 +53,7 @@ def get_app(
 
     async_refresh()
 
-    ui_dir = files(__package__).joinpath("ui/build/")
+    ui_dir = resources.files(__package__).joinpath("ui/build/")
     # Initialize with the projects-list.json file
     with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
         projects_dict = {
@@ -82,7 +82,7 @@ def get_app(
 
         return Response(content, media_type="text/html")
 
-    with as_file(ui_dir) as react_app_dir:
+    with resources.as_file(ui_dir) as react_app_dir:
         app.mount(
             "/", StaticFiles(directory=react_app_dir, html=True), name="site",
         )
