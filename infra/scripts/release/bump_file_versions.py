@@ -73,9 +73,10 @@ def validate_files_to_bump(current_version, files_to_bump, repo_root):
         with open(repo_root.joinpath(file_path), "r") as f:
             file_contents = f.readlines()
             for line in lines:
-                assert current_version in file_contents[int(line) - 1], f"File {file_path} line {line} didn't containe " \
-                                                                    f"version {current_version}. " \
-                                                                    f"Contents: {file_contents[int(line) - 1]}"
+                assert current_version in file_contents[int(line) - 1], (
+                    f"File `{file_path}` line `{line}` didn't contain version {current_version}. "
+                    f"Contents: {file_contents[int(line) - 1]}"
+                )
 
 
 if __name__ == "__main__":
