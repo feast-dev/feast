@@ -90,9 +90,9 @@ REDIS_REQUIRED = [
 ]
 
 AWS_REQUIRED = [
-    "boto3>=1.17.0",
+    "boto3>=1.17.0,<=1.20.23",
     "docker>=5.0.2",
-    "s3fs>=0.4.0"
+    "s3fs>=0.4.0,<=2022.01.0"
 ]
 
 SNOWFLAKE_REQUIRED = [
@@ -136,7 +136,7 @@ CI_REQUIRED = (
         "mypy==0.931",
         "mypy-protobuf==3.1",
         "avro==1.10.0",
-        "gcsfs",
+        "gcsfs>=0.4.0,<=2022.01.0"
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
         "pytest>=6.0.0,<8",
