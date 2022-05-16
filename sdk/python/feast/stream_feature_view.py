@@ -7,10 +7,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
-SUPPORTED_STREAM_SOURCES = {
-    "KafkaSource",
-    "KinesisSource",
-}
+SUPPORTED_STREAM_SOURCES = {"KafkaSource", "KinesisSource", "PushSource"}
 
 
 class StreamFeatureView(FeatureView):
