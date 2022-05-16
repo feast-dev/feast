@@ -93,7 +93,7 @@ def grpc_server_port(environment, initialized_registry):
     )
 
     yield port
-    embedded.stop_grpc_server()
+    embedded.stop_server()
     # wait for graceful stop
     time.sleep(2)
 

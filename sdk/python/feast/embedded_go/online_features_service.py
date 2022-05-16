@@ -177,10 +177,7 @@ class EmbeddedOnlineFeatureServer:
         else:
             self._service.StartHttpServer(host, port)
 
-    def stop_http_server(self):
-        self._service.Stop()
-
-    def stop_grpc_server(self):
+    def stop_server(self):
         self._service.Stop()
 
 
