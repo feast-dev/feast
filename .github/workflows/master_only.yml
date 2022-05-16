@@ -13,7 +13,9 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
       - name: Set up AWS SDK
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -177,7 +179,9 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
