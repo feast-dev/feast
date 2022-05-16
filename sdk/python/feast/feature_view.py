@@ -285,6 +285,7 @@ class FeatureView(BaseFeatureView):
             online=self.online,
         )
         fv.projection = copy.copy(self.projection)
+        fv.entities = self.entities
         return fv
 
     def __eq__(self, other):

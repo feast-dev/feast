@@ -73,6 +73,7 @@ class FileRetrievalJob(RetrievalJob):
     def _to_df_internal(self) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function().compute()
+        df = df.reset_index(drop=True)
         return df
 
     @log_exceptions_and_usage
@@ -555,11 +556,18 @@ def _filter_ttl(
     # Filter rows by defined timestamp tolerance
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
         df_to_join = df_to_join[
-            (
-                df_to_join[timestamp_field]
-                >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+            # do not drop entity rows if one of the sources returns NaNs
+            df_to_join[timestamp_field].isna()
+            | (
+                (
+                    df_to_join[timestamp_field]
+                    >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+                )
+                & (
+                    df_to_join[timestamp_field]
+                    <= df_to_join[entity_df_event_timestamp_col]
+                )
             )
-            & (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
         ]
 
         df_to_join = df_to_join.persist()

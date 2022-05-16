@@ -45,6 +45,7 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
+from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -83,7 +84,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
-from feast.saved_dataset import SavedDataset, SavedDatasetStorage
+from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -2053,6 +2054,58 @@ class FeatureStore:
             config=self.config,
             registry=self._registry,
         )
+
+    def validate_logged_features(
+        self,
+        source: Union[FeatureService],
+        start: datetime,
+        end: datetime,
+        reference: ValidationReference,
+        throw_exception: bool = True,
+    ) -> Optional[ValidationFailed]:
+        """
+        Load logged features from an offline store and validate them against provided validation reference.
+
+        Args:
+            source: Logs source object (currently only feature services are supported)
+            start: lower bound for loading logged features
+            end:  upper bound for loading logged features
+            reference: validation reference
+            throw_exception: throw exception or return it as a result
+
+        Returns:
+            Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
+            or None if successful.
+
+        """
+        warnings.warn(
+            "Logged features validation is an experimental feature. "
+            "This API is unstable and it could and most probably will be changed in the future. "
+            "We do not guarantee that future changes will maintain backward compatibility.",
+            RuntimeWarning,
+        )
+
+        if not isinstance(source, FeatureService):
+            raise ValueError("Only feature service is currently supported as a source")
+
+        j = self._get_provider().retrieve_feature_service_logs(
+            feature_service=source,
+            start_date=start,
+            end_date=end,
+            config=self.config,
+            registry=self.registry,
+        )
+
+        # read and run validation
+        try:
+            j.to_arrow(validation_reference=reference)
+        except ValidationFailed as exc:
+            if throw_exception:
+                raise
+
+            return exc
+
+        return None
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

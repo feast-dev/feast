@@ -1,10 +1,21 @@
+import datetime
+
 import pandas as pd
+import pyarrow as pa
 import pytest
 from great_expectations.core import ExpectationSuite
 from great_expectations.dataset import PandasDataset
 
+from feast import FeatureService
 from feast.dqm.errors import ValidationFailed
 from feast.dqm.profilers.ge_profiler import ge_profiler
+from feast.feature_logging import (
+    LOG_TIMESTAMP_FIELD,
+    FeatureServiceLoggingSource,
+    LoggingConfig,
+)
+from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
+from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -13,6 +24,7 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
+from tests.utils.logged_features import prepare_logs
 
 _features = [
     "customer_profile:current_balance",
@@ -32,6 +44,39 @@ def configurable_profiler(dataset: PandasDataset) -> ExpectationSuite:
 
     return UserConfigurableProfiler(
         profile_dataset=dataset,
+        ignored_columns=["event_timestamp"],
+        excluded_expectations=[
+            "expect_table_columns_to_match_ordered_list",
+            "expect_table_row_count_to_be_between",
+        ],
+        value_set_threshold="few",
+    ).build_suite()
+
+
+@ge_profiler(with_feature_metadata=True)
+def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
+    from great_expectations.profile.user_configurable_profiler import (
+        UserConfigurableProfiler,
+    )
+
+    # always present
+    dataset.expect_column_values_to_be_in_set(
+        "global_stats__avg_ride_length__status", {FieldStatus.PRESENT}
+    )
+
+    # present at least in 70% of rows
+    dataset.expect_column_values_to_be_in_set(
+        "customer_profile__current_balance__status", {FieldStatus.PRESENT}, mostly=0.7
+    )
+
+    return UserConfigurableProfiler(
+        profile_dataset=dataset,
+        ignored_columns=["event_timestamp"]
+        + [
+            c
+            for c in dataset.columns
+            if c.endswith("__timestamp") or c.endswith("__status")
+        ],
         excluded_expectations=[
             "expect_table_columns_to_match_ordered_list",
             "expect_table_row_count_to_be_between",
@@ -127,3 +172,88 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
 
     assert failed_expectations[1].check_name == "expect_column_values_to_be_in_set"
     assert failed_expectations[1].column_name == "avg_passenger_count"
+
+
+@pytest.mark.integration
+def test_logged_features_validation(environment, universal_data_sources):
+    store = environment.feature_store
+
+    (_, datasets, data_sources) = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+    feature_service = FeatureService(
+        name="test_service",
+        features=[
+            feature_views.customer[
+                ["current_balance", "avg_passenger_count", "lifetime_trip_count"]
+            ],
+            feature_views.order[["order_is_success"]],
+            feature_views.global_fv[["num_rides", "avg_ride_length"]],
+        ],
+        logging_config=LoggingConfig(
+            destination=environment.data_source_creator.create_logged_features_destination()
+        ),
+    )
+
+    store.apply(
+        [driver(), customer(), location(), feature_service, *feature_views.values()]
+    )
+
+    entity_df = datasets.entity_df.drop(
+        columns=["order_id", "origin_id", "destination_id"]
+    )
+
+    # add some non-existing entities to check NotFound feature handling
+    for i in range(5):
+        entity_df = entity_df.append(
+            {
+                "customer_id": 2000 + i,
+                "driver_id": 6000 + i,
+                "event_timestamp": datetime.datetime.now(),
+            },
+            ignore_index=True,
+        )
+
+    reference_dataset = store.create_saved_dataset(
+        from_=store.get_historical_features(
+            entity_df=entity_df, features=feature_service, full_feature_names=True
+        ),
+        name="reference_for_validating_logged_features",
+        storage=environment.data_source_creator.create_saved_dataset_destination(),
+    )
+
+    log_source_df = store.get_historical_features(
+        entity_df=entity_df, features=feature_service, full_feature_names=False
+    ).to_df()
+    logs_df = prepare_logs(log_source_df, feature_service, store)
+
+    schema = FeatureServiceLoggingSource(
+        feature_service=feature_service, project=store.project
+    ).get_schema(store._registry)
+    store.write_logged_features(
+        pa.Table.from_pandas(logs_df, schema=schema), source=feature_service
+    )
+
+    def validate():
+        """
+        Return Tuple[succeed, completed]
+        Succeed will be True if no ValidateFailed exception was raised
+        """
+        try:
+            store.validate_logged_features(
+                feature_service,
+                start=logs_df[LOG_TIMESTAMP_FIELD].min(),
+                end=logs_df[LOG_TIMESTAMP_FIELD].max() + datetime.timedelta(seconds=1),
+                reference=reference_dataset.as_reference(
+                    profiler=profiler_with_feature_metadata
+                ),
+            )
+        except ValidationFailed:
+            return False, True
+        except Exception:
+            # log table is still being created
+            return False, False
+
+        return True, True
+
+    success = wait_retry_backoff(validate, timeout_secs=30)
+    assert success, "Validation failed (unexpectedly)"
