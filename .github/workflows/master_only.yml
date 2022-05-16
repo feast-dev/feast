@@ -52,6 +52,7 @@ jobs:
           docker build \
             --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }} \
+            --load \
             .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
     outputs:
