@@ -1,5 +1,7 @@
 FROM python:3.9-slim
 
+RUN apt-get update && apt-get install -y git
+
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
 
@@ -18,7 +20,7 @@ COPY pyproject.toml pyproject.toml
 COPY README.md ./README.md
 
 # Install production dependencies.
-RUN pip install --no-cache-dir \
+RUN --mount=source=.git,target=.git,type=bind pip install --no-cache-dir \
     -e '.[gcp,redis]' \
     -r ./sdk/python/feast/infra/feature_servers/gcp_cloudrun/requirements.txt
 
