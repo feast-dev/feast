@@ -47,7 +47,7 @@ package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
 compile-protos-python:
-	python setup.py build_python_protos
+	python setup.py build_python_protos --inplace
 
 install-python:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-requirements.txt
