@@ -212,17 +212,17 @@ push-feature-server-python-aws-docker:
 		docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
 
 build-feature-server-python-aws-docker:
-		docker buildx --build-arg VERSION=$$VERSION \
+		docker buildx build --build-arg VERSION=$$VERSION \
 			-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
-			-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile .
+			-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile --load .
 
 push-feature-transformation-server-docker:
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
 
 build-feature-transformation-server-docker:
-	docker build --build-arg VERSION=$(VERSION) \
+	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-transformation-server:$(VERSION) \
-		-f sdk/python/feast/infra/transformation_servers/Dockerfile .
+		-f sdk/python/feast/infra/transformation_servers/Dockerfile --load .
 
 push-feature-server-java-docker:
 	docker push $(REGISTRY)/feature-server-java:$(VERSION)
