@@ -197,6 +197,13 @@ class SpecifiedFeaturesNotPresentError(Exception):
         )
 
 
+class FeastOfflineStoreInvalidName(Exception):
+    def __init__(self, offline_store_class_name: str):
+        super().__init__(
+            f"Offline Store Class '{offline_store_class_name}' should end with the string `OfflineStore`.'"
+        )
+
+
 class FeastOnlineStoreInvalidName(Exception):
     def __init__(self, online_store_class_name: str):
         super().__init__(
