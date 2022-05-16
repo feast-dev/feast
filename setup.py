@@ -92,6 +92,7 @@ REDIS_REQUIRED = [
 AWS_REQUIRED = [
     "boto3>=1.17.0",
     "docker>=5.0.2",
+    "s3fs>=0.4.0"
 ]
 
 SNOWFLAKE_REQUIRED = [
