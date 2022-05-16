@@ -229,10 +229,11 @@ def generate_expected_logs(
         logs[col] = df[feature]
         logs[f"{col}__timestamp"] = df[timestamp_column]
         logs[f"{col}__status"] = FieldStatus.PRESENT
-        logs[f"{col}__status"] = logs[f"{col}__status"].mask(
-            df[timestamp_column]
-            < datetime.utcnow().replace(tzinfo=pytz.UTC) - feature_view.ttl,
-            FieldStatus.OUTSIDE_MAX_AGE,
-        )
+        if feature_view.ttl:
+            logs[f"{col}__status"] = logs[f"{col}__status"].mask(
+                df[timestamp_column]
+                < datetime.utcnow().replace(tzinfo=pytz.UTC) - feature_view.ttl,
+                FieldStatus.OUTSIDE_MAX_AGE,
+            )
 
     return logs.sort_values(by=join_keys).reset_index(drop=True)
