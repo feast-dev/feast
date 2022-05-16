@@ -163,20 +163,6 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		requestContextProto[key] = value.ToProto()
 	}
 
-	fmt.Printf("features: %+v\n", request.Features)
-	for _, feature := range request.Features {
-		fmt.Printf("  feature %+v (type %T)\n", feature, feature)
-	}
-	fmt.Printf("feature_service: %+v\n", featureService)
-	for key, value := range entitiesProto {
-		fmt.Printf("  entity %s | repeatedValue %+v\n", key, value)
-	}
-	for key, value := range requestContextProto {
-		fmt.Printf("  requestKey %s | repeatedValue %+v\n", key, value)
-	}
-	fmt.Printf("full_feature_names: %+v\n", request.FullFeatureNames)
-	fmt.Println()
-
 	featureVectors, err := s.fs.GetOnlineFeatures(
 		r.Context(),
 		request.Features,
@@ -189,11 +175,9 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error getting feature vector: %+v", err), http.StatusInternalServerError)
 	}
 
-	fmt.Printf("featureVectors: %+v\n", featureVectors)
 	var featureNames []string
 	var results []map[string]interface{}
 	for _, vector := range featureVectors {
-		fmt.Printf("  featureVector: %+v\n", *vector)
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
 		var statuses []string
