@@ -273,12 +273,19 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 
 @pytest.fixture(scope="session")
-def python_server(environment):
-    assert not _check_port_open("localhost", environment.get_local_server_port())
+def feature_server_endpoint(environment):
+    if (
+        not environment.python_feature_server
+        or environment.test_repo_config.provider != "local"
+    ):
+        yield environment.feature_store.get_feature_server_endpoint()
+        return
+
+    port = _free_port()
 
     proc = Process(
         target=start_test_local_server,
-        args=(environment.feature_store.repo_path, environment.get_local_server_port()),
+        args=(environment.feature_store.repo_path, port),
     )
     if (
         environment.python_feature_server
@@ -287,14 +294,10 @@ def python_server(environment):
         proc.start()
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (
-                None,
-                _check_port_open("localhost", environment.get_local_server_port()),
-            ),
-            timeout_secs=10,
+            lambda: (None, _check_port_open("localhost", port)), timeout_secs=10,
         )
 
-    yield
+    yield f"http://localhost:{port}"
 
     if proc.is_alive():
         proc.kill()
@@ -312,6 +315,12 @@ def python_server(environment):
 def _check_port_open(host, port) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         return sock.connect_ex((host, port)) == 0
+
+
+def _free_port():
+    sock = socket.socket()
+    sock.bind(("", 0))
+    return sock.getsockname()[1]
 
 
 @pytest.fixture(scope="session")

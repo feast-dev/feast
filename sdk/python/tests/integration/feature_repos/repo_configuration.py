@@ -2,7 +2,6 @@ import dataclasses
 import importlib
 import json
 import os
-import re
 import tempfile
 import uuid
 from dataclasses import dataclass
@@ -328,28 +327,9 @@ class Environment:
     worker_id: str
     online_store_creator: Optional[OnlineStoreCreator] = None
 
-    next_id = 0
-
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
         self.start_date: datetime = self.end_date - timedelta(days=3)
-
-        Environment.next_id += 1
-        self.id = Environment.next_id
-
-    def get_feature_server_endpoint(self) -> str:
-        if self.python_feature_server and self.test_repo_config.provider == "local":
-            return f"http://localhost:{self.get_local_server_port()}"
-        return self.feature_store.get_feature_server_endpoint()
-
-    def get_local_server_port(self) -> int:
-        # Heuristic when running with xdist to extract unique ports for each worker
-        parsed_worker_id = re.findall("gw(\\d+)", self.worker_id)
-        if len(parsed_worker_id) != 0:
-            worker_id_num = int(parsed_worker_id[0])
-        else:
-            worker_id_num = 0
-        return 6000 + 100 * worker_id_num + self.id
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
