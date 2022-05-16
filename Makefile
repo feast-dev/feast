@@ -206,7 +206,7 @@ push-ci-docker:
 
 # TODO(adchia): consider removing. This doesn't run successfully right now
 build-ci-docker:
-	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
+	docker buildx build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile --load .
 
 push-feature-server-python-aws-docker:
 		docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
@@ -228,9 +228,9 @@ push-feature-server-java-docker:
 	docker push $(REGISTRY)/feature-server-java:$(VERSION)
 
 build-feature-server-java-docker:
-	docker build --build-arg VERSION=$(VERSION) \
+	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
-		-f java/infra/docker/feature-server/Dockerfile .
+		-f java/infra/docker/feature-server/Dockerfile build .
 
 # Documentation
 

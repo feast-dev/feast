@@ -75,7 +75,8 @@ Note that this means if you are midway through working through a PR and rebase, 
 ## Feast Python SDK / CLI
 ### Environment Setup
 Setting up your development environment for Feast Python SDK / CLI:
-1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing.
+1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing, and build images for feature servers and other components.
+   1. Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
 2. Ensure that you have `make`, Python (3.7 and above) with `pip`, installed.
 3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
 ```sh
