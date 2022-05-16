@@ -1,4 +1,6 @@
-FROM python:3.7-slim
+FROM python:3.9-slim
+
+RUN apt-get update && apt-get install -y git
 
 # Copy app handler code
 COPY sdk/python/feast/infra/transformation_servers/app.py app.py
@@ -13,7 +15,7 @@ COPY README.md README.md
 
 
 # Install dependencies
-RUN pip3 install -e '.'
+RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir -e '.'
 
 # Start feature transformation server
 CMD [ "python", "app.py" ]
