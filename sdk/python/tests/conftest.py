@@ -274,10 +274,11 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 @pytest.fixture(scope="session")
 def python_server(environment):
+    assert not _check_port_open("localhost", environment.get_local_server_port())
+
     proc = Process(
         target=start_test_local_server,
         args=(environment.feature_store.repo_path, environment.get_local_server_port()),
-        daemon=True,
     )
     if (
         environment.python_feature_server
@@ -297,6 +298,15 @@ def python_server(environment):
 
     if proc.is_alive():
         proc.kill()
+
+        # wait server to free the port
+        wait_retry_backoff(
+            lambda: (
+                None,
+                not _check_port_open("localhost", environment.get_local_server_port()),
+            ),
+            timeout_secs=30,
+        )
 
 
 def _check_port_open(host, port) -> bool:
