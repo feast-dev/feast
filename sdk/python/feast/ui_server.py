@@ -16,9 +16,9 @@ def get_app(
     get_registry_dump: Callable,
     project_id: str,
     registry_ttl_secs: int,
+    host: str,
+    port: int,
 ):
-    ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
-
     app = FastAPI()
 
     app.add_middleware(
@@ -53,25 +53,24 @@ def get_app(
 
     async_refresh()
 
-    @app.get("/registry")
-    def read_registry():
-        return json.loads(registry_json)
-
-    # Generate projects-list json that points to the current repo's project
-    # TODO(adchia): Enable users to also add project name + description fields in feature_store.yaml
-    @app.get("/projects-list")
-    def projects_list():
-        projects = {
+    ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
+    # Initialize with the projects-list.json file
+    with open(ui_dir + "projects-list.json", mode="w") as f:
+        projects_dict = {
             "projects": [
                 {
                     "name": "Project",
                     "description": "Test project",
                     "id": project_id,
-                    "registryPath": "http://0.0.0.0:8888/registry",
+                    "registryPath": f"http://{host}:{port}/registry",
                 }
             ]
         }
-        return projects
+        f.write(json.dumps(projects_dict))
+
+    @app.get("/registry")
+    def read_registry():
+        return json.loads(registry_json)
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])
@@ -98,5 +97,5 @@ def start_server(
     project_id: str,
     registry_ttl_sec: int,
 ):
-    app = get_app(store, get_registry_dump, project_id, registry_ttl_sec)
+    app = get_app(store, get_registry_dump, project_id, registry_ttl_sec, host, port)
     uvicorn.run(app, host=host, port=port)

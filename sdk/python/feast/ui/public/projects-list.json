@@ -1,0 +1,11 @@
+{
+    "projects": [
+      {
+        "name": "Project",
+        "description": "Test project",
+        "id": "project_id",
+        "registryPath": "http://0.0.0.0:8888/registry"
+      }
+    ]
+  }
+  
