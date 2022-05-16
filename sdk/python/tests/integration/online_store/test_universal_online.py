@@ -288,6 +288,7 @@ def _get_online_features_dict_remotely(
 
 def get_online_features_dict(
     environment: Environment,
+    endpoint: str,
     features: Union[List[str], FeatureService],
     entity_rows: List[Dict[str, Any]],
     full_feature_names: bool = False,
@@ -305,7 +306,6 @@ def get_online_features_dict(
     assertpy.assert_that(online_features).is_not_none()
     dict1 = online_features.to_dict()
 
-    endpoint = environment.get_feature_server_endpoint()
     # If endpoint is None, it means that a local / remote feature server aren't configured
     if endpoint is not None:
         dict2 = _get_online_features_dict_remotely(
@@ -447,7 +447,7 @@ def test_online_retrieval_with_event_timestamps(
 @pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(
-    environment, universal_data_sources, python_server, full_feature_names
+    environment, universal_data_sources, feature_server_endpoint, full_feature_names
 ):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
@@ -547,6 +547,7 @@ def test_online_retrieval(
 
     online_features_dict = get_online_features_dict(
         environment=environment,
+        endpoint=feature_server_endpoint,
         features=feature_refs,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -556,6 +557,7 @@ def test_online_retrieval(
     # feature isn't requested.
     online_features_no_conv_rate = get_online_features_dict(
         environment=environment,
+        endpoint=feature_server_endpoint,
         features=[ref for ref in feature_refs if ref != "driver_stats:conv_rate"],
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -616,6 +618,7 @@ def test_online_retrieval(
     # Check what happens for missing values
     missing_responses_dict = get_online_features_dict(
         environment=environment,
+        endpoint=feature_server_endpoint,
         features=feature_refs,
         entity_rows=[{"driver_id": 0, "customer_id": 0, "val_to_add": 100}],
         full_feature_names=full_feature_names,
@@ -635,6 +638,7 @@ def test_online_retrieval(
     with pytest.raises(RequestDataNotFoundInEntityRowsException):
         get_online_features_dict(
             environment=environment,
+            endpoint=feature_server_endpoint,
             features=feature_refs,
             entity_rows=[{"driver_id": 0, "customer_id": 0}],
             full_feature_names=full_feature_names,
@@ -642,6 +646,7 @@ def test_online_retrieval(
 
     assert_feature_service_correctness(
         environment,
+        feature_server_endpoint,
         feature_service,
         entity_rows,
         full_feature_names,
@@ -659,6 +664,7 @@ def test_online_retrieval(
     ]
     assert_feature_service_entity_mapping_correctness(
         environment,
+        feature_server_endpoint,
         feature_service_entity_mapping,
         entity_rows,
         full_feature_names,
@@ -856,6 +862,7 @@ def get_latest_feature_values_for_location_df(entity_row, origin_df, destination
 
 def assert_feature_service_correctness(
     environment,
+    endpoint,
     feature_service,
     entity_rows,
     full_feature_names,
@@ -866,6 +873,7 @@ def assert_feature_service_correctness(
 ):
     feature_service_online_features_dict = get_online_features_dict(
         environment=environment,
+        endpoint=endpoint,
         features=feature_service,
         entity_rows=entity_rows,
         full_feature_names=full_feature_names,
@@ -905,6 +913,7 @@ def assert_feature_service_correctness(
 
 def assert_feature_service_entity_mapping_correctness(
     environment,
+    endpoint,
     feature_service,
     entity_rows,
     full_feature_names,
@@ -914,6 +923,7 @@ def assert_feature_service_entity_mapping_correctness(
     if full_feature_names:
         feature_service_online_features_dict = get_online_features_dict(
             environment=environment,
+            endpoint=endpoint,
             features=feature_service,
             entity_rows=entity_rows,
             full_feature_names=full_feature_names,
@@ -948,6 +958,7 @@ def assert_feature_service_entity_mapping_correctness(
         with pytest.raises(FeatureNameCollisionError):
             get_online_features_dict(
                 environment=environment,
+                endpoint=endpoint,
                 features=feature_service,
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,
