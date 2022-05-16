@@ -230,7 +230,7 @@ push-feature-server-java-docker:
 build-feature-server-java-docker:
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
-		-f java/infra/docker/feature-server/Dockerfile build .
+		-f java/infra/docker/feature-server/Dockerfile --load .
 
 # Documentation
 
