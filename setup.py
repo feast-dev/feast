@@ -272,7 +272,7 @@ def _generate_path_with_gopath():
     return path_val
 
 
-def _ensure_go_and_proto_toolchain():
+def _ensure_go_toolchain():
     try:
         version = subprocess.check_output(["go", "version"])
     except Exception as e:
@@ -284,14 +284,6 @@ def _ensure_go_and_proto_toolchain():
         raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
 
     path_val = _generate_path_with_gopath()
-
-    try:
-        subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
-        subprocess.check_call(
-            ["protoc-gen-go-grpc", "--version"], env={"PATH": path_val}
-        )
-    except Exception as e:
-        raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
 
 
 class BuildGoProtosCommand(Command):
@@ -333,7 +325,7 @@ class BuildCommand(build_py):
     def run(self):
         self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
-            _ensure_go_and_proto_toolchain()
+            _ensure_go_toolchain()
             self.run_command("build_go_protos")
 
         self.run_command("build_ext")
@@ -347,7 +339,7 @@ class DevelopCommand(develop):
         self.reinitialize_command("build_python_protos", inplace=1)
         self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
-            _ensure_go_and_proto_toolchain()
+            _ensure_go_toolchain()
             self.run_command("build_go_protos")
 
         develop.run(self)
