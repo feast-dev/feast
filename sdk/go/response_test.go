@@ -9,26 +9,34 @@ import (
 )
 
 var response = OnlineFeaturesResponse{
-	RawResponse: &serving.GetOnlineFeaturesResponse{
-		FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
-			{
-				Fields: map[string]*types.Value{
-					"featuretable1:feature1": Int64Val(1),
-					"featuretable1:feature2": {},
+	RawResponse: &serving.GetOnlineFeaturesResponseV2{
+		Metadata: &serving.GetOnlineFeaturesResponseMetadata{
+			FieldNames: &serving.FieldList{
+				Val: []string{
+					"featuretable1:feature1",
+					"featuretable1:feature2",
 				},
-				Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
-					"featuretable1:feature1": serving.GetOnlineFeaturesResponse_PRESENT,
-					"featuretable1:feature2": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+			},
+		},
+		Results: []*serving.GetOnlineFeaturesResponseV2_FieldVector{
+			{
+				Values: []*types.Value{
+					Int64Val(1),
+					{},
+				},
+				Statuses: []serving.FieldStatus{
+					serving.FieldStatus_PRESENT,
+					serving.FieldStatus_NULL_VALUE,
 				},
 			},
 			{
-				Fields: map[string]*types.Value{
-					"featuretable1:feature1": Int64Val(2),
-					"featuretable1:feature2": Int64Val(2),
+				Values: []*types.Value{
+					Int64Val(2),
+					Int64Val(2),
 				},
-				Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
-					"featuretable1:feature1": serving.GetOnlineFeaturesResponse_PRESENT,
-					"featuretable1:feature2": serving.GetOnlineFeaturesResponse_PRESENT,
+				Statuses: []serving.FieldStatus{
+					serving.FieldStatus_PRESENT,
+					serving.FieldStatus_PRESENT,
 				},
 			},
 		},
@@ -51,16 +59,16 @@ func TestOnlineFeaturesResponseToRow(t *testing.T) {
 	}
 }
 
-func TestOnlineFeaturesResponseoToStatuses(t *testing.T) {
+func TestOnlineFeaturesResponseToStatuses(t *testing.T) {
 	actual := response.Statuses()
-	expected := []map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+	expected := []map[string]serving.FieldStatus{
 		{
-			"featuretable1:feature1": serving.GetOnlineFeaturesResponse_PRESENT,
-			"featuretable1:feature2": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+			"featuretable1:feature1": serving.FieldStatus_PRESENT,
+			"featuretable1:feature2": serving.FieldStatus_NULL_VALUE,
 		},
 		{
-			"featuretable1:feature1": serving.GetOnlineFeaturesResponse_PRESENT,
-			"featuretable1:feature2": serving.GetOnlineFeaturesResponse_PRESENT,
+			"featuretable1:feature1": serving.FieldStatus_PRESENT,
+			"featuretable1:feature2": serving.FieldStatus_PRESENT,
 		},
 	}
 	if len(expected) != len(actual) {

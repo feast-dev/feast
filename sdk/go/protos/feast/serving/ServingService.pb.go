@@ -22,13 +22,9 @@
 package serving
 
 import (
-	context "context"
 	types "github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	_ "github.com/feast-dev/feast/sdk/go/protos/tensorflow_metadata/proto/v0"
 	proto "github.com/golang/protobuf/proto"
-	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -46,6 +42,74 @@ const (
 // This is a compile-time assertion that a sufficiently up-to-date version
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
+
+type FieldStatus int32
+
+const (
+	// Status is unset for this field.
+	FieldStatus_INVALID FieldStatus = 0
+	// Field value is present for this field and age is within max age.
+	FieldStatus_PRESENT FieldStatus = 1
+	// Values could be found for entity key and age is within max age, but
+	// this field value is assigned a value on ingestion into feast.
+	FieldStatus_NULL_VALUE FieldStatus = 2
+	// Entity key did not return any values as they do not exist in Feast.
+	// This could suggest that the feature values have not yet been ingested
+	// into feast or the ingestion failed.
+	FieldStatus_NOT_FOUND FieldStatus = 3
+	// Values could be found for entity key, but field values are outside the maximum
+	// allowable range.
+	FieldStatus_OUTSIDE_MAX_AGE FieldStatus = 4
+	// Values could be found for entity key, but are null and is due to ingestion failures
+	FieldStatus_INGESTION_FAILURE FieldStatus = 5
+)
+
+// Enum value maps for FieldStatus.
+var (
+	FieldStatus_name = map[int32]string{
+		0: "INVALID",
+		1: "PRESENT",
+		2: "NULL_VALUE",
+		3: "NOT_FOUND",
+		4: "OUTSIDE_MAX_AGE",
+		5: "INGESTION_FAILURE",
+	}
+	FieldStatus_value = map[string]int32{
+		"INVALID":           0,
+		"PRESENT":           1,
+		"NULL_VALUE":        2,
+		"NOT_FOUND":         3,
+		"OUTSIDE_MAX_AGE":   4,
+		"INGESTION_FAILURE": 5,
+	}
+)
+
+func (x FieldStatus) Enum() *FieldStatus {
+	p := new(FieldStatus)
+	*p = x
+	return p
+}
+
+func (x FieldStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FieldStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_feast_serving_ServingService_proto_enumTypes[0].Descriptor()
+}
+
+func (FieldStatus) Type() protoreflect.EnumType {
+	return &file_feast_serving_ServingService_proto_enumTypes[0]
+}
+
+func (x FieldStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FieldStatus.Descriptor instead.
+func (FieldStatus) EnumDescriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{0}
+}
 
 type FeastServingType int32
 
@@ -84,11 +148,11 @@ func (x FeastServingType) String() string {
 }
 
 func (FeastServingType) Descriptor() protoreflect.EnumDescriptor {
-	return file_feast_serving_ServingService_proto_enumTypes[0].Descriptor()
+	return file_feast_serving_ServingService_proto_enumTypes[1].Descriptor()
 }
 
 func (FeastServingType) Type() protoreflect.EnumType {
-	return &file_feast_serving_ServingService_proto_enumTypes[0]
+	return &file_feast_serving_ServingService_proto_enumTypes[1]
 }
 
 func (x FeastServingType) Number() protoreflect.EnumNumber {
@@ -97,75 +161,7 @@ func (x FeastServingType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FeastServingType.Descriptor instead.
 func (FeastServingType) EnumDescriptor() ([]byte, []int) {
-	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{0}
-}
-
-type GetOnlineFeaturesResponse_FieldStatus int32
-
-const (
-	// Status is unset for this field.
-	GetOnlineFeaturesResponse_INVALID GetOnlineFeaturesResponse_FieldStatus = 0
-	// Field value is present for this field and age is within max age.
-	GetOnlineFeaturesResponse_PRESENT GetOnlineFeaturesResponse_FieldStatus = 1
-	// Values could be found for entity key and age is within max age, but
-	// this field value is assigned a value on ingestion into feast.
-	GetOnlineFeaturesResponse_NULL_VALUE GetOnlineFeaturesResponse_FieldStatus = 2
-	// Entity key did not return any values as they do not exist in Feast.
-	// This could suggest that the feature values have not yet been ingested
-	// into feast or the ingestion failed.
-	GetOnlineFeaturesResponse_NOT_FOUND GetOnlineFeaturesResponse_FieldStatus = 3
-	// Values could be found for entity key, but field values are outside the maximum
-	// allowable range.
-	GetOnlineFeaturesResponse_OUTSIDE_MAX_AGE GetOnlineFeaturesResponse_FieldStatus = 4
-	// Values could be found for entity key, but are null and is due to ingestion failures
-	GetOnlineFeaturesResponse_INGESTION_FAILURE GetOnlineFeaturesResponse_FieldStatus = 5
-)
-
-// Enum value maps for GetOnlineFeaturesResponse_FieldStatus.
-var (
-	GetOnlineFeaturesResponse_FieldStatus_name = map[int32]string{
-		0: "INVALID",
-		1: "PRESENT",
-		2: "NULL_VALUE",
-		3: "NOT_FOUND",
-		4: "OUTSIDE_MAX_AGE",
-		5: "INGESTION_FAILURE",
-	}
-	GetOnlineFeaturesResponse_FieldStatus_value = map[string]int32{
-		"INVALID":           0,
-		"PRESENT":           1,
-		"NULL_VALUE":        2,
-		"NOT_FOUND":         3,
-		"OUTSIDE_MAX_AGE":   4,
-		"INGESTION_FAILURE": 5,
-	}
-)
-
-func (x GetOnlineFeaturesResponse_FieldStatus) Enum() *GetOnlineFeaturesResponse_FieldStatus {
-	p := new(GetOnlineFeaturesResponse_FieldStatus)
-	*p = x
-	return p
-}
-
-func (x GetOnlineFeaturesResponse_FieldStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (GetOnlineFeaturesResponse_FieldStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_feast_serving_ServingService_proto_enumTypes[1].Descriptor()
-}
-
-func (GetOnlineFeaturesResponse_FieldStatus) Type() protoreflect.EnumType {
-	return &file_feast_serving_ServingService_proto_enumTypes[1]
-}
-
-func (x GetOnlineFeaturesResponse_FieldStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use GetOnlineFeaturesResponse_FieldStatus.Descriptor instead.
-func (GetOnlineFeaturesResponse_FieldStatus) EnumDescriptor() ([]byte, []int) {
-	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{4, 0}
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{1}
 }
 
 type GetFeastServingInfoRequest struct {
@@ -449,6 +445,157 @@ func (x *GetOnlineFeaturesResponse) GetFieldValues() []*GetOnlineFeaturesRespons
 	return nil
 }
 
+type GetOnlineFeaturesResponseV2 struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Metadata *GetOnlineFeaturesResponseMetadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	// Length of "results" array should match length of requested features and entities.
+	// We also preserve the same order of features here as in metadata.field_names
+	Results []*GetOnlineFeaturesResponseV2_FieldVector `protobuf:"bytes,2,rep,name=results,proto3" json:"results,omitempty"`
+}
+
+func (x *GetOnlineFeaturesResponseV2) Reset() {
+	*x = GetOnlineFeaturesResponseV2{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_feast_serving_ServingService_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetOnlineFeaturesResponseV2) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOnlineFeaturesResponseV2) ProtoMessage() {}
+
+func (x *GetOnlineFeaturesResponseV2) ProtoReflect() protoreflect.Message {
+	mi := &file_feast_serving_ServingService_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOnlineFeaturesResponseV2.ProtoReflect.Descriptor instead.
+func (*GetOnlineFeaturesResponseV2) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetOnlineFeaturesResponseV2) GetMetadata() *GetOnlineFeaturesResponseMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *GetOnlineFeaturesResponseV2) GetResults() []*GetOnlineFeaturesResponseV2_FieldVector {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+type GetOnlineFeaturesResponseMetadata struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	FieldNames *FieldList `protobuf:"bytes,1,opt,name=field_names,json=fieldNames,proto3" json:"field_names,omitempty"`
+}
+
+func (x *GetOnlineFeaturesResponseMetadata) Reset() {
+	*x = GetOnlineFeaturesResponseMetadata{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_feast_serving_ServingService_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetOnlineFeaturesResponseMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOnlineFeaturesResponseMetadata) ProtoMessage() {}
+
+func (x *GetOnlineFeaturesResponseMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_feast_serving_ServingService_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOnlineFeaturesResponseMetadata.ProtoReflect.Descriptor instead.
+func (*GetOnlineFeaturesResponseMetadata) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetOnlineFeaturesResponseMetadata) GetFieldNames() *FieldList {
+	if x != nil {
+		return x.FieldNames
+	}
+	return nil
+}
+
+type FieldList struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Val []string `protobuf:"bytes,1,rep,name=val,proto3" json:"val,omitempty"`
+}
+
+func (x *FieldList) Reset() {
+	*x = FieldList{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_feast_serving_ServingService_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *FieldList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FieldList) ProtoMessage() {}
+
+func (x *FieldList) ProtoReflect() protoreflect.Message {
+	mi := &file_feast_serving_ServingService_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FieldList.ProtoReflect.Descriptor instead.
+func (*FieldList) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *FieldList) GetVal() []string {
+	if x != nil {
+		return x.Val
+	}
+	return nil
+}
+
 type GetOnlineFeaturesRequestV2_EntityRow struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -464,7 +611,7 @@ type GetOnlineFeaturesRequestV2_EntityRow struct {
 func (x *GetOnlineFeaturesRequestV2_EntityRow) Reset() {
 	*x = GetOnlineFeaturesRequestV2_EntityRow{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_feast_serving_ServingService_proto_msgTypes[5]
+		mi := &file_feast_serving_ServingService_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -477,7 +624,7 @@ func (x *GetOnlineFeaturesRequestV2_EntityRow) String() string {
 func (*GetOnlineFeaturesRequestV2_EntityRow) ProtoMessage() {}
 
 func (x *GetOnlineFeaturesRequestV2_EntityRow) ProtoReflect() protoreflect.Message {
-	mi := &file_feast_serving_ServingService_proto_msgTypes[5]
+	mi := &file_feast_serving_ServingService_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,13 +663,13 @@ type GetOnlineFeaturesResponse_FieldValues struct {
 	// Timestamps are not returned in this response.
 	Fields map[string]*types.Value `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Map of feature or entity name to feature/entity statuses/metadata.
-	Statuses map[string]GetOnlineFeaturesResponse_FieldStatus `protobuf:"bytes,2,rep,name=statuses,proto3" json:"statuses,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3,enum=feast.serving.GetOnlineFeaturesResponse_FieldStatus"`
+	Statuses map[string]FieldStatus `protobuf:"bytes,2,rep,name=statuses,proto3" json:"statuses,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3,enum=feast.serving.FieldStatus"`
 }
 
 func (x *GetOnlineFeaturesResponse_FieldValues) Reset() {
 	*x = GetOnlineFeaturesResponse_FieldValues{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_feast_serving_ServingService_proto_msgTypes[7]
+		mi := &file_feast_serving_ServingService_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -535,7 +682,7 @@ func (x *GetOnlineFeaturesResponse_FieldValues) String() string {
 func (*GetOnlineFeaturesResponse_FieldValues) ProtoMessage() {}
 
 func (x *GetOnlineFeaturesResponse_FieldValues) ProtoReflect() protoreflect.Message {
-	mi := &file_feast_serving_ServingService_proto_msgTypes[7]
+	mi := &file_feast_serving_ServingService_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,7 +705,62 @@ func (x *GetOnlineFeaturesResponse_FieldValues) GetFields() map[string]*types.Va
 	return nil
 }
 
-func (x *GetOnlineFeaturesResponse_FieldValues) GetStatuses() map[string]GetOnlineFeaturesResponse_FieldStatus {
+func (x *GetOnlineFeaturesResponse_FieldValues) GetStatuses() map[string]FieldStatus {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
+type GetOnlineFeaturesResponseV2_FieldVector struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Values   []*types.Value `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	Statuses []FieldStatus  `protobuf:"varint,2,rep,packed,name=statuses,proto3,enum=feast.serving.FieldStatus" json:"statuses,omitempty"`
+}
+
+func (x *GetOnlineFeaturesResponseV2_FieldVector) Reset() {
+	*x = GetOnlineFeaturesResponseV2_FieldVector{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_feast_serving_ServingService_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetOnlineFeaturesResponseV2_FieldVector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOnlineFeaturesResponseV2_FieldVector) ProtoMessage() {}
+
+func (x *GetOnlineFeaturesResponseV2_FieldVector) ProtoReflect() protoreflect.Message {
+	mi := &file_feast_serving_ServingService_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOnlineFeaturesResponseV2_FieldVector.ProtoReflect.Descriptor instead.
+func (*GetOnlineFeaturesResponseV2_FieldVector) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{5, 0}
+}
+
+func (x *GetOnlineFeaturesResponseV2_FieldVector) GetValues() []*types.Value {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+func (x *GetOnlineFeaturesResponseV2_FieldVector) GetStatuses() []FieldStatus {
 	if x != nil {
 		return x.Statuses
 	}
@@ -622,7 +824,7 @@ var file_feast_serving_ServingService_proto_rawDesc = []byte{
 	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x28, 0x0a, 0x05, 0x76, 0x61,
 	0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x66, 0x65, 0x61, 0x73,
 	0x74, 0x2e, 0x74, 0x79, 0x70, 0x65, 0x73, 0x2e, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x05, 0x76,
-	0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xf4, 0x04, 0x0a, 0x19, 0x47, 0x65, 0x74,
+	0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xe6, 0x03, 0x0a, 0x19, 0x47, 0x65, 0x74,
 	0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65,
 	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x57, 0x0a, 0x0c, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x5f,
 	0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x34, 0x2e, 0x66,
@@ -630,7 +832,7 @@ var file_feast_serving_ServingService_proto_rawDesc = []byte{
 	0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65,
 	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x56, 0x61, 0x6c, 0x75,
 	0x65, 0x73, 0x52, 0x0b, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x1a,
-	0x89, 0x03, 0x0a, 0x0b, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x12,
+	0xef, 0x02, 0x0a, 0x0b, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x12,
 	0x58, 0x0a, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32,
 	0x40, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e,
 	0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65,
@@ -647,50 +849,82 @@ var file_feast_serving_ServingService_proto_rawDesc = []byte{
 	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x28, 0x0a, 0x05, 0x76, 0x61,
 	0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x66, 0x65, 0x61, 0x73,
 	0x74, 0x2e, 0x74, 0x79, 0x70, 0x65, 0x73, 0x2e, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x05, 0x76,
-	0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x71, 0x0a, 0x0d, 0x53, 0x74, 0x61, 0x74,
+	0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x57, 0x0a, 0x0d, 0x53, 0x74, 0x61, 0x74,
 	0x75, 0x73, 0x65, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x4a, 0x0a, 0x05, 0x76,
-	0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x34, 0x2e, 0x66, 0x65, 0x61,
-	0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e,
-	0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
-	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x72, 0x0a, 0x0b, 0x46,
-	0x69, 0x65, 0x6c, 0x64, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x0b, 0x0a, 0x07, 0x49, 0x4e,
-	0x56, 0x41, 0x4c, 0x49, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x50, 0x52, 0x45, 0x53, 0x45,
-	0x4e, 0x54, 0x10, 0x01, 0x12, 0x0e, 0x0a, 0x0a, 0x4e, 0x55, 0x4c, 0x4c, 0x5f, 0x56, 0x41, 0x4c,
-	0x55, 0x45, 0x10, 0x02, 0x12, 0x0d, 0x0a, 0x09, 0x4e, 0x4f, 0x54, 0x5f, 0x46, 0x4f, 0x55, 0x4e,
-	0x44, 0x10, 0x03, 0x12, 0x13, 0x0a, 0x0f, 0x4f, 0x55, 0x54, 0x53, 0x49, 0x44, 0x45, 0x5f, 0x4d,
-	0x41, 0x58, 0x5f, 0x41, 0x47, 0x45, 0x10, 0x04, 0x12, 0x15, 0x0a, 0x11, 0x49, 0x4e, 0x47, 0x45,
-	0x53, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x46, 0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x05, 0x2a,
-	0x6f, 0x0a, 0x10, 0x46, 0x65, 0x61, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x54,
-	0x79, 0x70, 0x65, 0x12, 0x1e, 0x0a, 0x1a, 0x46, 0x45, 0x41, 0x53, 0x54, 0x5f, 0x53, 0x45, 0x52,
-	0x56, 0x49, 0x4e, 0x47, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x49, 0x4e, 0x56, 0x41, 0x4c, 0x49,
-	0x44, 0x10, 0x00, 0x12, 0x1d, 0x0a, 0x19, 0x46, 0x45, 0x41, 0x53, 0x54, 0x5f, 0x53, 0x45, 0x52,
-	0x56, 0x49, 0x4e, 0x47, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x4f, 0x4e, 0x4c, 0x49, 0x4e, 0x45,
-	0x10, 0x01, 0x12, 0x1c, 0x0a, 0x18, 0x46, 0x45, 0x41, 0x53, 0x54, 0x5f, 0x53, 0x45, 0x52, 0x56,
-	0x49, 0x4e, 0x47, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x41, 0x54, 0x43, 0x48, 0x10, 0x02,
-	0x32, 0xea, 0x01, 0x0a, 0x0e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x53, 0x65, 0x72, 0x76,
-	0x69, 0x63, 0x65, 0x12, 0x6c, 0x0a, 0x13, 0x47, 0x65, 0x74, 0x46, 0x65, 0x61, 0x73, 0x74, 0x53,
-	0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61,
-	0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x46, 0x65,
-	0x61, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2a, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65,
-	0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x46, 0x65, 0x61, 0x73, 0x74, 0x53, 0x65,
-	0x72, 0x76, 0x69, 0x6e, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x6a, 0x0a, 0x13, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65,
-	0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x56, 0x32, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74,
-	0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69,
-	0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x56, 0x32, 0x1a, 0x28, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x30, 0x0a, 0x05, 0x76,
+	0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1a, 0x2e, 0x66, 0x65, 0x61,
+	0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x46, 0x69, 0x65, 0x6c, 0x64,
+	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38,
+	0x01, 0x22, 0xb0, 0x02, 0x0a, 0x1b, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46,
+	0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x56,
+	0x32, 0x12, 0x4c, 0x0a, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x30, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76,
 	0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61,
-	0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x5e, 0x0a,
-	0x13, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x73, 0x65, 0x72,
-	0x76, 0x69, 0x6e, 0x67, 0x42, 0x0f, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x41, 0x50, 0x49,
-	0x50, 0x72, 0x6f, 0x74, 0x6f, 0x5a, 0x36, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
-	0x6d, 0x2f, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2d, 0x64, 0x65, 0x76, 0x2f, 0x66, 0x65, 0x61, 0x73,
-	0x74, 0x2f, 0x73, 0x64, 0x6b, 0x2f, 0x67, 0x6f, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x2f,
-	0x66, 0x65, 0x61, 0x73, 0x74, 0x2f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x62, 0x06, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x4d, 0x65, 0x74,
+	0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x12,
+	0x50, 0x0a, 0x07, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x36, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67,
+	0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72,
+	0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x56, 0x32, 0x2e, 0x46, 0x69, 0x65,
+	0x6c, 0x64, 0x56, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x52, 0x07, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74,
+	0x73, 0x1a, 0x71, 0x0a, 0x0b, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x56, 0x65, 0x63, 0x74, 0x6f, 0x72,
+	0x12, 0x2a, 0x0a, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x12, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x74, 0x79, 0x70, 0x65, 0x73, 0x2e, 0x56,
+	0x61, 0x6c, 0x75, 0x65, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x12, 0x36, 0x0a, 0x08,
+	0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0e, 0x32, 0x1a,
+	0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x46,
+	0x69, 0x65, 0x6c, 0x64, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x08, 0x73, 0x74, 0x61, 0x74,
+	0x75, 0x73, 0x65, 0x73, 0x22, 0x5e, 0x0a, 0x21, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e,
+	0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x12, 0x39, 0x0a, 0x0b, 0x66, 0x69, 0x65,
+	0x6c, 0x64, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18,
+	0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x46,
+	0x69, 0x65, 0x6c, 0x64, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x0a, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x4e,
+	0x61, 0x6d, 0x65, 0x73, 0x22, 0x1d, 0x0a, 0x09, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x4c, 0x69, 0x73,
+	0x74, 0x12, 0x10, 0x0a, 0x03, 0x76, 0x61, 0x6c, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x03,
+	0x76, 0x61, 0x6c, 0x2a, 0x72, 0x0a, 0x0b, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x53, 0x74, 0x61, 0x74,
+	0x75, 0x73, 0x12, 0x0b, 0x0a, 0x07, 0x49, 0x4e, 0x56, 0x41, 0x4c, 0x49, 0x44, 0x10, 0x00, 0x12,
+	0x0b, 0x0a, 0x07, 0x50, 0x52, 0x45, 0x53, 0x45, 0x4e, 0x54, 0x10, 0x01, 0x12, 0x0e, 0x0a, 0x0a,
+	0x4e, 0x55, 0x4c, 0x4c, 0x5f, 0x56, 0x41, 0x4c, 0x55, 0x45, 0x10, 0x02, 0x12, 0x0d, 0x0a, 0x09,
+	0x4e, 0x4f, 0x54, 0x5f, 0x46, 0x4f, 0x55, 0x4e, 0x44, 0x10, 0x03, 0x12, 0x13, 0x0a, 0x0f, 0x4f,
+	0x55, 0x54, 0x53, 0x49, 0x44, 0x45, 0x5f, 0x4d, 0x41, 0x58, 0x5f, 0x41, 0x47, 0x45, 0x10, 0x04,
+	0x12, 0x15, 0x0a, 0x11, 0x49, 0x4e, 0x47, 0x45, 0x53, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x46, 0x41,
+	0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x05, 0x2a, 0x6f, 0x0a, 0x10, 0x46, 0x65, 0x61, 0x73, 0x74,
+	0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x54, 0x79, 0x70, 0x65, 0x12, 0x1e, 0x0a, 0x1a, 0x46,
+	0x45, 0x41, 0x53, 0x54, 0x5f, 0x53, 0x45, 0x52, 0x56, 0x49, 0x4e, 0x47, 0x5f, 0x54, 0x59, 0x50,
+	0x45, 0x5f, 0x49, 0x4e, 0x56, 0x41, 0x4c, 0x49, 0x44, 0x10, 0x00, 0x12, 0x1d, 0x0a, 0x19, 0x46,
+	0x45, 0x41, 0x53, 0x54, 0x5f, 0x53, 0x45, 0x52, 0x56, 0x49, 0x4e, 0x47, 0x5f, 0x54, 0x59, 0x50,
+	0x45, 0x5f, 0x4f, 0x4e, 0x4c, 0x49, 0x4e, 0x45, 0x10, 0x01, 0x12, 0x1c, 0x0a, 0x18, 0x46, 0x45,
+	0x41, 0x53, 0x54, 0x5f, 0x53, 0x45, 0x52, 0x56, 0x49, 0x4e, 0x47, 0x5f, 0x54, 0x59, 0x50, 0x45,
+	0x5f, 0x42, 0x41, 0x54, 0x43, 0x48, 0x10, 0x02, 0x32, 0xd6, 0x02, 0x0a, 0x0e, 0x53, 0x65, 0x72,
+	0x76, 0x69, 0x6e, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x6c, 0x0a, 0x13, 0x47,
+	0x65, 0x74, 0x46, 0x65, 0x61, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x49, 0x6e,
+	0x66, 0x6f, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69,
+	0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x46, 0x65, 0x61, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69,
+	0x6e, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2a, 0x2e,
+	0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65,
+	0x74, 0x46, 0x65, 0x61, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x49, 0x6e, 0x66,
+	0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6a, 0x0a, 0x13, 0x47, 0x65, 0x74,
+	0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x56, 0x32,
+	0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67,
+	0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72,
+	0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x56, 0x32, 0x1a, 0x28, 0x2e, 0x66, 0x65,
+	0x61, 0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x4f,
+	0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6a, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69,
+	0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61,
+	0x73, 0x74, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e,
+	0x6c, 0x69, 0x6e, 0x65, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x56, 0x32, 0x1a, 0x2a, 0x2e, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x73, 0x65,
+	0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x46,
+	0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x56,
+	0x32, 0x42, 0x5e, 0x0a, 0x13, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x42, 0x0f, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e,
+	0x67, 0x41, 0x50, 0x49, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x5a, 0x36, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2d, 0x64, 0x65, 0x76, 0x2f,
+	0x66, 0x65, 0x61, 0x73, 0x74, 0x2f, 0x73, 0x64, 0x6b, 0x2f, 0x67, 0x6f, 0x2f, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x73, 0x2f, 0x66, 0x65, 0x61, 0x73, 0x74, 0x2f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e,
+	0x67, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -706,44 +940,55 @@ func file_feast_serving_ServingService_proto_rawDescGZIP() []byte {
 }
 
 var file_feast_serving_ServingService_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_feast_serving_ServingService_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_feast_serving_ServingService_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_feast_serving_ServingService_proto_goTypes = []interface{}{
-	(FeastServingType)(0),                        // 0: feast.serving.FeastServingType
-	(GetOnlineFeaturesResponse_FieldStatus)(0),   // 1: feast.serving.GetOnlineFeaturesResponse.FieldStatus
+	(FieldStatus)(0),                             // 0: feast.serving.FieldStatus
+	(FeastServingType)(0),                        // 1: feast.serving.FeastServingType
 	(*GetFeastServingInfoRequest)(nil),           // 2: feast.serving.GetFeastServingInfoRequest
 	(*GetFeastServingInfoResponse)(nil),          // 3: feast.serving.GetFeastServingInfoResponse
 	(*FeatureReferenceV2)(nil),                   // 4: feast.serving.FeatureReferenceV2
 	(*GetOnlineFeaturesRequestV2)(nil),           // 5: feast.serving.GetOnlineFeaturesRequestV2
 	(*GetOnlineFeaturesResponse)(nil),            // 6: feast.serving.GetOnlineFeaturesResponse
-	(*GetOnlineFeaturesRequestV2_EntityRow)(nil), // 7: feast.serving.GetOnlineFeaturesRequestV2.EntityRow
-	nil, // 8: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.FieldsEntry
-	(*GetOnlineFeaturesResponse_FieldValues)(nil), // 9: feast.serving.GetOnlineFeaturesResponse.FieldValues
-	nil,                           // 10: feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry
-	nil,                           // 11: feast.serving.GetOnlineFeaturesResponse.FieldValues.StatusesEntry
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*types.Value)(nil),           // 13: feast.types.Value
+	(*GetOnlineFeaturesResponseV2)(nil),          // 7: feast.serving.GetOnlineFeaturesResponseV2
+	(*GetOnlineFeaturesResponseMetadata)(nil),    // 8: feast.serving.GetOnlineFeaturesResponseMetadata
+	(*FieldList)(nil),                            // 9: feast.serving.FieldList
+	(*GetOnlineFeaturesRequestV2_EntityRow)(nil), // 10: feast.serving.GetOnlineFeaturesRequestV2.EntityRow
+	nil, // 11: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.FieldsEntry
+	(*GetOnlineFeaturesResponse_FieldValues)(nil), // 12: feast.serving.GetOnlineFeaturesResponse.FieldValues
+	nil, // 13: feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry
+	nil, // 14: feast.serving.GetOnlineFeaturesResponse.FieldValues.StatusesEntry
+	(*GetOnlineFeaturesResponseV2_FieldVector)(nil), // 15: feast.serving.GetOnlineFeaturesResponseV2.FieldVector
+	(*timestamppb.Timestamp)(nil),                   // 16: google.protobuf.Timestamp
+	(*types.Value)(nil),                             // 17: feast.types.Value
 }
 var file_feast_serving_ServingService_proto_depIdxs = []int32{
-	0,  // 0: feast.serving.GetFeastServingInfoResponse.type:type_name -> feast.serving.FeastServingType
+	1,  // 0: feast.serving.GetFeastServingInfoResponse.type:type_name -> feast.serving.FeastServingType
 	4,  // 1: feast.serving.GetOnlineFeaturesRequestV2.features:type_name -> feast.serving.FeatureReferenceV2
-	7,  // 2: feast.serving.GetOnlineFeaturesRequestV2.entity_rows:type_name -> feast.serving.GetOnlineFeaturesRequestV2.EntityRow
-	9,  // 3: feast.serving.GetOnlineFeaturesResponse.field_values:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues
-	12, // 4: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.timestamp:type_name -> google.protobuf.Timestamp
-	8,  // 5: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.fields:type_name -> feast.serving.GetOnlineFeaturesRequestV2.EntityRow.FieldsEntry
-	13, // 6: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.FieldsEntry.value:type_name -> feast.types.Value
-	10, // 7: feast.serving.GetOnlineFeaturesResponse.FieldValues.fields:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry
-	11, // 8: feast.serving.GetOnlineFeaturesResponse.FieldValues.statuses:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues.StatusesEntry
-	13, // 9: feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.value:type_name -> feast.types.Value
-	1,  // 10: feast.serving.GetOnlineFeaturesResponse.FieldValues.StatusesEntry.value:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldStatus
-	2,  // 11: feast.serving.ServingService.GetFeastServingInfo:input_type -> feast.serving.GetFeastServingInfoRequest
-	5,  // 12: feast.serving.ServingService.GetOnlineFeaturesV2:input_type -> feast.serving.GetOnlineFeaturesRequestV2
-	3,  // 13: feast.serving.ServingService.GetFeastServingInfo:output_type -> feast.serving.GetFeastServingInfoResponse
-	6,  // 14: feast.serving.ServingService.GetOnlineFeaturesV2:output_type -> feast.serving.GetOnlineFeaturesResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	10, // 2: feast.serving.GetOnlineFeaturesRequestV2.entity_rows:type_name -> feast.serving.GetOnlineFeaturesRequestV2.EntityRow
+	12, // 3: feast.serving.GetOnlineFeaturesResponse.field_values:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues
+	8,  // 4: feast.serving.GetOnlineFeaturesResponseV2.metadata:type_name -> feast.serving.GetOnlineFeaturesResponseMetadata
+	15, // 5: feast.serving.GetOnlineFeaturesResponseV2.results:type_name -> feast.serving.GetOnlineFeaturesResponseV2.FieldVector
+	9,  // 6: feast.serving.GetOnlineFeaturesResponseMetadata.field_names:type_name -> feast.serving.FieldList
+	16, // 7: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.timestamp:type_name -> google.protobuf.Timestamp
+	11, // 8: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.fields:type_name -> feast.serving.GetOnlineFeaturesRequestV2.EntityRow.FieldsEntry
+	17, // 9: feast.serving.GetOnlineFeaturesRequestV2.EntityRow.FieldsEntry.value:type_name -> feast.types.Value
+	13, // 10: feast.serving.GetOnlineFeaturesResponse.FieldValues.fields:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry
+	14, // 11: feast.serving.GetOnlineFeaturesResponse.FieldValues.statuses:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues.StatusesEntry
+	17, // 12: feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.value:type_name -> feast.types.Value
+	0,  // 13: feast.serving.GetOnlineFeaturesResponse.FieldValues.StatusesEntry.value:type_name -> feast.serving.FieldStatus
+	17, // 14: feast.serving.GetOnlineFeaturesResponseV2.FieldVector.values:type_name -> feast.types.Value
+	0,  // 15: feast.serving.GetOnlineFeaturesResponseV2.FieldVector.statuses:type_name -> feast.serving.FieldStatus
+	2,  // 16: feast.serving.ServingService.GetFeastServingInfo:input_type -> feast.serving.GetFeastServingInfoRequest
+	5,  // 17: feast.serving.ServingService.GetOnlineFeaturesV2:input_type -> feast.serving.GetOnlineFeaturesRequestV2
+	5,  // 18: feast.serving.ServingService.GetOnlineFeatures:input_type -> feast.serving.GetOnlineFeaturesRequestV2
+	3,  // 19: feast.serving.ServingService.GetFeastServingInfo:output_type -> feast.serving.GetFeastServingInfoResponse
+	6,  // 20: feast.serving.ServingService.GetOnlineFeaturesV2:output_type -> feast.serving.GetOnlineFeaturesResponse
+	7,  // 21: feast.serving.ServingService.GetOnlineFeatures:output_type -> feast.serving.GetOnlineFeaturesResponseV2
+	19, // [19:22] is the sub-list for method output_type
+	16, // [16:19] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_feast_serving_ServingService_proto_init() }
@@ -813,7 +1058,19 @@ func file_feast_serving_ServingService_proto_init() {
 			}
 		}
 		file_feast_serving_ServingService_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetOnlineFeaturesRequestV2_EntityRow); i {
+			switch v := v.(*GetOnlineFeaturesResponseV2); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_feast_serving_ServingService_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetOnlineFeaturesResponseMetadata); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -825,7 +1082,43 @@ func file_feast_serving_ServingService_proto_init() {
 			}
 		}
 		file_feast_serving_ServingService_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FieldList); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_feast_serving_ServingService_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetOnlineFeaturesRequestV2_EntityRow); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_feast_serving_ServingService_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetOnlineFeaturesResponse_FieldValues); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_feast_serving_ServingService_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetOnlineFeaturesResponseV2_FieldVector); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -843,7 +1136,7 @@ func file_feast_serving_ServingService_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_feast_serving_ServingService_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -856,124 +1149,4 @@ func file_feast_serving_ServingService_proto_init() {
 	file_feast_serving_ServingService_proto_rawDesc = nil
 	file_feast_serving_ServingService_proto_goTypes = nil
 	file_feast_serving_ServingService_proto_depIdxs = nil
-}
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConnInterface
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
-
-// ServingServiceClient is the client API for ServingService service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type ServingServiceClient interface {
-	// Get information about this Feast serving.
-	GetFeastServingInfo(ctx context.Context, in *GetFeastServingInfoRequest, opts ...grpc.CallOption) (*GetFeastServingInfoResponse, error)
-	// Get online features (v2) synchronously.
-	GetOnlineFeaturesV2(ctx context.Context, in *GetOnlineFeaturesRequestV2, opts ...grpc.CallOption) (*GetOnlineFeaturesResponse, error)
-}
-
-type servingServiceClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewServingServiceClient(cc grpc.ClientConnInterface) ServingServiceClient {
-	return &servingServiceClient{cc}
-}
-
-func (c *servingServiceClient) GetFeastServingInfo(ctx context.Context, in *GetFeastServingInfoRequest, opts ...grpc.CallOption) (*GetFeastServingInfoResponse, error) {
-	out := new(GetFeastServingInfoResponse)
-	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetFeastServingInfo", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *servingServiceClient) GetOnlineFeaturesV2(ctx context.Context, in *GetOnlineFeaturesRequestV2, opts ...grpc.CallOption) (*GetOnlineFeaturesResponse, error) {
-	out := new(GetOnlineFeaturesResponse)
-	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetOnlineFeaturesV2", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// ServingServiceServer is the server API for ServingService service.
-type ServingServiceServer interface {
-	// Get information about this Feast serving.
-	GetFeastServingInfo(context.Context, *GetFeastServingInfoRequest) (*GetFeastServingInfoResponse, error)
-	// Get online features (v2) synchronously.
-	GetOnlineFeaturesV2(context.Context, *GetOnlineFeaturesRequestV2) (*GetOnlineFeaturesResponse, error)
-}
-
-// UnimplementedServingServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedServingServiceServer struct {
-}
-
-func (*UnimplementedServingServiceServer) GetFeastServingInfo(context.Context, *GetFeastServingInfoRequest) (*GetFeastServingInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFeastServingInfo not implemented")
-}
-func (*UnimplementedServingServiceServer) GetOnlineFeaturesV2(context.Context, *GetOnlineFeaturesRequestV2) (*GetOnlineFeaturesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetOnlineFeaturesV2 not implemented")
-}
-
-func RegisterServingServiceServer(s *grpc.Server, srv ServingServiceServer) {
-	s.RegisterService(&_ServingService_serviceDesc, srv)
-}
-
-func _ServingService_GetFeastServingInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFeastServingInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServingServiceServer).GetFeastServingInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/feast.serving.ServingService/GetFeastServingInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServingServiceServer).GetFeastServingInfo(ctx, req.(*GetFeastServingInfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ServingService_GetOnlineFeaturesV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetOnlineFeaturesRequestV2)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServingServiceServer).GetOnlineFeaturesV2(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/feast.serving.ServingService/GetOnlineFeaturesV2",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServingServiceServer).GetOnlineFeaturesV2(ctx, req.(*GetOnlineFeaturesRequestV2))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _ServingService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "feast.serving.ServingService",
-	HandlerType: (*ServingServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "GetFeastServingInfo",
-			Handler:    _ServingService_GetFeastServingInfo_Handler,
-		},
-		{
-			MethodName: "GetOnlineFeaturesV2",
-			Handler:    _ServingService_GetOnlineFeaturesV2_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "feast/serving/ServingService.proto",
 }

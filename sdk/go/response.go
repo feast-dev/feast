@@ -10,33 +10,53 @@ var (
 	// ErrLengthMismatch indicates that the number of values returned is not the same as the number of values requested
 	ErrLengthMismatch = "Length mismatch; number of na values (%d) not equal to number of features requested (%d)."
 
-	// ErrFeatureNotFound indicates that the a requested feature was not found in the response
+	// ErrFeatureNotFound indicates that the requested feature was not found in the response
 	ErrFeatureNotFound = "Feature %s not found in response."
 
 	// ErrTypeMismatch indicates that the there was a type mismatch in the returned values
 	ErrTypeMismatch = "Requested output of type %s does not match type of feature value returned."
 )
 
-// OnlineFeaturesResponse is a wrapper around serving.GetOnlineFeaturesResponse.
+// internal func to find index of element in array
+func indexOf(element string, data []string) int {
+	for k, v := range data {
+		if element == v {
+			return k
+		}
+	}
+	return -1 // element not found
+}
+
+// OnlineFeaturesResponse is a wrapper around serving.GetOnlineFeaturesResponseV2.
 type OnlineFeaturesResponse struct {
-	RawResponse *serving.GetOnlineFeaturesResponse
+	RawResponse *serving.GetOnlineFeaturesResponseV2
 }
 
 // Rows retrieves the result of the request as a list of Rows.
 func (r OnlineFeaturesResponse) Rows() []Row {
-	rows := make([]Row, len(r.RawResponse.FieldValues))
-	for i, fieldValues := range r.RawResponse.FieldValues {
-		rows[i] = fieldValues.Fields
+	rows := make([]Row, len(r.RawResponse.Results))
+	fieldNames := r.RawResponse.Metadata.FieldNames.Val
+	for i, fieldVector := range r.RawResponse.Results {
+		row := make(Row)
+		for idx, fieldName := range fieldNames {
+			row[fieldName] = fieldVector.Values[idx]
+		}
+		rows[i] = row
 	}
 	return rows
 }
 
 // Statuses retrieves field level status metadata for each row in Rows().
 // Each status map returned maps status 1:1 to each returned row from Rows()
-func (r OnlineFeaturesResponse) Statuses() []map[string]serving.GetOnlineFeaturesResponse_FieldStatus {
-	statuses := make([]map[string]serving.GetOnlineFeaturesResponse_FieldStatus, len(r.RawResponse.FieldValues))
-	for i, fieldValues := range r.RawResponse.FieldValues {
-		statuses[i] = fieldValues.Statuses
+func (r OnlineFeaturesResponse) Statuses() []map[string]serving.FieldStatus {
+	statuses := make([]map[string]serving.FieldStatus, len(r.RawResponse.Results))
+	fieldNames := r.RawResponse.Metadata.FieldNames.Val
+	for i, fieldVector := range r.RawResponse.Results {
+		status := make(map[string]serving.FieldStatus)
+		for idx, fieldName := range fieldNames {
+			status[fieldName] = fieldVector.Statuses[idx]
+		}
+		statuses[i] = status
 	}
 	return statuses
 }
@@ -44,17 +64,19 @@ func (r OnlineFeaturesResponse) Statuses() []map[string]serving.GetOnlineFeature
 // Int64Arrays retrieves the result of the request as a list of int64 slices. Any missing values will be filled
 // with the missing values provided.
 func (r OnlineFeaturesResponse) Int64Arrays(order []string, fillNa []int64) ([][]int64, error) {
-	rows := make([][]int64, len(r.RawResponse.FieldValues))
+	rows := make([][]int64, len(r.RawResponse.Results))
 	if len(fillNa) != len(order) {
 		return nil, fmt.Errorf(ErrLengthMismatch, len(fillNa), len(order))
 	}
-	for i, fieldValues := range r.RawResponse.FieldValues {
+	fieldNames := r.RawResponse.Metadata.FieldNames.Val
+	for i, fieldVector := range r.RawResponse.Results {
 		rows[i] = make([]int64, len(order))
 		for j, fname := range order {
-			value, exists := fieldValues.Fields[fname]
-			if !exists {
+			findex := indexOf(fname, fieldNames)
+			if findex == -1 {
 				return nil, fmt.Errorf(ErrFeatureNotFound, fname)
 			}
+			value := fieldVector.Values[findex]
 			valType := value.GetVal()
 			if valType == nil {
 				rows[i][j] = fillNa[j]
@@ -71,17 +93,19 @@ func (r OnlineFeaturesResponse) Int64Arrays(order []string, fillNa []int64) ([][
 // Float64Arrays retrieves the result of the request as a list of float64 slices. Any missing values will be filled
 // with the missing values provided.
 func (r OnlineFeaturesResponse) Float64Arrays(order []string, fillNa []float64) ([][]float64, error) {
-	rows := make([][]float64, len(r.RawResponse.FieldValues))
+	rows := make([][]float64, len(r.RawResponse.Results))
 	if len(fillNa) != len(order) {
 		return nil, fmt.Errorf(ErrLengthMismatch, len(fillNa), len(order))
 	}
-	for i, records := range r.RawResponse.FieldValues {
+	fieldNames := r.RawResponse.Metadata.FieldNames.Val
+	for i, fieldVector := range r.RawResponse.Results {
 		rows[i] = make([]float64, len(order))
 		for j, fname := range order {
-			value, exists := records.Fields[fname]
-			if !exists {
+			findex := indexOf(fname, fieldNames)
+			if findex == -1 {
 				return nil, fmt.Errorf(ErrFeatureNotFound, fname)
 			}
+			value := fieldVector.Values[findex]
 			valType := value.GetVal()
 			if valType == nil {
 				rows[i][j] = fillNa[j]

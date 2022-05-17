@@ -15,7 +15,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 	tt := []struct {
 		name    string
 		req     OnlineFeaturesRequest
-		recieve OnlineFeaturesResponse
+		receive OnlineFeaturesResponse
 		want    OnlineFeaturesResponse
 		wantErr bool
 		err     error
@@ -33,16 +33,27 @@ func TestGetOnlineFeatures(t *testing.T) {
 				Project: "driver_project",
 			},
 			want: OnlineFeaturesResponse{
-				RawResponse: &serving.GetOnlineFeaturesResponse{
-					FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
-						{
-							Fields: map[string]*types.Value{
-								"driver:rating":     Int64Val(1),
-								"driver:null_value": {},
+				RawResponse: &serving.GetOnlineFeaturesResponseV2{
+					Metadata: &serving.GetOnlineFeaturesResponseMetadata{
+						FieldNames: &serving.FieldList{
+							Val: []string{
+								"driver_id",
+								"driver:rating",
+								"driver:null_value",
 							},
-							Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
-								"driver:rating":     serving.GetOnlineFeaturesResponse_PRESENT,
-								"driver:null_value": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+						},
+					},
+					Results: []*serving.GetOnlineFeaturesResponseV2_FieldVector{
+						{
+							Values: []*types.Value{
+								Int64Val(1),
+								Int64Val(1),
+								{},
+							},
+							Statuses: []serving.FieldStatus{
+								serving.FieldStatus_PRESENT,
+								serving.FieldStatus_PRESENT,
+								serving.FieldStatus_NULL_VALUE,
 							},
 						},
 					},
@@ -53,14 +64,14 @@ func TestGetOnlineFeatures(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			// mock feast grpc client get online feature requestss
+			// mock feast grpc client get online feature requests
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cli := mock_serving.NewMockServingServiceClient(ctrl)
 			ctx := context.Background()
 			rawRequest, _ := tc.req.buildRequest()
 			resp := tc.want.RawResponse
-			cli.EXPECT().GetOnlineFeaturesV2(ctx, rawRequest).Return(resp, nil).Times(1)
+			cli.EXPECT().GetOnlineFeatures(ctx, rawRequest).Return(resp, nil).Times(1)
 
 			client := &GrpcClient{
 				cli: cli,
