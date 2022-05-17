@@ -201,6 +201,37 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
             runner.run(["teardown"], cwd=repo_path)
 
 
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+def test_odfv_apply(environment) -> None:
+    project = f"test_odfv_apply{str(uuid.uuid4()).replace('-', '')[:8]}"
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+        try:
+            repo_path = Path(repo_dir_name)
+            feature_store_yaml = make_feature_store_yaml(
+                project, environment.test_repo_config, repo_path
+            )
+
+            repo_config = repo_path / "feature_store.yaml"
+
+            repo_config.write_text(dedent(feature_store_yaml))
+
+            repo_example = repo_path / "example.py"
+            repo_example.write_text(get_example_repo("on_demand_feature_view_repo.py"))
+            result = runner.run(["apply"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+
+            # entity & feature view list commands should succeed
+            result = runner.run(["entities", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            result = runner.run(["on-demand-feature-views", "list"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+        finally:
+            runner.run(["teardown"], cwd=repo_path)
+
+
 @contextmanager
 def setup_third_party_provider_repo(provider_name: str):
     with tempfile.TemporaryDirectory() as repo_dir_name:

@@ -1,8 +1,9 @@
 import copy
 import functools
 import warnings
+from datetime import datetime
 from types import MethodType
-from typing import Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
@@ -442,6 +443,15 @@ class OnDemandFeatureView(BaseFeatureView):
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
+        rand_df_value: Dict[str, Any] = {
+            "float": 1.0,
+            "int": 1,
+            "str": "hello world",
+            "bytes": str.encode("hello world"),
+            "bool": True,
+            "datetime64[ns]": datetime.utcnow(),
+        }
+
         df = pd.DataFrame()
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
@@ -449,11 +459,13 @@ class OnDemandFeatureView(BaseFeatureView):
                 df[f"{feature_view_projection.name}__{feature.name}"] = pd.Series(
                     dtype=dtype
                 )
-                df[f"{feature.name}"] = pd.Series(dtype=dtype)
+                sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
+                df[f"{feature.name}"] = pd.Series(data=sample_val, dtype=dtype)
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
                 dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
-                df[f"{field.name}"] = pd.Series(dtype=dtype)
+                sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
+                df[f"{field.name}"] = pd.Series(sample_val, dtype=dtype)
         output_df: pd.DataFrame = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
