@@ -127,13 +127,10 @@ CI_REQUIRED = (
         "flake8",
         "black==19.10b0",
         "isort>=5,<6",
-        "grpcio-tools==1.44.0",
-        "grpcio-testing==1.44.0",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto",
         "mypy==0.931",
-        "mypy-protobuf==3.1",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0"
         "urllib3>=1.25.4,<2",
@@ -175,7 +172,7 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
 )
 
-DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing==1.*"] + CI_REQUIRED
+DEV_REQUIRED = CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
@@ -236,7 +233,10 @@ class BuildPythonProtosCommand(Command):
                 "protos/buf.python.gen.yaml",
                 self.proto_folder
             ],
-            env={"PATH": self.path_val},
+            env={
+                "PATH": self.path_val,
+                "HOME": os.environ.get("HOME"),
+            },
         )
 
         for sub_folder in Path(self.python_folder).rglob("**/"):
@@ -317,7 +317,10 @@ class BuildGoProtosCommand(Command):
                     "protos/buf.go.gen.yaml",
                     self.proto_folder
                 ],
-                env={"PATH": self.path_val},
+                env={
+                    "PATH": self.path_val,
+                    "HOME": os.environ.get("HOME"),
+                },
             )
         except CalledProcessError as e:
             print(f"Stderr: {e.stderr}")
@@ -457,9 +460,6 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
-        "grpcio",
-        "grpcio-tools==1.44.0",
-        "mypy-protobuf==3.1",
         "sphinx!=4.0.0",
     ],
     cmdclass={
